@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: saffron-hive
+  namespace: home
+  labels:
+    app.kubernetes.io/name: saffron-hive
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: saffron-hive
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
