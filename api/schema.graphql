@@ -1,0 +1,175 @@
+scalar DateTime
+
+union DeviceState = LightState | SensorState | SwitchState
+
+type Device {
+  id: ID!
+  name: String!
+  source: String!
+  type: String!
+  available: Boolean!
+  lastSeen: DateTime!
+  state: DeviceState
+}
+
+type LightState {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: Color
+  transition: Float
+}
+
+type SensorState {
+  temperature: Float
+  humidity: Float
+  battery: Int
+  pressure: Float
+  illuminance: Float
+}
+
+type SwitchState {
+  action: String
+}
+
+type Color {
+  r: Int!
+  g: Int!
+  b: Int!
+  x: Float!
+  y: Float!
+}
+
+type Scene {
+  id: ID!
+  name: String!
+  actions: [SceneAction!]!
+}
+
+type SceneAction {
+  id: ID!
+  deviceId: ID!
+  payload: String!
+}
+
+type Automation {
+  id: ID!
+  name: String!
+  enabled: Boolean!
+  triggerEvent: String!
+  conditionExpr: String!
+  cooldownSeconds: Int!
+  actions: [AutomationAction!]!
+}
+
+type AutomationAction {
+  id: ID!
+  actionType: String!
+  deviceId: ID
+  payload: String!
+}
+
+type SensorReading {
+  id: ID!
+  deviceId: ID!
+  temperature: Float
+  humidity: Float
+  battery: Int
+  pressure: Float
+  illuminance: Float
+  recordedAt: DateTime!
+}
+
+type DeviceStateEvent {
+  deviceId: ID!
+  state: DeviceState!
+}
+
+type DeviceAvailabilityEvent {
+  deviceId: ID!
+  available: Boolean!
+}
+
+input LightStateInput {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: ColorInput
+  transition: Float
+}
+
+input ColorInput {
+  r: Int!
+  g: Int!
+  b: Int!
+  x: Float!
+  y: Float!
+}
+
+input CreateSceneInput {
+  name: String!
+  actions: [SceneActionInput!]!
+}
+
+input SceneActionInput {
+  deviceId: ID!
+  payload: String!
+}
+
+input UpdateSceneInput {
+  name: String
+  actions: [SceneActionInput!]
+}
+
+input CreateAutomationInput {
+  name: String!
+  enabled: Boolean!
+  triggerEvent: String!
+  conditionExpr: String!
+  cooldownSeconds: Int!
+  actions: [AutomationActionInput!]!
+}
+
+input AutomationActionInput {
+  actionType: String!
+  deviceId: ID
+  payload: String!
+}
+
+input UpdateAutomationInput {
+  name: String
+  enabled: Boolean
+  triggerEvent: String
+  conditionExpr: String
+  cooldownSeconds: Int
+  actions: [AutomationActionInput!]
+}
+
+type Query {
+  devices: [Device!]!
+  device(id: ID!): Device
+  scenes: [Scene!]!
+  scene(id: ID!): Scene
+  automations: [Automation!]!
+  automation(id: ID!): Automation
+  sensorHistory(deviceId: ID!, from: DateTime, to: DateTime, limit: Int): [SensorReading!]!
+}
+
+type Mutation {
+  setDeviceState(deviceId: ID!, state: LightStateInput!): Device!
+  applyScene(sceneId: ID!): Scene!
+  createScene(input: CreateSceneInput!): Scene!
+  updateScene(id: ID!, input: UpdateSceneInput!): Scene!
+  deleteScene(id: ID!): Boolean!
+  createAutomation(input: CreateAutomationInput!): Automation!
+  updateAutomation(id: ID!, input: UpdateAutomationInput!): Automation!
+  deleteAutomation(id: ID!): Boolean!
+  toggleAutomation(id: ID!, enabled: Boolean!): Automation!
+}
+
+type Subscription {
+  deviceStateChanged(deviceId: ID): DeviceStateEvent!
+  deviceAvailabilityChanged: DeviceAvailabilityEvent!
+  deviceAdded: Device!
+  deviceRemoved: ID!
+}
