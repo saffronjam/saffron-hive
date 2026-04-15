@@ -1,0 +1,27 @@
+# Go
+saffron-hive
+*.exe
+*.db
+*.db-journal
+*.db-wal
+
+# Frontend (build output embedded into Go binary)
+web/build/
+web/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Temp
+/tmp/

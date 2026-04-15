@@ -1,0 +1,126 @@
+# Saffron Hive
+
+An independent home automation platform — a from-scratch alternative to Home Assistant, not a companion to it. Saffron Hive re-implements the core function areas of HA (device control, scenes, automations, sensor monitoring, dashboards) as a single lightweight service, fully defined in code rather than through UI configuration.
+
+## What this is
+
+A standalone home automation system. It connects to the same MQTT broker and zigbee2mqtt instance that Home Assistant uses, but operates as a complete replacement for HA's device management, scene engine, automation engine, and dashboard (Lovelace). The goal is to own every layer of the stack, understand how it works, and have full control through code.
+
+The only shared dependency is the infrastructure layer: Mosquitto (MQTT broker) and zigbee2mqtt (Zigbee-to-MQTT bridge). These are protocol utilities, not part of Home Assistant — they exist independently.
+
+The system is protocol-agnostic at its core. Zigbee, WiFi, and future device types are handled by separate adapters that map to a generic device model. Starting with Zigbee, but designed to absorb more protocols over time (WiFi bulbs, Sonos, Spotify, etc.) — the same integrations that make HA powerful, rebuilt from scratch.
+
+## Architecture
+
+### Stack
+- **Backend:** Go
+- **Frontend:** Svelte + shadcn-svelte + Tailwind (bun as package manager and runtime)
+- **Database:** SQLite (via golang-migrate for migrations, sqlc for type-safe queries)
+- **API:** GraphQL — schema as single source of truth, generating Go types and resolver interfaces (gqlgen) and TypeScript types and typed hooks (graphql-codegen). Queries and mutations over HTTP, subscriptions over WebSocket — one unified protocol for all client-server communication.
+- **Message bus:** External Mosquitto MQTT broker (shared with zigbee2mqtt and Home Assistant)
+- **Deployment:** Single container (Go binary with embedded frontend assets via go:embed), deployed to Kubernetes via ArgoCD
+
+### Event bus
+An in-process channel-based event bus. All components communicate through published events, not direct calls. The bus is defined as an interface (Publisher/Subscriber) so the implementation can be swapped later.
+
+Events have a generic envelope (type, device ID, timestamp) with a typed payload (`any`). Subscribers filter by event type and type-assert the payload to the expected domain type. Payload types are well-defined structs (LightState, SensorState, etc.) — the bus itself is generic, the payloads are not.
+
+Event types:
+- `device.state_changed` — device reported new state (partial update, pointer fields for optional values)
+- `device.availability_changed` — device online/offline
+- `device.added` / `device.removed` — device registry changes
+- `command.requested` — user or automation wants to set a device state
+- `scene.applied` — a scene was activated
+- `automation.triggered` — a rule matched and produced commands
+
+Flow: MQTT message arrives -> adapter parses MQTT DTO -> maps to domain types -> publishes event on bus -> subscribers react (state store, automation engine, GraphQL subscription resolvers).
+
+### Protocol adapters
+Each protocol lives in its own adapter package. An adapter handles:
+- Device discovery (subscribing to protocol-specific topics)
+- Mapping protocol-specific device identifiers to generic devices
+- Translating incoming state into generic events
+- Translating outgoing commands into protocol-specific messages
+
+Zigbee adapter (via zigbee2mqtt) is the first and primary adapter.
+
+### Device model
+Devices are protocol-agnostic at the core. A generic `devices` table holds the common fields (id, name, source, type, availability). Protocol-specific tables (e.g. `zigbee_devices`) store adapter-specific fields (ieee_address, friendly_name) and reference the generic device by foreign key.
+
+Scenes, automations, and the dashboard reference generic device IDs only.
+
+### State management
+- Device state is populated on startup from MQTT retained messages
+- The zigbee2mqtt `bridge/devices` topic is the authoritative registry for Zigbee device discovery
+- Devices removed from zigbee2mqtt are soft-deleted (marked as removed, not purged) to preserve scene/automation references
+- Availability is tracked per device via zigbee2mqtt's availability feature
+
+### Scenes
+A scene is a named collection of desired device states. Applying a scene publishes commands for each device. Zigbee groups can be used for synchronized multi-device commands where supported.
+
+### Automations
+Event-driven rules defined as trigger type + condition expression + action list.
+
+Conditions are evaluated using expr-lang/expr — a type-checked expression language that supports AND/OR/NOT, comparisons, and function calls against a context of current device states, time, and the triggering event. Expressions are validated at save time, not at runtime.
+
+Actions are imperative commands ("set this device to this state"), distinct from events ("this state changed"). Action types: `set_device_state`, `activate_scene`, and extensible for future types (notifications, webhooks). Each action has a typed payload, same pattern as events. An action executor routes actions to the appropriate adapter, which translates to protocol-specific commands (e.g. MQTT publish).
+
+Actions produce real-world changes, which produce events when devices report back. Automations never assume success — state updates only when the device confirms.
+
+#### Loop prevention
+Two mechanisms protect against infinite automation loops:
+
+1. **State comparison** — the action executor compares desired state with current state before sending a command. If the device is already in the target state, the command is skipped. This eliminates most loops.
+2. **Cooldown** — each automation has a mandatory cooldown period (configurable, sensible default). After firing, an automation cannot fire again until the cooldown expires, regardless of what events occur. Simple, predictable, and easy for the user to reason about.
+
+Full causal chain tracking (A→B→C→A) is intentionally not implemented — it adds complexity without solving the general case (halting problem). State comparison + cooldown handles real-world scenarios effectively.
+
+### Dashboard
+Real-time web UI powered by GraphQL subscriptions for live state updates. Interactive controls (sliders, color pickers) for lights. Sensor data visualization. All data fetching and mutations go through the GraphQL API — no separate REST or WebSocket protocols.
+
+### Database and migrations
+SQLite for persistence. Migrations managed by golang-migrate as numbered up/down SQL files. Migrations run as a Kubernetes init container before the main application starts.
+
+### Type layers
+
+Three distinct type layers, each with a clear purpose:
+
+- **MQTT DTOs** — raw JSON shapes from zigbee2mqtt (and future adapters). Parsed and discarded by the adapter, never leak beyond it.
+- **Domain types** — the core of the application. What the event bus carries, what the in-memory state store holds, what the automation engine evaluates against. Plain Go structs, no framework dependencies.
+- **DB types** — sqlc-generated from SQL queries. Used only at the persistence boundary (sensor history, scene/automation config). Mapped to/from domain types.
+- **GraphQL DTOs** — gqlgen-generated from the schema. Used only at the API boundary. Resolvers map domain types to GraphQL types. graphql-codegen generates the matching TypeScript types for the frontend.
+
+Domain types are the authoritative representation. Everything else maps to/from them.
+
+## Code style
+
+### Type safety
+- `any` is forbidden in both Go and TypeScript. Use concrete types, generics, or union types. The only exception is the event bus payload, which uses `any` at the interface boundary but is immediately type-asserted by subscribers.
+- Prefer compile-time type checking over runtime assertions wherever possible.
+
+### Comments
+- No inline comments unless the logic is genuinely non-obvious.
+- No section comments (e.g. `// --- Helpers ---`, `// ========`). Never.
+- Godoc comments on exported types and functions: encouraged.
+- JSDoc comments on exported types and functions: encouraged.
+
+## Formatting and linting
+
+### Go
+- **gofmt** — formatting (standard, no config)
+- **go vet** — static analysis (standard)
+- **errcheck** — catches unchecked errors
+
+### Frontend (web/)
+- **oxfmt** — formatting
+- **oxlint** — linting
+
+Both oxfmt and oxlint are installed as dev dependencies in `web/`.
+
+## Infrastructure context
+- MQTT broker (Mosquitto) runs on 192.168.1.200 as a Home Assistant add-on
+- Kubernetes cluster with nginx-ingress at 192.168.1.250
+- ArgoCD handles deployments from git
+- TLS via wildcard cert for *.saffronbun.com
+- Dashboard will be served at hive.saffronbun.com
+- MQTT WebSocket proxy at mqtt.saffronbun.com
