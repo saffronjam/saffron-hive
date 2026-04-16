@@ -23,8 +23,11 @@ test:
 	go test ./... -race -count=1
 	cd web && bun run check
 
-web:
+web: web/node_modules
 	cd web && bun run dev
+
+web/node_modules:
+	cd web && bun install
 
 api:
 	go run . serve
