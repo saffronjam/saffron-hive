@@ -1,16 +1,8 @@
 <script lang="ts">
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import {
-		DropdownMenu,
-		DropdownMenuContent,
-		DropdownMenuItem,
-		DropdownMenuTrigger,
-	} from "$lib/components/ui/dropdown-menu/index.js";
-	import {
-		ChevronDown,
-		ChevronRight,
-		Ellipsis,
 		Lightbulb,
 		Thermometer,
 		ToggleLeft,
@@ -39,9 +31,10 @@
 		group: GroupData;
 		onedit: (group: GroupData) => void;
 		ondelete: (group: GroupData) => void;
+		onrename: (group: GroupData, newName: string) => void;
 	}
 
-	let { group, onedit, ondelete }: Props = $props();
+	let { group, onedit, ondelete, onrename }: Props = $props();
 
 	let expanded = $state(false);
 
@@ -69,8 +62,8 @@
 	}
 </script>
 
-<div class="rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50">
-	<div class="flex items-start justify-between">
+<div class="rounded-lg shadow-card bg-card p-4">
+	<div class="flex items-center justify-between">
 		<button
 			type="button"
 			class="flex flex-1 items-center gap-3 text-left"
@@ -80,7 +73,7 @@
 				<Group class="size-5 text-muted-foreground" />
 			</div>
 			<div class="min-w-0 flex-1">
-				<h3 class="truncate font-medium text-card-foreground">{group.name}</h3>
+				<InlineEditName name={group.name} onsave={(newName) => onrename(group, newName)} />
 				<p class="text-xs text-muted-foreground">
 					{group.members.length} member{group.members.length === 1 ? "" : "s"}
 					{#if group.members.length > 0}
@@ -94,38 +87,20 @@
 			<Button
 				variant="ghost"
 				size="icon-sm"
-				onclick={() => (expanded = !expanded)}
-				aria-label={expanded ? "Collapse" : "Expand"}
+				onclick={() => onedit(group)}
+				aria-label="Edit group"
 			>
-				{#if expanded}
-					<ChevronDown class="size-4" />
-				{:else}
-					<ChevronRight class="size-4" />
-				{/if}
+				<Pencil class="size-4" />
 			</Button>
-
-			<DropdownMenu>
-				<DropdownMenuTrigger>
-					{#snippet child({ props })}
-						<Button variant="ghost" size="icon-sm" {...props} aria-label="Group actions">
-							<Ellipsis class="size-4" />
-						</Button>
-					{/snippet}
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuItem onclick={() => onedit(group)}>
-						<Pencil class="size-4" />
-						<span>Edit</span>
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						class="text-destructive"
-						onclick={() => ondelete(group)}
-					>
-						<Trash2 class="size-4" />
-						<span>Delete</span>
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="text-destructive hover:text-destructive"
+				onclick={() => ondelete(group)}
+				aria-label="Delete group"
+			>
+				<Trash2 class="size-4" />
+			</Button>
 		</div>
 	</div>
 

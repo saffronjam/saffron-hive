@@ -30,6 +30,8 @@
 		Package,
 		ArrowLeft,
 	} from "@lucide/svelte";
+	import { onDestroy } from "svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import type { Device } from "$lib/stores/devices";
 
 	interface GroupMember {
@@ -246,6 +248,18 @@
 	let newGroupName = $state("");
 	let createLoading = $state(false);
 
+	onDestroy(() => pageHeader.reset());
+
+	$effect(() => {
+		if (editingGroupFresh) {
+			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroupFresh.name }];
+			pageHeader.actions = [];
+		} else {
+			pageHeader.breadcrumbs = [{ label: "Groups" }];
+			pageHeader.actions = [{ label: "Create Group", icon: Plus, onclick: () => (createDialogOpen = true) }];
+		}
+	});
+
 	let editingGroup = $state<GroupData | null>(null);
 	let editName = $state("");
 	let editNameDirty = $state(false);
@@ -391,6 +405,22 @@
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
+	async function handleRename(group: GroupData, newName: string) {
+		clearError();
+
+		const result = await client
+			.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: group.id, input: { name: newName } })
+			.toPromise();
+
+		if (result.error) {
+			errorMessage = result.error.message;
+			dismissErrorAfterDelay();
+			return;
+		}
+
+		groupsQuery.reexecute({ requestPolicy: "network-only" });
+	}
+
 	const editingGroupFresh = $derived(
 		editingGroup ? groups.find((g) => g.id === editingGroup?.id) ?? editingGroup : null
 	);
@@ -431,15 +461,9 @@
 
 	{#if editingGroupFresh}
 		<div>
-			<div class="mb-6 flex items-center gap-3">
-				<Button variant="ghost" size="icon-sm" onclick={stopEditing} aria-label="Back to groups">
-					<ArrowLeft class="size-4" />
-				</Button>
-				<h1 class="text-2xl font-semibold">Edit Group</h1>
-			</div>
 
 			<div class="space-y-6">
-				<div class="rounded-lg border border-border bg-card p-4">
+				<div class="rounded-lg shadow-card bg-card p-4">
 					<label class="mb-2 block text-sm font-medium text-foreground" for="group-name">
 						Group Name
 					</label>
@@ -458,7 +482,7 @@
 					</div>
 				</div>
 
-				<div class="rounded-lg border border-border bg-card p-4">
+				<div class="rounded-lg shadow-card bg-card p-4">
 					<div class="mb-3 flex items-center justify-between">
 						<h2 class="text-sm font-medium text-foreground">
 							Members ({editingGroupFresh.members.length})
@@ -555,22 +579,15 @@
 			</SheetContent>
 		</Sheet>
 	{:else}
-		<div class="mb-6 flex items-center justify-between">
-			<h1 class="text-2xl font-semibold">Groups</h1>
-			<Button onclick={() => (createDialogOpen = true)}>
-				<Plus class="size-4" />
-				<span>Create Group</span>
-			</Button>
-		</div>
 
 		{#if $groupsQuery.fetching}
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each [1, 2, 3] as _ (_.toString())}
-					<div class="h-24 animate-pulse rounded-lg border border-border bg-card"></div>
+					<div class="h-24 animate-pulse rounded-lg shadow-card bg-card"></div>
 				{/each}
 			</div>
 		{:else if groups.length === 0}
-			<div class="rounded-lg border border-border bg-card p-12 text-center">
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 					<Group class="size-6 text-muted-foreground" />
 				</div>
@@ -590,6 +607,7 @@
 						{group}
 						onedit={startEditing}
 						ondelete={(g) => (deleteConfirmGroup = g)}
+						onrename={handleRename}
 					/>
 				{/each}
 			</div>
