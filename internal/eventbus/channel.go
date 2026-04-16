@@ -1,7 +1,7 @@
 package eventbus
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 )
 
@@ -53,7 +53,7 @@ func (b *ChannelBus) Publish(event Event) {
 		select {
 		case sub.ch <- event:
 		default:
-			log.Printf("eventbus: dropping event %s for full subscriber channel", event.Type)
+			slog.Warn("dropping event for full subscriber channel", "event_type", event.Type)
 		}
 	}
 }
