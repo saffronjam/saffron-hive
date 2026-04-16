@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
@@ -13,14 +12,16 @@ import (
 func TestCooldownBlocksRefire(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
-	devID := device.DeviceID("light-1")
-	s.addAutomation(store.Automation{
-		ID: "auto-1", Name: "cooldown", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-		CooldownSeconds: 60,
-	}, []store.AutomationAction{
-		{ID: "act-1", AutomationID: "auto-1", ActionType: ActionSetDeviceState, DeviceID: &devID, Payload: `{"brightness": 100}`},
-	})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "cooldown", Enabled: true, CooldownSeconds: 60},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
 
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s)
@@ -55,14 +56,16 @@ func TestCooldownBlocksRefire(t *testing.T) {
 func TestCooldownExpiresAllowsRefire(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
-	devID := device.DeviceID("light-1")
-	s.addAutomation(store.Automation{
-		ID: "auto-1", Name: "cooldown", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-		CooldownSeconds: 60,
-	}, []store.AutomationAction{
-		{ID: "act-1", AutomationID: "auto-1", ActionType: ActionSetDeviceState, DeviceID: &devID, Payload: `{"brightness": 100}`},
-	})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "cooldown", Enabled: true, CooldownSeconds: 60},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
 
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s)
@@ -97,23 +100,27 @@ func TestCooldownExpiresAllowsRefire(t *testing.T) {
 func TestCooldownPerAutomation(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
-	devID1 := device.DeviceID("light-1")
-	devID2 := device.DeviceID("light-2")
 
-	s.addAutomation(store.Automation{
-		ID: "auto-a", Name: "a", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-		CooldownSeconds: 60,
-	}, []store.AutomationAction{
-		{ID: "act-a", AutomationID: "auto-a", ActionType: ActionSetDeviceState, DeviceID: &devID1, Payload: `{"brightness": 100}`},
-	})
-	s.addAutomation(store.Automation{
-		ID: "auto-b", Name: "b", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-		CooldownSeconds: 60,
-	}, []store.AutomationAction{
-		{ID: "act-b", AutomationID: "auto-b", ActionType: ActionSetDeviceState, DeviceID: &devID2, Payload: `{"brightness": 200}`},
-	})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-a", Name: "a", Enabled: true, CooldownSeconds: 60},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-a", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-a", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-a", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-b", Name: "b", Enabled: true, CooldownSeconds: 60},
+		[]store.AutomationNode{
+			{ID: "t2", AutomationID: "auto-b", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a2", AutomationID: "auto-b", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-2","payload":"{\"brightness\":200}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e2", AutomationID: "auto-b", FromNodeID: "t2", ToNodeID: "a2"},
+		},
+	)
 
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s)
@@ -153,14 +160,16 @@ func TestCooldownPerAutomation(t *testing.T) {
 func TestCooldownZero(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
-	devID := device.DeviceID("light-1")
-	s.addAutomation(store.Automation{
-		ID: "auto-1", Name: "no-cooldown", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-		CooldownSeconds: 0,
-	}, []store.AutomationAction{
-		{ID: "act-1", AutomationID: "auto-1", ActionType: ActionSetDeviceState, DeviceID: &devID, Payload: `{"brightness": 100}`},
-	})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "no-cooldown", Enabled: true, CooldownSeconds: 0},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
 
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s)

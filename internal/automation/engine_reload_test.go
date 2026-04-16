@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
@@ -33,13 +32,16 @@ func TestReloadPicksUpNewAutomation(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	devID := device.DeviceID("light-1")
-	s.addAutomation(store.Automation{
-		ID: "auto-1", Name: "new", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-	}, []store.AutomationAction{
-		{ID: "act-1", AutomationID: "auto-1", ActionType: ActionSetDeviceState, DeviceID: &devID, Payload: `{"brightness": 100}`},
-	})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "new", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
 
 	if err := engine.Reload(ctx); err != nil {
 		t.Fatal(err)
@@ -56,13 +58,16 @@ func TestReloadPicksUpNewAutomation(t *testing.T) {
 func TestReloadRemovesDeletedAutomation(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
-	devID := device.DeviceID("light-1")
-	s.addAutomation(store.Automation{
-		ID: "auto-1", Name: "deleteme", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: `true`,
-	}, []store.AutomationAction{
-		{ID: "act-1", AutomationID: "auto-1", ActionType: ActionSetDeviceState, DeviceID: &devID, Payload: `{"brightness": 100}`},
-	})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "deleteme", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
 
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s)
