@@ -135,6 +135,10 @@ func (m *mockStore) CreateDevice(_ context.Context, _ store.CreateDeviceParams) 
 	return device.Device{}, nil
 }
 
+func (m *mockStore) UpsertDevice(_ context.Context, _ store.CreateDeviceParams) error {
+	return nil
+}
+
 func (m *mockStore) GetDevice(_ context.Context, _ device.DeviceID) (device.Device, error) {
 	return device.Device{}, nil
 }
@@ -157,6 +161,10 @@ func (m *mockStore) DeleteDevice(_ context.Context, _ device.DeviceID) error {
 
 func (m *mockStore) RegisterZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) (store.ZigbeeDevice, error) {
 	return store.ZigbeeDevice{}, nil
+}
+
+func (m *mockStore) UpsertZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) error {
+	return nil
 }
 
 func (m *mockStore) GetZigbeeDeviceByIEEEAddress(_ context.Context, _ string) (store.ZigbeeDevice, error) {
@@ -194,6 +202,20 @@ func (m *mockStore) ListScenes(_ context.Context) ([]store.Scene, error) {
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+func (m *mockStore) UpdateScene(_ context.Context, id string, params store.UpdateSceneParams) (store.Scene, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok := m.scenes[id]
+	if !ok {
+		return store.Scene{}, fmt.Errorf("scene %q not found", id)
+	}
+	if params.Name != nil {
+		s.Name = *params.Name
+		m.scenes[id] = s
+	}
+	return s, nil
 }
 
 func (m *mockStore) DeleteScene(_ context.Context, id string) error {
@@ -284,6 +306,10 @@ func (m *mockStore) ListEnabledAutomations(_ context.Context) ([]store.Automatio
 		}
 	}
 	return out, nil
+}
+
+func (m *mockStore) UpdateAutomation(_ context.Context, id string, _ store.UpdateAutomationParams) (store.Automation, error) {
+	return store.Automation{ID: id}, nil
 }
 
 func (m *mockStore) UpdateAutomationEnabled(_ context.Context, id string, enabled bool) error {

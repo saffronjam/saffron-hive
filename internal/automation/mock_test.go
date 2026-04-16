@@ -117,6 +117,7 @@ type mockStore struct {
 	edges        map[string][]store.AutomationEdge
 	sceneActions map[string][]store.SceneAction
 	sceneErr     map[string]error
+	groupMembers map[string][]store.GroupMember
 }
 
 func newMockStore() *mockStore {
@@ -125,6 +126,7 @@ func newMockStore() *mockStore {
 		edges:        make(map[string][]store.AutomationEdge),
 		sceneActions: make(map[string][]store.SceneAction),
 		sceneErr:     make(map[string]error),
+		groupMembers: make(map[string][]store.GroupMember),
 	}
 }
 
@@ -227,6 +229,10 @@ func (m *mockStore) CreateDevice(_ context.Context, _ store.CreateDeviceParams) 
 	return device.Device{}, nil
 }
 
+func (m *mockStore) UpsertDevice(_ context.Context, _ store.CreateDeviceParams) error {
+	return nil
+}
+
 func (m *mockStore) GetDevice(_ context.Context, _ device.DeviceID) (device.Device, error) {
 	return device.Device{}, nil
 }
@@ -251,6 +257,10 @@ func (m *mockStore) RegisterZigbeeDevice(_ context.Context, _ store.RegisterZigb
 	return store.ZigbeeDevice{}, nil
 }
 
+func (m *mockStore) UpsertZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) error {
+	return nil
+}
+
 func (m *mockStore) GetZigbeeDeviceByIEEEAddress(_ context.Context, _ string) (store.ZigbeeDevice, error) {
 	return store.ZigbeeDevice{}, nil
 }
@@ -269,6 +279,10 @@ func (m *mockStore) GetScene(_ context.Context, _ string) (store.Scene, error) {
 
 func (m *mockStore) ListScenes(_ context.Context) ([]store.Scene, error) {
 	return nil, nil
+}
+
+func (m *mockStore) UpdateScene(_ context.Context, _ string, _ store.UpdateSceneParams) (store.Scene, error) {
+	return store.Scene{}, nil
 }
 
 func (m *mockStore) DeleteScene(_ context.Context, _ string) error {
@@ -295,6 +309,10 @@ func (m *mockStore) CreateAutomation(_ context.Context, _ store.CreateAutomation
 
 func (m *mockStore) ListAutomations(_ context.Context) ([]store.Automation, error) {
 	return nil, nil
+}
+
+func (m *mockStore) UpdateAutomation(_ context.Context, id string, _ store.UpdateAutomationParams) (store.Automation, error) {
+	return store.Automation{ID: id}, nil
 }
 
 func (m *mockStore) UpdateAutomationEnabled(_ context.Context, _ string, _ bool) error {
@@ -345,8 +363,16 @@ func (m *mockStore) AddGroupMember(_ context.Context, _ store.AddGroupMemberPara
 	return store.GroupMember{}, nil
 }
 
-func (m *mockStore) ListGroupMembers(_ context.Context, _ string) ([]store.GroupMember, error) {
-	return nil, nil
+func (m *mockStore) ListGroupMembers(_ context.Context, groupID string) ([]store.GroupMember, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.groupMembers[groupID], nil
+}
+
+func (m *mockStore) setGroupMembers(groupID string, members []store.GroupMember) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.groupMembers[groupID] = members
 }
 
 func (m *mockStore) RemoveGroupMember(_ context.Context, _ string) error {
