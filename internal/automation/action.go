@@ -3,7 +3,7 @@ package automation
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -41,7 +41,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 
 		var desired map[string]any
 		if err := json.Unmarshal([]byte(cfg.Payload), &desired); err != nil {
-			log.Printf("automation: invalid action payload for device %s: %v", deviceID, err)
+			slog.Error("invalid action payload", "pkg", "automation", "device_id", deviceID, "error", err)
 			return
 		}
 
@@ -125,7 +125,7 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 func (a *ActionExecutor) executeActivateScene(sceneID string) {
 	actions, err := a.store.ListSceneActions(context.Background(), sceneID)
 	if err != nil {
-		log.Printf("automation: scene %s not found: %v", sceneID, err)
+		slog.Error("scene not found", "pkg", "automation", "scene_id", sceneID, "error", err)
 		return
 	}
 	if len(actions) == 0 {
@@ -135,7 +135,7 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 	for _, sa := range actions {
 		var desired map[string]any
 		if err := json.Unmarshal([]byte(sa.Payload), &desired); err != nil {
-			log.Printf("automation: invalid scene action payload for target %s: %v", sa.TargetID, err)
+			slog.Error("invalid scene action payload", "pkg", "automation", "target_id", sa.TargetID, "error", err)
 			continue
 		}
 
@@ -161,7 +161,34 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 
 func (a *ActionExecutor) resolveTargetDevices(targetType string, targetID string) []device.DeviceID {
 	if targetType == "group" {
-		return a.reader.ResolveGroupDevices(device.GroupID(targetID))
+		return resolveGroupDevicesFromStore(a.store, targetID)
 	}
 	return []device.DeviceID{device.DeviceID(targetID)}
+}
+
+func resolveGroupDevicesFromStore(s store.Store, groupID string) []device.DeviceID {
+	seen := make(map[string]bool)
+	return collectGroupDeviceIDs(s, groupID, seen)
+}
+
+func collectGroupDeviceIDs(s store.Store, groupID string, seen map[string]bool) []device.DeviceID {
+	if seen[groupID] {
+		return nil
+	}
+	seen[groupID] = true
+
+	members, err := s.ListGroupMembers(context.Background(), groupID)
+	if err != nil {
+		return nil
+	}
+
+	var result []device.DeviceID
+	for _, m := range members {
+		if m.MemberType == device.GroupMemberDevice {
+			result = append(result, device.DeviceID(m.MemberID))
+		} else if m.MemberType == device.GroupMemberGroup {
+			result = append(result, collectGroupDeviceIDs(s, m.MemberID, seen)...)
+		}
+	}
+	return result
 }

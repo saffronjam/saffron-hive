@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -70,14 +70,14 @@ func (e *Engine) Reload(ctx context.Context) error {
 	for _, a := range autos {
 		graph, err := e.store.GetAutomationGraph(ctx, a.ID)
 		if err != nil {
-			log.Printf("automation: skipping %s (%s): cannot load graph: %v", a.ID, a.Name, err)
+			slog.Warn("skipping automation, cannot load graph", "pkg", "automation", "id", a.ID, "name", a.Name, "error", err)
 			continue
 		}
 
 		domainGraph := mapStoreToDomain(graph)
 		cg, triggers, err := compileGraph(domainGraph)
 		if err != nil {
-			log.Printf("automation: skipping %s (%s): compile error: %v", a.ID, a.Name, err)
+			slog.Warn("skipping automation, compile error", "pkg", "automation", "id", a.ID, "name", a.Name, "error", err)
 			continue
 		}
 
@@ -146,7 +146,7 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 		env := buildEnv(e.reader, event, now)
 		result, err := evalExpr(ct.program, env)
 		if err != nil {
-			log.Printf("automation: %s trigger %s eval error: %v", ct.graphID, ct.nodeID, err)
+			slog.Error("trigger eval error", "pkg", "automation", "graph_id", ct.graphID, "node_id", ct.nodeID, "error", err)
 			continue
 		}
 		evaluatedGraphs[ct.graphID][ct.nodeID] = result
@@ -250,8 +250,7 @@ func (e *Engine) executeAction(node Node) {
 	case TargetDevice:
 		e.executor.ExecuteGraphAction(actionCfg)
 	case TargetGroup:
-		groupID := device.GroupID(actionCfg.TargetID)
-		deviceIDs := e.reader.ResolveGroupDevices(groupID)
+		deviceIDs := resolveGroupDevicesFromStore(e.store, actionCfg.TargetID)
 		for _, devID := range deviceIDs {
 			perDevice := ActionConfig{
 				ActionType: actionCfg.ActionType,
@@ -430,7 +429,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			ConditionExpr string `json:"condition_expr"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			log.Printf("automation: failed to parse trigger config: %v", err)
+			slog.Error("failed to parse trigger config", "pkg", "automation", "error", err)
 			return TriggerConfig{}
 		}
 		return TriggerConfig{
@@ -442,7 +441,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			Kind string `json:"kind"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			log.Printf("automation: failed to parse operator config: %v", err)
+			slog.Error("failed to parse operator config", "pkg", "automation", "error", err)
 			return OperatorConfig{}
 		}
 		return OperatorConfig{Kind: OperatorKind(raw.Kind)}
@@ -454,7 +453,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			Payload    string `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			log.Printf("automation: failed to parse action config: %v", err)
+			slog.Error("failed to parse action config", "pkg", "automation", "error", err)
 			return ActionConfig{}
 		}
 		tt := TargetType(raw.TargetType)
