@@ -208,6 +208,244 @@ func TestGroups_NestedGroupsAndResolvedDevices(t *testing.T) {
 	}
 }
 
+func TestGroups_QueryAll(t *testing.T) {
+	data1, err := graphqlMutation(`mutation { createGroup(input: { name: "QueryAll Group A" }) { id } }`, nil)
+	if err != nil {
+		t.Fatalf("create group A: %v", err)
+	}
+	var ra struct {
+		CreateGroup struct{ ID string } `json:"createGroup"`
+	}
+	_ = json.Unmarshal(data1, &ra)
+	groupAID := ra.CreateGroup.ID
+
+	data2, err := graphqlMutation(`mutation { createGroup(input: { name: "QueryAll Group B" }) { id } }`, nil)
+	if err != nil {
+		t.Fatalf("create group B: %v", err)
+	}
+	var rb struct {
+		CreateGroup struct{ ID string } `json:"createGroup"`
+	}
+	_ = json.Unmarshal(data2, &rb)
+	groupBID := rb.CreateGroup.ID
+
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupAID})
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupBID})
+	})
+
+	data, err := graphqlQuery(`{ groups { id name } }`, nil)
+	if err != nil {
+		t.Fatalf("query groups: %v", err)
+	}
+
+	var result struct {
+		Groups []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"groups"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	foundA := false
+	foundB := false
+	for _, g := range result.Groups {
+		if g.ID == groupAID {
+			foundA = true
+		}
+		if g.ID == groupBID {
+			foundB = true
+		}
+	}
+	if !foundA {
+		t.Error("group A not found in groups query")
+	}
+	if !foundB {
+		t.Error("group B not found in groups query")
+	}
+}
+
+func TestGroups_UpdateGroup(t *testing.T) {
+	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Before Update" }) { id } }`, nil)
+	if err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	var cr struct {
+		CreateGroup struct{ ID string } `json:"createGroup"`
+	}
+	_ = json.Unmarshal(data, &cr)
+	groupID := cr.CreateGroup.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupID})
+	})
+
+	data, err = graphqlMutation(`mutation($id: ID!, $input: UpdateGroupInput!) {
+		updateGroup(id: $id, input: $input) { id name }
+	}`, map[string]any{
+		"id":    groupID,
+		"input": map[string]any{"name": "After Update"},
+	})
+	if err != nil {
+		t.Fatalf("update group: %v", err)
+	}
+
+	var result struct {
+		UpdateGroup struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"updateGroup"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if result.UpdateGroup.Name != "After Update" {
+		t.Errorf("name=%q, want %q", result.UpdateGroup.Name, "After Update")
+	}
+}
+
+func TestGroups_UpdateGroup_InvalidID(t *testing.T) {
+	err := graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateGroupInput!) {
+		updateGroup(id: $id, input: $input) { id name }
+	}`, map[string]any{
+		"id":    "nonexistent-group-id",
+		"input": map[string]any{"name": "Nope"},
+	})
+	if err != nil {
+		t.Fatalf("expected GraphQL error for invalid group ID, got: %v", err)
+	}
+}
+
+func TestGroups_RemoveGroupMember(t *testing.T) {
+	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Remove Member Group" }) { id } }`, nil)
+	if err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	var cr struct {
+		CreateGroup struct{ ID string } `json:"createGroup"`
+	}
+	_ = json.Unmarshal(data, &cr)
+	groupID := cr.CreateGroup.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupID})
+	})
+
+	deviceID, err := queryDeviceIDByName("Bedroom Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	data, err = graphqlMutation(`mutation($input: AddGroupMemberInput!) {
+		addGroupMember(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"groupId":    groupID,
+			"memberType": "device",
+			"memberId":   deviceID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+	var memberResult struct {
+		AddGroupMember struct{ ID string } `json:"addGroupMember"`
+	}
+	if err := json.Unmarshal(data, &memberResult); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	memberID := memberResult.AddGroupMember.ID
+
+	_, err = graphqlMutation(`mutation($id: ID!) { removeGroupMember(id: $id) }`, map[string]any{"id": memberID})
+	if err != nil {
+		t.Fatalf("remove member: %v", err)
+	}
+
+	data, err = graphqlQuery(`query($id: ID!) {
+		group(id: $id) { members { id } }
+	}`, map[string]any{"id": groupID})
+	if err != nil {
+		t.Fatalf("query group: %v", err)
+	}
+	var groupResult struct {
+		Group struct {
+			Members []struct{ ID string } `json:"members"`
+		} `json:"group"`
+	}
+	if err := json.Unmarshal(data, &groupResult); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(groupResult.Group.Members) != 0 {
+		t.Errorf("expected 0 members after removal, got %d", len(groupResult.Group.Members))
+	}
+}
+
+func TestGroups_DuplicateGroupMember(t *testing.T) {
+	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Dup Member Group" }) { id } }`, nil)
+	if err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	var cr struct {
+		CreateGroup struct{ ID string } `json:"createGroup"`
+	}
+	_ = json.Unmarshal(data, &cr)
+	groupID := cr.CreateGroup.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupID})
+	})
+
+	deviceID, err := queryDeviceIDByName("Living Room Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	addInput := map[string]any{
+		"input": map[string]any{
+			"groupId":    groupID,
+			"memberType": "device",
+			"memberId":   deviceID,
+		},
+	}
+
+	_, err = graphqlMutation(`mutation($input: AddGroupMemberInput!) {
+		addGroupMember(input: $input) { id }
+	}`, addInput)
+	if err != nil {
+		t.Fatalf("first add: %v", err)
+	}
+
+	_, secondErr := graphqlMutation(`mutation($input: AddGroupMemberInput!) {
+		addGroupMember(input: $input) { id }
+	}`, addInput)
+
+	data, err = graphqlQuery(`query($id: ID!) {
+		group(id: $id) { members { id memberId } }
+	}`, map[string]any{"id": groupID})
+	if err != nil {
+		t.Fatalf("query group: %v", err)
+	}
+	var groupResult struct {
+		Group struct {
+			Members []struct {
+				ID       string `json:"id"`
+				MemberID string `json:"memberId"`
+			} `json:"members"`
+		} `json:"group"`
+	}
+	if err := json.Unmarshal(data, &groupResult); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if secondErr != nil {
+		t.Logf("duplicate add returned error (rejected): %v", secondErr)
+		if len(groupResult.Group.Members) != 1 {
+			t.Errorf("expected 1 member after rejected duplicate, got %d", len(groupResult.Group.Members))
+		}
+	} else {
+		t.Logf("duplicate add succeeded — server allows duplicate members (got %d members)", len(groupResult.Group.Members))
+	}
+}
+
 func TestGroups_CircularDependencyRejection(t *testing.T) {
 	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Group A" }) { id } }`, nil)
 	if err != nil {
