@@ -58,6 +58,39 @@ const DELETE_GROUP = gql`
   }
 `;
 
+const GROUPS_QUERY = gql`
+  query Groups {
+    groups {
+      id
+      name
+      members {
+        id
+        memberType
+        memberId
+      }
+      resolvedDevices {
+        id
+        name
+      }
+    }
+  }
+`;
+
+const UPDATE_GROUP = gql`
+  mutation UpdateGroup($id: ID!, $input: UpdateGroupInput!) {
+    updateGroup(id: $id, input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+const REMOVE_GROUP_MEMBER = gql`
+  mutation RemoveGroupMember($id: ID!) {
+    removeGroupMember(id: $id)
+  }
+`;
+
 const DEVICES_QUERY = gql`
   query Devices {
     devices {
@@ -105,6 +138,21 @@ interface GroupQueryResult {
 
 interface DeleteGroupResult {
   deleteGroup: boolean;
+}
+
+interface GroupsQueryResult {
+  groups: GroupFields[];
+}
+
+interface UpdateGroupResult {
+  updateGroup: {
+    id: string;
+    name: string;
+  };
+}
+
+interface RemoveGroupMemberResult {
+  removeGroupMember: boolean;
 }
 
 interface DevicesQueryResult {
@@ -194,5 +242,262 @@ describe("groups", () => {
     expect(
       queryResult.data?.group === null || queryResult.error !== undefined,
     ).toBe(true);
+  });
+
+  it("should list all groups", async () => {
+    const { graphqlClient } = getContext();
+
+    const group1 = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "List Group A" },
+      })
+      .toPromise();
+    const group2 = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "List Group B" },
+      })
+      .toPromise();
+
+    expect(group1.data).toBeDefined();
+    expect(group2.data).toBeDefined();
+
+    const result = await graphqlClient
+      .query<GroupsQueryResult>(GROUPS_QUERY, {})
+      .toPromise();
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).toBeDefined();
+
+    const names = result.data!.groups.map((g) => g.name);
+    expect(names).toContain("List Group A");
+    expect(names).toContain("List Group B");
+
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, {
+        id: group1.data!.createGroup.id,
+      })
+      .toPromise();
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, {
+        id: group2.data!.createGroup.id,
+      })
+      .toPromise();
+  });
+
+  it("should update group name", async () => {
+    const { graphqlClient } = getContext();
+
+    const created = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Original Name" },
+      })
+      .toPromise();
+
+    expect(created.data).toBeDefined();
+    const id = created.data!.createGroup.id;
+
+    const updated = await graphqlClient
+      .mutation<UpdateGroupResult>(UPDATE_GROUP, {
+        id,
+        input: { name: "Updated Name" },
+      })
+      .toPromise();
+
+    expect(updated.error).toBeUndefined();
+    expect(updated.data).toBeDefined();
+    expect(updated.data!.updateGroup.name).toBe("Updated Name");
+
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id })
+      .toPromise();
+  });
+
+  it("should remove a group member", async () => {
+    const { graphqlClient } = getContext();
+
+    const devicesResult = await graphqlClient
+      .query<DevicesQueryResult>(DEVICES_QUERY, {})
+      .toPromise();
+    expect(devicesResult.data).toBeDefined();
+    const devId = devicesResult.data!.devices[0].id;
+
+    const created = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Remove Member Group" },
+      })
+      .toPromise();
+    expect(created.data).toBeDefined();
+    const gId = created.data!.createGroup.id;
+
+    const memberResult = await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: gId, memberType: "device", memberId: devId },
+      })
+      .toPromise();
+    expect(memberResult.data).toBeDefined();
+    const memberId = memberResult.data!.addGroupMember.id;
+
+    const removeResult = await graphqlClient
+      .mutation<RemoveGroupMemberResult>(REMOVE_GROUP_MEMBER, { id: memberId })
+      .toPromise();
+    expect(removeResult.error).toBeUndefined();
+    expect(removeResult.data).toBeDefined();
+    expect(removeResult.data!.removeGroupMember).toBe(true);
+
+    const queryResult = await graphqlClient
+      .query<GroupQueryResult>(GROUP_QUERY, { id: gId })
+      .toPromise();
+    expect(queryResult.data).toBeDefined();
+    expect(queryResult.data!.group!.members).toHaveLength(0);
+
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: gId })
+      .toPromise();
+  });
+
+  it("should resolve devices from nested groups", async () => {
+    const { graphqlClient } = getContext();
+
+    const devicesResult = await graphqlClient
+      .query<DevicesQueryResult>(DEVICES_QUERY, {})
+      .toPromise();
+    expect(devicesResult.data).toBeDefined();
+    const devId = devicesResult.data!.devices[0].id;
+
+    const childGroup = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Child Group" },
+      })
+      .toPromise();
+    expect(childGroup.data).toBeDefined();
+    const childId = childGroup.data!.createGroup.id;
+
+    await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: childId, memberType: "device", memberId: devId },
+      })
+      .toPromise();
+
+    const parentGroup = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Parent Group" },
+      })
+      .toPromise();
+    expect(parentGroup.data).toBeDefined();
+    const parentId = parentGroup.data!.createGroup.id;
+
+    await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: parentId, memberType: "group", memberId: childId },
+      })
+      .toPromise();
+
+    const result = await graphqlClient
+      .query<GroupQueryResult>(GROUP_QUERY, { id: parentId })
+      .toPromise();
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).toBeDefined();
+    expect(result.data!.group!.resolvedDevices.length).toBeGreaterThanOrEqual(1);
+    expect(result.data!.group!.resolvedDevices.some((d) => d.id === devId)).toBe(
+      true,
+    );
+
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: parentId })
+      .toPromise();
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: childId })
+      .toPromise();
+  });
+
+  it("should reject circular group dependency", async () => {
+    const { graphqlClient } = getContext();
+
+    const groupA = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Circular A" },
+      })
+      .toPromise();
+    const groupB = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Circular B" },
+      })
+      .toPromise();
+
+    expect(groupA.data).toBeDefined();
+    expect(groupB.data).toBeDefined();
+    const idA = groupA.data!.createGroup.id;
+    const idB = groupB.data!.createGroup.id;
+
+    const firstAdd = await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: idA, memberType: "group", memberId: idB },
+      })
+      .toPromise();
+    expect(firstAdd.error).toBeUndefined();
+
+    const circularAdd = await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: idB, memberType: "group", memberId: idA },
+      })
+      .toPromise();
+    expect(circularAdd.error).toBeDefined();
+
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: idA })
+      .toPromise();
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: idB })
+      .toPromise();
+  });
+
+  it("should handle duplicate device member", async () => {
+    const { graphqlClient } = getContext();
+
+    const devicesResult = await graphqlClient
+      .query<DevicesQueryResult>(DEVICES_QUERY, {})
+      .toPromise();
+    expect(devicesResult.data).toBeDefined();
+    const devId = devicesResult.data!.devices[0].id;
+
+    const created = await graphqlClient
+      .mutation<CreateGroupResult>(CREATE_GROUP, {
+        input: { name: "Duplicate Member Group" },
+      })
+      .toPromise();
+    expect(created.data).toBeDefined();
+    const gId = created.data!.createGroup.id;
+
+    const first = await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: gId, memberType: "device", memberId: devId },
+      })
+      .toPromise();
+    expect(first.error).toBeUndefined();
+
+    const second = await graphqlClient
+      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+        input: { groupId: gId, memberType: "device", memberId: devId },
+      })
+      .toPromise();
+
+    // Behavior is implementation-defined: either error or silently accept the duplicate
+    const queryResult = await graphqlClient
+      .query<GroupQueryResult>(GROUP_QUERY, { id: gId })
+      .toPromise();
+    expect(queryResult.data).toBeDefined();
+
+    if (second.error) {
+      expect(queryResult.data!.group!.members).toHaveLength(1);
+    } else {
+      expect(queryResult.data!.group!.members.length).toBeGreaterThanOrEqual(1);
+    }
+
+    expect(queryResult.data!.group!.resolvedDevices.filter((d) => d.id === devId).length).toBeGreaterThanOrEqual(1);
+
+    await graphqlClient
+      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: gId })
+      .toPromise();
   });
 });
