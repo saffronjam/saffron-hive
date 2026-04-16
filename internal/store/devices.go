@@ -20,6 +20,21 @@ func (s *SQLiteStore) CreateDevice(ctx context.Context, params CreateDeviceParam
 	return s.GetDevice(ctx, params.ID)
 }
 
+// UpsertDevice inserts a device or updates its name, source, and type if it already exists.
+// It also clears the removed flag on conflict so re-discovered devices become active again.
+func (s *SQLiteStore) UpsertDevice(ctx context.Context, params CreateDeviceParams) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO devices (id, name, source, type, available, removed)
+		 VALUES (?, ?, ?, ?, false, false)
+		 ON CONFLICT(id) DO UPDATE SET name=excluded.name, source=excluded.source, type=excluded.type, removed=false`,
+		params.ID, params.Name, params.Source, params.Type,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert device: %w", err)
+	}
+	return nil
+}
+
 // GetDevice retrieves a device by its ID.
 func (s *SQLiteStore) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error) {
 	row := s.db.QueryRowContext(ctx,

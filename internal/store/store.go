@@ -44,6 +44,11 @@ type CreateSceneParams struct {
 	Name string
 }
 
+// UpdateSceneParams holds optional fields for updating a scene.
+type UpdateSceneParams struct {
+	Name *string
+}
+
 // Scene represents a scene row.
 type Scene struct {
 	ID        string
@@ -76,6 +81,13 @@ type CreateAutomationParams struct {
 	Name            string
 	Enabled         bool
 	CooldownSeconds int
+}
+
+// UpdateAutomationParams holds optional fields for updating an automation.
+type UpdateAutomationParams struct {
+	Name            *string
+	Enabled         *bool
+	CooldownSeconds *int
 }
 
 // Automation represents an automation row.
@@ -197,6 +209,7 @@ type SensorHistoryQuery struct {
 // Store defines the persistence interface for the application.
 type Store interface {
 	CreateDevice(ctx context.Context, params CreateDeviceParams) (device.Device, error)
+	UpsertDevice(ctx context.Context, params CreateDeviceParams) error
 	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
 	ListDevices(ctx context.Context) ([]device.Device, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]device.Device, error)
@@ -204,12 +217,14 @@ type Store interface {
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
 
 	RegisterZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) (ZigbeeDevice, error)
+	UpsertZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) error
 	GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error)
 	GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error)
 
 	CreateScene(ctx context.Context, params CreateSceneParams) (Scene, error)
 	GetScene(ctx context.Context, id string) (Scene, error)
 	ListScenes(ctx context.Context) ([]Scene, error)
+	UpdateScene(ctx context.Context, id string, params UpdateSceneParams) (Scene, error)
 	DeleteScene(ctx context.Context, id string) error
 	CreateSceneAction(ctx context.Context, params CreateSceneActionParams) (SceneAction, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
@@ -219,6 +234,7 @@ type Store interface {
 	GetAutomation(ctx context.Context, id string) (Automation, error)
 	ListAutomations(ctx context.Context) ([]Automation, error)
 	ListEnabledAutomations(ctx context.Context) ([]Automation, error)
+	UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (Automation, error)
 	UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error
 	DeleteAutomation(ctx context.Context, id string) error
 	CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error)

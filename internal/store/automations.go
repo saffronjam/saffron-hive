@@ -50,6 +50,35 @@ func (s *SQLiteStore) ListEnabledAutomations(ctx context.Context) ([]Automation,
 	return scanAutomations(rows)
 }
 
+// UpdateAutomation updates optional fields on an automation.
+func (s *SQLiteStore) UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (Automation, error) {
+	if params.Name != nil {
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE automations SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			*params.Name, id,
+		); err != nil {
+			return Automation{}, fmt.Errorf("update automation name: %w", err)
+		}
+	}
+	if params.Enabled != nil {
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE automations SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			*params.Enabled, id,
+		); err != nil {
+			return Automation{}, fmt.Errorf("update automation enabled: %w", err)
+		}
+	}
+	if params.CooldownSeconds != nil {
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE automations SET cooldown_seconds = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			*params.CooldownSeconds, id,
+		); err != nil {
+			return Automation{}, fmt.Errorf("update automation cooldown: %w", err)
+		}
+	}
+	return s.GetAutomation(ctx, id)
+}
+
 // UpdateAutomationEnabled sets the enabled field of an automation.
 func (s *SQLiteStore) UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error {
 	_, err := s.db.ExecContext(ctx,

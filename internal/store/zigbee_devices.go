@@ -22,6 +22,20 @@ func (s *SQLiteStore) RegisterZigbeeDevice(ctx context.Context, params RegisterZ
 	}, nil
 }
 
+// UpsertZigbeeDevice inserts or updates a zigbee device mapping.
+func (s *SQLiteStore) UpsertZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO zigbee_devices (device_id, ieee_address, friendly_name)
+		 VALUES (?, ?, ?)
+		 ON CONFLICT(device_id) DO UPDATE SET ieee_address=excluded.ieee_address, friendly_name=excluded.friendly_name`,
+		params.DeviceID, params.IEEEAddress, params.FriendlyName,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert zigbee device: %w", err)
+	}
+	return nil
+}
+
 // GetZigbeeDeviceByIEEEAddress looks up a zigbee device by its IEEE address.
 func (s *SQLiteStore) GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error) {
 	row := s.db.QueryRowContext(ctx,

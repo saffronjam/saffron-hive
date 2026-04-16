@@ -48,6 +48,20 @@ func (s *SQLiteStore) ListScenes(ctx context.Context) ([]Scene, error) {
 	return scenes, rows.Err()
 }
 
+// UpdateScene updates a scene's mutable fields.
+func (s *SQLiteStore) UpdateScene(ctx context.Context, id string, params UpdateSceneParams) (Scene, error) {
+	if params.Name != nil {
+		_, err := s.db.ExecContext(ctx,
+			`UPDATE scenes SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			*params.Name, id,
+		)
+		if err != nil {
+			return Scene{}, fmt.Errorf("update scene: %w", err)
+		}
+	}
+	return s.GetScene(ctx, id)
+}
+
 // DeleteScene deletes a scene by its ID. Cascading deletes remove associated actions.
 func (s *SQLiteStore) DeleteScene(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM scenes WHERE id = ?`, id)
