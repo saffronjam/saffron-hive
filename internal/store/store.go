@@ -54,18 +54,20 @@ type Scene struct {
 
 // CreateSceneActionParams holds the parameters for adding a scene action.
 type CreateSceneActionParams struct {
-	ID       string
-	SceneID  string
-	DeviceID device.DeviceID
-	Payload  string
+	ID         string
+	SceneID    string
+	TargetType string
+	TargetID   string
+	Payload    string
 }
 
 // SceneAction represents a scene action row.
 type SceneAction struct {
-	ID       string
-	SceneID  string
-	DeviceID device.DeviceID
-	Payload  string
+	ID         string
+	SceneID    string
+	TargetType string
+	TargetID   string
+	Payload    string
 }
 
 // CreateAutomationParams holds the parameters for creating an automation.
@@ -73,8 +75,6 @@ type CreateAutomationParams struct {
 	ID              string
 	Name            string
 	Enabled         bool
-	TriggerEvent    string
-	ConditionExpr   string
 	CooldownSeconds int
 }
 
@@ -83,29 +83,84 @@ type Automation struct {
 	ID              string
 	Name            string
 	Enabled         bool
-	TriggerEvent    string
-	ConditionExpr   string
 	CooldownSeconds int
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
 
-// CreateAutomationActionParams holds the parameters for adding an automation action.
-type CreateAutomationActionParams struct {
+// CreateAutomationNodeParams holds the parameters for creating an automation node.
+type CreateAutomationNodeParams struct {
 	ID           string
 	AutomationID string
-	ActionType   string
-	DeviceID     *device.DeviceID
-	Payload      string
+	Type         string
+	Config       string
 }
 
-// AutomationAction represents an automation action row.
-type AutomationAction struct {
+// AutomationNode represents an automation node row.
+type AutomationNode struct {
 	ID           string
 	AutomationID string
-	ActionType   string
-	DeviceID     *device.DeviceID
-	Payload      string
+	Type         string
+	Config       string
+}
+
+// CreateAutomationEdgeParams holds the parameters for creating an automation edge.
+type CreateAutomationEdgeParams struct {
+	ID           string
+	AutomationID string
+	FromNodeID   string
+	ToNodeID     string
+}
+
+// AutomationEdge represents an automation edge row.
+type AutomationEdge struct {
+	ID           string
+	AutomationID string
+	FromNodeID   string
+	ToNodeID     string
+}
+
+// AutomationGraph represents a full automation graph loaded from the database.
+type AutomationGraph struct {
+	Automation Automation
+	Nodes      []AutomationNode
+	Edges      []AutomationEdge
+}
+
+// CreateGroupParams holds the parameters for creating a new group.
+type CreateGroupParams struct {
+	ID   string
+	Name string
+}
+
+// Group represents a group row.
+type Group struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// UpdateGroupParams holds the parameters for updating a group.
+type UpdateGroupParams struct {
+	ID   string
+	Name string
+}
+
+// AddGroupMemberParams holds the parameters for adding a group member.
+type AddGroupMemberParams struct {
+	ID         string
+	GroupID    string
+	MemberType device.GroupMemberType
+	MemberID   string
+}
+
+// GroupMember represents a group member row.
+type GroupMember struct {
+	ID         string
+	GroupID    string
+	MemberType device.GroupMemberType
+	MemberID   string
 }
 
 // InsertSensorReadingParams holds the parameters for inserting a sensor reading.
@@ -166,9 +221,23 @@ type Store interface {
 	ListEnabledAutomations(ctx context.Context) ([]Automation, error)
 	UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error
 	DeleteAutomation(ctx context.Context, id string) error
-	CreateAutomationAction(ctx context.Context, params CreateAutomationActionParams) (AutomationAction, error)
-	ListAutomationActions(ctx context.Context, automationID string) ([]AutomationAction, error)
-	DeleteAutomationAction(ctx context.Context, id string) error
+	CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error)
+	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
+	DeleteAutomationNode(ctx context.Context, id string) error
+	CreateAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error)
+	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
+	DeleteAutomationEdge(ctx context.Context, id string) error
+	GetAutomationGraph(ctx context.Context, automationID string) (AutomationGraph, error)
+
+	CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error)
+	GetGroup(ctx context.Context, id string) (Group, error)
+	ListGroups(ctx context.Context) ([]Group, error)
+	UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error)
+	DeleteGroup(ctx context.Context, id string) error
+	AddGroupMember(ctx context.Context, params AddGroupMemberParams) (GroupMember, error)
+	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
+	RemoveGroupMember(ctx context.Context, id string) error
+	ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]Group, error)
 
 	InsertSensorReading(ctx context.Context, params InsertSensorReadingParams) (SensorReading, error)
 	QuerySensorHistory(ctx context.Context, query SensorHistoryQuery) ([]SensorReading, error)
