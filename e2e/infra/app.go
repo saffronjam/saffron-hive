@@ -49,6 +49,10 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
+	if _, err := db.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("set pragmas: %w", err)
+	}
 
 	if err := runMigrations(db); err != nil {
 		_ = db.Close()
@@ -83,6 +87,8 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		}
 	}()
 
+	go runSensorRecorder(appCtx, bus, sqlStore)
+
 	resolver := &graph.Resolver{
 		StateReader:        memStore,
 		Store:              sqlStore,
@@ -95,9 +101,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	}))
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
-	gqlSrv.AddTransport(transport.Websocket{
-		KeepAlivePingInterval: 10 * time.Second,
-	})
+	gqlSrv.AddTransport(transport.Websocket{})
 
 	mux := http.NewServeMux()
 	mux.Handle("/graphql", gqlSrv)
@@ -178,4 +182,36 @@ type reloader struct {
 
 func (r *reloader) Reload() error {
 	return r.engine.Reload(r.ctx)
+}
+
+func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, s store.Store) {
+	ch := bus.Subscribe(eventbus.EventDeviceStateChanged)
+	defer bus.Unsubscribe(ch)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case evt, ok := <-ch:
+			if !ok {
+				return
+			}
+			ss, ok := evt.Payload.(device.SensorState)
+			if !ok {
+				continue
+			}
+			_, err := s.InsertSensorReading(ctx, store.InsertSensorReadingParams{
+				DeviceID:    device.DeviceID(evt.DeviceID),
+				Temperature: ss.Temperature,
+				Humidity:    ss.Humidity,
+				Battery:     ss.Battery,
+				Pressure:    ss.Pressure,
+				Illuminance: ss.Illuminance,
+				RecordedAt:  time.Now(),
+			})
+			if err != nil {
+				log.Printf("sensor recorder: failed to insert reading: %v", err)
+			}
+		}
+	}
 }
