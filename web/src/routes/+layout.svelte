@@ -4,6 +4,10 @@
 	import AppSidebar from "$lib/components/app-sidebar.svelte";
 	import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
+	import { setContextClient } from "@urql/svelte";
+	import { createGraphQLClient } from "$lib/graphql/client";
+
+	setContextClient(createGraphQLClient());
 
 	let { children } = $props();
 </script>
