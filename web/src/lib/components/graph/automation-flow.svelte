@@ -87,6 +87,7 @@
 		nodesConnectable={editable}
 		elementsSelectable={editable}
 		fitView
+		fitViewOptions={{ maxZoom: 1 }}
 		colorMode="system"
 		deleteKey={editable ? "Backspace" : null}
 		proOptions={{ hideAttribution: true }}

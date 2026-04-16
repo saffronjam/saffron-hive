@@ -25,9 +25,10 @@
 	interface Props {
 		data: TriggerNodeData;
 		id: string;
+		selected?: boolean;
 	}
 
-	let { data, id }: Props = $props();
+	let { data, id, selected = false }: Props = $props();
 
 	const eventTypes = [
 		{ value: "device.state_changed", label: "State Changed" },
@@ -59,9 +60,11 @@
 </script>
 
 <div
-	class="w-64 rounded-lg border-2 bg-card shadow-md transition-shadow {data.activated
+	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-blue-400 shadow-blue-400/50 shadow-lg'
-		: 'border-blue-500/40'}"
+		: selected
+			? 'border-blue-400 ring-2 ring-blue-400/30'
+			: 'border-blue-500/40'}"
 	data-nodeid={id}
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-blue-500/15 px-3 py-2">
@@ -114,5 +117,5 @@
 		{/if}
 	</div>
 
-	<Handle type="source" position={Position.Right} class="!bg-blue-500 !border-blue-300 !w-3 !h-3" />
+	<Handle type="source" position={Position.Right} class="!bg-blue-500 !border-blue-300 !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>

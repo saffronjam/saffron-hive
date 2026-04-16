@@ -29,9 +29,10 @@
 	interface Props {
 		data: ActionNodeData;
 		id: string;
+		selected?: boolean;
 	}
 
-	let { data, id }: Props = $props();
+	let { data, id, selected = false }: Props = $props();
 
 	const actionTypes = [
 		{ value: "set_device_state", label: "Set Device State" },
@@ -59,9 +60,11 @@
 </script>
 
 <div
-	class="w-64 rounded-lg border-2 bg-card shadow-md transition-shadow {data.activated
+	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-green-400 shadow-green-400/50 shadow-lg'
-		: 'border-green-500/40'}"
+		: selected
+			? 'border-green-400 ring-2 ring-green-400/30'
+			: 'border-green-500/40'}"
 	data-nodeid={id}
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-green-500/15 px-3 py-2">
@@ -110,5 +113,5 @@
 		{/if}
 	</div>
 
-	<Handle type="target" position={Position.Left} class="!bg-green-500 !border-green-300 !w-3 !h-3" />
+	<Handle type="target" position={Position.Left} class="!bg-green-500 !border-green-300 !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>
