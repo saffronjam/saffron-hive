@@ -76,6 +76,7 @@ func Run(ctx context.Context) error {
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
 		Resolvers: resolver,
 	}))
+	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{})
 
