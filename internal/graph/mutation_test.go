@@ -50,7 +50,7 @@ func TestMutationApplyScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["scene1"] = store.Scene{ID: "scene1", Name: "Evening"}
 	env.store.sceneActions["scene1"] = []store.SceneAction{
-		{ID: "a1", SceneID: "scene1", DeviceID: "d1", Payload: `{"on":true}`},
+		{ID: "a1", SceneID: "scene1", TargetType: "device", TargetID: "d1", Payload: `{"on":true}`},
 	}
 
 	ch := env.bus.Subscribe(eventbus.EventSceneApplied)
@@ -87,13 +87,13 @@ func TestMutationApplyScene(t *testing.T) {
 func TestMutationCreateScene(t *testing.T) {
 	env := newTestEnv(t)
 
-	resp := env.query(t, `mutation($input: CreateSceneInput!) { createScene(input: $input) { id name actions { deviceId payload } } }`,
+	resp := env.query(t, `mutation($input: CreateSceneInput!) { createScene(input: $input) { id name actions { targetType targetId payload } } }`,
 		map[string]any{
 			"input": map[string]any{
 				"name": "Movie Night",
 				"actions": []map[string]any{
-					{"deviceId": "d1", "payload": `{"brightness":50}`},
-					{"deviceId": "d2", "payload": `{"on":false}`},
+					{"targetType": "device", "targetId": "d1", "payload": `{"brightness":50}`},
+					{"targetType": "device", "targetId": "d2", "payload": `{"on":false}`},
 				},
 			},
 		})
@@ -106,8 +106,9 @@ func TestMutationCreateScene(t *testing.T) {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
 			Actions []struct {
-				DeviceID string `json:"deviceId"`
-				Payload  string `json:"payload"`
+				TargetType string `json:"targetType"`
+				TargetID   string `json:"targetId"`
+				Payload    string `json:"payload"`
 			} `json:"actions"`
 		} `json:"createScene"`
 	}
@@ -129,15 +130,15 @@ func TestMutationUpdateScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Old Name"}
 	env.store.sceneActions["s1"] = []store.SceneAction{
-		{ID: "old-a1", SceneID: "s1", DeviceID: "d1", Payload: `{"on":true}`},
+		{ID: "old-a1", SceneID: "s1", TargetType: "device", TargetID: "d1", Payload: `{"on":true}`},
 	}
 
-	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id actions { deviceId payload } } }`,
+	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id actions { targetType targetId payload } } }`,
 		map[string]any{
 			"id": "s1",
 			"input": map[string]any{
 				"actions": []map[string]any{
-					{"deviceId": "d2", "payload": `{"brightness":100}`},
+					{"targetType": "device", "targetId": "d2", "payload": `{"brightness":100}`},
 				},
 			},
 		})
@@ -149,8 +150,9 @@ func TestMutationUpdateScene(t *testing.T) {
 		UpdateScene struct {
 			ID      string `json:"id"`
 			Actions []struct {
-				DeviceID string `json:"deviceId"`
-				Payload  string `json:"payload"`
+				TargetType string `json:"targetType"`
+				TargetID   string `json:"targetId"`
+				Payload    string `json:"payload"`
 			} `json:"actions"`
 		} `json:"updateScene"`
 	}
@@ -160,8 +162,8 @@ func TestMutationUpdateScene(t *testing.T) {
 	if len(data.UpdateScene.Actions) != 1 {
 		t.Fatalf("expected 1 action after update, got %d", len(data.UpdateScene.Actions))
 	}
-	if data.UpdateScene.Actions[0].DeviceID != "d2" {
-		t.Errorf("expected deviceId d2, got %s", data.UpdateScene.Actions[0].DeviceID)
+	if data.UpdateScene.Actions[0].TargetID != "d2" {
+		t.Errorf("expected targetId d2, got %s", data.UpdateScene.Actions[0].TargetID)
 	}
 }
 
@@ -182,16 +184,18 @@ func TestMutationDeleteScene(t *testing.T) {
 func TestMutationCreateAutomation(t *testing.T) {
 	env := newTestEnv(t)
 
-	resp := env.query(t, `mutation($input: CreateAutomationInput!) { createAutomation(input: $input) { id name enabled triggerEvent conditionExpr cooldownSeconds actions { actionType payload } } }`,
+	resp := env.query(t, `mutation($input: CreateAutomationInput!) { createAutomation(input: $input) { id name enabled cooldownSeconds nodes { id type config } } }`,
 		map[string]any{
 			"input": map[string]any{
 				"name":            "Night Lights",
 				"enabled":         true,
-				"triggerEvent":    "device.state_changed",
-				"conditionExpr":   "temperature > 25",
 				"cooldownSeconds": 60,
-				"actions": []map[string]any{
-					{"actionType": "set_device_state", "payload": `{"on":false}`},
+				"nodes": []map[string]any{
+					{"id": "t1", "type": "trigger", "config": `{"event_type":"device.state_changed","condition_expr":"true"}`},
+					{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":false}"}`},
+				},
+				"edges": []map[string]any{
+					{"fromNodeId": "t1", "toNodeId": "a1"},
 				},
 			},
 		})
@@ -205,10 +209,11 @@ func TestMutationCreateAutomation(t *testing.T) {
 			Name            string `json:"name"`
 			Enabled         bool   `json:"enabled"`
 			CooldownSeconds int    `json:"cooldownSeconds"`
-			Actions         []struct {
-				ActionType string `json:"actionType"`
-				Payload    string `json:"payload"`
-			} `json:"actions"`
+			Nodes           []struct {
+				ID     string `json:"id"`
+				Type   string `json:"type"`
+				Config string `json:"config"`
+			} `json:"nodes"`
 		} `json:"createAutomation"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
