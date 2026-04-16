@@ -16,7 +16,9 @@ import (
 
 // Run executes a database migration in the given direction.
 // Valid directions are "up", "down", and "version".
-func Run(_ context.Context, direction string) error {
+// If steps > 0, only that many migrations are applied (up) or rolled back (down).
+// If steps is 0, "up" applies all and "down" rolls back one.
+func Run(_ context.Context, direction string, steps int) error {
 	dbPath := os.Getenv("HIVE_DB_PATH")
 	if dbPath == "" {
 		dbPath = "saffron-hive.db"
@@ -45,15 +47,26 @@ func Run(_ context.Context, direction string) error {
 
 	switch direction {
 	case "up":
-		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-			return fmt.Errorf("migrate up: %w", err)
+		if steps > 0 {
+			if err := m.Steps(steps); err != nil && err != migrate.ErrNoChange {
+				return fmt.Errorf("migrate up %d: %w", steps, err)
+			}
+			log.Printf("applied %d migration(s)", steps)
+		} else {
+			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+				return fmt.Errorf("migrate up: %w", err)
+			}
+			log.Println("all migrations applied")
 		}
-		log.Println("migrations applied successfully")
 	case "down":
-		if err := m.Steps(-1); err != nil && err != migrate.ErrNoChange {
-			return fmt.Errorf("migrate down: %w", err)
+		n := 1
+		if steps > 0 {
+			n = steps
 		}
-		log.Println("rolled back one migration")
+		if err := m.Steps(-n); err != nil && err != migrate.ErrNoChange {
+			return fmt.Errorf("migrate down %d: %w", n, err)
+		}
+		log.Printf("rolled back %d migration(s)", n)
 	case "version":
 		version, dirty, err := m.Version()
 		if err != nil {
