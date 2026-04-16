@@ -16,6 +16,7 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import SceneCard from "$lib/components/scene-card.svelte";
 	import { Plus, Clapperboard, X } from "@lucide/svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
 
 	interface SceneAction {
 		id: string;
@@ -91,6 +92,15 @@
 		}
 	`;
 
+	const UPDATE_SCENE_NAME = gql`
+		mutation UpdateScene($id: ID!, $input: UpdateSceneInput!) {
+			updateScene(id: $id, input: $input) {
+				id
+				name
+			}
+		}
+	`;
+
 	let clientRef: Client | null = null;
 	let scenes = $state<SceneData[]>([]);
 	let loading = $state(true);
@@ -98,6 +108,12 @@
 	let createDialogOpen = $state(false);
 	let newSceneName = $state("");
 	let createLoading = $state(false);
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Scenes" }];
+		pageHeader.actions = [{ label: "Create Scene", icon: Plus, onclick: () => (createDialogOpen = true) }];
+	});
+	onDestroy(() => pageHeader.reset());
 	let deleteConfirmScene = $state<SceneData | null>(null);
 	let deleteLoading = $state(false);
 	let errorMessage = $state<string | null>(null);
@@ -155,6 +171,23 @@
 		if (result.data) {
 			goto(`/scenes/${result.data.createScene.id}`);
 		}
+	}
+
+	async function handleRename(scene: SceneData, newName: string) {
+		if (!clientRef) return;
+		clearError();
+
+		const result = await clientRef
+			.mutation(UPDATE_SCENE_NAME, { id: scene.id, input: { name: newName } })
+			.toPromise();
+
+		if (result.error) {
+			errorMessage = result.error.message;
+			dismissErrorAfterDelay();
+			return;
+		}
+
+		scenes = scenes.map((s) => (s.id === scene.id ? { ...s, name: newName } : s));
 	}
 
 	async function handleApply(scene: SceneData) {
@@ -217,22 +250,15 @@
 		</div>
 	{/if}
 
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">Scenes</h1>
-		<Button onclick={() => (createDialogOpen = true)}>
-			<Plus class="size-4" />
-			<span>Create Scene</span>
-		</Button>
-	</div>
 
 	{#if loading}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each [1, 2, 3] as _ (_.toString())}
-				<div class="h-20 animate-pulse rounded-lg border border-border bg-card"></div>
+				<div class="h-20 animate-pulse rounded-lg shadow-card bg-card"></div>
 			{/each}
 		</div>
 	{:else if scenes.length === 0}
-		<div class="rounded-lg border border-border bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<Clapperboard class="size-6 text-muted-foreground" />
 			</div>
@@ -254,6 +280,7 @@
 					onapply={handleApply}
 					onedit={handleEdit}
 					ondelete={(s) => (deleteConfirmScene = s)}
+					onrename={handleRename}
 				/>
 			{/each}
 		</div>

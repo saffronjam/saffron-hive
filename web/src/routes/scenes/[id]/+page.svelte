@@ -21,6 +21,7 @@
 	import ScenePreview from "$lib/components/scene-preview.svelte";
 	import MemberPicker from "$lib/components/member-picker.svelte";
 	import { ArrowLeft, Plus, X, Zap } from "@lucide/svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import type { Device, LightState, SensorState, SwitchState } from "$lib/stores/devices";
 
 	type DeviceState = LightState | SensorState | SwitchState;
@@ -338,6 +339,17 @@
 
 	let clientRef: Client | null = null;
 	let scene = $state<SceneData | null>(null);
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: "Scene" }];
+	});
+	onDestroy(() => pageHeader.reset());
+
+	$effect(() => {
+		if (scene) {
+			pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: scene.name }];
+		}
+	});
 	let allDevices = $state<Device[]>([]);
 	let allGroups = $state<GroupData[]>([]);
 	let loading = $state(true);
@@ -623,20 +635,6 @@
 </script>
 
 <div>
-	<div class="mb-6 flex items-center gap-3">
-		<Button variant="ghost" size="icon-sm" href="/scenes" aria-label="Back to scenes">
-			<ArrowLeft class="size-4" />
-		</Button>
-		<h1 class="text-2xl font-semibold">
-			{#if loading}
-				Scene
-			{:else if scene}
-				Edit Scene
-			{:else}
-				Scene Not Found
-			{/if}
-		</h1>
-	</div>
 
 	{#if errorMessage}
 		<div
@@ -651,12 +649,12 @@
 
 	{#if loading}
 		<div class="space-y-4">
-			<div class="h-16 animate-pulse rounded-xl border border-border bg-card"></div>
-			<div class="h-64 animate-pulse rounded-xl border border-border bg-card"></div>
+			<div class="h-16 animate-pulse rounded-xl shadow-card bg-card"></div>
+			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>
 		</div>
 	{:else if scene}
 		<div class="space-y-6">
-			<div class="rounded-lg border border-border bg-card p-4">
+			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="scene-name">
 					Scene Name
 				</label>
@@ -667,7 +665,7 @@
 				/>
 			</div>
 
-			<div class="rounded-lg border border-border bg-card p-4">
+			<div class="rounded-lg shadow-card bg-card p-4">
 				<div class="mb-3 flex items-center justify-between">
 					<h2 class="text-sm font-medium text-foreground">
 						Targets ({editableActions.length})
@@ -687,7 +685,7 @@
 
 			<Separator />
 
-			<div class="rounded-lg border border-border bg-muted/30 p-4">
+			<div class="rounded-lg shadow-card bg-muted/30 p-4">
 				<div class="mb-3 flex items-center justify-between">
 					<div>
 						<h2 class="text-sm font-medium text-foreground">Live Preview</h2>
@@ -731,7 +729,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="rounded-lg border border-border bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<p class="text-lg font-medium text-foreground">Scene not found</p>
 			<p class="mt-2 text-sm text-muted-foreground">
 				The scene you're looking for doesn't exist or has been removed.
