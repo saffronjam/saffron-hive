@@ -2,10 +2,12 @@ package zigbee
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 func detectDeviceType(features []z2mFeature) device.DeviceType {
@@ -44,9 +46,11 @@ func flattenFeatures(features []z2mFeature) []z2mFeature {
 func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 	var devices []z2mBridgeDevice
 	if err := json.Unmarshal(payload, &devices); err != nil {
-		log.Printf("zigbee: failed to parse bridge/devices: %v", err)
+		slog.Error("failed to parse bridge/devices", "pkg", "zigbee", "error", err)
 		return
 	}
+
+	incoming := make(map[device.DeviceID]struct{})
 
 	for _, d := range devices {
 		if strings.EqualFold(d.Type, "coordinator") {
@@ -55,6 +59,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 
 		devType := detectDeviceType(d.Features)
 		id := device.DeviceID(d.IEEEAddress)
+		incoming[id] = struct{}{}
 
 		dev := device.Device{
 			ID:        id,
@@ -67,10 +72,42 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		a.stateWriter.Register(dev)
 
 		a.mu.Lock()
+		_, wasKnown := a.knownDevices[id]
 		a.ieeeToID[d.IEEEAddress] = id
 		a.nameToID[d.FriendlyName] = id
 		a.idToName[id] = d.FriendlyName
 		a.deviceTypes[id] = devType
+		a.knownDevices[id] = struct{}{}
 		a.mu.Unlock()
+
+		if !wasKnown {
+			a.bus.Publish(eventbus.Event{
+				Type:      eventbus.EventDeviceAdded,
+				DeviceID:  string(id),
+				Timestamp: time.Now(),
+				Payload:   dev,
+			})
+		}
+	}
+
+	a.mu.Lock()
+	var removed []device.DeviceID
+	for id := range a.knownDevices {
+		if _, exists := incoming[id]; !exists {
+			removed = append(removed, id)
+		}
+	}
+	for _, id := range removed {
+		delete(a.knownDevices, id)
+	}
+	a.mu.Unlock()
+
+	for _, id := range removed {
+		a.stateWriter.Remove(id)
+		a.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventDeviceRemoved,
+			DeviceID:  string(id),
+			Timestamp: time.Now(),
+		})
 	}
 }

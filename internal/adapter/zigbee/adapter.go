@@ -2,7 +2,7 @@ package zigbee
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -38,11 +38,12 @@ type ZigbeeAdapter struct {
 	stateWriter StateWriter
 	stateReader StateReader
 
-	mu          sync.RWMutex
-	ieeeToID    map[string]device.DeviceID
-	nameToID    map[string]device.DeviceID
-	idToName    map[device.DeviceID]string
-	deviceTypes map[device.DeviceID]device.DeviceType
+	mu           sync.RWMutex
+	ieeeToID     map[string]device.DeviceID
+	nameToID     map[string]device.DeviceID
+	idToName     map[device.DeviceID]string
+	deviceTypes  map[device.DeviceID]device.DeviceType
+	knownDevices map[device.DeviceID]struct{}
 
 	stopCh chan struct{}
 	cmdCh  <-chan eventbus.Event
@@ -51,15 +52,16 @@ type ZigbeeAdapter struct {
 // NewZigbeeAdapter creates a new adapter with the given dependencies.
 func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr StateReader) *ZigbeeAdapter {
 	return &ZigbeeAdapter{
-		mqtt:        mqtt,
-		bus:         bus,
-		stateWriter: sw,
-		stateReader: sr,
-		ieeeToID:    make(map[string]device.DeviceID),
-		nameToID:    make(map[string]device.DeviceID),
-		idToName:    make(map[device.DeviceID]string),
-		deviceTypes: make(map[device.DeviceID]device.DeviceType),
-		stopCh:      make(chan struct{}),
+		mqtt:         mqtt,
+		bus:          bus,
+		stateWriter:  sw,
+		stateReader:  sr,
+		ieeeToID:     make(map[string]device.DeviceID),
+		nameToID:     make(map[string]device.DeviceID),
+		idToName:     make(map[device.DeviceID]string),
+		deviceTypes:  make(map[device.DeviceID]device.DeviceType),
+		knownDevices: make(map[device.DeviceID]struct{}),
+		stopCh:       make(chan struct{}),
 	}
 }
 
@@ -130,7 +132,7 @@ func (a *ZigbeeAdapter) commandLoop() {
 func (a *ZigbeeAdapter) handleBridgeLog(payload []byte) {
 	var logMsg z2mBridgeLog
 	if err := json.Unmarshal(payload, &logMsg); err != nil {
-		log.Printf("zigbee: failed to parse bridge/log: %v", err)
+		slog.Error("failed to parse bridge/log", "pkg", "zigbee", "error", err)
 		return
 	}
 
@@ -211,7 +213,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case device.Light:
 		state, err := mapLightState(statePayload)
 		if err != nil {
-			log.Printf("zigbee: failed to map light state for %s: %v", friendlyName, err)
+			slog.Error("failed to map light state", "pkg", "zigbee", "device", friendlyName, "error", err)
 			return
 		}
 		a.stateWriter.UpdateLightState(id, state)
@@ -225,7 +227,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case device.Sensor:
 		state, err := mapSensorState(statePayload)
 		if err != nil {
-			log.Printf("zigbee: failed to map sensor state for %s: %v", friendlyName, err)
+			slog.Error("failed to map sensor state", "pkg", "zigbee", "device", friendlyName, "error", err)
 			return
 		}
 		a.stateWriter.UpdateSensorState(id, state)
@@ -239,7 +241,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case device.Switch:
 		state, err := mapSwitchState(statePayload)
 		if err != nil {
-			log.Printf("zigbee: failed to map switch state for %s: %v", friendlyName, err)
+			slog.Error("failed to map switch state", "pkg", "zigbee", "device", friendlyName, "error", err)
 			return
 		}
 		a.stateWriter.UpdateSwitchState(id, state)
