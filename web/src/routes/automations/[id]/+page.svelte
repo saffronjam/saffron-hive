@@ -23,8 +23,15 @@
 		SheetTitle,
 		SheetDescription,
 	} from "$lib/components/ui/sheet/index.js";
+	import {
+		Tabs,
+		TabsContent,
+		TabsList,
+		TabsTrigger,
+	} from "$lib/components/ui/tabs/index.js";
 	import MemberPicker from "$lib/components/member-picker.svelte";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
+	import JsonEditor from "$lib/components/json-editor.svelte";
 	import {
 		ArrowLeft,
 		Save,
@@ -35,7 +42,10 @@
 		X,
 		Eye,
 		Pencil,
+		Code,
+		LayoutGrid,
 	} from "@lucide/svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
 	import type { Device } from "$lib/stores/devices";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
@@ -237,12 +247,34 @@
 	let client = $state<ReturnType<typeof createGraphQLClient> | null>(null);
 
 	let automationName = $state("");
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Automations", href: "/automations" }, { label: "Automation" }];
+	});
+	onDestroy(() => pageHeader.reset());
+
+	$effect(() => {
+		if (automationName) {
+			pageHeader.breadcrumbs = [{ label: "Automations", href: "/automations" }, { label: automationName }];
+		}
+	});
+
+	$effect(() => {
+		pageHeader.actions = [
+			{ label: saving ? "Saving..." : "Save", icon: Save, onclick: handleSave, disabled: !editMode || saving },
+			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode },
+		];
+	});
 	let automationEnabled = $state(false);
 	let cooldownSeconds = $state(60);
 	let flowNodes = $state<Node[]>([]);
 	let flowEdges = $state<Edge[]>([]);
 
 	let editMode = $state(true);
+	let viewMode = $state<"visual" | "code">("visual");
+	let jsonString = $state("");
+	let jsonError = $state<string | null>(null);
+	let syncSource = $state<"visual" | "code" | null>(null);
 	let loading = $state(true);
 	let saving = $state(false);
 	let errorMessage = $state<string | null>(null);
@@ -367,6 +399,130 @@
 		}));
 	}
 
+	interface AutomationJson {
+		name: string;
+		cooldownSeconds: number;
+		nodes: { id: string; type: string; config: Record<string, unknown> }[];
+		edges: { from: string; to: string }[];
+	}
+
+	function flowStateToJson(): string {
+		const obj: AutomationJson = {
+			name: automationName,
+			cooldownSeconds,
+			nodes: flowNodes.map((n) => ({
+				id: n.id,
+				type: n.type ?? "trigger",
+				config: (n.data as Record<string, unknown>).config as Record<string, unknown>,
+			})),
+			edges: flowEdges.map((e) => ({
+				from: e.source,
+				to: e.target,
+			})),
+		};
+		return JSON.stringify(obj, null, 2);
+	}
+
+	function jsonToFlowState(jsonStr: string): { ok: true; name: string; cooldownSeconds: number; nodes: AutomationNodeData[]; edges: AutomationEdgeData[] } | { ok: false; error: string } {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(jsonStr);
+		} catch (e) {
+			return { ok: false, error: (e as SyntaxError).message };
+		}
+
+		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+			return { ok: false, error: "Root must be an object" };
+		}
+
+		const obj = parsed as Record<string, unknown>;
+
+		if (typeof obj.name !== "string") {
+			return { ok: false, error: "\"name\" must be a string" };
+		}
+		if (typeof obj.cooldownSeconds !== "number") {
+			return { ok: false, error: "\"cooldownSeconds\" must be a number" };
+		}
+
+		if (!Array.isArray(obj.nodes)) {
+			return { ok: false, error: "\"nodes\" must be an array" };
+		}
+
+		const validTypes = new Set(["trigger", "operator", "action"]);
+		const nodeIds = new Set<string>();
+
+		for (let i = 0; i < obj.nodes.length; i++) {
+			const node = obj.nodes[i] as Record<string, unknown>;
+			if (typeof node.id !== "string") {
+				return { ok: false, error: `nodes[${i}]: "id" must be a string` };
+			}
+			if (typeof node.type !== "string" || !validTypes.has(node.type)) {
+				return { ok: false, error: `nodes[${i}]: "type" must be one of trigger, operator, action` };
+			}
+			if (typeof node.config !== "object" || node.config === null || Array.isArray(node.config)) {
+				return { ok: false, error: `nodes[${i}]: "config" must be an object` };
+			}
+			nodeIds.add(node.id);
+		}
+
+		if (!Array.isArray(obj.edges)) {
+			return { ok: false, error: "\"edges\" must be an array" };
+		}
+
+		for (let i = 0; i < obj.edges.length; i++) {
+			const edge = obj.edges[i] as Record<string, unknown>;
+			if (typeof edge.from !== "string") {
+				return { ok: false, error: `edges[${i}]: "from" must be a string` };
+			}
+			if (typeof edge.to !== "string") {
+				return { ok: false, error: `edges[${i}]: "to" must be a string` };
+			}
+			if (!nodeIds.has(edge.from)) {
+				return { ok: false, error: `edges[${i}]: "from" references unknown node "${edge.from}"` };
+			}
+			if (!nodeIds.has(edge.to)) {
+				return { ok: false, error: `edges[${i}]: "to" references unknown node "${edge.to}"` };
+			}
+		}
+
+		const nodes: AutomationNodeData[] = (obj.nodes as Record<string, unknown>[]).map((n) => ({
+			id: n.id as string,
+			type: n.type as string,
+			config: JSON.stringify(n.config),
+		}));
+
+		const edges: AutomationEdgeData[] = (obj.edges as Record<string, unknown>[]).map((e, i) => ({
+			id: `edge-${e.from}-${e.to}-${i}`,
+			fromNodeId: e.from as string,
+			toNodeId: e.to as string,
+		}));
+
+		return { ok: true, name: obj.name, cooldownSeconds: obj.cooldownSeconds as number, nodes, edges };
+	}
+
+	function syncJsonFromGraph() {
+		if (syncSource === "code") return;
+		syncSource = "visual";
+		jsonString = flowStateToJson();
+		syncSource = null;
+	}
+
+	function handleJsonChange(newValue: string) {
+		if (syncSource === "visual") return;
+		syncSource = "code";
+		const result = jsonToFlowState(newValue);
+		if (result.ok) {
+			jsonError = null;
+			automationName = result.name;
+			cooldownSeconds = result.cooldownSeconds;
+			flowNodes = automationNodesToFlowNodes(result.nodes, editMode, activatedNodes);
+			flowEdges = automationEdgesToFlowEdges(result.edges);
+		} else {
+			jsonError = result.error;
+		}
+		syncSource = null;
+	}
+
 	function addNode(nodeType: "trigger" | "operator" | "action") {
 		nodeIdCounter++;
 		const tempId = `new-${nodeType}-${nodeIdCounter}`;
@@ -478,8 +634,14 @@
 
 		if (result.data) {
 			const auto = result.data.updateAutomation;
-			flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
-			flowEdges = automationEdgesToFlowEdges(auto.edges);
+			const oldIds = flowNodes.map((n) => n.id);
+			const newIds = auto.nodes.map((n) => n.id);
+			const idsChanged = oldIds.length !== newIds.length || oldIds.some((id, i) => id !== newIds[i]);
+			if (idsChanged) {
+				flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
+				flowEdges = automationEdgesToFlowEdges(auto.edges);
+			}
+			jsonString = flowStateToJson();
 		}
 	}
 
@@ -548,8 +710,9 @@
 						}
 					}
 					nodeIdCounter = maxId;
-				}
-			});
+						jsonString = flowStateToJson();
+					}
+				});
 
 		client
 			.query<DevicesQueryResult>(DEVICES_QUERY, {})
@@ -618,7 +781,7 @@
 	});
 </script>
 
-<div class="flex h-[calc(100vh-5rem)] flex-col">
+<div class="flex h-[calc(100vh-6rem)] flex-col">
 	{#if errorMessage}
 		<div
 			class="mb-2 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
@@ -631,22 +794,15 @@
 	{/if}
 
 	<div class="flex flex-wrap items-center gap-2 border-b border-border pb-3">
-		<Button variant="ghost" size="icon-sm" onclick={() => goto("/automations")} aria-label="Back">
-			<ArrowLeft class="size-4" />
-		</Button>
-
 		{#if loading}
 			<div class="h-8 w-48 animate-pulse rounded-md bg-muted"></div>
 		{:else}
-			{#if editMode}
-				<Input
-					bind:value={automationName}
-					class="h-8 w-48 text-sm font-medium"
-					placeholder="Automation name"
-				/>
-			{:else}
-				<h1 class="text-lg font-semibold">{automationName}</h1>
-			{/if}
+			<Input
+				bind:value={automationName}
+				class="h-8 w-48 text-sm font-medium"
+				placeholder="Automation name"
+				disabled={!editMode}
+			/>
 
 			<div class="flex items-center gap-1.5">
 				<Switch
@@ -659,82 +815,103 @@
 				</span>
 			</div>
 
-			{#if editMode}
-				<div class="flex items-center gap-1">
-					<Input
-						type="number"
-						bind:value={cooldownSeconds}
-						class="h-8 w-20 text-xs"
-						min={0}
-					/>
-					<span class="text-xs text-muted-foreground">s cooldown</span>
-				</div>
-			{:else}
-				<Badge variant="secondary" class="text-xs">{cooldownSeconds}s cooldown</Badge>
-			{/if}
+			<div class="flex items-center gap-1">
+				<Input
+					type="number"
+					bind:value={cooldownSeconds}
+					class="h-8 w-20 text-xs"
+					min={0}
+					disabled={!editMode}
+				/>
+				<span class="text-xs text-muted-foreground">s cooldown</span>
+			</div>
 
 			<div class="ml-auto flex items-center gap-2">
-				{#if editMode}
-					<div class="hidden items-center gap-1 sm:flex">
-						<Button variant="outline" size="sm" onclick={() => addNode("trigger")}>
+				<div class="hidden items-center gap-1 sm:flex">
+						<Button variant="outline" size="sm" onclick={() => addNode("trigger")} disabled={!editMode || viewMode === "code"}>
 							<Zap class="size-3.5 text-blue-500" />
 							<span class="hidden lg:inline">Trigger</span>
 						</Button>
-						<Button variant="outline" size="sm" onclick={() => addNode("operator")}>
+						<Button variant="outline" size="sm" onclick={() => addNode("operator")} disabled={!editMode || viewMode === "code"}>
 							<GitMerge class="size-3.5 text-yellow-500" />
 							<span class="hidden lg:inline">Operator</span>
 						</Button>
-						<Button variant="outline" size="sm" onclick={() => addNode("action")}>
+						<Button variant="outline" size="sm" onclick={() => addNode("action")} disabled={!editMode || viewMode === "code"}>
 							<Play class="size-3.5 text-green-500" />
 							<span class="hidden lg:inline">Action</span>
 						</Button>
-					</div>
-				{/if}
+				</div>
 
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={toggleMode}
-					aria-label={editMode ? "Switch to live mode" : "Switch to edit mode"}
-				>
-					{#if editMode}
-						<Eye class="size-3.5" />
-						<span class="hidden sm:inline">Live</span>
-					{:else}
+				<div class="flex items-center rounded-md border border-border dark:border-input">
+					<Button
+						variant={viewMode === "visual" ? "secondary" : "ghost"}
+						size="sm"
+						class="rounded-r-none border-0"
+						onclick={() => {
+							if (viewMode === "code" && !jsonError) {
+								viewMode = "visual";
+							}
+						}}
+						disabled={!editMode || (viewMode === "code" && !!jsonError)}
+					>
+						<LayoutGrid class="size-3.5" />
+						<span class="hidden sm:inline">Visual</span>
+					</Button>
+					<Button
+						variant={viewMode === "code" ? "secondary" : "ghost"}
+						size="sm"
+						class="rounded-l-none border-0"
+						onclick={() => {
+							if (viewMode === "visual") {
+								syncJsonFromGraph();
+								viewMode = "code";
+							}
+						}}
+						disabled={!editMode}
+					>
+						<Code class="size-3.5" />
+						<span class="hidden sm:inline">Code</span>
+					</Button>
+				</div>
+
+				<div class="flex items-center rounded-md border border-border dark:border-input">
+					<Button
+						variant={editMode ? "secondary" : "ghost"}
+						size="sm"
+						class="rounded-r-none border-0"
+						onclick={() => { if (!editMode) toggleMode(); }}
+						disabled={viewMode === "code"}
+					>
 						<Pencil class="size-3.5" />
 						<span class="hidden sm:inline">Edit</span>
-					{/if}
-				</Button>
-
-				{#if editMode}
-					<Button size="sm" onclick={handleSave} disabled={saving}>
-						<Save class="size-3.5" />
-						<span class="hidden sm:inline">{saving ? "Saving..." : "Save"}</span>
 					</Button>
-
 					<Button
-						variant="destructive"
+						variant={!editMode ? "secondary" : "ghost"}
 						size="sm"
-						onclick={() => (deleteConfirmOpen = true)}
+						class="rounded-l-none border-0"
+						onclick={() => { if (editMode) toggleMode(); }}
+						disabled={viewMode === "code"}
 					>
-						<Trash2 class="size-3.5" />
+						<Eye class="size-3.5" />
+						<span class="hidden sm:inline">Live</span>
 					</Button>
-				{/if}
+				</div>
+
 			</div>
 		{/if}
 	</div>
 
-	{#if editMode && isMobile.current}
+	{#if isMobile.current}
 		<div class="flex gap-1 border-b border-border py-2">
-			<Button variant="outline" size="sm" onclick={() => addNode("trigger")}>
+			<Button variant="outline" size="sm" onclick={() => addNode("trigger")} disabled={!editMode || viewMode === "code"}>
 				<Zap class="size-3.5 text-blue-500" />
 				Trigger
 			</Button>
-			<Button variant="outline" size="sm" onclick={() => addNode("operator")}>
+			<Button variant="outline" size="sm" onclick={() => addNode("operator")} disabled={!editMode || viewMode === "code"}>
 				<GitMerge class="size-3.5 text-yellow-500" />
 				Operator
 			</Button>
-			<Button variant="outline" size="sm" onclick={() => addNode("action")}>
+			<Button variant="outline" size="sm" onclick={() => addNode("action")} disabled={!editMode || viewMode === "code"}>
 				<Play class="size-3.5 text-green-500" />
 				Action
 			</Button>
@@ -745,7 +922,7 @@
 		<div class="flex flex-1 items-center justify-center">
 			<div class="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
 		</div>
-	{:else}
+	{:else if viewMode === "visual"}
 		<div class="flex-1">
 			<AutomationFlow
 				bind:nodes={flowNodes}
@@ -754,6 +931,23 @@
 				onconnect={handleConnect}
 				onnodeclick={handleNodeClick}
 			/>
+		</div>
+	{:else}
+		<div class="relative flex-1 pt-2">
+			<JsonEditor
+				bind:value={jsonString}
+				bind:error={jsonError}
+				readonly={!editMode}
+				onchange={handleJsonChange}
+			/>
+			{#if jsonError}
+				<div
+					class="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive backdrop-blur-sm"
+				>
+					<span class="font-medium">Invalid config:</span>
+					<span class="font-mono">{jsonError}</span>
+				</div>
+			{/if}
 		</div>
 	{/if}
 
