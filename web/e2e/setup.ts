@@ -11,7 +11,7 @@ import ws from "ws";
 import { gql } from "@urql/core";
 
 const FIXTURES_DIR = resolve(import.meta.dirname, "../../e2e/fixtures");
-const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
+const _PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 interface E2EContext {
   network: StartedNetwork;
@@ -214,6 +214,38 @@ export async function setupE2E(): Promise<void> {
     mqttClient,
     graphqlUrl,
     wsUrl,
+  };
+}
+
+interface MQTTCommandMessage {
+  topic: string;
+  payload: string;
+}
+
+export async function subscribeMQTTCommands(): Promise<{
+  messages: MQTTCommandMessage[];
+  cleanup: () => Promise<void>;
+}> {
+  const { mqttClient } = getContext();
+  const messages: MQTTCommandMessage[] = [];
+  const topic = "zigbee2mqtt/+/set";
+
+  const handler = (receivedTopic: string, payload: Buffer) => {
+    messages.push({
+      topic: receivedTopic,
+      payload: payload.toString(),
+    });
+  };
+
+  mqttClient.on("message", handler);
+  await mqttClient.subscribeAsync(topic);
+
+  return {
+    messages,
+    cleanup: async () => {
+      mqttClient.removeListener("message", handler);
+      await mqttClient.unsubscribeAsync(topic);
+    },
   };
 }
 
