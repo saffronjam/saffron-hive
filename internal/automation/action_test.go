@@ -6,7 +6,6 @@ import (
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
-	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 func TestSkipCommandWhenStateMatches(t *testing.T) {
@@ -21,10 +20,10 @@ func TestSkipCommandWhenStateMatches(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	devID := device.DeviceID("light-1")
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
-		DeviceID:   &devID,
+		TargetType: TargetDevice,
+		TargetID:   "light-1",
 		Payload:    `{"brightness": 200}`,
 	})
 
@@ -47,10 +46,10 @@ func TestSendCommandWhenStateDiffers(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	devID := device.DeviceID("light-1")
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
-		DeviceID:   &devID,
+		TargetType: TargetDevice,
+		TargetID:   "light-1",
 		Payload:    `{"brightness": 100}`,
 	})
 
@@ -81,10 +80,10 @@ func TestSendCommandWhenCurrentStateUnknown(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	devID := device.DeviceID("light-1")
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
-		DeviceID:   &devID,
+		TargetType: TargetDevice,
+		TargetID:   "light-1",
 		Payload:    `{"brightness": 100}`,
 	})
 
@@ -110,10 +109,10 @@ func TestPartialStateComparison(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	devID := device.DeviceID("light-1")
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
-		DeviceID:   &devID,
+		TargetType: TargetDevice,
+		TargetID:   "light-1",
 		Payload:    `{"brightness": 200}`,
 	})
 

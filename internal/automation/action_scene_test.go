@@ -16,16 +16,16 @@ func TestActivateSceneExpandsToCommands(t *testing.T) {
 	s := newMockStore()
 
 	s.setSceneActions("scene-1", []store.SceneAction{
-		{ID: "sa-1", SceneID: "scene-1", DeviceID: "light-1", Payload: `{"brightness": 100}`},
-		{ID: "sa-2", SceneID: "scene-1", DeviceID: "light-2", Payload: `{"brightness": 150}`},
-		{ID: "sa-3", SceneID: "scene-1", DeviceID: "light-3", Payload: `{"on": true}`},
+		{ID: "sa-1", SceneID: "scene-1", TargetType: "device", TargetID: "light-1", Payload: `{"brightness": 100}`},
+		{ID: "sa-2", SceneID: "scene-1", TargetType: "device", TargetID: "light-2", Payload: `{"brightness": 150}`},
+		{ID: "sa-3", SceneID: "scene-1", TargetType: "device", TargetID: "light-3", Payload: `{"on": true}`},
 	})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
 	})
@@ -57,7 +57,7 @@ func TestActivateSceneNotFound(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "nonexistent",
 	})
@@ -80,7 +80,7 @@ func TestActivateSceneEmptyActions(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-empty",
 	})
@@ -101,15 +101,15 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(100)})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
-		{ID: "sa-1", SceneID: "scene-1", DeviceID: "light-1", Payload: `{"brightness": 100}`},
-		{ID: "sa-2", SceneID: "scene-1", DeviceID: "light-2", Payload: `{"brightness": 200}`},
+		{ID: "sa-1", SceneID: "scene-1", TargetType: "device", TargetID: "light-1", Payload: `{"brightness": 100}`},
+		{ID: "sa-2", SceneID: "scene-1", TargetType: "device", TargetID: "light-2", Payload: `{"brightness": 200}`},
 	})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s)
-	executor.Execute(store.AutomationAction{
+	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
 	})
