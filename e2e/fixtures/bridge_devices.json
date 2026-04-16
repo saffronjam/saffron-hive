@@ -1,0 +1,128 @@
+[
+  {
+    "ieee_address": "0x00158d0001a2b3c4",
+    "friendly_name": "Living Room Light",
+    "type": "Router",
+    "supported": true,
+    "definition": {
+      "model": "LED1545G12",
+      "vendor": "IKEA",
+      "description": "TRADFRI LED bulb E26/E27 980 lumen"
+    },
+    "features": [
+      {
+        "type": "light",
+        "name": "light",
+        "property": "light",
+        "features": [
+          {"type": "binary", "name": "state", "property": "state", "features": []},
+          {"type": "numeric", "name": "brightness", "property": "brightness", "features": []},
+          {"type": "numeric", "name": "color_temp", "property": "color_temp", "features": []}
+        ]
+      }
+    ]
+  },
+  {
+    "ieee_address": "0x00158d0002b3c4d5",
+    "friendly_name": "Bedroom Light",
+    "type": "Router",
+    "supported": true,
+    "definition": {
+      "model": "LED1624G9",
+      "vendor": "IKEA",
+      "description": "TRADFRI LED bulb E14 400 lumen color"
+    },
+    "features": [
+      {
+        "type": "light",
+        "name": "light",
+        "property": "light",
+        "features": [
+          {"type": "binary", "name": "state", "property": "state", "features": []},
+          {"type": "numeric", "name": "brightness", "property": "brightness", "features": []},
+          {"type": "numeric", "name": "color_temp", "property": "color_temp", "features": []},
+          {"type": "composite", "name": "color", "property": "color", "features": []}
+        ]
+      }
+    ]
+  },
+  {
+    "ieee_address": "0x00158d0003c4d5e6",
+    "friendly_name": "Kitchen Light",
+    "type": "Router",
+    "supported": true,
+    "definition": {
+      "model": "LED1546G12",
+      "vendor": "IKEA",
+      "description": "TRADFRI LED bulb E26 806 lumen"
+    },
+    "features": [
+      {
+        "type": "light",
+        "name": "light",
+        "property": "light",
+        "features": [
+          {"type": "binary", "name": "state", "property": "state", "features": []},
+          {"type": "numeric", "name": "brightness", "property": "brightness", "features": []}
+        ]
+      }
+    ]
+  },
+  {
+    "ieee_address": "0x00158d0004d5e6f7",
+    "friendly_name": "Living Room Sensor",
+    "type": "EndDevice",
+    "supported": true,
+    "definition": {
+      "model": "WSDCGQ11LM",
+      "vendor": "Aqara",
+      "description": "Temperature and humidity sensor"
+    },
+    "features": [
+      {"type": "numeric", "name": "temperature", "property": "temperature", "features": []},
+      {"type": "numeric", "name": "humidity", "property": "humidity", "features": []},
+      {"type": "numeric", "name": "battery", "property": "battery", "features": []}
+    ]
+  },
+  {
+    "ieee_address": "0x00158d0005e6f7a8",
+    "friendly_name": "Outdoor Sensor",
+    "type": "EndDevice",
+    "supported": true,
+    "definition": {
+      "model": "WSDCGQ01LM",
+      "vendor": "Xiaomi",
+      "description": "MiJia temperature and humidity sensor"
+    },
+    "features": [
+      {"type": "numeric", "name": "temperature", "property": "temperature", "features": []},
+      {"type": "numeric", "name": "humidity", "property": "humidity", "features": []}
+    ]
+  },
+  {
+    "ieee_address": "0x00158d0006f7a8b9",
+    "friendly_name": "Office Switch",
+    "type": "EndDevice",
+    "supported": true,
+    "definition": {
+      "model": "WXKG01LM",
+      "vendor": "Aqara",
+      "description": "MiJia wireless switch"
+    },
+    "features": [
+      {"type": "enum", "name": "action", "property": "action", "features": []}
+    ]
+  },
+  {
+    "ieee_address": "0x00124b0000000000",
+    "friendly_name": "Coordinator",
+    "type": "Coordinator",
+    "supported": true,
+    "definition": {
+      "model": "CC2652R",
+      "vendor": "Texas Instruments",
+      "description": "Zigbee coordinator"
+    },
+    "features": []
+  }
+]
