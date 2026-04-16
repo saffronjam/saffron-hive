@@ -16,6 +16,12 @@
 	import SceneQuickBar from "$lib/components/scene-quick-bar.svelte";
 	import ActivityFeed from "$lib/components/activity-feed.svelte";
 	import { ChevronDown, Thermometer, Droplets } from "@lucide/svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Dashboard" }];
+	});
+	onDestroy(() => pageHeader.reset());
 
 	type DeviceState = LightState | SensorState | SwitchState;
 
@@ -527,20 +533,19 @@
 
 <div class="flex flex-col gap-6 lg:flex-row">
 	<div class="min-w-0 flex-1">
-		<h1 class="mb-6 text-2xl font-semibold">Dashboard</h1>
 
 		<div class="mb-6 lg:hidden">
 			{#if sensorSummary.sensorCount > 0}
 				<div class="mb-4 flex gap-3">
 					{#if sensorSummary.avgTemp != null}
-						<div class="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+						<div class="flex items-center gap-2 rounded-lg shadow-card bg-card px-3 py-2">
 							<Thermometer class="size-4 text-muted-foreground" />
 							<span class="text-sm font-medium text-foreground">{sensorSummary.avgTemp.toFixed(1)}&deg;C</span>
 							<span class="text-xs text-muted-foreground">avg</span>
 						</div>
 					{/if}
 					{#if sensorSummary.avgHumidity != null}
-						<div class="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+						<div class="flex items-center gap-2 rounded-lg shadow-card bg-card px-3 py-2">
 							<Droplets class="size-4 text-muted-foreground" />
 							<span class="text-sm font-medium text-foreground">{sensorSummary.avgHumidity.toFixed(0)}%</span>
 							<span class="text-xs text-muted-foreground">avg</span>
@@ -561,11 +566,11 @@
 		{#if loading}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 				{#each [1, 2, 3, 4, 5, 6] as _ (_.toString())}
-					<div class="h-16 animate-pulse rounded-lg border border-border bg-card"></div>
+					<div class="h-16 animate-pulse rounded-lg shadow-card bg-card"></div>
 				{/each}
 			</div>
 		{:else if devices.length === 0}
-			<div class="rounded-lg border border-border bg-card p-12 text-center">
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<p class="text-muted-foreground">No devices discovered yet.</p>
 				<p class="mt-2 text-sm text-muted-foreground">
 					Devices will appear here once the backend connects to your MQTT broker.
@@ -606,7 +611,7 @@
 		<div class="mt-6 lg:hidden">
 			<button
 				type="button"
-				class="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+				class="flex w-full items-center justify-between rounded-lg shadow-card bg-card px-4 py-3 text-left"
 				onclick={() => (activityExpanded = !activityExpanded)}
 			>
 				<span class="text-sm font-medium text-foreground">Recent Activity</span>
@@ -624,7 +629,7 @@
 
 	<aside class="hidden w-72 shrink-0 lg:block">
 		{#if sensorSummary.sensorCount > 0}
-			<div class="mb-6 rounded-lg border border-border bg-card p-4">
+			<div class="mb-6 rounded-lg shadow-card bg-card p-4">
 				<h3 class="mb-3 text-sm font-medium text-foreground">Sensors</h3>
 				<div class="space-y-3">
 					{#if sensorSummary.avgTemp != null}
