@@ -63,6 +63,14 @@ func (m *mockStateWriter) SetAvailability(id device.DeviceID, available bool) {
 	m.avail[id] = available
 }
 
+func (m *mockStateWriter) CreateGroup(_ device.Group) error { return nil }
+
+func (m *mockStateWriter) DeleteGroup(_ device.GroupID) {}
+
+func (m *mockStateWriter) AddGroupMember(_ device.GroupMember) error { return nil }
+
+func (m *mockStateWriter) RemoveGroupMember(_ device.GroupID, _ device.GroupMemberType, _ string) {}
+
 type mockStateReader struct{}
 
 func (m *mockStateReader) GetDevice(_ device.DeviceID) (device.Device, bool) {
@@ -82,6 +90,16 @@ func (m *mockStateReader) GetSwitchState(_ device.DeviceID) (*device.SwitchState
 }
 
 func (m *mockStateReader) ListDevices() []device.Device { return nil }
+
+func (m *mockStateReader) GetGroup(_ device.GroupID) (device.Group, bool) {
+	return device.Group{}, false
+}
+
+func (m *mockStateReader) ListGroups() []device.Group { return nil }
+
+func (m *mockStateReader) ListGroupMembers(_ device.GroupID) []device.GroupMember { return nil }
+
+func (m *mockStateReader) ResolveGroupDevices(_ device.GroupID) []device.DeviceID { return nil }
 
 type mockEventBus struct {
 	mu     sync.Mutex
