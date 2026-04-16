@@ -8,7 +8,7 @@ type Device {
   source: String!
   type: String!
   available: Boolean!
-  lastSeen: DateTime!
+  lastSeen: DateTime
   state: DeviceState
 }
 
@@ -46,27 +46,50 @@ type Scene {
   actions: [SceneAction!]!
 }
 
+union SceneTarget = Device | Group
+
 type SceneAction {
   id: ID!
-  deviceId: ID!
+  targetType: String!
+  targetId: ID!
+  target: SceneTarget!
   payload: String!
 }
 
-type Automation {
+type AutomationGraph {
   id: ID!
   name: String!
   enabled: Boolean!
-  triggerEvent: String!
-  conditionExpr: String!
   cooldownSeconds: Int!
-  actions: [AutomationAction!]!
+  nodes: [AutomationNode!]!
+  edges: [AutomationEdge!]!
 }
 
-type AutomationAction {
+type AutomationNode {
   id: ID!
-  actionType: String!
-  deviceId: ID
-  payload: String!
+  type: String!
+  config: String!
+}
+
+type AutomationEdge {
+  id: ID!
+  fromNodeId: ID!
+  toNodeId: ID!
+}
+
+type Group {
+  id: ID!
+  name: String!
+  members: [GroupMember!]!
+  resolvedDevices: [Device!]!
+}
+
+type GroupMember {
+  id: ID!
+  memberType: String!
+  memberId: ID!
+  device: Device
+  group: Group
 }
 
 type SensorReading {
@@ -88,6 +111,12 @@ type DeviceStateEvent {
 type DeviceAvailabilityEvent {
   deviceId: ID!
   available: Boolean!
+}
+
+type AutomationNodeActivationEvent {
+  automationId: ID!
+  nodeId: ID!
+  active: Boolean!
 }
 
 input LightStateInput {
@@ -112,7 +141,8 @@ input CreateSceneInput {
 }
 
 input SceneActionInput {
-  deviceId: ID!
+  targetType: String!
+  targetId: ID!
   payload: String!
 }
 
@@ -124,25 +154,42 @@ input UpdateSceneInput {
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
-  triggerEvent: String!
-  conditionExpr: String!
   cooldownSeconds: Int!
-  actions: [AutomationActionInput!]!
+  nodes: [AutomationNodeInput!]!
+  edges: [AutomationEdgeInput!]!
 }
 
-input AutomationActionInput {
-  actionType: String!
-  deviceId: ID
-  payload: String!
+input AutomationNodeInput {
+  id: ID!
+  type: String!
+  config: String!
+}
+
+input AutomationEdgeInput {
+  fromNodeId: ID!
+  toNodeId: ID!
+}
+
+input CreateGroupInput {
+  name: String!
+}
+
+input UpdateGroupInput {
+  name: String
+}
+
+input AddGroupMemberInput {
+  groupId: ID!
+  memberType: String!
+  memberId: ID!
 }
 
 input UpdateAutomationInput {
   name: String
   enabled: Boolean
-  triggerEvent: String
-  conditionExpr: String
   cooldownSeconds: Int
-  actions: [AutomationActionInput!]
+  nodes: [AutomationNodeInput!]
+  edges: [AutomationEdgeInput!]
 }
 
 type Query {
@@ -150,8 +197,10 @@ type Query {
   device(id: ID!): Device
   scenes: [Scene!]!
   scene(id: ID!): Scene
-  automations: [Automation!]!
-  automation(id: ID!): Automation
+  automations: [AutomationGraph!]!
+  automation(id: ID!): AutomationGraph
+  groups: [Group!]!
+  group(id: ID!): Group
   sensorHistory(deviceId: ID!, from: DateTime, to: DateTime, limit: Int): [SensorReading!]!
 }
 
@@ -161,10 +210,15 @@ type Mutation {
   createScene(input: CreateSceneInput!): Scene!
   updateScene(id: ID!, input: UpdateSceneInput!): Scene!
   deleteScene(id: ID!): Boolean!
-  createAutomation(input: CreateAutomationInput!): Automation!
-  updateAutomation(id: ID!, input: UpdateAutomationInput!): Automation!
+  createAutomation(input: CreateAutomationInput!): AutomationGraph!
+  updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph!
   deleteAutomation(id: ID!): Boolean!
-  toggleAutomation(id: ID!, enabled: Boolean!): Automation!
+  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph!
+  createGroup(input: CreateGroupInput!): Group!
+  updateGroup(id: ID!, input: UpdateGroupInput!): Group!
+  deleteGroup(id: ID!): Boolean!
+  addGroupMember(input: AddGroupMemberInput!): GroupMember!
+  removeGroupMember(id: ID!): Boolean!
 }
 
 type Subscription {
@@ -172,4 +226,5 @@ type Subscription {
   deviceAvailabilityChanged: DeviceAvailabilityEvent!
   deviceAdded: Device!
   deviceRemoved: ID!
+  automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
 }
