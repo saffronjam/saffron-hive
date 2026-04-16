@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -18,6 +19,30 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// UpdateDevice is the resolver for the updateDevice field.
+func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error) {
+	deviceID := device.DeviceID(id)
+	d, err := r.Store.GetDevice(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("device %q not found: %w", id, err)
+	}
+	name := d.Name
+	if input.Name != nil {
+		name = *input.Name
+	}
+	d, err = r.Store.UpdateDevice(ctx, store.UpdateDeviceParams{
+		ID:        deviceID,
+		Name:      name,
+		Available: d.Available,
+		Removed:   d.Removed,
+		LastSeen:  d.LastSeen,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mapDeviceFromReader(r.StateReader, d), nil
+}
 
 // SetDeviceState is the resolver for the setDeviceState field.
 func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, state model.LightStateInput) (*model.Device, error) {
@@ -64,13 +89,33 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		return nil, err
 	}
 
+	for _, sa := range actions {
+		var desired map[string]interface{}
+		if err := json.Unmarshal([]byte(sa.Payload), &desired); err != nil {
+			continue
+		}
+		deviceIDs := resolveSceneActionTargetDevices(r.Store, sa.TargetType, sa.TargetID)
+		for _, did := range deviceIDs {
+			cmd := device.DeviceCommand{
+				DeviceID: did,
+				Payload:  buildLightCommandFromMap(desired),
+			}
+			r.EventBus.Publish(eventbus.Event{
+				Type:      eventbus.EventCommandRequested,
+				DeviceID:  string(did),
+				Timestamp: time.Now(),
+				Payload:   cmd,
+			})
+		}
+	}
+
 	r.EventBus.Publish(eventbus.Event{
 		Type:      eventbus.EventSceneApplied,
 		Timestamp: time.Now(),
 		Payload:   sceneID,
 	})
 
-	return mapScene(r.StateReader, s, actions), nil
+	return mapScene(r.StateReader, r.Store, s, actions), nil
 }
 
 // CreateScene is the resolver for the createScene field.
@@ -100,14 +145,21 @@ func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSc
 		storeActions = append(storeActions, sa)
 	}
 
-	return mapScene(r.StateReader, s, storeActions), nil
+	return mapScene(r.StateReader, r.Store, s, storeActions), nil
 }
 
 // UpdateScene is the resolver for the updateScene field.
 func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input model.UpdateSceneInput) (*model.Scene, error) {
-	s, err := r.Store.GetScene(ctx, id)
+	_, err := r.Store.GetScene(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("scene %q not found: %w", id, err)
+	}
+
+	if input.Name != nil {
+		_, err := r.Store.UpdateScene(ctx, id, store.UpdateSceneParams{Name: input.Name})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if input.Actions != nil {
@@ -135,16 +187,15 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 		}
 	}
 
+	s, err := r.Store.GetScene(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	actions, err := r.Store.ListSceneActions(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	_ = s
-	s, err = r.Store.GetScene(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return mapScene(r.StateReader, s, actions), nil
+	return mapScene(r.StateReader, r.Store, s, actions), nil
 }
 
 // DeleteScene is the resolver for the deleteScene field.
@@ -212,6 +263,16 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	_, err := r.Store.GetAutomation(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("automation %q not found: %w", id, err)
+	}
+
+	if input.Name != nil || input.Enabled != nil || input.CooldownSeconds != nil {
+		if _, err := r.Store.UpdateAutomation(ctx, id, store.UpdateAutomationParams{
+			Name:            input.Name,
+			Enabled:         input.Enabled,
+			CooldownSeconds: input.CooldownSeconds,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	if input.Nodes != nil {
@@ -309,7 +370,7 @@ func (r *mutationResolver) CreateGroup(ctx context.Context, input model.CreateGr
 	if err != nil {
 		return nil, err
 	}
-	return mapGroup(r.StateReader, g, nil), nil
+	return mapGroup(r.StateReader, r.Store, g, nil), nil
 }
 
 // UpdateGroup is the resolver for the updateGroup field.
@@ -333,7 +394,7 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 	if err != nil {
 		return nil, err
 	}
-	return mapGroup(r.StateReader, g, members), nil
+	return mapGroup(r.StateReader, r.Store, g, members), nil
 }
 
 // DeleteGroup is the resolver for the deleteGroup field.
@@ -411,7 +472,7 @@ func (r *queryResolver) Scenes(ctx context.Context) ([]*model.Scene, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapScene(r.StateReader, s, actions)
+		result[i] = mapScene(r.StateReader, r.Store, s, actions)
 	}
 	return result, nil
 }
@@ -426,7 +487,7 @@ func (r *queryResolver) Scene(ctx context.Context, id string) (*model.Scene, err
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(r.StateReader, s, actions), nil
+	return mapScene(r.StateReader, r.Store, s, actions), nil
 }
 
 // Automations is the resolver for the automations field.
@@ -467,7 +528,7 @@ func (r *queryResolver) Groups(ctx context.Context) ([]*model.Group, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapGroup(r.StateReader, g, members)
+		result[i] = mapGroup(r.StateReader, r.Store, g, members)
 	}
 	return result, nil
 }
@@ -482,13 +543,15 @@ func (r *queryResolver) Group(ctx context.Context, id string) (*model.Group, err
 	if err != nil {
 		return nil, err
 	}
-	return mapGroup(r.StateReader, g, members), nil
+	return mapGroup(r.StateReader, r.Store, g, members), nil
 }
 
 // SensorHistory is the resolver for the sensorHistory field.
 func (r *queryResolver) SensorHistory(ctx context.Context, deviceID string, from *time.Time, to *time.Time, limit *int) ([]*model.SensorReading, error) {
 	q := store.SensorHistoryQuery{
 		DeviceID: device.DeviceID(deviceID),
+		From:     time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		To:       time.Now().Add(24 * time.Hour),
 	}
 	if from != nil {
 		q.From = *from
