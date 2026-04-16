@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -24,7 +24,7 @@ func Run(_ context.Context, direction string, steps int) error {
 		dbPath = "saffron-hive.db"
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -51,12 +51,12 @@ func Run(_ context.Context, direction string, steps int) error {
 			if err := m.Steps(steps); err != nil && err != migrate.ErrNoChange {
 				return fmt.Errorf("migrate up %d: %w", steps, err)
 			}
-			log.Printf("applied %d migration(s)", steps)
+			slog.Info("applied migrations", "count", steps)
 		} else {
 			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 				return fmt.Errorf("migrate up: %w", err)
 			}
-			log.Println("all migrations applied")
+			slog.Info("all migrations applied")
 		}
 	case "down":
 		n := 1
@@ -66,13 +66,13 @@ func Run(_ context.Context, direction string, steps int) error {
 		if err := m.Steps(-n); err != nil && err != migrate.ErrNoChange {
 			return fmt.Errorf("migrate down %d: %w", n, err)
 		}
-		log.Printf("rolled back %d migration(s)", n)
+		slog.Info("rolled back migrations", "count", n)
 	case "version":
 		version, dirty, err := m.Version()
 		if err != nil {
 			return fmt.Errorf("get version: %w", err)
 		}
-		log.Printf("version: %d, dirty: %v", version, dirty)
+		slog.Info("migration version", "version", version, "dirty", dirty)
 	default:
 		return fmt.Errorf("unknown migration direction: %q (expected up, down, or version)", direction)
 	}
