@@ -13,6 +13,7 @@ const (
 	EventCommandRequested          EventType = "command.requested"
 	EventSceneApplied              EventType = "scene.applied"
 	EventAutomationTriggered       EventType = "automation.triggered"
+	EventAutomationNodeActivated   EventType = "automation.node_activated"
 )
 
 // Event is the generic envelope carried by the bus.
