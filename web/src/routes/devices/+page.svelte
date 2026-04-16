@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { createGraphQLClient } from "$lib/graphql/client";
+	import { Client } from "@urql/svelte";
 	import {
 		deviceStore,
 		type Device,
@@ -11,6 +12,12 @@
 	import DeviceCard from "$lib/components/device-card.svelte";
 	import DeviceFilters from "$lib/components/device-filters.svelte";
 	import { gql } from "@urql/svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Devices" }];
+	});
+	onDestroy(() => pageHeader.reset());
 
 	type DeviceState = LightState | SensorState | SwitchState;
 
@@ -161,6 +168,15 @@
 		}
 	`;
 
+	const UPDATE_DEVICE = gql`
+		mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
+			updateDevice(id: $id, input: $input) {
+				id
+				name
+			}
+		}
+	`;
+
 	interface DevicesQueryResult {
 		devices: Device[];
 	}
@@ -187,10 +203,27 @@
 		deviceRemoved: string;
 	}
 
+	interface UpdateDeviceResult {
+		updateDevice: {
+			id: string;
+			name: string;
+		};
+	}
+
+	let client: Client;
 	let unsubscribers: (() => void)[] = [];
 
+	async function handleRename(id: string, newName: string) {
+		const result = await client
+			.mutation<UpdateDeviceResult>(UPDATE_DEVICE, { id, input: { name: newName } })
+			.toPromise();
+		if (result.data) {
+			deviceStore.updateName(id, result.data.updateDevice.name);
+		}
+	}
+
 	onMount(() => {
-		const client = createGraphQLClient();
+		client = createGraphQLClient();
 
 		client
 			.query<DevicesQueryResult>(DEVICES_QUERY, {})
@@ -248,7 +281,6 @@
 </script>
 
 <div>
-	<h1 class="mb-6 text-2xl font-semibold">Devices</h1>
 
 	<div class="mb-6">
 		<DeviceFilters
@@ -262,20 +294,20 @@
 	</div>
 
 	{#if allDevices.length === 0}
-		<div class="rounded-lg border border-border bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<p class="text-muted-foreground">No devices discovered yet.</p>
 			<p class="mt-2 text-sm text-muted-foreground">
 				Devices will appear here once the backend connects to your MQTT broker.
 			</p>
 		</div>
 	{:else if filteredDevices.length === 0}
-		<div class="rounded-lg border border-border bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<p class="text-muted-foreground">No devices match your filters.</p>
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each filteredDevices as device (device.id)}
-				<DeviceCard {device} />
+				<DeviceCard {device} onrename={handleRename} />
 			{/each}
 		</div>
 	{/if}

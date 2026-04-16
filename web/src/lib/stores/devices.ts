@@ -81,6 +81,14 @@ function createDeviceStore() {
       update((devices) => ({ ...devices, [device.id]: device }));
     },
 
+    updateName(deviceId: string, name: string) {
+      update((devices) => {
+        const device = devices[deviceId];
+        if (!device) return devices;
+        return { ...devices, [deviceId]: { ...device, name } };
+      });
+    },
+
     removeDevice(deviceId: string) {
       update((devices) => {
         const { [deviceId]: _, ...rest } = devices;

@@ -7,12 +7,16 @@
 	} from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import { Pencil } from "@lucide/svelte";
 
 	interface Props {
 		device: Device;
+		onrename: (id: string, newName: string) => void;
 	}
 
-	let { device }: Props = $props();
+	let { device, onrename }: Props = $props();
 
 	const light = $derived(isLightState(device.state) ? device.state : null);
 	const sensor = $derived(isSensorState(device.state) ? device.state : null);
@@ -54,29 +58,39 @@
 	}
 </script>
 
-<a href="/devices/{device.id}" class="block">
-	<Card
-		size="sm"
-		class="cursor-pointer transition-colors hover:bg-accent"
-	>
-		<CardHeader>
-			<div class="flex items-center justify-between">
-				<CardTitle class="truncate">{device.name}</CardTitle>
+<Card
+	size="sm"
+	class="transition-all hover:shadow-card-hover hover:bg-accent/50"
+>
+	<CardHeader>
+		<div class="flex items-center justify-between">
+			<InlineEditName name={device.name} onsave={(newName) => onrename(device.id, newName)} />
+			<div class="flex items-center gap-2">
 				<span
 					class="h-2.5 w-2.5 shrink-0 rounded-full {device.available ? 'bg-green-500' : 'bg-destructive'}"
 				></span>
 			</div>
-			<div class="flex items-center gap-2">
-				<Badge variant={typeBadgeVariant(device.type)}>
-					{device.type}
-				</Badge>
-				<Badge variant="outline">
-					{device.source}
-				</Badge>
-			</div>
-		</CardHeader>
-		<CardContent>
+		</div>
+		<div class="flex items-center gap-2">
+			<Badge variant={typeBadgeVariant(device.type)}>
+				{device.type}
+			</Badge>
+			<Badge variant="outline">
+				{device.source}
+			</Badge>
+		</div>
+	</CardHeader>
+	<CardContent>
+		<div class="flex items-center justify-between">
 			<p class="text-sm text-muted-foreground">{stateSummary()}</p>
-		</CardContent>
-	</Card>
-</a>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				href="/devices/{device.id}"
+				aria-label="View device details"
+			>
+				<Pencil class="size-4" />
+			</Button>
+		</div>
+	</CardContent>
+</Card>

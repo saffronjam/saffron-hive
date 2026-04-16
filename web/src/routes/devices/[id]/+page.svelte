@@ -25,6 +25,7 @@
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import SwitchDisplay from "$lib/components/switch-display.svelte";
 	import { ArrowLeft, Copy, Check, ExternalLink } from "@lucide/svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { gql } from "@urql/svelte";
 	import type { Client } from "@urql/svelte";
 
@@ -34,6 +35,17 @@
 
 	let device = $state<Device | null>(null);
 	let loading = $state(true);
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: "Device" }];
+	});
+	onDestroy(() => pageHeader.reset());
+
+	$effect(() => {
+		if (device) {
+			pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: device.name }];
+		}
+	});
 	let error = $state<string | null>(null);
 	let sending = $state(false);
 	let copied = $state(false);
@@ -303,20 +315,6 @@
 </script>
 
 <div>
-	<div class="mb-6 flex items-center gap-3">
-		<Button variant="ghost" size="icon-sm" href="/devices" aria-label="Back to devices">
-			<ArrowLeft class="size-4" />
-		</Button>
-		<h1 class="text-2xl font-semibold">
-			{#if loading}
-				Device
-			{:else if device}
-				{device.name}
-			{:else}
-				Device Not Found
-			{/if}
-		</h1>
-	</div>
 
 	{#if error}
 		<div
@@ -328,8 +326,8 @@
 
 	{#if loading}
 		<div class="space-y-4">
-			<div class="h-48 animate-pulse rounded-xl border border-border bg-card"></div>
-			<div class="h-64 animate-pulse rounded-xl border border-border bg-card"></div>
+			<div class="h-48 animate-pulse rounded-xl shadow-card bg-card"></div>
+			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>
 		</div>
 	{:else if device}
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
@@ -424,7 +422,7 @@
 								{#each deviceGroups as group (group.id)}
 									<a
 										href="/groups"
-										class="flex items-center justify-between rounded-lg border border-border px-3 py-2 transition-colors hover:bg-accent"
+										class="flex items-center justify-between rounded-lg shadow-card px-3 py-2 transition-colors hover:bg-accent"
 									>
 										<span class="text-sm font-medium">{group.name}</span>
 										<ExternalLink class="size-3.5 text-muted-foreground" />
