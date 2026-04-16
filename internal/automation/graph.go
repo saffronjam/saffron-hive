@@ -1,7 +1,5 @@
 package automation
 
-import "github.com/saffronjam/saffron-hive/internal/device"
-
 // NodeID uniquely identifies a node within an automation graph.
 type NodeID string
 
@@ -43,11 +41,28 @@ type OperatorConfig struct {
 
 func (OperatorConfig) nodeConfig() {}
 
+// TargetType identifies whether an action targets a device or a group.
+type TargetType string
+
+const (
+	TargetDevice TargetType = "device"
+	TargetGroup  TargetType = "group"
+)
+
 // ActionConfig holds the configuration for an action node.
 type ActionConfig struct {
 	ActionType string
-	DeviceID   *device.DeviceID
+	TargetType TargetType
+	TargetID   string
 	Payload    string
+}
+
+// NodeActivation is the event payload published when a node activates or
+// deactivates during graph evaluation. Used for live visualization.
+type NodeActivation struct {
+	AutomationID string
+	NodeID       NodeID
+	Active       bool
 }
 
 func (ActionConfig) nodeConfig() {}
