@@ -485,9 +485,13 @@ func TestEngineNodeActivationEventsPublished(t *testing.T) {
 
 func TestEngineGroupTargetResolution(t *testing.T) {
 	reader := newMockStateReader()
-	reader.setGroupDevices("group-1", []device.DeviceID{"light-1", "light-2", "light-3"})
 
 	s := newMockStore()
+	s.setGroupMembers("group-1", []store.GroupMember{
+		{ID: "m1", MemberType: device.GroupMemberDevice, MemberID: "light-1"},
+		{ID: "m2", MemberType: device.GroupMemberDevice, MemberID: "light-2"},
+		{ID: "m3", MemberType: device.GroupMemberDevice, MemberID: "light-3"},
+	})
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "group-test", Enabled: true},
 		[]store.AutomationNode{
