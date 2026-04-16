@@ -6,6 +6,7 @@ import {
   getBridgeDevicesFixture,
   publishDeviceState,
   getLightStateFixture,
+  subscribeMQTTCommands,
 } from "./setup.js";
 
 const DEVICES_QUERY = gql`
@@ -90,6 +91,52 @@ interface DevicesQueryResult {
 
 interface DeviceQueryResult {
   device: DeviceFields | null;
+}
+
+const SET_DEVICE_STATE = gql`
+  mutation SetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+    setDeviceState(deviceId: $deviceId, state: $state) {
+      id
+      name
+      type
+      state {
+        ... on LightState {
+          on
+          brightness
+          colorTemp
+        }
+      }
+    }
+  }
+`;
+
+const UPDATE_DEVICE = gql`
+  mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
+    updateDevice(id: $id, input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+interface UpdateDeviceResult {
+  updateDevice: {
+    id: string;
+    name: string;
+  };
+}
+
+interface SetDeviceStateResult {
+  setDeviceState: {
+    id: string;
+    name: string;
+    type: string;
+    state: {
+      on?: boolean;
+      brightness?: number;
+      colorTemp?: number;
+    } | null;
+  };
 }
 
 const COORDINATOR_TYPE = "Coordinator";
@@ -232,5 +279,104 @@ describe("devices", () => {
     const event = await received;
     expect(event.deviceStateChanged).toBeDefined();
     expect(event.deviceStateChanged.deviceId).toBeTruthy();
+  });
+
+  it("should return null for nonexistent device ID", async () => {
+    const { graphqlClient } = getContext();
+
+    const result = await graphqlClient
+      .query<DeviceQueryResult>(DEVICE_QUERY, { id: "nonexistent" })
+      .toPromise();
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).toBeDefined();
+    expect(result.data!.device).toBeNull();
+  });
+
+  it("should set device state via mutation", async () => {
+    const { graphqlClient } = getContext();
+
+    const listResult = await graphqlClient
+      .query<DevicesQueryResult>(DEVICES_QUERY, {})
+      .toPromise();
+
+    expect(listResult.data).toBeDefined();
+    const lightDevice = listResult.data!.devices.find(
+      (d) => d.name === "Living Room Light",
+    );
+    expect(lightDevice).toBeDefined();
+
+    const { messages, cleanup } = await subscribeMQTTCommands();
+
+    const result = await graphqlClient
+      .mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
+        deviceId: lightDevice!.id,
+        state: { on: true, brightness: 200 },
+      })
+      .toPromise();
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).toBeDefined();
+    expect(result.data!.setDeviceState.id).toBe(lightDevice!.id);
+
+    await new Promise((r) => setTimeout(r, 500));
+    expect(messages.length).toBeGreaterThan(0);
+
+    await cleanup();
+  });
+
+  it("should return error for setDeviceState with invalid ID", async () => {
+    const { graphqlClient } = getContext();
+
+    const result = await graphqlClient
+      .mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
+        deviceId: "nonexistent",
+        state: { on: true },
+      })
+      .toPromise();
+
+    expect(result.error).toBeDefined();
+  });
+
+  // EXPECTED FAIL: updateDevice updates DB but response reads from in-memory StateReader
+  // which still has the old name. Same class of bug as the group-target resolution issues.
+  it.skip("should rename a device via updateDevice", async () => {
+    const { graphqlClient } = getContext();
+
+    const devicesResult = await graphqlClient
+      .query<DevicesQueryResult>(DEVICES_QUERY, {})
+      .toPromise();
+    expect(devicesResult.data).toBeDefined();
+    expect(devicesResult.data!.devices.length).toBeGreaterThan(0);
+
+    const device = devicesResult.data!.devices[0];
+    const originalName = device.name;
+    const newName = `Renamed ${Date.now()}`;
+
+    const updateResult = await graphqlClient
+      .mutation<UpdateDeviceResult>(UPDATE_DEVICE, {
+        id: device.id,
+        input: { name: newName },
+      })
+      .toPromise();
+
+    expect(updateResult.error).toBeUndefined();
+    expect(updateResult.data).toBeDefined();
+    expect(updateResult.data!.updateDevice.name).toBe(newName);
+
+    const queryResult = await graphqlClient
+      .query<DeviceQueryResult>(DEVICE_QUERY, { id: device.id })
+      .toPromise();
+
+    expect(queryResult.data).toBeDefined();
+    expect(queryResult.data!.device).toBeDefined();
+    expect(queryResult.data!.device!.name).toBe(newName);
+
+    await graphqlClient
+      .mutation<UpdateDeviceResult>(UPDATE_DEVICE, {
+        id: device.id,
+        input: { name: originalName },
+      })
+      .toPromise();
   });
 });
