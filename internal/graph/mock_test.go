@@ -65,6 +65,16 @@ func (m *mockStateReader) ListDevices() []device.Device {
 	return out
 }
 
+func (m *mockStateReader) GetGroup(_ device.GroupID) (device.Group, bool) {
+	return device.Group{}, false
+}
+
+func (m *mockStateReader) ListGroups() []device.Group { return nil }
+
+func (m *mockStateReader) ListGroupMembers(_ device.GroupID) []device.GroupMember { return nil }
+
+func (m *mockStateReader) ResolveGroupDevices(_ device.GroupID) []device.DeviceID { return nil }
+
 func (m *mockStateReader) addDevice(d device.Device) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
