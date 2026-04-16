@@ -13,6 +13,8 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import AutomationCard from "$lib/components/automation-card.svelte";
 	import { Plus, Workflow, X } from "@lucide/svelte";
+	import { onMount, onDestroy } from "svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
 
 	interface AutomationNode {
 		id: string;
@@ -100,6 +102,21 @@
 		}
 	`;
 
+	const DELETE_AUTOMATION = gql`
+		mutation DeleteAutomation($id: ID!) {
+			deleteAutomation(id: $id)
+		}
+	`;
+
+	const UPDATE_AUTOMATION_NAME = gql`
+		mutation UpdateAutomation($id: ID!, $input: UpdateAutomationInput!) {
+			updateAutomation(id: $id, input: $input) {
+				id
+				name
+			}
+		}
+	`;
+
 	const automationsQuery = queryStore<AutomationsQueryResult>({
 		client,
 		query: AUTOMATIONS_QUERY,
@@ -110,6 +127,12 @@
 	let createDialogOpen = $state(false);
 	let newAutomationName = $state("");
 	let createLoading = $state(false);
+
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Automations" }];
+		pageHeader.actions = [{ label: "Create Automation", icon: Plus, onclick: () => (createDialogOpen = true) }];
+	});
+	onDestroy(() => pageHeader.reset());
 	let errorMessage = $state<string | null>(null);
 
 	function clearError() {
@@ -172,6 +195,38 @@
 	function handleCardClick(id: string) {
 		goto(`/automations/${id}`);
 	}
+
+	async function handleDelete(id: string) {
+		clearError();
+
+		const result = await client
+			.mutation(DELETE_AUTOMATION, { id })
+			.toPromise();
+
+		if (result.error) {
+			errorMessage = result.error.message;
+			dismissErrorAfterDelay();
+			return;
+		}
+
+		automationsQuery.reexecute({ requestPolicy: "network-only" });
+	}
+
+	async function handleRename(id: string, newName: string) {
+		clearError();
+
+		const result = await client
+			.mutation(UPDATE_AUTOMATION_NAME, { id, input: { name: newName } })
+			.toPromise();
+
+		if (result.error) {
+			errorMessage = result.error.message;
+			dismissErrorAfterDelay();
+			return;
+		}
+
+		automationsQuery.reexecute({ requestPolicy: "network-only" });
+	}
 </script>
 
 <div>
@@ -186,22 +241,15 @@
 		</div>
 	{/if}
 
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-semibold">Automations</h1>
-		<Button onclick={() => (createDialogOpen = true)}>
-			<Plus class="size-4" />
-			<span>Create Automation</span>
-		</Button>
-	</div>
 
 	{#if $automationsQuery.fetching}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each [1, 2, 3] as _ (_.toString())}
-				<div class="h-28 animate-pulse rounded-lg border border-border bg-card"></div>
+				<div class="h-28 animate-pulse rounded-lg shadow-card bg-card"></div>
 			{/each}
 		</div>
 	{:else if automations.length === 0}
-		<div class="rounded-lg border border-border bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<Workflow class="size-6 text-muted-foreground" />
 			</div>
@@ -220,7 +268,9 @@
 				<AutomationCard
 					{automation}
 					ontoggle={handleToggle}
-					onclick={handleCardClick}
+					onedit={handleCardClick}
+					ondelete={handleDelete}
+					onrename={handleRename}
 				/>
 			{/each}
 		</div>
