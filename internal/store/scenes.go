@@ -60,17 +60,18 @@ func (s *SQLiteStore) DeleteScene(ctx context.Context, id string) error {
 // CreateSceneAction inserts a new scene action.
 func (s *SQLiteStore) CreateSceneAction(ctx context.Context, params CreateSceneActionParams) (SceneAction, error) {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO scene_actions (id, scene_id, device_id, payload) VALUES (?, ?, ?, ?)`,
-		params.ID, params.SceneID, params.DeviceID, params.Payload,
+		`INSERT INTO scene_actions (id, scene_id, target_type, target_id, payload) VALUES (?, ?, ?, ?, ?)`,
+		params.ID, params.SceneID, params.TargetType, params.TargetID, params.Payload,
 	)
 	if err != nil {
 		return SceneAction{}, fmt.Errorf("create scene action: %w", err)
 	}
 	return SceneAction{
-		ID:       params.ID,
-		SceneID:  params.SceneID,
-		DeviceID: params.DeviceID,
-		Payload:  params.Payload,
+		ID:         params.ID,
+		SceneID:    params.SceneID,
+		TargetType: params.TargetType,
+		TargetID:   params.TargetID,
+		Payload:    params.Payload,
 	}, nil
 }
 
@@ -86,7 +87,7 @@ func (s *SQLiteStore) DeleteSceneAction(ctx context.Context, id string) error {
 // ListSceneActions returns all actions belonging to a scene.
 func (s *SQLiteStore) ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, scene_id, device_id, payload FROM scene_actions WHERE scene_id = ?`, sceneID,
+		`SELECT id, scene_id, target_type, target_id, payload FROM scene_actions WHERE scene_id = ?`, sceneID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list scene actions: %w", err)
@@ -95,7 +96,7 @@ func (s *SQLiteStore) ListSceneActions(ctx context.Context, sceneID string) ([]S
 	var actions []SceneAction
 	for rows.Next() {
 		var a SceneAction
-		if err := rows.Scan(&a.ID, &a.SceneID, &a.DeviceID, &a.Payload); err != nil {
+		if err := rows.Scan(&a.ID, &a.SceneID, &a.TargetType, &a.TargetID, &a.Payload); err != nil {
 			return nil, fmt.Errorf("scan scene action: %w", err)
 		}
 		actions = append(actions, a)

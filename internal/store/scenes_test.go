@@ -45,10 +45,11 @@ func TestAddSceneActions(t *testing.T) {
 			t.Fatalf("create device %d: %v", i, err)
 		}
 		_, err = s.CreateSceneAction(ctx, CreateSceneActionParams{
-			ID:       "action-" + string(rune('1'+i)),
-			SceneID:  "scene-1",
-			DeviceID: devID,
-			Payload:  `{"on":true}`,
+			ID:         "action-" + string(rune('1'+i)),
+			SceneID:    "scene-1",
+			TargetType: "device",
+			TargetID:   string(devID),
+			Payload:    `{"on":true}`,
 		})
 		if err != nil {
 			t.Fatalf("create scene action %d: %v", i, err)
@@ -79,7 +80,7 @@ func TestDeleteSceneCascadesActions(t *testing.T) {
 		t.Fatalf("create device: %v", err)
 	}
 	_, err = s.CreateSceneAction(ctx, CreateSceneActionParams{
-		ID: "action-1", SceneID: "scene-1", DeviceID: "dev-1", Payload: `{"on":true}`,
+		ID: "action-1", SceneID: "scene-1", TargetType: "device", TargetID: "dev-1", Payload: `{"on":true}`,
 	})
 	if err != nil {
 		t.Fatalf("create action: %v", err)
