@@ -135,6 +135,10 @@ input ColorInput {
   y: Float!
 }
 
+input UpdateDeviceInput {
+  name: String
+}
+
 input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
@@ -205,6 +209,7 @@ type Query {
 }
 
 type Mutation {
+  updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
   setDeviceState(deviceId: ID!, state: LightStateInput!): Device!
   applyScene(sceneId: ID!): Scene!
   createScene(input: CreateSceneInput!): Scene!

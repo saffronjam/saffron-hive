@@ -128,6 +128,7 @@ type ComplexityRoot struct {
 		SetDeviceState    func(childComplexity int, deviceID string, state model.LightStateInput) int
 		ToggleAutomation  func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation  func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateDevice      func(childComplexity int, id string, input model.UpdateDeviceInput) int
 		UpdateGroup       func(childComplexity int, id string, input model.UpdateGroupInput) int
 		UpdateScene       func(childComplexity int, id string, input model.UpdateSceneInput) int
 	}
@@ -191,6 +192,7 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
+	UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error)
 	SetDeviceState(ctx context.Context, deviceID string, state model.LightStateInput) (*model.Device, error)
 	ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error)
 	CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error)
@@ -652,6 +654,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateAutomation(childComplexity, args["id"].(string), args["input"].(model.UpdateAutomationInput)), true
+	case "Mutation.updateDevice":
+		if e.ComplexityRoot.Mutation.UpdateDevice == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateDevice_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateDevice(childComplexity, args["id"].(string), args["input"].(model.UpdateDeviceInput)), true
 	case "Mutation.updateGroup":
 		if e.ComplexityRoot.Mutation.UpdateGroup == nil {
 			break
@@ -952,6 +965,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputLightStateInput,
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputUpdateAutomationInput,
+		ec.unmarshalInputUpdateDeviceInput,
 		ec.unmarshalInputUpdateGroupInput,
 		ec.unmarshalInputUpdateSceneInput,
 	)
@@ -1183,6 +1197,10 @@ input ColorInput {
   y: Float!
 }
 
+input UpdateDeviceInput {
+  name: String
+}
+
 input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
@@ -1253,6 +1271,7 @@ type Query {
 }
 
 type Mutation {
+  updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
   setDeviceState(deviceId: ID!, state: LightStateInput!): Device!
   applyScene(sceneId: ID!): Scene!
   createScene(input: CreateSceneInput!): Scene!
@@ -1424,6 +1443,22 @@ func (ec *executionContext) field_Mutation_updateAutomation_args(ctx context.Con
 	}
 	args["id"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateDevice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateDeviceInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateDeviceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -3001,6 +3036,63 @@ func (ec *executionContext) fieldContext_LightState_transition(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateDevice,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateDevice(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateDeviceInput))
+		},
+		nil,
+		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -7005,6 +7097,36 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context, obj any) (model.UpdateDeviceInput, error) {
+	var it model.UpdateDeviceInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateGroupInput(ctx context.Context, obj any) (model.UpdateGroupInput, error) {
 	var it model.UpdateGroupInput
 	if obj == nil {
@@ -7732,6 +7854,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "updateDevice":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateDevice(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "setDeviceState":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setDeviceState(ctx, field)
@@ -9198,6 +9327,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 
 func (ec *executionContext) unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput(ctx context.Context, v any) (model.UpdateAutomationInput, error) {
 	res, err := ec.unmarshalInputUpdateAutomationInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateDeviceInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateDeviceInput(ctx context.Context, v any) (model.UpdateDeviceInput, error) {
+	res, err := ec.unmarshalInputUpdateDeviceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

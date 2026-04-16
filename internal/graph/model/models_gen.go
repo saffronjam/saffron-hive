@@ -212,6 +212,10 @@ type UpdateAutomationInput struct {
 	Edges           []*AutomationEdgeInput `json:"edges,omitempty"`
 }
 
+type UpdateDeviceInput struct {
+	Name *string `json:"name,omitempty"`
+}
+
 type UpdateGroupInput struct {
 	Name *string `json:"name,omitempty"`
 }
