@@ -1,4 +1,4 @@
-.PHONY: deps lint format typecheck errcheck test web api migrate-up migrate-up-n migrate-down-n migrate-version package prepare-for-commit
+.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version package prepare-for-commit
 
 deps:
 	go mod tidy
@@ -21,7 +21,7 @@ errcheck:
 
 test:
 	go test ./... -race -count=1
-	cd web && bun run check
+	cd web && bun run test
 
 web: web/node_modules
 	cd web && bun run dev
@@ -46,5 +46,14 @@ migrate-version:
 
 package:
 	docker build -t saffron-hive .
+
+e2e: e2e-go e2e-ts
+
+e2e-go:
+	go test -tags e2e ./e2e/... -v -count=1 -timeout=60s
+
+e2e-ts:
+	docker build -t saffron-hive-test .
+	cd web && bun run test:e2e
 
 prepare-for-commit: deps format lint typecheck errcheck test
