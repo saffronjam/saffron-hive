@@ -100,26 +100,34 @@ func (m *mockStateReader) setSwitchState(id device.DeviceID, sw *device.SwitchSt
 }
 
 type mockStore struct {
-	mu                sync.RWMutex
-	scenes            map[string]store.Scene
-	sceneActions      map[string][]store.SceneAction
-	automations       map[string]store.Automation
-	automationActions map[string][]store.AutomationAction
-	sensorReadings    []store.SensorReading
+	mu              sync.RWMutex
+	scenes          map[string]store.Scene
+	sceneActions    map[string][]store.SceneAction
+	automations     map[string]store.Automation
+	automationNodes map[string][]store.AutomationNode
+	automationEdges map[string][]store.AutomationEdge
+	groups          map[string]store.Group
+	groupMembers    map[string][]store.GroupMember
+	sensorReadings  []store.SensorReading
 
 	createSceneCalled      bool
 	deleteSceneCalled      bool
 	createAutomationCalled bool
 	deleteAutomationCalled bool
+	createGroupCalled      bool
+	deleteGroupCalled      bool
 	toggleCalled           bool
 }
 
 func newMockStore() *mockStore {
 	return &mockStore{
-		scenes:            make(map[string]store.Scene),
-		sceneActions:      make(map[string][]store.SceneAction),
-		automations:       make(map[string]store.Automation),
-		automationActions: make(map[string][]store.AutomationAction),
+		scenes:          make(map[string]store.Scene),
+		sceneActions:    make(map[string][]store.SceneAction),
+		automations:     make(map[string]store.Automation),
+		automationNodes: make(map[string][]store.AutomationNode),
+		automationEdges: make(map[string][]store.AutomationEdge),
+		groups:          make(map[string]store.Group),
+		groupMembers:    make(map[string][]store.GroupMember),
 	}
 }
 
@@ -201,10 +209,11 @@ func (m *mockStore) CreateSceneAction(_ context.Context, params store.CreateScen
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	sa := store.SceneAction{
-		ID:       params.ID,
-		SceneID:  params.SceneID,
-		DeviceID: params.DeviceID,
-		Payload:  params.Payload,
+		ID:         params.ID,
+		SceneID:    params.SceneID,
+		TargetType: params.TargetType,
+		TargetID:   params.TargetID,
+		Payload:    params.Payload,
 	}
 	m.sceneActions[params.SceneID] = append(m.sceneActions[params.SceneID], sa)
 	return sa, nil
@@ -239,8 +248,6 @@ func (m *mockStore) CreateAutomation(_ context.Context, params store.CreateAutom
 		ID:              params.ID,
 		Name:            params.Name,
 		Enabled:         params.Enabled,
-		TriggerEvent:    params.TriggerEvent,
-		ConditionExpr:   params.ConditionExpr,
 		CooldownSeconds: params.CooldownSeconds,
 	}
 	m.automations[params.ID] = a
@@ -297,43 +304,192 @@ func (m *mockStore) DeleteAutomation(_ context.Context, id string) error {
 	defer m.mu.Unlock()
 	m.deleteAutomationCalled = true
 	delete(m.automations, id)
-	delete(m.automationActions, id)
+	delete(m.automationNodes, id)
+	delete(m.automationEdges, id)
 	return nil
 }
 
-func (m *mockStore) CreateAutomationAction(_ context.Context, params store.CreateAutomationActionParams) (store.AutomationAction, error) {
+func (m *mockStore) CreateAutomationNode(_ context.Context, params store.CreateAutomationNodeParams) (store.AutomationNode, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	aa := store.AutomationAction{
+	n := store.AutomationNode{
 		ID:           params.ID,
 		AutomationID: params.AutomationID,
-		ActionType:   params.ActionType,
-		DeviceID:     params.DeviceID,
-		Payload:      params.Payload,
+		Type:         params.Type,
+		Config:       params.Config,
 	}
-	m.automationActions[params.AutomationID] = append(m.automationActions[params.AutomationID], aa)
-	return aa, nil
+	m.automationNodes[params.AutomationID] = append(m.automationNodes[params.AutomationID], n)
+	return n, nil
 }
 
-func (m *mockStore) ListAutomationActions(_ context.Context, automationID string) ([]store.AutomationAction, error) {
+func (m *mockStore) ListAutomationNodes(_ context.Context, automationID string) ([]store.AutomationNode, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.automationActions[automationID], nil
+	return m.automationNodes[automationID], nil
 }
 
-func (m *mockStore) DeleteAutomationAction(_ context.Context, id string) error {
+func (m *mockStore) DeleteAutomationNode(_ context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for autoID, actions := range m.automationActions {
-		var filtered []store.AutomationAction
-		for _, a := range actions {
-			if a.ID != id {
-				filtered = append(filtered, a)
+	for autoID, nodes := range m.automationNodes {
+		var filtered []store.AutomationNode
+		for _, n := range nodes {
+			if n.ID != id {
+				filtered = append(filtered, n)
 			}
 		}
-		m.automationActions[autoID] = filtered
+		m.automationNodes[autoID] = filtered
 	}
 	return nil
+}
+
+func (m *mockStore) CreateAutomationEdge(_ context.Context, params store.CreateAutomationEdgeParams) (store.AutomationEdge, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e := store.AutomationEdge{
+		ID:           params.ID,
+		AutomationID: params.AutomationID,
+		FromNodeID:   params.FromNodeID,
+		ToNodeID:     params.ToNodeID,
+	}
+	m.automationEdges[params.AutomationID] = append(m.automationEdges[params.AutomationID], e)
+	return e, nil
+}
+
+func (m *mockStore) ListAutomationEdges(_ context.Context, automationID string) ([]store.AutomationEdge, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.automationEdges[automationID], nil
+}
+
+func (m *mockStore) DeleteAutomationEdge(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for autoID, edges := range m.automationEdges {
+		var filtered []store.AutomationEdge
+		for _, e := range edges {
+			if e.ID != id {
+				filtered = append(filtered, e)
+			}
+		}
+		m.automationEdges[autoID] = filtered
+	}
+	return nil
+}
+
+func (m *mockStore) GetAutomationGraph(_ context.Context, automationID string) (store.AutomationGraph, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	a, ok := m.automations[automationID]
+	if !ok {
+		return store.AutomationGraph{}, fmt.Errorf("automation %q not found", automationID)
+	}
+	return store.AutomationGraph{
+		Automation: a,
+		Nodes:      m.automationNodes[automationID],
+		Edges:      m.automationEdges[automationID],
+	}, nil
+}
+
+func (m *mockStore) CreateGroup(_ context.Context, params store.CreateGroupParams) (store.Group, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.createGroupCalled = true
+	g := store.Group{ID: params.ID, Name: params.Name}
+	m.groups[params.ID] = g
+	return g, nil
+}
+
+func (m *mockStore) GetGroup(_ context.Context, id string) (store.Group, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	g, ok := m.groups[id]
+	if !ok {
+		return store.Group{}, fmt.Errorf("group %q not found", id)
+	}
+	return g, nil
+}
+
+func (m *mockStore) ListGroups(_ context.Context) ([]store.Group, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []store.Group
+	for _, g := range m.groups {
+		out = append(out, g)
+	}
+	return out, nil
+}
+
+func (m *mockStore) UpdateGroup(_ context.Context, params store.UpdateGroupParams) (store.Group, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	g, ok := m.groups[params.ID]
+	if !ok {
+		return store.Group{}, fmt.Errorf("group %q not found", params.ID)
+	}
+	g.Name = params.Name
+	m.groups[params.ID] = g
+	return g, nil
+}
+
+func (m *mockStore) DeleteGroup(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.deleteGroupCalled = true
+	delete(m.groups, id)
+	delete(m.groupMembers, id)
+	return nil
+}
+
+func (m *mockStore) AddGroupMember(_ context.Context, params store.AddGroupMemberParams) (store.GroupMember, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	gm := store.GroupMember{
+		ID:         params.ID,
+		GroupID:    params.GroupID,
+		MemberType: params.MemberType,
+		MemberID:   params.MemberID,
+	}
+	m.groupMembers[params.GroupID] = append(m.groupMembers[params.GroupID], gm)
+	return gm, nil
+}
+
+func (m *mockStore) ListGroupMembers(_ context.Context, groupID string) ([]store.GroupMember, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.groupMembers[groupID], nil
+}
+
+func (m *mockStore) RemoveGroupMember(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for groupID, members := range m.groupMembers {
+		var filtered []store.GroupMember
+		for _, gm := range members {
+			if gm.ID != id {
+				filtered = append(filtered, gm)
+			}
+		}
+		m.groupMembers[groupID] = filtered
+	}
+	return nil
+}
+
+func (m *mockStore) ListGroupsContainingMember(_ context.Context, memberType device.GroupMemberType, memberID string) ([]store.Group, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []store.Group
+	for groupID, members := range m.groupMembers {
+		for _, gm := range members {
+			if gm.MemberType == memberType && gm.MemberID == memberID {
+				if g, ok := m.groups[groupID]; ok {
+					out = append(out, g)
+				}
+				break
+			}
+		}
+	}
+	return out, nil
 }
 
 func (m *mockStore) InsertSensorReading(_ context.Context, _ store.InsertSensorReadingParams) (store.SensorReading, error) {
