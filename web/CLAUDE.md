@@ -22,3 +22,15 @@ All data fetching, mutations, and real-time updates go through GraphQL:
 - Subscriptions for live state updates (device changes, sensor readings)
 
 The frontend maintains a local state store that is hydrated on connect and kept in sync via subscriptions.
+
+## Theme
+
+Dark and light mode are supported via Tailwind's `dark:` class variant. The `<html>` element gets the `dark` class toggled by the theme store (`$lib/stores/theme.ts`), which persists to localStorage.
+
+### Rules
+
+- Every component MUST support both dark and light mode.
+- Use shadcn's CSS variable-based color tokens (`bg-background`, `text-foreground`, `bg-card`, `text-muted-foreground`, etc.) instead of hardcoded colors.
+- Never hardcode color values — always use CSS variables from the shadcn theme system.
+- Use Tailwind's `dark:` variant only when a component needs different styling beyond what the CSS variables provide.
+- Test both themes when adding or modifying components.

@@ -1,14 +1,11 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
-	import '../app.css';
+	import favicon from "$lib/assets/favicon.svg";
+	import "../app.css";
+	import AppSidebar from "$lib/components/app-sidebar.svelte";
+	import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar/index.js";
+	import { Separator } from "$lib/components/ui/separator/index.js";
 
 	let { children } = $props();
-
-	const navItems = [
-		{ href: '/', label: 'Dashboard' },
-		{ href: '/scenes', label: 'Scenes' },
-		{ href: '/automations', label: 'Automations' }
-	];
 </script>
 
 <svelte:head>
@@ -16,24 +13,16 @@
 	<title>Saffron Hive</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col">
-	<nav class="border-b border-border bg-surface-raised">
-		<div class="mx-auto flex max-w-7xl items-center gap-8 px-6 py-4">
-			<a href="/" class="text-lg font-semibold text-accent">Saffron Hive</a>
-			<div class="flex gap-4">
-				{#each navItems as item}
-					<a
-						href={item.href}
-						class="rounded-md px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-					>
-						{item.label}
-					</a>
-				{/each}
-			</div>
-		</div>
-	</nav>
-
-	<main class="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
-		{@render children()}
-	</main>
-</div>
+<SidebarProvider>
+	<AppSidebar />
+	<SidebarInset>
+		<header class="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+			<SidebarTrigger class="-ml-1" />
+			<Separator orientation="vertical" class="mr-2 !h-4" />
+			<span class="text-sm font-medium text-muted-foreground">Saffron Hive</span>
+		</header>
+		<main class="flex-1 p-6">
+			{@render children()}
+		</main>
+	</SidebarInset>
+</SidebarProvider>
