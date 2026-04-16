@@ -3,8 +3,6 @@ package store
 import (
 	"context"
 	"testing"
-
-	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
 func TestCreateAutomation(t *testing.T) {
@@ -15,8 +13,6 @@ func TestCreateAutomation(t *testing.T) {
 		ID:              "auto-1",
 		Name:            "Night Light",
 		Enabled:         true,
-		TriggerEvent:    "device.state_changed",
-		ConditionExpr:   "temperature < 20",
 		CooldownSeconds: 10,
 	})
 	if err != nil {
@@ -32,12 +28,6 @@ func TestCreateAutomation(t *testing.T) {
 	if !a.Enabled {
 		t.Error("expected Enabled to be true")
 	}
-	if a.TriggerEvent != "device.state_changed" {
-		t.Errorf("got TriggerEvent %q, want %q", a.TriggerEvent, "device.state_changed")
-	}
-	if a.ConditionExpr != "temperature < 20" {
-		t.Errorf("got ConditionExpr %q, want %q", a.ConditionExpr, "temperature < 20")
-	}
 	if a.CooldownSeconds != 10 {
 		t.Errorf("got CooldownSeconds %d, want %d", a.CooldownSeconds, 10)
 	}
@@ -46,64 +36,111 @@ func TestCreateAutomation(t *testing.T) {
 	}
 }
 
-func TestAddAutomationActions(t *testing.T) {
+func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: "true", CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test Graph", Enabled: true, CooldownSeconds: 5,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)
 	}
 
-	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: "zigbee", Type: device.Light,
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n1", AutomationID: "auto-1", Type: "trigger",
+		Config: `{"event_type":"device.state_changed","condition_expr":"true"}`,
 	})
 	if err != nil {
-		t.Fatalf("create device: %v", err)
+		t.Fatalf("create node: %v", err)
 	}
 
-	devID := device.DeviceID("dev-1")
-	_, err = s.CreateAutomationAction(ctx, CreateAutomationActionParams{
-		ID:           "aa-1",
-		AutomationID: "auto-1",
-		ActionType:   "set_device_state",
-		DeviceID:     &devID,
-		Payload:      `{"on":true}`,
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n2", AutomationID: "auto-1", Type: "action",
+		Config: `{"action_type":"set_device_state","payload":"{\"on\":true}"}`,
 	})
 	if err != nil {
-		t.Fatalf("create action: %v", err)
+		t.Fatalf("create node: %v", err)
 	}
 
-	_, err = s.CreateAutomationAction(ctx, CreateAutomationActionParams{
-		ID:           "aa-2",
-		AutomationID: "auto-1",
-		ActionType:   "activate_scene",
-		DeviceID:     nil,
-		Payload:      `{"scene_id":"scene-1"}`,
+	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+		ID: "e1", AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
 	})
 	if err != nil {
-		t.Fatalf("create action: %v", err)
+		t.Fatalf("create edge: %v", err)
 	}
 
-	actions, err := s.ListAutomationActions(ctx, "auto-1")
+	graph, err := s.GetAutomationGraph(ctx, "auto-1")
 	if err != nil {
-		t.Fatalf("list actions: %v", err)
-	}
-	if len(actions) != 2 {
-		t.Fatalf("got %d actions, want 2", len(actions))
+		t.Fatalf("get graph: %v", err)
 	}
 
-	if actions[0].DeviceID == nil {
-		t.Error("expected first action to have DeviceID")
-	} else if *actions[0].DeviceID != "dev-1" {
-		t.Errorf("got DeviceID %q, want %q", *actions[0].DeviceID, "dev-1")
+	if graph.Automation.ID != "auto-1" {
+		t.Errorf("got automation ID %q, want %q", graph.Automation.ID, "auto-1")
+	}
+	if len(graph.Nodes) != 2 {
+		t.Fatalf("got %d nodes, want 2", len(graph.Nodes))
+	}
+	if len(graph.Edges) != 1 {
+		t.Fatalf("got %d edges, want 1", len(graph.Edges))
+	}
+	if graph.Edges[0].FromNodeID != "n1" || graph.Edges[0].ToNodeID != "n2" {
+		t.Errorf("edge from %q to %q, want n1->n2", graph.Edges[0].FromNodeID, graph.Edges[0].ToNodeID)
+	}
+}
+
+func TestDeleteAutomationCascadesNodesAndEdges(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
+		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
 	}
 
-	if actions[1].DeviceID != nil {
-		t.Error("expected second action to have nil DeviceID")
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n1", AutomationID: "auto-1", Type: "trigger",
+		Config: `{"event_type":"device.state_changed"}`,
+	})
+	if err != nil {
+		t.Fatalf("create node: %v", err)
+	}
+
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n2", AutomationID: "auto-1", Type: "action",
+		Config: `{"action_type":"set_device_state","payload":"{}"}`,
+	})
+	if err != nil {
+		t.Fatalf("create node: %v", err)
+	}
+
+	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+		ID: "e1", AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
+	})
+	if err != nil {
+		t.Fatalf("create edge: %v", err)
+	}
+
+	if err := s.DeleteAutomation(ctx, "auto-1"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	nodes, err := s.ListAutomationNodes(ctx, "auto-1")
+	if err != nil {
+		t.Fatalf("list nodes: %v", err)
+	}
+	if len(nodes) != 0 {
+		t.Errorf("got %d nodes after delete, want 0", len(nodes))
+	}
+
+	edges, err := s.ListAutomationEdges(ctx, "auto-1")
+	if err != nil {
+		t.Fatalf("list edges: %v", err)
+	}
+	if len(edges) != 0 {
+		t.Errorf("got %d edges after delete, want 0", len(edges))
 	}
 }
 
@@ -120,8 +157,7 @@ func TestListEnabledAutomations(t *testing.T) {
 		{"auto-3", false},
 	} {
 		_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-			ID: tc.id, Name: tc.id, Enabled: tc.enabled,
-			TriggerEvent: "device.state_changed", ConditionExpr: "true", CooldownSeconds: 5,
+			ID: tc.id, Name: tc.id, Enabled: tc.enabled, CooldownSeconds: 5,
 		})
 		if err != nil {
 			t.Fatalf("create automation %s: %v", tc.id, err)
@@ -142,8 +178,7 @@ func TestToggleAutomation(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: "true", CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -162,35 +197,81 @@ func TestToggleAutomation(t *testing.T) {
 	}
 }
 
-func TestDeleteAutomationCascadesActions(t *testing.T) {
+func TestDeleteAutomationNode(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true,
-		TriggerEvent: "device.state_changed", ConditionExpr: "true", CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)
 	}
 
-	_, err = s.CreateAutomationAction(ctx, CreateAutomationActionParams{
-		ID: "aa-1", AutomationID: "auto-1", ActionType: "activate_scene",
-		Payload: `{"scene_id":"scene-1"}`,
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n1", AutomationID: "auto-1", Type: "trigger",
+		Config: `{"event_type":"device.state_changed"}`,
 	})
 	if err != nil {
-		t.Fatalf("create action: %v", err)
+		t.Fatalf("create node: %v", err)
 	}
 
-	if err := s.DeleteAutomation(ctx, "auto-1"); err != nil {
-		t.Fatalf("delete: %v", err)
+	if err := s.DeleteAutomationNode(ctx, "n1"); err != nil {
+		t.Fatalf("delete node: %v", err)
 	}
 
-	actions, err := s.ListAutomationActions(ctx, "auto-1")
+	nodes, err := s.ListAutomationNodes(ctx, "auto-1")
 	if err != nil {
-		t.Fatalf("list actions: %v", err)
+		t.Fatalf("list nodes: %v", err)
 	}
-	if len(actions) != 0 {
-		t.Errorf("got %d actions after delete, want 0", len(actions))
+	if len(nodes) != 0 {
+		t.Errorf("got %d nodes, want 0", len(nodes))
+	}
+}
+
+func TestDeleteAutomationEdge(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
+		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
+	}
+
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n1", AutomationID: "auto-1", Type: "trigger",
+		Config: `{"event_type":"device.state_changed"}`,
+	})
+	if err != nil {
+		t.Fatalf("create node n1: %v", err)
+	}
+
+	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "n2", AutomationID: "auto-1", Type: "action",
+		Config: `{"action_type":"set_device_state","payload":"{}"}`,
+	})
+	if err != nil {
+		t.Fatalf("create node n2: %v", err)
+	}
+
+	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+		ID: "e1", AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
+	})
+	if err != nil {
+		t.Fatalf("create edge: %v", err)
+	}
+
+	if err := s.DeleteAutomationEdge(ctx, "e1"); err != nil {
+		t.Fatalf("delete edge: %v", err)
+	}
+
+	edges, err := s.ListAutomationEdges(ctx, "auto-1")
+	if err != nil {
+		t.Fatalf("list edges: %v", err)
+	}
+	if len(edges) != 0 {
+		t.Errorf("got %d edges, want 0", len(edges))
 	}
 }
