@@ -4,6 +4,7 @@ package graphql_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -115,11 +116,11 @@ func TestAutomations_TriggerViaEvent(t *testing.T) {
 			"enabled":         true,
 			"cooldownSeconds": 0,
 			"nodes": []map[string]any{
-				{"id": "t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "a1", "type": "action", "config": string(actionConfig)},
+				{"id": "tve-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "tve-a1", "type": "action", "config": string(actionConfig)},
 			},
 			"edges": []map[string]any{
-				{"fromNodeId": "t1", "toNodeId": "a1"},
+				{"fromNodeId": "tve-t1", "toNodeId": "tve-a1"},
 			},
 		},
 	})
@@ -163,6 +164,300 @@ func TestAutomations_TriggerViaEvent(t *testing.T) {
 	}
 }
 
+func TestAutomations_QueryAll(t *testing.T) {
+	triggerConfig, _ := json.Marshal(map[string]string{
+		"event_type":     "device.state_changed",
+		"condition_expr": "true",
+	})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "device",
+		"target_id":   "dummy",
+		"payload":     `{"on":true}`,
+	})
+
+	counter := 0
+	makeInput := func(name string) map[string]any {
+		counter++
+		tID := fmt.Sprintf("qa-t%d", counter)
+		aID := fmt.Sprintf("qa-a%d", counter)
+		return map[string]any{
+			"name":            name,
+			"enabled":         false,
+			"cooldownSeconds": 60,
+			"nodes": []map[string]any{
+				{"id": tID, "type": "trigger", "config": string(triggerConfig)},
+				{"id": aID, "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": tID, "toNodeId": aID},
+			},
+		}
+	}
+
+	data1, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{"input": makeInput("QueryAll Auto A")})
+	if err != nil {
+		t.Fatalf("create A: %v", err)
+	}
+	var ra struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data1, &ra)
+
+	data2, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{"input": makeInput("QueryAll Auto B")})
+	if err != nil {
+		t.Fatalf("create B: %v", err)
+	}
+	var rb struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data2, &rb)
+
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": ra.CreateAutomation.ID})
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": rb.CreateAutomation.ID})
+	})
+
+	data, err := graphqlQuery(`{ automations { id name } }`, nil)
+	if err != nil {
+		t.Fatalf("query automations: %v", err)
+	}
+
+	var result struct {
+		Automations []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"automations"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	foundA := false
+	foundB := false
+	for _, a := range result.Automations {
+		if a.ID == ra.CreateAutomation.ID {
+			foundA = true
+		}
+		if a.ID == rb.CreateAutomation.ID {
+			foundB = true
+		}
+	}
+	if !foundA {
+		t.Error("automation A not found in automations query")
+	}
+	if !foundB {
+		t.Error("automation B not found in automations query")
+	}
+}
+
+func TestAutomations_UpdateAutomation(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Living Room Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	triggerConfig, _ := json.Marshal(map[string]string{
+		"event_type":     "device.state_changed",
+		"condition_expr": "true",
+	})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "device",
+		"target_id":   deviceID,
+		"payload":     `{"on":true}`,
+	})
+
+	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":            "Before Update",
+			"enabled":         false,
+			"cooldownSeconds": 10,
+			"nodes": []map[string]any{
+				{"id": "upd-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "upd-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "upd-t1", "toNodeId": "upd-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	var cr struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data, &cr)
+	autoID := cr.CreateAutomation.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
+	})
+
+	newActionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "device",
+		"target_id":   deviceID,
+		"payload":     `{"on":false,"brightness":0}`,
+	})
+
+	data, err = graphqlMutation(`mutation($id: ID!, $input: UpdateAutomationInput!) {
+		updateAutomation(id: $id, input: $input) { id name nodes { id type config } }
+	}`, map[string]any{
+		"id": autoID,
+		"input": map[string]any{
+			"name": "After Update",
+			"nodes": []map[string]any{
+				{"id": "upd-t2", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "upd-a2", "type": "action", "config": string(newActionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "upd-t2", "toNodeId": "upd-a2"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+
+	var result struct {
+		UpdateAutomation struct {
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Nodes []struct {
+				ID     string `json:"id"`
+				Type   string `json:"type"`
+				Config string `json:"config"`
+			} `json:"nodes"`
+		} `json:"updateAutomation"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if result.UpdateAutomation.Name != "After Update" {
+		t.Errorf("name=%q, want %q", result.UpdateAutomation.Name, "After Update")
+	}
+	if len(result.UpdateAutomation.Nodes) != 2 {
+		t.Errorf("expected 2 nodes, got %d", len(result.UpdateAutomation.Nodes))
+	}
+}
+
+func TestAutomations_UpdateAutomation_InvalidID(t *testing.T) {
+	err := graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateAutomationInput!) {
+		updateAutomation(id: $id, input: $input) { id }
+	}`, map[string]any{
+		"id":    "nonexistent-automation-id",
+		"input": map[string]any{"name": "Nope"},
+	})
+	if err != nil {
+		t.Fatalf("expected GraphQL error for invalid automation ID, got: %v", err)
+	}
+}
+
+func TestAutomations_TriggerWithGroupTargetAction(t *testing.T) {
+	// EXPECTED FAIL: Bug #3/#4 — resolveTargetDevices/executeAction uses StateReader.ResolveGroupDevices
+	// (memory store). Groups from GraphQL are only in DB.
+
+	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Auto Trigger Group" }) { id } }`, nil)
+	if err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+	var gr struct {
+		CreateGroup struct{ ID string } `json:"createGroup"`
+	}
+	_ = json.Unmarshal(data, &gr)
+	groupID := gr.CreateGroup.ID
+
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	_, err = graphqlMutation(`mutation($input: AddGroupMemberInput!) {
+		addGroupMember(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"groupId":    groupID,
+			"memberType": "device",
+			"memberId":   deviceID,
+		},
+	})
+	if err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+
+	triggerConfig, _ := json.Marshal(map[string]string{
+		"event_type":     "device.state_changed",
+		"condition_expr": "true",
+	})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "group",
+		"target_id":   groupID,
+		"payload":     `{"on":true,"brightness":255}`,
+	})
+
+	data, err = graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":            "Group Target Automation",
+			"enabled":         true,
+			"cooldownSeconds": 0,
+			"nodes": []map[string]any{
+				{"id": "grp-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "grp-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "grp-t1", "toNodeId": "grp-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
+	}
+	var ar struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data, &ar)
+	autoID := ar.CreateAutomation.ID
+
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupID})
+	})
+
+	cmdCh, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+
+	sensorState, _ := json.Marshal(map[string]float64{"temperature": 35.0, "humidity": 70})
+	if err := publisher.PublishDeviceState("Living Room Sensor", sensorState); err != nil {
+		t.Fatalf("publish sensor: %v", err)
+	}
+
+	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case msg := <-cmdCh:
+			if msg.Topic == "zigbee2mqtt/Kitchen Light/set" {
+				return true
+			}
+		default:
+		}
+		return false
+	})
+	if !ok {
+		t.Fatal("timed out waiting for MQTT command to Kitchen Light — group target resolution failed (Bug #3/#4)")
+	}
+}
+
 func TestAutomations_DisableStopsFiring(t *testing.T) {
 	deviceID, err := queryDeviceIDByName("Kitchen Light")
 	if err != nil {
@@ -188,11 +483,11 @@ func TestAutomations_DisableStopsFiring(t *testing.T) {
 			"enabled":         true,
 			"cooldownSeconds": 0,
 			"nodes": []map[string]any{
-				{"id": "t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "a1", "type": "action", "config": string(actionConfig)},
+				{"id": "dis-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "dis-a1", "type": "action", "config": string(actionConfig)},
 			},
 			"edges": []map[string]any{
-				{"fromNodeId": "t1", "toNodeId": "a1"},
+				{"fromNodeId": "dis-t1", "toNodeId": "dis-a1"},
 			},
 		},
 	})
