@@ -1,4 +1,4 @@
-.PHONY: deps lint format typecheck errcheck test web api package prepare-for-commit
+.PHONY: deps lint format typecheck errcheck test web api migrate-up migrate-up-n migrate-down-n migrate-version package prepare-for-commit
 
 deps:
 	go mod tidy
@@ -30,7 +30,19 @@ web/node_modules:
 	cd web && bun install
 
 api:
-	go run . serve
+	set -a && . ./.env && set +a && go run . serve
+
+migrate-up:
+	go run . migrate up
+
+migrate-up-n:
+	go run . migrate up $(N)
+
+migrate-down-n:
+	go run . migrate down $(N)
+
+migrate-version:
+	go run . migrate version
 
 package:
 	docker build -t saffron-hive .
