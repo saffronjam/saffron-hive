@@ -13,6 +13,7 @@
 		SidebarMenuItem,
 	} from "$lib/components/ui/sidebar/index.js";
 	import ThemeToggle from "$lib/components/theme-toggle.svelte";
+	import HiveLogo from "$lib/components/icons/hive-logo.svelte";
 	import {
 		LayoutDashboard,
 		Lightbulb,
@@ -44,7 +45,8 @@
 <Sidebar>
 	<SidebarHeader>
 		<a href="/" class="flex items-center gap-2 px-2 py-1">
-			<span class="text-lg font-bold text-primary">Saffron Hive</span>
+			<HiveLogo class="size-6" />
+			<span class="text-lg font-bold">Hive</span>
 		</a>
 	</SidebarHeader>
 
