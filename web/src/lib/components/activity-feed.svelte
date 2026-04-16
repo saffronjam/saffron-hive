@@ -49,7 +49,7 @@
 <div>
 	<h3 class="mb-3 text-sm font-medium text-foreground">Recent Activity</h3>
 	{#if entries.length === 0}
-		<div class="rounded-lg border border-border bg-card px-4 py-6 text-center">
+		<div class="rounded-lg shadow-card bg-card px-4 py-6 text-center">
 			<Workflow class="mx-auto mb-2 size-5 text-muted-foreground" />
 			<p class="text-sm text-muted-foreground">No recent automation activity.</p>
 		</div>

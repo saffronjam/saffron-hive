@@ -52,7 +52,7 @@
 	}
 </script>
 
-<Command class="rounded-lg border border-border" shouldFilter={false}>
+<Command class="bg-transparent shadow-none" shouldFilter={false}>
 	<CommandInput placeholder="Search devices and groups..." bind:value={search} />
 	<CommandList>
 		<CommandEmpty>No results found.</CommandEmpty>

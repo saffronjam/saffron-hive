@@ -80,7 +80,7 @@
 	<div class="space-y-4">
 		{#each actions as action, index (action.targetId + "-" + index)}
 			{@const Icon = targetIcon(action.target)}
-			<div class="rounded-lg border border-border bg-card p-4">
+			<div class="rounded-lg shadow-card bg-card p-4">
 				<div class="mb-3 flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<Icon class="size-4 text-muted-foreground" />

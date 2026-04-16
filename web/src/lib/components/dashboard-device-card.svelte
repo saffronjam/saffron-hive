@@ -103,7 +103,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="rounded-lg border border-border bg-card transition-colors {light ? 'cursor-pointer hover:bg-accent/50' : ''}"
+	class="rounded-lg shadow-card bg-card transition-colors {light ? 'cursor-pointer hover:bg-accent/50' : ''}"
 	onclick={handleCardClick}
 	role={light ? "button" : undefined}
 	tabindex={light ? 0 : undefined}

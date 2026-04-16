@@ -32,7 +32,7 @@
 		{/each}
 	</div>
 {:else}
-	<div class="rounded-lg border border-border bg-card px-4 py-3 text-center">
+	<div class="rounded-lg shadow-card bg-card px-4 py-3 text-center">
 		<p class="text-sm text-muted-foreground">No scenes configured yet.</p>
 	</div>
 {/if}
