@@ -2,8 +2,6 @@ package automation
 
 import (
 	"testing"
-
-	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
 func TestValidGraph(t *testing.T) {
@@ -391,14 +389,13 @@ func TestChainedOperators(t *testing.T) {
 }
 
 func TestMultipleActionsFromOperator(t *testing.T) {
-	devID := device.DeviceID("light-1")
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "fan-out",
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, DeviceID: &devID, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: "scene-1"}},
 		},
 		Edges: []Edge{
