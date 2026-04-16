@@ -10,27 +10,52 @@ type DeviceState interface {
 	IsDeviceState()
 }
 
-type Automation struct {
-	ID              string              `json:"id"`
-	Name            string              `json:"name"`
-	Enabled         bool                `json:"enabled"`
-	TriggerEvent    string              `json:"triggerEvent"`
-	ConditionExpr   string              `json:"conditionExpr"`
-	CooldownSeconds int                 `json:"cooldownSeconds"`
-	Actions         []*AutomationAction `json:"actions"`
+type SceneTarget interface {
+	IsSceneTarget()
 }
 
-type AutomationAction struct {
-	ID         string  `json:"id"`
-	ActionType string  `json:"actionType"`
-	DeviceID   *string `json:"deviceId,omitempty"`
-	Payload    string  `json:"payload"`
+type AddGroupMemberInput struct {
+	GroupID    string `json:"groupId"`
+	MemberType string `json:"memberType"`
+	MemberID   string `json:"memberId"`
 }
 
-type AutomationActionInput struct {
-	ActionType string  `json:"actionType"`
-	DeviceID   *string `json:"deviceId,omitempty"`
-	Payload    string  `json:"payload"`
+type AutomationEdge struct {
+	ID         string `json:"id"`
+	FromNodeID string `json:"fromNodeId"`
+	ToNodeID   string `json:"toNodeId"`
+}
+
+type AutomationEdgeInput struct {
+	FromNodeID string `json:"fromNodeId"`
+	ToNodeID   string `json:"toNodeId"`
+}
+
+type AutomationGraph struct {
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Enabled         bool              `json:"enabled"`
+	CooldownSeconds int               `json:"cooldownSeconds"`
+	Nodes           []*AutomationNode `json:"nodes"`
+	Edges           []*AutomationEdge `json:"edges"`
+}
+
+type AutomationNode struct {
+	ID     string `json:"id"`
+	Type   string `json:"type"`
+	Config string `json:"config"`
+}
+
+type AutomationNodeActivationEvent struct {
+	AutomationID string `json:"automationId"`
+	NodeID       string `json:"nodeId"`
+	Active       bool   `json:"active"`
+}
+
+type AutomationNodeInput struct {
+	ID     string `json:"id"`
+	Type   string `json:"type"`
+	Config string `json:"config"`
 }
 
 type Color struct {
@@ -50,12 +75,15 @@ type ColorInput struct {
 }
 
 type CreateAutomationInput struct {
-	Name            string                   `json:"name"`
-	Enabled         bool                     `json:"enabled"`
-	TriggerEvent    string                   `json:"triggerEvent"`
-	ConditionExpr   string                   `json:"conditionExpr"`
-	CooldownSeconds int                      `json:"cooldownSeconds"`
-	Actions         []*AutomationActionInput `json:"actions"`
+	Name            string                 `json:"name"`
+	Enabled         bool                   `json:"enabled"`
+	CooldownSeconds int                    `json:"cooldownSeconds"`
+	Nodes           []*AutomationNodeInput `json:"nodes"`
+	Edges           []*AutomationEdgeInput `json:"edges"`
+}
+
+type CreateGroupInput struct {
+	Name string `json:"name"`
 }
 
 type CreateSceneInput struct {
@@ -69,9 +97,11 @@ type Device struct {
 	Source    string      `json:"source"`
 	Type      string      `json:"type"`
 	Available bool        `json:"available"`
-	LastSeen  time.Time   `json:"lastSeen"`
+	LastSeen  *time.Time  `json:"lastSeen,omitempty"`
 	State     DeviceState `json:"state,omitempty"`
 }
+
+func (Device) IsSceneTarget() {}
 
 type DeviceAvailabilityEvent struct {
 	DeviceID  string `json:"deviceId"`
@@ -81,6 +111,23 @@ type DeviceAvailabilityEvent struct {
 type DeviceStateEvent struct {
 	DeviceID string      `json:"deviceId"`
 	State    DeviceState `json:"state"`
+}
+
+type Group struct {
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Members         []*GroupMember `json:"members"`
+	ResolvedDevices []*Device      `json:"resolvedDevices"`
+}
+
+func (Group) IsSceneTarget() {}
+
+type GroupMember struct {
+	ID         string  `json:"id"`
+	MemberType string  `json:"memberType"`
+	MemberID   string  `json:"memberId"`
+	Device     *Device `json:"device,omitempty"`
+	Group      *Group  `json:"group,omitempty"`
 }
 
 type LightState struct {
@@ -114,14 +161,17 @@ type Scene struct {
 }
 
 type SceneAction struct {
-	ID       string `json:"id"`
-	DeviceID string `json:"deviceId"`
-	Payload  string `json:"payload"`
+	ID         string      `json:"id"`
+	TargetType string      `json:"targetType"`
+	TargetID   string      `json:"targetId"`
+	Target     SceneTarget `json:"target"`
+	Payload    string      `json:"payload"`
 }
 
 type SceneActionInput struct {
-	DeviceID string `json:"deviceId"`
-	Payload  string `json:"payload"`
+	TargetType string `json:"targetType"`
+	TargetID   string `json:"targetId"`
+	Payload    string `json:"payload"`
 }
 
 type SensorReading struct {
@@ -155,12 +205,15 @@ type SwitchState struct {
 func (SwitchState) IsDeviceState() {}
 
 type UpdateAutomationInput struct {
-	Name            *string                  `json:"name,omitempty"`
-	Enabled         *bool                    `json:"enabled,omitempty"`
-	TriggerEvent    *string                  `json:"triggerEvent,omitempty"`
-	ConditionExpr   *string                  `json:"conditionExpr,omitempty"`
-	CooldownSeconds *int                     `json:"cooldownSeconds,omitempty"`
-	Actions         []*AutomationActionInput `json:"actions,omitempty"`
+	Name            *string                `json:"name,omitempty"`
+	Enabled         *bool                  `json:"enabled,omitempty"`
+	CooldownSeconds *int                   `json:"cooldownSeconds,omitempty"`
+	Nodes           []*AutomationNodeInput `json:"nodes,omitempty"`
+	Edges           []*AutomationEdgeInput `json:"edges,omitempty"`
+}
+
+type UpdateGroupInput struct {
+	Name *string `json:"name,omitempty"`
 }
 
 type UpdateSceneInput struct {

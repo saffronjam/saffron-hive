@@ -37,21 +37,31 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	Automation struct {
-		Actions         func(childComplexity int) int
-		ConditionExpr   func(childComplexity int) int
+	AutomationEdge struct {
+		FromNodeID func(childComplexity int) int
+		ID         func(childComplexity int) int
+		ToNodeID   func(childComplexity int) int
+	}
+
+	AutomationGraph struct {
 		CooldownSeconds func(childComplexity int) int
+		Edges           func(childComplexity int) int
 		Enabled         func(childComplexity int) int
 		ID              func(childComplexity int) int
 		Name            func(childComplexity int) int
-		TriggerEvent    func(childComplexity int) int
+		Nodes           func(childComplexity int) int
 	}
 
-	AutomationAction struct {
-		ActionType func(childComplexity int) int
-		DeviceID   func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Payload    func(childComplexity int) int
+	AutomationNode struct {
+		Config func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Type   func(childComplexity int) int
+	}
+
+	AutomationNodeActivationEvent struct {
+		Active       func(childComplexity int) int
+		AutomationID func(childComplexity int) int
+		NodeID       func(childComplexity int) int
 	}
 
 	Color struct {
@@ -82,6 +92,21 @@ type ComplexityRoot struct {
 		State    func(childComplexity int) int
 	}
 
+	Group struct {
+		ID              func(childComplexity int) int
+		Members         func(childComplexity int) int
+		Name            func(childComplexity int) int
+		ResolvedDevices func(childComplexity int) int
+	}
+
+	GroupMember struct {
+		Device     func(childComplexity int) int
+		Group      func(childComplexity int) int
+		ID         func(childComplexity int) int
+		MemberID   func(childComplexity int) int
+		MemberType func(childComplexity int) int
+	}
+
 	LightState struct {
 		Brightness func(childComplexity int) int
 		Color      func(childComplexity int) int
@@ -91,15 +116,20 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		ApplyScene       func(childComplexity int, sceneID string) int
-		CreateAutomation func(childComplexity int, input model.CreateAutomationInput) int
-		CreateScene      func(childComplexity int, input model.CreateSceneInput) int
-		DeleteAutomation func(childComplexity int, id string) int
-		DeleteScene      func(childComplexity int, id string) int
-		SetDeviceState   func(childComplexity int, deviceID string, state model.LightStateInput) int
-		ToggleAutomation func(childComplexity int, id string, enabled bool) int
-		UpdateAutomation func(childComplexity int, id string, input model.UpdateAutomationInput) int
-		UpdateScene      func(childComplexity int, id string, input model.UpdateSceneInput) int
+		AddGroupMember    func(childComplexity int, input model.AddGroupMemberInput) int
+		ApplyScene        func(childComplexity int, sceneID string) int
+		CreateAutomation  func(childComplexity int, input model.CreateAutomationInput) int
+		CreateGroup       func(childComplexity int, input model.CreateGroupInput) int
+		CreateScene       func(childComplexity int, input model.CreateSceneInput) int
+		DeleteAutomation  func(childComplexity int, id string) int
+		DeleteGroup       func(childComplexity int, id string) int
+		DeleteScene       func(childComplexity int, id string) int
+		RemoveGroupMember func(childComplexity int, id string) int
+		SetDeviceState    func(childComplexity int, deviceID string, state model.LightStateInput) int
+		ToggleAutomation  func(childComplexity int, id string, enabled bool) int
+		UpdateAutomation  func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateGroup       func(childComplexity int, id string, input model.UpdateGroupInput) int
+		UpdateScene       func(childComplexity int, id string, input model.UpdateSceneInput) int
 	}
 
 	Query struct {
@@ -107,6 +137,8 @@ type ComplexityRoot struct {
 		Automations   func(childComplexity int) int
 		Device        func(childComplexity int, id string) int
 		Devices       func(childComplexity int) int
+		Group         func(childComplexity int, id string) int
+		Groups        func(childComplexity int) int
 		Scene         func(childComplexity int, id string) int
 		Scenes        func(childComplexity int) int
 		SensorHistory func(childComplexity int, deviceID string, from *time.Time, to *time.Time, limit *int) int
@@ -119,9 +151,11 @@ type ComplexityRoot struct {
 	}
 
 	SceneAction struct {
-		DeviceID func(childComplexity int) int
-		ID       func(childComplexity int) int
-		Payload  func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Payload    func(childComplexity int) int
+		Target     func(childComplexity int) int
+		TargetID   func(childComplexity int) int
+		TargetType func(childComplexity int) int
 	}
 
 	SensorReading struct {
@@ -144,6 +178,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
+		AutomationNodeActivated   func(childComplexity int, automationID *string) int
 		DeviceAdded               func(childComplexity int) int
 		DeviceAvailabilityChanged func(childComplexity int) int
 		DeviceRemoved             func(childComplexity int) int
@@ -161,18 +196,25 @@ type MutationResolver interface {
 	CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error)
 	UpdateScene(ctx context.Context, id string, input model.UpdateSceneInput) (*model.Scene, error)
 	DeleteScene(ctx context.Context, id string) (bool, error)
-	CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.Automation, error)
-	UpdateAutomation(ctx context.Context, id string, input model.UpdateAutomationInput) (*model.Automation, error)
+	CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.AutomationGraph, error)
+	UpdateAutomation(ctx context.Context, id string, input model.UpdateAutomationInput) (*model.AutomationGraph, error)
 	DeleteAutomation(ctx context.Context, id string) (bool, error)
-	ToggleAutomation(ctx context.Context, id string, enabled bool) (*model.Automation, error)
+	ToggleAutomation(ctx context.Context, id string, enabled bool) (*model.AutomationGraph, error)
+	CreateGroup(ctx context.Context, input model.CreateGroupInput) (*model.Group, error)
+	UpdateGroup(ctx context.Context, id string, input model.UpdateGroupInput) (*model.Group, error)
+	DeleteGroup(ctx context.Context, id string) (bool, error)
+	AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.GroupMember, error)
+	RemoveGroupMember(ctx context.Context, id string) (bool, error)
 }
 type QueryResolver interface {
 	Devices(ctx context.Context) ([]*model.Device, error)
 	Device(ctx context.Context, id string) (*model.Device, error)
 	Scenes(ctx context.Context) ([]*model.Scene, error)
 	Scene(ctx context.Context, id string) (*model.Scene, error)
-	Automations(ctx context.Context) ([]*model.Automation, error)
-	Automation(ctx context.Context, id string) (*model.Automation, error)
+	Automations(ctx context.Context) ([]*model.AutomationGraph, error)
+	Automation(ctx context.Context, id string) (*model.AutomationGraph, error)
+	Groups(ctx context.Context) ([]*model.Group, error)
+	Group(ctx context.Context, id string) (*model.Group, error)
 	SensorHistory(ctx context.Context, deviceID string, from *time.Time, to *time.Time, limit *int) ([]*model.SensorReading, error)
 }
 type SubscriptionResolver interface {
@@ -180,6 +222,7 @@ type SubscriptionResolver interface {
 	DeviceAvailabilityChanged(ctx context.Context) (<-chan *model.DeviceAvailabilityEvent, error)
 	DeviceAdded(ctx context.Context) (<-chan *model.Device, error)
 	DeviceRemoved(ctx context.Context) (<-chan string, error)
+	AutomationNodeActivated(ctx context.Context, automationID *string) (<-chan *model.AutomationNodeActivationEvent, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -196,73 +239,99 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
-	case "Automation.actions":
-		if e.ComplexityRoot.Automation.Actions == nil {
+	case "AutomationEdge.fromNodeId":
+		if e.ComplexityRoot.AutomationEdge.FromNodeID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.Actions(childComplexity), true
-	case "Automation.conditionExpr":
-		if e.ComplexityRoot.Automation.ConditionExpr == nil {
+		return e.ComplexityRoot.AutomationEdge.FromNodeID(childComplexity), true
+	case "AutomationEdge.id":
+		if e.ComplexityRoot.AutomationEdge.ID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.ConditionExpr(childComplexity), true
-	case "Automation.cooldownSeconds":
-		if e.ComplexityRoot.Automation.CooldownSeconds == nil {
+		return e.ComplexityRoot.AutomationEdge.ID(childComplexity), true
+	case "AutomationEdge.toNodeId":
+		if e.ComplexityRoot.AutomationEdge.ToNodeID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.CooldownSeconds(childComplexity), true
-	case "Automation.enabled":
-		if e.ComplexityRoot.Automation.Enabled == nil {
+		return e.ComplexityRoot.AutomationEdge.ToNodeID(childComplexity), true
+
+	case "AutomationGraph.cooldownSeconds":
+		if e.ComplexityRoot.AutomationGraph.CooldownSeconds == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.Enabled(childComplexity), true
-	case "Automation.id":
-		if e.ComplexityRoot.Automation.ID == nil {
+		return e.ComplexityRoot.AutomationGraph.CooldownSeconds(childComplexity), true
+	case "AutomationGraph.edges":
+		if e.ComplexityRoot.AutomationGraph.Edges == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.ID(childComplexity), true
-	case "Automation.name":
-		if e.ComplexityRoot.Automation.Name == nil {
+		return e.ComplexityRoot.AutomationGraph.Edges(childComplexity), true
+	case "AutomationGraph.enabled":
+		if e.ComplexityRoot.AutomationGraph.Enabled == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.Name(childComplexity), true
-	case "Automation.triggerEvent":
-		if e.ComplexityRoot.Automation.TriggerEvent == nil {
+		return e.ComplexityRoot.AutomationGraph.Enabled(childComplexity), true
+	case "AutomationGraph.id":
+		if e.ComplexityRoot.AutomationGraph.ID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Automation.TriggerEvent(childComplexity), true
-
-	case "AutomationAction.actionType":
-		if e.ComplexityRoot.AutomationAction.ActionType == nil {
+		return e.ComplexityRoot.AutomationGraph.ID(childComplexity), true
+	case "AutomationGraph.name":
+		if e.ComplexityRoot.AutomationGraph.Name == nil {
 			break
 		}
 
-		return e.ComplexityRoot.AutomationAction.ActionType(childComplexity), true
-	case "AutomationAction.deviceId":
-		if e.ComplexityRoot.AutomationAction.DeviceID == nil {
+		return e.ComplexityRoot.AutomationGraph.Name(childComplexity), true
+	case "AutomationGraph.nodes":
+		if e.ComplexityRoot.AutomationGraph.Nodes == nil {
 			break
 		}
 
-		return e.ComplexityRoot.AutomationAction.DeviceID(childComplexity), true
-	case "AutomationAction.id":
-		if e.ComplexityRoot.AutomationAction.ID == nil {
+		return e.ComplexityRoot.AutomationGraph.Nodes(childComplexity), true
+
+	case "AutomationNode.config":
+		if e.ComplexityRoot.AutomationNode.Config == nil {
 			break
 		}
 
-		return e.ComplexityRoot.AutomationAction.ID(childComplexity), true
-	case "AutomationAction.payload":
-		if e.ComplexityRoot.AutomationAction.Payload == nil {
+		return e.ComplexityRoot.AutomationNode.Config(childComplexity), true
+	case "AutomationNode.id":
+		if e.ComplexityRoot.AutomationNode.ID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.AutomationAction.Payload(childComplexity), true
+		return e.ComplexityRoot.AutomationNode.ID(childComplexity), true
+	case "AutomationNode.type":
+		if e.ComplexityRoot.AutomationNode.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNode.Type(childComplexity), true
+
+	case "AutomationNodeActivationEvent.active":
+		if e.ComplexityRoot.AutomationNodeActivationEvent.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNodeActivationEvent.Active(childComplexity), true
+	case "AutomationNodeActivationEvent.automationId":
+		if e.ComplexityRoot.AutomationNodeActivationEvent.AutomationID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNodeActivationEvent.AutomationID(childComplexity), true
+	case "AutomationNodeActivationEvent.nodeId":
+		if e.ComplexityRoot.AutomationNodeActivationEvent.NodeID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNodeActivationEvent.NodeID(childComplexity), true
 
 	case "Color.b":
 		if e.ComplexityRoot.Color.B == nil {
@@ -364,6 +433,62 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DeviceStateEvent.State(childComplexity), true
 
+	case "Group.id":
+		if e.ComplexityRoot.Group.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.ID(childComplexity), true
+	case "Group.members":
+		if e.ComplexityRoot.Group.Members == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.Members(childComplexity), true
+	case "Group.name":
+		if e.ComplexityRoot.Group.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.Name(childComplexity), true
+	case "Group.resolvedDevices":
+		if e.ComplexityRoot.Group.ResolvedDevices == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.ResolvedDevices(childComplexity), true
+
+	case "GroupMember.device":
+		if e.ComplexityRoot.GroupMember.Device == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GroupMember.Device(childComplexity), true
+	case "GroupMember.group":
+		if e.ComplexityRoot.GroupMember.Group == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GroupMember.Group(childComplexity), true
+	case "GroupMember.id":
+		if e.ComplexityRoot.GroupMember.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GroupMember.ID(childComplexity), true
+	case "GroupMember.memberId":
+		if e.ComplexityRoot.GroupMember.MemberID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GroupMember.MemberID(childComplexity), true
+	case "GroupMember.memberType":
+		if e.ComplexityRoot.GroupMember.MemberType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GroupMember.MemberType(childComplexity), true
+
 	case "LightState.brightness":
 		if e.ComplexityRoot.LightState.Brightness == nil {
 			break
@@ -395,6 +520,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.LightState.Transition(childComplexity), true
 
+	case "Mutation.addGroupMember":
+		if e.ComplexityRoot.Mutation.AddGroupMember == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addGroupMember_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AddGroupMember(childComplexity, args["input"].(model.AddGroupMemberInput)), true
 	case "Mutation.applyScene":
 		if e.ComplexityRoot.Mutation.ApplyScene == nil {
 			break
@@ -417,6 +553,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateAutomation(childComplexity, args["input"].(model.CreateAutomationInput)), true
+	case "Mutation.createGroup":
+		if e.ComplexityRoot.Mutation.CreateGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateGroup(childComplexity, args["input"].(model.CreateGroupInput)), true
 	case "Mutation.createScene":
 		if e.ComplexityRoot.Mutation.CreateScene == nil {
 			break
@@ -439,6 +586,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteAutomation(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteGroup":
+		if e.ComplexityRoot.Mutation.DeleteGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteGroup(childComplexity, args["id"].(string)), true
 	case "Mutation.deleteScene":
 		if e.ComplexityRoot.Mutation.DeleteScene == nil {
 			break
@@ -450,6 +608,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteScene(childComplexity, args["id"].(string)), true
+	case "Mutation.removeGroupMember":
+		if e.ComplexityRoot.Mutation.RemoveGroupMember == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeGroupMember_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RemoveGroupMember(childComplexity, args["id"].(string)), true
 	case "Mutation.setDeviceState":
 		if e.ComplexityRoot.Mutation.SetDeviceState == nil {
 			break
@@ -483,6 +652,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateAutomation(childComplexity, args["id"].(string), args["input"].(model.UpdateAutomationInput)), true
+	case "Mutation.updateGroup":
+		if e.ComplexityRoot.Mutation.UpdateGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateGroup(childComplexity, args["id"].(string), args["input"].(model.UpdateGroupInput)), true
 	case "Mutation.updateScene":
 		if e.ComplexityRoot.Mutation.UpdateScene == nil {
 			break
@@ -529,6 +709,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Devices(childComplexity), true
+	case "Query.group":
+		if e.ComplexityRoot.Query.Group == nil {
+			break
+		}
+
+		args, err := ec.field_Query_group_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Group(childComplexity, args["id"].(string)), true
+	case "Query.groups":
+		if e.ComplexityRoot.Query.Groups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Groups(childComplexity), true
 
 	case "Query.scene":
 		if e.ComplexityRoot.Query.Scene == nil {
@@ -578,12 +775,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Scene.Name(childComplexity), true
 
-	case "SceneAction.deviceId":
-		if e.ComplexityRoot.SceneAction.DeviceID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SceneAction.DeviceID(childComplexity), true
 	case "SceneAction.id":
 		if e.ComplexityRoot.SceneAction.ID == nil {
 			break
@@ -596,6 +787,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SceneAction.Payload(childComplexity), true
+	case "SceneAction.target":
+		if e.ComplexityRoot.SceneAction.Target == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAction.Target(childComplexity), true
+	case "SceneAction.targetId":
+		if e.ComplexityRoot.SceneAction.TargetID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAction.TargetID(childComplexity), true
+	case "SceneAction.targetType":
+		if e.ComplexityRoot.SceneAction.TargetType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAction.TargetType(childComplexity), true
 
 	case "SensorReading.battery":
 		if e.ComplexityRoot.SensorReading.Battery == nil {
@@ -677,6 +886,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SensorState.Temperature(childComplexity), true
 
+	case "Subscription.automationNodeActivated":
+		if e.ComplexityRoot.Subscription.AutomationNodeActivated == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_automationNodeActivated_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.AutomationNodeActivated(childComplexity, args["automationId"].(*string)), true
 	case "Subscription.deviceAdded":
 		if e.ComplexityRoot.Subscription.DeviceAdded == nil {
 			break
@@ -722,13 +942,17 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputAutomationActionInput,
+		ec.unmarshalInputAddGroupMemberInput,
+		ec.unmarshalInputAutomationEdgeInput,
+		ec.unmarshalInputAutomationNodeInput,
 		ec.unmarshalInputColorInput,
 		ec.unmarshalInputCreateAutomationInput,
+		ec.unmarshalInputCreateGroupInput,
 		ec.unmarshalInputCreateSceneInput,
 		ec.unmarshalInputLightStateInput,
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputUpdateAutomationInput,
+		ec.unmarshalInputUpdateGroupInput,
 		ec.unmarshalInputUpdateSceneInput,
 	)
 	first := true
@@ -832,7 +1056,7 @@ type Device {
   source: String!
   type: String!
   available: Boolean!
-  lastSeen: DateTime!
+  lastSeen: DateTime
   state: DeviceState
 }
 
@@ -870,27 +1094,50 @@ type Scene {
   actions: [SceneAction!]!
 }
 
+union SceneTarget = Device | Group
+
 type SceneAction {
   id: ID!
-  deviceId: ID!
+  targetType: String!
+  targetId: ID!
+  target: SceneTarget!
   payload: String!
 }
 
-type Automation {
+type AutomationGraph {
   id: ID!
   name: String!
   enabled: Boolean!
-  triggerEvent: String!
-  conditionExpr: String!
   cooldownSeconds: Int!
-  actions: [AutomationAction!]!
+  nodes: [AutomationNode!]!
+  edges: [AutomationEdge!]!
 }
 
-type AutomationAction {
+type AutomationNode {
   id: ID!
-  actionType: String!
-  deviceId: ID
-  payload: String!
+  type: String!
+  config: String!
+}
+
+type AutomationEdge {
+  id: ID!
+  fromNodeId: ID!
+  toNodeId: ID!
+}
+
+type Group {
+  id: ID!
+  name: String!
+  members: [GroupMember!]!
+  resolvedDevices: [Device!]!
+}
+
+type GroupMember {
+  id: ID!
+  memberType: String!
+  memberId: ID!
+  device: Device
+  group: Group
 }
 
 type SensorReading {
@@ -912,6 +1159,12 @@ type DeviceStateEvent {
 type DeviceAvailabilityEvent {
   deviceId: ID!
   available: Boolean!
+}
+
+type AutomationNodeActivationEvent {
+  automationId: ID!
+  nodeId: ID!
+  active: Boolean!
 }
 
 input LightStateInput {
@@ -936,7 +1189,8 @@ input CreateSceneInput {
 }
 
 input SceneActionInput {
-  deviceId: ID!
+  targetType: String!
+  targetId: ID!
   payload: String!
 }
 
@@ -948,25 +1202,42 @@ input UpdateSceneInput {
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
-  triggerEvent: String!
-  conditionExpr: String!
   cooldownSeconds: Int!
-  actions: [AutomationActionInput!]!
+  nodes: [AutomationNodeInput!]!
+  edges: [AutomationEdgeInput!]!
 }
 
-input AutomationActionInput {
-  actionType: String!
-  deviceId: ID
-  payload: String!
+input AutomationNodeInput {
+  id: ID!
+  type: String!
+  config: String!
+}
+
+input AutomationEdgeInput {
+  fromNodeId: ID!
+  toNodeId: ID!
+}
+
+input CreateGroupInput {
+  name: String!
+}
+
+input UpdateGroupInput {
+  name: String
+}
+
+input AddGroupMemberInput {
+  groupId: ID!
+  memberType: String!
+  memberId: ID!
 }
 
 input UpdateAutomationInput {
   name: String
   enabled: Boolean
-  triggerEvent: String
-  conditionExpr: String
   cooldownSeconds: Int
-  actions: [AutomationActionInput!]
+  nodes: [AutomationNodeInput!]
+  edges: [AutomationEdgeInput!]
 }
 
 type Query {
@@ -974,8 +1245,10 @@ type Query {
   device(id: ID!): Device
   scenes: [Scene!]!
   scene(id: ID!): Scene
-  automations: [Automation!]!
-  automation(id: ID!): Automation
+  automations: [AutomationGraph!]!
+  automation(id: ID!): AutomationGraph
+  groups: [Group!]!
+  group(id: ID!): Group
   sensorHistory(deviceId: ID!, from: DateTime, to: DateTime, limit: Int): [SensorReading!]!
 }
 
@@ -985,10 +1258,15 @@ type Mutation {
   createScene(input: CreateSceneInput!): Scene!
   updateScene(id: ID!, input: UpdateSceneInput!): Scene!
   deleteScene(id: ID!): Boolean!
-  createAutomation(input: CreateAutomationInput!): Automation!
-  updateAutomation(id: ID!, input: UpdateAutomationInput!): Automation!
+  createAutomation(input: CreateAutomationInput!): AutomationGraph!
+  updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph!
   deleteAutomation(id: ID!): Boolean!
-  toggleAutomation(id: ID!, enabled: Boolean!): Automation!
+  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph!
+  createGroup(input: CreateGroupInput!): Group!
+  updateGroup(id: ID!, input: UpdateGroupInput!): Group!
+  deleteGroup(id: ID!): Boolean!
+  addGroupMember(input: AddGroupMemberInput!): GroupMember!
+  removeGroupMember(id: ID!): Boolean!
 }
 
 type Subscription {
@@ -996,6 +1274,7 @@ type Subscription {
   deviceAvailabilityChanged: DeviceAvailabilityEvent!
   deviceAdded: Device!
   deviceRemoved: ID!
+  automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
 }
 `, BuiltIn: false},
 }
@@ -1004,6 +1283,17 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_addGroupMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAddGroupMemberInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddGroupMemberInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_applyScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -1020,6 +1310,17 @@ func (ec *executionContext) field_Mutation_createAutomation_args(ctx context.Con
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateAutomationInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateGroupInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateGroupInput)
 	if err != nil {
 		return nil, err
 	}
@@ -1049,7 +1350,29 @@ func (ec *executionContext) field_Mutation_deleteAutomation_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeGroupMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
@@ -1108,6 +1431,22 @@ func (ec *executionContext) field_Mutation_updateAutomation_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateGroupInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateGroupInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1157,6 +1496,17 @@ func (ec *executionContext) field_Query_device_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_group_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_scene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1191,6 +1541,17 @@ func (ec *executionContext) field_Query_sensorHistory_args(ctx context.Context, 
 		return nil, err
 	}
 	args["limit"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_automationNodeActivated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "automationId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["automationId"] = arg0
 	return args, nil
 }
 
@@ -1257,12 +1618,12 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Automation_id(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationEdge_id(ctx context.Context, field graphql.CollectedField, obj *model.AutomationEdge) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Automation_id,
+		ec.fieldContext_AutomationEdge_id,
 		func(ctx context.Context) (any, error) {
 			return obj.ID, nil
 		},
@@ -1273,9 +1634,9 @@ func (ec *executionContext) _Automation_id(ctx context.Context, field graphql.Co
 	)
 }
 
-func (ec *executionContext) fieldContext_Automation_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationEdge_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Automation",
+		Object:     "AutomationEdge",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1286,12 +1647,99 @@ func (ec *executionContext) fieldContext_Automation_id(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Automation_name(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationEdge_fromNodeId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationEdge) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Automation_name,
+		ec.fieldContext_AutomationEdge_fromNodeId,
+		func(ctx context.Context) (any, error) {
+			return obj.FromNodeID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationEdge_fromNodeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationEdge_toNodeId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationEdge) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationEdge_toNodeId,
+		func(ctx context.Context) (any, error) {
+			return obj.ToNodeID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationEdge_toNodeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationGraph_id(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationGraph_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationGraph_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationGraph_name(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationGraph_name,
 		func(ctx context.Context) (any, error) {
 			return obj.Name, nil
 		},
@@ -1302,9 +1750,9 @@ func (ec *executionContext) _Automation_name(ctx context.Context, field graphql.
 	)
 }
 
-func (ec *executionContext) fieldContext_Automation_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationGraph_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Automation",
+		Object:     "AutomationGraph",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1315,12 +1763,12 @@ func (ec *executionContext) fieldContext_Automation_name(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Automation_enabled(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationGraph_enabled(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Automation_enabled,
+		ec.fieldContext_AutomationGraph_enabled,
 		func(ctx context.Context) (any, error) {
 			return obj.Enabled, nil
 		},
@@ -1331,9 +1779,9 @@ func (ec *executionContext) _Automation_enabled(ctx context.Context, field graph
 	)
 }
 
-func (ec *executionContext) fieldContext_Automation_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationGraph_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Automation",
+		Object:     "AutomationGraph",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1344,70 +1792,12 @@ func (ec *executionContext) fieldContext_Automation_enabled(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Automation_triggerEvent(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationGraph_cooldownSeconds(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Automation_triggerEvent,
-		func(ctx context.Context) (any, error) {
-			return obj.TriggerEvent, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Automation_triggerEvent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Automation",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Automation_conditionExpr(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Automation_conditionExpr,
-		func(ctx context.Context) (any, error) {
-			return obj.ConditionExpr, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Automation_conditionExpr(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Automation",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Automation_cooldownSeconds(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Automation_cooldownSeconds,
+		ec.fieldContext_AutomationGraph_cooldownSeconds,
 		func(ctx context.Context) (any, error) {
 			return obj.CooldownSeconds, nil
 		},
@@ -1418,9 +1808,9 @@ func (ec *executionContext) _Automation_cooldownSeconds(ctx context.Context, fie
 	)
 }
 
-func (ec *executionContext) fieldContext_Automation_cooldownSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationGraph_cooldownSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Automation",
+		Object:     "AutomationGraph",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1431,51 +1821,86 @@ func (ec *executionContext) fieldContext_Automation_cooldownSeconds(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _Automation_actions(ctx context.Context, field graphql.CollectedField, obj *model.Automation) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationGraph_nodes(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Automation_actions,
+		ec.fieldContext_AutomationGraph_nodes,
 		func(ctx context.Context) (any, error) {
-			return obj.Actions, nil
+			return obj.Nodes, nil
 		},
 		nil,
-		ec.marshalNAutomationAction2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionᚄ,
+		ec.marshalNAutomationNode2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeᚄ,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Automation_actions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationGraph_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Automation",
+		Object:     "AutomationGraph",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_AutomationAction_id(ctx, field)
-			case "actionType":
-				return ec.fieldContext_AutomationAction_actionType(ctx, field)
-			case "deviceId":
-				return ec.fieldContext_AutomationAction_deviceId(ctx, field)
-			case "payload":
-				return ec.fieldContext_AutomationAction_payload(ctx, field)
+				return ec.fieldContext_AutomationNode_id(ctx, field)
+			case "type":
+				return ec.fieldContext_AutomationNode_type(ctx, field)
+			case "config":
+				return ec.fieldContext_AutomationNode_config(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type AutomationAction", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AutomationNode", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _AutomationAction_id(ctx context.Context, field graphql.CollectedField, obj *model.AutomationAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationGraph_edges(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AutomationAction_id,
+		ec.fieldContext_AutomationGraph_edges,
+		func(ctx context.Context) (any, error) {
+			return obj.Edges, nil
+		},
+		nil,
+		ec.marshalNAutomationEdge2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationGraph_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AutomationEdge_id(ctx, field)
+			case "fromNodeId":
+				return ec.fieldContext_AutomationEdge_fromNodeId(ctx, field)
+			case "toNodeId":
+				return ec.fieldContext_AutomationEdge_toNodeId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNode_id(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNode_id,
 		func(ctx context.Context) (any, error) {
 			return obj.ID, nil
 		},
@@ -1486,9 +1911,9 @@ func (ec *executionContext) _AutomationAction_id(ctx context.Context, field grap
 	)
 }
 
-func (ec *executionContext) fieldContext_AutomationAction_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationNode_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "AutomationAction",
+		Object:     "AutomationNode",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1499,14 +1924,14 @@ func (ec *executionContext) fieldContext_AutomationAction_id(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _AutomationAction_actionType(ctx context.Context, field graphql.CollectedField, obj *model.AutomationAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationNode_type(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNode) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AutomationAction_actionType,
+		ec.fieldContext_AutomationNode_type,
 		func(ctx context.Context) (any, error) {
-			return obj.ActionType, nil
+			return obj.Type, nil
 		},
 		nil,
 		ec.marshalNString2string,
@@ -1515,9 +1940,9 @@ func (ec *executionContext) _AutomationAction_actionType(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_AutomationAction_actionType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationNode_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "AutomationAction",
+		Object:     "AutomationNode",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1528,25 +1953,54 @@ func (ec *executionContext) fieldContext_AutomationAction_actionType(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _AutomationAction_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationNode_config(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNode) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AutomationAction_deviceId,
+		ec.fieldContext_AutomationNode_config,
 		func(ctx context.Context) (any, error) {
-			return obj.DeviceID, nil
+			return obj.Config, nil
 		},
 		nil,
-		ec.marshalOID2ᚖstring,
+		ec.marshalNString2string,
 		true,
-		false,
+		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_AutomationAction_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationNode_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "AutomationAction",
+		Object:     "AutomationNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNodeActivationEvent_automationId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodeActivationEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNodeActivationEvent_automationId,
+		func(ctx context.Context) (any, error) {
+			return obj.AutomationID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNodeActivationEvent_automationId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNodeActivationEvent",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1557,30 +2011,59 @@ func (ec *executionContext) fieldContext_AutomationAction_deviceId(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _AutomationAction_payload(ctx context.Context, field graphql.CollectedField, obj *model.AutomationAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationNodeActivationEvent_nodeId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodeActivationEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AutomationAction_payload,
+		ec.fieldContext_AutomationNodeActivationEvent_nodeId,
 		func(ctx context.Context) (any, error) {
-			return obj.Payload, nil
+			return obj.NodeID, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNID2string,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_AutomationAction_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationNodeActivationEvent_nodeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "AutomationAction",
+		Object:     "AutomationNodeActivationEvent",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNodeActivationEvent_active(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodeActivationEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNodeActivationEvent_active,
+		func(ctx context.Context) (any, error) {
+			return obj.Active, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNodeActivationEvent_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNodeActivationEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1886,9 +2369,9 @@ func (ec *executionContext) _Device_lastSeen(ctx context.Context, field graphql.
 			return obj.LastSeen, nil
 		},
 		nil,
-		ec.marshalNDateTime2timeᚐTime,
+		ec.marshalODateTime2ᚖtimeᚐTime,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -2045,6 +2528,321 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type DeviceState does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Group_id(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Group_name(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Group_members(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_members,
+		func(ctx context.Context) (any, error) {
+			return obj.Members, nil
+		},
+		nil,
+		ec.marshalNGroupMember2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_members(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_GroupMember_id(ctx, field)
+			case "memberType":
+				return ec.fieldContext_GroupMember_memberType(ctx, field)
+			case "memberId":
+				return ec.fieldContext_GroupMember_memberId(ctx, field)
+			case "device":
+				return ec.fieldContext_GroupMember_device(ctx, field)
+			case "group":
+				return ec.fieldContext_GroupMember_group(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupMember", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Group_resolvedDevices(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_resolvedDevices,
+		func(ctx context.Context) (any, error) {
+			return obj.ResolvedDevices, nil
+		},
+		nil,
+		ec.marshalNDevice2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupMember_id(ctx context.Context, field graphql.CollectedField, obj *model.GroupMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupMember_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupMember_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupMember_memberType(ctx context.Context, field graphql.CollectedField, obj *model.GroupMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupMember_memberType,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupMember_memberType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupMember_memberId(ctx context.Context, field graphql.CollectedField, obj *model.GroupMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupMember_memberId,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupMember_memberId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupMember_device(ctx context.Context, field graphql.CollectedField, obj *model.GroupMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupMember_device,
+		func(ctx context.Context) (any, error) {
+			return obj.Device, nil
+		},
+		nil,
+		ec.marshalODevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GroupMember_group(ctx context.Context, field graphql.CollectedField, obj *model.GroupMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GroupMember_group,
+		func(ctx context.Context) (any, error) {
+			return obj.Group, nil
+		},
+		nil,
+		ec.marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GroupMember_group(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GroupMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
 	}
 	return fc, nil
@@ -2463,7 +3261,7 @@ func (ec *executionContext) _Mutation_createAutomation(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().CreateAutomation(ctx, fc.Args["input"].(model.CreateAutomationInput))
 		},
 		nil,
-		ec.marshalNAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation,
+		ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		true,
 	)
@@ -2478,21 +3276,19 @@ func (ec *executionContext) fieldContext_Mutation_createAutomation(ctx context.C
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Automation_id(ctx, field)
+				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Automation_name(ctx, field)
+				return ec.fieldContext_AutomationGraph_name(ctx, field)
 			case "enabled":
-				return ec.fieldContext_Automation_enabled(ctx, field)
-			case "triggerEvent":
-				return ec.fieldContext_Automation_triggerEvent(ctx, field)
-			case "conditionExpr":
-				return ec.fieldContext_Automation_conditionExpr(ctx, field)
+				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "cooldownSeconds":
-				return ec.fieldContext_Automation_cooldownSeconds(ctx, field)
-			case "actions":
-				return ec.fieldContext_Automation_actions(ctx, field)
+				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
+			case "nodes":
+				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
+			case "edges":
+				return ec.fieldContext_AutomationGraph_edges(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Automation", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
 	}
 	defer func() {
@@ -2520,7 +3316,7 @@ func (ec *executionContext) _Mutation_updateAutomation(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().UpdateAutomation(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateAutomationInput))
 		},
 		nil,
-		ec.marshalNAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation,
+		ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		true,
 	)
@@ -2535,21 +3331,19 @@ func (ec *executionContext) fieldContext_Mutation_updateAutomation(ctx context.C
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Automation_id(ctx, field)
+				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Automation_name(ctx, field)
+				return ec.fieldContext_AutomationGraph_name(ctx, field)
 			case "enabled":
-				return ec.fieldContext_Automation_enabled(ctx, field)
-			case "triggerEvent":
-				return ec.fieldContext_Automation_triggerEvent(ctx, field)
-			case "conditionExpr":
-				return ec.fieldContext_Automation_conditionExpr(ctx, field)
+				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "cooldownSeconds":
-				return ec.fieldContext_Automation_cooldownSeconds(ctx, field)
-			case "actions":
-				return ec.fieldContext_Automation_actions(ctx, field)
+				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
+			case "nodes":
+				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
+			case "edges":
+				return ec.fieldContext_AutomationGraph_edges(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Automation", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
 	}
 	defer func() {
@@ -2618,7 +3412,7 @@ func (ec *executionContext) _Mutation_toggleAutomation(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().ToggleAutomation(ctx, fc.Args["id"].(string), fc.Args["enabled"].(bool))
 		},
 		nil,
-		ec.marshalNAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation,
+		ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		true,
 	)
@@ -2633,21 +3427,19 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Automation_id(ctx, field)
+				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Automation_name(ctx, field)
+				return ec.fieldContext_AutomationGraph_name(ctx, field)
 			case "enabled":
-				return ec.fieldContext_Automation_enabled(ctx, field)
-			case "triggerEvent":
-				return ec.fieldContext_Automation_triggerEvent(ctx, field)
-			case "conditionExpr":
-				return ec.fieldContext_Automation_conditionExpr(ctx, field)
+				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "cooldownSeconds":
-				return ec.fieldContext_Automation_cooldownSeconds(ctx, field)
-			case "actions":
-				return ec.fieldContext_Automation_actions(ctx, field)
+				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
+			case "nodes":
+				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
+			case "edges":
+				return ec.fieldContext_AutomationGraph_edges(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Automation", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
 	}
 	defer func() {
@@ -2658,6 +3450,243 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_toggleAutomation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateGroup(ctx, fc.Args["input"].(model.CreateGroupInput))
+		},
+		nil,
+		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateGroup(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateGroupInput))
+		},
+		nil,
+		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteGroup,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteGroup(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteGroup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addGroupMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_addGroupMember,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AddGroupMember(ctx, fc.Args["input"].(model.AddGroupMemberInput))
+		},
+		nil,
+		ec.marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addGroupMember(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_GroupMember_id(ctx, field)
+			case "memberType":
+				return ec.fieldContext_GroupMember_memberType(ctx, field)
+			case "memberId":
+				return ec.fieldContext_GroupMember_memberId(ctx, field)
+			case "device":
+				return ec.fieldContext_GroupMember_device(ctx, field)
+			case "group":
+				return ec.fieldContext_GroupMember_group(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GroupMember", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addGroupMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_removeGroupMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_removeGroupMember,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RemoveGroupMember(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_removeGroupMember(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_removeGroupMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2862,7 +3891,7 @@ func (ec *executionContext) _Query_automations(ctx context.Context, field graphq
 			return ec.Resolvers.Query().Automations(ctx)
 		},
 		nil,
-		ec.marshalNAutomation2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationᚄ,
+		ec.marshalNAutomationGraph2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraphᚄ,
 		true,
 		true,
 	)
@@ -2877,21 +3906,19 @@ func (ec *executionContext) fieldContext_Query_automations(_ context.Context, fi
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Automation_id(ctx, field)
+				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Automation_name(ctx, field)
+				return ec.fieldContext_AutomationGraph_name(ctx, field)
 			case "enabled":
-				return ec.fieldContext_Automation_enabled(ctx, field)
-			case "triggerEvent":
-				return ec.fieldContext_Automation_triggerEvent(ctx, field)
-			case "conditionExpr":
-				return ec.fieldContext_Automation_conditionExpr(ctx, field)
+				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "cooldownSeconds":
-				return ec.fieldContext_Automation_cooldownSeconds(ctx, field)
-			case "actions":
-				return ec.fieldContext_Automation_actions(ctx, field)
+				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
+			case "nodes":
+				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
+			case "edges":
+				return ec.fieldContext_AutomationGraph_edges(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Automation", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
 	}
 	return fc, nil
@@ -2908,7 +3935,7 @@ func (ec *executionContext) _Query_automation(ctx context.Context, field graphql
 			return ec.Resolvers.Query().Automation(ctx, fc.Args["id"].(string))
 		},
 		nil,
-		ec.marshalOAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation,
+		ec.marshalOAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		false,
 	)
@@ -2923,21 +3950,19 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Automation_id(ctx, field)
+				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Automation_name(ctx, field)
+				return ec.fieldContext_AutomationGraph_name(ctx, field)
 			case "enabled":
-				return ec.fieldContext_Automation_enabled(ctx, field)
-			case "triggerEvent":
-				return ec.fieldContext_Automation_triggerEvent(ctx, field)
-			case "conditionExpr":
-				return ec.fieldContext_Automation_conditionExpr(ctx, field)
+				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "cooldownSeconds":
-				return ec.fieldContext_Automation_cooldownSeconds(ctx, field)
-			case "actions":
-				return ec.fieldContext_Automation_actions(ctx, field)
+				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
+			case "nodes":
+				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
+			case "edges":
+				return ec.fieldContext_AutomationGraph_edges(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Automation", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
 	}
 	defer func() {
@@ -2948,6 +3973,96 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_automation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_groups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_groups,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Groups(ctx)
+		},
+		nil,
+		ec.marshalNGroup2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_groups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_group(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_group,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Group(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_group(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_group_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3205,8 +4320,12 @@ func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field 
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_SceneAction_id(ctx, field)
-			case "deviceId":
-				return ec.fieldContext_SceneAction_deviceId(ctx, field)
+			case "targetType":
+				return ec.fieldContext_SceneAction_targetType(ctx, field)
+			case "targetId":
+				return ec.fieldContext_SceneAction_targetId(ctx, field)
+			case "target":
+				return ec.fieldContext_SceneAction_target(ctx, field)
 			case "payload":
 				return ec.fieldContext_SceneAction_payload(ctx, field)
 			}
@@ -3245,14 +4364,43 @@ func (ec *executionContext) fieldContext_SceneAction_id(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _SceneAction_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _SceneAction_targetType(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_SceneAction_deviceId,
+		ec.fieldContext_SceneAction_targetType,
 		func(ctx context.Context) (any, error) {
-			return obj.DeviceID, nil
+			return obj.TargetType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAction_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAction_targetId(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAction_targetId,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetID, nil
 		},
 		nil,
 		ec.marshalNID2string,
@@ -3261,7 +4409,7 @@ func (ec *executionContext) _SceneAction_deviceId(ctx context.Context, field gra
 	)
 }
 
-func (ec *executionContext) fieldContext_SceneAction_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SceneAction_targetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "SceneAction",
 		Field:      field,
@@ -3269,6 +4417,35 @@ func (ec *executionContext) fieldContext_SceneAction_deviceId(_ context.Context,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAction_target(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAction_target,
+		func(ctx context.Context) (any, error) {
+			return obj.Target, nil
+		},
+		nil,
+		ec.marshalNSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAction_target(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SceneTarget does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3832,6 +5009,55 @@ func (ec *executionContext) fieldContext_Subscription_deviceRemoved(_ context.Co
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_automationNodeActivated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_automationNodeActivated,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().AutomationNodeActivated(ctx, fc.Args["automationId"].(*string))
+		},
+		nil,
+		ec.marshalNAutomationNodeActivationEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeActivationEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_automationNodeActivated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "automationId":
+				return ec.fieldContext_AutomationNodeActivationEvent_automationId(ctx, field)
+			case "nodeId":
+				return ec.fieldContext_AutomationNodeActivationEvent_nodeId(ctx, field)
+			case "active":
+				return ec.fieldContext_AutomationNodeActivationEvent_active(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationNodeActivationEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_automationNodeActivated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -5311,8 +6537,8 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputAutomationActionInput(ctx context.Context, obj any) (model.AutomationActionInput, error) {
-	var it model.AutomationActionInput
+func (ec *executionContext) unmarshalInputAddGroupMemberInput(ctx context.Context, obj any) (model.AddGroupMemberInput, error) {
+	var it model.AddGroupMemberInput
 	if obj == nil {
 		return it, nil
 	}
@@ -5322,34 +6548,115 @@ func (ec *executionContext) unmarshalInputAutomationActionInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"actionType", "deviceId", "payload"}
+	fieldsInOrder := [...]string{"groupId", "memberType", "memberId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "actionType":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actionType"))
+		case "groupId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GroupID = data
+		case "memberType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberType"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ActionType = data
-		case "deviceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			it.MemberType = data
+		case "memberId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.DeviceID = data
-		case "payload":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payload"))
+			it.MemberID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationEdgeInput(ctx context.Context, obj any) (model.AutomationEdgeInput, error) {
+	var it model.AutomationEdgeInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"fromNodeId", "toNodeId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "fromNodeId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fromNodeId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FromNodeID = data
+		case "toNodeId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("toNodeId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ToNodeID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationNodeInput(ctx context.Context, obj any) (model.AutomationNodeInput, error) {
+	var it model.AutomationNodeInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"id", "type", "config"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Payload = data
+			it.Type = data
+		case "config":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Config = data
 		}
 	}
 	return it, nil
@@ -5424,7 +6731,7 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "enabled", "triggerEvent", "conditionExpr", "cooldownSeconds", "actions"}
+	fieldsInOrder := [...]string{"name", "enabled", "cooldownSeconds", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5445,20 +6752,6 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Enabled = data
-		case "triggerEvent":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerEvent"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerEvent = data
-		case "conditionExpr":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conditionExpr"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ConditionExpr = data
 		case "cooldownSeconds":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cooldownSeconds"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
@@ -5466,13 +6759,50 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.CooldownSeconds = data
-		case "actions":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actions"))
-			data, err := ec.unmarshalNAutomationActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInputᚄ(ctx, v)
+		case "nodes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
+			data, err := ec.unmarshalNAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Actions = data
+			it.Nodes = data
+		case "edges":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("edges"))
+			data, err := ec.unmarshalNAutomationEdgeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Edges = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCreateGroupInput(ctx context.Context, obj any) (model.CreateGroupInput, error) {
+	var it model.CreateGroupInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
 		}
 	}
 	return it, nil
@@ -5584,20 +6914,27 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"deviceId", "payload"}
+	fieldsInOrder := [...]string{"targetType", "targetId", "payload"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "deviceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+		case "targetType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetType = data
+		case "targetId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetId"))
 			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.DeviceID = data
+			it.TargetID = data
 		case "payload":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payload"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -5621,7 +6958,7 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "enabled", "triggerEvent", "conditionExpr", "cooldownSeconds", "actions"}
+	fieldsInOrder := [...]string{"name", "enabled", "cooldownSeconds", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5642,20 +6979,6 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Enabled = data
-		case "triggerEvent":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("triggerEvent"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.TriggerEvent = data
-		case "conditionExpr":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conditionExpr"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ConditionExpr = data
 		case "cooldownSeconds":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cooldownSeconds"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
@@ -5663,13 +6986,50 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.CooldownSeconds = data
-		case "actions":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actions"))
-			data, err := ec.unmarshalOAutomationActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInputᚄ(ctx, v)
+		case "nodes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
+			data, err := ec.unmarshalOAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Actions = data
+			it.Nodes = data
+		case "edges":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("edges"))
+			data, err := ec.unmarshalOAutomationEdgeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Edges = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateGroupInput(ctx context.Context, obj any) (model.UpdateGroupInput, error) {
+	var it model.UpdateGroupInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
 		}
 	}
 	return it, nil
@@ -5750,53 +7110,60 @@ func (ec *executionContext) _DeviceState(ctx context.Context, sel ast.SelectionS
 	}
 }
 
+func (ec *executionContext) _SceneTarget(ctx context.Context, sel ast.SelectionSet, obj model.SceneTarget) graphql.Marshaler {
+	switch obj := (obj).(type) {
+	case nil:
+		return graphql.Null
+	case model.Group:
+		return ec._Group(ctx, sel, &obj)
+	case *model.Group:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Group(ctx, sel, obj)
+	case model.Device:
+		return ec._Device(ctx, sel, &obj)
+	case *model.Device:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Device(ctx, sel, obj)
+	default:
+		if typedObj, ok := obj.(graphql.Marshaler); ok {
+			return typedObj
+		} else {
+			panic(fmt.Errorf("unexpected type %T; non-generated variants of SceneTarget must implement graphql.Marshaler", obj))
+		}
+	}
+}
+
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
 
-var automationImplementors = []string{"Automation"}
+var automationEdgeImplementors = []string{"AutomationEdge"}
 
-func (ec *executionContext) _Automation(ctx context.Context, sel ast.SelectionSet, obj *model.Automation) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, automationImplementors)
+func (ec *executionContext) _AutomationEdge(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationEdge) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationEdgeImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Automation")
+			out.Values[i] = graphql.MarshalString("AutomationEdge")
 		case "id":
-			out.Values[i] = ec._Automation_id(ctx, field, obj)
+			out.Values[i] = ec._AutomationEdge_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "name":
-			out.Values[i] = ec._Automation_name(ctx, field, obj)
+		case "fromNodeId":
+			out.Values[i] = ec._AutomationEdge_fromNodeId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "enabled":
-			out.Values[i] = ec._Automation_enabled(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "triggerEvent":
-			out.Values[i] = ec._Automation_triggerEvent(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "conditionExpr":
-			out.Values[i] = ec._Automation_conditionExpr(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "cooldownSeconds":
-			out.Values[i] = ec._Automation_cooldownSeconds(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "actions":
-			out.Values[i] = ec._Automation_actions(ctx, field, obj)
+		case "toNodeId":
+			out.Values[i] = ec._AutomationEdge_toNodeId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -5823,31 +7190,142 @@ func (ec *executionContext) _Automation(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
-var automationActionImplementors = []string{"AutomationAction"}
+var automationGraphImplementors = []string{"AutomationGraph"}
 
-func (ec *executionContext) _AutomationAction(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationAction) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, automationActionImplementors)
+func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationGraph) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationGraphImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("AutomationAction")
+			out.Values[i] = graphql.MarshalString("AutomationGraph")
 		case "id":
-			out.Values[i] = ec._AutomationAction_id(ctx, field, obj)
+			out.Values[i] = ec._AutomationGraph_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "actionType":
-			out.Values[i] = ec._AutomationAction_actionType(ctx, field, obj)
+		case "name":
+			out.Values[i] = ec._AutomationGraph_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "deviceId":
-			out.Values[i] = ec._AutomationAction_deviceId(ctx, field, obj)
-		case "payload":
-			out.Values[i] = ec._AutomationAction_payload(ctx, field, obj)
+		case "enabled":
+			out.Values[i] = ec._AutomationGraph_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cooldownSeconds":
+			out.Values[i] = ec._AutomationGraph_cooldownSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nodes":
+			out.Values[i] = ec._AutomationGraph_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "edges":
+			out.Values[i] = ec._AutomationGraph_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationNodeImplementors = []string{"AutomationNode"}
+
+func (ec *executionContext) _AutomationNode(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationNode) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationNodeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationNode")
+		case "id":
+			out.Values[i] = ec._AutomationNode_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._AutomationNode_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "config":
+			out.Values[i] = ec._AutomationNode_config(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationNodeActivationEventImplementors = []string{"AutomationNodeActivationEvent"}
+
+func (ec *executionContext) _AutomationNodeActivationEvent(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationNodeActivationEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationNodeActivationEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationNodeActivationEvent")
+		case "automationId":
+			out.Values[i] = ec._AutomationNodeActivationEvent_automationId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nodeId":
+			out.Values[i] = ec._AutomationNodeActivationEvent_nodeId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "active":
+			out.Values[i] = ec._AutomationNodeActivationEvent_active(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -5933,7 +7411,7 @@ func (ec *executionContext) _Color(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
-var deviceImplementors = []string{"Device"}
+var deviceImplementors = []string{"Device", "SceneTarget"}
 
 func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, obj *model.Device) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, deviceImplementors)
@@ -5971,9 +7449,6 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "lastSeen":
 			out.Values[i] = ec._Device_lastSeen(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "state":
 			out.Values[i] = ec._Device_state(ctx, field, obj)
 		default:
@@ -6064,6 +7539,113 @@ func (ec *executionContext) _DeviceStateEvent(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var groupImplementors = []string{"Group", "SceneTarget"}
+
+func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, obj *model.Group) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, groupImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Group")
+		case "id":
+			out.Values[i] = ec._Group_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Group_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "members":
+			out.Values[i] = ec._Group_members(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedDevices":
+			out.Values[i] = ec._Group_resolvedDevices(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var groupMemberImplementors = []string{"GroupMember"}
+
+func (ec *executionContext) _GroupMember(ctx context.Context, sel ast.SelectionSet, obj *model.GroupMember) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, groupMemberImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GroupMember")
+		case "id":
+			out.Values[i] = ec._GroupMember_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memberType":
+			out.Values[i] = ec._GroupMember_memberType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memberId":
+			out.Values[i] = ec._GroupMember_memberId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "device":
+			out.Values[i] = ec._GroupMember_device(ctx, field, obj)
+		case "group":
+			out.Values[i] = ec._GroupMember_group(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6209,6 +7791,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "toggleAutomation":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_toggleAutomation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteGroup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteGroup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addGroupMember":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addGroupMember(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "removeGroupMember":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_removeGroupMember(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6378,6 +7995,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "groups":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_groups(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "group":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_group(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "sensorHistory":
 			field := field
 
@@ -6496,8 +8154,18 @@ func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "deviceId":
-			out.Values[i] = ec._SceneAction_deviceId(ctx, field, obj)
+		case "targetType":
+			out.Values[i] = ec._SceneAction_targetType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetId":
+			out.Values[i] = ec._SceneAction_targetId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "target":
+			out.Values[i] = ec._SceneAction_target(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6653,6 +8321,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_deviceAdded(ctx, fields[0])
 	case "deviceRemoved":
 		return ec._Subscription_deviceRemoved(ctx, fields[0])
+	case "automationNodeActivated":
+		return ec._Subscription_automationNodeActivated(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -7029,15 +8699,16 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNAutomation2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation(ctx context.Context, sel ast.SelectionSet, v model.Automation) graphql.Marshaler {
-	return ec._Automation(ctx, sel, &v)
+func (ec *executionContext) unmarshalNAddGroupMemberInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddGroupMemberInput(ctx context.Context, v any) (model.AddGroupMemberInput, error) {
+	res, err := ec.unmarshalInputAddGroupMemberInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAutomation2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Automation) graphql.Marshaler {
+func (ec *executionContext) marshalNAutomationEdge2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AutomationEdge) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation(ctx, sel, v[i])
+		return ec.marshalNAutomationEdge2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdge(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -7049,50 +8720,24 @@ func (ec *executionContext) marshalNAutomation2ᚕᚖgithubᚗcomᚋsaffronjam�
 	return ret
 }
 
-func (ec *executionContext) marshalNAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation(ctx context.Context, sel ast.SelectionSet, v *model.Automation) graphql.Marshaler {
+func (ec *executionContext) marshalNAutomationEdge2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdge(ctx context.Context, sel ast.SelectionSet, v *model.AutomationEdge) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._Automation(ctx, sel, v)
+	return ec._AutomationEdge(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAutomationAction2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AutomationAction) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNAutomationAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationAction(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNAutomationAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationAction(ctx context.Context, sel ast.SelectionSet, v *model.AutomationAction) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._AutomationAction(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNAutomationActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInputᚄ(ctx context.Context, v any) ([]*model.AutomationActionInput, error) {
+func (ec *executionContext) unmarshalNAutomationEdgeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInputᚄ(ctx context.Context, v any) ([]*model.AutomationEdgeInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]*model.AutomationActionInput, len(vSlice))
+	res := make([]*model.AutomationEdgeInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNAutomationActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNAutomationEdgeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -7100,8 +8745,98 @@ func (ec *executionContext) unmarshalNAutomationActionInput2ᚕᚖgithubᚗcom�
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNAutomationActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInput(ctx context.Context, v any) (*model.AutomationActionInput, error) {
-	res, err := ec.unmarshalInputAutomationActionInput(ctx, v)
+func (ec *executionContext) unmarshalNAutomationEdgeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInput(ctx context.Context, v any) (*model.AutomationEdgeInput, error) {
+	res, err := ec.unmarshalInputAutomationEdgeInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAutomationGraph2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph(ctx context.Context, sel ast.SelectionSet, v model.AutomationGraph) graphql.Marshaler {
+	return ec._AutomationGraph(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAutomationGraph2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraphᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AutomationGraph) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph(ctx context.Context, sel ast.SelectionSet, v *model.AutomationGraph) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AutomationGraph(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAutomationNode2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AutomationNode) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAutomationNode2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNode(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAutomationNode2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNode(ctx context.Context, sel ast.SelectionSet, v *model.AutomationNode) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AutomationNode(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAutomationNodeActivationEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeActivationEvent(ctx context.Context, sel ast.SelectionSet, v model.AutomationNodeActivationEvent) graphql.Marshaler {
+	return ec._AutomationNodeActivationEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAutomationNodeActivationEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeActivationEvent(ctx context.Context, sel ast.SelectionSet, v *model.AutomationNodeActivationEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AutomationNodeActivationEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx context.Context, v any) ([]*model.AutomationNodeInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.AutomationNodeInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAutomationNodeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNAutomationNodeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInput(ctx context.Context, v any) (*model.AutomationNodeInput, error) {
+	res, err := ec.unmarshalInputAutomationNodeInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -7123,6 +8858,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 
 func (ec *executionContext) unmarshalNCreateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateAutomationInput(ctx context.Context, v any) (model.CreateAutomationInput, error) {
 	res, err := ec.unmarshalInputCreateAutomationInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCreateGroupInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateGroupInput(ctx context.Context, v any) (model.CreateGroupInput, error) {
+	res, err := ec.unmarshalInputCreateGroupInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -7229,6 +8969,66 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 		}
 	}
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) marshalNGroup2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v model.Group) graphql.Marshaler {
+	return ec._Group(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGroup2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Group) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v *model.Group) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Group(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGroupMember2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember(ctx context.Context, sel ast.SelectionSet, v model.GroupMember) graphql.Marshaler {
+	return ec._GroupMember(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGroupMember2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GroupMember) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember(ctx context.Context, sel ast.SelectionSet, v *model.GroupMember) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GroupMember(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
@@ -7344,6 +9144,16 @@ func (ec *executionContext) unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffron
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget(ctx context.Context, sel ast.SelectionSet, v model.SceneTarget) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneTarget(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNSensorReading2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSensorReadingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SensorReading) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -7388,6 +9198,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 
 func (ec *executionContext) unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput(ctx context.Context, v any) (model.UpdateAutomationInput, error) {
 	res, err := ec.unmarshalInputUpdateAutomationInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateGroupInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateGroupInput(ctx context.Context, v any) (model.UpdateGroupInput, error) {
+	res, err := ec.unmarshalInputUpdateGroupInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -7537,24 +9352,42 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
-func (ec *executionContext) marshalOAutomation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomation(ctx context.Context, sel ast.SelectionSet, v *model.Automation) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Automation(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalOAutomationActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInputᚄ(ctx context.Context, v any) ([]*model.AutomationActionInput, error) {
+func (ec *executionContext) unmarshalOAutomationEdgeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInputᚄ(ctx context.Context, v any) ([]*model.AutomationEdgeInput, error) {
 	if v == nil {
 		return nil, nil
 	}
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]*model.AutomationActionInput, len(vSlice))
+	res := make([]*model.AutomationEdgeInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNAutomationActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationActionInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNAutomationEdgeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph(ctx context.Context, sel ast.SelectionSet, v *model.AutomationGraph) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationGraph(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx context.Context, v any) ([]*model.AutomationNodeInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.AutomationNodeInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAutomationNodeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -7654,6 +9487,13 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	_ = sel
 	res := graphql.MarshalFloatContext(*v)
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v *model.Group) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Group(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
