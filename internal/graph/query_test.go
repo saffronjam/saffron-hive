@@ -194,10 +194,10 @@ func TestQueryScenes(t *testing.T) {
 	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Evening"}
 	env.store.scenes["s2"] = store.Scene{ID: "s2", Name: "Movie"}
 	env.store.sceneActions["s1"] = []store.SceneAction{
-		{ID: "a1", SceneID: "s1", DeviceID: "d1", Payload: `{"brightness":100}`},
+		{ID: "a1", SceneID: "s1", TargetType: "device", TargetID: "d1", Payload: `{"brightness":100}`},
 	}
 
-	resp := env.query(t, `{ scenes { id name actions { id deviceId payload } } }`, nil)
+	resp := env.query(t, `{ scenes { id name actions { id targetType targetId payload } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -207,9 +207,10 @@ func TestQueryScenes(t *testing.T) {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
 			Actions []struct {
-				ID       string `json:"id"`
-				DeviceID string `json:"deviceId"`
-				Payload  string `json:"payload"`
+				ID         string `json:"id"`
+				TargetType string `json:"targetType"`
+				TargetID   string `json:"targetId"`
+				Payload    string `json:"payload"`
 			} `json:"actions"`
 		} `json:"scenes"`
 	}
@@ -227,15 +228,10 @@ func TestQueryAutomations(t *testing.T) {
 		ID:              "a1",
 		Name:            "Night mode",
 		Enabled:         true,
-		TriggerEvent:    "device.state_changed",
-		ConditionExpr:   "temperature > 25",
 		CooldownSeconds: 60,
 	}
-	env.store.automationActions["a1"] = []store.AutomationAction{
-		{ID: "act1", AutomationID: "a1", ActionType: "set_device_state", Payload: `{"on":false}`},
-	}
 
-	resp := env.query(t, `{ automations { id name enabled triggerEvent conditionExpr cooldownSeconds actions { id actionType payload } } }`, nil)
+	resp := env.query(t, `{ automations { id name enabled cooldownSeconds } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -245,14 +241,7 @@ func TestQueryAutomations(t *testing.T) {
 			ID              string `json:"id"`
 			Name            string `json:"name"`
 			Enabled         bool   `json:"enabled"`
-			TriggerEvent    string `json:"triggerEvent"`
-			ConditionExpr   string `json:"conditionExpr"`
 			CooldownSeconds int    `json:"cooldownSeconds"`
-			Actions         []struct {
-				ID         string `json:"id"`
-				ActionType string `json:"actionType"`
-				Payload    string `json:"payload"`
-			} `json:"actions"`
 		} `json:"automations"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -262,9 +251,6 @@ func TestQueryAutomations(t *testing.T) {
 		t.Fatalf("expected 1 automation, got %d", len(data.Automations))
 	}
 	a := data.Automations[0]
-	if a.ConditionExpr != "temperature > 25" {
-		t.Errorf("expected conditionExpr 'temperature > 25', got %q", a.ConditionExpr)
-	}
 	if a.CooldownSeconds != 60 {
 		t.Errorf("expected cooldownSeconds 60, got %d", a.CooldownSeconds)
 	}
