@@ -104,6 +104,14 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - Godoc comments on exported types and functions: encouraged.
 - JSDoc comments on exported types and functions: encouraged.
 
+### Logging
+- Use `log/slog` (Go stdlib) — structured, leveled logging. No external logging libraries.
+- Create a package-level logger per package: `var logger = slog.Default().With("pkg", "zigbee")`.
+- **Levels:** `Info` for startup/lifecycle events, `Warn` for recoverable issues (retries, fallbacks), `Error` for failures that affect functionality, `Debug` for verbose tracing (state changes, message parsing).
+- Always use structured fields (`slog.String`, `slog.Int`, etc.) — never format strings with `fmt.Sprintf`.
+- Include relevant context: device IDs, event types, error values, counts.
+- Never use emojis in log messages.
+
 ## Formatting and linting
 
 ### Go
