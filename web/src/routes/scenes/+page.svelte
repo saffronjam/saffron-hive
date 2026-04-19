@@ -15,8 +15,14 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import SceneCard from "$lib/components/scene-card.svelte";
+	import SceneTable from "$lib/components/scene-table.svelte";
+	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import ListView from "$lib/components/list-view.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { Plus, Clapperboard, X } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
+	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
 
 	interface SceneAction {
 		id: string;
@@ -28,6 +34,7 @@
 	interface SceneData {
 		id: string;
 		name: string;
+		icon?: string | null;
 		actions: SceneAction[];
 	}
 
@@ -52,6 +59,7 @@
 			scenes {
 				id
 				name
+				icon
 				actions {
 					id
 					targetType
@@ -97,6 +105,7 @@
 			updateScene(id: $id, input: $input) {
 				id
 				name
+				icon
 			}
 		}
 	`;
@@ -109,22 +118,26 @@
 	let newSceneName = $state("");
 	let createLoading = $state(false);
 
+	let view = $state<ListViewMode>(profile.get("view.scenes", "card"));
+
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Scenes" }];
 		pageHeader.actions = [{ label: "Create Scene", icon: Plus, onclick: () => (createDialogOpen = true) }];
 	});
 	onDestroy(() => pageHeader.reset());
+
+	$effect(() => {
+		pageHeader.viewToggle = {
+			value: view,
+			onchange: (v) => {
+				view = v;
+				profile.set("view.scenes", v);
+			},
+		};
+	});
 	let deleteConfirmScene = $state<SceneData | null>(null);
 	let deleteLoading = $state(false);
-	let errorMessage = $state<string | null>(null);
-
-	function clearError() {
-		errorMessage = null;
-	}
-
-	function dismissErrorAfterDelay() {
-		setTimeout(clearError, 5000);
-	}
+	const errors = new ErrorBanner();
 
 	async function fetchScenes() {
 		if (!clientRef) return;
@@ -138,15 +151,14 @@
 			scenes = result.data.scenes;
 		}
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 		}
 	}
 
 	async function handleCreateScene() {
 		if (!clientRef || !newSceneName.trim()) return;
 		createLoading = true;
-		clearError();
+		errors.clear();
 
 		const result = await clientRef
 			.mutation<CreateSceneResult>(CREATE_SCENE, {
@@ -160,8 +172,7 @@
 		createLoading = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -175,25 +186,40 @@
 
 	async function handleRename(scene: SceneData, newName: string) {
 		if (!clientRef) return;
-		clearError();
+		errors.clear();
 
 		const result = await clientRef
 			.mutation(UPDATE_SCENE_NAME, { id: scene.id, input: { name: newName } })
 			.toPromise();
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
 		scenes = scenes.map((s) => (s.id === scene.id ? { ...s, name: newName } : s));
 	}
 
+	async function handleIconChange(scene: SceneData, icon: string | null) {
+		if (!clientRef) return;
+		errors.clear();
+
+		const result = await clientRef
+			.mutation(UPDATE_SCENE_NAME, { id: scene.id, input: { icon } })
+			.toPromise();
+
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
+
+		scenes = scenes.map((s) => (s.id === scene.id ? { ...s, icon } : s));
+	}
+
 	async function handleApply(scene: SceneData) {
 		if (!clientRef) return;
 		applyingId = scene.id;
-		clearError();
+		errors.clear();
 
 		const result = await clientRef
 			.mutation<ApplySceneResult>(APPLY_SCENE, { sceneId: scene.id })
@@ -202,15 +228,14 @@
 		applyingId = null;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 		}
 	}
 
 	async function handleDelete() {
 		if (!clientRef || !deleteConfirmScene) return;
 		deleteLoading = true;
-		clearError();
+		errors.clear();
 
 		const result = await clientRef
 			.mutation<DeleteSceneResult>(DELETE_SCENE, { id: deleteConfirmScene.id })
@@ -219,8 +244,7 @@
 		deleteLoading = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -239,25 +263,19 @@
 </script>
 
 <div>
-	{#if errorMessage}
+	{#if errors.message}
 		<div
 			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 		>
-			<span>{errorMessage}</span>
-			<button type="button" onclick={clearError} class="ml-2 shrink-0">
+			<span>{errors.message}</span>
+			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
 				<X class="size-4" />
 			</button>
 		</div>
 	{/if}
 
 
-	{#if loading}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each [1, 2, 3] as _ (_.toString())}
-				<div class="h-20 animate-pulse rounded-lg shadow-card bg-card"></div>
-			{/each}
-		</div>
-	{:else if scenes.length === 0}
+	{#if !loading && scenes.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<Clapperboard class="size-6 text-muted-foreground" />
@@ -272,18 +290,34 @@
 			</Button>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each scenes as scene (scene.id)}
-				<SceneCard
-					{scene}
-					applying={applyingId === scene.id}
+		<ListView mode={view}>
+			{#snippet card()}
+				<AnimatedGrid>
+					{#each scenes as scene (scene.id)}
+						<SceneCard
+							{scene}
+							applying={applyingId === scene.id}
+							onapply={handleApply}
+							onedit={handleEdit}
+							ondelete={(s) => (deleteConfirmScene = s)}
+							onrename={handleRename}
+							oniconchange={handleIconChange}
+						/>
+					{/each}
+				</AnimatedGrid>
+			{/snippet}
+			{#snippet table()}
+				<SceneTable
+					{scenes}
+					{applyingId}
 					onapply={handleApply}
 					onedit={handleEdit}
 					ondelete={(s) => (deleteConfirmScene = s)}
 					onrename={handleRename}
+					oniconchange={handleIconChange}
 				/>
-			{/each}
-		</div>
+			{/snippet}
+		</ListView>
 	{/if}
 
 	<Dialog bind:open={createDialogOpen}>
@@ -320,22 +354,13 @@
 		</DialogContent>
 	</Dialog>
 
-	<Dialog bind:open={() => deleteConfirmScene !== null, (v) => { if (!v) deleteConfirmScene = null; }}>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>Delete Scene</DialogTitle>
-				<DialogDescription>
-					Are you sure you want to delete "{deleteConfirmScene?.name}"? This action cannot be undone.
-				</DialogDescription>
-			</DialogHeader>
-			<DialogFooter>
-				<Button variant="outline" onclick={() => (deleteConfirmScene = null)}>
-					Cancel
-				</Button>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteLoading}>
-					{deleteLoading ? "Deleting..." : "Delete"}
-				</Button>
-			</DialogFooter>
-		</DialogContent>
-	</Dialog>
+	<ConfirmDialog
+		bind:open={() => deleteConfirmScene !== null, (v) => { if (!v) deleteConfirmScene = null; }}
+		title="Delete Scene"
+		description='Are you sure you want to delete "{deleteConfirmScene?.name ?? ""}"? This action cannot be undone.'
+		confirmLabel="Delete"
+		loading={deleteLoading}
+		onconfirm={handleDelete}
+		oncancel={() => (deleteConfirmScene = null)}
+	/>
 </div>

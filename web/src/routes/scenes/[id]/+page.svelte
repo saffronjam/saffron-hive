@@ -10,80 +10,33 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
-	import {
-		Sheet,
-		SheetContent,
-		SheetHeader,
-		SheetTitle,
-		SheetDescription,
-	} from "$lib/components/ui/sheet/index.js";
 	import SceneEditorComponent from "$lib/components/scene-editor.svelte";
 	import ScenePreview from "$lib/components/scene-preview.svelte";
-	import MemberPicker from "$lib/components/member-picker.svelte";
-	import { ArrowLeft, Plus, X, Zap } from "@lucide/svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
+	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import { ArrowLeft, Plus, X, Zap, Group, Clapperboard } from "@lucide/svelte";
+	import { deviceIcon } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
 	import type { Device, LightState, SensorState, SwitchState } from "$lib/stores/devices";
+	import {
+		parsePayload,
+		buildTargetInfo,
+		sceneToEditable,
+		type SceneAction,
+		type SceneData,
+		type GroupData,
+		type ActionPayload,
+		type TargetInfo,
+		type EditableAction,
+	} from "$lib/scene-editable";
 
 	type DeviceState = LightState | SensorState | SwitchState;
 
 	const sceneId = $derived($page.params.id);
-
-	interface SceneAction {
-		id: string;
-		targetType: string;
-		targetId: string;
-		target: SceneTargetData;
-		payload: string;
-	}
-
-	interface SceneTargetData {
-		__typename: string;
-		id: string;
-		name: string;
-		type?: string;
-		members?: GroupMemberData[];
-		resolvedDevices?: Device[];
-	}
-
-	interface GroupMemberData {
-		id: string;
-		memberType: string;
-		memberId: string;
-	}
-
-	interface SceneData {
-		id: string;
-		name: string;
-		actions: SceneAction[];
-	}
-
-	interface GroupData {
-		id: string;
-		name: string;
-		members: GroupMemberData[];
-		resolvedDevices: Device[];
-	}
-
-	interface ActionPayload {
-		on?: boolean;
-		brightness?: number;
-		colorTemp?: number;
-		color?: { r: number; g: number; b: number; x: number; y: number };
-	}
-
-	interface TargetInfo {
-		id: string;
-		name: string;
-		type: "device" | "group";
-		deviceType?: string;
-	}
-
-	interface EditableAction {
-		targetType: string;
-		targetId: string;
-		target: TargetInfo;
-		payload: ActionPayload;
-	}
 
 	interface PickerGroup {
 		id: string;
@@ -96,6 +49,7 @@
 			scene(id: $id) {
 				id
 				name
+				icon
 				actions {
 					id
 					targetType
@@ -106,6 +60,7 @@
 							id
 							name
 							type
+							capabilities { name type values valueMin valueMax unit access }
 							available
 							lastSeen
 							state {
@@ -262,6 +217,7 @@
 			updateScene(id: $id, input: $input) {
 				id
 				name
+				icon
 				actions {
 					id
 					targetType
@@ -350,60 +306,35 @@
 			pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: scene.name }];
 		}
 	});
+
+	$effect(() => {
+		pageHeader.actions = [
+			{ label: "Cancel", variant: "outline" as const, onclick: handleCancel },
+			{ label: "Save", saving, onclick: handleSave, disabled: saving || !sceneName.trim() || !isDirty },
+		];
+	});
 	let allDevices = $state<Device[]>([]);
 	let allGroups = $state<GroupData[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
-	let errorMessage = $state<string | null>(null);
+	const errors = new ErrorBanner();
 	let unsubscribers: (() => void)[] = [];
 
 	let sceneName = $state("");
+	let sceneIcon = $state<string | null>(null);
 	let editableActions = $state<EditableAction[]>([]);
 	let liveEditing = $state(false);
 	let pickerOpen = $state(false);
+	let savedSceneName = $state("");
+	let savedSceneIcon = $state<string | null>(null);
+	let savedActionsJson = $state("");
+	const isDirty = $derived(
+		sceneName !== savedSceneName ||
+		sceneIcon !== savedSceneIcon ||
+		JSON.stringify(editableActions) !== savedActionsJson
+	);
 
 	let liveEditTimers = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
-	function clearError() {
-		errorMessage = null;
-	}
-
-	function dismissErrorAfterDelay() {
-		setTimeout(clearError, 5000);
-	}
-
-	function parsePayload(raw: string): ActionPayload {
-		try {
-			return JSON.parse(raw) as ActionPayload;
-		} catch {
-			return { on: true, brightness: 127 };
-		}
-	}
-
-	function buildTargetInfo(action: SceneAction): TargetInfo {
-		if (action.target.__typename === "Group") {
-			return {
-				id: action.target.id,
-				name: action.target.name,
-				type: "group",
-			};
-		}
-		return {
-			id: action.target.id,
-			name: action.target.name,
-			type: "device",
-			deviceType: action.target.type,
-		};
-	}
-
-	function sceneToEditable(s: SceneData): EditableAction[] {
-		return s.actions.map((a) => ({
-			targetType: a.targetType,
-			targetId: a.targetId,
-			target: buildTargetInfo(a),
-			payload: parsePayload(a.payload),
-		}));
-	}
 
 	const effectiveDevices = $derived.by(() => {
 		const deviceMap = new Map<string, Device>();
@@ -443,15 +374,26 @@
 
 	const availableDevices = $derived(allDevices.filter((d) => !existingTargetIds.has(d.id)));
 
-	const availableGroups = $derived<PickerGroup[]>(
-		allGroups
-			.filter((g) => !existingTargetIds.has(g.id))
-			.map((g) => ({
-				id: g.id,
-				name: g.name,
-				members: g.members,
-			}))
+	const availableGroups = $derived(
+		allGroups.filter((g) => !existingTargetIds.has(g.id))
 	);
+
+	const pickerDrawerGroups = $derived.by((): DrawerGroup<"device" | "group">[] => {
+		const result: DrawerGroup<"device" | "group">[] = [];
+		if (availableDevices.length > 0) {
+			result.push({ heading: "Devices", items: availableDevices.map((d) => ({
+				type: "device" as const, id: d.id, name: d.name,
+				icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}`,
+			}))});
+		}
+		if (availableGroups.length > 0) {
+			result.push({ heading: "Groups", items: availableGroups.map((g) => ({
+				type: "group" as const, id: g.id, name: g.name, icon: Group,
+				badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+			}))});
+		}
+		return result;
+	});
 
 	function sendLiveCommand(action: EditableAction) {
 		if (!clientRef || !liveEditing) return;
@@ -538,7 +480,7 @@
 	async function handleSave() {
 		if (!clientRef || !scene) return;
 		saving = true;
-		clearError();
+		errors.clear();
 
 		const actions = editableActions.map((a) => ({
 			targetType: a.targetType,
@@ -551,6 +493,7 @@
 				id: scene.id,
 				input: {
 					name: sceneName.trim() || scene.name,
+					icon: sceneIcon,
 					actions,
 				},
 			})
@@ -559,12 +502,13 @@
 		saving = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
-		goto("/scenes");
+		savedSceneName = sceneName;
+		savedSceneIcon = sceneIcon;
+		savedActionsJson = JSON.stringify(editableActions);
 	}
 
 	function handleCancel() {
@@ -583,14 +527,18 @@
 				if (result.data?.scene) {
 					scene = result.data.scene;
 					sceneName = result.data.scene.name;
+					sceneIcon = result.data.scene.icon ?? null;
 					editableActions = sceneToEditable(result.data.scene);
+					savedSceneName = sceneName;
+					savedSceneIcon = sceneIcon;
+					savedActionsJson = JSON.stringify(editableActions);
 				} else {
-					errorMessage = "Scene not found";
+					errors.message = "Scene not found";
 				}
 			})
 			.catch(() => {
 				loading = false;
-				errorMessage = "Failed to load scene";
+				errors.message = "Failed to load scene";
 			});
 
 		client
@@ -634,14 +582,16 @@
 	});
 </script>
 
+<UnsavedGuard dirty={isDirty} />
+
 <div>
 
-	{#if errorMessage}
+	{#if errors.message}
 		<div
 			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 		>
-			<span>{errorMessage}</span>
-			<button type="button" onclick={clearError} class="ml-2 shrink-0">
+			<span>{errors.message}</span>
+			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
 				<X class="size-4" />
 			</button>
 		</div>
@@ -658,11 +608,20 @@
 				<label class="mb-2 block text-sm font-medium text-foreground" for="scene-name">
 					Scene Name
 				</label>
-				<Input
-					id="scene-name"
-					bind:value={sceneName}
-					placeholder="Scene name"
-				/>
+				<div class="flex items-center gap-3">
+					<IconPicker value={sceneIcon} onselect={(icon) => (sceneIcon = icon)}>
+						<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors" aria-label="Change icon">
+							<AnimatedIcon icon={sceneIcon} class="size-5 text-muted-foreground">
+								{#snippet fallback()}<Clapperboard class="size-5 text-muted-foreground" />{/snippet}
+							</AnimatedIcon>
+						</button>
+					</IconPicker>
+					<Input
+						id="scene-name"
+						bind:value={sceneName}
+						placeholder="Scene name"
+					/>
+				</div>
 			</div>
 
 			<div class="rounded-lg shadow-card bg-card p-4">
@@ -719,14 +678,6 @@
 				<ScenePreview devices={effectiveDevices} />
 			</div>
 
-			<div class="flex items-center justify-end gap-3">
-				<Button variant="outline" onclick={handleCancel}>
-					Cancel
-				</Button>
-				<Button onclick={handleSave} disabled={saving || !sceneName.trim()}>
-					{saving ? "Saving..." : "Save"}
-				</Button>
-			</div>
 		</div>
 	{:else}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
@@ -741,19 +692,11 @@
 		</div>
 	{/if}
 
-	<Sheet bind:open={pickerOpen}>
-		<SheetContent side="right" class="w-full sm:max-w-md">
-			<SheetHeader>
-				<SheetTitle>Add Target</SheetTitle>
-				<SheetDescription>Search for devices or groups to add to this scene.</SheetDescription>
-			</SheetHeader>
-			<div class="mt-4">
-				<MemberPicker
-					devices={availableDevices}
-					groups={availableGroups}
-					onselect={handleAddTarget}
-				/>
-			</div>
-		</SheetContent>
-	</Sheet>
+	<HiveDrawer
+		bind:open={pickerOpen}
+		title="Add Target"
+		description="Search for devices or groups to add to this scene."
+		groups={pickerDrawerGroups}
+		onselect={handleAddTarget}
+	/>
 </div>
