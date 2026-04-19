@@ -19,6 +19,8 @@ const (
 	GroupMemberDevice GroupMemberType = "device"
 	// GroupMemberGroup indicates the member is another group.
 	GroupMemberGroup GroupMemberType = "group"
+	// GroupMemberRoom indicates the member is a room.
+	GroupMemberRoom GroupMemberType = "room"
 )
 
 // GroupMember represents a membership relationship between a group and a device or another group.
