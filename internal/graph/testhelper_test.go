@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 )
 
 type testEnv struct {
@@ -28,11 +30,17 @@ func newTestEnv(t *testing.T) *testEnv {
 	bus := eventbus.NewChannelBus()
 	rl := &mockReloader{}
 
+	levelVar := &slog.LevelVar{}
+	levelVar.Set(slog.LevelInfo)
+
 	resolver := &Resolver{
 		StateReader:        sr,
 		Store:              st,
+		TargetResolver:     st,
 		EventBus:           bus,
 		AutomationReloader: rl,
+		LogBuffer:          logging.NewBuffer(),
+		LevelVar:           levelVar,
 	}
 
 	srv := handler.New(NewExecutableSchema(Config{

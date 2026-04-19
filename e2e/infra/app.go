@@ -80,7 +80,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		return nil, fmt.Errorf("start adapter: %w", err)
 	}
 
-	engine := automation.NewEngine(bus, memStore, sqlStore)
+	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
 			log.Printf("automation engine error: %v", err)
@@ -93,6 +93,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		StateReader:        memStore,
 		Store:              sqlStore,
 		EventBus:           bus,
+		TargetResolver:     sqlStore,
 		AutomationReloader: &reloader{engine: engine, ctx: appCtx},
 	}
 
