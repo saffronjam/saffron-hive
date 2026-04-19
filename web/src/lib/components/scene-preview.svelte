@@ -1,27 +1,14 @@
 <script lang="ts">
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import { Lightbulb, Thermometer, ToggleLeft, Package } from "@lucide/svelte";
 	import type { Device, LightState, SensorState } from "$lib/stores/devices";
 	import { isLightState, isSensorState } from "$lib/stores/devices";
+	import { deviceIcon } from "$lib/utils";
 
 	interface Props {
 		devices: Device[];
 	}
 
 	let { devices }: Props = $props();
-
-	function deviceIcon(type: string): typeof Lightbulb {
-		switch (type) {
-			case "light":
-				return Lightbulb;
-			case "sensor":
-				return Thermometer;
-			case "switch":
-				return ToggleLeft;
-			default:
-				return Package;
-		}
-	}
 
 	function brightnessPercent(light: LightState): string {
 		if (light.brightness == null) return "";

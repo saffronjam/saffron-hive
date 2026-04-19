@@ -8,7 +8,8 @@
 	} from "$lib/stores/devices";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
-	import { Lightbulb, Thermometer, ToggleLeft, Package, ChevronDown } from "@lucide/svelte";
+	import { ChevronDown } from "@lucide/svelte";
+	import { deviceIcon } from "$lib/utils";
 
 	interface LightStateInput {
 		on?: boolean;
@@ -47,19 +48,6 @@
 			localBrightness = light.brightness;
 		}
 	});
-
-	function deviceIcon(type: string): typeof Lightbulb {
-		switch (type) {
-			case "light":
-				return Lightbulb;
-			case "sensor":
-				return Thermometer;
-			case "switch":
-				return ToggleLeft;
-			default:
-				return Package;
-		}
-	}
 
 	function handleToggle() {
 		if (!light) return;
