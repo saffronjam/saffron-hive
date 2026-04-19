@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import { onMount, onDestroy } from "svelte";
+	import { onMount, onDestroy, untrack } from "svelte";
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { gql } from "@urql/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -17,26 +17,26 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import {
-		Sheet,
-		SheetContent,
-		SheetHeader,
-		SheetTitle,
-		SheetDescription,
-	} from "$lib/components/ui/sheet/index.js";
-	import {
 		Tabs,
 		TabsContent,
 		TabsList,
 		TabsTrigger,
 	} from "$lib/components/ui/tabs/index.js";
-	import MemberPicker from "$lib/components/member-picker.svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import { Clapperboard, Workflow } from "@lucide/svelte";
+	import { deviceIcon } from "$lib/utils";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
 	import JsonEditor from "$lib/components/json-editor.svelte";
+	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import {
 		ArrowLeft,
-		Save,
 		Trash2,
 		Zap,
+		ShieldCheck,
 		GitMerge,
 		Play,
 		X,
@@ -44,17 +44,30 @@
 		Pencil,
 		Code,
 		LayoutGrid,
+		Undo2,
+		Redo2,
+		Settings,
 	} from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
 	import type { Device } from "$lib/stores/devices";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
-
-	interface TriggerConfig {
-		eventType: string;
-		deviceFilter: string;
-		condition: string;
-	}
+	import {
+		type TriggerConfig,
+		defaultTriggerConfig,
+		normalizeTriggerConfig,
+		serializeTriggerConfig,
+		serializeOperatorConfig,
+		serializeActionConfig,
+	} from "$lib/components/graph/trigger-expr";
+	import {
+		type ConditionConfig,
+		defaultConditionConfig,
+		normalizeConditionConfig,
+		serializeConditionConfig,
+	} from "$lib/components/graph/condition-expr";
 
 	interface OperatorConfig {
 		operator: string;
@@ -68,7 +81,7 @@
 		payload: string;
 	}
 
-	type NodeConfig = TriggerConfig | OperatorConfig | ActionConfig;
+	type NodeConfig = TriggerConfig | ConditionConfig | OperatorConfig | ActionConfig;
 
 	interface AutomationNodeData {
 		id: string;
@@ -85,6 +98,7 @@
 	interface AutomationData {
 		id: string;
 		name: string;
+		icon?: string | null;
 		enabled: boolean;
 		cooldownSeconds: number;
 		nodes: AutomationNodeData[];
@@ -134,6 +148,7 @@
 			automation(id: $id) {
 				id
 				name
+				icon
 				enabled
 				cooldownSeconds
 				nodes {
@@ -155,6 +170,7 @@
 			updateAutomation(id: $id, input: $input) {
 				id
 				name
+				icon
 				enabled
 				cooldownSeconds
 				nodes {
@@ -193,6 +209,7 @@
 				name
 				type
 				source
+				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen
 				state {
@@ -231,6 +248,19 @@
 		}
 	`;
 
+	const SCENES_QUERY = gql`
+		query Scenes {
+			scenes {
+				id
+				name
+			}
+		}
+	`;
+
+	interface ScenesQueryResult {
+		scenes: { id: string; name: string }[];
+	}
+
 	const NODE_ACTIVATED_SUBSCRIPTION = gql`
 		subscription AutomationNodeActivated($automationId: ID) {
 			automationNodeActivated(automationId: $automationId) {
@@ -247,6 +277,7 @@
 	let client = $state<ReturnType<typeof createGraphQLClient> | null>(null);
 
 	let automationName = $state("");
+	let automationIcon = $state<string | null>(null);
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Automations", href: "/automations" }, { label: "Automation" }];
@@ -259,9 +290,14 @@
 		}
 	});
 
+	function handleCancel() {
+		goto("/automations");
+	}
+
 	$effect(() => {
 		pageHeader.actions = [
-			{ label: saving ? "Saving..." : "Save", icon: Save, onclick: handleSave, disabled: !editMode || saving },
+			{ label: "Cancel", variant: "outline" as const, onclick: handleCancel },
+			{ label: "Save", saving, onclick: handleSave, disabled: !editMode || saving },
 			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode },
 		];
 	});
@@ -277,38 +313,137 @@
 	let syncSource = $state<"visual" | "code" | null>(null);
 	let loading = $state(true);
 	let saving = $state(false);
-	let errorMessage = $state<string | null>(null);
+	const errors = new ErrorBanner();
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
+	let advancedOpen = $state(false);
 
 	let pickerOpen = $state(false);
 	let pickerTargetNodeId = $state<string | null>(null);
+	let pickerActionType = $state<string>("set_device_state");
 	let devices = $state<Device[]>([]);
 	let groups = $state<GroupData[]>([]);
+	let scenes = $state<{ id: string; name: string }[]>([]);
+
+	const pickerGroups = $derived.by((): DrawerGroup<"device" | "group" | "scene">[] => {
+		if (pickerActionType === "activate_scene") {
+			return [{ heading: "Scenes", items: scenes.map((s) => ({ type: "scene" as const, id: s.id, name: s.name, icon: Clapperboard })) }];
+		}
+		return [{ heading: "Devices", items: devices.map((d) => ({ type: "device" as const, id: d.id, name: d.name, icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}` })) }];
+	});
 
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 	let unsubscribers: (() => void)[] = [];
 
 	let nodeIdCounter = $state(0);
+	let restoringSnapshot = false;
 
-	function clearError() {
-		errorMessage = null;
+	interface AutomationSnapshot {
+		name: string;
+		icon: string | null;
+		enabled: boolean;
+		cooldownSeconds: number;
+		nodes: Node[];
+		edges: Edge[];
 	}
 
-	function dismissErrorAfterDelay() {
-		setTimeout(clearError, 5000);
+	const history = new HistoryStack<AutomationSnapshot>();
+	const isDirty = $derived(history.cursor > 0);
+
+	function cloneNodes(nodes: Node[]): Node[] {
+		return nodes.map((n) => {
+			const data = n.data as Record<string, unknown>;
+			const clonedData: Record<string, unknown> = {};
+			for (const key of Object.keys(data)) {
+				if (typeof data[key] !== "function") {
+					clonedData[key] = data[key];
+				}
+			}
+			if (typeof data.config === "object" && data.config !== null) {
+				clonedData.config = JSON.parse(JSON.stringify(data.config));
+			}
+			return { ...n, position: { ...n.position }, data: clonedData };
+		}) as Node[];
 	}
 
-	function parseConfig(configJson: string): NodeConfig {
-		try {
-			return JSON.parse(configJson) as NodeConfig;
-		} catch {
-			return { eventType: "", deviceFilter: "", condition: "" };
+	function cloneEdges(edges: Edge[]): Edge[] {
+		return edges.map((e) => ({ ...e })) as Edge[];
+	}
+
+	function takeSnapshot() {
+		if (restoringSnapshot) return;
+		history.push({
+			name: automationName,
+			icon: automationIcon,
+			enabled: automationEnabled,
+			cooldownSeconds: cooldownSeconds,
+			nodes: cloneNodes(flowNodes),
+			edges: cloneEdges(flowEdges),
+		});
+	}
+
+	function restoreSnapshot(snap: AutomationSnapshot) {
+		restoringSnapshot = true;
+		automationName = snap.name;
+		automationIcon = snap.icon;
+		automationEnabled = snap.enabled;
+		cooldownSeconds = snap.cooldownSeconds;
+		flowNodes = snap.nodes.map((n) => {
+			const nodeType = n.type ?? "trigger";
+			const config = (n.data as Record<string, unknown>).config as NodeConfig;
+			return { ...n, data: makeNodeData(nodeType, config, editMode, false, n.id) };
+		}) as Node[];
+		flowEdges = snap.edges;
+		restoringSnapshot = false;
+	}
+
+	function handleUndo() {
+		const snap = history.undo();
+		if (snap) restoreSnapshot(snap);
+	}
+
+	function handleRedo() {
+		const snap = history.redo();
+		if (snap) restoreSnapshot(snap);
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (!editMode) return;
+		const mod = e.metaKey || e.ctrlKey;
+		if (mod && e.key === "z" && !e.shiftKey) {
+			e.preventDefault();
+			handleUndo();
+		} else if (mod && (e.key === "Z" || e.key === "y")) {
+			e.preventDefault();
+			handleRedo();
 		}
 	}
 
-	function defaultTriggerConfig(): TriggerConfig {
-		return { eventType: "device.state_changed", deviceFilter: "", condition: "" };
+	function parseConfig(nodeType: string, configJson: string): NodeConfig {
+		try {
+			const raw = JSON.parse(configJson) as Record<string, unknown>;
+			if (nodeType === "trigger") {
+				return normalizeTriggerConfig(raw);
+			}
+			if (nodeType === "condition") {
+				return normalizeConditionConfig(raw);
+			}
+			if (nodeType === "operator") {
+				return { operator: ((raw.kind as string) ?? (raw.operator as string) ?? "AND").toUpperCase() };
+			}
+			if (nodeType === "action") {
+				return {
+					actionType: (raw.action_type as string) ?? (raw.actionType as string) ?? "set_device_state",
+					targetType: (raw.target_type as string) ?? (raw.targetType as string) ?? "",
+					targetId: (raw.target_id as string) ?? (raw.targetId as string) ?? "",
+					targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
+					payload: (raw.payload as string) ?? "",
+				};
+			}
+			return raw as unknown as NodeConfig;
+		} catch {
+			return defaultTriggerConfig();
+		}
 	}
 
 	function defaultOperatorConfig(): OperatorConfig {
@@ -330,6 +465,7 @@
 			flowNodes = flowNodes.map((n) =>
 				n.id === nodeId ? { ...n, data: { ...n.data, config: newConfig } } : n
 			);
+			queueMicrotask(takeSnapshot);
 		};
 
 		const base = {
@@ -339,11 +475,27 @@
 			onConfigChange,
 		};
 
+		if (nodeType === "trigger") {
+			return {
+				...base,
+				devices,
+			};
+		}
+
+		if (nodeType === "condition") {
+			return {
+				...base,
+				devices,
+			};
+		}
+
 		if (nodeType === "action") {
 			return {
 				...base,
 				onPickTarget: () => {
+					const actionConfig = config as ActionConfig;
 					pickerTargetNodeId = nodeId;
+					pickerActionType = actionConfig.actionType || "set_device_state";
 					pickerOpen = true;
 				},
 			};
@@ -357,13 +509,14 @@
 		isEditable: boolean,
 		activatedSet: Map<string, ReturnType<typeof setTimeout>>
 	): Node[] {
-		const xPositions: Record<string, number> = { trigger: 0, operator: 350, action: 700 };
-		const yCounters: Record<string, number> = { trigger: 0, operator: 0, action: 0 };
+		const xPositions: Record<string, number> = { trigger: 0, condition: 280, operator: 560, action: 840 };
+		const yCounters: Record<string, number> = { trigger: 0, condition: 0, operator: 0, action: 0 };
 
 		return nodes.map((n) => {
-			const config = parseConfig(n.config);
+			const config = parseConfig(n.type, n.config);
 			const xPos = xPositions[n.type] ?? 0;
-			const yPos = yCounters[n.type] * 180;
+			const spacing = ({ trigger: 320, condition: 320, operator: 150, action: 300 })[n.type] ?? 250;
+			const yPos = yCounters[n.type] * spacing;
 			yCounters[n.type] = (yCounters[n.type] ?? 0) + 1;
 
 			return {
@@ -385,11 +538,28 @@
 	}
 
 	function flowNodesToAutomationNodes(nodes: Node[]): { id: string; type: string; config: string }[] {
-		return nodes.map((n) => ({
-			id: n.id,
-			type: n.type ?? "trigger",
-			config: JSON.stringify((n.data as Record<string, unknown>).config),
-		}));
+		return nodes.map((n) => {
+			const nodeType = n.type ?? "trigger";
+			const config = (n.data as Record<string, unknown>).config;
+			let serialized: string;
+			switch (nodeType) {
+				case "trigger":
+					serialized = serializeTriggerConfig(config as TriggerConfig);
+					break;
+				case "condition":
+					serialized = serializeConditionConfig(config as ConditionConfig);
+					break;
+				case "operator":
+					serialized = serializeOperatorConfig(config as OperatorConfig);
+					break;
+				case "action":
+					serialized = serializeActionConfig(config as ActionConfig);
+					break;
+				default:
+					serialized = JSON.stringify(config);
+			}
+			return { id: n.id, type: nodeType, config: serialized };
+		});
 	}
 
 	function flowEdgesToAutomationEdges(edges: Edge[]): { fromNodeId: string; toNodeId: string }[] {
@@ -410,11 +580,25 @@
 		const obj: AutomationJson = {
 			name: automationName,
 			cooldownSeconds,
-			nodes: flowNodes.map((n) => ({
-				id: n.id,
-				type: n.type ?? "trigger",
-				config: (n.data as Record<string, unknown>).config as Record<string, unknown>,
-			})),
+			nodes: flowNodes.map((n) => {
+				const nodeType = n.type ?? "trigger";
+				const config = (n.data as Record<string, unknown>).config;
+				const serialized = (() => {
+					switch (nodeType) {
+						case "trigger":
+							return JSON.parse(serializeTriggerConfig(config as TriggerConfig));
+						case "condition":
+							return JSON.parse(serializeConditionConfig(config as ConditionConfig));
+						case "operator":
+							return JSON.parse(serializeOperatorConfig(config as OperatorConfig));
+						case "action":
+							return JSON.parse(serializeActionConfig(config as ActionConfig));
+						default:
+							return config;
+					}
+				})();
+				return { id: n.id, type: nodeType, config: serialized as Record<string, unknown> };
+			}),
 			edges: flowEdges.map((e) => ({
 				from: e.source,
 				to: e.target,
@@ -517,22 +701,28 @@
 			cooldownSeconds = result.cooldownSeconds;
 			flowNodes = automationNodesToFlowNodes(result.nodes, editMode, activatedNodes);
 			flowEdges = automationEdgesToFlowEdges(result.edges);
+			takeSnapshot();
 		} else {
 			jsonError = result.error;
 		}
 		syncSource = null;
 	}
 
-	function addNode(nodeType: "trigger" | "operator" | "action") {
+	function addNode(nodeType: "trigger" | "condition" | "operator" | "action") {
 		nodeIdCounter++;
-		const tempId = `new-${nodeType}-${nodeIdCounter}`;
-		const xPositions: Record<string, number> = { trigger: 0, operator: 350, action: 700 };
+		// Use a globally unique ID so saves from different browser sessions or
+		// automations don't collide on the automation_nodes.id PRIMARY KEY.
+		const tempId = `node-${crypto.randomUUID()}`;
+		const xPositions: Record<string, number> = { trigger: 0, condition: 280, operator: 560, action: 840 };
 		const existingOfType = flowNodes.filter((n) => n.type === nodeType).length;
 
 		let config: NodeConfig;
 		switch (nodeType) {
 			case "trigger":
 				config = defaultTriggerConfig();
+				break;
+			case "condition":
+				config = defaultConditionConfig();
 				break;
 			case "operator":
 				config = defaultOperatorConfig();
@@ -545,11 +735,12 @@
 		const newNode: Node = {
 			id: tempId,
 			type: nodeType,
-			position: { x: xPositions[nodeType] ?? 0, y: existingOfType * 180 },
+			position: { x: xPositions[nodeType] ?? 0, y: existingOfType * (({ trigger: 320, condition: 320, operator: 150, action: 300 })[nodeType] ?? 250) },
 			data: makeNodeData(nodeType, config, editMode, false, tempId),
 		};
 
 		flowNodes = [...flowNodes, newNode];
+		takeSnapshot();
 	}
 
 	function handleConnect(connection: Connection) {
@@ -560,23 +751,27 @@
 			animated: true,
 		};
 		flowEdges = [...flowEdges, newEdge];
+		takeSnapshot();
 	}
 
 	function handleNodeClick(event: { node: Node; event: MouseEvent | TouchEvent }) {
 		if (!editMode || !isMobile.current) return;
 		const node = event.node;
 		if (node.type === "action") {
+			const actionConfig = (node.data as Record<string, unknown>).config as ActionConfig;
 			pickerTargetNodeId = node.id;
+			pickerActionType = actionConfig.actionType || "set_device_state";
 			pickerOpen = true;
 		}
 	}
 
-	function handleTargetSelect(memberType: "device" | "group", memberId: string) {
+	function handleTargetSelect(memberType: "device" | "group" | "scene", memberId: string) {
 		if (!pickerTargetNodeId) return;
 
 		const selectedDevice = devices.find((d) => d.id === memberId);
 		const selectedGroup = groups.find((g) => g.id === memberId);
-		const targetName = selectedDevice?.name ?? selectedGroup?.name ?? memberId;
+		const selectedScene = scenes.find((s) => s.id === memberId);
+		const targetName = selectedDevice?.name ?? selectedGroup?.name ?? selectedScene?.name ?? memberId;
 
 		flowNodes = flowNodes.map((n) => {
 			if (n.id !== pickerTargetNodeId) return n;
@@ -593,7 +788,22 @@
 
 		pickerOpen = false;
 		pickerTargetNodeId = null;
+		takeSnapshot();
 	}
+
+	function updateTriggerNodeDevices(deviceList: Device[]) {
+		flowNodes = flowNodes.map((n) => {
+			if (n.type !== "trigger") return n;
+			return { ...n, data: { ...n.data, devices: deviceList } };
+		});
+	}
+
+	$effect(() => {
+		const deviceList = devices;
+		if (deviceList.length > 0) {
+			untrack(() => updateTriggerNodeDevices(deviceList));
+		}
+	});
 
 	function updateNodeEditability(isEditable: boolean) {
 		flowNodes = flowNodes.map((n) => ({
@@ -609,14 +819,17 @@
 
 	async function handleSave() {
 		if (!client) return;
+		if (saving) return;
 		saving = true;
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<UpdateAutomationResult>(UPDATE_AUTOMATION, {
 				id: automationId,
 				input: {
 					name: automationName,
+					icon: automationIcon,
+					enabled: automationEnabled,
 					cooldownSeconds,
 					nodes: flowNodesToAutomationNodes(flowNodes),
 					edges: flowEdgesToAutomationEdges(flowEdges),
@@ -627,8 +840,7 @@
 		saving = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -645,30 +857,15 @@
 		}
 	}
 
-	async function handleToggle(enabled: boolean) {
-		if (!client) return;
-		clearError();
-
-		const result = await client
-			.mutation<ToggleAutomationResult>(TOGGLE_AUTOMATION, {
-				id: automationId,
-				enabled,
-			})
-			.toPromise();
-
-		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
-			return;
-		}
-
+	function handleToggle(enabled: boolean) {
 		automationEnabled = enabled;
+		takeSnapshot();
 	}
 
 	async function handleDelete() {
 		if (!client) return;
 		deleteLoading = true;
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<DeleteAutomationResult>(DELETE_AUTOMATION, { id: automationId })
@@ -677,8 +874,7 @@
 		deleteLoading = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -696,6 +892,7 @@
 				if (result.data?.automation) {
 					const auto = result.data.automation;
 					automationName = auto.name;
+					automationIcon = auto.icon ?? null;
 					automationEnabled = auto.enabled;
 					cooldownSeconds = auto.cooldownSeconds;
 					flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
@@ -711,6 +908,7 @@
 					}
 					nodeIdCounter = maxId;
 						jsonString = flowStateToJson();
+						takeSnapshot();
 					}
 				});
 
@@ -729,6 +927,15 @@
 			.then((result) => {
 				if (result.data) {
 					groups = result.data.groups;
+				}
+			});
+
+		client
+			.query<ScenesQueryResult>(SCENES_QUERY, {})
+			.toPromise()
+			.then((result) => {
+				if (result.data) {
+					scenes = result.data.scenes;
 				}
 			});
 
@@ -781,13 +988,16 @@
 	});
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+<UnsavedGuard dirty={isDirty} />
+
 <div class="flex h-[calc(100vh-6rem)] flex-col">
-	{#if errorMessage}
+	{#if errors.message}
 		<div
 			class="mb-2 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 		>
-			<span>{errorMessage}</span>
-			<button type="button" onclick={clearError} class="ml-2 shrink-0">
+			<span>{errors.message}</span>
+			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
 				<X class="size-4" />
 			</button>
 		</div>
@@ -797,6 +1007,25 @@
 		{#if loading}
 			<div class="h-8 w-48 animate-pulse rounded-md bg-muted"></div>
 		{:else}
+			<IconPicker
+				value={automationIcon}
+				onselect={(icon) => {
+					if (!editMode) return;
+					automationIcon = icon;
+					takeSnapshot();
+				}}
+			>
+				<button
+					type="button"
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted transition-colors {editMode ? 'cursor-pointer hover:bg-muted/80' : 'cursor-default opacity-70'}"
+					aria-label="Change icon"
+					disabled={!editMode}
+				>
+					<AnimatedIcon icon={automationIcon} class="size-4 text-muted-foreground">
+						{#snippet fallback()}<Workflow class="size-4 text-muted-foreground" />{/snippet}
+					</AnimatedIcon>
+				</button>
+			</IconPicker>
 			<Input
 				bind:value={automationName}
 				class="h-8 w-48 text-sm font-medium"
@@ -804,44 +1033,12 @@
 				disabled={!editMode}
 			/>
 
-			<div class="flex items-center gap-1.5">
-				<Switch
-					checked={automationEnabled}
-					onCheckedChange={handleToggle}
-					size="sm"
-				/>
-				<span class="text-xs text-muted-foreground">
-					{automationEnabled ? "Enabled" : "Disabled"}
-				</span>
-			</div>
-
-			<div class="flex items-center gap-1">
-				<Input
-					type="number"
-					bind:value={cooldownSeconds}
-					class="h-8 w-20 text-xs"
-					min={0}
-					disabled={!editMode}
-				/>
-				<span class="text-xs text-muted-foreground">s cooldown</span>
-			</div>
+			<Switch
+				checked={automationEnabled}
+				onCheckedChange={handleToggle}
+			/>
 
 			<div class="ml-auto flex items-center gap-2">
-				<div class="hidden items-center gap-1 sm:flex">
-						<Button variant="outline" size="sm" onclick={() => addNode("trigger")} disabled={!editMode || viewMode === "code"}>
-							<Zap class="size-3.5 text-blue-500" />
-							<span class="hidden lg:inline">Trigger</span>
-						</Button>
-						<Button variant="outline" size="sm" onclick={() => addNode("operator")} disabled={!editMode || viewMode === "code"}>
-							<GitMerge class="size-3.5 text-yellow-500" />
-							<span class="hidden lg:inline">Operator</span>
-						</Button>
-						<Button variant="outline" size="sm" onclick={() => addNode("action")} disabled={!editMode || viewMode === "code"}>
-							<Play class="size-3.5 text-green-500" />
-							<span class="hidden lg:inline">Action</span>
-						</Button>
-				</div>
-
 				<div class="flex items-center rounded-md border border-border dark:border-input">
 					<Button
 						variant={viewMode === "visual" ? "secondary" : "ghost"}
@@ -874,13 +1071,59 @@
 					</Button>
 				</div>
 
+				<Button variant="ghost" size="icon-sm" onclick={() => (advancedOpen = true)} aria-label="Advanced settings">
+					<Settings class="size-4" />
+				</Button>
+			</div>
+		{/if}
+	</div>
+
+	{#if loading}
+		<div class="flex flex-1 items-center justify-center">
+			<div class="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
+		</div>
+	{:else if viewMode === "visual"}
+		<div class="relative flex-1">
+			<AutomationFlow
+				bind:nodes={flowNodes}
+				bind:edges={flowEdges}
+				editable={editMode}
+				onconnect={handleConnect}
+				onnodeclick={handleNodeClick}
+				onnodedragstop={takeSnapshot}
+				ondelete={takeSnapshot}
+			/>
+			<div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm">
+				<Button variant="ghost" size="icon-sm" onclick={handleUndo} disabled={!editMode || !history.canUndo}>
+					<Undo2 class="size-3.5" />
+				</Button>
+				<Button variant="ghost" size="icon-sm" onclick={handleRedo} disabled={!editMode || !history.canRedo}>
+					<Redo2 class="size-3.5" />
+				</Button>
+				<div class="mx-1 h-4 w-px bg-border"></div>
+				<Button variant="ghost" size="sm" onclick={() => addNode("trigger")} disabled={!editMode}>
+					<Zap class="size-3.5 text-blue-500" />
+					<span class="hidden sm:inline">Trigger</span>
+				</Button>
+				<Button variant="ghost" size="sm" onclick={() => addNode("condition")} disabled={!editMode}>
+					<ShieldCheck class="size-3.5 text-teal-500" />
+					<span class="hidden sm:inline">Condition</span>
+				</Button>
+				<Button variant="ghost" size="sm" onclick={() => addNode("operator")} disabled={!editMode}>
+					<GitMerge class="size-3.5 text-yellow-500" />
+					<span class="hidden sm:inline">Operator</span>
+				</Button>
+				<Button variant="ghost" size="sm" onclick={() => addNode("action")} disabled={!editMode}>
+					<Play class="size-3.5 text-green-500" />
+					<span class="hidden sm:inline">Action</span>
+				</Button>
+				<div class="mx-1 h-4 w-px bg-border"></div>
 				<div class="flex items-center rounded-md border border-border dark:border-input">
 					<Button
 						variant={editMode ? "secondary" : "ghost"}
 						size="sm"
-						class="rounded-r-none border-0"
+						class="rounded-r-none border-0 h-7"
 						onclick={() => { if (!editMode) toggleMode(); }}
-						disabled={viewMode === "code"}
 					>
 						<Pencil class="size-3.5" />
 						<span class="hidden sm:inline">Edit</span>
@@ -888,49 +1131,14 @@
 					<Button
 						variant={!editMode ? "secondary" : "ghost"}
 						size="sm"
-						class="rounded-l-none border-0"
+						class="rounded-l-none border-0 h-7"
 						onclick={() => { if (editMode) toggleMode(); }}
-						disabled={viewMode === "code"}
 					>
 						<Eye class="size-3.5" />
 						<span class="hidden sm:inline">Live</span>
 					</Button>
 				</div>
-
 			</div>
-		{/if}
-	</div>
-
-	{#if isMobile.current}
-		<div class="flex gap-1 border-b border-border py-2">
-			<Button variant="outline" size="sm" onclick={() => addNode("trigger")} disabled={!editMode || viewMode === "code"}>
-				<Zap class="size-3.5 text-blue-500" />
-				Trigger
-			</Button>
-			<Button variant="outline" size="sm" onclick={() => addNode("operator")} disabled={!editMode || viewMode === "code"}>
-				<GitMerge class="size-3.5 text-yellow-500" />
-				Operator
-			</Button>
-			<Button variant="outline" size="sm" onclick={() => addNode("action")} disabled={!editMode || viewMode === "code"}>
-				<Play class="size-3.5 text-green-500" />
-				Action
-			</Button>
-		</div>
-	{/if}
-
-	{#if loading}
-		<div class="flex flex-1 items-center justify-center">
-			<div class="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
-		</div>
-	{:else if viewMode === "visual"}
-		<div class="flex-1">
-			<AutomationFlow
-				bind:nodes={flowNodes}
-				bind:edges={flowEdges}
-				editable={editMode}
-				onconnect={handleConnect}
-				onnodeclick={handleNodeClick}
-			/>
 		</div>
 	{:else}
 		<div class="relative flex-1 pt-2">
@@ -951,38 +1159,47 @@
 		</div>
 	{/if}
 
-	<Sheet bind:open={pickerOpen}>
-		<SheetContent side="right" class="w-full sm:max-w-md">
-			<SheetHeader>
-				<SheetTitle>Select Target</SheetTitle>
-				<SheetDescription>Pick a device or group for this action.</SheetDescription>
-			</SheetHeader>
-			<div class="mt-4">
-				<MemberPicker
-					{devices}
-					{groups}
-					onselect={handleTargetSelect}
-				/>
-			</div>
-		</SheetContent>
-	</Sheet>
+	<HiveDrawer
+		bind:open={pickerOpen}
+		title="Select Target"
+		description={pickerActionType === "activate_scene" ? "Pick a scene to activate." : "Pick a device for this action."}
+		groups={pickerGroups}
+		onselect={handleTargetSelect}
+	/>
 
-	<Dialog bind:open={deleteConfirmOpen}>
-		<DialogContent>
+	<ConfirmDialog
+		bind:open={deleteConfirmOpen}
+		title="Delete Automation"
+		description='Are you sure you want to delete "{automationName}"? This action cannot be undone.'
+		confirmLabel="Delete"
+		loading={deleteLoading}
+		onconfirm={handleDelete}
+		oncancel={() => (deleteConfirmOpen = false)}
+	/>
+
+	<Dialog bind:open={advancedOpen}>
+		<DialogContent class="sm:max-w-md">
 			<DialogHeader>
-				<DialogTitle>Delete Automation</DialogTitle>
+				<DialogTitle>Advanced Settings</DialogTitle>
 				<DialogDescription>
-					Are you sure you want to delete "{automationName}"? This action cannot be undone.
+					Configure cooldown and other advanced options for this automation.
 				</DialogDescription>
 			</DialogHeader>
-			<DialogFooter>
-				<Button variant="outline" onclick={() => (deleteConfirmOpen = false)}>
-					Cancel
-				</Button>
-				<Button variant="destructive" onclick={handleDelete} disabled={deleteLoading}>
-					{deleteLoading ? "Deleting..." : "Delete"}
-				</Button>
-			</DialogFooter>
+			<div class="grid gap-4 py-2">
+				<div class="grid gap-1.5">
+					<label for="cooldown" class="text-sm font-medium">Cooldown (seconds)</label>
+					<p class="text-xs text-muted-foreground">
+						Minimum time between consecutive firings of this automation.
+					</p>
+					<Input
+						id="cooldown"
+						type="number"
+						bind:value={cooldownSeconds}
+						min={0}
+						disabled={!editMode}
+					/>
+				</div>
+			</div>
 		</DialogContent>
 	</Dialog>
 </div>

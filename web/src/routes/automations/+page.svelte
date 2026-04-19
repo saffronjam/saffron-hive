@@ -12,9 +12,17 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import AutomationCard from "$lib/components/automation-card.svelte";
+	import AutomationTable from "$lib/components/automation-table.svelte";
+	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import ListView from "$lib/components/list-view.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { Plus, Workflow, X } from "@lucide/svelte";
 	import { onMount, onDestroy } from "svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
+	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+
+	let view = $state<ListViewMode>(profile.get("view.automations", "card"));
 
 	interface AutomationNode {
 		id: string;
@@ -31,6 +39,7 @@
 	interface AutomationData {
 		id: string;
 		name: string;
+		icon?: string | null;
 		enabled: boolean;
 		cooldownSeconds: number;
 		nodes: AutomationNode[];
@@ -56,6 +65,7 @@
 			automations {
 				id
 				name
+				icon
 				enabled
 				cooldownSeconds
 				nodes {
@@ -133,20 +143,25 @@
 		pageHeader.actions = [{ label: "Create Automation", icon: Plus, onclick: () => (createDialogOpen = true) }];
 	});
 	onDestroy(() => pageHeader.reset());
-	let errorMessage = $state<string | null>(null);
 
-	function clearError() {
-		errorMessage = null;
-	}
-
-	function dismissErrorAfterDelay() {
-		setTimeout(clearError, 5000);
-	}
+	$effect(() => {
+		pageHeader.viewToggle = {
+			value: view,
+			onchange: (v) => {
+				view = v;
+				profile.set("view.automations", v);
+			},
+		};
+	});
+	const errors = new ErrorBanner();
+	let deleteConfirmId = $state<string | null>(null);
+	let deleteConfirmName = $state("");
+	let deleteLoading = $state(false);
 
 	async function handleCreateAutomation() {
 		if (!newAutomationName.trim()) return;
 		createLoading = true;
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<CreateAutomationResult>(CREATE_AUTOMATION, {
@@ -163,8 +178,7 @@
 		createLoading = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -177,15 +191,14 @@
 	}
 
 	async function handleToggle(id: string, enabled: boolean) {
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<ToggleAutomationResult>(TOGGLE_AUTOMATION, { id, enabled })
 			.toPromise();
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -196,32 +209,55 @@
 		goto(`/automations/${id}`);
 	}
 
-	async function handleDelete(id: string) {
-		clearError();
+	function requestDelete(id: string, name: string) {
+		deleteConfirmId = id;
+		deleteConfirmName = name;
+	}
+
+	async function handleConfirmDelete() {
+		if (!deleteConfirmId) return;
+		deleteLoading = true;
+		errors.clear();
 
 		const result = await client
-			.mutation(DELETE_AUTOMATION, { id })
+			.mutation(DELETE_AUTOMATION, { id: deleteConfirmId })
 			.toPromise();
 
+		deleteLoading = false;
+
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
+		deleteConfirmId = null;
 		automationsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
 	async function handleRename(id: string, newName: string) {
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation(UPDATE_AUTOMATION_NAME, { id, input: { name: newName } })
 			.toPromise();
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
+
+		automationsQuery.reexecute({ requestPolicy: "network-only" });
+	}
+
+	async function handleIconChange(id: string, icon: string | null) {
+		errors.clear();
+
+		const result = await client
+			.mutation(UPDATE_AUTOMATION_NAME, { id, input: { icon } })
+			.toPromise();
+
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -230,25 +266,19 @@
 </script>
 
 <div>
-	{#if errorMessage}
+	{#if errors.message}
 		<div
 			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 		>
-			<span>{errorMessage}</span>
-			<button type="button" onclick={clearError} class="ml-2 shrink-0">
+			<span>{errors.message}</span>
+			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
 				<X class="size-4" />
 			</button>
 		</div>
 	{/if}
 
 
-	{#if $automationsQuery.fetching}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each [1, 2, 3] as _ (_.toString())}
-				<div class="h-28 animate-pulse rounded-lg shadow-card bg-card"></div>
-			{/each}
-		</div>
-	{:else if automations.length === 0}
+	{#if !$automationsQuery.fetching && automations.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<Workflow class="size-6 text-muted-foreground" />
@@ -263,17 +293,31 @@
 			</Button>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each automations as automation (automation.id)}
-				<AutomationCard
-					{automation}
+		<ListView mode={view}>
+			{#snippet card()}
+				<AnimatedGrid>
+					{#each automations as automation (automation.id)}
+						<AutomationCard
+							{automation}
+							ontoggle={handleToggle}
+							onedit={handleCardClick}
+							ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
+							onrename={handleRename}
+							oniconchange={handleIconChange}
+						/>
+					{/each}
+				</AnimatedGrid>
+			{/snippet}
+			{#snippet table()}
+				<AutomationTable
+					{automations}
 					ontoggle={handleToggle}
-					onedit={handleCardClick}
-					ondelete={handleDelete}
+					ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
 					onrename={handleRename}
+					oniconchange={handleIconChange}
 				/>
-			{/each}
-		</div>
+			{/snippet}
+		</ListView>
 	{/if}
 
 	<Dialog bind:open={createDialogOpen}>
@@ -309,4 +353,14 @@
 			</form>
 		</DialogContent>
 	</Dialog>
+
+	<ConfirmDialog
+		bind:open={() => deleteConfirmId !== null, (v) => { if (!v) deleteConfirmId = null; }}
+		title="Delete Automation"
+		description='Are you sure you want to delete "{deleteConfirmName}"? This action cannot be undone.'
+		confirmLabel="Delete"
+		loading={deleteLoading}
+		onconfirm={handleConfirmDelete}
+		oncancel={() => (deleteConfirmId = null)}
+	/>
 </div>
