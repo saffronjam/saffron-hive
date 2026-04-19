@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr/vm"
+	"github.com/robfig/cron/v3"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -18,7 +19,7 @@ type compiledTrigger struct {
 	nodeID  NodeID
 	graphID string
 	config  TriggerConfig
-	program *vm.Program
+	program *vm.Program // only for event triggers; nil for schedule triggers
 }
 
 type compiledGraph struct {
@@ -27,6 +28,7 @@ type compiledGraph struct {
 	nodes           map[NodeID]Node
 	topoOrder       []NodeID
 	incomingMap     map[NodeID][]NodeID
+	conditions      map[NodeID]*vm.Program
 }
 
 // Engine evaluates automation graphs against incoming events.
@@ -34,30 +36,37 @@ type Engine struct {
 	bus      eventbus.EventBus
 	reader   device.StateReader
 	store    store.Store
+	resolver device.TargetResolver
 	executor *ActionExecutor
 	now      func() time.Time
 
-	mu        sync.RWMutex
-	triggers  map[string][]compiledTrigger
-	graphs    map[string]compiledGraph
-	cooldowns map[string]time.Time
+	mu         sync.RWMutex
+	triggers   map[string][]compiledTrigger
+	graphs     map[string]compiledGraph
+	cooldowns  map[string]time.Time
+	cron       *cron.Cron
+	cronByNode map[NodeID]cron.EntryID
 }
 
 // NewEngine creates a new automation Engine.
-func NewEngine(bus eventbus.EventBus, reader device.StateReader, s store.Store) *Engine {
+func NewEngine(bus eventbus.EventBus, reader device.StateReader, s store.Store, resolver device.TargetResolver) *Engine {
 	return &Engine{
-		bus:       bus,
-		reader:    reader,
-		store:     s,
-		executor:  NewActionExecutor(bus, reader, s),
-		now:       time.Now,
-		triggers:  make(map[string][]compiledTrigger),
-		graphs:    make(map[string]compiledGraph),
-		cooldowns: make(map[string]time.Time),
+		bus:        bus,
+		reader:     reader,
+		store:      s,
+		resolver:   resolver,
+		executor:   NewActionExecutor(bus, reader, s, resolver),
+		now:        time.Now,
+		triggers:   make(map[string][]compiledTrigger),
+		graphs:     make(map[string]compiledGraph),
+		cooldowns:  make(map[string]time.Time),
+		cronByNode: make(map[NodeID]cron.EntryID),
 	}
 }
 
-// Reload loads enabled automation graphs from the store, replacing the current set.
+// Reload loads enabled automation graphs from the store, replacing the current
+// set. It stops any previous cron scheduler and starts a fresh one with all
+// schedule triggers registered.
 func (e *Engine) Reload(ctx context.Context) error {
 	autos, err := e.store.ListEnabledAutomations(ctx)
 	if err != nil {
@@ -66,6 +75,7 @@ func (e *Engine) Reload(ctx context.Context) error {
 
 	triggersByEvent := make(map[string][]compiledTrigger)
 	graphs := make(map[string]compiledGraph)
+	var scheduleTriggers []compiledTrigger
 
 	for _, a := range autos {
 		graph, err := e.store.GetAutomationGraph(ctx, a.ID)
@@ -84,15 +94,60 @@ func (e *Engine) Reload(ctx context.Context) error {
 		graphs[a.ID] = cg
 
 		for _, ct := range triggers {
+			if ct.config.Kind == TriggerSchedule {
+				scheduleTriggers = append(scheduleTriggers, ct)
+				continue
+			}
 			triggersByEvent[ct.config.EventType] = append(triggersByEvent[ct.config.EventType], ct)
 		}
 	}
 
+	newCron := cron.New(cron.WithSeconds())
+	cronByNode := make(map[NodeID]cron.EntryID)
+	for _, ct := range scheduleTriggers {
+		ct := ct // capture for closure
+		entryID, err := newCron.AddFunc(ct.config.CronExpr, func() {
+			e.handleScheduledTrigger(ct.graphID, ct.nodeID)
+		})
+		if err != nil {
+			slog.Warn("skipping schedule trigger, invalid cron expression",
+				"pkg", "automation",
+				"automation_id", ct.graphID,
+				"node_id", ct.nodeID,
+				"cron_expr", ct.config.CronExpr,
+				"error", err)
+			continue
+		}
+		cronByNode[ct.nodeID] = entryID
+	}
+
 	e.mu.Lock()
+	oldCron := e.cron
 	e.triggers = triggersByEvent
 	e.graphs = graphs
+	e.cron = newCron
+	e.cronByNode = cronByNode
 	e.mu.Unlock()
+
+	if oldCron != nil {
+		stopCtx := oldCron.Stop()
+		<-stopCtx.Done()
+	}
+	newCron.Start()
 	return nil
+}
+
+// Stop shuts down the cron scheduler. Intended for clean shutdown alongside ctx
+// cancellation.
+func (e *Engine) Stop() {
+	e.mu.Lock()
+	c := e.cron
+	e.cron = nil
+	e.mu.Unlock()
+	if c != nil {
+		stopCtx := c.Stop()
+		<-stopCtx.Done()
+	}
 }
 
 // Run starts the event loop. It blocks until ctx is cancelled.
@@ -126,6 +181,7 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	e.mu.RUnlock()
 
 	now := e.now()
+	env := buildEnv(e.reader, event, now)
 
 	evaluatedGraphs := make(map[string]map[NodeID]bool)
 
@@ -143,7 +199,6 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 			evaluatedGraphs[ct.graphID] = make(map[NodeID]bool)
 		}
 
-		env := buildEnv(e.reader, event, now)
 		result, err := evalExpr(ct.program, env)
 		if err != nil {
 			slog.Error("trigger eval error", "pkg", "automation", "graph_id", ct.graphID, "node_id", ct.nodeID, "error", err)
@@ -157,13 +212,36 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 		if e.inCooldown(graphID, now, cg.cooldownSeconds) {
 			continue
 		}
-		if e.evaluateGraph(cg, triggerResults) {
+		if e.evaluateGraph(cg, env, triggerResults) {
 			e.recordFired(graphID, now)
 		}
 	}
 }
 
-func (e *Engine) evaluateGraph(cg compiledGraph, triggerResults map[NodeID]bool) bool {
+// handleScheduledTrigger is invoked by the cron scheduler when a schedule
+// trigger fires. It behaves like handleEvent but skips event matching — the
+// specific trigger node is known.
+func (e *Engine) handleScheduledTrigger(automationID string, nodeID NodeID) {
+	e.mu.RLock()
+	cg, ok := e.graphs[automationID]
+	e.mu.RUnlock()
+	if !ok {
+		return
+	}
+
+	now := e.now()
+	if e.inCooldown(automationID, now, cg.cooldownSeconds) {
+		return
+	}
+
+	env := buildScheduledEnv(e.reader, now)
+	triggerResults := map[NodeID]bool{nodeID: true}
+	if e.evaluateGraph(cg, env, triggerResults) {
+		e.recordFired(automationID, now)
+	}
+}
+
+func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map[NodeID]bool) bool {
 	active := make(map[NodeID]bool)
 	for id, result := range triggerResults {
 		active[id] = result
@@ -179,6 +257,19 @@ func (e *Engine) evaluateGraph(cg compiledGraph, triggerResults map[NodeID]bool)
 			if active[nodeID] {
 				e.publishNodeActivation(cg.automationID, nodeID, true)
 			}
+
+		case NodeCondition:
+			prog, ok := cg.conditions[nodeID]
+			if !ok {
+				continue
+			}
+			result, err := evalExpr(prog, env)
+			if err != nil {
+				slog.Error("condition eval error", "pkg", "automation", "graph_id", cg.automationID, "node_id", nodeID, "error", err)
+				continue
+			}
+			active[nodeID] = result
+			e.publishNodeActivation(cg.automationID, nodeID, result)
 
 		case NodeOperator:
 			opCfg, ok := node.Config.(OperatorConfig)
@@ -246,24 +337,20 @@ func (e *Engine) executeAction(node Node) {
 		return
 	}
 
-	switch actionCfg.TargetType {
-	case TargetDevice:
-		e.executor.ExecuteGraphAction(actionCfg)
-	case TargetGroup:
-		deviceIDs := resolveGroupDevicesFromStore(e.store, actionCfg.TargetID)
-		for _, devID := range deviceIDs {
-			perDevice := ActionConfig{
-				ActionType: actionCfg.ActionType,
-				TargetType: TargetDevice,
-				TargetID:   string(devID),
-				Payload:    actionCfg.Payload,
-			}
-			e.executor.ExecuteGraphAction(perDevice)
+	deviceIDs := e.resolver.ResolveTargetDeviceIDs(
+		context.Background(),
+		device.TargetType(actionCfg.TargetType),
+		actionCfg.TargetID,
+	)
+
+	for _, devID := range deviceIDs {
+		perDevice := ActionConfig{
+			ActionType: actionCfg.ActionType,
+			TargetType: TargetDevice,
+			TargetID:   string(devID),
+			Payload:    actionCfg.Payload,
 		}
-	default:
-		if actionCfg.TargetID != "" {
-			e.executor.ExecuteGraphAction(actionCfg)
-		}
+		e.executor.ExecuteGraphAction(perDevice)
 	}
 }
 
@@ -318,28 +405,47 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 	}
 
 	var triggers []compiledTrigger
+	conditions := make(map[NodeID]*vm.Program)
 	for _, n := range g.Nodes {
-		if n.Type != NodeTrigger {
-			continue
+		switch n.Type {
+		case NodeTrigger:
+			tc, ok := n.Config.(TriggerConfig)
+			if !ok {
+				continue
+			}
+			ct := compiledTrigger{
+				nodeID:  n.ID,
+				graphID: g.ID,
+				config:  tc,
+			}
+			if tc.Kind != TriggerSchedule {
+				exprStr := tc.FilterExpr
+				if exprStr == "" {
+					exprStr = "true"
+				}
+				prog, err := compileExpr(exprStr)
+				if err != nil {
+					return compiledGraph{}, nil, fmt.Errorf("trigger %s: %w", n.ID, err)
+				}
+				ct.program = prog
+			}
+			triggers = append(triggers, ct)
+
+		case NodeCondition:
+			cc, ok := n.Config.(ConditionConfig)
+			if !ok {
+				continue
+			}
+			exprStr := cc.Expr
+			if exprStr == "" {
+				exprStr = "true"
+			}
+			prog, err := compileExpr(exprStr)
+			if err != nil {
+				return compiledGraph{}, nil, fmt.Errorf("condition %s: %w", n.ID, err)
+			}
+			conditions[n.ID] = prog
 		}
-		tc, ok := n.Config.(TriggerConfig)
-		if !ok {
-			continue
-		}
-		exprStr := tc.ConditionExpr
-		if exprStr == "" {
-			exprStr = "true"
-		}
-		prog, err := compileExpr(exprStr)
-		if err != nil {
-			return compiledGraph{}, nil, fmt.Errorf("trigger %s: %w", n.ID, err)
-		}
-		triggers = append(triggers, compiledTrigger{
-			nodeID:  n.ID,
-			graphID: g.ID,
-			config:  tc,
-			program: prog,
-		})
 	}
 
 	cg := compiledGraph{
@@ -348,6 +454,7 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 		nodes:           nodeMap,
 		topoOrder:       order,
 		incomingMap:     incomingMap,
+		conditions:      conditions,
 	}
 
 	return cg, triggers, nil
@@ -425,17 +532,43 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 	switch nodeType {
 	case NodeTrigger:
 		var raw struct {
+			Kind          string `json:"kind"`
 			EventType     string `json:"event_type"`
-			ConditionExpr string `json:"condition_expr"`
+			FilterExpr    string `json:"filter_expr"`
+			ConditionExpr string `json:"condition_expr"` // legacy field for backward compat
+			CronExpr      string `json:"cron_expr"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			slog.Error("failed to parse trigger config", "pkg", "automation", "error", err)
 			return TriggerConfig{}
 		}
-		return TriggerConfig{
-			EventType:     raw.EventType,
-			ConditionExpr: raw.ConditionExpr,
+		kind := TriggerKind(raw.Kind)
+		if kind == "" {
+			if raw.CronExpr != "" {
+				kind = TriggerSchedule
+			} else {
+				kind = TriggerEvent
+			}
 		}
+		filter := raw.FilterExpr
+		if filter == "" {
+			filter = raw.ConditionExpr
+		}
+		return TriggerConfig{
+			Kind:       kind,
+			EventType:  raw.EventType,
+			FilterExpr: filter,
+			CronExpr:   raw.CronExpr,
+		}
+	case NodeCondition:
+		var raw struct {
+			Expr string `json:"expr"`
+		}
+		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
+			slog.Error("failed to parse condition config", "pkg", "automation", "error", err)
+			return ConditionConfig{}
+		}
+		return ConditionConfig{Expr: raw.Expr}
 	case NodeOperator:
 		var raw struct {
 			Kind string `json:"kind"`

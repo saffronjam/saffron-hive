@@ -7,9 +7,20 @@ type NodeID string
 type NodeType string
 
 const (
-	NodeTrigger  NodeType = "trigger"
-	NodeOperator NodeType = "operator"
-	NodeAction   NodeType = "action"
+	NodeTrigger   NodeType = "trigger"
+	NodeCondition NodeType = "condition"
+	NodeOperator  NodeType = "operator"
+	NodeAction    NodeType = "action"
+)
+
+// TriggerKind distinguishes between event-based and schedule-based triggers.
+type TriggerKind string
+
+const (
+	// TriggerEvent is a trigger that fires on an event bus event type.
+	TriggerEvent TriggerKind = "event"
+	// TriggerSchedule is a trigger that fires based on a cron expression.
+	TriggerSchedule TriggerKind = "schedule"
 )
 
 // OperatorKind defines the logical operation performed by an operator node.
@@ -27,12 +38,28 @@ type NodeConfig interface {
 }
 
 // TriggerConfig holds the configuration for a trigger node.
+//
+// Kind determines which other fields are populated:
+//   - TriggerEvent: EventType + FilterExpr are used. CronExpr is ignored.
+//   - TriggerSchedule: CronExpr is used. EventType + FilterExpr are ignored.
 type TriggerConfig struct {
-	EventType     string
-	ConditionExpr string
+	Kind       TriggerKind
+	EventType  string
+	FilterExpr string
+	CronExpr   string
 }
 
 func (TriggerConfig) nodeConfig() {}
+
+// ConditionConfig holds the configuration for a condition node.
+//
+// Conditions are pure boolean guards evaluated during graph evaluation. They
+// never initiate automation firing — only a trigger can do that.
+type ConditionConfig struct {
+	Expr string
+}
+
+func (ConditionConfig) nodeConfig() {}
 
 // OperatorConfig holds the configuration for an operator node.
 type OperatorConfig struct {
@@ -47,6 +74,7 @@ type TargetType string
 const (
 	TargetDevice TargetType = "device"
 	TargetGroup  TargetType = "group"
+	TargetRoom   TargetType = "room"
 )
 
 // ActionConfig holds the configuration for an action node.

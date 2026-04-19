@@ -24,7 +24,7 @@ func TestCooldownBlocksRefire(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s)
+	engine := NewEngine(bus, reader, s, s)
 
 	currentTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	engine.now = func() time.Time { return currentTime }
@@ -68,7 +68,7 @@ func TestCooldownExpiresAllowsRefire(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s)
+	engine := NewEngine(bus, reader, s, s)
 
 	currentTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	engine.now = func() time.Time { return currentTime }
@@ -123,7 +123,7 @@ func TestCooldownPerAutomation(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s)
+	engine := NewEngine(bus, reader, s, s)
 
 	currentTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	engine.now = func() time.Time { return currentTime }
@@ -172,7 +172,7 @@ func TestCooldownZero(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s)
+	engine := NewEngine(bus, reader, s, s)
 	engine.now = func() time.Time { return time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) }
 
 	ctx, cancel := context.WithCancel(context.Background())

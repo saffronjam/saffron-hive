@@ -20,6 +20,7 @@ type TriggerContext struct {
 type TimeContext struct {
 	Hour    int    `expr:"hour"`
 	Minute  int    `expr:"minute"`
+	Second  int    `expr:"second"`
 	Weekday string `expr:"weekday"`
 }
 
@@ -34,6 +35,7 @@ func buildTimeContext(t time.Time) TimeContext {
 	return TimeContext{
 		Hour:    t.Hour(),
 		Minute:  t.Minute(),
+		Second:  t.Second(),
 		Weekday: t.Weekday().String(),
 	}
 }
@@ -101,6 +103,15 @@ func buildEnv(reader device.StateReader, event eventbus.Event, now time.Time) Ex
 			Payload:  event.Payload,
 		},
 		Time: buildTimeContext(now),
+	}
+}
+
+// buildScheduledEnv builds an ExprEnv for evaluation triggered by a schedule
+// (cron) firing. There is no triggering event, so the Trigger context is zero.
+func buildScheduledEnv(reader device.StateReader, now time.Time) ExprEnv {
+	return ExprEnv{
+		DeviceFn: deviceLookup(reader),
+		Time:     buildTimeContext(now),
 	}
 }
 

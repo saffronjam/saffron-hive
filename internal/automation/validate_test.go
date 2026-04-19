@@ -9,7 +9,7 @@ func TestValidGraph(t *testing.T) {
 		ID:   "auto-1",
 		Name: "valid",
 		Nodes: []Node{
-			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed", ConditionExpr: "true"}},
+			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed", FilterExpr: "true"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},

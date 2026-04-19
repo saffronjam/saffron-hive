@@ -390,3 +390,81 @@ func (m *mockStore) InsertSensorReading(_ context.Context, _ store.InsertSensorR
 func (m *mockStore) QuerySensorHistory(_ context.Context, _ store.SensorHistoryQuery) ([]store.SensorReading, error) {
 	return nil, nil
 }
+
+func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) {
+	return nil, nil
+}
+
+func (m *mockStore) UpsertMQTTConfig(_ context.Context, _ store.MQTTConfig) error {
+	return nil
+}
+
+func (m *mockStore) GetSetting(_ context.Context, _ string) (store.Setting, error) {
+	return store.Setting{}, nil
+}
+
+func (m *mockStore) ListSettings(_ context.Context) ([]store.Setting, error) {
+	return nil, nil
+}
+
+func (m *mockStore) UpsertSetting(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func (m *mockStore) CreateRoom(_ context.Context, _ store.CreateRoomParams) (store.Room, error) {
+	return store.Room{}, nil
+}
+
+func (m *mockStore) GetRoom(_ context.Context, _ string) (store.Room, error) {
+	return store.Room{}, nil
+}
+
+func (m *mockStore) ListRooms(_ context.Context) ([]store.Room, error) {
+	return nil, nil
+}
+
+func (m *mockStore) UpdateRoom(_ context.Context, _ store.UpdateRoomParams) (store.Room, error) {
+	return store.Room{}, nil
+}
+
+func (m *mockStore) DeleteRoom(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockStore) AddRoomDevice(_ context.Context, _ store.AddRoomDeviceParams) (store.RoomDevice, error) {
+	return store.RoomDevice{}, nil
+}
+
+func (m *mockStore) ListRoomDevices(_ context.Context, _ string) ([]store.RoomDevice, error) {
+	return nil, nil
+}
+
+func (m *mockStore) RemoveRoomDevice(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockStore) RemoveRoomDeviceByRoomAndDevice(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func (m *mockStore) ListRoomsContainingDevice(_ context.Context, _ string) ([]store.Room, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
+	switch targetType {
+	case device.TargetGroup:
+		m.mu.RLock()
+		members := m.groupMembers[targetID]
+		m.mu.RUnlock()
+		var ids []device.DeviceID
+		for _, mem := range members {
+			if mem.MemberType == device.GroupMemberDevice {
+				ids = append(ids, device.DeviceID(mem.MemberID))
+			}
+		}
+		return ids
+	default:
+		return []device.DeviceID{device.DeviceID(targetID)}
+	}
+}

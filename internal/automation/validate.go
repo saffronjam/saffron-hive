@@ -1,6 +1,10 @@
 package automation
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/robfig/cron/v3"
+)
 
 // ValidationError represents a structural problem found during graph validation.
 type ValidationError struct {
@@ -58,12 +62,15 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 		outgoing[e.FromNodeID]++
 	}
 
+	triggerCount := 0
+
 	for _, n := range g.Nodes {
 		in := incoming[n.ID]
 		out := outgoing[n.ID]
 
 		switch n.Type {
 		case NodeTrigger:
+			triggerCount++
 			if in > 0 {
 				result.Errors = append(result.Errors, ValidationError{
 					NodeID:  n.ID,
@@ -74,6 +81,28 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 				result.Warnings = append(result.Warnings, ValidationError{
 					NodeID:  n.ID,
 					Message: "trigger node has no outgoing edges",
+				})
+			}
+			if tc, ok := n.Config.(TriggerConfig); ok && tc.Kind == TriggerSchedule {
+				parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+				if _, err := parser.Parse(tc.CronExpr); err != nil {
+					result.Errors = append(result.Errors, ValidationError{
+						NodeID:  n.ID,
+						Message: fmt.Sprintf("invalid cron expression %q: %v", tc.CronExpr, err),
+					})
+				}
+			}
+		case NodeCondition:
+			if in > 0 {
+				result.Warnings = append(result.Warnings, ValidationError{
+					NodeID:  n.ID,
+					Message: "condition node ignores incoming edges (it is evaluated independently when a trigger fires)",
+				})
+			}
+			if out == 0 && len(g.Edges) > 0 {
+				result.Warnings = append(result.Warnings, ValidationError{
+					NodeID:  n.ID,
+					Message: "condition node has no outgoing edges",
 				})
 			}
 		case NodeAction:
@@ -113,6 +142,12 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 	if cycle := detectCycle(g.Nodes, g.Edges); cycle != "" {
 		result.Errors = append(result.Errors, ValidationError{
 			Message: fmt.Sprintf("graph contains a cycle involving node %s", cycle),
+		})
+	}
+
+	if len(g.Nodes) > 0 && triggerCount == 0 {
+		result.Errors = append(result.Errors, ValidationError{
+			Message: "automation has no trigger node; add an event or schedule trigger so the automation has something to run in response to",
 		})
 	}
 
