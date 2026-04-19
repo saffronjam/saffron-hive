@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -18,6 +20,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -28,10 +31,9 @@ var webDist embed.FS
 // Run starts the Saffron Hive application. It blocks until ctx is cancelled,
 // then performs graceful shutdown.
 func Run(ctx context.Context) error {
-	cfg, err := config.Parse()
-	if err != nil {
-		return err
-	}
+	cfg := config.Parse()
+
+	levelVar, logBuffer := logging.Setup(slog.LevelInfo)
 
 	db, err := sql.Open("sqlite", cfg.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
@@ -39,12 +41,30 @@ func Run(ctx context.Context) error {
 	}
 	defer func() { _ = db.Close() }()
 
+	sqlStore := store.New(db)
+
+	if err := seedMQTTConfig(ctx, cfg, sqlStore); err != nil {
+		return err
+	}
+
+	mqttCfg, err := sqlStore.GetMQTTConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read mqtt config: %w", err)
+	}
+	if mqttCfg == nil {
+		return fmt.Errorf("no MQTT configuration found: set HIVE_MQTT_BROKER or configure via the settings page")
+	}
+
+	if setting, err := sqlStore.GetSetting(ctx, "log_level"); err == nil {
+		if lvl, ok := logging.ParseLevel(setting.Value); ok {
+			levelVar.Set(lvl)
+		}
+	}
+
 	bus := eventbus.NewChannelBus()
 
 	memStore := device.NewMemoryStore()
 	memStore.RunAsync(ctx, bus)
-
-	sqlStore := store.New(db)
 
 	dbDevices, err := sqlStore.ListDevices(ctx)
 	if err != nil {
@@ -59,11 +79,17 @@ func Run(ctx context.Context) error {
 		}
 	}
 
-	mqttClient := zigbee.NewPahoClient(zigbee.PahoConfig{
-		Broker:   cfg.MQTTBroker,
-		Username: cfg.MQTTUsername,
-		Password: cfg.MQTTPassword,
-		UseWSS:   cfg.MQTTUseWSS,
+	mgr := &adapterManager{
+		store:    sqlStore,
+		bus:      bus,
+		memStore: memStore,
+	}
+
+	mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
+		Broker:   mqttCfg.Broker,
+		Username: mqttCfg.Username,
+		Password: mqttCfg.Password,
+		UseWSS:   mqttCfg.UseWSS,
 		ClientID: "saffron-hive",
 	})
 
@@ -75,13 +101,13 @@ func Run(ctx context.Context) error {
 	go runSensorRecorder(ctx, bus, sensorCh, sqlStore)
 	go runDevicePersister(ctx, bus, deviceCh, sqlStore)
 
-	adapter := zigbee.NewZigbeeAdapter(mqttClient, bus, memStore, memStore)
-	if err := adapter.Start(); err != nil {
+	mgr.adapter = zigbee.NewZigbeeAdapter(mgr.client, bus, memStore, memStore)
+	if err := mgr.adapter.Start(); err != nil {
 		return err
 	}
-	defer adapter.Stop()
+	defer mgr.Stop()
 
-	engine := automation.NewEngine(bus, memStore, sqlStore)
+	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore)
 	go func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			slog.Error("automation engine error", "error", err)
@@ -91,8 +117,12 @@ func Run(ctx context.Context) error {
 	resolver := &graph.Resolver{
 		StateReader:        memStore,
 		Store:              sqlStore,
+		TargetResolver:     sqlStore,
 		EventBus:           bus,
 		AutomationReloader: &engineReloader{engine: engine, ctx: ctx},
+		LogBuffer:          logBuffer,
+		LevelVar:           levelVar,
+		Reconnector:        mgr,
 	}
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -131,6 +161,77 @@ func Run(ctx context.Context) error {
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		return err
 	}
+	return nil
+}
+
+func seedMQTTConfig(ctx context.Context, cfg config.Config, s store.Store) error {
+	if !cfg.HasMQTTConfig() {
+		return nil
+	}
+	existing, err := s.GetMQTTConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("check mqtt config: %w", err)
+	}
+	if existing != nil {
+		return nil
+	}
+	slog.Info("seeding MQTT config from environment variables")
+	return s.UpsertMQTTConfig(ctx, store.MQTTConfig{
+		Broker:   cfg.MQTTBroker,
+		Username: cfg.MQTTUsername,
+		Password: cfg.MQTTPassword,
+		UseWSS:   cfg.MQTTUseWSS,
+	})
+}
+
+type adapterManager struct {
+	mu       sync.Mutex
+	client   zigbee.MQTTClient
+	adapter  *zigbee.ZigbeeAdapter
+	store    store.Store
+	bus      eventbus.EventBus
+	memStore *device.MemoryStore
+}
+
+// Stop shuts down the current adapter.
+func (m *adapterManager) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.adapter != nil {
+		m.adapter.Stop()
+	}
+}
+
+// Reconnect stops the current MQTT adapter, reads new config from the
+// database, and starts a fresh connection.
+func (m *adapterManager) Reconnect(ctx context.Context) error {
+	mqttCfg, err := m.store.GetMQTTConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("read mqtt config: %w", err)
+	}
+	if mqttCfg == nil {
+		return fmt.Errorf("no MQTT configuration in database")
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.adapter.Stop()
+
+	m.client = zigbee.NewPahoClient(zigbee.PahoConfig{
+		Broker:   mqttCfg.Broker,
+		Username: mqttCfg.Username,
+		Password: mqttCfg.Password,
+		UseWSS:   mqttCfg.UseWSS,
+		ClientID: "saffron-hive",
+	})
+
+	m.adapter = zigbee.NewZigbeeAdapter(m.client, m.bus, m.memStore, m.memStore)
+	if err := m.adapter.Start(); err != nil {
+		return fmt.Errorf("start adapter with new config: %w", err)
+	}
+
+	slog.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
 	return nil
 }
 
@@ -192,10 +293,11 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 					continue
 				}
 				err := s.UpsertDevice(ctx, store.CreateDeviceParams{
-					ID:     d.ID,
-					Name:   d.Name,
-					Source: d.Source,
-					Type:   d.Type,
+					ID:           d.ID,
+					Name:         d.Name,
+					Source:       d.Source,
+					Type:         d.Type,
+					Capabilities: d.Capabilities,
 				})
 				if err != nil {
 					slog.Error("failed to upsert device", "pkg", "device_persister", "device_id", d.ID, "error", err)
