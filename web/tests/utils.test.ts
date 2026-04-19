@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cn } from "$lib/utils";
+import { Lightbulb, Thermometer, ToggleLeft, Package } from "@lucide/svelte";
+import { cn, deviceIcon } from "$lib/utils";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -29,5 +30,24 @@ describe("cn", () => {
 
   it("merges array inputs", () => {
     expect(cn(["foo", "bar"], "baz")).toBe("foo bar baz");
+  });
+});
+
+describe("deviceIcon", () => {
+  it("returns Lightbulb for light", () => {
+    expect(deviceIcon("light")).toBe(Lightbulb);
+  });
+
+  it("returns Thermometer for sensor", () => {
+    expect(deviceIcon("sensor")).toBe(Thermometer);
+  });
+
+  it("returns ToggleLeft for switch", () => {
+    expect(deviceIcon("switch")).toBe(ToggleLeft);
+  });
+
+  it("falls back to Package for unknown types", () => {
+    expect(deviceIcon("unknown")).toBe(Package);
+    expect(deviceIcon("")).toBe(Package);
   });
 });

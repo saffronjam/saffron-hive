@@ -35,7 +35,7 @@ const switchState: SwitchState = {
 };
 
 function makeDevice(id: string, name: string, state: LightState | SensorState | SwitchState | null = null): Device {
-  return { id, name, source: "zigbee", type: "light", available: true, lastSeen: "2026-01-01T00:00:00Z", state };
+  return { id, name, source: "zigbee", type: "light", capabilities: [], available: true, lastSeen: "2026-01-01T00:00:00Z", state };
 }
 
 describe("type guards", () => {
