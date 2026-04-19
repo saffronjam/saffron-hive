@@ -34,3 +34,7 @@ Dark and light mode are supported via Tailwind's `dark:` class variant. The `<ht
 - Never hardcode color values — always use CSS variables from the shadcn theme system.
 - Use Tailwind's `dark:` variant only when a component needs different styling beyond what the CSS variables provide.
 - Test both themes when adding or modifying components.
+
+## Card styling
+
+Content cards use `rounded-lg shadow-card bg-card` — no `border`. The `shadow-card` token provides the visual separation. Never use `border` on content cards; it produces a white outline in dark mode that clashes with the rest of the UI.
