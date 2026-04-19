@@ -7,16 +7,20 @@ package graph
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -28,8 +32,8 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 		return nil, fmt.Errorf("device %q not found: %w", id, err)
 	}
 	name := d.Name
-	if input.Name != nil {
-		name = *input.Name
+	if n, ok := input.Name.ValueOK(); ok && n != nil {
+		name = *n
 	}
 	d, err = r.Store.UpdateDevice(ctx, store.UpdateDeviceParams{
 		ID:        deviceID,
@@ -53,18 +57,18 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 	}
 
 	cmd := device.LightCommand{
-		On:         state.On,
-		Brightness: state.Brightness,
-		ColorTemp:  state.ColorTemp,
-		Transition: state.Transition,
+		On:         state.On.Value(),
+		Brightness: state.Brightness.Value(),
+		ColorTemp:  state.ColorTemp.Value(),
+		Transition: state.Transition.Value(),
 	}
-	if state.Color != nil {
+	if color := state.Color.Value(); color != nil {
 		cmd.Color = &device.Color{
-			R: state.Color.R,
-			G: state.Color.G,
-			B: state.Color.B,
-			X: state.Color.X,
-			Y: state.Color.Y,
+			R: color.R,
+			G: color.G,
+			B: color.B,
+			X: color.X,
+			Y: color.Y,
 		}
 	}
 
@@ -94,7 +98,7 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		if err := json.Unmarshal([]byte(sa.Payload), &desired); err != nil {
 			continue
 		}
-		deviceIDs := resolveSceneActionTargetDevices(r.Store, sa.TargetType, sa.TargetID)
+		deviceIDs := resolveSceneActionTargetDevices(ctx, r.TargetResolver, sa.TargetType, sa.TargetID)
 		for _, did := range deviceIDs {
 			cmd := device.DeviceCommand{
 				DeviceID: did,
@@ -115,7 +119,7 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		Payload:   sceneID,
 	})
 
-	return mapScene(r.StateReader, r.Store, s, actions), nil
+	return mapScene(ctx, r.StateReader, r.Store, s, actions), nil
 }
 
 // CreateScene is the resolver for the createScene field.
@@ -145,7 +149,7 @@ func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSc
 		storeActions = append(storeActions, sa)
 	}
 
-	return mapScene(r.StateReader, r.Store, s, storeActions), nil
+	return mapScene(ctx, r.StateReader, r.Store, s, storeActions), nil
 }
 
 // UpdateScene is the resolver for the updateScene field.
@@ -155,14 +159,24 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 		return nil, fmt.Errorf("scene %q not found: %w", id, err)
 	}
 
-	if input.Name != nil {
-		_, err := r.Store.UpdateScene(ctx, id, store.UpdateSceneParams{Name: input.Name})
-		if err != nil {
+	params := store.UpdateSceneParams{}
+	updateScene := false
+	if name, ok := input.Name.ValueOK(); ok {
+		params.Name = name
+		updateScene = true
+	}
+	if icon, ok := input.Icon.ValueOK(); ok {
+		params.SetIcon = true
+		params.Icon = icon
+		updateScene = true
+	}
+	if updateScene {
+		if _, err := r.Store.UpdateScene(ctx, id, params); err != nil {
 			return nil, err
 		}
 	}
 
-	if input.Actions != nil {
+	if newActions, ok := input.Actions.ValueOK(); ok {
 		existingActions, err := r.Store.ListSceneActions(ctx, id)
 		if err != nil {
 			return nil, err
@@ -172,7 +186,7 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 				return nil, err
 			}
 		}
-		for _, a := range input.Actions {
+		for _, a := range newActions {
 			actionID := uuid.New().String()
 			_, err := r.Store.CreateSceneAction(ctx, store.CreateSceneActionParams{
 				ID:         actionID,
@@ -195,7 +209,7 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(r.StateReader, r.Store, s, actions), nil
+	return mapScene(ctx, r.StateReader, r.Store, s, actions), nil
 }
 
 // DeleteScene is the resolver for the deleteScene field.
@@ -209,6 +223,10 @@ func (r *mutationResolver) DeleteScene(ctx context.Context, id string) (bool, er
 
 // CreateAutomation is the resolver for the createAutomation field.
 func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.AutomationGraph, error) {
+	if err := validateAutomationInput(input.Nodes, input.Edges); err != nil {
+		return nil, err
+	}
+
 	autoID := uuid.New().String()
 	_, err := r.Store.CreateAutomation(ctx, store.CreateAutomationParams{
 		ID:              autoID,
@@ -265,17 +283,40 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 		return nil, fmt.Errorf("automation %q not found: %w", id, err)
 	}
 
-	if input.Name != nil || input.Enabled != nil || input.CooldownSeconds != nil {
-		if _, err := r.Store.UpdateAutomation(ctx, id, store.UpdateAutomationParams{
-			Name:            input.Name,
-			Enabled:         input.Enabled,
-			CooldownSeconds: input.CooldownSeconds,
-		}); err != nil {
+	nodes, nodesSet := input.Nodes.ValueOK()
+	edges, _ := input.Edges.ValueOK()
+	if nodesSet {
+		if err := validateAutomationInput(nodes, edges); err != nil {
 			return nil, err
 		}
 	}
 
-	if input.Nodes != nil {
+	aParams := store.UpdateAutomationParams{}
+	updateAutomation := false
+	if name, ok := input.Name.ValueOK(); ok {
+		aParams.Name = name
+		updateAutomation = true
+	}
+	if icon, ok := input.Icon.ValueOK(); ok {
+		aParams.SetIcon = true
+		aParams.Icon = icon
+		updateAutomation = true
+	}
+	if enabled, ok := input.Enabled.ValueOK(); ok {
+		aParams.Enabled = enabled
+		updateAutomation = true
+	}
+	if cooldown, ok := input.CooldownSeconds.ValueOK(); ok {
+		aParams.CooldownSeconds = cooldown
+		updateAutomation = true
+	}
+	if updateAutomation {
+		if _, err := r.Store.UpdateAutomation(ctx, id, aParams); err != nil {
+			return nil, err
+		}
+	}
+
+	if nodesSet {
 		existingNodes, err := r.Store.ListAutomationNodes(ctx, id)
 		if err != nil {
 			return nil, err
@@ -285,7 +326,7 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 				return nil, err
 			}
 		}
-		for _, n := range input.Nodes {
+		for _, n := range nodes {
 			_, err := r.Store.CreateAutomationNode(ctx, store.CreateAutomationNodeParams{
 				ID:           n.ID,
 				AutomationID: id,
@@ -297,18 +338,16 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 			}
 		}
 
-		if input.Edges != nil {
-			for _, e := range input.Edges {
-				edgeID := uuid.New().String()
-				_, err := r.Store.CreateAutomationEdge(ctx, store.CreateAutomationEdgeParams{
-					ID:           edgeID,
-					AutomationID: id,
-					FromNodeID:   e.FromNodeID,
-					ToNodeID:     e.ToNodeID,
-				})
-				if err != nil {
-					return nil, err
-				}
+		for _, e := range edges {
+			edgeID := uuid.New().String()
+			_, err := r.Store.CreateAutomationEdge(ctx, store.CreateAutomationEdgeParams{
+				ID:           edgeID,
+				AutomationID: id,
+				FromNodeID:   e.FromNodeID,
+				ToNodeID:     e.ToNodeID,
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -370,7 +409,7 @@ func (r *mutationResolver) CreateGroup(ctx context.Context, input model.CreateGr
 	if err != nil {
 		return nil, err
 	}
-	return mapGroup(r.StateReader, r.Store, g, nil), nil
+	return mapGroup(ctx, r.StateReader, r.Store, g, nil), nil
 }
 
 // UpdateGroup is the resolver for the updateGroup field.
@@ -380,13 +419,18 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 		return nil, fmt.Errorf("group %q not found: %w", id, err)
 	}
 	name := g.Name
-	if input.Name != nil {
-		name = *input.Name
+	if n, ok := input.Name.ValueOK(); ok && n != nil {
+		name = *n
 	}
-	g, err = r.Store.UpdateGroup(ctx, store.UpdateGroupParams{
+	gParams := store.UpdateGroupParams{
 		ID:   id,
 		Name: name,
-	})
+	}
+	if icon, ok := input.Icon.ValueOK(); ok {
+		gParams.SetIcon = true
+		gParams.Icon = icon
+	}
+	g, err = r.Store.UpdateGroup(ctx, gParams)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +438,7 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 	if err != nil {
 		return nil, err
 	}
-	return mapGroup(r.StateReader, r.Store, g, members), nil
+	return mapGroup(ctx, r.StateReader, r.Store, g, members), nil
 }
 
 // DeleteGroup is the resolver for the deleteGroup field.
@@ -409,8 +453,8 @@ func (r *mutationResolver) DeleteGroup(ctx context.Context, id string) (bool, er
 // AddGroupMember is the resolver for the addGroupMember field.
 func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.GroupMember, error) {
 	memberType := device.GroupMemberType(input.MemberType)
-	if memberType != device.GroupMemberDevice && memberType != device.GroupMemberGroup {
-		return nil, fmt.Errorf("invalid member type %q: must be %q or %q", input.MemberType, device.GroupMemberDevice, device.GroupMemberGroup)
+	if memberType != device.GroupMemberDevice && memberType != device.GroupMemberGroup && memberType != device.GroupMemberRoom {
+		return nil, fmt.Errorf("invalid member type %q: must be %q, %q, or %q", input.MemberType, device.GroupMemberDevice, device.GroupMemberGroup, device.GroupMemberRoom)
 	}
 
 	if memberType == device.GroupMemberGroup {
@@ -429,7 +473,7 @@ func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGr
 	if err != nil {
 		return nil, err
 	}
-	return mapGroupMember(r.StateReader, m), nil
+	return mapGroupMember(ctx, r.StateReader, r.Store, m), nil
 }
 
 // RemoveGroupMember is the resolver for the removeGroupMember field.
@@ -439,6 +483,144 @@ func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (bo
 		return false, err
 	}
 	return true, nil
+}
+
+// CreateRoom is the resolver for the createRoom field.
+func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoomInput) (*model.Room, error) {
+	roomID := uuid.New().String()
+	rm, err := r.Store.CreateRoom(ctx, store.CreateRoomParams{
+		ID:   roomID,
+		Name: input.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+}
+
+// UpdateRoom is the resolver for the updateRoom field.
+func (r *mutationResolver) UpdateRoom(ctx context.Context, id string, input model.UpdateRoomInput) (*model.Room, error) {
+	rm, err := r.Store.GetRoom(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("room %q not found: %w", id, err)
+	}
+	name := rm.Name
+	if n, ok := input.Name.ValueOK(); ok && n != nil {
+		name = *n
+	}
+	rParams := store.UpdateRoomParams{
+		ID:   id,
+		Name: name,
+	}
+	if icon, ok := input.Icon.ValueOK(); ok {
+		rParams.SetIcon = true
+		rParams.Icon = icon
+	}
+	rm, err = r.Store.UpdateRoom(ctx, rParams)
+	if err != nil {
+		return nil, err
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+}
+
+// DeleteRoom is the resolver for the deleteRoom field.
+func (r *mutationResolver) DeleteRoom(ctx context.Context, id string) (bool, error) {
+	if err := r.Store.DeleteRoom(ctx, id); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// AddRoomDevice is the resolver for the addRoomDevice field.
+func (r *mutationResolver) AddRoomDevice(ctx context.Context, input model.AddRoomDeviceInput) (*model.Room, error) {
+	memberID := uuid.New().String()
+	_, err := r.Store.AddRoomDevice(ctx, store.AddRoomDeviceParams{
+		ID:       memberID,
+		RoomID:   input.RoomID,
+		DeviceID: input.DeviceID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	rm, err := r.Store.GetRoom(ctx, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+}
+
+// RemoveRoomDevice is the resolver for the removeRoomDevice field.
+func (r *mutationResolver) RemoveRoomDevice(ctx context.Context, roomID string, deviceID string) (*model.Room, error) {
+	if err := r.Store.RemoveRoomDeviceByRoomAndDevice(ctx, roomID, deviceID); err != nil {
+		return nil, err
+	}
+	rm, err := r.Store.GetRoom(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+}
+
+// UpdateMqttConfig is the resolver for the updateMqttConfig field.
+func (r *mutationResolver) UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error) {
+	if err := r.Store.UpsertMQTTConfig(ctx, store.MQTTConfig{
+		Broker:   input.Broker,
+		Username: input.Username,
+		Password: input.Password,
+		UseWSS:   input.UseWss,
+	}); err != nil {
+		return nil, err
+	}
+
+	if err := r.Reconnector.Reconnect(ctx); err != nil {
+		return nil, fmt.Errorf("saved config but failed to reconnect: %w", err)
+	}
+
+	return &model.MqttConfig{
+		Broker:   input.Broker,
+		Username: input.Username,
+		Password: input.Password,
+		UseWss:   input.UseWss,
+	}, nil
+}
+
+// TestMqttConnection is the resolver for the testMqttConnection field.
+func (r *mutationResolver) TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error) {
+	client := zigbee.NewPahoClient(zigbee.PahoConfig{
+		Broker:   input.Broker,
+		Username: input.Username,
+		Password: input.Password,
+		UseWSS:   input.UseWss,
+		ClientID: "saffron-hive-test",
+	})
+
+	if err := client.Connect(); err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+	client.Disconnect(250)
+
+	return &model.ConnectionTestResult{
+		Success: true,
+		Message: "connected successfully",
+	}, nil
+}
+
+// UpdateSetting is the resolver for the updateSetting field.
+func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error) {
+	if err := r.Store.UpsertSetting(ctx, key, value); err != nil {
+		return nil, err
+	}
+
+	if key == "log_level" {
+		if lvl, ok := logging.ParseLevel(value); ok {
+			r.LevelVar.Set(lvl)
+		}
+	}
+
+	return &model.Setting{Key: key, Value: value}, nil
 }
 
 // Devices is the resolver for the devices field.
@@ -472,7 +654,7 @@ func (r *queryResolver) Scenes(ctx context.Context) ([]*model.Scene, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapScene(r.StateReader, r.Store, s, actions)
+		result[i] = mapScene(ctx, r.StateReader, r.Store, s, actions)
 	}
 	return result, nil
 }
@@ -487,7 +669,7 @@ func (r *queryResolver) Scene(ctx context.Context, id string) (*model.Scene, err
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(r.StateReader, r.Store, s, actions), nil
+	return mapScene(ctx, r.StateReader, r.Store, s, actions), nil
 }
 
 // Automations is the resolver for the automations field.
@@ -528,7 +710,7 @@ func (r *queryResolver) Groups(ctx context.Context) ([]*model.Group, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapGroup(r.StateReader, r.Store, g, members)
+		result[i] = mapGroup(ctx, r.StateReader, r.Store, g, members)
 	}
 	return result, nil
 }
@@ -537,13 +719,41 @@ func (r *queryResolver) Groups(ctx context.Context) ([]*model.Group, error) {
 func (r *queryResolver) Group(ctx context.Context, id string) (*model.Group, error) {
 	g, err := r.Store.GetGroup(ctx, id)
 	if err != nil {
-		return nil, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	members, err := r.Store.ListGroupMembers(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return mapGroup(r.StateReader, r.Store, g, members), nil
+	return mapGroup(ctx, r.StateReader, r.Store, g, members), nil
+}
+
+// Rooms is the resolver for the rooms field.
+func (r *queryResolver) Rooms(ctx context.Context) ([]*model.Room, error) {
+	rooms, err := r.Store.ListRooms(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.Room, len(rooms))
+	for i, rm := range rooms {
+		result[i] = mapRoom(ctx, r.StateReader, r.Store, rm)
+	}
+	return result, nil
+}
+
+// Room is the resolver for the room field.
+func (r *queryResolver) Room(ctx context.Context, id string) (*model.Room, error) {
+	rm, err := r.Store.GetRoom(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
 }
 
 // SensorHistory is the resolver for the sensorHistory field.
@@ -579,6 +789,61 @@ func (r *queryResolver) SensorHistory(ctx context.Context, deviceID string, from
 			RecordedAt:  rd.RecordedAt,
 		}
 	}
+	return result, nil
+}
+
+// MqttConfig is the resolver for the mqttConfig field.
+func (r *queryResolver) MqttConfig(ctx context.Context) (*model.MqttConfig, error) {
+	cfg, err := r.Store.GetMQTTConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		return nil, nil
+	}
+	return &model.MqttConfig{
+		Broker:   cfg.Broker,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		UseWss:   cfg.UseWSS,
+	}, nil
+}
+
+// Settings is the resolver for the settings field.
+func (r *queryResolver) Settings(ctx context.Context) ([]*model.Setting, error) {
+	settings, err := r.Store.ListSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.Setting, len(settings))
+	for i, s := range settings {
+		result[i] = &model.Setting{Key: s.Key, Value: s.Value}
+	}
+	return result, nil
+}
+
+// Logs is the resolver for the logs field.
+func (r *queryResolver) Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error) {
+	entries := r.LogBuffer.Entries()
+
+	var result []*model.LogEntry
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
+		if search != nil && *search != "" {
+			if !containsFold(e.Message, *search) && !attrsContainFold(e.Attrs, *search) {
+				continue
+			}
+		}
+		result = append(result, mapLogEntry(e))
+		if limit != nil && len(result) >= *limit {
+			break
+		}
+	}
+
+	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+		result[i], result[j] = result[j], result[i]
+	}
+
 	return result, nil
 }
 
@@ -750,6 +1015,35 @@ func (r *subscriptionResolver) AutomationNodeActivated(ctx context.Context, auto
 					NodeID:       string(na.NodeID),
 					Active:       na.Active,
 				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// LogStream is the resolver for the logStream field.
+func (r *subscriptionResolver) LogStream(ctx context.Context) (<-chan *model.LogEntry, error) {
+	ch, unsub := r.LogBuffer.Subscribe()
+	out := make(chan *model.LogEntry, 1)
+
+	go func() {
+		defer close(out)
+		defer unsub()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case e, ok := <-ch:
+				if !ok {
+					return
+				}
+				select {
+				case out <- mapLogEntry(e):
 				case <-ctx.Done():
 					return
 				}
