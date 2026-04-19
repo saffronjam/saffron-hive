@@ -29,10 +29,7 @@ func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("HIVE_DB_PATH", "/data/test.db")
 	t.Setenv("HIVE_LISTEN_ADDR", ":9090")
 
-	cfg, err := Parse()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	cfg := Parse()
 
 	if cfg.MQTTBroker != "mqtt.example.com:1883" {
 		t.Errorf("MQTTBroker = %q, want %q", cfg.MQTTBroker, "mqtt.example.com:1883")
@@ -54,15 +51,15 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 }
 
-func TestConfigMissingRequired(t *testing.T) {
+func TestConfigOptionalMQTT(t *testing.T) {
 	clearEnv(t)
 
-	_, err := Parse()
-	if err == nil {
-		t.Fatal("expected error for missing HIVE_MQTT_BROKER, got nil")
+	cfg := Parse()
+	if cfg.MQTTBroker != "" {
+		t.Errorf("MQTTBroker = %q, want empty", cfg.MQTTBroker)
 	}
-	if got := err.Error(); got != "HIVE_MQTT_BROKER is required" {
-		t.Errorf("error = %q, want %q", got, "HIVE_MQTT_BROKER is required")
+	if cfg.HasMQTTConfig() {
+		t.Error("HasMQTTConfig() = true, want false when broker is empty")
 	}
 }
 
@@ -70,10 +67,7 @@ func TestConfigDefaults(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("HIVE_MQTT_BROKER", "mqtt.example.com:1883")
 
-	cfg, err := Parse()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	cfg := Parse()
 
 	if cfg.DBPath != "saffron-hive.db" {
 		t.Errorf("DBPath = %q, want default %q", cfg.DBPath, "saffron-hive.db")
@@ -89,5 +83,8 @@ func TestConfigDefaults(t *testing.T) {
 	}
 	if cfg.MQTTPassword != "" {
 		t.Errorf("MQTTPassword = %q, want empty by default", cfg.MQTTPassword)
+	}
+	if !cfg.HasMQTTConfig() {
+		t.Error("HasMQTTConfig() = false, want true when broker is set")
 	}
 }

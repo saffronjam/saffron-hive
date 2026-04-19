@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strings"
 )
@@ -17,23 +16,22 @@ type Config struct {
 }
 
 // Parse reads configuration from environment variables.
-// HIVE_MQTT_BROKER is required. All other fields have sensible defaults.
-func Parse() (Config, error) {
-	broker := os.Getenv("HIVE_MQTT_BROKER")
-	if broker == "" {
-		return Config{}, fmt.Errorf("HIVE_MQTT_BROKER is required")
-	}
-
-	cfg := Config{
-		MQTTBroker:   broker,
+// HIVE_MQTT_BROKER is optional — MQTT config can also come from the database.
+func Parse() Config {
+	return Config{
+		MQTTBroker:   os.Getenv("HIVE_MQTT_BROKER"),
 		MQTTUsername: os.Getenv("HIVE_MQTT_USERNAME"),
 		MQTTPassword: os.Getenv("HIVE_MQTT_PASSWORD"),
 		MQTTUseWSS:   strings.EqualFold(os.Getenv("HIVE_MQTT_USE_WSS"), "true"),
 		DBPath:       envOrDefault("HIVE_DB_PATH", "saffron-hive.db"),
 		ListenAddr:   envOrDefault("HIVE_LISTEN_ADDR", ":8080"),
 	}
+}
 
-	return cfg, nil
+// HasMQTTConfig reports whether MQTT broker configuration was provided via
+// environment variables.
+func (c Config) HasMQTTConfig() bool {
+	return c.MQTTBroker != ""
 }
 
 func envOrDefault(key, fallback string) string {
