@@ -12,7 +12,6 @@
 		SidebarMenuButton,
 		SidebarMenuItem,
 	} from "$lib/components/ui/sidebar/index.js";
-	import ThemeToggle from "$lib/components/theme-toggle.svelte";
 	import HiveLogo from "$lib/components/icons/hive-logo.svelte";
 	import {
 		LayoutDashboard,
@@ -20,6 +19,9 @@
 		Clapperboard,
 		Workflow,
 		Group,
+		DoorOpen,
+		ScrollText,
+		Settings,
 	} from "@lucide/svelte";
 
 	interface NavItem {
@@ -33,7 +35,13 @@
 		{ href: "/devices", label: "Devices", icon: Lightbulb },
 		{ href: "/scenes", label: "Scenes", icon: Clapperboard },
 		{ href: "/automations", label: "Automations", icon: Workflow },
+		{ href: "/rooms", label: "Rooms", icon: DoorOpen },
 		{ href: "/groups", label: "Groups", icon: Group },
+	];
+
+	const footerItems: NavItem[] = [
+		{ href: "/logs", label: "Logs", icon: ScrollText },
+		{ href: "/settings", label: "Settings", icon: Settings },
 	];
 
 	function isActive(href: string): boolean {
@@ -73,9 +81,19 @@
 	</SidebarContent>
 
 	<SidebarFooter>
-		<div class="flex items-center justify-between px-2">
-			<span class="text-xs text-muted-foreground">Theme</span>
-			<ThemeToggle />
-		</div>
+		<SidebarMenu>
+			{#each footerItems as item (item.href)}
+				<SidebarMenuItem>
+					<SidebarMenuButton isActive={isActive(item.href)} tooltipContent={item.label}>
+						{#snippet child({ props })}
+							<a href={item.href} {...props}>
+								<item.icon class="size-4" />
+								<span>{item.label}</span>
+							</a>
+						{/snippet}
+					</SidebarMenuButton>
+				</SidebarMenuItem>
+			{/each}
+		</SidebarMenu>
 	</SidebarFooter>
 </Sidebar>

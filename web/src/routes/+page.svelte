@@ -15,6 +15,7 @@
 	import DashboardDeviceCard from "$lib/components/dashboard-device-card.svelte";
 	import SceneQuickBar from "$lib/components/scene-quick-bar.svelte";
 	import ActivityFeed from "$lib/components/activity-feed.svelte";
+	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import { ChevronDown, Thermometer, Droplets } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 
@@ -117,6 +118,7 @@
 				name
 				source
 				type
+				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen
 				state {
@@ -248,6 +250,7 @@
 				name
 				source
 				type
+				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen
 				state {
@@ -563,20 +566,14 @@
 			/>
 		</div>
 
-		{#if loading}
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-				{#each [1, 2, 3, 4, 5, 6] as _ (_.toString())}
-					<div class="h-16 animate-pulse rounded-lg shadow-card bg-card"></div>
-				{/each}
-			</div>
-		{:else if devices.length === 0}
+		{#if !loading && devices.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<p class="text-muted-foreground">No devices discovered yet.</p>
 				<p class="mt-2 text-sm text-muted-foreground">
 					Devices will appear here once the backend connects to your MQTT broker.
 				</p>
 			</div>
-		{:else}
+		{:else if !loading}
 			<div class="space-y-6">
 				{#each groupedDevices as group (group.id)}
 					<div>
@@ -593,7 +590,7 @@
 						</button>
 
 						{#if !isGroupCollapsed(group.id)}
-							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+							<AnimatedGrid class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 								{#each group.devices as device (device.id)}
 									<DashboardDeviceCard
 										{device}
@@ -601,7 +598,7 @@
 										sending={sendingDeviceId === device.id}
 									/>
 								{/each}
-							</div>
+							</AnimatedGrid>
 						{/if}
 					</div>
 				{/each}

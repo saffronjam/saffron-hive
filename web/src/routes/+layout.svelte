@@ -2,7 +2,9 @@
 	import "../app.css";
 	import AppSidebar from "$lib/components/app-sidebar.svelte";
 	import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import SmoothButton from "$lib/components/smooth-button.svelte";
+	import SaveButton from "$lib/components/save-button.svelte";
+	import ViewToggle from "$lib/components/view-toggle.svelte";
 	import { setContextClient } from "@urql/svelte";
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -33,16 +35,31 @@
 					<h1 class="text-sm font-semibold">{crumb.label}</h1>
 				{/if}
 			{/each}
-			{#if pageHeader.actions.length > 0}
+			{#if pageHeader.viewToggle || pageHeader.actions.length > 0}
 				<div class="ml-auto flex items-center gap-2">
-					{#each pageHeader.actions as action}
-						{@const Icon = action.icon}
-						<Button size="sm" variant={action.variant ?? "default"} disabled={action.disabled ?? false} onclick={action.onclick}>
-							{#if Icon}
-								<Icon class="size-4" />
-							{/if}
-							<span>{action.label}</span>
-						</Button>
+					{#if pageHeader.viewToggle}
+						<ViewToggle
+							value={pageHeader.viewToggle.value}
+							onchange={pageHeader.viewToggle.onchange}
+						/>
+					{/if}
+					{#each pageHeader.actions as action (action.label)}
+						{#if action.saving !== undefined}
+							<SaveButton
+								saving={action.saving}
+								disabled={action.disabled ?? false}
+								onclick={action.onclick}
+							/>
+						{:else}
+							<SmoothButton
+								label={action.label}
+								icon={action.icon}
+								iconClass={action.iconClass ?? ""}
+								variant={action.variant ?? "default"}
+								disabled={action.disabled ?? false}
+								onclick={action.onclick}
+							/>
+						{/if}
 					{/each}
 				</div>
 			{/if}
