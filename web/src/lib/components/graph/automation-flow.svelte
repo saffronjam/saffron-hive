@@ -11,6 +11,7 @@
 	} from "@xyflow/svelte";
 	import "@xyflow/svelte/dist/style.css";
 	import TriggerNode from "./trigger-node.svelte";
+	import ConditionNode from "./condition-node.svelte";
 	import OperatorNode from "./operator-node.svelte";
 	import ActionNode from "./action-node.svelte";
 
@@ -22,6 +23,8 @@
 		onedgeschange?: (edges: Edge[]) => void;
 		onconnect?: (connection: Connection) => void;
 		onnodeclick?: (event: { node: Node; event: MouseEvent | TouchEvent }) => void;
+		onnodedragstop?: () => void;
+		ondelete?: () => void;
 	}
 
 	let {
@@ -30,10 +33,13 @@
 		editable,
 		onconnect,
 		onnodeclick,
+		onnodedragstop,
+		ondelete,
 	}: Props = $props();
 
 	const nodeTypes: NodeTypes = {
 		trigger: TriggerNode as NodeTypes[string],
+		condition: ConditionNode as NodeTypes[string],
 		operator: OperatorNode as NodeTypes[string],
 		action: ActionNode as NodeTypes[string],
 	};
@@ -83,11 +89,13 @@
 		{isValidConnection}
 		onconnect={handleConnect}
 		onnodeclick={onnodeclick}
+		onnodedragstop={() => onnodedragstop?.()}
+		ondelete={() => ondelete?.()}
 		nodesDraggable={editable}
 		nodesConnectable={editable}
 		elementsSelectable={editable}
 		fitView
-		fitViewOptions={{ maxZoom: 1 }}
+		fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
 		colorMode="system"
 		deleteKey={editable ? "Backspace" : null}
 		proOptions={{ hideAttribution: true }}

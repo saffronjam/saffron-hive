@@ -97,17 +97,19 @@
 				{targetDisplay}
 			</button>
 
-			<Textarea
-				value={data.config.payload}
-				oninput={handlePayloadChange}
-				placeholder={'{"on": true, "brightness": 254}'}
-				class="min-h-[60px] text-xs font-mono"
-				rows={2}
-			/>
+			{#if data.config.actionType !== "activate_scene"}
+				<Textarea
+					value={data.config.payload}
+					oninput={handlePayloadChange}
+					placeholder={'{"on": true, "brightness": 254}'}
+					class="min-h-[60px] text-xs font-mono"
+					rows={2}
+				/>
+			{/if}
 		{:else}
 			<p class="text-xs text-foreground">{selectedLabel}</p>
 			<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
-			{#if data.config.payload}
+			{#if data.config.actionType !== "activate_scene" && data.config.payload}
 				<p class="truncate text-xs font-mono text-muted-foreground">{data.config.payload}</p>
 			{/if}
 		{/if}

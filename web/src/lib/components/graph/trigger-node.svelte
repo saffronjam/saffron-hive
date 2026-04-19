@@ -7,18 +7,27 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { Badge } from "$lib/components/ui/badge/index.js";
+	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
 	import { Zap } from "@lucide/svelte";
-
-	interface TriggerConfig {
-		eventType: string;
-		deviceFilter: string;
-		condition: string;
-	}
+	import { sentenceCase } from "$lib/utils.js";
+	import type { Device, Capability } from "$lib/stores/devices";
+	import {
+		type TriggerConfig,
+		type TriggerMode,
+		type ScheduleSubmode,
+		generateFilterExpr,
+		generateCronExpr,
+		humanizeCron,
+		eventTypeForMode,
+		capabilityToExprProperty,
+	} from "./trigger-expr";
 
 	interface TriggerNodeData extends Record<string, unknown> {
 		config: TriggerConfig;
 		editable: boolean;
 		activated: boolean;
+		devices: Device[];
 		onConfigChange?: (config: TriggerConfig) => void;
 	}
 
@@ -30,33 +39,174 @@
 
 	let { data, id, selected = false }: Props = $props();
 
+	const modes: { value: TriggerMode; label: string }[] = [
+		{ value: "device_state", label: "Device State" },
+		{ value: "button_action", label: "Button Action" },
+		{ value: "availability", label: "Availability" },
+		{ value: "schedule", label: "Schedule" },
+		{ value: "custom", label: "Custom" },
+	];
+
+	const scheduleSubmodes: { value: ScheduleSubmode; label: string }[] = [
+		{ value: "at", label: "At time" },
+		{ value: "every", label: "Every" },
+		{ value: "custom", label: "Custom cron" },
+	];
+
+	const scheduleWeekdayCodes = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+	const scheduleWeekdayShort = ["M", "T", "W", "T", "F", "S", "S"];
+
+	const intervalUnits = [
+		{ value: "seconds", label: "seconds" },
+		{ value: "minutes", label: "minutes" },
+		{ value: "hours", label: "hours" },
+	];
+
+	const comparators = [
+		{ value: "==", label: "=" },
+		{ value: "!=", label: "\u2260" },
+		{ value: ">", label: ">" },
+		{ value: "<", label: "<" },
+		{ value: ">=", label: "\u2265" },
+		{ value: "<=", label: "\u2264" },
+	];
+
 	const eventTypes = [
 		{ value: "device.state_changed", label: "State Changed" },
-		{ value: "device.availability_changed", label: "Availability Changed" },
+		{ value: "device.availability_changed", label: "Availability" },
 		{ value: "device.added", label: "Device Added" },
 		{ value: "device.removed", label: "Device Removed" },
 	];
 
-	function handleEventTypeChange(value: string | undefined) {
+	function update(patch: Partial<TriggerConfig>) {
+		if (!data.onConfigChange) return;
+		data.onConfigChange({ ...data.config, ...patch });
+	}
+
+	function handleModeChange(value: string | undefined) {
 		if (!value || !data.onConfigChange) return;
-		data.onConfigChange({ ...data.config, eventType: value });
+		const mode = value as TriggerMode;
+		data.onConfigChange({
+			mode,
+			eventType: eventTypeForMode(mode),
+		});
 	}
 
-	function handleDeviceFilterChange(e: Event) {
-		if (!data.onConfigChange) return;
-		const target = e.target as HTMLInputElement;
-		data.onConfigChange({ ...data.config, deviceFilter: target.value });
+	function handleDeviceChange(value: string | undefined) {
+		if (!value) return;
+		const dev = (data.devices ?? []).find((d) => d.id === value);
+		if (!dev) return;
+		update({
+			deviceId: dev.id,
+			deviceName: dev.name,
+			property: undefined,
+			comparator: undefined,
+			value: undefined,
+			actionValue: undefined,
+		});
 	}
 
-	function handleConditionChange(e: Event) {
-		if (!data.onConfigChange) return;
-		const target = e.target as HTMLInputElement;
-		data.onConfigChange({ ...data.config, condition: target.value });
+	function handlePropertyChange(value: string | undefined) {
+		if (!value) return;
+		const cap = selectedDeviceCapabilities.find((c) => capabilityToExprProperty(c.name) === value);
+		let defaultComparator = "==";
+		let defaultValue: string | undefined;
+		if (cap?.type === "binary") {
+			defaultValue = "true";
+		} else if (cap?.type === "numeric") {
+			defaultComparator = ">";
+			defaultValue = cap.valueMin !== null && cap.valueMin !== undefined ? String(cap.valueMin) : "";
+		}
+		update({ property: value, comparator: defaultComparator, value: defaultValue });
 	}
 
-	const selectedLabel = $derived(
-		eventTypes.find((t) => t.value === data.config.eventType)?.label ?? "Select event"
+	const selectedDevice = $derived(
+		(data.devices ?? []).find((d) => d.id === data.config.deviceId)
 	);
+
+	const selectedDeviceCapabilities = $derived.by((): Capability[] => {
+		if (!selectedDevice) return [];
+		return selectedDevice.capabilities.filter((c) => (c.access & 1) !== 0);
+	});
+
+	const selectedCapability = $derived.by((): Capability | undefined => {
+		if (!data.config.property || !selectedDevice) return undefined;
+		return selectedDevice.capabilities.find(
+			(c) => capabilityToExprProperty(c.name) === data.config.property
+		);
+	});
+
+	const actionCapability = $derived.by((): Capability | undefined => {
+		if (!selectedDevice) return undefined;
+		return selectedDevice.capabilities.find((c) => c.name === "action");
+	});
+
+	const devicesForMode = $derived.by((): Device[] => {
+		const devs = data.devices ?? [];
+		if (data.config.mode === "button_action") {
+			return devs.filter((d) => d.capabilities.some((c) => c.name === "action"));
+		}
+		return devs;
+	});
+
+	const generatedExpr = $derived(generateFilterExpr(data.config));
+	const generatedCron = $derived(generateCronExpr(data.config));
+	const humanSchedule = $derived(humanizeCron(generatedCron));
+
+	function updateScheduleSubmode(value: ScheduleSubmode) {
+		// When switching submode, clear fields that don't apply to the new submode
+		// so leftover state doesn't leak into the saved cron expression.
+		const patch: Partial<TriggerConfig> = { scheduleSubmode: value };
+		if (value !== "every") {
+			patch.scheduleIntervalValue = undefined;
+			patch.scheduleIntervalUnit = undefined;
+		}
+		if (value !== "at") {
+			// intentionally keep hour/minute/second/weekdays — user may toggle back
+		}
+		update(patch);
+	}
+
+	function toggleScheduleWeekday(code: string) {
+		const current = data.config.scheduleWeekdays ?? [];
+		const next = current.includes(code)
+			? current.filter((d) => d !== code)
+			: [...current, code];
+		update({ scheduleWeekdays: next });
+	}
+
+	const modeLabel = $derived(
+		modes.find((m) => m.value === data.config.mode)?.label ?? "Custom"
+	);
+
+	function readableSummary(): string {
+		switch (data.config.mode) {
+			case "device_state": {
+				const parts: string[] = [];
+				if (data.config.deviceName) parts.push(data.config.deviceName);
+				if (data.config.property) {
+					const cmp = data.config.comparator ?? "==";
+					const val = data.config.value ?? "";
+					parts.push(`${data.config.property} ${cmp} ${val}`);
+				}
+				return parts.join(": ") || "No condition set";
+			}
+			case "button_action": {
+				const parts: string[] = [];
+				if (data.config.deviceName) parts.push(data.config.deviceName);
+				if (data.config.actionValue) parts.push(data.config.actionValue);
+				return parts.join(": ") || "No action set";
+			}
+			case "availability":
+				return data.config.deviceName ?? "No device set";
+			case "schedule":
+				return humanSchedule;
+			case "custom":
+				return data.config.customExpr || "true";
+			default:
+				return "Unknown";
+		}
+	}
 </script>
 
 <div
@@ -70,48 +220,348 @@
 	<div class="flex items-center gap-2 rounded-t-md bg-blue-500/15 px-3 py-2">
 		<Zap class="size-4 text-blue-500" />
 		<span class="text-sm font-medium text-blue-600 dark:text-blue-400">Trigger</span>
+		{#if !data.editable}
+			<Badge variant="secondary" class="ml-auto text-[10px]">{modeLabel}</Badge>
+		{/if}
 	</div>
 
 	<div class="space-y-2 p-3">
 		{#if data.editable}
 			<Select
 				type="single"
-				value={data.config.eventType}
-				onValueChange={handleEventTypeChange}
+				value={data.config.mode}
+				onValueChange={handleModeChange}
 			>
 				<SelectTrigger class="w-full text-xs">
-					{selectedLabel}
+					{modeLabel}
 				</SelectTrigger>
 				<SelectContent>
-					{#each eventTypes as eventType (eventType.value)}
-						<SelectItem value={eventType.value}>{eventType.label}</SelectItem>
+					{#each modes as mode (mode.value)}
+						<SelectItem value={mode.value}>{mode.label}</SelectItem>
 					{/each}
 				</SelectContent>
 			</Select>
 
-			<Input
-				value={data.config.deviceFilter}
-				oninput={handleDeviceFilterChange}
-				placeholder="Device filter (optional)"
-				class="text-xs"
-			/>
+			{#if data.config.mode === "device_state" || data.config.mode === "button_action" || data.config.mode === "availability"}
+				<Select
+					type="single"
+					value={data.config.deviceId ?? ""}
+					onValueChange={handleDeviceChange}
+				>
+					<SelectTrigger class="w-full text-xs">
+						{data.config.deviceName ?? "Select device"}
+					</SelectTrigger>
+					<SelectContent class="max-w-(--bits-select-anchor-width)">
+						{#each devicesForMode as dev (dev.id)}
+							<SelectItem value={dev.id}>
+								<span class="flex items-center gap-1.5 overflow-hidden">
+									<span class="truncate">{dev.name}</span>
+									<DeviceTypeBadge type={dev.type} class="text-[10px] py-0 shrink-0" />
+								</span>
+							</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
+			{/if}
 
-			<Input
-				value={data.config.condition}
-				oninput={handleConditionChange}
-				placeholder="Condition expression (optional)"
-				class="text-xs"
-			/>
-		{:else}
-			<p class="text-xs text-foreground">{selectedLabel}</p>
-			{#if data.config.deviceFilter}
-				<p class="truncate text-xs text-muted-foreground">
-					Filter: {data.config.deviceFilter}
+			{#if data.config.mode === "device_state" && data.config.deviceId}
+				<Select
+					type="single"
+					value={data.config.property ?? ""}
+					onValueChange={handlePropertyChange}
+				>
+					<SelectTrigger class="w-full text-xs">
+						{data.config.property ? sentenceCase(data.config.property) : "Select property"}
+					</SelectTrigger>
+					<SelectContent>
+						{#each selectedDeviceCapabilities as cap (cap.name)}
+							<SelectItem value={capabilityToExprProperty(cap.name)}>
+								<span class="flex items-center gap-1.5">
+									<span>{sentenceCase(capabilityToExprProperty(cap.name))}</span>
+									{#if cap.unit}
+										<span class="text-muted-foreground">({cap.unit})</span>
+									{/if}
+								</span>
+							</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
+
+				{#if data.config.property && selectedCapability}
+					{#if selectedCapability.type === "binary"}
+						<Select
+							type="single"
+							value={data.config.value ?? "true"}
+							onValueChange={(v) => v && update({ comparator: "==", value: v })}
+						>
+							<SelectTrigger class="w-full text-xs">
+								{data.config.value === "false" ? "Off" : "On"}
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="true">On</SelectItem>
+								<SelectItem value="false">Off</SelectItem>
+							</SelectContent>
+						</Select>
+					{:else if selectedCapability.type === "numeric"}
+						<div class="flex gap-1">
+							<Select
+								type="single"
+								value={data.config.comparator ?? "=="}
+								onValueChange={(v) => v && update({ comparator: v })}
+							>
+								<SelectTrigger class="w-14 shrink-0 text-xs">
+									{comparators.find((c) => c.value === data.config.comparator)?.label ?? "="}
+								</SelectTrigger>
+								<SelectContent>
+									{#each comparators as cmp (cmp.value)}
+										<SelectItem value={cmp.value}>{cmp.label}</SelectItem>
+									{/each}
+								</SelectContent>
+							</Select>
+							<Input
+								type="number"
+								value={data.config.value ?? ""}
+								oninput={(e) => {
+									const target = e.target as HTMLInputElement;
+									update({ value: target.value });
+								}}
+								min={selectedCapability.valueMin ?? undefined}
+								max={selectedCapability.valueMax ?? undefined}
+								placeholder={selectedCapability.unit ?? "value"}
+								class="text-xs"
+							/>
+						</div>
+					{:else if selectedCapability.type === "enum" && selectedCapability.values}
+						<Select
+							type="single"
+							value={data.config.value ?? ""}
+							onValueChange={(v) => v && update({ comparator: "==", value: v })}
+						>
+							<SelectTrigger class="w-full text-xs">
+								{data.config.value ? sentenceCase(data.config.value) : "Select value"}
+							</SelectTrigger>
+							<SelectContent>
+								{#each selectedCapability.values as val (val)}
+									<SelectItem value={val}>{sentenceCase(val)}</SelectItem>
+								{/each}
+							</SelectContent>
+						</Select>
+					{:else}
+						<div class="flex gap-1">
+							<Select
+								type="single"
+								value={data.config.comparator ?? "=="}
+								onValueChange={(v) => v && update({ comparator: v })}
+							>
+								<SelectTrigger class="w-14 shrink-0 text-xs">
+									{comparators.find((c) => c.value === data.config.comparator)?.label ?? "="}
+								</SelectTrigger>
+								<SelectContent>
+									{#each comparators as cmp (cmp.value)}
+										<SelectItem value={cmp.value}>{cmp.label}</SelectItem>
+									{/each}
+								</SelectContent>
+							</Select>
+							<Input
+								value={data.config.value ?? ""}
+								oninput={(e) => {
+									const target = e.target as HTMLInputElement;
+									update({ value: target.value });
+								}}
+								placeholder="value"
+								class="text-xs"
+							/>
+						</div>
+					{/if}
+				{/if}
+			{/if}
+
+			{#if data.config.mode === "button_action" && data.config.deviceId && actionCapability}
+				{#if actionCapability.values && actionCapability.values.length > 0}
+					<Select
+						type="single"
+						value={data.config.actionValue ?? ""}
+						onValueChange={(v) => v && update({ actionValue: v })}
+					>
+						<SelectTrigger class="w-full text-xs">
+							{data.config.actionValue ? sentenceCase(data.config.actionValue) : "Select action"}
+						</SelectTrigger>
+						<SelectContent class="max-h-60">
+							{#each actionCapability.values as val (val)}
+								<SelectItem value={val}>{sentenceCase(val)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{:else}
+					<Input
+						value={data.config.actionValue ?? ""}
+						oninput={(e) => {
+							const target = e.target as HTMLInputElement;
+							update({ actionValue: target.value });
+						}}
+						placeholder="Action value (e.g. single)"
+						class="text-xs"
+					/>
+				{/if}
+			{/if}
+
+			{#if data.config.mode === "schedule"}
+				<Select
+					type="single"
+					value={data.config.scheduleSubmode ?? "at"}
+					onValueChange={(v) => v && updateScheduleSubmode(v as ScheduleSubmode)}
+				>
+					<SelectTrigger class="w-full text-xs">
+						{scheduleSubmodes.find((s) => s.value === (data.config.scheduleSubmode ?? "at"))?.label}
+					</SelectTrigger>
+					<SelectContent>
+						{#each scheduleSubmodes as sm (sm.value)}
+							<SelectItem value={sm.value}>{sm.label}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
+
+				{#if (data.config.scheduleSubmode ?? "at") === "at"}
+					<div class="flex gap-1">
+						<Input
+							type="number"
+							value={data.config.scheduleHour ?? ""}
+							oninput={(e) => {
+								const t = e.target as HTMLInputElement;
+								update({ scheduleHour: t.value !== "" ? Number(t.value) : undefined });
+							}}
+							min={0}
+							max={23}
+							placeholder="HH"
+							class="text-xs"
+						/>
+						<span class="flex items-center text-xs text-muted-foreground">:</span>
+						<Input
+							type="number"
+							value={data.config.scheduleMinute ?? ""}
+							oninput={(e) => {
+								const t = e.target as HTMLInputElement;
+								update({ scheduleMinute: t.value !== "" ? Number(t.value) : undefined });
+							}}
+							min={0}
+							max={59}
+							placeholder="MM"
+							class="text-xs"
+						/>
+						<span class="flex items-center text-xs text-muted-foreground">:</span>
+						<Input
+							type="number"
+							value={data.config.scheduleSecond ?? ""}
+							oninput={(e) => {
+								const t = e.target as HTMLInputElement;
+								update({ scheduleSecond: t.value !== "" ? Number(t.value) : undefined });
+							}}
+							min={0}
+							max={59}
+							placeholder="SS"
+							class="text-xs"
+						/>
+					</div>
+					<div class="flex gap-0.5">
+						{#each scheduleWeekdayCodes as code, i (code)}
+							<button
+								type="button"
+								class="flex-1 rounded px-0 py-0.5 text-[10px] font-medium transition-colors {(data.config.scheduleWeekdays ?? []).includes(code)
+									? 'bg-blue-500 text-white'
+									: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
+								onclick={() => toggleScheduleWeekday(code)}
+							>
+								{scheduleWeekdayShort[i]}
+							</button>
+						{/each}
+					</div>
+				{:else if data.config.scheduleSubmode === "every"}
+					<div class="flex gap-1">
+						<Input
+							type="number"
+							value={data.config.scheduleIntervalValue ?? ""}
+							oninput={(e) => {
+								const t = e.target as HTMLInputElement;
+								update({ scheduleIntervalValue: t.value !== "" ? Number(t.value) : undefined });
+							}}
+							min={1}
+							placeholder="N"
+							class="text-xs w-16"
+						/>
+						<Select
+							type="single"
+							value={data.config.scheduleIntervalUnit ?? "seconds"}
+							onValueChange={(v) => v && update({ scheduleIntervalUnit: v as "seconds" | "minutes" | "hours" })}
+						>
+							<SelectTrigger class="flex-1 text-xs">
+								{intervalUnits.find((u) => u.value === (data.config.scheduleIntervalUnit ?? "seconds"))?.label}
+							</SelectTrigger>
+							<SelectContent>
+								{#each intervalUnits as u (u.value)}
+									<SelectItem value={u.value}>{u.label}</SelectItem>
+								{/each}
+							</SelectContent>
+						</Select>
+					</div>
+				{:else}
+					<Input
+						value={data.config.cronExpr ?? ""}
+						oninput={(e) => {
+							const t = e.target as HTMLInputElement;
+							update({ cronExpr: t.value });
+						}}
+						placeholder="* * * * * *  (sec min hr dom mon dow)"
+						class="text-xs font-mono"
+					/>
+				{/if}
+
+				<p class="text-[10px] text-muted-foreground">{humanSchedule}</p>
+			{/if}
+
+			{#if data.config.mode === "custom"}
+				<Select
+					type="single"
+					value={data.config.eventType}
+					onValueChange={(v) => v && update({ eventType: v })}
+				>
+					<SelectTrigger class="w-full text-xs">
+						{eventTypes.find((t) => t.value === data.config.eventType)?.label ?? "Select event"}
+					</SelectTrigger>
+					<SelectContent>
+						{#each eventTypes as et (et.value)}
+							<SelectItem value={et.value}>{et.label}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
+				<Input
+					value={data.config.customExpr ?? ""}
+					oninput={(e) => {
+						const target = e.target as HTMLInputElement;
+						update({ customExpr: target.value });
+					}}
+					placeholder="Condition expression"
+					class="text-xs font-mono"
+				/>
+			{/if}
+
+			{#if data.config.mode === "schedule"}
+				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedCron}>
+					{generatedCron || "(not set)"}
+				</p>
+			{:else}
+				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
+					{generatedExpr}
 				</p>
 			{/if}
-			{#if data.config.condition}
-				<p class="truncate text-xs text-muted-foreground">
-					If: {data.config.condition}
+		{:else}
+			<p class="text-xs text-foreground">{readableSummary()}</p>
+			{#if data.config.mode === "schedule"}
+				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedCron}>
+					{generatedCron}
+				</p>
+			{:else if generatedExpr !== "true"}
+				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
+					{generatedExpr}
 				</p>
 			{/if}
 		{/if}
