@@ -9,10 +9,11 @@ import (
 
 // CreateDeviceParams holds the parameters for creating a new device.
 type CreateDeviceParams struct {
-	ID     device.DeviceID
-	Name   string
-	Source device.Source
-	Type   device.DeviceType
+	ID           device.DeviceID
+	Name         string
+	Source       device.Source
+	Type         device.DeviceType
+	Capabilities []device.Capability
 }
 
 // UpdateDeviceParams holds the parameters for updating a device.
@@ -45,14 +46,19 @@ type CreateSceneParams struct {
 }
 
 // UpdateSceneParams holds optional fields for updating a scene.
+// SetIcon distinguishes "leave icon alone" (false) from "set icon to this value"
+// (true, with Icon either a pointer to the new value or nil to clear the column).
 type UpdateSceneParams struct {
-	Name *string
+	Name    *string
+	SetIcon bool
+	Icon    *string
 }
 
 // Scene represents a scene row.
 type Scene struct {
 	ID        string
 	Name      string
+	Icon      *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -84,8 +90,11 @@ type CreateAutomationParams struct {
 }
 
 // UpdateAutomationParams holds optional fields for updating an automation.
+// SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 type UpdateAutomationParams struct {
 	Name            *string
+	SetIcon         bool
+	Icon            *string
 	Enabled         *bool
 	CooldownSeconds *int
 }
@@ -94,6 +103,7 @@ type UpdateAutomationParams struct {
 type Automation struct {
 	ID              string
 	Name            string
+	Icon            *string
 	Enabled         bool
 	CooldownSeconds int
 	CreatedAt       time.Time
@@ -149,14 +159,18 @@ type CreateGroupParams struct {
 type Group struct {
 	ID        string
 	Name      string
+	Icon      *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 // UpdateGroupParams holds the parameters for updating a group.
+// SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 type UpdateGroupParams struct {
-	ID   string
-	Name string
+	ID      string
+	Name    string
+	SetIcon bool
+	Icon    *string
 }
 
 // AddGroupMemberParams holds the parameters for adding a group member.
@@ -204,6 +218,58 @@ type SensorHistoryQuery struct {
 	From     time.Time
 	To       time.Time
 	Limit    int
+}
+
+// MQTTConfig represents the MQTT broker configuration stored in the database.
+type MQTTConfig struct {
+	Broker   string
+	Username string
+	Password string
+	UseWSS   bool
+}
+
+// Setting represents a key-value setting row.
+type Setting struct {
+	Key   string
+	Value string
+}
+
+// CreateRoomParams holds the parameters for creating a new room.
+type CreateRoomParams struct {
+	ID   string
+	Name string
+}
+
+// Room represents a room row.
+type Room struct {
+	ID        string
+	Name      string
+	Icon      *string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// UpdateRoomParams holds the parameters for updating a room.
+// SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
+type UpdateRoomParams struct {
+	ID      string
+	Name    string
+	SetIcon bool
+	Icon    *string
+}
+
+// AddRoomDeviceParams holds the parameters for adding a device to a room.
+type AddRoomDeviceParams struct {
+	ID       string
+	RoomID   string
+	DeviceID string
+}
+
+// RoomDevice represents a room-device membership row.
+type RoomDevice struct {
+	ID       string
+	RoomID   string
+	DeviceID string
 }
 
 // Store defines the persistence interface for the application.
@@ -257,4 +323,22 @@ type Store interface {
 
 	InsertSensorReading(ctx context.Context, params InsertSensorReadingParams) (SensorReading, error)
 	QuerySensorHistory(ctx context.Context, query SensorHistoryQuery) ([]SensorReading, error)
+
+	GetMQTTConfig(ctx context.Context) (*MQTTConfig, error)
+	UpsertMQTTConfig(ctx context.Context, cfg MQTTConfig) error
+
+	GetSetting(ctx context.Context, key string) (Setting, error)
+	ListSettings(ctx context.Context) ([]Setting, error)
+	UpsertSetting(ctx context.Context, key, value string) error
+
+	CreateRoom(ctx context.Context, params CreateRoomParams) (Room, error)
+	GetRoom(ctx context.Context, id string) (Room, error)
+	ListRooms(ctx context.Context) ([]Room, error)
+	UpdateRoom(ctx context.Context, params UpdateRoomParams) (Room, error)
+	DeleteRoom(ctx context.Context, id string) error
+	AddRoomDevice(ctx context.Context, params AddRoomDeviceParams) (RoomDevice, error)
+	ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error)
+	RemoveRoomDevice(ctx context.Context, id string) error
+	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
+	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]Room, error)
 }

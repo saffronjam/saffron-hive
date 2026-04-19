@@ -1,0 +1,4 @@
+ALTER TABLE groups DROP COLUMN icon;
+ALTER TABLE rooms DROP COLUMN icon;
+ALTER TABLE scenes DROP COLUMN icon;
+ALTER TABLE automations DROP COLUMN icon;

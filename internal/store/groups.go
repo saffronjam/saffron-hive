@@ -22,10 +22,10 @@ func (s *SQLiteStore) CreateGroup(ctx context.Context, params CreateGroupParams)
 // GetGroup retrieves a group by its ID.
 func (s *SQLiteStore) GetGroup(ctx context.Context, id string) (Group, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, created_at, updated_at FROM groups WHERE id = ?`, id,
+		`SELECT id, name, icon, created_at, updated_at FROM groups WHERE id = ?`, id,
 	)
 	var g Group
-	err := row.Scan(&g.ID, &g.Name, &g.CreatedAt, &g.UpdatedAt)
+	err := row.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
 		return Group{}, fmt.Errorf("get group: %w", err)
 	}
@@ -34,7 +34,7 @@ func (s *SQLiteStore) GetGroup(ctx context.Context, id string) (Group, error) {
 
 // ListGroups returns all groups.
 func (s *SQLiteStore) ListGroups(ctx context.Context) ([]Group, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, created_at, updated_at FROM groups`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, icon, created_at, updated_at FROM groups`)
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
@@ -42,7 +42,7 @@ func (s *SQLiteStore) ListGroups(ctx context.Context) ([]Group, error) {
 	var groups []Group
 	for rows.Next() {
 		var g Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan group: %w", err)
 		}
 		groups = append(groups, g)
@@ -50,14 +50,26 @@ func (s *SQLiteStore) ListGroups(ctx context.Context) ([]Group, error) {
 	return groups, rows.Err()
 }
 
-// UpdateGroup updates a group's name and returns the updated group.
+// UpdateGroup updates a group's name and (optionally) its icon, returning the updated group.
+// Icon is updated only when params.SetIcon is true; a nil params.Icon clears the column.
 func (s *SQLiteStore) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error) {
-	_, err := s.db.ExecContext(ctx,
+	if _, err := s.db.ExecContext(ctx,
 		`UPDATE groups SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 		params.Name, params.ID,
-	)
-	if err != nil {
-		return Group{}, fmt.Errorf("update group: %w", err)
+	); err != nil {
+		return Group{}, fmt.Errorf("update group name: %w", err)
+	}
+	if params.SetIcon {
+		var iconArg any
+		if params.Icon != nil {
+			iconArg = *params.Icon
+		}
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE groups SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			iconArg, params.ID,
+		); err != nil {
+			return Group{}, fmt.Errorf("update group icon: %w", err)
+		}
 	}
 	return s.GetGroup(ctx, params.ID)
 }
@@ -121,7 +133,7 @@ func (s *SQLiteStore) RemoveGroupMember(ctx context.Context, id string) error {
 // ListGroupsContainingMember returns all groups that contain a specific member.
 func (s *SQLiteStore) ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]Group, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT g.id, g.name, g.created_at, g.updated_at
+		`SELECT g.id, g.name, g.icon, g.created_at, g.updated_at
 		FROM groups g
 		INNER JOIN group_members gm ON g.id = gm.group_id
 		WHERE gm.member_type = ? AND gm.member_id = ?`,
@@ -134,7 +146,7 @@ func (s *SQLiteStore) ListGroupsContainingMember(ctx context.Context, memberType
 	var groups []Group
 	for rows.Next() {
 		var g Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan group: %w", err)
 		}
 		groups = append(groups, g)

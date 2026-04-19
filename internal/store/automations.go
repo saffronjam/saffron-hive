@@ -21,7 +21,7 @@ func (s *SQLiteStore) CreateAutomation(ctx context.Context, params CreateAutomat
 // GetAutomation retrieves an automation by its ID.
 func (s *SQLiteStore) GetAutomation(ctx context.Context, id string) (Automation, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, enabled, cooldown_seconds, created_at, updated_at FROM automations WHERE id = ?`, id,
+		`SELECT id, name, icon, enabled, cooldown_seconds, created_at, updated_at FROM automations WHERE id = ?`, id,
 	)
 	return scanAutomation(row)
 }
@@ -29,7 +29,7 @@ func (s *SQLiteStore) GetAutomation(ctx context.Context, id string) (Automation,
 // ListAutomations returns all automations.
 func (s *SQLiteStore) ListAutomations(ctx context.Context) ([]Automation, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, enabled, cooldown_seconds, created_at, updated_at FROM automations`,
+		`SELECT id, name, icon, enabled, cooldown_seconds, created_at, updated_at FROM automations`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list automations: %w", err)
@@ -41,7 +41,7 @@ func (s *SQLiteStore) ListAutomations(ctx context.Context) ([]Automation, error)
 // ListEnabledAutomations returns all automations where enabled is true.
 func (s *SQLiteStore) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, enabled, cooldown_seconds, created_at, updated_at FROM automations WHERE enabled = true`,
+		`SELECT id, name, icon, enabled, cooldown_seconds, created_at, updated_at FROM automations WHERE enabled = true`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list enabled automations: %w", err)
@@ -58,6 +58,18 @@ func (s *SQLiteStore) UpdateAutomation(ctx context.Context, id string, params Up
 			*params.Name, id,
 		); err != nil {
 			return Automation{}, fmt.Errorf("update automation name: %w", err)
+		}
+	}
+	if params.SetIcon {
+		var iconArg any
+		if params.Icon != nil {
+			iconArg = *params.Icon
+		}
+		if _, err := s.db.ExecContext(ctx,
+			`UPDATE automations SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			iconArg, id,
+		); err != nil {
+			return Automation{}, fmt.Errorf("update automation icon: %w", err)
 		}
 	}
 	if params.Enabled != nil {
@@ -217,7 +229,7 @@ func (s *SQLiteStore) GetAutomationGraph(ctx context.Context, automationID strin
 
 func scanAutomation(row *sql.Row) (Automation, error) {
 	var a Automation
-	err := row.Scan(&a.ID, &a.Name, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt)
+	err := row.Scan(&a.ID, &a.Name, &a.Icon, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		return Automation{}, fmt.Errorf("scan automation: %w", err)
 	}
@@ -228,7 +240,7 @@ func scanAutomations(rows *sql.Rows) ([]Automation, error) {
 	var automations []Automation
 	for rows.Next() {
 		var a Automation
-		if err := rows.Scan(&a.ID, &a.Name, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.Name, &a.Icon, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan automation: %w", err)
 		}
 		automations = append(automations, a)
