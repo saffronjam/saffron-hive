@@ -9,10 +9,19 @@
 
 	let editing = $state(false);
 	let editValue = $state("");
+	let optimisticName = $state<string | null>(null);
 	let inputEl = $state<HTMLInputElement | null>(null);
 
+	const displayName = $derived(optimisticName ?? name);
+
+	$effect(() => {
+		if (optimisticName !== null && name === optimisticName) {
+			optimisticName = null;
+		}
+	});
+
 	function startEditing() {
-		editValue = name;
+		editValue = displayName;
 		editing = true;
 		requestAnimationFrame(() => {
 			inputEl?.focus();
@@ -24,6 +33,7 @@
 		editing = false;
 		const trimmed = editValue.trim();
 		if (trimmed && trimmed !== name) {
+			optimisticName = trimmed;
 			onsave(trimmed);
 		}
 	}
@@ -44,16 +54,16 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="relative min-w-0 {className}" ondblclick={startEditing}>
+<div class="relative min-w-0 overflow-hidden {className}" ondblclick={startEditing}>
 	<h3
 		class="truncate font-medium text-card-foreground {editing ? 'invisible' : ''}"
 		title="Double-click to rename"
-	>{editing ? editValue : name}</h3>
+	>{displayName}</h3>
 	{#if editing}
 		<input
 			bind:this={inputEl}
 			bind:value={editValue}
-			class="absolute inset-0 w-full truncate rounded bg-transparent px-0 py-0 font-medium text-card-foreground outline-none ring-1 ring-ring/50 focus:ring-2 focus:ring-ring"
+			class="absolute inset-0 w-full min-w-0 truncate bg-transparent px-0 py-0 font-medium text-card-foreground outline-none border-b-2 border-ring"
 			onblur={commit}
 			onkeydown={handleKeydown}
 		/>
