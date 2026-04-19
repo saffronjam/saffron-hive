@@ -2,7 +2,6 @@
 	import { queryStore, getContextClient, gql } from "@urql/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
 	import {
 		Dialog,
 		DialogContent,
@@ -11,28 +10,36 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
-	import {
-		Sheet,
-		SheetContent,
-		SheetHeader,
-		SheetTitle,
-		SheetDescription,
-	} from "$lib/components/ui/sheet/index.js";
 	import GroupCard from "$lib/components/group-card.svelte";
-	import MemberPicker from "$lib/components/member-picker.svelte";
+	import GroupTable from "$lib/components/group-table.svelte";
+	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import ListView from "$lib/components/list-view.svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import MemberTable from "$lib/components/member-table.svelte";
+	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
+	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import {
 		Plus,
 		X,
-		Lightbulb,
-		Thermometer,
-		ToggleLeft,
-		Group,
-		Package,
-		ArrowLeft,
+		Group as GroupIcon,
+		DoorOpen,
 	} from "@lucide/svelte";
+	import { deviceIcon } from "$lib/utils";
 	import { onDestroy } from "svelte";
+	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
 	import type { Device } from "$lib/stores/devices";
+
+	interface RoomData {
+		id: string;
+		name: string;
+		devices: { id: string; name: string }[];
+	}
 
 	interface GroupMember {
 		id: string;
@@ -40,11 +47,13 @@
 		memberId: string;
 		device: Device | null;
 		group: GroupData | null;
+		room: RoomData | null;
 	}
 
 	interface GroupData {
 		id: string;
 		name: string;
+		icon?: string | null;
 		members: GroupMember[];
 	}
 
@@ -83,6 +92,7 @@
 			groups {
 				id
 				name
+				icon
 				members {
 					id
 					memberType
@@ -91,6 +101,7 @@
 						id
 						name
 						type
+						capabilities { name type values valueMin valueMax unit access }
 						source
 						available
 						lastSeen
@@ -157,6 +168,11 @@
 							}
 						}
 					}
+					room {
+						id
+						name
+						devices { id name }
+					}
 				}
 			}
 		}
@@ -168,6 +184,7 @@
 				id
 				name
 				type
+				capabilities { name type values valueMin valueMax unit access }
 				source
 				available
 				lastSeen
@@ -193,6 +210,16 @@
 		}
 	`;
 
+	const ROOMS_QUERY = gql`
+		query Rooms {
+			rooms {
+				id
+				name
+				devices { id name }
+			}
+		}
+	`;
+
 	const CREATE_GROUP = gql`
 		mutation CreateGroup($input: CreateGroupInput!) {
 			createGroup(input: $input) {
@@ -212,6 +239,7 @@
 			updateGroup(id: $id, input: $input) {
 				id
 				name
+				icon
 			}
 		}
 	`;
@@ -240,51 +268,80 @@
 
 	const groupsQuery = queryStore<GroupsQueryResult>({ client, query: GROUPS_QUERY });
 	const devicesQuery = queryStore<DevicesQueryResult>({ client, query: DEVICES_QUERY });
+	const roomsQuery = queryStore<{ rooms: RoomData[] }>({ client, query: ROOMS_QUERY });
 
 	const groups = $derived($groupsQuery.data?.groups ?? []);
 	const devices = $derived($devicesQuery.data?.devices ?? []);
+	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
 
 	let createDialogOpen = $state(false);
 	let newGroupName = $state("");
 	let createLoading = $state(false);
 
+	let view = $state<ListViewMode>(profile.get("view.groups", "card"));
+
 	onDestroy(() => pageHeader.reset());
 
-	$effect(() => {
-		if (editingGroupFresh) {
-			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroupFresh.name }];
-			pageHeader.actions = [];
-		} else {
-			pageHeader.breadcrumbs = [{ label: "Groups" }];
-			pageHeader.actions = [{ label: "Create Group", icon: Plus, onclick: () => (createDialogOpen = true) }];
-		}
-	});
+	interface PendingAdd {
+		memberType: "device" | "group" | "room";
+		memberId: string;
+		device: Device | null;
+		group: GroupData | null;
+		room: RoomData | null;
+	}
 
 	let editingGroup = $state<GroupData | null>(null);
 	let editName = $state("");
 	let editNameDirty = $state(false);
+	let editIcon = $state<string | null>(null);
+	let editIconDirty = $state(false);
 	let editLoading = $state(false);
+
+	let pendingAdds = $state<PendingAdd[]>([]);
+	let pendingRemovals = $state<Set<string>>(new Set());
 
 	let deleteConfirmGroup = $state<GroupData | null>(null);
 	let deleteLoading = $state(false);
 
 	let pickerOpen = $state(false);
-	let memberActionLoading = $state(false);
 
-	let errorMessage = $state<string | null>(null);
+	const errors = new ErrorBanner();
 
-	function clearError() {
-		errorMessage = null;
-	}
+	const hasPendingChanges = $derived(
+		editNameDirty || editIconDirty || pendingAdds.length > 0 || pendingRemovals.size > 0
+	);
 
-	function dismissErrorAfterDelay() {
-		setTimeout(clearError, 5000);
-	}
+	const urlEditId = $derived(page.url.searchParams.get("edit"));
+
+	$effect(() => {
+		if (editingGroupFresh) {
+			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroupFresh.name }];
+			pageHeader.actions = [
+				{ label: "Cancel", variant: "outline" as const, onclick: stopEditing },
+				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading },
+			];
+			pageHeader.viewToggle = null;
+		} else if (urlEditId) {
+			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: "…" }];
+			pageHeader.actions = [];
+			pageHeader.viewToggle = null;
+		} else {
+			pageHeader.breadcrumbs = [{ label: "Groups" }];
+			pageHeader.actions = [{ label: "Create Group", icon: Plus, onclick: () => (createDialogOpen = true) }];
+			pageHeader.viewToggle = {
+				value: view,
+				onchange: (v) => {
+					view = v;
+					profile.set("view.groups", v);
+				},
+			};
+		}
+	});
 
 	async function handleCreateGroup() {
 		if (!newGroupName.trim()) return;
 		createLoading = true;
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<CreateGroupResult>(CREATE_GROUP, { input: { name: newGroupName.trim() } })
@@ -293,52 +350,115 @@
 		createLoading = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
+		const created = result.data?.createGroup;
 		newGroupName = "";
 		createDialogOpen = false;
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
+		if (created) {
+			startEditing(created);
+		}
 	}
 
 	function startEditing(group: GroupData) {
-		editingGroup = group;
-		editName = group.name;
-		editNameDirty = false;
+		goto(`/groups?edit=${encodeURIComponent(group.id)}`, { keepFocus: true, noScroll: true });
 	}
 
 	function stopEditing() {
-		editingGroup = null;
-		editNameDirty = false;
+		goto("/groups", { keepFocus: true, noScroll: true });
 	}
 
-	async function handleUpdateName() {
-		if (!editingGroup || !editName.trim() || editName.trim() === editingGroup.name) return;
-		editLoading = true;
-		clearError();
-
-		const result = await client
-			.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: editingGroup.id, input: { name: editName.trim() } })
-			.toPromise();
-
-		editLoading = false;
-
-		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+	// Sync editing state from URL. When the ?edit=<id> query param changes
+	// (or the user clicks the sidebar "Groups" link to clear it), update
+	// the local editing state.
+	$effect(() => {
+		const id = page.url.searchParams.get("edit");
+		if (!id) {
+			if (editingGroup !== null) {
+				editingGroup = null;
+				editNameDirty = false;
+				editIconDirty = false;
+				pendingAdds = [];
+				pendingRemovals = new Set();
+			}
 			return;
 		}
+		if (editingGroup?.id === id) return;
+		const match = groups.find((g) => g.id === id);
+		if (match) {
+			editingGroup = match;
+			editName = match.name;
+			editIcon = match.icon ?? null;
+			editNameDirty = false;
+			editIconDirty = false;
+			pendingAdds = [];
+			pendingRemovals = new Set();
+		}
+	});
 
+	async function handleSaveGroup() {
+		if (!editingGroup) return;
+		editLoading = true;
+		errors.clear();
+
+		const nameDirty = editName.trim() && editName.trim() !== editingGroup.name;
+		if (nameDirty || editIconDirty) {
+			const input: { name?: string; icon?: string | null } = {};
+			if (nameDirty) input.name = editName.trim();
+			if (editIconDirty) input.icon = editIcon;
+			const result = await client
+				.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: editingGroup.id, input })
+				.toPromise();
+			if (result.error) {
+				editLoading = false;
+				errors.setWithAutoDismiss(result.error.message);
+				return;
+			}
+		}
+
+		for (const removal of pendingRemovals) {
+			const result = await client
+				.mutation<RemoveGroupMemberResult>(REMOVE_GROUP_MEMBER, { id: removal })
+				.toPromise();
+			if (result.error) {
+				editLoading = false;
+				errors.setWithAutoDismiss(result.error.message);
+				return;
+			}
+		}
+
+		for (const add of pendingAdds) {
+			const result = await client
+				.mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+					input: {
+						groupId: editingGroup.id,
+						memberType: add.memberType,
+						memberId: add.memberId,
+					},
+				})
+				.toPromise();
+			if (result.error) {
+				editLoading = false;
+				errors.setWithAutoDismiss(result.error.message);
+				return;
+			}
+		}
+
+		editLoading = false;
 		editNameDirty = false;
+		editIconDirty = false;
+		pendingAdds = [];
+		pendingRemovals = new Set();
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
 	async function handleDeleteGroup() {
 		if (!deleteConfirmGroup) return;
 		deleteLoading = true;
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<DeleteGroupResult>(DELETE_GROUP, { id: deleteConfirmGroup.id })
@@ -347,8 +467,7 @@
 		deleteLoading = false;
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
@@ -359,65 +478,57 @@
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	async function handleAddMember(memberType: "device" | "group", memberId: string) {
+	function handleAddMember(memberType: "device" | "group" | "room", memberId: string) {
 		if (!editingGroup) return;
-		memberActionLoading = true;
-		clearError();
 
-		const result = await client
-			.mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
-				input: {
-					groupId: editingGroup.id,
-					memberType,
-					memberId,
-				},
-			})
-			.toPromise();
+		let dev: Device | null = null;
+		let grp: GroupData | null = null;
+		let rm: RoomData | null = null;
 
-		memberActionLoading = false;
-
-		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
-			return;
+		if (memberType === "device") {
+			dev = devices.find((d) => d.id === memberId) ?? null;
+		} else if (memberType === "group") {
+			grp = groups.find((g) => g.id === memberId) ?? null;
+		} else if (memberType === "room") {
+			rm = allRooms.find((r) => r.id === memberId) ?? null;
 		}
 
-		pickerOpen = false;
-		groupsQuery.reexecute({ requestPolicy: "network-only" });
+		pendingAdds = [...pendingAdds, { memberType, memberId, device: dev, group: grp, room: rm }];
 	}
 
-	async function handleRemoveMember(memberId: string) {
-		memberActionLoading = true;
-		clearError();
-
-		const result = await client
-			.mutation<RemoveGroupMemberResult>(REMOVE_GROUP_MEMBER, { id: memberId })
-			.toPromise();
-
-		memberActionLoading = false;
-
-		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
-			return;
+	function handleRemoveMember(memberRowId: string) {
+		if (memberRowId.startsWith("pending-")) {
+			const idx = parseInt(memberRowId.replace("pending-", ""), 10);
+			pendingAdds = pendingAdds.filter((_, i) => i !== idx);
+		} else {
+			pendingRemovals = new Set([...pendingRemovals, memberRowId]);
 		}
-
-		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
 	async function handleRename(group: GroupData, newName: string) {
-		clearError();
+		errors.clear();
 
 		const result = await client
 			.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: group.id, input: { name: newName } })
 			.toPromise();
 
 		if (result.error) {
-			errorMessage = result.error.message;
-			dismissErrorAfterDelay();
+			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
 
+		groupsQuery.reexecute({ requestPolicy: "network-only" });
+	}
+
+	async function handleIconChange(group: GroupData, icon: string | null) {
+		errors.clear();
+		const result = await client
+			.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: group.id, input: { icon } })
+			.toPromise();
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
@@ -425,35 +536,90 @@
 		editingGroup ? groups.find((g) => g.id === editingGroup?.id) ?? editingGroup : null
 	);
 
-	const existingMemberIds = $derived(
-		new Set(editingGroupFresh?.members.map((m) => m.memberId) ?? [])
+	const effectiveMembers = $derived.by((): GroupMember[] => {
+		if (!editingGroupFresh) return [];
+		const serverMembers = editingGroupFresh.members.filter(
+			(m) => !pendingRemovals.has(m.id)
+		);
+		const pendingAsMember: GroupMember[] = pendingAdds.map((a, i) => ({
+			id: `pending-${i}`,
+			memberType: a.memberType,
+			memberId: a.memberId,
+			device: a.device,
+			group: a.group,
+			room: a.room,
+		}));
+		return [...serverMembers, ...pendingAsMember];
+	});
+
+	const effectiveMemberIds = $derived(
+		new Set(effectiveMembers.map((m) => m.memberId))
 	);
 
-	const availableDevices = $derived(devices.filter((d) => !existingMemberIds.has(d.id)));
+	const availableDevices = $derived(devices.filter((d) => !effectiveMemberIds.has(d.id)));
 
-	const availableGroups = $derived(groups.filter((g) => !existingMemberIds.has(g.id)));
+	const availableGroups = $derived(groups.filter((g) => !effectiveMemberIds.has(g.id)));
 
-	function deviceIcon(type: string): typeof Lightbulb {
-		switch (type) {
-			case "light":
-				return Lightbulb;
-			case "sensor":
-				return Thermometer;
-			case "switch":
-				return ToggleLeft;
-			default:
-				return Package;
+	const availableRooms = $derived(allRooms.filter((r) => !effectiveMemberIds.has(r.id)));
+
+	const pickerDrawerGroups = $derived.by((): DrawerGroup<"device" | "group" | "room">[] => {
+		const result: DrawerGroup<"device" | "group" | "room">[] = [];
+		if (availableDevices.length > 0) {
+			result.push({ heading: "Devices", items: availableDevices.map((d) => ({
+				type: "device" as const, id: d.id, name: d.name,
+				icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}`,
+			}))});
 		}
-	}
+		if (availableGroups.length > 0) {
+			result.push({ heading: "Groups", items: availableGroups.map((g) => ({
+				type: "group" as const, id: g.id, name: g.name, icon: GroupIcon,
+				badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+			}))});
+		}
+		if (availableRooms.length > 0) {
+			result.push({ heading: "Rooms", items: availableRooms.map((r) => ({
+				type: "room" as const, id: r.id, name: r.name, icon: DoorOpen,
+				badge: `${r.devices.length} device${r.devices.length === 1 ? "" : "s"}`,
+			}))});
+		}
+		return result;
+	});
+
+	const memberRows = $derived(
+		effectiveMembers.map((m) => {
+			const name = m.device?.name ?? m.group?.name ?? m.room?.name ?? m.memberId;
+			const type = m.device?.type ?? m.memberType;
+			const related = allRooms
+				.filter((r) => r.devices.some((d) => d.id === m.memberId))
+				.map((r) => ({ id: r.id, name: r.name, href: `/rooms?edit=${r.id}` }));
+			const onclick = (() => {
+				switch (m.memberType) {
+					case "device":
+						return () => goto(`/devices/${m.memberId}`);
+					case "group":
+						return () =>
+							goto(`/groups?edit=${m.memberId}`, { keepFocus: true, noScroll: true });
+					case "room":
+						return () =>
+							goto(`/rooms?edit=${m.memberId}`, { keepFocus: true, noScroll: true });
+					default:
+						return undefined;
+				}
+			})();
+			return { id: m.id, name, type, related, onclick };
+		})
+	);
 </script>
 
+<UnsavedGuard dirty={editNameDirty || editIconDirty} />
+
 <div>
-	{#if errorMessage}
+	{#if errors.message}
 		<div
 			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
 		>
-			<span>{errorMessage}</span>
-			<button type="button" onclick={clearError} class="ml-2 shrink-0">
+			<span>{errors.message}</span>
+			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
 				<X class="size-4" />
 			</button>
 		</div>
@@ -467,129 +633,57 @@
 					<label class="mb-2 block text-sm font-medium text-foreground" for="group-name">
 						Group Name
 					</label>
-					<div class="flex gap-2">
+					<div class="flex items-center gap-3">
+						<IconPicker
+							value={editIcon}
+							onselect={(icon) => {
+								editIcon = icon;
+								editIconDirty = true;
+							}}
+						>
+							<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors" aria-label="Change icon">
+								<AnimatedIcon icon={editIcon} class="size-5 text-muted-foreground">
+									{#snippet fallback()}<GroupIcon class="size-5 text-muted-foreground" />{/snippet}
+								</AnimatedIcon>
+							</button>
+						</IconPicker>
 						<Input
 							id="group-name"
 							bind:value={editName}
 							oninput={() => (editNameDirty = true)}
 							placeholder="Group name"
 						/>
-						{#if editNameDirty && editName.trim() && editName.trim() !== editingGroupFresh.name}
-							<Button onclick={handleUpdateName} disabled={editLoading}>
-								{editLoading ? "Saving..." : "Save"}
-							</Button>
-						{/if}
 					</div>
 				</div>
 
 				<div class="rounded-lg shadow-card bg-card p-4">
-					<div class="mb-3 flex items-center justify-between">
-						<h2 class="text-sm font-medium text-foreground">
-							Members ({editingGroupFresh.members.length})
-						</h2>
-						<Button variant="outline" size="sm" onclick={() => (pickerOpen = true)}>
-							<Plus class="size-4" />
-							<span>Add member</span>
-						</Button>
-					</div>
-
-					{#if editingGroupFresh.members.length === 0}
-						<p class="py-6 text-center text-sm text-muted-foreground">
-							No members yet. Add devices or groups to this group.
-						</p>
-					{:else}
-						<div class="space-y-1">
-							{#each editingGroupFresh.members as member (member.id)}
-								<div
-									class="flex items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted"
-								>
-									{#if member.memberType === "device" && member.device}
-										{@const Icon = deviceIcon(member.device.type)}
-										<Icon class="size-4 text-muted-foreground" />
-										<span class="flex-1 truncate text-sm text-foreground">
-											{member.device.name}
-										</span>
-										<Badge variant="secondary" class="text-xs">{member.device.type}</Badge>
-									{:else if member.memberType === "group" && member.group}
-										<Group class="size-4 text-muted-foreground" />
-										<span class="flex-1 truncate text-sm text-foreground">
-											{member.group.name}
-										</span>
-										<Badge variant="outline" class="text-xs">group</Badge>
-									{:else}
-										<Package class="size-4 text-muted-foreground" />
-										<span class="flex-1 truncate text-sm text-muted-foreground">
-											Unknown ({member.memberId})
-										</span>
-									{/if}
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										onclick={() => handleRemoveMember(member.id)}
-										disabled={memberActionLoading}
-										aria-label="Remove member"
-									>
-										<X class="size-4" />
-									</Button>
-								</div>
-
-								{#if member.memberType === "group" && member.group && member.group.members.length > 0}
-									<div class="ml-8 space-y-0.5 border-l border-border pl-3">
-										{#each member.group.members as nested (nested.id)}
-											{#if nested.memberType === "device" && nested.device}
-												{@const NestedIcon = deviceIcon(nested.device.type)}
-												<div
-													class="flex items-center gap-2 py-1 text-xs text-muted-foreground"
-												>
-													<NestedIcon class="size-3" />
-													<span class="truncate">{nested.device.name}</span>
-												</div>
-											{:else if nested.memberType === "group" && nested.group}
-												<div
-													class="flex items-center gap-2 py-1 text-xs text-muted-foreground"
-												>
-													<Group class="size-3" />
-													<span class="truncate">{nested.group.name}</span>
-												</div>
-											{/if}
-										{/each}
-									</div>
-								{/if}
-							{/each}
-						</div>
-					{/if}
+					<MemberTable
+						rows={memberRows}
+						relatedLabel="Rooms"
+						emptyMessage="No members yet. Add devices or groups to this group."
+						addLabel="Add member"
+						onadd={() => (pickerOpen = true)}
+						onremove={handleRemoveMember}
+						disabled={editLoading}
+					/>
 				</div>
 			</div>
 		</div>
 
-		<Sheet bind:open={pickerOpen}>
-			<SheetContent side="right" class="w-full sm:max-w-md">
-				<SheetHeader>
-					<SheetTitle>Add Member</SheetTitle>
-					<SheetDescription>Search for devices or groups to add.</SheetDescription>
-				</SheetHeader>
-				<div class="mt-4">
-					<MemberPicker
-						devices={availableDevices}
-						groups={availableGroups}
-						excludeGroupId={editingGroupFresh.id}
-						onselect={handleAddMember}
-					/>
-				</div>
-			</SheetContent>
-		</Sheet>
+		<HiveDrawer
+			bind:open={pickerOpen}
+			title="Add Member"
+			description="Search for devices, groups, or rooms to add."
+			multiple
+			groups={pickerDrawerGroups}
+			onselect={handleAddMember}
+		/>
 	{:else}
 
-		{#if $groupsQuery.fetching}
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each [1, 2, 3] as _ (_.toString())}
-					<div class="h-24 animate-pulse rounded-lg shadow-card bg-card"></div>
-				{/each}
-			</div>
-		{:else if groups.length === 0}
+		{#if !$groupsQuery.fetching && groups.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-					<Group class="size-6 text-muted-foreground" />
+					<GroupIcon class="size-6 text-muted-foreground" />
 				</div>
 				<p class="text-muted-foreground">No groups yet.</p>
 				<p class="mt-2 text-sm text-muted-foreground">
@@ -600,17 +694,31 @@
 					<span>Create your first group</span>
 				</Button>
 			</div>
-		{:else}
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each groups as group (group.id)}
-					<GroupCard
-						{group}
+		{:else if groups.length > 0}
+			<ListView mode={view}>
+				{#snippet card()}
+					<AnimatedGrid>
+						{#each groups as group (group.id)}
+							<GroupCard
+								{group}
+								onedit={startEditing}
+								ondelete={(g) => (deleteConfirmGroup = g)}
+								onrename={handleRename}
+								oniconchange={handleIconChange}
+							/>
+						{/each}
+					</AnimatedGrid>
+				{/snippet}
+				{#snippet table()}
+					<GroupTable
+						{groups}
 						onedit={startEditing}
 						ondelete={(g) => (deleteConfirmGroup = g)}
 						onrename={handleRename}
+						oniconchange={handleIconChange}
 					/>
-				{/each}
-			</div>
+				{/snippet}
+			</ListView>
 		{/if}
 
 		<Dialog bind:open={createDialogOpen}>
