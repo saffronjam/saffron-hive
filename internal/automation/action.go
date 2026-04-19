@@ -18,14 +18,15 @@ const (
 
 // ActionExecutor resolves automation actions into event bus commands.
 type ActionExecutor struct {
-	bus    eventbus.Publisher
-	reader device.StateReader
-	store  store.Store
+	bus      eventbus.Publisher
+	reader   device.StateReader
+	store    store.Store
+	resolver device.TargetResolver
 }
 
 // NewActionExecutor creates an ActionExecutor.
-func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s store.Store) *ActionExecutor {
-	return &ActionExecutor{bus: bus, reader: reader, store: s}
+func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s store.Store, resolver device.TargetResolver) *ActionExecutor {
+	return &ActionExecutor{bus: bus, reader: reader, store: s, resolver: resolver}
 }
 
 // ExecuteGraphAction processes a graph-based action config. For
@@ -160,35 +161,5 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 }
 
 func (a *ActionExecutor) resolveTargetDevices(targetType string, targetID string) []device.DeviceID {
-	if targetType == "group" {
-		return resolveGroupDevicesFromStore(a.store, targetID)
-	}
-	return []device.DeviceID{device.DeviceID(targetID)}
-}
-
-func resolveGroupDevicesFromStore(s store.Store, groupID string) []device.DeviceID {
-	seen := make(map[string]bool)
-	return collectGroupDeviceIDs(s, groupID, seen)
-}
-
-func collectGroupDeviceIDs(s store.Store, groupID string, seen map[string]bool) []device.DeviceID {
-	if seen[groupID] {
-		return nil
-	}
-	seen[groupID] = true
-
-	members, err := s.ListGroupMembers(context.Background(), groupID)
-	if err != nil {
-		return nil
-	}
-
-	var result []device.DeviceID
-	for _, m := range members {
-		if m.MemberType == device.GroupMemberDevice {
-			result = append(result, device.DeviceID(m.MemberID))
-		} else if m.MemberType == device.GroupMemberGroup {
-			result = append(result, collectGroupDeviceIDs(s, m.MemberID, seen)...)
-		}
-	}
-	return result
+	return a.resolver.ResolveTargetDeviceIDs(context.Background(), device.TargetType(targetType), targetID)
 }

@@ -24,7 +24,7 @@ func TestActivateSceneExpandsToCommands(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s)
+	executor := NewActionExecutor(bus, reader, s, s)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
@@ -56,7 +56,7 @@ func TestActivateSceneNotFound(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s)
+	executor := NewActionExecutor(bus, reader, s, s)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "nonexistent",
@@ -79,7 +79,7 @@ func TestActivateSceneEmptyActions(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s)
+	executor := NewActionExecutor(bus, reader, s, s)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-empty",
@@ -108,7 +108,7 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s)
+	executor := NewActionExecutor(bus, reader, s, s)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
