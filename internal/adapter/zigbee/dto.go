@@ -6,13 +6,13 @@ type z2mBridgeDevice struct {
 	Type         string        `json:"type"`
 	Supported    bool          `json:"supported"`
 	Definition   z2mDefinition `json:"definition"`
-	Features     []z2mFeature  `json:"features"`
 }
 
 type z2mDefinition struct {
-	Model       string `json:"model"`
-	Vendor      string `json:"vendor"`
-	Description string `json:"description"`
+	Model       string       `json:"model"`
+	Vendor      string       `json:"vendor"`
+	Description string       `json:"description"`
+	Exposes     []z2mFeature `json:"exposes"`
 }
 
 type z2mFeature struct {
@@ -20,6 +20,11 @@ type z2mFeature struct {
 	Name     string       `json:"name"`
 	Property string       `json:"property"`
 	Features []z2mFeature `json:"features"`
+	Access   int          `json:"access"`
+	Values   []string     `json:"values"`
+	ValueMin *float64     `json:"value_min"`
+	ValueMax *float64     `json:"value_max"`
+	Unit     string       `json:"unit"`
 }
 
 type z2mDeviceState struct {

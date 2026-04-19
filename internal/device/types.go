@@ -24,13 +24,44 @@ const (
 	Unknown DeviceType = "unknown"
 )
 
+// Capability constants for known device capabilities.
+const (
+	CapOnOff       = "on_off"
+	CapBrightness  = "brightness"
+	CapColorTemp   = "color_temp"
+	CapColor       = "color"
+	CapTemperature = "temperature"
+	CapHumidity    = "humidity"
+	CapPressure    = "pressure"
+	CapIlluminance = "illuminance"
+	CapBattery     = "battery"
+	CapAction      = "action"
+	CapPower       = "power"
+	CapVoltage     = "voltage"
+	CapCurrent     = "current"
+	CapEnergy      = "energy"
+)
+
+// Capability describes a single device capability with optional rich metadata
+// extracted from the protocol adapter (e.g. zigbee2mqtt exposes).
+type Capability struct {
+	Name     string   // canonical name (e.g. "on_off", "brightness", "action")
+	Type     string   // feature type: "binary", "numeric", "enum", "text", "composite"
+	Values   []string // for enum types (e.g. ["single","double","hold"])
+	ValueMin *float64 // for numeric types
+	ValueMax *float64 // for numeric types
+	Unit     string   // for numeric types (e.g. "°C", "%", "lux")
+	Access   int      // bitmask: 1=published, 2=get, 4=set
+}
+
 // Device is the protocol-agnostic representation of a home automation device.
 type Device struct {
-	ID        DeviceID
-	Name      string
-	Source    Source
-	Type      DeviceType
-	Available bool
-	Removed   bool
-	LastSeen  time.Time
+	ID           DeviceID
+	Name         string
+	Source       Source
+	Type         DeviceType
+	Capabilities []Capability
+	Available    bool
+	Removed      bool
+	LastSeen     time.Time
 }

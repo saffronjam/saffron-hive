@@ -10,26 +10,68 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
-func detectDeviceType(features []z2mFeature) device.DeviceType {
-	flat := flattenFeatures(features)
-	hasState := false
-	hasBrightness := false
+func detectDeviceType(exposes []z2mFeature) device.DeviceType {
+	for _, e := range exposes {
+		switch e.Type {
+		case "light":
+			return device.Light
+		case "switch":
+			return device.Switch
+		}
+	}
+
+	flat := flattenFeatures(exposes)
 	for _, f := range flat {
 		switch f.Property {
-		case "state":
-			hasState = true
-		case "brightness":
-			hasBrightness = true
-		case "temperature", "humidity":
+		case "temperature", "humidity", "pressure", "illuminance":
 			return device.Sensor
 		case "action":
 			return device.Switch
 		}
 	}
-	if hasState && hasBrightness {
-		return device.Light
-	}
 	return device.Unknown
+}
+
+var knownCapabilities = map[string]string{
+	"state":       device.CapOnOff,
+	"brightness":  device.CapBrightness,
+	"color_temp":  device.CapColorTemp,
+	"color":       device.CapColor,
+	"temperature": device.CapTemperature,
+	"humidity":    device.CapHumidity,
+	"pressure":    device.CapPressure,
+	"illuminance": device.CapIlluminance,
+	"battery":     device.CapBattery,
+	"action":      device.CapAction,
+	"power":       device.CapPower,
+	"voltage":     device.CapVoltage,
+	"current":     device.CapCurrent,
+	"energy":      device.CapEnergy,
+}
+
+func extractCapabilities(exposes []z2mFeature) []device.Capability {
+	seen := make(map[string]struct{})
+	var caps []device.Capability
+	for _, f := range flattenFeatures(exposes) {
+		capName, ok := knownCapabilities[f.Property]
+		if !ok {
+			continue
+		}
+		if _, dup := seen[capName]; dup {
+			continue
+		}
+		seen[capName] = struct{}{}
+		caps = append(caps, device.Capability{
+			Name:     capName,
+			Type:     f.Type,
+			Values:   f.Values,
+			ValueMin: f.ValueMin,
+			ValueMax: f.ValueMax,
+			Unit:     f.Unit,
+			Access:   f.Access,
+		})
+	}
+	return caps
 }
 
 func flattenFeatures(features []z2mFeature) []z2mFeature {
@@ -57,16 +99,17 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 			continue
 		}
 
-		devType := detectDeviceType(d.Features)
+		devType := detectDeviceType(d.Definition.Exposes)
 		id := device.DeviceID(d.IEEEAddress)
 		incoming[id] = struct{}{}
 
 		dev := device.Device{
-			ID:        id,
-			Name:      d.FriendlyName,
-			Source:    device.Source("zigbee"),
-			Type:      devType,
-			Available: true,
+			ID:           id,
+			Name:         d.FriendlyName,
+			Source:       device.Source("zigbee"),
+			Type:         devType,
+			Capabilities: extractCapabilities(d.Definition.Exposes),
+			Available:    true,
 		}
 
 		a.stateWriter.Register(dev)

@@ -7,20 +7,20 @@
     "definition": {
       "model": "LED1545G12",
       "vendor": "IKEA",
-      "description": "TRADFRI LED bulb E26/E27 980 lumen"
-    },
-    "features": [
-      {
-        "type": "light",
-        "name": "light",
-        "property": "light",
-        "features": [
-          {"type": "binary", "name": "state", "property": "state", "features": []},
-          {"type": "numeric", "name": "brightness", "property": "brightness", "features": []},
-          {"type": "numeric", "name": "color_temp", "property": "color_temp", "features": []}
-        ]
-      }
-    ]
+      "description": "TRADFRI LED bulb E26/E27 980 lumen",
+      "exposes": [
+        {
+          "type": "light",
+          "name": "light",
+          "property": "light",
+          "features": [
+            {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []},
+            {"type": "numeric", "name": "brightness", "property": "brightness", "access": 7, "value_min": 0, "value_max": 254, "features": []},
+            {"type": "numeric", "name": "color_temp", "property": "color_temp", "access": 7, "value_min": 250, "value_max": 454, "unit": "mired", "features": []}
+          ]
+        }
+      ]
+    }
   },
   {
     "ieee_address": "0x00158d0002b3c4d5",
@@ -30,21 +30,21 @@
     "definition": {
       "model": "LED1624G9",
       "vendor": "IKEA",
-      "description": "TRADFRI LED bulb E14 400 lumen color"
-    },
-    "features": [
-      {
-        "type": "light",
-        "name": "light",
-        "property": "light",
-        "features": [
-          {"type": "binary", "name": "state", "property": "state", "features": []},
-          {"type": "numeric", "name": "brightness", "property": "brightness", "features": []},
-          {"type": "numeric", "name": "color_temp", "property": "color_temp", "features": []},
-          {"type": "composite", "name": "color", "property": "color", "features": []}
-        ]
-      }
-    ]
+      "description": "TRADFRI LED bulb E14 400 lumen color",
+      "exposes": [
+        {
+          "type": "light",
+          "name": "light",
+          "property": "light",
+          "features": [
+            {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []},
+            {"type": "numeric", "name": "brightness", "property": "brightness", "access": 7, "value_min": 0, "value_max": 254, "features": []},
+            {"type": "numeric", "name": "color_temp", "property": "color_temp", "access": 7, "value_min": 250, "value_max": 454, "unit": "mired", "features": []},
+            {"type": "composite", "name": "color", "property": "color", "access": 7, "features": []}
+          ]
+        }
+      ]
+    }
   },
   {
     "ieee_address": "0x00158d0003c4d5e6",
@@ -54,19 +54,19 @@
     "definition": {
       "model": "LED1546G12",
       "vendor": "IKEA",
-      "description": "TRADFRI LED bulb E26 806 lumen"
-    },
-    "features": [
-      {
-        "type": "light",
-        "name": "light",
-        "property": "light",
-        "features": [
-          {"type": "binary", "name": "state", "property": "state", "features": []},
-          {"type": "numeric", "name": "brightness", "property": "brightness", "features": []}
-        ]
-      }
-    ]
+      "description": "TRADFRI LED bulb E26 806 lumen",
+      "exposes": [
+        {
+          "type": "light",
+          "name": "light",
+          "property": "light",
+          "features": [
+            {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []},
+            {"type": "numeric", "name": "brightness", "property": "brightness", "access": 7, "value_min": 0, "value_max": 254, "features": []}
+          ]
+        }
+      ]
+    }
   },
   {
     "ieee_address": "0x00158d0004d5e6f7",
@@ -76,13 +76,13 @@
     "definition": {
       "model": "WSDCGQ11LM",
       "vendor": "Aqara",
-      "description": "Temperature and humidity sensor"
-    },
-    "features": [
-      {"type": "numeric", "name": "temperature", "property": "temperature", "features": []},
-      {"type": "numeric", "name": "humidity", "property": "humidity", "features": []},
-      {"type": "numeric", "name": "battery", "property": "battery", "features": []}
-    ]
+      "description": "Temperature and humidity sensor",
+      "exposes": [
+        {"type": "numeric", "name": "temperature", "property": "temperature", "access": 1, "unit": "\u00b0C", "value_min": -20, "value_max": 60, "features": []},
+        {"type": "numeric", "name": "humidity", "property": "humidity", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []},
+        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []}
+      ]
+    }
   },
   {
     "ieee_address": "0x00158d0005e6f7a8",
@@ -92,12 +92,12 @@
     "definition": {
       "model": "WSDCGQ01LM",
       "vendor": "Xiaomi",
-      "description": "MiJia temperature and humidity sensor"
-    },
-    "features": [
-      {"type": "numeric", "name": "temperature", "property": "temperature", "features": []},
-      {"type": "numeric", "name": "humidity", "property": "humidity", "features": []}
-    ]
+      "description": "MiJia temperature and humidity sensor",
+      "exposes": [
+        {"type": "numeric", "name": "temperature", "property": "temperature", "access": 1, "unit": "\u00b0C", "value_min": -20, "value_max": 60, "features": []},
+        {"type": "numeric", "name": "humidity", "property": "humidity", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []}
+      ]
+    }
   },
   {
     "ieee_address": "0x00158d0006f7a8b9",
@@ -107,11 +107,11 @@
     "definition": {
       "model": "WXKG01LM",
       "vendor": "Aqara",
-      "description": "MiJia wireless switch"
-    },
-    "features": [
-      {"type": "enum", "name": "action", "property": "action", "features": []}
-    ]
+      "description": "MiJia wireless switch",
+      "exposes": [
+        {"type": "enum", "name": "action", "property": "action", "access": 1, "values": ["single", "double", "hold"], "features": []}
+      ]
+    }
   },
   {
     "ieee_address": "0x00124b0000000000",
@@ -121,8 +121,8 @@
     "definition": {
       "model": "CC2652R",
       "vendor": "Texas Instruments",
-      "description": "Zigbee coordinator"
-    },
-    "features": []
+      "description": "Zigbee coordinator",
+      "exposes": []
+    }
   }
 ]

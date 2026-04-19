@@ -18,11 +18,15 @@ func TestDiscoverDevices_Light(t *testing.T) {
 		"friendly_name": "living_room_light",
 		"type": "Router",
 		"supported": true,
-		"definition": {"model": "LED1545G12", "vendor": "IKEA", "description": "TRADFRI bulb"},
-		"features": [
-			{"type": "binary", "name": "state", "property": "state"},
-			{"type": "numeric", "name": "brightness", "property": "brightness"}
-		]
+		"definition": {
+			"model": "LED1545G12", "vendor": "IKEA", "description": "TRADFRI bulb",
+			"exposes": [
+				{"type": "light", "features": [
+					{"type": "binary", "name": "state", "property": "state"},
+					{"type": "numeric", "name": "brightness", "property": "brightness"}
+				]}
+			]
+		}
 	}]`))
 
 	sw.mu.Lock()
@@ -52,11 +56,13 @@ func TestDiscoverDevices_Sensor(t *testing.T) {
 		"friendly_name": "temp_sensor",
 		"type": "EndDevice",
 		"supported": true,
-		"definition": {"model": "WSDCGQ11LM", "vendor": "Aqara", "description": "Temperature sensor"},
-		"features": [
-			{"type": "numeric", "name": "temperature", "property": "temperature"},
-			{"type": "numeric", "name": "humidity", "property": "humidity"}
-		]
+		"definition": {
+			"model": "WSDCGQ11LM", "vendor": "Aqara", "description": "Temperature sensor",
+			"exposes": [
+				{"type": "numeric", "name": "temperature", "property": "temperature"},
+				{"type": "numeric", "name": "humidity", "property": "humidity"}
+			]
+		}
 	}]`))
 
 	sw.mu.Lock()
@@ -83,10 +89,12 @@ func TestDiscoverDevices_Switch(t *testing.T) {
 		"friendly_name": "button_1",
 		"type": "EndDevice",
 		"supported": true,
-		"definition": {"model": "WXKG01LM", "vendor": "Aqara", "description": "Button"},
-		"features": [
-			{"type": "enum", "name": "action", "property": "action"}
-		]
+		"definition": {
+			"model": "WXKG01LM", "vendor": "Aqara", "description": "Button",
+			"exposes": [
+				{"type": "enum", "name": "action", "property": "action"}
+			]
+		}
 	}]`))
 
 	sw.mu.Lock()
@@ -113,10 +121,12 @@ func TestDiscoverDevices_Unknown(t *testing.T) {
 		"friendly_name": "mystery_device",
 		"type": "Router",
 		"supported": true,
-		"definition": {"model": "UNKNOWN", "vendor": "Unknown", "description": "Unknown"},
-		"features": [
-			{"type": "numeric", "name": "linkquality", "property": "linkquality"}
-		]
+		"definition": {
+			"model": "UNKNOWN", "vendor": "Unknown", "description": "Unknown",
+			"exposes": [
+				{"type": "numeric", "name": "linkquality", "property": "linkquality"}
+			]
+		}
 	}]`))
 
 	sw.mu.Lock()
@@ -139,11 +149,11 @@ func TestDiscoverDevices_Multiple(t *testing.T) {
 	defer adapter.Stop()
 
 	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[
-		{"ieee_address": "0x01", "friendly_name": "light1", "type": "Router", "supported": true, "definition": {}, "features": [{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]},
-		{"ieee_address": "0x02", "friendly_name": "light2", "type": "Router", "supported": true, "definition": {}, "features": [{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]},
-		{"ieee_address": "0x03", "friendly_name": "sensor1", "type": "EndDevice", "supported": true, "definition": {}, "features": [{"type":"numeric","name":"temperature","property":"temperature"}]},
-		{"ieee_address": "0x04", "friendly_name": "button1", "type": "EndDevice", "supported": true, "definition": {}, "features": [{"type":"enum","name":"action","property":"action"}]},
-		{"ieee_address": "0x05", "friendly_name": "unknown1", "type": "Router", "supported": true, "definition": {}, "features": []}
+		{"ieee_address": "0x01", "friendly_name": "light1", "type": "Router", "supported": true, "definition": {"exposes": [{"type":"light","features":[{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}]}},
+		{"ieee_address": "0x02", "friendly_name": "light2", "type": "Router", "supported": true, "definition": {"exposes": [{"type":"light","features":[{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}]}},
+		{"ieee_address": "0x03", "friendly_name": "sensor1", "type": "EndDevice", "supported": true, "definition": {"exposes": [{"type":"numeric","name":"temperature","property":"temperature"}]}},
+		{"ieee_address": "0x04", "friendly_name": "button1", "type": "EndDevice", "supported": true, "definition": {"exposes": [{"type":"enum","name":"action","property":"action"}]}},
+		{"ieee_address": "0x05", "friendly_name": "unknown1", "type": "Router", "supported": true, "definition": {"exposes": []}}
 	]`))
 
 	sw.mu.Lock()
@@ -174,8 +184,8 @@ func TestDiscoverDevices_SkipCoordinator(t *testing.T) {
 	defer adapter.Stop()
 
 	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[
-		{"ieee_address": "0xcoord", "friendly_name": "Coordinator", "type": "Coordinator", "supported": true, "definition": {}, "features": []},
-		{"ieee_address": "0x01", "friendly_name": "light1", "type": "Router", "supported": true, "definition": {}, "features": [{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}
+		{"ieee_address": "0xcoord", "friendly_name": "Coordinator", "type": "Coordinator", "supported": true, "definition": {"exposes": []}},
+		{"ieee_address": "0x01", "friendly_name": "light1", "type": "Router", "supported": true, "definition": {"exposes": [{"type":"light","features":[{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}]}}
 	]`))
 
 	sw.mu.Lock()
@@ -204,4 +214,197 @@ func TestDiscoverDevices_MalformedJSON(t *testing.T) {
 	if len(sw.devices) != 0 {
 		t.Fatal("no devices should be registered on malformed JSON")
 	}
+}
+
+func TestExtractCapabilities_Light(t *testing.T) {
+	exposes := []z2mFeature{
+		{
+			Type: "light",
+			Features: []z2mFeature{
+				{Type: "binary", Property: "state", Access: 7},
+				{Type: "numeric", Property: "brightness", Access: 7, ValueMin: ptr(0.0), ValueMax: ptr(254.0)},
+				{Type: "numeric", Property: "color_temp", Access: 7, ValueMin: ptr(150.0), ValueMax: ptr(500.0)},
+			},
+		},
+		{Property: "linkquality"},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapOnOff, device.CapBrightness, device.CapColorTemp})
+}
+
+func TestExtractCapabilities_LightWithColor(t *testing.T) {
+	exposes := []z2mFeature{
+		{
+			Type: "light",
+			Features: []z2mFeature{
+				{Type: "binary", Property: "state", Access: 7},
+				{Type: "numeric", Property: "brightness", Access: 7},
+				{Type: "numeric", Property: "color_temp", Access: 7},
+				{Type: "composite", Property: "color", Access: 7},
+			},
+		},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapOnOff, device.CapBrightness, device.CapColorTemp, device.CapColor})
+}
+
+func TestExtractCapabilities_Sensor(t *testing.T) {
+	exposes := []z2mFeature{
+		{Type: "numeric", Property: "temperature", Access: 1, Unit: "°C", ValueMin: ptr(-20.0), ValueMax: ptr(60.0)},
+		{Type: "numeric", Property: "humidity", Access: 1, Unit: "%", ValueMin: ptr(0.0), ValueMax: ptr(100.0)},
+		{Type: "numeric", Property: "battery", Access: 1, Unit: "%", ValueMin: ptr(0.0), ValueMax: ptr(100.0)},
+		{Property: "linkquality"},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapTemperature, device.CapHumidity, device.CapBattery})
+}
+
+func TestExtractCapabilities_SmartPlug(t *testing.T) {
+	exposes := []z2mFeature{
+		{
+			Type: "switch",
+			Features: []z2mFeature{
+				{Type: "binary", Property: "state", Access: 7},
+			},
+		},
+		{Type: "numeric", Property: "power", Access: 1, Unit: "W"},
+		{Type: "numeric", Property: "voltage", Access: 1, Unit: "V"},
+		{Type: "numeric", Property: "current", Access: 1, Unit: "A"},
+		{Type: "numeric", Property: "energy", Access: 1, Unit: "kWh"},
+		{Property: "linkquality"},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapOnOff, device.CapPower, device.CapVoltage, device.CapCurrent, device.CapEnergy})
+}
+
+func TestExtractCapabilities_Switch(t *testing.T) {
+	exposes := []z2mFeature{
+		{Type: "enum", Property: "action", Access: 1, Values: []string{"single", "double", "hold"}},
+		{Type: "numeric", Property: "battery", Access: 1, Unit: "%"},
+		{Property: "linkquality"},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapAction, device.CapBattery})
+}
+
+func TestExtractCapabilities_Empty(t *testing.T) {
+	caps := extractCapabilities(nil)
+	if len(caps) != 0 {
+		t.Fatalf("expected empty capabilities, got %v", capNames(caps))
+	}
+}
+
+func TestExtractCapabilities_DiagnosticOnly(t *testing.T) {
+	exposes := []z2mFeature{
+		{Property: "linkquality"},
+		{Property: "color_temp_startup"},
+	}
+	caps := extractCapabilities(exposes)
+	if len(caps) != 0 {
+		t.Fatalf("expected empty capabilities for diagnostic-only features, got %v", capNames(caps))
+	}
+}
+
+func TestExtractCapabilities_NoDuplicates(t *testing.T) {
+	exposes := []z2mFeature{
+		{
+			Type: "light",
+			Features: []z2mFeature{
+				{Type: "binary", Property: "state", Access: 7},
+				{Type: "numeric", Property: "brightness", Access: 7},
+			},
+		},
+		{Type: "binary", Property: "state", Access: 7},
+		{Type: "numeric", Property: "brightness", Access: 7},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapOnOff, device.CapBrightness})
+}
+
+func TestExtractCapabilities_RichMetadata(t *testing.T) {
+	exposes := []z2mFeature{
+		{
+			Type: "enum", Property: "action", Access: 1,
+			Values: []string{"single", "double", "hold"},
+		},
+		{
+			Type: "numeric", Property: "battery", Access: 1,
+			ValueMin: ptr(0.0), ValueMax: ptr(100.0), Unit: "%",
+		},
+		{
+			Type: "numeric", Property: "temperature", Access: 1,
+			ValueMin: ptr(-20.0), ValueMax: ptr(60.0), Unit: "°C",
+		},
+	}
+	caps := extractCapabilities(exposes)
+
+	action := findCap(t, caps, device.CapAction)
+	if action.Type != "enum" {
+		t.Fatalf("expected action type enum, got %s", action.Type)
+	}
+	if len(action.Values) != 3 || action.Values[0] != "single" {
+		t.Fatalf("expected action values [single double hold], got %v", action.Values)
+	}
+	if action.Access != 1 {
+		t.Fatalf("expected action access 1, got %d", action.Access)
+	}
+
+	battery := findCap(t, caps, device.CapBattery)
+	if battery.Unit != "%" {
+		t.Fatalf("expected battery unit %%, got %s", battery.Unit)
+	}
+	if battery.ValueMin == nil || *battery.ValueMin != 0 {
+		t.Fatalf("expected battery min 0, got %v", battery.ValueMin)
+	}
+	if battery.ValueMax == nil || *battery.ValueMax != 100 {
+		t.Fatalf("expected battery max 100, got %v", battery.ValueMax)
+	}
+
+	temp := findCap(t, caps, device.CapTemperature)
+	if temp.Unit != "°C" {
+		t.Fatalf("expected temperature unit °C, got %s", temp.Unit)
+	}
+	if temp.ValueMin == nil || *temp.ValueMin != -20 {
+		t.Fatalf("expected temperature min -20, got %v", temp.ValueMin)
+	}
+}
+
+func assertCapNames(t *testing.T, got []device.Capability, wantNames []string) {
+	t.Helper()
+	gotNames := capNames(got)
+	if len(got) != len(wantNames) {
+		t.Fatalf("expected %d capabilities %v, got %d %v", len(wantNames), wantNames, len(got), gotNames)
+	}
+	wantSet := make(map[string]struct{}, len(wantNames))
+	for _, w := range wantNames {
+		wantSet[w] = struct{}{}
+	}
+	for _, g := range got {
+		if _, ok := wantSet[g.Name]; !ok {
+			t.Fatalf("unexpected capability %q in %v (want %v)", g.Name, gotNames, wantNames)
+		}
+	}
+}
+
+func capNames(caps []device.Capability) []string {
+	names := make([]string, len(caps))
+	for i, c := range caps {
+		names[i] = c.Name
+	}
+	return names
+}
+
+func findCap(t *testing.T, caps []device.Capability, name string) device.Capability {
+	t.Helper()
+	for _, c := range caps {
+		if c.Name == name {
+			return c
+		}
+	}
+	t.Fatalf("capability %q not found in %v", name, capNames(caps))
+	return device.Capability{}
+}
+
+func ptr(f float64) *float64 {
+	return &f
 }
