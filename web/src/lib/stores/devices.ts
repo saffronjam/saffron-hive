@@ -31,13 +31,24 @@ export interface SwitchState {
   action: string | null;
 }
 
-type DeviceState = LightState | SensorState | SwitchState;
+export type DeviceState = LightState | SensorState | SwitchState;
+
+export interface Capability {
+  name: string;
+  type: string;
+  values: string[] | null;
+  valueMin: number | null;
+  valueMax: number | null;
+  unit: string | null;
+  access: number;
+}
 
 export interface Device {
   id: string;
   name: string;
   source: string;
   type: string;
+  capabilities: Capability[];
   available: boolean;
   lastSeen: string;
   state: DeviceState | null;
