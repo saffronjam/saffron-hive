@@ -4,6 +4,8 @@ package model
 
 import (
 	"time"
+
+	"github.com/99designs/gqlgen/graphql"
 )
 
 type DeviceState interface {
@@ -20,6 +22,11 @@ type AddGroupMemberInput struct {
 	MemberID   string `json:"memberId"`
 }
 
+type AddRoomDeviceInput struct {
+	RoomID   string `json:"roomId"`
+	DeviceID string `json:"deviceId"`
+}
+
 type AutomationEdge struct {
 	ID         string `json:"id"`
 	FromNodeID string `json:"fromNodeId"`
@@ -34,6 +41,7 @@ type AutomationEdgeInput struct {
 type AutomationGraph struct {
 	ID              string            `json:"id"`
 	Name            string            `json:"name"`
+	Icon            *string           `json:"icon,omitempty"`
 	Enabled         bool              `json:"enabled"`
 	CooldownSeconds int               `json:"cooldownSeconds"`
 	Nodes           []*AutomationNode `json:"nodes"`
@@ -58,6 +66,16 @@ type AutomationNodeInput struct {
 	Config string `json:"config"`
 }
 
+type Capability struct {
+	Name     string   `json:"name"`
+	Type     string   `json:"type"`
+	Values   []string `json:"values,omitempty"`
+	ValueMin *float64 `json:"valueMin,omitempty"`
+	ValueMax *float64 `json:"valueMax,omitempty"`
+	Unit     *string  `json:"unit,omitempty"`
+	Access   int      `json:"access"`
+}
+
 type Color struct {
 	R int     `json:"r"`
 	G int     `json:"g"`
@@ -74,6 +92,11 @@ type ColorInput struct {
 	Y float64 `json:"y"`
 }
 
+type ConnectionTestResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 type CreateAutomationInput struct {
 	Name            string                 `json:"name"`
 	Enabled         bool                   `json:"enabled"`
@@ -86,19 +109,24 @@ type CreateGroupInput struct {
 	Name string `json:"name"`
 }
 
+type CreateRoomInput struct {
+	Name string `json:"name"`
+}
+
 type CreateSceneInput struct {
 	Name    string              `json:"name"`
 	Actions []*SceneActionInput `json:"actions"`
 }
 
 type Device struct {
-	ID        string      `json:"id"`
-	Name      string      `json:"name"`
-	Source    string      `json:"source"`
-	Type      string      `json:"type"`
-	Available bool        `json:"available"`
-	LastSeen  *time.Time  `json:"lastSeen,omitempty"`
-	State     DeviceState `json:"state,omitempty"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Source       string        `json:"source"`
+	Type         string        `json:"type"`
+	Capabilities []*Capability `json:"capabilities"`
+	Available    bool          `json:"available"`
+	LastSeen     *time.Time    `json:"lastSeen,omitempty"`
+	State        DeviceState   `json:"state,omitempty"`
 }
 
 func (Device) IsSceneTarget() {}
@@ -116,6 +144,7 @@ type DeviceStateEvent struct {
 type Group struct {
 	ID              string         `json:"id"`
 	Name            string         `json:"name"`
+	Icon            *string        `json:"icon,omitempty"`
 	Members         []*GroupMember `json:"members"`
 	ResolvedDevices []*Device      `json:"resolvedDevices"`
 }
@@ -128,6 +157,7 @@ type GroupMember struct {
 	MemberID   string  `json:"memberId"`
 	Device     *Device `json:"device,omitempty"`
 	Group      *Group  `json:"group,omitempty"`
+	Room       *Room   `json:"room,omitempty"`
 }
 
 type LightState struct {
@@ -141,11 +171,32 @@ type LightState struct {
 func (LightState) IsDeviceState() {}
 
 type LightStateInput struct {
-	On         *bool       `json:"on,omitempty"`
-	Brightness *int        `json:"brightness,omitempty"`
-	ColorTemp  *int        `json:"colorTemp,omitempty"`
-	Color      *ColorInput `json:"color,omitempty"`
-	Transition *float64    `json:"transition,omitempty"`
+	On         graphql.Omittable[*bool]       `json:"on,omitempty"`
+	Brightness graphql.Omittable[*int]        `json:"brightness,omitempty"`
+	ColorTemp  graphql.Omittable[*int]        `json:"colorTemp,omitempty"`
+	Color      graphql.Omittable[*ColorInput] `json:"color,omitempty"`
+	Transition graphql.Omittable[*float64]    `json:"transition,omitempty"`
+}
+
+type LogEntry struct {
+	Timestamp time.Time `json:"timestamp"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+	Attrs     string    `json:"attrs"`
+}
+
+type MqttConfig struct {
+	Broker   string `json:"broker"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	UseWss   bool   `json:"useWss"`
+}
+
+type MqttConfigInput struct {
+	Broker   string `json:"broker"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	UseWss   bool   `json:"useWss"`
 }
 
 type Mutation struct {
@@ -154,9 +205,19 @@ type Mutation struct {
 type Query struct {
 }
 
+type Room struct {
+	ID      string    `json:"id"`
+	Name    string    `json:"name"`
+	Icon    *string   `json:"icon,omitempty"`
+	Devices []*Device `json:"devices"`
+}
+
+func (Room) IsSceneTarget() {}
+
 type Scene struct {
 	ID      string         `json:"id"`
 	Name    string         `json:"name"`
+	Icon    *string        `json:"icon,omitempty"`
 	Actions []*SceneAction `json:"actions"`
 }
 
@@ -195,6 +256,11 @@ type SensorState struct {
 
 func (SensorState) IsDeviceState() {}
 
+type Setting struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type Subscription struct {
 }
 
@@ -205,22 +271,30 @@ type SwitchState struct {
 func (SwitchState) IsDeviceState() {}
 
 type UpdateAutomationInput struct {
-	Name            *string                `json:"name,omitempty"`
-	Enabled         *bool                  `json:"enabled,omitempty"`
-	CooldownSeconds *int                   `json:"cooldownSeconds,omitempty"`
-	Nodes           []*AutomationNodeInput `json:"nodes,omitempty"`
-	Edges           []*AutomationEdgeInput `json:"edges,omitempty"`
+	Name            graphql.Omittable[*string]                `json:"name,omitempty"`
+	Icon            graphql.Omittable[*string]                `json:"icon,omitempty"`
+	Enabled         graphql.Omittable[*bool]                  `json:"enabled,omitempty"`
+	CooldownSeconds graphql.Omittable[*int]                   `json:"cooldownSeconds,omitempty"`
+	Nodes           graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
+	Edges           graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
 }
 
 type UpdateDeviceInput struct {
-	Name *string `json:"name,omitempty"`
+	Name graphql.Omittable[*string] `json:"name,omitempty"`
 }
 
 type UpdateGroupInput struct {
-	Name *string `json:"name,omitempty"`
+	Name graphql.Omittable[*string] `json:"name,omitempty"`
+	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
+}
+
+type UpdateRoomInput struct {
+	Name graphql.Omittable[*string] `json:"name,omitempty"`
+	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
 }
 
 type UpdateSceneInput struct {
-	Name    *string             `json:"name,omitempty"`
-	Actions []*SceneActionInput `json:"actions,omitempty"`
+	Name    graphql.Omittable[*string]             `json:"name,omitempty"`
+	Icon    graphql.Omittable[*string]             `json:"icon,omitempty"`
+	Actions graphql.Omittable[[]*SceneActionInput] `json:"actions,omitempty"`
 }

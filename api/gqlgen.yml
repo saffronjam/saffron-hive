@@ -17,6 +17,8 @@ resolver:
 
 autobind: []
 
+nullable_input_omittable: true
+
 models:
   DateTime:
     model:

@@ -2,11 +2,22 @@ scalar DateTime
 
 union DeviceState = LightState | SensorState | SwitchState
 
+type Capability {
+  name: String!
+  type: String!
+  values: [String!]
+  valueMin: Float
+  valueMax: Float
+  unit: String
+  access: Int!
+}
+
 type Device {
   id: ID!
   name: String!
   source: String!
   type: String!
+  capabilities: [Capability!]!
   available: Boolean!
   lastSeen: DateTime
   state: DeviceState
@@ -43,10 +54,11 @@ type Color {
 type Scene {
   id: ID!
   name: String!
+  icon: String
   actions: [SceneAction!]!
 }
 
-union SceneTarget = Device | Group
+union SceneTarget = Device | Group | Room
 
 type SceneAction {
   id: ID!
@@ -59,6 +71,7 @@ type SceneAction {
 type AutomationGraph {
   id: ID!
   name: String!
+  icon: String
   enabled: Boolean!
   cooldownSeconds: Int!
   nodes: [AutomationNode!]!
@@ -80,6 +93,7 @@ type AutomationEdge {
 type Group {
   id: ID!
   name: String!
+  icon: String
   members: [GroupMember!]!
   resolvedDevices: [Device!]!
 }
@@ -90,6 +104,14 @@ type GroupMember {
   memberId: ID!
   device: Device
   group: Group
+  room: Room
+}
+
+type Room {
+  id: ID!
+  name: String!
+  icon: String
+  devices: [Device!]!
 }
 
 type SensorReading {
@@ -117,6 +139,37 @@ type AutomationNodeActivationEvent {
   automationId: ID!
   nodeId: ID!
   active: Boolean!
+}
+
+type MqttConfig {
+  broker: String!
+  username: String!
+  password: String!
+  useWss: Boolean!
+}
+
+type ConnectionTestResult {
+  success: Boolean!
+  message: String!
+}
+
+type Setting {
+  key: String!
+  value: String!
+}
+
+type LogEntry {
+  timestamp: DateTime!
+  level: String!
+  message: String!
+  attrs: String!
+}
+
+input MqttConfigInput {
+  broker: String!
+  username: String!
+  password: String!
+  useWss: Boolean!
 }
 
 input LightStateInput {
@@ -152,6 +205,7 @@ input SceneActionInput {
 
 input UpdateSceneInput {
   name: String
+  icon: String
   actions: [SceneActionInput!]
 }
 
@@ -180,6 +234,7 @@ input CreateGroupInput {
 
 input UpdateGroupInput {
   name: String
+  icon: String
 }
 
 input AddGroupMemberInput {
@@ -188,8 +243,23 @@ input AddGroupMemberInput {
   memberId: ID!
 }
 
+input CreateRoomInput {
+  name: String!
+}
+
+input UpdateRoomInput {
+  name: String
+  icon: String
+}
+
+input AddRoomDeviceInput {
+  roomId: ID!
+  deviceId: ID!
+}
+
 input UpdateAutomationInput {
   name: String
+  icon: String
   enabled: Boolean
   cooldownSeconds: Int
   nodes: [AutomationNodeInput!]
@@ -205,7 +275,12 @@ type Query {
   automation(id: ID!): AutomationGraph
   groups: [Group!]!
   group(id: ID!): Group
+  rooms: [Room!]!
+  room(id: ID!): Room
   sensorHistory(deviceId: ID!, from: DateTime, to: DateTime, limit: Int): [SensorReading!]!
+  mqttConfig: MqttConfig
+  settings: [Setting!]!
+  logs(search: String, limit: Int): [LogEntry!]!
 }
 
 type Mutation {
@@ -224,6 +299,14 @@ type Mutation {
   deleteGroup(id: ID!): Boolean!
   addGroupMember(input: AddGroupMemberInput!): GroupMember!
   removeGroupMember(id: ID!): Boolean!
+  createRoom(input: CreateRoomInput!): Room!
+  updateRoom(id: ID!, input: UpdateRoomInput!): Room!
+  deleteRoom(id: ID!): Boolean!
+  addRoomDevice(input: AddRoomDeviceInput!): Room!
+  removeRoomDevice(roomId: ID!, deviceId: ID!): Room!
+  updateMqttConfig(input: MqttConfigInput!): MqttConfig!
+  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult!
+  updateSetting(key: String!, value: String!): Setting!
 }
 
 type Subscription {
@@ -232,4 +315,5 @@ type Subscription {
   deviceAdded: Device!
   deviceRemoved: ID!
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
+  logStream: LogEntry!
 }
