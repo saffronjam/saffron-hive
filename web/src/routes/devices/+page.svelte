@@ -10,47 +10,83 @@
 		type SwitchState,
 	} from "$lib/stores/devices";
 	import DeviceCard from "$lib/components/device-card.svelte";
-	import DeviceFilters from "$lib/components/device-filters.svelte";
+	import DeviceTable from "$lib/components/device-table.svelte";
+	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
+	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import ListView from "$lib/components/list-view.svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import { chipsByDevice } from "$lib/memberships";
+	import { compareDevicesByName } from "$lib/list-helpers";
+	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 	import { gql } from "@urql/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
+
+	let view = $state<ListViewMode>(profile.get("view.devices", "card"));
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Devices" }];
 	});
 	onDestroy(() => pageHeader.reset());
 
+	$effect(() => {
+		pageHeader.viewToggle = {
+			value: view,
+			onchange: (v) => {
+				view = v;
+				profile.set("view.devices", v);
+			},
+		};
+	});
+
 	type DeviceState = LightState | SensorState | SwitchState;
 
-	let search = $state("");
-	let typeFilter = $state("all");
-	let availabilityFilter = $state("all");
+	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
-	const allDevices = $derived(Object.values($deviceStore));
+	const deviceTypeOptions = [
+		{ value: "light", label: "Light" },
+		{ value: "sensor", label: "Sensor" },
+		{ value: "switch", label: "Switch" },
+	];
+
+	const searchChipConfigs: ChipConfig[] = [
+		{
+			keyword: "type",
+			label: "Type",
+			variant: "secondary",
+			options: (input) => {
+				const q = input.toLowerCase();
+				if (!q) return deviceTypeOptions;
+				return deviceTypeOptions.filter(
+					(o) => o.value.includes(q) || o.label.toLowerCase().includes(q)
+				);
+			},
+		},
+	];
+
+	const allDevices = $derived(
+		Object.values($deviceStore).sort(compareDevicesByName)
+	);
 
 	const filteredDevices = $derived.by(() => {
-		let result = allDevices;
+		const typeValues = searchState.chips
+			.filter((c) => c.keyword === "type")
+			.map((c) => c.value);
+		const query = searchState.freeText.toLowerCase();
 
-		if (search.length > 0) {
-			const query = search.toLowerCase();
-			result = result.filter(
-				(d) =>
+		return allDevices.filter((d) => {
+			if (typeValues.length > 0 && !typeValues.includes(d.type)) return false;
+			if (query) {
+				const matches =
 					d.name.toLowerCase().includes(query) ||
 					d.type.toLowerCase().includes(query) ||
-					d.source.toLowerCase().includes(query)
-			);
-		}
-
-		if (typeFilter !== "all") {
-			result = result.filter((d) => d.type === typeFilter);
-		}
-
-		if (availabilityFilter === "online") {
-			result = result.filter((d) => d.available);
-		} else if (availabilityFilter === "offline") {
-			result = result.filter((d) => !d.available);
-		}
-
-		return result;
+					d.source.toLowerCase().includes(query);
+				if (!matches) return false;
+			}
+			return true;
+		});
 	});
 
 	const DEVICES_QUERY = gql`
@@ -60,6 +96,7 @@
 				name
 				source
 				type
+				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen
 				state {
@@ -134,6 +171,7 @@
 				name
 				source
 				type
+				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen
 				state {
@@ -177,6 +215,54 @@
 		}
 	`;
 
+	const ROOMS_QUERY = gql`
+		query DeviceListRooms {
+			rooms {
+				id
+				name
+				devices { id }
+			}
+		}
+	`;
+
+	const GROUPS_QUERY = gql`
+		query DeviceListGroups {
+			groups {
+				id
+				name
+				members { memberType memberId }
+			}
+		}
+	`;
+
+	const ADD_ROOM_DEVICE = gql`
+		mutation DeviceListAddRoomDevice($input: AddRoomDeviceInput!) {
+			addRoomDevice(input: $input) {
+				id
+			}
+		}
+	`;
+
+	const ADD_GROUP_MEMBER = gql`
+		mutation DeviceListAddGroupMember($input: AddGroupMemberInput!) {
+			addGroupMember(input: $input) {
+				id
+			}
+		}
+	`;
+
+	interface RoomInfo {
+		id: string;
+		name: string;
+		devices: { id: string }[];
+	}
+
+	interface GroupInfo {
+		id: string;
+		name: string;
+		members: { memberType: string; memberId: string }[];
+	}
+
 	interface DevicesQueryResult {
 		devices: Device[];
 	}
@@ -210,8 +296,100 @@
 		};
 	}
 
+	interface RoomsQueryResult {
+		rooms: RoomInfo[];
+	}
+
+	interface GroupsQueryResult {
+		groups: GroupInfo[];
+	}
+
 	let client: Client;
 	let unsubscribers: (() => void)[] = [];
+
+	let rooms = $state<RoomInfo[]>([]);
+	let groups = $state<GroupInfo[]>([]);
+
+	let addToPickerOpen = $state(false);
+	let pickerDevice = $state<Device | null>(null);
+
+	const chipsIndex = $derived(chipsByDevice(rooms, groups));
+
+	function chipsFor(deviceId: string) {
+		return chipsIndex.get(deviceId) ?? { roomChips: [], groupChips: [] };
+	}
+
+	const pickerDrawerGroups = $derived.by((): DrawerGroup<"room" | "group">[] => {
+		if (!pickerDevice) return [];
+		const availableRooms = rooms.filter((r) => !r.devices.some((d) => d.id === pickerDevice!.id));
+		const availableGroups = groups.filter(
+			(g) => !g.members.some((m) => m.memberType === "device" && m.memberId === pickerDevice!.id)
+		);
+		const result: DrawerGroup<"room" | "group">[] = [];
+		if (availableRooms.length > 0) {
+			result.push({
+				heading: "Rooms",
+				items: availableRooms.map((r) => ({
+					type: "room" as const,
+					id: r.id,
+					name: r.name,
+					icon: DoorOpen,
+				})),
+			});
+		}
+		if (availableGroups.length > 0) {
+			result.push({
+				heading: "Groups",
+				items: availableGroups.map((g) => ({
+					type: "group" as const,
+					id: g.id,
+					name: g.name,
+					icon: GroupIcon,
+				})),
+			});
+		}
+		return result;
+	});
+
+	async function refreshMemberships() {
+		const [r, g] = await Promise.all([
+			client.query<RoomsQueryResult>(ROOMS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
+			client.query<GroupsQueryResult>(GROUPS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
+		]);
+		if (r.data) rooms = r.data.rooms;
+		if (g.data) groups = g.data.groups;
+	}
+
+	function handleAddTo(device: Device) {
+		pickerDevice = device;
+		addToPickerOpen = true;
+	}
+
+	let pendingPicks = 0;
+
+	async function handlePickerSelect(type: "room" | "group", id: string) {
+		if (!pickerDevice) return;
+		const deviceId = pickerDevice.id;
+		pendingPicks++;
+		try {
+			if (type === "room") {
+				await client
+					.mutation(ADD_ROOM_DEVICE, { input: { roomId: id, deviceId } })
+					.toPromise();
+			} else {
+				await client
+					.mutation(ADD_GROUP_MEMBER, {
+						input: { groupId: id, memberType: "device", memberId: deviceId },
+					})
+					.toPromise();
+			}
+		} finally {
+			pendingPicks--;
+			if (pendingPicks === 0) {
+				await refreshMemberships();
+			}
+		}
+	}
 
 	async function handleRename(id: string, newName: string) {
 		const result = await client
@@ -233,6 +411,8 @@
 					deviceStore.hydrate(result.data.devices);
 				}
 			});
+
+		refreshMemberships();
 
 		const { unsubscribe: unsubState } = client
 			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, {})
@@ -283,13 +463,11 @@
 <div>
 
 	<div class="mb-6">
-		<DeviceFilters
-			{search}
-			{typeFilter}
-			{availabilityFilter}
-			onsearchchange={(v) => (search = v)}
-			ontypechange={(v) => (typeFilter = v)}
-			onavailabilitychange={(v) => (availabilityFilter = v)}
+		<HiveSearchbar
+			value={searchState}
+			onchange={(v) => (searchState = v)}
+			chips={searchChipConfigs}
+			placeholder="Search devices..."
 		/>
 	</div>
 
@@ -305,10 +483,40 @@
 			<p class="text-muted-foreground">No devices match your filters.</p>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			{#each filteredDevices as device (device.id)}
-				<DeviceCard {device} onrename={handleRename} />
-			{/each}
-		</div>
+		<ListView mode={view}>
+			{#snippet card()}
+				<AnimatedGrid>
+					{#each filteredDevices as device (device.id)}
+						{@const chips = chipsFor(device.id)}
+						<DeviceCard
+							{device}
+							roomChips={chips.roomChips}
+							groupChips={chips.groupChips}
+							onrename={handleRename}
+							onAddTo={handleAddTo}
+						/>
+					{/each}
+				</AnimatedGrid>
+			{/snippet}
+			{#snippet table()}
+				<DeviceTable
+					rows={filteredDevices.map((device) => {
+						const chips = chipsFor(device.id);
+						return { device, roomChips: chips.roomChips, groupChips: chips.groupChips };
+					})}
+					onrename={handleRename}
+					onAddTo={handleAddTo}
+				/>
+			{/snippet}
+		</ListView>
 	{/if}
+
+	<HiveDrawer
+		bind:open={addToPickerOpen}
+		title={pickerDevice ? `Add ${pickerDevice.name} to rooms or groups` : "Add to rooms or groups"}
+		description="Pick one or more rooms and groups for this device."
+		multiple
+		groups={pickerDrawerGroups}
+		onselect={handlePickerSelect}
+	/>
 </div>

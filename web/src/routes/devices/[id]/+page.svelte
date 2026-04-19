@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import {
@@ -13,6 +14,7 @@
 	} from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
 		Tooltip,
@@ -24,7 +26,12 @@
 	import LightControls from "$lib/components/light-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import SwitchDisplay from "$lib/components/switch-display.svelte";
-	import { ArrowLeft, Copy, Check, ExternalLink } from "@lucide/svelte";
+	import MemberTable from "$lib/components/member-table.svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import { membershipRowsForDevice } from "$lib/memberships";
+	import { ArrowLeft, Copy, Check, DoorOpen, Group as GroupIcon } from "@lucide/svelte";
+
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { gql } from "@urql/svelte";
 	import type { Client } from "@urql/svelte";
@@ -62,7 +69,15 @@
 		members: GroupMember[];
 	}
 
+	interface RoomInfo {
+		id: string;
+		name: string;
+		devices: { id: string }[];
+	}
+
 	let groups = $state<GroupInfo[]>([]);
+	let rooms = $state<RoomInfo[]>([]);
+	let pickerOpen = $state(false);
 
 	const DEVICE_QUERY = gql`
 		query Device($id: ID!) {
@@ -71,6 +86,7 @@
 				name
 				source
 				type
+				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen
 				state {
@@ -110,6 +126,40 @@
 					memberId
 				}
 			}
+		}
+	`;
+
+	const ROOMS_QUERY = gql`
+		query DeviceDetailRooms {
+			rooms {
+				id
+				name
+				devices { id }
+			}
+		}
+	`;
+
+	const ADD_ROOM_DEVICE = gql`
+		mutation DeviceDetailAddRoomDevice($input: AddRoomDeviceInput!) {
+			addRoomDevice(input: $input) { id }
+		}
+	`;
+
+	const REMOVE_ROOM_DEVICE = gql`
+		mutation DeviceDetailRemoveRoomDevice($roomId: ID!, $deviceId: ID!) {
+			removeRoomDevice(roomId: $roomId, deviceId: $deviceId) { id }
+		}
+	`;
+
+	const ADD_GROUP_MEMBER = gql`
+		mutation DeviceDetailAddGroupMember($input: AddGroupMemberInput!) {
+			addGroupMember(input: $input) { id }
+		}
+	`;
+
+	const REMOVE_GROUP_MEMBER = gql`
+		mutation DeviceDetailRemoveGroupMember($id: ID!) {
+			removeGroupMember(id: $id)
 		}
 	`;
 
@@ -178,6 +228,10 @@
 		groups: GroupInfo[];
 	}
 
+	interface RoomsQueryResult {
+		rooms: RoomInfo[];
+	}
+
 	interface SetDeviceStateResult {
 		setDeviceState: Device;
 	}
@@ -203,9 +257,102 @@
 	const sensor = $derived(device && isSensorState(device.state) ? device.state : null);
 	const sw = $derived(device && isSwitchState(device.state) ? device.state : null);
 
-	const deviceGroups = $derived(
-		groups.filter((g) => g.members.some((m) => m.memberType === "device" && m.memberId === deviceId))
+	const membershipData = $derived(membershipRowsForDevice(deviceId, rooms, groups));
+
+	const membershipRows = $derived(
+		membershipData.map((row) => ({
+			id: row.id,
+			name: row.name,
+			type: row.kind,
+			related: [] as [],
+			onclick:
+				row.kind === "room"
+					? () => goto(`/rooms?edit=${row.roomId}`)
+					: () => goto(`/groups?edit=${row.groupId}`),
+		}))
 	);
+
+	const pickerDrawerGroups = $derived.by((): DrawerGroup<"room" | "group">[] => {
+		const availableRooms = rooms.filter((r) => !r.devices.some((d) => d.id === deviceId));
+		const availableGroups = groups.filter(
+			(g) => !g.members.some((m) => m.memberType === "device" && m.memberId === deviceId)
+		);
+		const result: DrawerGroup<"room" | "group">[] = [];
+		if (availableRooms.length > 0) {
+			result.push({
+				heading: "Rooms",
+				items: availableRooms.map((r) => ({
+					type: "room" as const,
+					id: r.id,
+					name: r.name,
+					icon: DoorOpen,
+				})),
+			});
+		}
+		if (availableGroups.length > 0) {
+			result.push({
+				heading: "Groups",
+				items: availableGroups.map((g) => ({
+					type: "group" as const,
+					id: g.id,
+					name: g.name,
+					icon: GroupIcon,
+				})),
+			});
+		}
+		return result;
+	});
+
+	async function refreshMemberships() {
+		if (!clientRef) return;
+		const [r, g] = await Promise.all([
+			clientRef.query<RoomsQueryResult>(ROOMS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
+			clientRef.query<GroupsQueryResult>(GROUPS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
+		]);
+		if (r.data) rooms = r.data.rooms;
+		if (g.data) groups = g.data.groups;
+	}
+
+	let pendingPicks = 0;
+
+	async function handlePickerSelect(type: "room" | "group", id: string) {
+		if (!clientRef) return;
+		pendingPicks++;
+		try {
+			if (type === "room") {
+				await clientRef
+					.mutation(ADD_ROOM_DEVICE, { input: { roomId: id, deviceId } })
+					.toPromise();
+			} else {
+				await clientRef
+					.mutation(ADD_GROUP_MEMBER, {
+						input: { groupId: id, memberType: "device", memberId: deviceId },
+					})
+					.toPromise();
+			}
+		} finally {
+			pendingPicks--;
+			if (pendingPicks === 0) {
+				await refreshMemberships();
+			}
+		}
+	}
+
+	async function handleRemoveMembership(rowId: string) {
+		if (!clientRef) return;
+		const row = membershipData.find((r) => r.id === rowId);
+		if (!row) return;
+		if (row.kind === "room") {
+			await clientRef
+				.mutation(REMOVE_ROOM_DEVICE, { roomId: row.roomId, deviceId })
+				.toPromise();
+		} else {
+			await clientRef
+				.mutation(REMOVE_GROUP_MEMBER, { id: row.groupMemberId })
+				.toPromise();
+		}
+		await refreshMemberships();
+	}
 
 	const formattedLastSeen = $derived.by(() => {
 		if (!device) return "";
@@ -281,6 +428,15 @@
 			.then((result) => {
 				if (result.data) {
 					groups = result.data.groups;
+				}
+			});
+
+		client
+			.query<RoomsQueryResult>(ROOMS_QUERY, {})
+			.toPromise()
+			.then((result) => {
+				if (result.data) {
+					rooms = result.data.rooms;
 				}
 			});
 
@@ -381,14 +537,14 @@
 							<div class="flex items-center justify-between">
 								<dt class="text-sm text-muted-foreground">Type</dt>
 								<dd>
-									<Badge variant="secondary">{device.type}</Badge>
+									<DeviceTypeBadge type={device.type} />
 								</dd>
 							</div>
 
 							<div class="flex items-center justify-between">
 								<dt class="text-sm text-muted-foreground">Source</dt>
 								<dd>
-									<Badge variant="outline">{device.source}</Badge>
+									<Badge variant="outline">{device.source.charAt(0).toUpperCase() + device.source.slice(1)}</Badge>
 								</dd>
 							</div>
 
@@ -412,26 +568,20 @@
 					</CardContent>
 				</Card>
 
-				{#if deviceGroups.length > 0}
-					<Card>
-						<CardHeader>
-							<CardTitle>Groups</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div class="space-y-2">
-								{#each deviceGroups as group (group.id)}
-									<a
-										href="/groups"
-										class="flex items-center justify-between rounded-lg shadow-card px-3 py-2 transition-colors hover:bg-accent"
-									>
-										<span class="text-sm font-medium">{group.name}</span>
-										<ExternalLink class="size-3.5 text-muted-foreground" />
-									</a>
-								{/each}
-							</div>
-						</CardContent>
-					</Card>
-				{/if}
+				<Card>
+					<CardHeader>
+						<CardTitle>Rooms & Groups</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<MemberTable
+							rows={membershipRows}
+							emptyMessage="Not in any room or group yet."
+							addLabel="Add to"
+							onadd={() => (pickerOpen = true)}
+							onremove={handleRemoveMembership}
+						/>
+					</CardContent>
+				</Card>
 			</div>
 
 			<div>
@@ -464,4 +614,13 @@
 			</CardContent>
 		</Card>
 	{/if}
+
+	<HiveDrawer
+		bind:open={pickerOpen}
+		title="Add to rooms or groups"
+		description="Pick one or more rooms and groups for this device."
+		multiple
+		groups={pickerDrawerGroups}
+		onselect={handlePickerSelect}
+	/>
 </div>
