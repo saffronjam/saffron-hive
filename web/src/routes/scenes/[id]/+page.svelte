@@ -2,9 +2,8 @@
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -44,7 +43,7 @@
 		members: { id: string; memberType: string; memberId: string }[];
 	}
 
-	const SCENE_QUERY = gql`
+	const SCENE_QUERY = graphql(`
 		query Scene($id: ID!) {
 			scene(id: $id) {
 				id
@@ -131,10 +130,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICES_QUERY = gql`
-		query Devices {
+	const DEVICES_QUERY = graphql(`
+		query SceneEditDevices {
 			devices {
 				id
 				name
@@ -166,10 +165,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const GROUPS_QUERY = gql`
-		query Groups {
+	const GROUPS_QUERY = graphql(`
+		query SceneEditGroups {
 			groups {
 				id
 				name
@@ -210,10 +209,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_SCENE = gql`
-		mutation UpdateScene($id: ID!, $input: UpdateSceneInput!) {
+	const UPDATE_SCENE = graphql(`
+		mutation SceneEditUpdate($id: ID!, $input: UpdateSceneInput!) {
 			updateScene(id: $id, input: $input) {
 				id
 				name
@@ -226,17 +225,17 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const SET_DEVICE_STATE = gql`
-		mutation SetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+	const SET_DEVICE_STATE = graphql(`
+		mutation SceneEditSetDeviceState($deviceId: ID!, $state: LightStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_STATE_CHANGED = gql`
+	const DEVICE_STATE_CHANGED = graphql(`
 		subscription DeviceStateChanged {
 			deviceStateChanged {
 				deviceId
@@ -264,7 +263,7 @@
 				}
 			}
 		}
-	`;
+	`);
 
 	interface SceneQueryResult {
 		scene: SceneData | null;
@@ -293,7 +292,7 @@
 		};
 	}
 
-	let clientRef: Client | null = null;
+	const clientRef = getContextClient();
 	let scene = $state<SceneData | null>(null);
 
 	onMount(() => {
@@ -516,8 +515,7 @@
 	}
 
 	onMount(() => {
-		const client = createGraphQLClient();
-		clientRef = client;
+		const client = clientRef;
 
 		client
 			.query<SceneQueryResult>(SCENE_QUERY, { id: sceneId })

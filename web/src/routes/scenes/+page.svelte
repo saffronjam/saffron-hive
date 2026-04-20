@@ -2,9 +2,8 @@
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import {
@@ -58,7 +57,7 @@
 		deleteScene: boolean;
 	}
 
-	const SCENES_QUERY = gql`
+	const SCENES_QUERY = graphql(`
 		query Scenes {
 			scenes {
 				id
@@ -77,9 +76,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const CREATE_SCENE = gql`
+	const CREATE_SCENE = graphql(`
 		mutation CreateScene($input: CreateSceneInput!) {
 			createScene(input: $input) {
 				id
@@ -97,41 +96,41 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const APPLY_SCENE = gql`
+	const APPLY_SCENE = graphql(`
 		mutation ApplyScene($sceneId: ID!) {
 			applyScene(sceneId: $sceneId) {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const DELETE_SCENE = gql`
+	const DELETE_SCENE = graphql(`
 		mutation DeleteScene($id: ID!) {
 			deleteScene(id: $id)
 		}
-	`;
+	`);
 
-	const UPDATE_SCENE_NAME = gql`
-		mutation UpdateScene($id: ID!, $input: UpdateSceneInput!) {
+	const UPDATE_SCENE_NAME = graphql(`
+		mutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {
 			updateScene(id: $id, input: $input) {
 				id
 				name
 				icon
 			}
 		}
-	`;
+	`);
 
-	const DEVICES_QUERY = gql`
+	const DEVICES_QUERY = graphql(`
 		query ScenesPageDevices {
 			devices {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
 	interface DeviceRef {
 		id: string;
@@ -142,7 +141,7 @@
 		devices: DeviceRef[];
 	}
 
-	let clientRef: Client | null = null;
+	const clientRef = getContextClient();
 	let scenes = $state<SceneData[]>([]);
 	let devicesRef = $state<DeviceRef[]>([]);
 	let loading = $state(true);
@@ -374,7 +373,6 @@
 	});
 
 	onMount(() => {
-		clientRef = createGraphQLClient();
 		fetchScenes();
 		fetchDevices();
 	});
