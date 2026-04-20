@@ -37,6 +37,24 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	ActivityEvent struct {
+		ID        func(childComplexity int) int
+		Message   func(childComplexity int) int
+		Payload   func(childComplexity int) int
+		Source    func(childComplexity int) int
+		Timestamp func(childComplexity int) int
+		Type      func(childComplexity int) int
+	}
+
+	ActivitySource struct {
+		ID       func(childComplexity int) int
+		Kind     func(childComplexity int) int
+		Name     func(childComplexity int) int
+		RoomID   func(childComplexity int) int
+		RoomName func(childComplexity int) int
+		Type     func(childComplexity int) int
+	}
+
 	AuthPayload struct {
 		Token func(childComplexity int) int
 		User  func(childComplexity int) int
@@ -185,6 +203,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		Activity      func(childComplexity int, filter *model.ActivityFilter) int
 		Automation    func(childComplexity int, id string) int
 		Automations   func(childComplexity int) int
 		Device        func(childComplexity int, id string) int
@@ -258,6 +277,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
+		ActivityStream            func(childComplexity int, advanced *bool) int
 		AutomationNodeActivated   func(childComplexity int, automationID *string) int
 		DeviceAdded               func(childComplexity int) int
 		DeviceAvailabilityChanged func(childComplexity int) int
@@ -320,6 +340,7 @@ type QueryResolver interface {
 	MqttConfig(ctx context.Context) (*model.MqttConfig, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
+	Activity(ctx context.Context, filter *model.ActivityFilter) ([]*model.ActivityEvent, error)
 	SetupStatus(ctx context.Context) (*model.SetupStatus, error)
 	Me(ctx context.Context) (*model.User, error)
 	Users(ctx context.Context) ([]*model.User, error)
@@ -331,6 +352,7 @@ type SubscriptionResolver interface {
 	DeviceRemoved(ctx context.Context) (<-chan string, error)
 	AutomationNodeActivated(ctx context.Context, automationID *string) (<-chan *model.AutomationNodeActivationEvent, error)
 	LogStream(ctx context.Context) (<-chan *model.LogEntry, error)
+	ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -346,6 +368,80 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "ActivityEvent.id":
+		if e.ComplexityRoot.ActivityEvent.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityEvent.ID(childComplexity), true
+	case "ActivityEvent.message":
+		if e.ComplexityRoot.ActivityEvent.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityEvent.Message(childComplexity), true
+	case "ActivityEvent.payload":
+		if e.ComplexityRoot.ActivityEvent.Payload == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityEvent.Payload(childComplexity), true
+	case "ActivityEvent.source":
+		if e.ComplexityRoot.ActivityEvent.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityEvent.Source(childComplexity), true
+	case "ActivityEvent.timestamp":
+		if e.ComplexityRoot.ActivityEvent.Timestamp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityEvent.Timestamp(childComplexity), true
+	case "ActivityEvent.type":
+		if e.ComplexityRoot.ActivityEvent.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityEvent.Type(childComplexity), true
+
+	case "ActivitySource.id":
+		if e.ComplexityRoot.ActivitySource.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivitySource.ID(childComplexity), true
+	case "ActivitySource.kind":
+		if e.ComplexityRoot.ActivitySource.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivitySource.Kind(childComplexity), true
+	case "ActivitySource.name":
+		if e.ComplexityRoot.ActivitySource.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivitySource.Name(childComplexity), true
+	case "ActivitySource.roomId":
+		if e.ComplexityRoot.ActivitySource.RoomID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivitySource.RoomID(childComplexity), true
+	case "ActivitySource.roomName":
+		if e.ComplexityRoot.ActivitySource.RoomName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivitySource.RoomName(childComplexity), true
+	case "ActivitySource.type":
+		if e.ComplexityRoot.ActivitySource.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivitySource.Type(childComplexity), true
 
 	case "AuthPayload.token":
 		if e.ComplexityRoot.AuthPayload.Token == nil {
@@ -1070,6 +1166,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.UpdateSetting(childComplexity, args["key"].(string), args["value"].(string)), true
 
+	case "Query.activity":
+		if e.ComplexityRoot.Query.Activity == nil {
+			break
+		}
+
+		args, err := ec.field_Query_activity_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Activity(childComplexity, args["filter"].(*model.ActivityFilter)), true
 	case "Query.automation":
 		if e.ComplexityRoot.Query.Automation == nil {
 			break
@@ -1408,6 +1515,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SetupStatus.MqttConfigured(childComplexity), true
 
+	case "Subscription.activityStream":
+		if e.ComplexityRoot.Subscription.ActivityStream == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_activityStream_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.ActivityStream(childComplexity, args["advanced"].(*bool)), true
 	case "Subscription.automationNodeActivated":
 		if e.ComplexityRoot.Subscription.AutomationNodeActivated == nil {
 			break
@@ -1489,6 +1607,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputActivityFilter,
 		ec.unmarshalInputAddGroupMemberInput,
 		ec.unmarshalInputAddRoomDeviceInput,
 		ec.unmarshalInputAutomationEdgeInput,
@@ -1805,6 +1924,34 @@ type LogEntry {
   attrs: String!
 }
 
+type ActivitySource {
+  kind: String!
+  id: ID
+  name: String
+  type: String
+  roomId: ID
+  roomName: String
+}
+
+type ActivityEvent {
+  id: ID!
+  type: String!
+  timestamp: DateTime!
+  message: String!
+  payload: String!
+  source: ActivitySource!
+}
+
+input ActivityFilter {
+  types: [String!]
+  deviceId: ID
+  roomId: ID
+  since: DateTime
+  advanced: Boolean
+  limit: Int
+  before: ID
+}
+
 input MqttConfigInput {
   broker: String!
   username: String!
@@ -1921,6 +2068,7 @@ type Query {
   mqttConfig: MqttConfig
   settings: [Setting!]!
   logs(search: String, limit: Int): [LogEntry!]!
+  activity(filter: ActivityFilter): [ActivityEvent!]!
   setupStatus: SetupStatus!
   me: User
   users: [User!]!
@@ -1962,6 +2110,7 @@ type Subscription {
   deviceRemoved: ID!
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
   logStream: LogEntry!
+  activityStream(advanced: Boolean): ActivityEvent!
 }
 `, BuiltIn: false},
 }
@@ -2313,6 +2462,17 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_activity_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOActivityFilter2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_automation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2410,6 +2570,17 @@ func (ec *executionContext) field_Query_sensorHistory_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Subscription_activityStream_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "advanced", ec.unmarshalOBoolean2ᚖbool)
+	if err != nil {
+		return nil, err
+	}
+	args["advanced"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Subscription_automationNodeActivated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2483,6 +2654,368 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ActivityEvent_id(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivityEvent_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivityEvent_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivityEvent_type(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivityEvent_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivityEvent_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivityEvent_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivityEvent_timestamp,
+		func(ctx context.Context) (any, error) {
+			return obj.Timestamp, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivityEvent_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivityEvent_message(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivityEvent_message,
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivityEvent_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivityEvent_payload(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivityEvent_payload,
+		func(ctx context.Context) (any, error) {
+			return obj.Payload, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivityEvent_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivityEvent_source(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivityEvent_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNActivitySource2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivitySource,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivityEvent_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "kind":
+				return ec.fieldContext_ActivitySource_kind(ctx, field)
+			case "id":
+				return ec.fieldContext_ActivitySource_id(ctx, field)
+			case "name":
+				return ec.fieldContext_ActivitySource_name(ctx, field)
+			case "type":
+				return ec.fieldContext_ActivitySource_type(ctx, field)
+			case "roomId":
+				return ec.fieldContext_ActivitySource_roomId(ctx, field)
+			case "roomName":
+				return ec.fieldContext_ActivitySource_roomName(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ActivitySource", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivitySource_kind(ctx context.Context, field graphql.CollectedField, obj *model.ActivitySource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivitySource_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivitySource_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivitySource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivitySource_id(ctx context.Context, field graphql.CollectedField, obj *model.ActivitySource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivitySource_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivitySource_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivitySource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivitySource_name(ctx context.Context, field graphql.CollectedField, obj *model.ActivitySource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivitySource_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivitySource_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivitySource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivitySource_type(ctx context.Context, field graphql.CollectedField, obj *model.ActivitySource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivitySource_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivitySource_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivitySource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivitySource_roomId(ctx context.Context, field graphql.CollectedField, obj *model.ActivitySource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivitySource_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivitySource_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivitySource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActivitySource_roomName(ctx context.Context, field graphql.CollectedField, obj *model.ActivitySource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActivitySource_roomName,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActivitySource_roomName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivitySource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _AuthPayload_token(ctx context.Context, field graphql.CollectedField, obj *model.AuthPayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -6664,6 +7197,61 @@ func (ec *executionContext) fieldContext_Query_logs(ctx context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_activity(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_activity,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Activity(ctx, fc.Args["filter"].(*model.ActivityFilter))
+		},
+		nil,
+		ec.marshalNActivityEvent2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEventᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_activity(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ActivityEvent_id(ctx, field)
+			case "type":
+				return ec.fieldContext_ActivityEvent_type(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_ActivityEvent_timestamp(ctx, field)
+			case "message":
+				return ec.fieldContext_ActivityEvent_message(ctx, field)
+			case "payload":
+				return ec.fieldContext_ActivityEvent_payload(ctx, field)
+			case "source":
+				return ec.fieldContext_ActivityEvent_source(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ActivityEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_activity_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_setupStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8097,6 +8685,61 @@ func (ec *executionContext) fieldContext_Subscription_logStream(_ context.Contex
 			}
 			return nil, fmt.Errorf("no field named %q was found under type LogEntry", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_activityStream(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_activityStream,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().ActivityStream(ctx, fc.Args["advanced"].(*bool))
+		},
+		nil,
+		ec.marshalNActivityEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_activityStream(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ActivityEvent_id(ctx, field)
+			case "type":
+				return ec.fieldContext_ActivityEvent_type(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_ActivityEvent_timestamp(ctx, field)
+			case "message":
+				return ec.fieldContext_ActivityEvent_message(ctx, field)
+			case "payload":
+				return ec.fieldContext_ActivityEvent_payload(ctx, field)
+			case "source":
+				return ec.fieldContext_ActivityEvent_source(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ActivityEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_activityStream_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -9663,6 +10306,78 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputActivityFilter(ctx context.Context, obj any) (model.ActivityFilter, error) {
+	var it model.ActivityFilter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"types", "deviceId", "roomId", "since", "advanced", "limit", "before"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "types":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("types"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Types = graphql.OmittableOf(data)
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = graphql.OmittableOf(data)
+		case "roomId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomID = graphql.OmittableOf(data)
+		case "since":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("since"))
+			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Since = graphql.OmittableOf(data)
+		case "advanced":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("advanced"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Advanced = graphql.OmittableOf(data)
+		case "limit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Limit = graphql.OmittableOf(data)
+		case "before":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("before"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Before = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputAddGroupMemberInput(ctx context.Context, obj any) (model.AddGroupMemberInput, error) {
 	var it model.AddGroupMemberInput
 	if obj == nil {
@@ -10604,6 +11319,119 @@ func (ec *executionContext) _SceneTarget(ctx context.Context, sel ast.SelectionS
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var activityEventImplementors = []string{"ActivityEvent"}
+
+func (ec *executionContext) _ActivityEvent(ctx context.Context, sel ast.SelectionSet, obj *model.ActivityEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, activityEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActivityEvent")
+		case "id":
+			out.Values[i] = ec._ActivityEvent_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._ActivityEvent_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timestamp":
+			out.Values[i] = ec._ActivityEvent_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._ActivityEvent_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "payload":
+			out.Values[i] = ec._ActivityEvent_payload(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._ActivityEvent_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var activitySourceImplementors = []string{"ActivitySource"}
+
+func (ec *executionContext) _ActivitySource(ctx context.Context, sel ast.SelectionSet, obj *model.ActivitySource) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, activitySourceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActivitySource")
+		case "kind":
+			out.Values[i] = ec._ActivitySource_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "id":
+			out.Values[i] = ec._ActivitySource_id(ctx, field, obj)
+		case "name":
+			out.Values[i] = ec._ActivitySource_name(ctx, field, obj)
+		case "type":
+			out.Values[i] = ec._ActivitySource_type(ctx, field, obj)
+		case "roomId":
+			out.Values[i] = ec._ActivitySource_roomId(ctx, field, obj)
+		case "roomName":
+			out.Values[i] = ec._ActivitySource_roomName(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var authPayloadImplementors = []string{"AuthPayload"}
 
@@ -11978,6 +12806,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "activity":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_activity(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "setupStatus":
 			field := field
 
@@ -12453,6 +13303,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_automationNodeActivated(ctx, fields[0])
 	case "logStream":
 		return ec._Subscription_logStream(ctx, fields[0])
+	case "activityStream":
+		return ec._Subscription_activityStream(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -12877,6 +13729,46 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
+
+func (ec *executionContext) marshalNActivityEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEvent(ctx context.Context, sel ast.SelectionSet, v model.ActivityEvent) graphql.Marshaler {
+	return ec._ActivityEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNActivityEvent2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ActivityEvent) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNActivityEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEvent(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNActivityEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEvent(ctx context.Context, sel ast.SelectionSet, v *model.ActivityEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ActivityEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNActivitySource2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivitySource(ctx context.Context, sel ast.SelectionSet, v *model.ActivitySource) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ActivitySource(ctx, sel, v)
+}
 
 func (ec *executionContext) unmarshalNAddGroupMemberInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddGroupMemberInput(ctx context.Context, v any) (model.AddGroupMemberInput, error) {
 	res, err := ec.unmarshalInputAddGroupMemberInput(ctx, v)
@@ -13771,6 +14663,14 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalOActivityFilter2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityFilter(ctx context.Context, v any) (*model.ActivityFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputActivityFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOAutomationEdgeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInputᚄ(ctx context.Context, v any) ([]*model.AutomationEdgeInput, error) {

@@ -202,6 +202,34 @@ type LogEntry {
   attrs: String!
 }
 
+type ActivitySource {
+  kind: String!
+  id: ID
+  name: String
+  type: String
+  roomId: ID
+  roomName: String
+}
+
+type ActivityEvent {
+  id: ID!
+  type: String!
+  timestamp: DateTime!
+  message: String!
+  payload: String!
+  source: ActivitySource!
+}
+
+input ActivityFilter {
+  types: [String!]
+  deviceId: ID
+  roomId: ID
+  since: DateTime
+  advanced: Boolean
+  limit: Int
+  before: ID
+}
+
 input MqttConfigInput {
   broker: String!
   username: String!
@@ -318,6 +346,7 @@ type Query {
   mqttConfig: MqttConfig
   settings: [Setting!]!
   logs(search: String, limit: Int): [LogEntry!]!
+  activity(filter: ActivityFilter): [ActivityEvent!]!
   setupStatus: SetupStatus!
   me: User
   users: [User!]!
@@ -359,4 +388,5 @@ type Subscription {
   deviceRemoved: ID!
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
   logStream: LogEntry!
+  activityStream(advanced: Boolean): ActivityEvent!
 }

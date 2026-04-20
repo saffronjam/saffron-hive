@@ -16,6 +16,34 @@ type SceneTarget interface {
 	IsSceneTarget()
 }
 
+type ActivityEvent struct {
+	ID        string          `json:"id"`
+	Type      string          `json:"type"`
+	Timestamp time.Time       `json:"timestamp"`
+	Message   string          `json:"message"`
+	Payload   string          `json:"payload"`
+	Source    *ActivitySource `json:"source"`
+}
+
+type ActivityFilter struct {
+	Types    graphql.Omittable[[]string]   `json:"types,omitempty"`
+	DeviceID graphql.Omittable[*string]    `json:"deviceId,omitempty"`
+	RoomID   graphql.Omittable[*string]    `json:"roomId,omitempty"`
+	Since    graphql.Omittable[*time.Time] `json:"since,omitempty"`
+	Advanced graphql.Omittable[*bool]      `json:"advanced,omitempty"`
+	Limit    graphql.Omittable[*int]       `json:"limit,omitempty"`
+	Before   graphql.Omittable[*string]    `json:"before,omitempty"`
+}
+
+type ActivitySource struct {
+	Kind     string  `json:"kind"`
+	ID       *string `json:"id,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Type     *string `json:"type,omitempty"`
+	RoomID   *string `json:"roomId,omitempty"`
+	RoomName *string `json:"roomName,omitempty"`
+}
+
 type AddGroupMemberInput struct {
 	GroupID    string `json:"groupId"`
 	MemberType string `json:"memberType"`

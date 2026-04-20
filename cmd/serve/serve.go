@@ -17,6 +17,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/activity"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
@@ -103,6 +104,11 @@ func Run(ctx context.Context) error {
 	go runSensorRecorder(ctx, bus, sensorCh, sqlStore)
 	go runDevicePersister(ctx, bus, deviceCh, sqlStore)
 
+	activityBuffer := activity.NewBuffer()
+	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, activityBuffer)
+	go activityRecorder.Run(ctx)
+	go activity.RunRetention(ctx, sqlStore)
+
 	if mqttCfg != nil && mqttCfg.Broker != "" {
 		mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
 			Broker:   mqttCfg.Broker,
@@ -134,6 +140,7 @@ func Run(ctx context.Context) error {
 		EventBus:           bus,
 		AutomationReloader: &engineReloader{engine: engine, ctx: ctx},
 		LogBuffer:          logBuffer,
+		ActivityBuffer:     activityBuffer,
 		LevelVar:           levelVar,
 		Reconnector:        mgr,
 		Auth:               authSvc,

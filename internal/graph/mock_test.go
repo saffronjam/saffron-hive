@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -109,6 +110,8 @@ type mockStore struct {
 	groups          map[string]store.Group
 	groupMembers    map[string][]store.GroupMember
 	sensorReadings  []store.SensorReading
+	activityEvents  []store.ActivityEvent
+	activityCounter int64
 	users           map[string]store.User // keyed by id
 	mqttConfig      *store.MQTTConfig
 
@@ -545,6 +548,84 @@ func (m *mockStore) QuerySensorHistory(_ context.Context, q store.SensorHistoryQ
 		}
 	}
 	return out, nil
+}
+
+func (m *mockStore) InsertActivityEvent(_ context.Context, params store.InsertActivityEventParams) (store.ActivityEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.activityCounter++
+	e := store.ActivityEvent{
+		ID:             m.activityCounter,
+		Type:           params.Type,
+		Timestamp:      params.Timestamp,
+		Message:        params.Message,
+		PayloadJSON:    params.PayloadJSON,
+		DeviceID:       params.DeviceID,
+		DeviceName:     params.DeviceName,
+		DeviceType:     params.DeviceType,
+		RoomID:         params.RoomID,
+		RoomName:       params.RoomName,
+		SceneID:        params.SceneID,
+		SceneName:      params.SceneName,
+		AutomationID:   params.AutomationID,
+		AutomationName: params.AutomationName,
+	}
+	m.activityEvents = append(m.activityEvents, e)
+	return e, nil
+}
+
+func (m *mockStore) QueryActivityEvents(_ context.Context, q store.ActivityQuery) ([]store.ActivityEvent, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []store.ActivityEvent
+	for i := len(m.activityEvents) - 1; i >= 0; i-- {
+		e := m.activityEvents[i]
+		if !q.Advanced && (e.Type == "command.requested" || e.Type == "automation.node_activated") {
+			continue
+		}
+		if len(q.Types) > 0 {
+			matched := false
+			for _, t := range q.Types {
+				if e.Type == t {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		if q.DeviceID != nil && (e.DeviceID == nil || *e.DeviceID != *q.DeviceID) {
+			continue
+		}
+		if q.RoomID != nil && (e.RoomID == nil || *e.RoomID != *q.RoomID) {
+			continue
+		}
+		if q.Since != nil && e.Timestamp.Before(*q.Since) {
+			continue
+		}
+		out = append(out, e)
+		if q.Limit > 0 && len(out) >= q.Limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+func (m *mockStore) PruneActivityEventsOlderThan(_ context.Context, cutoff time.Time) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	kept := m.activityEvents[:0]
+	var pruned int64
+	for _, e := range m.activityEvents {
+		if e.Timestamp.Before(cutoff) {
+			pruned++
+			continue
+		}
+		kept = append(kept, e)
+	}
+	m.activityEvents = kept
+	return pruned, nil
 }
 
 func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) {

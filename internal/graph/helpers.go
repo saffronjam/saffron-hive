@@ -4,14 +4,108 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// mapActivityEvent converts a persisted activity row into the GraphQL type.
+// The source discriminator is chosen by which denormalised columns are set on
+// the row: scene/automation/device take priority in that order; falling back
+// to "system" when none are set.
+func mapActivityEvent(row store.ActivityEvent) *model.ActivityEvent {
+	return &model.ActivityEvent{
+		ID:        strconv.FormatInt(row.ID, 10),
+		Type:      row.Type,
+		Timestamp: row.Timestamp,
+		Message:   row.Message,
+		Payload:   row.PayloadJSON,
+		Source:    mapActivitySource(row),
+	}
+}
+
+func mapActivitySource(row store.ActivityEvent) *model.ActivitySource {
+	switch {
+	case row.SceneID != nil:
+		return &model.ActivitySource{
+			Kind: "scene",
+			ID:   row.SceneID,
+			Name: row.SceneName,
+		}
+	case row.AutomationID != nil:
+		return &model.ActivitySource{
+			Kind: "automation",
+			ID:   row.AutomationID,
+			Name: row.AutomationName,
+		}
+	case row.DeviceID != nil:
+		return &model.ActivitySource{
+			Kind:     "device",
+			ID:       row.DeviceID,
+			Name:     row.DeviceName,
+			Type:     row.DeviceType,
+			RoomID:   row.RoomID,
+			RoomName: row.RoomName,
+		}
+	default:
+		return &model.ActivitySource{Kind: "system"}
+	}
+}
+
+func createUserRow(ctx context.Context, s store.Store, username, name, password string) (store.User, error) {
+	username = strings.TrimSpace(username)
+	name = strings.TrimSpace(name)
+	if username == "" {
+		return store.User{}, fmt.Errorf("username is required")
+	}
+	if name == "" {
+		return store.User{}, fmt.Errorf("name is required")
+	}
+	if len(password) < 6 {
+		return store.User{}, fmt.Errorf("password must be at least 6 characters")
+	}
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return store.User{}, err
+	}
+	u, err := s.CreateUser(ctx, store.CreateUserParams{
+		ID:           uuid.New().String(),
+		Username:     username,
+		Name:         name,
+		PasswordHash: hash,
+	})
+	if err != nil {
+		return store.User{}, fmt.Errorf("create user: %w", err)
+	}
+	return u, nil
+}
+
+func signAuthPayload(svc *auth.Service, u store.User) (*model.AuthPayload, error) {
+	token, err := svc.Sign(u.ID, u.Username, u.Name)
+	if err != nil {
+		return nil, fmt.Errorf("sign token: %w", err)
+	}
+	return &model.AuthPayload{
+		Token: token,
+		User:  mapUser(u),
+	}, nil
+}
+
+func currentUserID(ctx context.Context) *string {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil
+	}
+	id := u.ID
+	return &id
+}
 
 func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 	md := &model.Device{

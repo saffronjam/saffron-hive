@@ -673,60 +673,6 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	return mapUser(u), nil
 }
 
-// createUserRow validates inputs, hashes the password, and inserts a new user.
-func createUserRow(ctx context.Context, s store.Store, username, name, password string) (store.User, error) {
-	username = strings.TrimSpace(username)
-	name = strings.TrimSpace(name)
-	if username == "" {
-		return store.User{}, fmt.Errorf("username is required")
-	}
-	if name == "" {
-		return store.User{}, fmt.Errorf("name is required")
-	}
-	if len(password) < 6 {
-		return store.User{}, fmt.Errorf("password must be at least 6 characters")
-	}
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		return store.User{}, err
-	}
-	u, err := s.CreateUser(ctx, store.CreateUserParams{
-		ID:           uuid.New().String(),
-		Username:     username,
-		Name:         name,
-		PasswordHash: hash,
-	})
-	if err != nil {
-		return store.User{}, fmt.Errorf("create user: %w", err)
-	}
-	return u, nil
-}
-
-// signAuthPayload constructs the GraphQL AuthPayload from a user and the JWT
-// service. Used by both login and createInitialUser.
-func signAuthPayload(svc *auth.Service, u store.User) (*model.AuthPayload, error) {
-	token, err := svc.Sign(u.ID, u.Username, u.Name)
-	if err != nil {
-		return nil, fmt.Errorf("sign token: %w", err)
-	}
-	return &model.AuthPayload{
-		Token: token,
-		User:  mapUser(u),
-	}, nil
-}
-
-// currentUserID returns a pointer to the authenticated user's ID, or nil when
-// the request is unauthenticated. Used when populating created_by columns on
-// newly created rows.
-func currentUserID(ctx context.Context) *string {
-	u, ok := auth.UserFromContext(ctx)
-	if !ok {
-		return nil
-	}
-	id := u.ID
-	return &id
-}
-
 // Devices is the resolver for the devices field.
 func (r *queryResolver) Devices(ctx context.Context) ([]*model.Device, error) {
 	devices := r.StateReader.ListDevices()
@@ -948,6 +894,47 @@ func (r *queryResolver) Logs(ctx context.Context, search *string, limit *int) ([
 		result[i], result[j] = result[j], result[i]
 	}
 
+	return result, nil
+}
+
+// Activity is the resolver for the activity field.
+func (r *queryResolver) Activity(ctx context.Context, filter *model.ActivityFilter) ([]*model.ActivityEvent, error) {
+	q := store.ActivityQuery{Limit: 500}
+	if filter != nil {
+		if types, ok := filter.Types.ValueOK(); ok {
+			q.Types = types
+		}
+		if did, ok := filter.DeviceID.ValueOK(); ok && did != nil {
+			q.DeviceID = did
+		}
+		if rid, ok := filter.RoomID.ValueOK(); ok && rid != nil {
+			q.RoomID = rid
+		}
+		if since, ok := filter.Since.ValueOK(); ok && since != nil {
+			q.Since = since
+		}
+		if adv, ok := filter.Advanced.ValueOK(); ok && adv != nil {
+			q.Advanced = *adv
+		}
+		if lim, ok := filter.Limit.ValueOK(); ok && lim != nil && *lim > 0 {
+			q.Limit = *lim
+		}
+		if before, ok := filter.Before.ValueOK(); ok && before != nil && *before != "" {
+			n, err := strconv.ParseInt(*before, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid before cursor %q: %w", *before, err)
+			}
+			q.Before = &n
+		}
+	}
+	rows, err := r.Store.QueryActivityEvents(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.ActivityEvent, len(rows))
+	for i, row := range rows {
+		result[i] = mapActivityEvent(row)
+	}
 	return result, nil
 }
 
@@ -1191,6 +1178,40 @@ func (r *subscriptionResolver) LogStream(ctx context.Context) (<-chan *model.Log
 				}
 				select {
 				case out <- mapLogEntry(e):
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// ActivityStream is the resolver for the activityStream field.
+func (r *subscriptionResolver) ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error) {
+	showAdvanced := advanced != nil && *advanced
+
+	ch, unsub := r.ActivityBuffer.Subscribe()
+	out := make(chan *model.ActivityEvent, 16)
+
+	go func() {
+		defer close(out)
+		defer unsub()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case row, ok := <-ch:
+				if !ok {
+					return
+				}
+				if !showAdvanced && (row.Type == "command.requested" || row.Type == "automation.node_activated") {
+					continue
+				}
+				select {
+				case out <- mapActivityEvent(row):
 				case <-ctx.Done():
 					return
 				}
