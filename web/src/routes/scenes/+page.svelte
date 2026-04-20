@@ -16,6 +16,8 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import SceneCard from "$lib/components/scene-card.svelte";
 	import SceneTable from "$lib/components/scene-table.svelte";
+	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
+	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -36,6 +38,7 @@
 		name: string;
 		icon?: string | null;
 		actions: SceneAction[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	interface ScenesQueryResult {
@@ -66,6 +69,11 @@
 					targetId
 					payload
 				}
+				createdBy {
+					id
+					username
+					name
+				}
 			}
 		}
 	`;
@@ -80,6 +88,11 @@
 					targetType
 					targetId
 					payload
+				}
+				createdBy {
+					id
+					username
+					name
 				}
 			}
 		}
@@ -110,8 +123,27 @@
 		}
 	`;
 
+	const DEVICES_QUERY = gql`
+		query ScenesPageDevices {
+			devices {
+				id
+				name
+			}
+		}
+	`;
+
+	interface DeviceRef {
+		id: string;
+		name: string;
+	}
+
+	interface DevicesQueryResult {
+		devices: DeviceRef[];
+	}
+
 	let clientRef: Client | null = null;
 	let scenes = $state<SceneData[]>([]);
+	let devicesRef = $state<DeviceRef[]>([]);
 	let loading = $state(true);
 	let applyingId = $state<string | null>(null);
 	let createDialogOpen = $state(false);
@@ -256,9 +288,94 @@
 		goto(`/scenes/${scene.id}`);
 	}
 
+	async function fetchDevices() {
+		if (!clientRef) return;
+		const result = await clientRef.query<DevicesQueryResult>(DEVICES_QUERY, {}).toPromise();
+		if (result.data) devicesRef = result.data.devices;
+	}
+
+	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+
+	const targetOptions = [
+		{ value: "device", label: "Device" },
+		{ value: "group", label: "Group" },
+		{ value: "room", label: "Room" },
+	];
+
+	const emptyOptions = [
+		{ value: "yes", label: "Yes" },
+		{ value: "no", label: "No" },
+	];
+
+	const searchChipConfigs: ChipConfig[] = $derived([
+		{
+			keyword: "target",
+			label: "Target",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return q
+					? targetOptions.filter((o) => o.value.includes(q) || o.label.toLowerCase().includes(q))
+					: targetOptions;
+			},
+		},
+		{
+			keyword: "device",
+			label: "Device",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return devicesRef
+					.filter((d) => !q || d.name.toLowerCase().includes(q))
+					.map((d) => ({ value: d.name, label: d.name }));
+			},
+		},
+		{
+			keyword: "empty",
+			label: "Empty",
+			variant: "secondary",
+			options: () => emptyOptions,
+		},
+	]);
+
+	const filteredScenes = $derived.by(() => {
+		const targetValues = searchState.chips.filter((c) => c.keyword === "target").map((c) => c.value);
+		const deviceValues = searchState.chips
+			.filter((c) => c.keyword === "device")
+			.map((c) => c.value.toLowerCase());
+		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const query = searchState.freeText.toLowerCase();
+
+		const deviceIdByNameLower = new Map<string, string>();
+		for (const d of devicesRef) deviceIdByNameLower.set(d.name.toLowerCase(), d.id);
+
+		return scenes.filter((s) => {
+			if (targetValues.length > 0 && !s.actions.some((a) => targetValues.includes(a.targetType)))
+				return false;
+			if (deviceValues.length > 0) {
+				const matches = deviceValues.some((v) =>
+					s.actions.some((a) => {
+						if (a.targetType !== "device") return false;
+						const device = devicesRef.find((d) => d.id === a.targetId);
+						return device ? device.name.toLowerCase().includes(v) : false;
+					}),
+				);
+				if (!matches) return false;
+			}
+			if (emptyValues.length > 0) {
+				const isEmpty = s.actions.length === 0;
+				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
+				if (!wants) return false;
+			}
+			if (query && !s.name.toLowerCase().includes(query)) return false;
+			return true;
+		});
+	});
+
 	onMount(() => {
 		clientRef = createGraphQLClient();
 		fetchScenes();
+		fetchDevices();
 	});
 </script>
 
@@ -290,34 +407,49 @@
 			</Button>
 		</div>
 	{:else}
-		<ListView mode={view}>
-			{#snippet card()}
-				<AnimatedGrid>
-					{#each scenes as scene (scene.id)}
-						<SceneCard
-							{scene}
-							applying={applyingId === scene.id}
-							onapply={handleApply}
-							onedit={handleEdit}
-							ondelete={(s) => (deleteConfirmScene = s)}
-							onrename={handleRename}
-							oniconchange={handleIconChange}
-						/>
-					{/each}
-				</AnimatedGrid>
-			{/snippet}
-			{#snippet table()}
-				<SceneTable
-					{scenes}
-					{applyingId}
-					onapply={handleApply}
-					onedit={handleEdit}
-					ondelete={(s) => (deleteConfirmScene = s)}
-					onrename={handleRename}
-					oniconchange={handleIconChange}
-				/>
-			{/snippet}
-		</ListView>
+		<div class="mb-6">
+			<HiveSearchbar
+				value={searchState}
+				onchange={(v) => (searchState = v)}
+				chips={searchChipConfigs}
+				placeholder="Search scenes..."
+			/>
+		</div>
+
+		{#if filteredScenes.length === 0}
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
+				<p class="text-muted-foreground">No scenes match your filters.</p>
+			</div>
+		{:else}
+			<ListView mode={view}>
+				{#snippet card()}
+					<AnimatedGrid>
+						{#each filteredScenes as scene (scene.id)}
+							<SceneCard
+								{scene}
+								applying={applyingId === scene.id}
+								onapply={handleApply}
+								onedit={handleEdit}
+								ondelete={(s) => (deleteConfirmScene = s)}
+								onrename={handleRename}
+								oniconchange={handleIconChange}
+							/>
+						{/each}
+					</AnimatedGrid>
+				{/snippet}
+				{#snippet table()}
+					<SceneTable
+						scenes={filteredScenes}
+						{applyingId}
+						onapply={handleApply}
+						onedit={handleEdit}
+						ondelete={(s) => (deleteConfirmScene = s)}
+						onrename={handleRename}
+						oniconchange={handleIconChange}
+					/>
+				{/snippet}
+			</ListView>
+		{/if}
 	{/if}
 
 	<Dialog bind:open={createDialogOpen}>

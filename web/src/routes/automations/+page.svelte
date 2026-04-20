@@ -13,6 +13,14 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import AutomationCard from "$lib/components/automation-card.svelte";
 	import AutomationTable from "$lib/components/automation-table.svelte";
+	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
+	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import {
+		actionKind,
+		referencedDeviceIds,
+		referencedSceneIds,
+		triggerKind,
+	} from "$lib/automation-config";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -44,6 +52,7 @@
 		cooldownSeconds: number;
 		nodes: AutomationNode[];
 		edges: AutomationEdge[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	interface AutomationsQueryResult {
@@ -78,6 +87,11 @@
 					fromNodeId
 					toNodeId
 				}
+				createdBy {
+					id
+					username
+					name
+				}
 			}
 		}
 	`;
@@ -98,6 +112,11 @@
 					id
 					fromNodeId
 					toNodeId
+				}
+				createdBy {
+					id
+					username
+					name
 				}
 			}
 		}
@@ -127,12 +146,186 @@
 		}
 	`;
 
+	const DEVICES_QUERY = gql`
+		query AutomationsPageDevices {
+			devices {
+				id
+				name
+			}
+		}
+	`;
+
+	const SCENES_QUERY = gql`
+		query AutomationsPageScenes {
+			scenes {
+				id
+				name
+			}
+		}
+	`;
+
+	interface DeviceRef {
+		id: string;
+		name: string;
+	}
+
+	interface SceneRef {
+		id: string;
+		name: string;
+	}
+
 	const automationsQuery = queryStore<AutomationsQueryResult>({
 		client,
 		query: AUTOMATIONS_QUERY,
 	});
+	const devicesQuery = queryStore<{ devices: DeviceRef[] }>({ client, query: DEVICES_QUERY });
+	const scenesQuery = queryStore<{ scenes: SceneRef[] }>({ client, query: SCENES_QUERY });
 
 	const automations = $derived($automationsQuery.data?.automations ?? []);
+	const devicesRef = $derived($devicesQuery.data?.devices ?? []);
+	const scenesRef = $derived($scenesQuery.data?.scenes ?? []);
+
+	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+
+	const enabledOptions = [
+		{ value: "yes", label: "Yes" },
+		{ value: "no", label: "No" },
+	];
+
+	const triggerOptions = [
+		{ value: "event", label: "Event" },
+		{ value: "schedule", label: "Schedule" },
+	];
+
+	const actionOptions = [
+		{ value: "set_device_state", label: "Set device state" },
+		{ value: "activate_scene", label: "Activate scene" },
+	];
+
+	const emptyOptions = [
+		{ value: "yes", label: "Yes" },
+		{ value: "no", label: "No" },
+	];
+
+	const searchChipConfigs: ChipConfig[] = $derived([
+		{
+			keyword: "enabled",
+			label: "Enabled",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return q
+					? enabledOptions.filter((o) => o.value.includes(q) || o.label.toLowerCase().includes(q))
+					: enabledOptions;
+			},
+		},
+		{
+			keyword: "trigger",
+			label: "Trigger",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return q
+					? triggerOptions.filter((o) => o.value.includes(q) || o.label.toLowerCase().includes(q))
+					: triggerOptions;
+			},
+		},
+		{
+			keyword: "action",
+			label: "Action",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return q
+					? actionOptions.filter((o) => o.value.includes(q) || o.label.toLowerCase().includes(q))
+					: actionOptions;
+			},
+		},
+		{
+			keyword: "device",
+			label: "Device",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return devicesRef
+					.filter((d) => !q || d.name.toLowerCase().includes(q))
+					.map((d) => ({ value: d.name, label: d.name }));
+			},
+		},
+		{
+			keyword: "scene",
+			label: "Scene",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return scenesRef
+					.filter((s) => !q || s.name.toLowerCase().includes(q))
+					.map((s) => ({ value: s.name, label: s.name }));
+			},
+		},
+		{
+			keyword: "empty",
+			label: "Empty",
+			variant: "secondary",
+			options: () => emptyOptions,
+		},
+	]);
+
+	const filteredAutomations = $derived.by(() => {
+		const enabledValues = searchState.chips
+			.filter((c) => c.keyword === "enabled")
+			.map((c) => c.value);
+		const triggerValues = searchState.chips
+			.filter((c) => c.keyword === "trigger")
+			.map((c) => c.value);
+		const actionValues = searchState.chips.filter((c) => c.keyword === "action").map((c) => c.value);
+		const deviceValues = searchState.chips
+			.filter((c) => c.keyword === "device")
+			.map((c) => c.value.toLowerCase());
+		const sceneValues = searchState.chips
+			.filter((c) => c.keyword === "scene")
+			.map((c) => c.value.toLowerCase());
+		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const query = searchState.freeText.toLowerCase();
+
+		return automations.filter((a) => {
+			if (enabledValues.length > 0) {
+				const flag = a.enabled ? "yes" : "no";
+				if (!enabledValues.includes(flag)) return false;
+			}
+			if (triggerValues.length > 0) {
+				const kinds = a.nodes
+					.map((n) => triggerKind(n))
+					.filter((k): k is "event" | "schedule" => k !== null);
+				if (!triggerValues.some((v) => (kinds as string[]).includes(v))) return false;
+			}
+			if (actionValues.length > 0) {
+				const kinds = a.nodes.map((n) => actionKind(n)).filter((k): k is string => k !== null);
+				if (!actionValues.some((v) => kinds.includes(v))) return false;
+			}
+			if (deviceValues.length > 0) {
+				const ids = new Set(a.nodes.flatMap((n) => referencedDeviceIds(n)));
+				const names = [...ids]
+					.map((id) => devicesRef.find((d) => d.id === id)?.name.toLowerCase() ?? "")
+					.filter((n) => n !== "");
+				if (!deviceValues.some((v) => names.some((n) => n.includes(v)))) return false;
+			}
+			if (sceneValues.length > 0) {
+				const ids = new Set(a.nodes.flatMap((n) => referencedSceneIds(n)));
+				const names = [...ids]
+					.map((id) => scenesRef.find((s) => s.id === id)?.name.toLowerCase() ?? "")
+					.filter((n) => n !== "");
+				if (!sceneValues.some((v) => names.some((n) => n.includes(v)))) return false;
+			}
+			if (emptyValues.length > 0) {
+				const isEmpty = a.nodes.length === 0;
+				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
+				if (!wants) return false;
+			}
+			if (query && !a.name.toLowerCase().includes(query)) return false;
+			return true;
+		});
+	});
 
 	let createDialogOpen = $state(false);
 	let newAutomationName = $state("");
@@ -293,31 +486,46 @@
 			</Button>
 		</div>
 	{:else}
-		<ListView mode={view}>
-			{#snippet card()}
-				<AnimatedGrid>
-					{#each automations as automation (automation.id)}
-						<AutomationCard
-							{automation}
-							ontoggle={handleToggle}
-							onedit={handleCardClick}
-							ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
-							onrename={handleRename}
-							oniconchange={handleIconChange}
-						/>
-					{/each}
-				</AnimatedGrid>
-			{/snippet}
-			{#snippet table()}
-				<AutomationTable
-					{automations}
-					ontoggle={handleToggle}
-					ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
-					onrename={handleRename}
-					oniconchange={handleIconChange}
-				/>
-			{/snippet}
-		</ListView>
+		<div class="mb-6">
+			<HiveSearchbar
+				value={searchState}
+				onchange={(v) => (searchState = v)}
+				chips={searchChipConfigs}
+				placeholder="Search automations..."
+			/>
+		</div>
+
+		{#if filteredAutomations.length === 0}
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
+				<p class="text-muted-foreground">No automations match your filters.</p>
+			</div>
+		{:else}
+			<ListView mode={view}>
+				{#snippet card()}
+					<AnimatedGrid>
+						{#each filteredAutomations as automation (automation.id)}
+							<AutomationCard
+								{automation}
+								ontoggle={handleToggle}
+								onedit={handleCardClick}
+								ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
+								onrename={handleRename}
+								oniconchange={handleIconChange}
+							/>
+						{/each}
+					</AnimatedGrid>
+				{/snippet}
+				{#snippet table()}
+					<AutomationTable
+						automations={filteredAutomations}
+						ontoggle={handleToggle}
+						ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
+						onrename={handleRename}
+						oniconchange={handleIconChange}
+					/>
+				{/snippet}
+			</ListView>
+		{/if}
 	{/if}
 
 	<Dialog bind:open={createDialogOpen}>

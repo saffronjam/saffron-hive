@@ -15,6 +15,8 @@
 	import MemberTable from "$lib/components/member-table.svelte";
 	import RoomCard from "$lib/components/room-card.svelte";
 	import RoomTable from "$lib/components/room-table.svelte";
+	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
+	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
@@ -39,6 +41,7 @@
 		name: string;
 		icon?: string | null;
 		devices: Device[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	const client = getContextClient();
@@ -55,6 +58,11 @@
 					type
 					source
 					available
+				}
+				createdBy {
+					id
+					username
+					name
 				}
 			}
 		}
@@ -94,6 +102,11 @@
 				id
 				name
 				devices { id name type source available }
+				createdBy {
+					id
+					username
+					name
+				}
 			}
 		}
 	`;
@@ -141,6 +154,77 @@
 	const rooms = $derived($roomsQuery.data?.rooms ?? []);
 	const devices = $derived($devicesQuery.data?.devices ?? []);
 	const allGroups = $derived($groupsQuery.data?.groups ?? []);
+
+	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+
+	const deviceTypeOptions = [
+		{ value: "light", label: "Light" },
+		{ value: "sensor", label: "Sensor" },
+		{ value: "switch", label: "Switch" },
+	];
+
+	const emptyOptions = [
+		{ value: "yes", label: "Yes" },
+		{ value: "no", label: "No" },
+	];
+
+	const searchChipConfigs: ChipConfig[] = $derived([
+		{
+			keyword: "type",
+			label: "Type",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return q
+					? deviceTypeOptions.filter(
+							(o) => o.value.includes(q) || o.label.toLowerCase().includes(q),
+						)
+					: deviceTypeOptions;
+			},
+		},
+		{
+			keyword: "device",
+			label: "Device",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return devices
+					.filter((d) => !q || d.name.toLowerCase().includes(q))
+					.map((d) => ({ value: d.name, label: d.name }));
+			},
+		},
+		{
+			keyword: "empty",
+			label: "Empty",
+			variant: "secondary",
+			options: () => emptyOptions,
+		},
+	]);
+
+	const filteredRooms = $derived.by(() => {
+		const typeValues = searchState.chips.filter((c) => c.keyword === "type").map((c) => c.value);
+		const deviceValues = searchState.chips
+			.filter((c) => c.keyword === "device")
+			.map((c) => c.value.toLowerCase());
+		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const query = searchState.freeText.toLowerCase();
+
+		return rooms.filter((r) => {
+			if (typeValues.length > 0 && !r.devices.some((d) => typeValues.includes(d.type))) return false;
+			if (
+				deviceValues.length > 0 &&
+				!deviceValues.some((v) => r.devices.some((d) => d.name.toLowerCase().includes(v)))
+			)
+				return false;
+			if (emptyValues.length > 0) {
+				const isEmpty = r.devices.length === 0;
+				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
+				if (!wants) return false;
+			}
+			if (query && !r.name.toLowerCase().includes(query)) return false;
+			return true;
+		});
+	});
 
 	let createDialogOpen = $state(false);
 	let newRoomName = $state("");
@@ -496,30 +580,45 @@
 				</Button>
 			</div>
 		{:else if rooms.length > 0}
-			<ListView mode={view}>
-				{#snippet card()}
-					<AnimatedGrid>
-						{#each rooms as room (room.id)}
-							<RoomCard
-								{room}
-								onedit={startEditing}
-								ondelete={(r) => (deleteConfirmRoom = r)}
-								onrename={handleRename}
-								oniconchange={handleIconChange}
-							/>
-						{/each}
-					</AnimatedGrid>
-				{/snippet}
-				{#snippet table()}
-					<RoomTable
-						{rooms}
-						onedit={startEditing}
-						ondelete={(r) => (deleteConfirmRoom = r)}
-						onrename={handleRename}
-						oniconchange={handleIconChange}
-					/>
-				{/snippet}
-			</ListView>
+			<div class="mb-6">
+				<HiveSearchbar
+					value={searchState}
+					onchange={(v) => (searchState = v)}
+					chips={searchChipConfigs}
+					placeholder="Search rooms..."
+				/>
+			</div>
+
+			{#if filteredRooms.length === 0}
+				<div class="rounded-lg shadow-card bg-card p-12 text-center">
+					<p class="text-muted-foreground">No rooms match your filters.</p>
+				</div>
+			{:else}
+				<ListView mode={view}>
+					{#snippet card()}
+						<AnimatedGrid>
+							{#each filteredRooms as room (room.id)}
+								<RoomCard
+									{room}
+									onedit={startEditing}
+									ondelete={(r) => (deleteConfirmRoom = r)}
+									onrename={handleRename}
+									oniconchange={handleIconChange}
+								/>
+							{/each}
+						</AnimatedGrid>
+					{/snippet}
+					{#snippet table()}
+						<RoomTable
+							rooms={filteredRooms}
+							onedit={startEditing}
+							ondelete={(r) => (deleteConfirmRoom = r)}
+							onrename={handleRename}
+							oniconchange={handleIconChange}
+						/>
+					{/snippet}
+				</ListView>
+			{/if}
 		{/if}
 
 		<Dialog bind:open={createDialogOpen}>

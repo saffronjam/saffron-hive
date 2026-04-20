@@ -12,6 +12,8 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import GroupCard from "$lib/components/group-card.svelte";
 	import GroupTable from "$lib/components/group-table.svelte";
+	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
+	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
@@ -55,6 +57,7 @@
 		name: string;
 		icon?: string | null;
 		members: GroupMember[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	interface DevicesQueryResult {
@@ -174,6 +177,11 @@
 						devices { id name }
 					}
 				}
+				createdBy {
+					id
+					username
+					name
+				}
 			}
 		}
 	`;
@@ -230,6 +238,11 @@
 					memberType
 					memberId
 				}
+				createdBy {
+					id
+					username
+					name
+				}
 			}
 		}
 	`;
@@ -273,6 +286,103 @@
 	const groups = $derived($groupsQuery.data?.groups ?? []);
 	const devices = $derived($devicesQuery.data?.devices ?? []);
 	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
+
+	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+
+	const kindOptions = [
+		{ value: "device", label: "Device" },
+		{ value: "group", label: "Group" },
+		{ value: "room", label: "Room" },
+	];
+
+	const emptyOptions = [
+		{ value: "yes", label: "Yes" },
+		{ value: "no", label: "No" },
+	];
+
+	const searchChipConfigs: ChipConfig[] = $derived([
+		{
+			keyword: "kind",
+			label: "Kind",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return q
+					? kindOptions.filter((o) => o.value.includes(q) || o.label.toLowerCase().includes(q))
+					: kindOptions;
+			},
+		},
+		{
+			keyword: "device",
+			label: "Device",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return devices
+					.filter((d) => !q || d.name.toLowerCase().includes(q))
+					.map((d) => ({ value: d.name, label: d.name }));
+			},
+		},
+		{
+			keyword: "room",
+			label: "Room",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return allRooms
+					.filter((r) => !q || r.name.toLowerCase().includes(q))
+					.map((r) => ({ value: r.name, label: r.name }));
+			},
+		},
+		{
+			keyword: "empty",
+			label: "Empty",
+			variant: "secondary",
+			options: () => emptyOptions,
+		},
+	]);
+
+	const filteredGroups = $derived.by(() => {
+		const kindValues = searchState.chips.filter((c) => c.keyword === "kind").map((c) => c.value);
+		const deviceValues = searchState.chips
+			.filter((c) => c.keyword === "device")
+			.map((c) => c.value.toLowerCase());
+		const roomValues = searchState.chips
+			.filter((c) => c.keyword === "room")
+			.map((c) => c.value.toLowerCase());
+		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const query = searchState.freeText.toLowerCase();
+
+		return groups.filter((g) => {
+			if (kindValues.length > 0 && !g.members.some((m) => kindValues.includes(m.memberType)))
+				return false;
+			if (
+				deviceValues.length > 0 &&
+				!deviceValues.some((v) =>
+					g.members.some(
+						(m) => m.memberType === "device" && (m.device?.name ?? "").toLowerCase().includes(v),
+					),
+				)
+			)
+				return false;
+			if (
+				roomValues.length > 0 &&
+				!roomValues.some((v) =>
+					g.members.some(
+						(m) => m.memberType === "room" && (m.room?.name ?? "").toLowerCase().includes(v),
+					),
+				)
+			)
+				return false;
+			if (emptyValues.length > 0) {
+				const isEmpty = g.members.length === 0;
+				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
+				if (!wants) return false;
+			}
+			if (query && !g.name.toLowerCase().includes(query)) return false;
+			return true;
+		});
+	});
 
 	let createDialogOpen = $state(false);
 	let newGroupName = $state("");
@@ -695,30 +805,45 @@
 				</Button>
 			</div>
 		{:else if groups.length > 0}
-			<ListView mode={view}>
-				{#snippet card()}
-					<AnimatedGrid>
-						{#each groups as group (group.id)}
-							<GroupCard
-								{group}
-								onedit={startEditing}
-								ondelete={(g) => (deleteConfirmGroup = g)}
-								onrename={handleRename}
-								oniconchange={handleIconChange}
-							/>
-						{/each}
-					</AnimatedGrid>
-				{/snippet}
-				{#snippet table()}
-					<GroupTable
-						{groups}
-						onedit={startEditing}
-						ondelete={(g) => (deleteConfirmGroup = g)}
-						onrename={handleRename}
-						oniconchange={handleIconChange}
-					/>
-				{/snippet}
-			</ListView>
+			<div class="mb-6">
+				<HiveSearchbar
+					value={searchState}
+					onchange={(v) => (searchState = v)}
+					chips={searchChipConfigs}
+					placeholder="Search groups..."
+				/>
+			</div>
+
+			{#if filteredGroups.length === 0}
+				<div class="rounded-lg shadow-card bg-card p-12 text-center">
+					<p class="text-muted-foreground">No groups match your filters.</p>
+				</div>
+			{:else}
+				<ListView mode={view}>
+					{#snippet card()}
+						<AnimatedGrid>
+							{#each filteredGroups as group (group.id)}
+								<GroupCard
+									{group}
+									onedit={startEditing}
+									ondelete={(g) => (deleteConfirmGroup = g)}
+									onrename={handleRename}
+									oniconchange={handleIconChange}
+								/>
+							{/each}
+						</AnimatedGrid>
+					{/snippet}
+					{#snippet table()}
+						<GroupTable
+							groups={filteredGroups}
+							onedit={startEditing}
+							ondelete={(g) => (deleteConfirmGroup = g)}
+							onrename={handleRename}
+							oniconchange={handleIconChange}
+						/>
+					{/snippet}
+				</ListView>
+			{/if}
 		{/if}
 
 		<Dialog bind:open={createDialogOpen}>
