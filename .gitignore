@@ -4,6 +4,7 @@ saffron-hive
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 
 # Frontend (build output embedded into Go binary)
 web/build/
