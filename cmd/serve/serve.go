@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -14,7 +15,9 @@ import (
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/config"
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -46,13 +49,19 @@ func Run(ctx context.Context) error {
 	if err := seedMQTTConfig(ctx, cfg, sqlStore); err != nil {
 		return err
 	}
+	if err := seedInitialUser(ctx, cfg, sqlStore); err != nil {
+		return err
+	}
+
+	secret, err := auth.LoadOrInitSecret(ctx, sqlStore)
+	if err != nil {
+		return fmt.Errorf("load jwt secret: %w", err)
+	}
+	authSvc := auth.NewService(secret, auth.LoadTTL(ctx, sqlStore))
 
 	mqttCfg, err := sqlStore.GetMQTTConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to read mqtt config: %w", err)
-	}
-	if mqttCfg == nil {
-		return fmt.Errorf("no MQTT configuration found: set HIVE_MQTT_BROKER or configure via the settings page")
 	}
 
 	if setting, err := sqlStore.GetSetting(ctx, "log_level"); err == nil {
@@ -85,14 +94,6 @@ func Run(ctx context.Context) error {
 		memStore: memStore,
 	}
 
-	mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
-		Broker:   mqttCfg.Broker,
-		Username: mqttCfg.Username,
-		Password: mqttCfg.Password,
-		UseWSS:   mqttCfg.UseWSS,
-		ClientID: "saffron-hive",
-	})
-
 	sensorCh := bus.Subscribe(eventbus.EventDeviceStateChanged)
 	deviceCh := bus.Subscribe(
 		eventbus.EventDeviceAdded,
@@ -101,9 +102,20 @@ func Run(ctx context.Context) error {
 	go runSensorRecorder(ctx, bus, sensorCh, sqlStore)
 	go runDevicePersister(ctx, bus, deviceCh, sqlStore)
 
-	mgr.adapter = zigbee.NewZigbeeAdapter(mgr.client, bus, memStore, memStore)
-	if err := mgr.adapter.Start(); err != nil {
-		return err
+	if mqttCfg != nil && mqttCfg.Broker != "" {
+		mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
+			Broker:   mqttCfg.Broker,
+			Username: mqttCfg.Username,
+			Password: mqttCfg.Password,
+			UseWSS:   mqttCfg.UseWSS,
+			ClientID: "saffron-hive",
+		})
+		mgr.adapter = zigbee.NewZigbeeAdapter(mgr.client, bus, memStore, memStore)
+		if err := mgr.adapter.Start(); err != nil {
+			return err
+		}
+	} else {
+		slog.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
 	}
 	defer mgr.Stop()
 
@@ -123,6 +135,7 @@ func Run(ctx context.Context) error {
 		LogBuffer:          logBuffer,
 		LevelVar:           levelVar,
 		Reconnector:        mgr,
+		Auth:               authSvc,
 	}
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -130,10 +143,12 @@ func Run(ctx context.Context) error {
 	}))
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
-	gqlSrv.AddTransport(transport.Websocket{})
+	gqlSrv.AddTransport(transport.Websocket{
+		InitFunc: wsInitFunc(authSvc),
+	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", gqlSrv)
+	mux.Handle("/graphql", auth.Middleware(authSvc)(gqlSrv))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -164,6 +179,32 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
+// wsInitFunc validates the authToken sent via graphql-ws connectionParams and
+// attaches the user to the subscription context. Whitelisted subscriptions do
+// not exist — every subscription requires authentication.
+func wsInitFunc(svc *auth.Service) transport.WebsocketInitFunc {
+	return func(ctx context.Context, init transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+		tokenAny, ok := init["authToken"]
+		if !ok {
+			return ctx, nil, errors.New("missing authToken")
+		}
+		token, ok := tokenAny.(string)
+		if !ok || token == "" {
+			return ctx, nil, errors.New("invalid authToken")
+		}
+		claims, err := svc.Parse(token)
+		if err != nil {
+			return ctx, nil, errors.New("invalid or expired token")
+		}
+		authedCtx := auth.WithUser(ctx, auth.CtxUser{
+			ID:       claims.UserID,
+			Username: claims.Username,
+			Name:     claims.Name,
+		})
+		return authedCtx, nil, nil
+	}
+}
+
 func seedMQTTConfig(ctx context.Context, cfg config.Config, s store.Store) error {
 	if !cfg.HasMQTTConfig() {
 		return nil
@@ -177,11 +218,42 @@ func seedMQTTConfig(ctx context.Context, cfg config.Config, s store.Store) error
 	}
 	slog.Info("seeding MQTT config from environment variables")
 	return s.UpsertMQTTConfig(ctx, store.MQTTConfig{
-		Broker:   cfg.MQTTBroker,
-		Username: cfg.MQTTUsername,
+		Broker:   cfg.MQTTAddress,
+		Username: cfg.MQTTUser,
 		Password: cfg.MQTTPassword,
 		UseWSS:   cfg.MQTTUseWSS,
 	})
+}
+
+// seedInitialUser creates the first user from HIVE_INIT_USER / HIVE_INIT_PASSWORD
+// when the users table is empty. Safe to run on every startup — if any user
+// exists, this is a no-op.
+func seedInitialUser(ctx context.Context, cfg config.Config, s store.Store) error {
+	if !cfg.HasInitUser() {
+		return nil
+	}
+	count, err := s.CountUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("check users: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+	hash, err := auth.HashPassword(cfg.InitPassword)
+	if err != nil {
+		return fmt.Errorf("hash init password: %w", err)
+	}
+	_, err = s.CreateUser(ctx, store.CreateUserParams{
+		ID:           uuid.New().String(),
+		Username:     cfg.InitUser,
+		Name:         cfg.InitUser,
+		PasswordHash: hash,
+	})
+	if err != nil {
+		return fmt.Errorf("create init user: %w", err)
+	}
+	slog.Info("seeded initial user from environment variables", "username", cfg.InitUser)
+	return nil
 }
 
 type adapterManager struct {
@@ -193,30 +265,35 @@ type adapterManager struct {
 	memStore *device.MemoryStore
 }
 
-// Stop shuts down the current adapter.
+// Stop shuts down the current adapter if one is running.
 func (m *adapterManager) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.adapter != nil {
 		m.adapter.Stop()
+		m.adapter = nil
 	}
 }
 
-// Reconnect stops the current MQTT adapter, reads new config from the
-// database, and starts a fresh connection.
+// Reconnect stops the current MQTT adapter (if any), reads config from the
+// database, and starts a fresh connection. Also serves as the first-time start
+// when the app booted without an MQTT config and the user completes /setup.
 func (m *adapterManager) Reconnect(ctx context.Context) error {
 	mqttCfg, err := m.store.GetMQTTConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("read mqtt config: %w", err)
 	}
-	if mqttCfg == nil {
+	if mqttCfg == nil || mqttCfg.Broker == "" {
 		return fmt.Errorf("no MQTT configuration in database")
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.adapter.Stop()
+	if m.adapter != nil {
+		m.adapter.Stop()
+		m.adapter = nil
+	}
 
 	m.client = zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   mqttCfg.Broker,
