@@ -5,7 +5,8 @@
 	import SmoothButton from "$lib/components/smooth-button.svelte";
 	import SaveButton from "$lib/components/save-button.svelte";
 	import ViewToggle from "$lib/components/view-toggle.svelte";
-	import { setContextClient, gql } from "@urql/svelte";
+	import { setContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -25,14 +26,14 @@
 
 	let ready = $state(false);
 
-	const SETUP_STATUS_QUERY = gql`
+	const SETUP_STATUS_QUERY = graphql(`
 		query setupStatus {
 			setupStatus {
 				hasInitialUser
 				mqttConfigured
 			}
 		}
-	`;
+	`);
 
 	async function gate() {
 		const pathname = $page.url.pathname;

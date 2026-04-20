@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
-	import { gql, getContextClient } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import type { Client } from "@urql/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
@@ -10,16 +11,16 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 
-	const SETUP_STATUS = gql`
+	const SETUP_STATUS = graphql(`
 		query setupStatus {
 			setupStatus {
 				hasInitialUser
 				mqttConfigured
 			}
 		}
-	`;
+	`);
 
-	const CREATE_INITIAL_USER = gql`
+	const CREATE_INITIAL_USER = graphql(`
 		mutation createInitialUser($input: CreateInitialUserInput!) {
 			createInitialUser(input: $input) {
 				token
@@ -30,24 +31,24 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_MQTT_CONFIG = gql`
-		mutation UpdateMqttConfig($input: MqttConfigInput!) {
+	const UPDATE_MQTT_CONFIG = graphql(`
+		mutation SetupUpdateMqttConfig($input: MqttConfigInput!) {
 			updateMqttConfig(input: $input) {
 				broker
 			}
 		}
-	`;
+	`);
 
-	const TEST_MQTT_CONNECTION = gql`
+	const TEST_MQTT_CONNECTION = graphql(`
 		mutation TestMqttConnection($input: MqttConfigInput!) {
 			testMqttConnection(input: $input) {
 				success
 				message
 			}
 		}
-	`;
+	`);
 
 	let client: Client;
 	let phase = $state<"loading" | "user" | "mqtt" | "done">("loading");

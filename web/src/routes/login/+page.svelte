@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
-	import { gql, getContextClient } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Loader2 } from "@lucide/svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 
-	const LOGIN = gql`
+	const LOGIN = graphql(`
 		mutation login($input: LoginInput!) {
 			login(input: $input) {
 				token
@@ -20,9 +20,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	let client: Client;
+	const client = getContextClient();
 	let username = $state("");
 	let password = $state("");
 	let submitting = $state(false);
@@ -34,7 +34,7 @@
 		submitting = true;
 		try {
 			const result = await client
-				.mutation<{ login: { token: string } }>(LOGIN, { input: { username, password } })
+				.mutation(LOGIN, { input: { username, password } })
 				.toPromise();
 			if (result.error || !result.data) {
 				error = result.error?.message ?? "Login failed";
@@ -48,7 +48,6 @@
 	}
 
 	onMount(() => {
-		client = getContextClient();
 		pageHeader.breadcrumbs = [{ label: "Sign in" }];
 	});
 </script>
