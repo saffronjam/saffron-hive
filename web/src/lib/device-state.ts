@@ -1,7 +1,7 @@
 import { isLightState, isSensorState, isSwitchState, type DeviceState } from "$lib/stores/devices";
 
 /** Short one-line summary of a device's current state (e.g. "On - 75%", "21.4°C / 48% RH"). */
-export function stateSummary(state: DeviceState | null): string {
+export function stateSummary(state: DeviceState | null | undefined): string {
   if (isLightState(state)) {
     if (state.on === false) return "Off";
     if (state.brightness != null) {

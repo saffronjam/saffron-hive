@@ -1,58 +1,14 @@
 import { writable } from "svelte/store";
+import type {
+  Capability,
+  Device,
+  DeviceState,
+  LightState,
+  SensorState,
+  SwitchState,
+} from "$lib/gql/graphql";
 
-interface Color {
-  r: number;
-  g: number;
-  b: number;
-  x: number;
-  y: number;
-}
-
-export interface LightState {
-  __typename: "LightState";
-  on: boolean | null;
-  brightness: number | null;
-  colorTemp: number | null;
-  color: Color | null;
-  transition: number | null;
-}
-
-export interface SensorState {
-  __typename: "SensorState";
-  temperature: number | null;
-  humidity: number | null;
-  battery: number | null;
-  pressure: number | null;
-  illuminance: number | null;
-}
-
-export interface SwitchState {
-  __typename: "SwitchState";
-  action: string | null;
-}
-
-export type DeviceState = LightState | SensorState | SwitchState;
-
-export interface Capability {
-  name: string;
-  type: string;
-  values: string[] | null;
-  valueMin: number | null;
-  valueMax: number | null;
-  unit: string | null;
-  access: number;
-}
-
-export interface Device {
-  id: string;
-  name: string;
-  source: string;
-  type: string;
-  capabilities: Capability[];
-  available: boolean;
-  lastSeen: string;
-  state: DeviceState | null;
-}
+export type { Capability, Device, DeviceState, LightState, SensorState, SwitchState };
 
 interface DeviceMap {
   [id: string]: Device;
@@ -111,14 +67,14 @@ function createDeviceStore() {
 
 export const deviceStore = createDeviceStore();
 
-export function isLightState(state: DeviceState | null): state is LightState {
+export function isLightState(state: DeviceState | null | undefined): state is LightState {
   return state?.__typename === "LightState";
 }
 
-export function isSensorState(state: DeviceState | null): state is SensorState {
+export function isSensorState(state: DeviceState | null | undefined): state is SensorState {
   return state?.__typename === "SensorState";
 }
 
-export function isSwitchState(state: DeviceState | null): state is SwitchState {
+export function isSwitchState(state: DeviceState | null | undefined): state is SwitchState {
   return state?.__typename === "SwitchState";
 }
