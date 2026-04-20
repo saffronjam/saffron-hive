@@ -134,14 +134,22 @@ export async function waitForDevices(
   );
 }
 
-function createTestGraphQLClient(httpUrl: string, wsUrl: string): Client {
+function createTestGraphQLClient(httpUrl: string, wsUrl: string, token: string): Client {
   const wsClient = createWSClient({
     url: wsUrl,
     webSocketImpl: ws,
+    connectionParams: () => ({ authToken: token }),
   });
+
+  const authenticatedFetch: typeof fetch = async (input, init) => {
+    const headers = new Headers(init?.headers);
+    headers.set("Authorization", `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  };
 
   return new Client({
     url: httpUrl,
+    fetch: authenticatedFetch,
     exchanges: [
       fetchExchange,
       subscriptionExchange({
@@ -157,6 +165,34 @@ function createTestGraphQLClient(httpUrl: string, wsUrl: string): Client {
       }),
     ],
   });
+}
+
+async function loginForE2E(graphqlUrl: string): Promise<string> {
+  const query = `mutation login($input: LoginInput!) { login(input: $input) { token } }`;
+  const body = JSON.stringify({
+    operationName: "login",
+    query,
+    variables: { input: { username: "e2e", password: "e2e-password" } },
+  });
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(graphqlUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (res.ok) {
+        const json = await res.json() as { data?: { login?: { token: string } } };
+        const token = json.data?.login?.token;
+        if (token) return token;
+      }
+    } catch {
+      // ignore; retry
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error("Timed out waiting for login during e2e setup");
 }
 
 export async function setupE2E(): Promise<void> {
@@ -189,9 +225,11 @@ export async function setupE2E(): Promise<void> {
     .withEntrypoint(["/bin/sh", "-c"])
     .withCommand(["saffron-hive migrate up && saffron-hive serve"])
     .withEnvironment({
-      HIVE_MQTT_BROKER: "mosquitto:1883",
+      HIVE_MQTT_ADDRESS: "mosquitto:1883",
       HIVE_LISTEN_ADDR: ":8080",
       HIVE_DB_PATH: "/tmp/test.db",
+      HIVE_INIT_USER: "e2e",
+      HIVE_INIT_PASSWORD: "e2e-password",
     })
     .withWaitStrategy(Wait.forListeningPorts())
     .withStartupTimeout(30_000)
@@ -204,7 +242,8 @@ export async function setupE2E(): Promise<void> {
 
   const mqttClient = await connectAsync(`mqtt://${mosquittoHost}:${mosquittoPort}`);
 
-  const graphqlClient = createTestGraphQLClient(graphqlUrl, wsUrl);
+  const token = await loginForE2E(graphqlUrl);
+  const graphqlClient = createTestGraphQLClient(graphqlUrl, wsUrl, token);
 
   ctx = {
     network,

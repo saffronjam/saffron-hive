@@ -15,6 +15,7 @@ import (
 
 var (
 	graphqlURL string
+	authToken  string
 	publisher  *infra.Publisher
 )
 
@@ -34,6 +35,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("start app: %v", err)
 	}
 	graphqlURL = app.GraphQLURL
+	authToken = app.AuthToken
 
 	publisher, err = infra.NewPublisher(mosquitto.BrokerURL)
 	if err != nil {

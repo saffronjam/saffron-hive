@@ -46,7 +46,15 @@ func graphqlPost(query string, variables map[string]any) (json.RawMessage, error
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := http.Post(graphqlURL, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, graphqlURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+authToken)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("post: %w", err)
 	}
@@ -82,7 +90,15 @@ func graphqlPostRaw(query string, variables map[string]any) (graphqlResponse, er
 		return graphqlResponse{}, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := http.Post(graphqlURL, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, graphqlURL, bytes.NewReader(body))
+	if err != nil {
+		return graphqlResponse{}, fmt.Errorf("new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+authToken)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return graphqlResponse{}, fmt.Errorf("post: %w", err)
 	}
@@ -128,7 +144,8 @@ func wsSubscribe(query string, variables map[string]any) (<-chan json.RawMessage
 		return nil, nil, fmt.Errorf("dial: %w", err)
 	}
 
-	initMsg, _ := json.Marshal(wsMessage{Type: "connection_init"})
+	initPayload, _ := json.Marshal(map[string]string{"authToken": authToken})
+	initMsg, _ := json.Marshal(wsMessage{Type: "connection_init", Payload: initPayload})
 	if err := conn.WriteMessage(websocket.TextMessage, initMsg); err != nil {
 		_ = conn.Close()
 		return nil, nil, fmt.Errorf("send init: %w", err)

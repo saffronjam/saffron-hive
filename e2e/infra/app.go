@@ -3,6 +3,7 @@ package infra
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -15,7 +16,9 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -27,11 +30,16 @@ import (
 // App holds references to all running components for the e2e test.
 type App struct {
 	GraphQLURL string
-	cancel     context.CancelFunc
-	db         *sql.DB
-	dbPath     string
-	adapter    *zigbee.ZigbeeAdapter
-	server     *http.Server
+	// AuthToken is a pre-minted JWT for the seed user — e2e helpers use this
+	// on every HTTP and WS request so the whole stack (middleware + resolver
+	// auth) is exercised, not bypassed.
+	AuthToken string
+	UserID    string
+	cancel    context.CancelFunc
+	db        *sql.DB
+	dbPath    string
+	adapter   *zigbee.ZigbeeAdapter
+	server    *http.Server
 }
 
 // StartApp starts the saffron-hive application in-process with a temp SQLite
@@ -89,12 +97,49 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 
 	go runSensorRecorder(appCtx, bus, sqlStore)
 
+	secret, err := auth.LoadOrInitSecret(appCtx, sqlStore)
+	if err != nil {
+		adapter.Stop()
+		cancel()
+		_ = db.Close()
+		return nil, fmt.Errorf("init jwt secret: %w", err)
+	}
+	authSvc := auth.NewService(secret, time.Hour)
+
+	seedUserID := uuid.New().String()
+	hash, err := auth.HashPassword("e2e-password")
+	if err != nil {
+		adapter.Stop()
+		cancel()
+		_ = db.Close()
+		return nil, fmt.Errorf("hash e2e password: %w", err)
+	}
+	if _, err := sqlStore.CreateUser(appCtx, store.CreateUserParams{
+		ID:           seedUserID,
+		Username:     "e2e",
+		Name:         "E2E",
+		PasswordHash: hash,
+	}); err != nil {
+		adapter.Stop()
+		cancel()
+		_ = db.Close()
+		return nil, fmt.Errorf("create e2e user: %w", err)
+	}
+	token, err := authSvc.Sign(seedUserID, "e2e", "E2E")
+	if err != nil {
+		adapter.Stop()
+		cancel()
+		_ = db.Close()
+		return nil, fmt.Errorf("sign e2e token: %w", err)
+	}
+
 	resolver := &graph.Resolver{
 		StateReader:        memStore,
 		Store:              sqlStore,
 		EventBus:           bus,
 		TargetResolver:     sqlStore,
 		AutomationReloader: &reloader{engine: engine, ctx: appCtx},
+		Auth:               authSvc,
 	}
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -102,10 +147,26 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	}))
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
-	gqlSrv.AddTransport(transport.Websocket{})
+	gqlSrv.AddTransport(transport.Websocket{
+		InitFunc: func(ctx context.Context, init transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+			tok, ok := init["authToken"].(string)
+			if !ok || tok == "" {
+				return ctx, nil, errors.New("missing authToken")
+			}
+			claims, err := authSvc.Parse(tok)
+			if err != nil {
+				return ctx, nil, errors.New("invalid token")
+			}
+			return auth.WithUser(ctx, auth.CtxUser{
+				ID:       claims.UserID,
+				Username: claims.Username,
+				Name:     claims.Name,
+			}), nil, nil
+		},
+	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", gqlSrv)
+	mux.Handle("/graphql", auth.Middleware(authSvc)(gqlSrv))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -136,6 +197,8 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 
 	return &App{
 		GraphQLURL: graphqlURL,
+		AuthToken:  token,
+		UserID:     seedUserID,
 		cancel:     cancel,
 		db:         db,
 		dbPath:     dbPath,
