@@ -46,7 +46,7 @@ docker run -d \
 
 ### Kubernetes
 
-Manifests in [`deploy/`](deploy/). Migrations run as an init container.
+Deployed via ArgoCD from the home-infra repo. Migrations run as an init container.
 
 ### Build from source
 

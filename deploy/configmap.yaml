@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: saffron-hive
-  namespace: home
-  labels:
-    app.kubernetes.io/name: saffron-hive
-data:
-  HIVE_DB_PATH: "/data/saffron-hive.db"
