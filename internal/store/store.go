@@ -306,6 +306,62 @@ type UserRef struct {
 	Name     string
 }
 
+// ActivityEvent represents a persisted activity log row. Source fields are
+// denormalised so the list query never has to join against devices/scenes/rooms.
+type ActivityEvent struct {
+	ID          int64
+	Type        string
+	Timestamp   time.Time
+	Message     string
+	PayloadJSON string
+
+	DeviceID   *string
+	DeviceName *string
+	DeviceType *string
+	RoomID     *string
+	RoomName   *string
+
+	SceneID   *string
+	SceneName *string
+
+	AutomationID   *string
+	AutomationName *string
+}
+
+// InsertActivityEventParams holds the parameters for inserting an activity event row.
+type InsertActivityEventParams struct {
+	Type        string
+	Timestamp   time.Time
+	Message     string
+	PayloadJSON string
+
+	DeviceID   *string
+	DeviceName *string
+	DeviceType *string
+	RoomID     *string
+	RoomName   *string
+
+	SceneID   *string
+	SceneName *string
+
+	AutomationID   *string
+	AutomationName *string
+}
+
+// ActivityQuery filters activity events. Zero values leave a filter unset.
+// When Advanced is false, internal event types (command.requested,
+// automation.node_activated) are excluded. Before is an exclusive cursor
+// (id < Before) used for keyset pagination when scrolling into history.
+type ActivityQuery struct {
+	Types    []string
+	DeviceID *string
+	RoomID   *string
+	Since    *time.Time
+	Limit    int
+	Advanced bool
+	Before   *int64
+}
+
 // Store defines the persistence interface for the application.
 type Store interface {
 	CreateDevice(ctx context.Context, params CreateDeviceParams) (device.Device, error)
@@ -357,6 +413,10 @@ type Store interface {
 
 	InsertSensorReading(ctx context.Context, params InsertSensorReadingParams) (SensorReading, error)
 	QuerySensorHistory(ctx context.Context, query SensorHistoryQuery) ([]SensorReading, error)
+
+	InsertActivityEvent(ctx context.Context, params InsertActivityEventParams) (ActivityEvent, error)
+	QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]ActivityEvent, error)
+	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 
 	GetMQTTConfig(ctx context.Context) (*MQTTConfig, error)
 	UpsertMQTTConfig(ctx context.Context, cfg MQTTConfig) error
