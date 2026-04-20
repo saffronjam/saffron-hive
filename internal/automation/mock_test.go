@@ -3,7 +3,6 @@ package automation
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -111,6 +110,10 @@ func (m *mockStateReader) setGroupDevices(gid device.GroupID, deviceIDs []device
 	m.groups[gid] = deviceIDs
 }
 
+// mockStore satisfies the automationStore narrow interface plus
+// device.TargetResolver (tests pass the same mock as both). All five
+// test-helper methods configure in-memory fixtures the engine/action code
+// then reads through the interface methods.
 type mockStore struct {
 	mu           sync.RWMutex
 	automations  []store.Automation
@@ -143,17 +146,6 @@ func (m *mockStore) ListEnabledAutomations(_ context.Context) ([]store.Automatio
 	return out, nil
 }
 
-func (m *mockStore) GetAutomation(_ context.Context, id string) (store.Automation, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for _, a := range m.automations {
-		if a.ID == id {
-			return a, nil
-		}
-	}
-	return store.Automation{}, nil
-}
-
 func (m *mockStore) GetAutomationGraph(_ context.Context, automationID string) (store.AutomationGraph, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -171,18 +163,6 @@ func (m *mockStore) GetAutomationGraph(_ context.Context, automationID string) (
 	}, nil
 }
 
-func (m *mockStore) ListAutomationNodes(_ context.Context, automationID string) ([]store.AutomationNode, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.nodes[automationID], nil
-}
-
-func (m *mockStore) ListAutomationEdges(_ context.Context, automationID string) ([]store.AutomationEdge, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.edges[automationID], nil
-}
-
 func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store.SceneAction, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -190,6 +170,24 @@ func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store
 		return nil, err
 	}
 	return m.sceneActions[sceneID], nil
+}
+
+func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
+	switch targetType {
+	case device.TargetGroup:
+		m.mu.RLock()
+		members := m.groupMembers[targetID]
+		m.mu.RUnlock()
+		var ids []device.DeviceID
+		for _, mem := range members {
+			if mem.MemberType == device.GroupMemberDevice {
+				ids = append(ids, device.DeviceID(mem.MemberID))
+			}
+		}
+		return ids
+	default:
+		return []device.DeviceID{device.DeviceID(targetID)}
+	}
 }
 
 func (m *mockStore) addAutomationGraph(a store.Automation, nodes []store.AutomationNode, edges []store.AutomationEdge) {
@@ -226,283 +224,8 @@ func (m *mockStore) setSceneError(sceneID string, err error) {
 	m.sceneErr[sceneID] = err
 }
 
-func (m *mockStore) CreateDevice(_ context.Context, _ store.CreateDeviceParams) (device.Device, error) {
-	return device.Device{}, nil
-}
-
-func (m *mockStore) UpsertDevice(_ context.Context, _ store.CreateDeviceParams) error {
-	return nil
-}
-
-func (m *mockStore) GetDevice(_ context.Context, _ device.DeviceID) (device.Device, error) {
-	return device.Device{}, nil
-}
-
-func (m *mockStore) ListDevices(_ context.Context) ([]device.Device, error) {
-	return nil, nil
-}
-
-func (m *mockStore) ListDevicesBySource(_ context.Context, _ device.Source) ([]device.Device, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpdateDevice(_ context.Context, _ store.UpdateDeviceParams) (device.Device, error) {
-	return device.Device{}, nil
-}
-
-func (m *mockStore) DeleteDevice(_ context.Context, _ device.DeviceID) error {
-	return nil
-}
-
-func (m *mockStore) RegisterZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) (store.ZigbeeDevice, error) {
-	return store.ZigbeeDevice{}, nil
-}
-
-func (m *mockStore) UpsertZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) error {
-	return nil
-}
-
-func (m *mockStore) GetZigbeeDeviceByIEEEAddress(_ context.Context, _ string) (store.ZigbeeDevice, error) {
-	return store.ZigbeeDevice{}, nil
-}
-
-func (m *mockStore) GetZigbeeDeviceByFriendlyName(_ context.Context, _ string) (store.ZigbeeDevice, error) {
-	return store.ZigbeeDevice{}, nil
-}
-
-func (m *mockStore) CreateScene(_ context.Context, _ store.CreateSceneParams) (store.Scene, error) {
-	return store.Scene{}, nil
-}
-
-func (m *mockStore) GetScene(_ context.Context, _ string) (store.Scene, error) {
-	return store.Scene{}, nil
-}
-
-func (m *mockStore) ListScenes(_ context.Context) ([]store.Scene, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpdateScene(_ context.Context, _ string, _ store.UpdateSceneParams) (store.Scene, error) {
-	return store.Scene{}, nil
-}
-
-func (m *mockStore) DeleteScene(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) CreateSceneAction(_ context.Context, params store.CreateSceneActionParams) (store.SceneAction, error) {
-	return store.SceneAction{
-		ID:         params.ID,
-		SceneID:    params.SceneID,
-		TargetType: params.TargetType,
-		TargetID:   params.TargetID,
-		Payload:    params.Payload,
-	}, nil
-}
-
-func (m *mockStore) DeleteSceneAction(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) CreateAutomation(_ context.Context, _ store.CreateAutomationParams) (store.Automation, error) {
-	return store.Automation{}, nil
-}
-
-func (m *mockStore) ListAutomations(_ context.Context) ([]store.Automation, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpdateAutomation(_ context.Context, id string, _ store.UpdateAutomationParams) (store.Automation, error) {
-	return store.Automation{ID: id}, nil
-}
-
-func (m *mockStore) UpdateAutomationEnabled(_ context.Context, _ string, _ bool) error {
-	return nil
-}
-
-func (m *mockStore) DeleteAutomation(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) CreateAutomationNode(_ context.Context, _ store.CreateAutomationNodeParams) (store.AutomationNode, error) {
-	return store.AutomationNode{}, nil
-}
-
-func (m *mockStore) DeleteAutomationNode(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) CreateAutomationEdge(_ context.Context, _ store.CreateAutomationEdgeParams) (store.AutomationEdge, error) {
-	return store.AutomationEdge{}, nil
-}
-
-func (m *mockStore) DeleteAutomationEdge(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) CreateGroup(_ context.Context, _ store.CreateGroupParams) (store.Group, error) {
-	return store.Group{}, nil
-}
-
-func (m *mockStore) GetGroup(_ context.Context, _ string) (store.Group, error) {
-	return store.Group{}, nil
-}
-
-func (m *mockStore) ListGroups(_ context.Context) ([]store.Group, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpdateGroup(_ context.Context, _ store.UpdateGroupParams) (store.Group, error) {
-	return store.Group{}, nil
-}
-
-func (m *mockStore) DeleteGroup(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) AddGroupMember(_ context.Context, _ store.AddGroupMemberParams) (store.GroupMember, error) {
-	return store.GroupMember{}, nil
-}
-
-func (m *mockStore) ListGroupMembers(_ context.Context, groupID string) ([]store.GroupMember, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.groupMembers[groupID], nil
-}
-
 func (m *mockStore) setGroupMembers(groupID string, members []store.GroupMember) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.groupMembers[groupID] = members
-}
-
-func (m *mockStore) RemoveGroupMember(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) ListGroupsContainingMember(_ context.Context, _ device.GroupMemberType, _ string) ([]store.Group, error) {
-	return nil, nil
-}
-
-func (m *mockStore) InsertSensorReading(_ context.Context, _ store.InsertSensorReadingParams) (store.SensorReading, error) {
-	return store.SensorReading{}, nil
-}
-
-func (m *mockStore) QuerySensorHistory(_ context.Context, _ store.SensorHistoryQuery) ([]store.SensorReading, error) {
-	return nil, nil
-}
-
-func (m *mockStore) InsertActivityEvent(_ context.Context, _ store.InsertActivityEventParams) (store.ActivityEvent, error) {
-	return store.ActivityEvent{}, nil
-}
-
-func (m *mockStore) QueryActivityEvents(_ context.Context, _ store.ActivityQuery) ([]store.ActivityEvent, error) {
-	return nil, nil
-}
-
-func (m *mockStore) PruneActivityEventsOlderThan(_ context.Context, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpsertMQTTConfig(_ context.Context, _ store.MQTTConfig) error {
-	return nil
-}
-
-func (m *mockStore) GetSetting(_ context.Context, _ string) (store.Setting, error) {
-	return store.Setting{}, nil
-}
-
-func (m *mockStore) ListSettings(_ context.Context) ([]store.Setting, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpsertSetting(_ context.Context, _, _ string) error {
-	return nil
-}
-
-func (m *mockStore) CreateRoom(_ context.Context, _ store.CreateRoomParams) (store.Room, error) {
-	return store.Room{}, nil
-}
-
-func (m *mockStore) GetRoom(_ context.Context, _ string) (store.Room, error) {
-	return store.Room{}, nil
-}
-
-func (m *mockStore) ListRooms(_ context.Context) ([]store.Room, error) {
-	return nil, nil
-}
-
-func (m *mockStore) UpdateRoom(_ context.Context, _ store.UpdateRoomParams) (store.Room, error) {
-	return store.Room{}, nil
-}
-
-func (m *mockStore) DeleteRoom(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) AddRoomDevice(_ context.Context, _ store.AddRoomDeviceParams) (store.RoomDevice, error) {
-	return store.RoomDevice{}, nil
-}
-
-func (m *mockStore) ListRoomDevices(_ context.Context, _ string) ([]store.RoomDevice, error) {
-	return nil, nil
-}
-
-func (m *mockStore) RemoveRoomDevice(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockStore) RemoveRoomDeviceByRoomAndDevice(_ context.Context, _, _ string) error {
-	return nil
-}
-
-func (m *mockStore) ListRoomsContainingDevice(_ context.Context, _ string) ([]store.Room, error) {
-	return nil, nil
-}
-
-func (m *mockStore) CreateUser(_ context.Context, params store.CreateUserParams) (store.User, error) {
-	return store.User{
-		ID:           params.ID,
-		Username:     params.Username,
-		Name:         params.Name,
-		PasswordHash: params.PasswordHash,
-	}, nil
-}
-
-func (m *mockStore) GetUserByID(_ context.Context, id string) (store.User, error) {
-	return store.User{ID: id}, nil
-}
-
-func (m *mockStore) GetUserByUsername(_ context.Context, _ string) (store.User, error) {
-	return store.User{}, nil
-}
-
-func (m *mockStore) ListUsers(_ context.Context) ([]store.User, error) {
-	return nil, nil
-}
-
-func (m *mockStore) CountUsers(_ context.Context) (int, error) {
-	return 0, nil
-}
-
-func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
-	switch targetType {
-	case device.TargetGroup:
-		m.mu.RLock()
-		members := m.groupMembers[targetID]
-		m.mu.RUnlock()
-		var ids []device.DeviceID
-		for _, mem := range members {
-			if mem.MemberType == device.GroupMemberDevice {
-				ids = append(ids, device.DeviceID(mem.MemberID))
-			}
-		}
-		return ids
-	default:
-		return []device.DeviceID{device.DeviceID(targetID)}
-	}
 }

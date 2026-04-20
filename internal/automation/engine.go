@@ -31,11 +31,19 @@ type compiledGraph struct {
 	conditions      map[NodeID]*vm.Program
 }
 
+// automationStore is the narrow subset of store methods the engine and action
+// executor need. *store.DB satisfies it implicitly.
+type automationStore interface {
+	ListEnabledAutomations(ctx context.Context) ([]store.Automation, error)
+	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
+	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
+}
+
 // Engine evaluates automation graphs against incoming events.
 type Engine struct {
 	bus      eventbus.EventBus
 	reader   device.StateReader
-	store    store.Store
+	store    automationStore
 	resolver device.TargetResolver
 	executor *ActionExecutor
 	now      func() time.Time
@@ -49,7 +57,7 @@ type Engine struct {
 }
 
 // NewEngine creates a new automation Engine.
-func NewEngine(bus eventbus.EventBus, reader device.StateReader, s store.Store, resolver device.TargetResolver) *Engine {
+func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver) *Engine {
 	return &Engine{
 		bus:        bus,
 		reader:     reader,

@@ -8,7 +8,6 @@ import (
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
-	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 const (
@@ -20,12 +19,12 @@ const (
 type ActionExecutor struct {
 	bus      eventbus.Publisher
 	reader   device.StateReader
-	store    store.Store
+	store    automationStore
 	resolver device.TargetResolver
 }
 
 // NewActionExecutor creates an ActionExecutor.
-func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s store.Store, resolver device.TargetResolver) *ActionExecutor {
+func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver) *ActionExecutor {
 	return &ActionExecutor{bus: bus, reader: reader, store: s, resolver: resolver}
 }
 
