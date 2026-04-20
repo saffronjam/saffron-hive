@@ -3,6 +3,7 @@ package automation
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -389,6 +390,18 @@ func (m *mockStore) InsertSensorReading(_ context.Context, _ store.InsertSensorR
 
 func (m *mockStore) QuerySensorHistory(_ context.Context, _ store.SensorHistoryQuery) ([]store.SensorReading, error) {
 	return nil, nil
+}
+
+func (m *mockStore) InsertActivityEvent(_ context.Context, _ store.InsertActivityEventParams) (store.ActivityEvent, error) {
+	return store.ActivityEvent{}, nil
+}
+
+func (m *mockStore) QueryActivityEvents(_ context.Context, _ store.ActivityQuery) ([]store.ActivityEvent, error) {
+	return nil, nil
+}
+
+func (m *mockStore) PruneActivityEventsOlderThan(_ context.Context, _ time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) {
