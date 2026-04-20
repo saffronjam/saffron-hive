@@ -10,6 +10,12 @@ saffron-hive
 web/build/
 web/node_modules/
 
+# The Dockerfile overlays web/build into cmd/serve/webdist/ before `go build`.
+# Only the placeholder index.html is tracked for local-dev bootstrap; every
+# other file under webdist/ is a generated artifact.
+cmd/serve/webdist/*
+!cmd/serve/webdist/index.html
+
 # IDE
 .idea/
 .vscode/

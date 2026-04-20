@@ -683,8 +683,8 @@ func createUserRow(ctx context.Context, s store.Store, username, name, password 
 	if name == "" {
 		return store.User{}, fmt.Errorf("name is required")
 	}
-	if len(password) < 8 {
-		return store.User{}, fmt.Errorf("password must be at least 8 characters")
+	if len(password) < 6 {
+		return store.User{}, fmt.Errorf("password must be at least 6 characters")
 	}
 	hash, err := auth.HashPassword(password)
 	if err != nil {

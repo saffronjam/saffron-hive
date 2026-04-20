@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-//go:embed placeholder
+//go:embed all:webdist
 var webDist embed.FS
 
 // Run starts the Saffron Hive application. It blocks until ctx is cancelled,
@@ -153,11 +154,11 @@ func Run(ctx context.Context) error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	staticFS, err := fs.Sub(webDist, "placeholder")
+	staticFS, err := fs.Sub(webDist, "webdist")
 	if err != nil {
 		return err
 	}
-	mux.Handle("/", http.FileServerFS(staticFS))
+	mux.Handle("/", spaFallbackHandler(staticFS))
 
 	srv := &http.Server{
 		Addr:    cfg.ListenAddr,
@@ -177,6 +178,28 @@ func Run(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// spaFallbackHandler serves static frontend assets and falls back to index.html
+// for any path whose file doesn't exist — required because SvelteKit runs as an
+// SPA with client-side routing (ssr=false), so URLs like /scenes must be
+// rewritten to index.html and the app takes over from there.
+func spaFallbackHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServerFS(fsys)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		if _, err := fs.Stat(fsys, path); err != nil {
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = "/"
+			fileServer.ServeHTTP(w, r2)
+			return
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 }
 
 // wsInitFunc validates the authToken sent via graphql-ws connectionParams and
@@ -293,9 +316,10 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 	if m.adapter != nil {
 		m.adapter.Stop()
 		m.adapter = nil
+		m.client = nil
 	}
 
-	m.client = zigbee.NewPahoClient(zigbee.PahoConfig{
+	client := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   mqttCfg.Broker,
 		Username: mqttCfg.Username,
 		Password: mqttCfg.Password,
@@ -303,10 +327,16 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 		ClientID: "saffron-hive",
 	})
 
-	m.adapter = zigbee.NewZigbeeAdapter(m.client, m.bus, m.memStore, m.memStore)
-	if err := m.adapter.Start(); err != nil {
+	adapter := zigbee.NewZigbeeAdapter(client, m.bus, m.memStore, m.memStore)
+	if err := adapter.Start(); err != nil {
+		// Roll back the partial construction: tear down the Paho goroutines
+		// and leave the manager in a clean "not connected" state so a retry
+		// doesn't try to Stop() a half-initialised adapter.
+		adapter.Stop()
 		return fmt.Errorf("start adapter with new config: %w", err)
 	}
+	m.client = client
+	m.adapter = adapter
 
 	slog.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
 	return nil

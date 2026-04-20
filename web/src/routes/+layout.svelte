@@ -36,16 +36,14 @@
 
 	async function gate() {
 		const pathname = $page.url.pathname;
-		const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
 
-		// Fetch the unauthenticated setup status first — if the system has no
-		// initial user yet, the user must be sent to /setup regardless of any
-		// stale token they might still have in localStorage.
 		const result = await client.query(SETUP_STATUS_QUERY, {}).toPromise();
 		const setup = result.data?.setupStatus;
-		const setupComplete = setup?.hasInitialUser && setup?.mqttConfigured;
+		const hasInitialUser = setup?.hasInitialUser ?? false;
+		const mqttConfigured = setup?.mqttConfigured ?? false;
 
-		if (!setupComplete) {
+		// No initial user yet → /setup phase 1 creates it (unauthenticated).
+		if (!hasInitialUser) {
 			if (pathname !== "/setup") {
 				await goto("/setup", { replaceState: true });
 			}
@@ -53,21 +51,28 @@
 			return;
 		}
 
-		if (isPublic) {
-			// Setup is complete and we're on /login or /setup — stay put unless
-			// already authenticated on /login, in which case bounce to /.
-			if (pathname === "/login" && auth.isAuthenticated()) {
-				await goto("/", { replaceState: true });
-			}
-			if (pathname === "/setup") {
-				await goto("/", { replaceState: true });
+		// Initial user exists — anything else requires being logged in first,
+		// including /setup phase 2 (MQTT) whose mutations are authenticated.
+		if (!auth.isAuthenticated()) {
+			if (pathname !== "/login") {
+				await goto("/login", { replaceState: true });
 			}
 			ready = true;
 			return;
 		}
 
-		if (!auth.isAuthenticated()) {
-			await goto("/login", { replaceState: true });
+		// Logged in. If MQTT isn't configured, finish setup.
+		if (!mqttConfigured) {
+			if (pathname !== "/setup") {
+				await goto("/setup", { replaceState: true });
+			}
+			ready = true;
+			return;
+		}
+
+		// Fully configured and authenticated. /login and /setup become redirects.
+		if (pathname === "/login" || pathname === "/setup") {
+			await goto("/", { replaceState: true });
 		}
 		ready = true;
 	}

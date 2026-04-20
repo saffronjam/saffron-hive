@@ -65,13 +65,13 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 	}
 }
 
-// Start connects to MQTT, subscribes to zigbee2mqtt topics, and begins
-// processing messages.
+// Start registers zigbee2mqtt subscriptions and connects to MQTT.
+// Subscriptions are registered BEFORE Connect so paho's OnConnectHandler
+// issues the SUBSCRIBE frames inside the post-CONNACK callback — the only
+// point where every internal paho goroutine is guaranteed to be running.
+// Doing it this way avoids the "connection lost before Subscribe completed"
+// race on WSS transports.
 func (a *ZigbeeAdapter) Start() error {
-	if err := a.mqtt.Connect(); err != nil {
-		return err
-	}
-
 	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/devices", 0, func(msg Message) {
 		a.handleBridgeDevices(msg.Payload())
 	}); err != nil {
@@ -90,9 +90,17 @@ func (a *ZigbeeAdapter) Start() error {
 		return err
 	}
 
-	if err := a.mqtt.Subscribe("zigbee2mqtt/#", 0, func(msg Message) {
+	// Single-level wildcard: only matches "zigbee2mqtt/<name>". A full "#"
+	// wildcard here is both redundant (the state handler filters for exactly
+	// two path components) and triggers a large retained-message burst that
+	// can race the WSS transport and drop the connection mid-SUBACK.
+	if err := a.mqtt.Subscribe("zigbee2mqtt/+", 0, func(msg Message) {
 		a.handleStateMessage(msg.Topic(), msg.Payload())
 	}); err != nil {
+		return err
+	}
+
+	if err := a.mqtt.Connect(); err != nil {
 		return err
 	}
 
