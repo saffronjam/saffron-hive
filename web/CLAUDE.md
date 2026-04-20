@@ -4,24 +4,62 @@ Svelte frontend for the Saffron Hive dashboard. Uses bun as package manager and 
 
 ## Stack
 
-- Svelte + SvelteKit
+- Svelte 5 + SvelteKit
 - shadcn-svelte for UI components
 - Tailwind for styling
-- graphql-codegen for TypeScript types generated from the GraphQL schema
-- urql (or similar) for GraphQL client with subscription support
+- `@urql/svelte` for GraphQL over HTTP (queries/mutations) and WebSocket (subscriptions) via `graphql-ws`
+- `@graphql-codegen/client-preset` generates TypeScript types from `api/schema.graphql` into `web/src/lib/gql/`
 
 ## Build
 
 The built output (`web/dist/`) is embedded into the Go binary via `go:embed`. The Go server serves the frontend — no separate web server needed.
 
-## Data flow
+## GraphQL
 
-All data fetching, mutations, and real-time updates go through GraphQL:
-- Queries for initial data load
-- Mutations for user actions (toggle light, apply scene, save automation)
-- Subscriptions for live state updates (device changes, sensor readings)
+`api/schema.graphql` is the single source of truth. graphql-codegen's `client-preset` scans all `.svelte` and `.ts` files for `graphql(\`…\`)` calls, and emits:
 
-The frontend maintains a local state store that is hydrated on connect and kept in sync via subscriptions.
+- `src/lib/gql/graphql.ts` — all schema types (`Device`, `Scene`, etc.) + operation types (`DevicesListQuery`, `UpdateSceneMutation`, …).
+- `src/lib/gql/gql.ts` + `index.ts` — the `graphql()` helper that takes a query string and returns a `TypedDocumentNode<Data, Variables>`.
+- `src/lib/gql/fragment-masking.ts` — ready for fragment introduction (no fragments used today).
+
+Regenerate with `make codegen` (or `cd web && bun run codegen`). `make codegen-check` fails when the committed output drifts from the SQL; it runs in `prepare-for-commit` and CI.
+
+**Do not import from `$lib/gql/graphql` directly for schema types unless you need them; prefer letting urql infer operation result/variable types from the `TypedDocumentNode` returned by `graphql()`.**
+
+### Canonical patterns
+
+**Single urql client.** `routes/+layout.svelte` creates one `Client` via `createGraphQLClient()` (which sets up `authenticatedFetch`, `graphql-ws` subscriptions, and auth-refresh handling) and publishes it through `setContextClient`. Every other component pulls it via `getContextClient()` — **never** call `createGraphQLClient()` outside the layout.
+
+**Queries.**
+```ts
+import { getContextClient, queryStore } from "@urql/svelte";
+import { graphql } from "$lib/gql";
+
+const DEVICES_QUERY = graphql(`query Devices { devices { id name } }`);
+const client = getContextClient();
+const devices = queryStore({ client, query: DEVICES_QUERY });
+$effect(() => {
+    if ($devices.data) { /* $devices.data.devices is fully typed */ }
+});
+```
+
+**Subscriptions.**
+```ts
+import { subscriptionStore } from "@urql/svelte";
+const changes = subscriptionStore({ client, query: DEVICE_STATE_CHANGED });
+$effect(() => {
+    if ($changes.data) deviceStore.updateState(...);
+});
+```
+No manual `.subscribe(sink)` + `onDestroy` unsubscribe sweep — `subscriptionStore` handles teardown when the component unmounts.
+
+**Mutations.** Imperative — the caller awaits completion:
+```ts
+const result = await client.mutation(UPDATE_DEVICE, { id, input }).toPromise();
+if (result.data) deviceStore.updateName(id, result.data.updateDevice.name);
+```
+
+**Operation names must be unique across the whole document set.** graphql-codegen rejects duplicates at build time. Use `<PageContext><Action>` naming when the same entity is queried from multiple pages — e.g. `query DashboardDevices { … }` vs `query DevicesList { … }`.
 
 ## Theme
 

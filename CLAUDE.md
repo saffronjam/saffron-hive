@@ -88,7 +88,7 @@ Three distinct type layers, each with a clear purpose:
 - **MQTT DTOs** — raw JSON shapes from zigbee2mqtt (and future adapters). Parsed and discarded by the adapter, never leak beyond it.
 - **Domain types** — the core of the application. What the event bus carries, what the in-memory state store holds, what the automation engine evaluates against. Plain Go structs, no framework dependencies. For the persistence layer, the domain-facing types live in `internal/store/` (param/result structs like `CreateAutomationParams`, `Scene`, `UserRef`).
 - **DB types** — sqlc-generated in `internal/store/sqlite/`. Private to the store package; consumers never import that path. Thin mapping functions in `internal/store/mapper.go` and the per-entity wrappers translate between sqlc rows and domain types.
-- **GraphQL DTOs** — gqlgen-generated from the schema. Used only at the API boundary. Resolvers map domain types to GraphQL types. (TypeScript types on the frontend are hand-written alongside urql `gql` queries — graphql-codegen is not wired up.)
+- **GraphQL DTOs** — generated from `api/schema.graphql` on both sides. gqlgen emits Go types + resolver interfaces into `internal/graph/generated.go` and `internal/graph/model/`. graphql-codegen's `client-preset` emits TypeScript types + a `graphql()` document helper into `web/src/lib/gql/`. Both generators read the same schema; schema drift fails CI on both sides. Resolvers map Go domain types to the GraphQL layer; the frontend uses the generated types directly and lets urql infer operation result/variable types from the emitted `TypedDocumentNode`s.
 
 Domain types are the authoritative representation. Everything else maps to/from them.
 
