@@ -16,9 +16,9 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -40,9 +40,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -62,9 +62,9 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -80,28 +80,39 @@ jobs:
         run: bun run test
         working-directory: web
 
-  e2e:
-    name: E2E
+  e2e-go:
+    name: E2E (Go)
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     needs: [format, lint, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+
+      # Go e2e runs the app in-process; no Docker image needed.
+      - name: Go E2E tests
+        run: go test -tags e2e ./e2e/... -v -count=1 -timeout=120s
+
+  e2e-ts:
+    name: E2E (Frontend)
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: [format, lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install
         working-directory: web
 
+      # Frontend e2e uses testcontainers to spin up the real saffron-hive
+      # image + a mosquitto sidecar.
       - name: Build test image
         run: docker build -t saffron-hive-test .
-
-      - name: Go E2E tests
-        run: go test -tags e2e ./e2e/... -v -count=1 -timeout=120s
 
       - name: Frontend E2E tests
         run: bun run test:e2e
@@ -110,10 +121,10 @@ jobs:
   build-and-push:
     name: Build & Push
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    needs: [e2e]
+    needs: [e2e-go, e2e-ts]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
