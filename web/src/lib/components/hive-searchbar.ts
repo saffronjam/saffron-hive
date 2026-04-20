@@ -50,10 +50,13 @@ export function serialize(state: SearchState): string {
 }
 
 /**
- * Parse a raw query string into a SearchState, consulting the configured chip
- * keywords. Tokens matching `<keyword>:...` where `<keyword>` is configured
- * become chips; everything else becomes free text. Unknown keywords fall
- * through to free text as-is.
+ * Parse a raw (space-separated) query string into a SearchState, consulting
+ * the configured chip keywords. Tokens matching `<keyword>:...` where
+ * `<keyword>` is configured become chips; everything else becomes free text.
+ * Unknown keywords fall through to free text as-is.
+ *
+ * Best-effort helper for simple single-word chip values — multi-word values
+ * cannot round-trip through this function (space is the delimiter).
  */
 export function parseQuery(query: string, keywords: readonly string[]): SearchState {
   const chips: SearchChip[] = [];
@@ -65,6 +68,39 @@ export function parseQuery(query: string, keywords: readonly string[]): SearchSt
       chips.push({ keyword: kw, value: raw.slice(kw.length + 1) });
     } else {
       free.push(raw);
+    }
+  }
+  return { chips, freeText: free.join(" ") };
+}
+
+/**
+ * Build the internal token list used by the HiveSearchbar UI from a
+ * SearchState. Multi-word values are preserved verbatim in their own token.
+ * The trailing empty string represents the live (currently-edited) token.
+ */
+export function stateToTokens(state: SearchState): string[] {
+  const out: string[] = [];
+  for (const c of state.chips) out.push(`${c.keyword}:${c.value}`);
+  if (state.freeText) out.push(state.freeText);
+  out.push("");
+  return out;
+}
+
+/**
+ * Collapse an array of committed token texts back into a SearchState. Chip
+ * tokens are extracted in order; all free-text tokens are joined with a space
+ * into the single `freeText` field.
+ */
+export function tokensToState(tokens: readonly string[], keywords: readonly string[]): SearchState {
+  const chips: SearchChip[] = [];
+  const free: string[] = [];
+  for (const text of tokens) {
+    if (!text) continue;
+    const kw = matchChipKeyword(text, keywords);
+    if (kw !== null) {
+      chips.push({ keyword: kw, value: text.slice(kw.length + 1) });
+    } else {
+      free.push(text);
     }
   }
   return { chips, freeText: free.join(" ") };

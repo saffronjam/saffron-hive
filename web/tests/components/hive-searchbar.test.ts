@@ -3,6 +3,8 @@ import {
 	matchChipKeyword,
 	parseQuery,
 	serialize,
+	stateToTokens,
+	tokensToState,
 	emptySearchState,
 	type SearchState,
 } from "$lib/components/hive-searchbar";
@@ -197,4 +199,69 @@ describe("round-trip: parseQuery(serialize(state))", () => {
 			expect(parseQuery(serialize(state), KEYWORDS)).toEqual(state);
 		});
 	}
+});
+
+describe("stateToTokens", () => {
+	it("returns only the trailing live token for an empty state", () => {
+		expect(stateToTokens(emptySearchState())).toEqual([""]);
+	});
+
+	it("emits one token per chip, then free text, then an empty live token", () => {
+		const state: SearchState = {
+			chips: [
+				{ keyword: "type", value: "light" },
+				{ keyword: "room", value: "kitchen" },
+			],
+			freeText: "bedside",
+		};
+		expect(stateToTokens(state)).toEqual(["type:light", "room:kitchen", "bedside", ""]);
+	});
+
+	it("preserves spaces inside multi-word chip values and free text", () => {
+		const state: SearchState = {
+			chips: [{ keyword: "device", value: "Bedside Lamp" }],
+			freeText: "bedroom lamp",
+		};
+		expect(stateToTokens(state)).toEqual(["device:Bedside Lamp", "bedroom lamp", ""]);
+	});
+
+	it("omits the free-text token when freeText is empty", () => {
+		const state: SearchState = {
+			chips: [{ keyword: "type", value: "light" }],
+			freeText: "",
+		};
+		expect(stateToTokens(state)).toEqual(["type:light", ""]);
+	});
+});
+
+describe("tokensToState", () => {
+	it("returns empty state when every token is empty", () => {
+		expect(tokensToState(["", ""], KEYWORDS)).toEqual(emptySearchState());
+	});
+
+	it("extracts chips and joins free text with a single space", () => {
+		expect(tokensToState(["type:light", "bedroom", "lamp"], KEYWORDS)).toEqual({
+			chips: [{ keyword: "type", value: "light" }],
+			freeText: "bedroom lamp",
+		});
+	});
+
+	it("preserves multi-word chip values verbatim", () => {
+		expect(tokensToState(["device:Bedside Lamp"], ["device", "room"])).toEqual({
+			chips: [{ keyword: "device", value: "Bedside Lamp" }],
+			freeText: "",
+		});
+	});
+
+	it("is the inverse of stateToTokens (sans trailing empty) for multi-word values", () => {
+		const state: SearchState = {
+			chips: [
+				{ keyword: "device", value: "Bedside Lamp" },
+				{ keyword: "device", value: "Ceiling" },
+			],
+			freeText: "bedroom living room",
+		};
+		const tokens = stateToTokens(state);
+		expect(tokensToState(tokens, ["device"])).toEqual(state);
+	});
 });

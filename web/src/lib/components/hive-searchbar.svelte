@@ -6,8 +6,8 @@
 	import { cn } from "$lib/utils.js";
 	import {
 		matchChipKeyword,
-		parseQuery,
-		serialize,
+		stateToTokens,
+		tokensToState,
 		type ChipConfig,
 		type ChipOption,
 		type SearchState,
@@ -42,9 +42,11 @@
 	}
 
 	function hydrate(state: SearchState): Token[] {
-		const s = serialize(state);
-		if (s === "") return [{ text: "" }];
-		return [...s.split(" ").map((text) => ({ text })), { text: "" }];
+		return stateToTokens(state).map((text) => ({ text }));
+	}
+
+	function stateKey(state: SearchState): string {
+		return JSON.stringify(state);
 	}
 
 	let tokens = $state<Token[]>([{ text: "" }]);
@@ -54,10 +56,10 @@
 	let showSuggestions = $state(false);
 
 	$effect(() => {
-		const next = serialize(value);
-		if (next !== lastEmitted) {
+		const key = stateKey(value);
+		if (key !== lastEmitted) {
 			tokens = hydrate(value);
-			lastEmitted = next;
+			lastEmitted = key;
 			suggestionIdx = 0;
 			showSuggestions = false;
 		}
@@ -67,12 +69,62 @@
 	const liveText = $derived(tokens[tokens.length - 1]?.text ?? "");
 	const liveChip = $derived(chipConfigForText(liveText));
 	const liveValue = $derived(liveChip ? liveText.slice(liveChip.keyword.length + 1) : liveText);
-	const suggestions = $derived<ChipOption[]>(liveChip ? liveChip.options(liveValue) : []);
+
+	const keywordQuery = $derived.by<string | null>(() => {
+		if (!liveText.startsWith(":")) return null;
+		const rest = liveText.slice(1);
+		if (rest.includes(":")) return null;
+		return rest;
+	});
+
+	type SuggestionMode = "keyword" | "value" | "none";
+	const suggestionMode = $derived<SuggestionMode>(
+		keywordQuery !== null ? "keyword" : liveChip ? "value" : "none",
+	);
+
+	const keywordSuggestions = $derived<ChipOption[]>(
+		keywordQuery === null
+			? []
+			: chips
+					.filter((c) => {
+						const q = keywordQuery.toLowerCase();
+						return (
+							!q ||
+							c.keyword.toLowerCase().includes(q) ||
+							c.label.toLowerCase().includes(q)
+						);
+					})
+					.map((c) => ({ value: c.keyword, label: c.label })),
+	);
+
+	const valueSuggestions = $derived<ChipOption[]>(liveChip ? liveChip.options(liveValue) : []);
+
+	const activeSuggestions = $derived<ChipOption[]>(
+		suggestionMode === "keyword"
+			? keywordSuggestions
+			: suggestionMode === "value"
+				? valueSuggestions
+				: [],
+	);
+
 	const hasContent = $derived(tokens.length > 1 || liveText !== "");
 
+	function isIncompleteLive(text: string): boolean {
+		if (text.startsWith(":")) return true;
+		const kw = matchChipKeyword(text, chipKeywords);
+		if (kw !== null && text.slice(kw.length + 1) === "") return true;
+		return false;
+	}
+
 	function emit() {
-		const state = parseQuery(tokens.map((t) => t.text).join(" "), chipKeywords);
-		lastEmitted = serialize(state);
+		const texts = tokens.map((t) => t.text);
+		const lastIdx = texts.length - 1;
+		const emitTexts =
+			lastIdx >= 0 && isIncompleteLive(texts[lastIdx])
+				? texts.slice(0, -1)
+				: texts;
+		const state = tokensToState(emitTexts, chipKeywords);
+		lastEmitted = stateKey(state);
 		onchange(state);
 	}
 
@@ -122,25 +174,34 @@
 		tick().then(() => liveInput?.focus());
 	}
 
+	function pickKeyword(opt: ChipOption) {
+		setLive(`${opt.value}:`);
+		suggestionIdx = 0;
+		showSuggestions = true;
+		tick().then(() => {
+			if (liveInput) {
+				const len = liveInput.value.length;
+				liveInput.setSelectionRange(len, len);
+				liveInput.focus();
+			}
+		});
+	}
+
+	function pickActive(opt: ChipOption) {
+		if (suggestionMode === "keyword") pickKeyword(opt);
+		else if (suggestionMode === "value") pickSuggestion(opt);
+	}
+
 	function onLiveInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		const newText = liveChip ? `${liveChip.keyword}:${input.value}` : input.value;
 		setLive(newText);
-		const fresh = chipConfigForText(tokens[tokens.length - 1].text);
-		showSuggestions = fresh !== null;
+		showSuggestions = true;
 		suggestionIdx = 0;
 	}
 
 	function onLiveKeydown(e: KeyboardEvent) {
 		const input = e.currentTarget as HTMLInputElement;
-
-		if (e.key === " ") {
-			if (liveText !== "") {
-				e.preventDefault();
-				commitCurrent();
-			}
-			return;
-		}
 
 		if (e.key === "Backspace" && input.value === "") {
 			if (liveChip) {
@@ -159,34 +220,40 @@
 
 		if (e.key === "Enter") {
 			e.preventDefault();
-			if (showSuggestions && suggestions.length > 0 && liveChip) {
-				pickSuggestion(suggestions[suggestionIdx] ?? suggestions[0]);
+			if (showSuggestions && activeSuggestions.length > 0) {
+				pickActive(activeSuggestions[suggestionIdx] ?? activeSuggestions[0]);
+				return;
+			}
+			if (liveText !== "") {
+				commitCurrent();
 			}
 			return;
 		}
 
-		if (e.key === "Tab" && showSuggestions && suggestions.length > 0) {
+		if (e.key === "Tab" && showSuggestions && activeSuggestions.length > 0) {
 			e.preventDefault();
 			if (e.shiftKey) {
-				suggestionIdx = (suggestionIdx - 1 + suggestions.length) % suggestions.length;
+				suggestionIdx =
+					(suggestionIdx - 1 + activeSuggestions.length) % activeSuggestions.length;
 			} else {
-				suggestionIdx = (suggestionIdx + 1) % suggestions.length;
+				suggestionIdx = (suggestionIdx + 1) % activeSuggestions.length;
 			}
 			return;
 		}
 
 		if (e.key === "ArrowDown") {
-			if (showSuggestions && suggestions.length > 0) {
+			if (showSuggestions && activeSuggestions.length > 0) {
 				e.preventDefault();
-				suggestionIdx = (suggestionIdx + 1) % suggestions.length;
+				suggestionIdx = (suggestionIdx + 1) % activeSuggestions.length;
 			}
 			return;
 		}
 
 		if (e.key === "ArrowUp") {
-			if (showSuggestions && suggestions.length > 0) {
+			if (showSuggestions && activeSuggestions.length > 0) {
 				e.preventDefault();
-				suggestionIdx = (suggestionIdx - 1 + suggestions.length) % suggestions.length;
+				suggestionIdx =
+					(suggestionIdx - 1 + activeSuggestions.length) % activeSuggestions.length;
 			}
 			return;
 		}
@@ -200,7 +267,7 @@
 	}
 
 	function onLiveFocus() {
-		if (liveChip) showSuggestions = true;
+		if (suggestionMode !== "none") showSuggestions = true;
 	}
 
 	function onLiveBlur() {
@@ -277,12 +344,17 @@
 		{/if}
 	</div>
 
-	{#if showSuggestions && liveChip && suggestions.length > 0}
+	{#if showSuggestions && activeSuggestions.length > 0}
 		<ul
 			role="listbox"
-			class="absolute top-full left-0 right-0 z-50 mt-1 max-h-64 overflow-auto rounded-md shadow-card bg-card py-1"
+			class="absolute top-full left-0 z-50 mt-1 max-h-64 min-w-48 w-fit overflow-auto rounded-md shadow-card bg-card py-1"
 		>
-			{#each suggestions as opt, i (opt.value)}
+			{#if suggestionMode === "keyword"}
+				<li class="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+					Filters
+				</li>
+			{/if}
+			{#each activeSuggestions as opt, i (opt.value)}
 				<li
 					role="option"
 					aria-selected={i === suggestionIdx}
@@ -294,7 +366,7 @@
 					)}
 					onmousedown={(e) => {
 						e.preventDefault();
-						pickSuggestion(opt);
+						pickActive(opt);
 					}}
 					onmouseenter={() => (suggestionIdx = i)}
 				>
