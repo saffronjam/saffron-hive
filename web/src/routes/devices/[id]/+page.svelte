@@ -2,7 +2,6 @@
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
 	import {
 		isLightState,
 		isSensorState,
@@ -33,12 +32,11 @@
 	import { ArrowLeft, Copy, Check, DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
-
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	type DeviceState = LightState | SensorState | SwitchState;
 
-	const deviceId = $derived($page.params.id);
+	const deviceId = $derived($page.params.id ?? "");
 
 	let device = $state<Device | null>(null);
 	let loading = $state(true);
@@ -79,7 +77,7 @@
 	let rooms = $state<RoomInfo[]>([]);
 	let pickerOpen = $state(false);
 
-	const DEVICE_QUERY = gql`
+	const DEVICE_QUERY = graphql(`
 		query Device($id: ID!) {
 			device(id: $id) {
 				id
@@ -113,10 +111,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const GROUPS_QUERY = gql`
-		query Groups {
+	const GROUPS_QUERY = graphql(`
+		query DeviceDetailGroups {
 			groups {
 				id
 				name
@@ -127,9 +125,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const ROOMS_QUERY = gql`
+	const ROOMS_QUERY = graphql(`
 		query DeviceDetailRooms {
 			rooms {
 				id
@@ -137,33 +135,33 @@
 				devices { id }
 			}
 		}
-	`;
+	`);
 
-	const ADD_ROOM_DEVICE = gql`
+	const ADD_ROOM_DEVICE = graphql(`
 		mutation DeviceDetailAddRoomDevice($input: AddRoomDeviceInput!) {
 			addRoomDevice(input: $input) { id }
 		}
-	`;
+	`);
 
-	const REMOVE_ROOM_DEVICE = gql`
+	const REMOVE_ROOM_DEVICE = graphql(`
 		mutation DeviceDetailRemoveRoomDevice($roomId: ID!, $deviceId: ID!) {
 			removeRoomDevice(roomId: $roomId, deviceId: $deviceId) { id }
 		}
-	`;
+	`);
 
-	const ADD_GROUP_MEMBER = gql`
+	const ADD_GROUP_MEMBER = graphql(`
 		mutation DeviceDetailAddGroupMember($input: AddGroupMemberInput!) {
 			addGroupMember(input: $input) { id }
 		}
-	`;
+	`);
 
-	const REMOVE_GROUP_MEMBER = gql`
+	const REMOVE_GROUP_MEMBER = graphql(`
 		mutation DeviceDetailRemoveGroupMember($id: ID!) {
 			removeGroupMember(id: $id)
 		}
-	`;
+	`);
 
-	const SET_DEVICE_STATE = gql`
+	const SET_DEVICE_STATE = graphql(`
 		mutation SetDeviceState($deviceId: ID!, $state: LightStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
@@ -179,10 +177,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_STATE_CHANGED = gql`
-		subscription DeviceStateChanged($deviceId: ID) {
+	const DEVICE_STATE_CHANGED = graphql(`
+		subscription DeviceDetailDeviceStateChanged($deviceId: ID) {
 			deviceStateChanged(deviceId: $deviceId) {
 				deviceId
 				state {
@@ -209,16 +207,16 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_AVAILABILITY_CHANGED = gql`
+	const DEVICE_AVAILABILITY_CHANGED = graphql(`
 		subscription DeviceAvailabilityChanged {
 			deviceAvailabilityChanged {
 				deviceId
 				available
 			}
 		}
-	`;
+	`);
 
 	interface DeviceQueryResult {
 		device: Device | null;
@@ -251,7 +249,7 @@
 	}
 
 	let unsubscribers: (() => void)[] = [];
-	let clientRef: Client | null = null;
+	const clientRef = getContextClient();
 
 	const light = $derived(device && isLightState(device.state) ? device.state : null);
 	const sensor = $derived(device && isSensorState(device.state) ? device.state : null);
@@ -403,8 +401,7 @@
 	}
 
 	onMount(() => {
-		const client = createGraphQLClient();
-		clientRef = client;
+		const client = clientRef;
 
 		client
 			.query<DeviceQueryResult>(DEVICE_QUERY, { id: deviceId })

@@ -1,15 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { Client } from "@urql/svelte";
-	import {
-		deviceStore,
-		type Device,
-		type LightState,
-		type SensorState,
-		type SwitchState,
-	} from "$lib/stores/devices";
+	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
+	import { deviceStore, type Device } from "$lib/stores/devices";
 	import DeviceCard from "$lib/components/device-card.svelte";
 	import DeviceTable from "$lib/components/device-table.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
@@ -21,7 +15,6 @@
 	import { chipsByDevice } from "$lib/memberships";
 	import { compareDevicesByName } from "$lib/list-helpers";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
-	import { gql } from "@urql/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 
@@ -41,8 +34,6 @@
 			},
 		};
 	});
-
-	type DeviceState = LightState | SensorState | SwitchState;
 
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
@@ -90,7 +81,7 @@
 		});
 	});
 
-	const DEVICES_QUERY = gql`
+	const DEVICES_QUERY = graphql(`
 		query Devices {
 			devices {
 				id
@@ -124,9 +115,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_STATE_CHANGED = gql`
+	const DEVICE_STATE_CHANGED = graphql(`
 		subscription DeviceStateChanged {
 			deviceStateChanged {
 				deviceId
@@ -154,18 +145,18 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_AVAILABILITY_CHANGED = gql`
+	const DEVICE_AVAILABILITY_CHANGED = graphql(`
 		subscription DeviceAvailabilityChanged {
 			deviceAvailabilityChanged {
 				deviceId
 				available
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_ADDED = gql`
+	const DEVICE_ADDED = graphql(`
 		subscription DeviceAdded {
 			deviceAdded {
 				id
@@ -199,24 +190,24 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_REMOVED = gql`
+	const DEVICE_REMOVED = graphql(`
 		subscription DeviceRemoved {
 			deviceRemoved
 		}
-	`;
+	`);
 
-	const UPDATE_DEVICE = gql`
+	const UPDATE_DEVICE = graphql(`
 		mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
 			updateDevice(id: $id, input: $input) {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const ROOMS_QUERY = gql`
+	const ROOMS_QUERY = graphql(`
 		query DeviceListRooms {
 			rooms {
 				id
@@ -224,9 +215,9 @@
 				devices { id }
 			}
 		}
-	`;
+	`);
 
-	const GROUPS_QUERY = gql`
+	const GROUPS_QUERY = graphql(`
 		query DeviceListGroups {
 			groups {
 				id
@@ -234,79 +225,28 @@
 				members { memberType memberId }
 			}
 		}
-	`;
+	`);
 
-	const ADD_ROOM_DEVICE = gql`
+	const ADD_ROOM_DEVICE = graphql(`
 		mutation DeviceListAddRoomDevice($input: AddRoomDeviceInput!) {
 			addRoomDevice(input: $input) {
 				id
 			}
 		}
-	`;
+	`);
 
-	const ADD_GROUP_MEMBER = gql`
+	const ADD_GROUP_MEMBER = graphql(`
 		mutation DeviceListAddGroupMember($input: AddGroupMemberInput!) {
 			addGroupMember(input: $input) {
 				id
 			}
 		}
-	`;
+	`);
 
-	interface RoomInfo {
-		id: string;
-		name: string;
-		devices: { id: string }[];
-	}
+	type RoomInfo = { id: string; name: string; devices: { id: string }[] };
+	type GroupInfo = { id: string; name: string; members: { memberType: string; memberId: string }[] };
 
-	interface GroupInfo {
-		id: string;
-		name: string;
-		members: { memberType: string; memberId: string }[];
-	}
-
-	interface DevicesQueryResult {
-		devices: Device[];
-	}
-
-	interface DeviceStateChangedResult {
-		deviceStateChanged: {
-			deviceId: string;
-			state: DeviceState;
-		};
-	}
-
-	interface DeviceAvailabilityChangedResult {
-		deviceAvailabilityChanged: {
-			deviceId: string;
-			available: boolean;
-		};
-	}
-
-	interface DeviceAddedResult {
-		deviceAdded: Device;
-	}
-
-	interface DeviceRemovedResult {
-		deviceRemoved: string;
-	}
-
-	interface UpdateDeviceResult {
-		updateDevice: {
-			id: string;
-			name: string;
-		};
-	}
-
-	interface RoomsQueryResult {
-		rooms: RoomInfo[];
-	}
-
-	interface GroupsQueryResult {
-		groups: GroupInfo[];
-	}
-
-	let client: Client;
-	let unsubscribers: (() => void)[] = [];
+	const client = getContextClient();
 	let ready = $state(false);
 
 	let rooms = $state<RoomInfo[]>([]);
@@ -314,6 +254,44 @@
 
 	let addToPickerOpen = $state(false);
 	let pickerDevice = $state<Device | null>(null);
+
+	const devicesQuery = queryStore({ client, query: DEVICES_QUERY });
+	const stateChanged = subscriptionStore({ client, query: DEVICE_STATE_CHANGED });
+	const availabilityChanged = subscriptionStore({ client, query: DEVICE_AVAILABILITY_CHANGED });
+	const deviceAdded = subscriptionStore({ client, query: DEVICE_ADDED });
+	const deviceRemoved = subscriptionStore({ client, query: DEVICE_REMOVED });
+
+	$effect(() => {
+		if ($devicesQuery.data) {
+			deviceStore.hydrate($devicesQuery.data.devices);
+		}
+	});
+
+	$effect(() => {
+		if ($stateChanged.data) {
+			const { deviceId, state } = $stateChanged.data.deviceStateChanged;
+			deviceStore.updateState(deviceId, state);
+		}
+	});
+
+	$effect(() => {
+		if ($availabilityChanged.data) {
+			const { deviceId, available } = $availabilityChanged.data.deviceAvailabilityChanged;
+			deviceStore.updateAvailability(deviceId, available);
+		}
+	});
+
+	$effect(() => {
+		if ($deviceAdded.data) {
+			deviceStore.addDevice($deviceAdded.data.deviceAdded);
+		}
+	});
+
+	$effect(() => {
+		if ($deviceRemoved.data) {
+			deviceStore.removeDevice($deviceRemoved.data.deviceRemoved);
+		}
+	});
 
 	const chipsIndex = $derived(chipsByDevice(rooms, groups));
 
@@ -355,8 +333,8 @@
 
 	async function refreshMemberships() {
 		const [r, g] = await Promise.all([
-			client.query<RoomsQueryResult>(ROOMS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
-			client.query<GroupsQueryResult>(GROUPS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
+			client.query(ROOMS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
+			client.query(GROUPS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
 		]);
 		if (r.data) rooms = r.data.rooms;
 		if (g.data) groups = g.data.groups;
@@ -395,7 +373,7 @@
 
 	async function handleRename(id: string, newName: string) {
 		const result = await client
-			.mutation<UpdateDeviceResult>(UPDATE_DEVICE, { id, input: { name: newName } })
+			.mutation(UPDATE_DEVICE, { id, input: { name: newName } })
 			.toPromise();
 		if (result.data) {
 			deviceStore.updateName(id, result.data.updateDevice.name);
@@ -403,65 +381,11 @@
 	}
 
 	onMount(() => {
-		client = createGraphQLClient();
-
-		Promise.all([
-			client
-				.query<DevicesQueryResult>(DEVICES_QUERY, {})
-				.toPromise()
-				.then((result) => {
-					if (result.data) {
-						deviceStore.hydrate(result.data.devices);
-					}
-				}),
-			refreshMemberships(),
-		]).finally(() => {
-			ready = true;
-		});
-
-		const { unsubscribe: unsubState } = client
-			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					const { deviceId, state } = result.data.deviceStateChanged;
-					deviceStore.updateState(deviceId, state);
-				}
-			});
-		unsubscribers.push(unsubState);
-
-		const { unsubscribe: unsubAvail } = client
-			.subscription<DeviceAvailabilityChangedResult>(DEVICE_AVAILABILITY_CHANGED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					const { deviceId, available } = result.data.deviceAvailabilityChanged;
-					deviceStore.updateAvailability(deviceId, available);
-				}
-			});
-		unsubscribers.push(unsubAvail);
-
-		const { unsubscribe: unsubAdded } = client
-			.subscription<DeviceAddedResult>(DEVICE_ADDED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					deviceStore.addDevice(result.data.deviceAdded);
-				}
-			});
-		unsubscribers.push(unsubAdded);
-
-		const { unsubscribe: unsubRemoved } = client
-			.subscription<DeviceRemovedResult>(DEVICE_REMOVED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					deviceStore.removeDevice(result.data.deviceRemoved);
-				}
-			});
-		unsubscribers.push(unsubRemoved);
+		void refreshMemberships();
 	});
 
-	onDestroy(() => {
-		for (const unsub of unsubscribers) {
-			unsub();
-		}
+	$effect(() => {
+		if (!$devicesQuery.fetching) ready = true;
 	});
 </script>
 
