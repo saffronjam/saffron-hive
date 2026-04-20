@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
 	import {
 		Sidebar,
 		SidebarContent,
@@ -22,7 +23,9 @@
 		DoorOpen,
 		ScrollText,
 		Settings,
+		LogOut,
 	} from "@lucide/svelte";
+	import { auth } from "$lib/stores/auth.svelte";
 
 	interface NavItem {
 		href: string;
@@ -47,6 +50,11 @@
 	function isActive(href: string): boolean {
 		if (href === "/") return page.url.pathname === "/";
 		return page.url.pathname.startsWith(href);
+	}
+
+	function logout() {
+		auth.clearToken();
+		void goto("/login", { replaceState: true });
 	}
 </script>
 
@@ -94,6 +102,19 @@
 					</SidebarMenuButton>
 				</SidebarMenuItem>
 			{/each}
+			{#if auth.user}
+				{@const signedInAs = auth.user.name}
+				<SidebarMenuItem>
+					<SidebarMenuButton tooltipContent="Signed in as {signedInAs}">
+						{#snippet child({ props })}
+							<button type="button" onclick={logout} {...props}>
+								<LogOut class="size-4" />
+								<span class="truncate">Log out ({signedInAs})</span>
+							</button>
+						{/snippet}
+					</SidebarMenuButton>
+				</SidebarMenuItem>
+			{/if}
 		</SidebarMenu>
 	</SidebarFooter>
 </Sidebar>
