@@ -180,9 +180,9 @@
 		"1.5rem 5rem 6rem 16rem minmax(12rem, 1.6fr) minmax(14rem, 1.4fr)";
 </script>
 
-<div class="flex flex-col overflow-hidden rounded-lg shadow-card bg-card">
+<div class="flex h-full flex-col overflow-hidden rounded-lg shadow-card bg-card">
 	<div
-		class="sticky top-0 z-10 grid items-center border-b border-border bg-card px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+		class="grid flex-shrink-0 items-center border-b border-border bg-card px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
 		style="grid-template-columns: {GRID_COLS};"
 	>
 		<div></div>
@@ -193,7 +193,7 @@
 		<div>Payload</div>
 	</div>
 
-	<div bind:this={scrollEl} class="flex-1 overflow-auto" style="min-height: 20rem;">
+	<div bind:this={scrollEl} class="min-h-0 flex-1 overflow-auto">
 		<div style="height: {$virtualizer.getTotalSize()}px; position: relative; width: 100%;">
 			{#each $virtualizer.getVirtualItems() as row (row.key)}
 				{@const event = events[row.index]}

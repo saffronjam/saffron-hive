@@ -139,14 +139,19 @@
 }
 
 @keyframes activity-row-flash {
-  0%,
-  20% {
-    background-color: var(--accent);
+  0% {
+    background-color: color-mix(in oklch, var(--primary) 22%, transparent);
+    box-shadow: inset 2px 0 0 0 var(--primary);
+  }
+  30% {
+    background-color: color-mix(in oklch, var(--primary) 22%, transparent);
+    box-shadow: inset 2px 0 0 0 var(--primary);
   }
   100% {
     background-color: transparent;
+    box-shadow: inset 2px 0 0 0 transparent;
   }
 }
 .activity-row-new {
-  animation: activity-row-flash 1800ms ease-out;
+  animation: activity-row-flash 2000ms ease-out both;
 }
