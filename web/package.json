@@ -11,10 +11,13 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
-		"test:e2e": "vitest run --config vitest.e2e.config.ts"
+		"test:e2e": "vitest run --config vitest.e2e.config.ts",
+		"codegen": "graphql-codegen --config codegen.ts"
 	},
 	"devDependencies": {
 		"@fontsource-variable/inter": "^5.2.8",
+		"@graphql-codegen/cli": "^5.0.7",
+		"@graphql-codegen/client-preset": "^4.8.3",
 		"@internationalized/date": "^3.12.0",
 		"@lucide/svelte": "^1.8.0",
 		"@mdi/svg": "^7.4.47",
@@ -33,6 +36,7 @@
 		"shadcn-svelte": "^1.2.7",
 		"svelte": "^5.55.2",
 		"svelte-check": "^4.4.6",
+		"svelte2tsx": "^0.7.53",
 		"tailwind-merge": "^3.5.0",
 		"tailwind-variants": "^3.2.2",
 		"tailwindcss": "^4.2.2",
