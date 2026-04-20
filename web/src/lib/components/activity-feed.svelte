@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Workflow } from "@lucide/svelte";
+	import { formatRelative } from "$lib/time-format";
 
 	interface AutomationInfo {
 		id: string;
@@ -23,26 +24,6 @@
 	function automationName(automationId: string): string {
 		const found = automations.find((a) => a.id === automationId);
 		return found ? found.name : `Automation ${automationId}`;
-	}
-
-	function formatTime(date: Date): string {
-		return date.toLocaleTimeString(undefined, {
-			hour: "2-digit",
-			minute: "2-digit",
-			second: "2-digit",
-		});
-	}
-
-	function formatRelative(date: Date): string {
-		const now = Date.now();
-		const diff = now - date.getTime();
-		const seconds = Math.floor(diff / 1000);
-		if (seconds < 60) return "just now";
-		const minutes = Math.floor(seconds / 60);
-		if (minutes < 60) return `${minutes}m ago`;
-		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h ago`;
-		return formatTime(date);
 	}
 </script>
 

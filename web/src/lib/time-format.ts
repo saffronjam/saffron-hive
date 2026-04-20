@@ -1,0 +1,28 @@
+/**
+ * Format a past Date as a short relative string: "just now", "12m ago",
+ * "3h ago", falling through to a HH:mm:ss clock time after a day.
+ */
+export function formatRelative(date: Date, now: Date = new Date()): string {
+  const diff = now.getTime() - date.getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return formatTime(date);
+}
+
+/** HH:mm:ss in the user's locale. */
+export function formatTime(date: Date): string {
+  return date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+/** Full ISO-8601 timestamp for tooltips and debugging. */
+export function formatFull(date: Date): string {
+  return date.toISOString();
+}
