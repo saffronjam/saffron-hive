@@ -29,10 +29,17 @@ const (
 	secretByteLen = 32
 )
 
+// bootstrapStore is the narrow subset of store methods the auth bootstrap flow
+// needs. *store.DB satisfies it implicitly.
+type bootstrapStore interface {
+	GetSetting(ctx context.Context, key string) (store.Setting, error)
+	UpsertSetting(ctx context.Context, key, value string) error
+}
+
 // LoadOrInitSecret returns the JWT signing secret. On first boot, generates a
 // cryptographically random 32-byte secret and persists it base64-encoded in
 // the settings table.
-func LoadOrInitSecret(ctx context.Context, s store.Store) ([]byte, error) {
+func LoadOrInitSecret(ctx context.Context, s bootstrapStore) ([]byte, error) {
 	setting, err := s.GetSetting(ctx, SettingJWTSecret)
 	if err == nil {
 		decoded, decErr := base64.StdEncoding.DecodeString(setting.Value)
@@ -58,7 +65,7 @@ func LoadOrInitSecret(ctx context.Context, s store.Store) ([]byte, error) {
 
 // LoadTTL returns the configured token lifetime, clamped to a sensible range.
 // Unset/invalid values fall back to the default (24 hours).
-func LoadTTL(ctx context.Context, s store.Store) time.Duration {
+func LoadTTL(ctx context.Context, s bootstrapStore) time.Duration {
 	setting, err := s.GetSetting(ctx, SettingTokenTTLHours)
 	if err != nil {
 		return time.Duration(defaultTTLHours) * time.Hour
