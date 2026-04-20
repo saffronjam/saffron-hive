@@ -27,6 +27,11 @@ type AddRoomDeviceInput struct {
 	DeviceID string `json:"deviceId"`
 }
 
+type AuthPayload struct {
+	Token string `json:"token"`
+	User  *User  `json:"user"`
+}
+
 type AutomationEdge struct {
 	ID         string `json:"id"`
 	FromNodeID string `json:"fromNodeId"`
@@ -46,6 +51,7 @@ type AutomationGraph struct {
 	CooldownSeconds int               `json:"cooldownSeconds"`
 	Nodes           []*AutomationNode `json:"nodes"`
 	Edges           []*AutomationEdge `json:"edges"`
+	CreatedBy       *User             `json:"createdBy,omitempty"`
 }
 
 type AutomationNode struct {
@@ -109,6 +115,12 @@ type CreateGroupInput struct {
 	Name string `json:"name"`
 }
 
+type CreateInitialUserInput struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
 type CreateRoomInput struct {
 	Name string `json:"name"`
 }
@@ -116,6 +128,12 @@ type CreateRoomInput struct {
 type CreateSceneInput struct {
 	Name    string              `json:"name"`
 	Actions []*SceneActionInput `json:"actions"`
+}
+
+type CreateUserInput struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
 }
 
 type Device struct {
@@ -147,6 +165,7 @@ type Group struct {
 	Icon            *string        `json:"icon,omitempty"`
 	Members         []*GroupMember `json:"members"`
 	ResolvedDevices []*Device      `json:"resolvedDevices"`
+	CreatedBy       *User          `json:"createdBy,omitempty"`
 }
 
 func (Group) IsSceneTarget() {}
@@ -185,6 +204,11 @@ type LogEntry struct {
 	Attrs     string    `json:"attrs"`
 }
 
+type LoginInput struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type MqttConfig struct {
 	Broker   string `json:"broker"`
 	Username string `json:"username"`
@@ -206,19 +230,21 @@ type Query struct {
 }
 
 type Room struct {
-	ID      string    `json:"id"`
-	Name    string    `json:"name"`
-	Icon    *string   `json:"icon,omitempty"`
-	Devices []*Device `json:"devices"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Icon      *string   `json:"icon,omitempty"`
+	Devices   []*Device `json:"devices"`
+	CreatedBy *User     `json:"createdBy,omitempty"`
 }
 
 func (Room) IsSceneTarget() {}
 
 type Scene struct {
-	ID      string         `json:"id"`
-	Name    string         `json:"name"`
-	Icon    *string        `json:"icon,omitempty"`
-	Actions []*SceneAction `json:"actions"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Icon      *string        `json:"icon,omitempty"`
+	Actions   []*SceneAction `json:"actions"`
+	CreatedBy *User          `json:"createdBy,omitempty"`
 }
 
 type SceneAction struct {
@@ -261,6 +287,11 @@ type Setting struct {
 	Value string `json:"value"`
 }
 
+type SetupStatus struct {
+	HasInitialUser bool `json:"hasInitialUser"`
+	MqttConfigured bool `json:"mqttConfigured"`
+}
+
 type Subscription struct {
 }
 
@@ -297,4 +328,10 @@ type UpdateSceneInput struct {
 	Name    graphql.Omittable[*string]             `json:"name,omitempty"`
 	Icon    graphql.Omittable[*string]             `json:"icon,omitempty"`
 	Actions graphql.Omittable[[]*SceneActionInput] `json:"actions,omitempty"`
+}
+
+type User struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
 }

@@ -37,6 +37,11 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	AuthPayload struct {
+		Token func(childComplexity int) int
+		User  func(childComplexity int) int
+	}
+
 	AutomationEdge struct {
 		FromNodeID func(childComplexity int) int
 		ID         func(childComplexity int) int
@@ -45,6 +50,7 @@ type ComplexityRoot struct {
 
 	AutomationGraph struct {
 		CooldownSeconds func(childComplexity int) int
+		CreatedBy       func(childComplexity int) int
 		Edges           func(childComplexity int) int
 		Enabled         func(childComplexity int) int
 		ID              func(childComplexity int) int
@@ -110,6 +116,7 @@ type ComplexityRoot struct {
 	}
 
 	Group struct {
+		CreatedBy       func(childComplexity int) int
 		ID              func(childComplexity int) int
 		Icon            func(childComplexity int) int
 		Members         func(childComplexity int) int
@@ -154,12 +161,15 @@ type ComplexityRoot struct {
 		ApplyScene         func(childComplexity int, sceneID string) int
 		CreateAutomation   func(childComplexity int, input model.CreateAutomationInput) int
 		CreateGroup        func(childComplexity int, input model.CreateGroupInput) int
+		CreateInitialUser  func(childComplexity int, input model.CreateInitialUserInput) int
 		CreateRoom         func(childComplexity int, input model.CreateRoomInput) int
 		CreateScene        func(childComplexity int, input model.CreateSceneInput) int
+		CreateUser         func(childComplexity int, input model.CreateUserInput) int
 		DeleteAutomation   func(childComplexity int, id string) int
 		DeleteGroup        func(childComplexity int, id string) int
 		DeleteRoom         func(childComplexity int, id string) int
 		DeleteScene        func(childComplexity int, id string) int
+		Login              func(childComplexity int, input model.LoginInput) int
 		RemoveGroupMember  func(childComplexity int, id string) int
 		RemoveRoomDevice   func(childComplexity int, roomID string, deviceID string) int
 		SetDeviceState     func(childComplexity int, deviceID string, state model.LightStateInput) int
@@ -182,6 +192,7 @@ type ComplexityRoot struct {
 		Group         func(childComplexity int, id string) int
 		Groups        func(childComplexity int) int
 		Logs          func(childComplexity int, search *string, limit *int) int
+		Me            func(childComplexity int) int
 		MqttConfig    func(childComplexity int) int
 		Room          func(childComplexity int, id string) int
 		Rooms         func(childComplexity int) int
@@ -189,20 +200,24 @@ type ComplexityRoot struct {
 		Scenes        func(childComplexity int) int
 		SensorHistory func(childComplexity int, deviceID string, from *time.Time, to *time.Time, limit *int) int
 		Settings      func(childComplexity int) int
+		SetupStatus   func(childComplexity int) int
+		Users         func(childComplexity int) int
 	}
 
 	Room struct {
-		Devices func(childComplexity int) int
-		ID      func(childComplexity int) int
-		Icon    func(childComplexity int) int
-		Name    func(childComplexity int) int
+		CreatedBy func(childComplexity int) int
+		Devices   func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Icon      func(childComplexity int) int
+		Name      func(childComplexity int) int
 	}
 
 	Scene struct {
-		Actions func(childComplexity int) int
-		ID      func(childComplexity int) int
-		Icon    func(childComplexity int) int
-		Name    func(childComplexity int) int
+		Actions   func(childComplexity int) int
+		CreatedBy func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Icon      func(childComplexity int) int
+		Name      func(childComplexity int) int
 	}
 
 	SceneAction struct {
@@ -237,6 +252,11 @@ type ComplexityRoot struct {
 		Value func(childComplexity int) int
 	}
 
+	SetupStatus struct {
+		HasInitialUser func(childComplexity int) int
+		MqttConfigured func(childComplexity int) int
+	}
+
 	Subscription struct {
 		AutomationNodeActivated   func(childComplexity int, automationID *string) int
 		DeviceAdded               func(childComplexity int) int
@@ -248,6 +268,12 @@ type ComplexityRoot struct {
 
 	SwitchState struct {
 		Action func(childComplexity int) int
+	}
+
+	User struct {
+		ID       func(childComplexity int) int
+		Name     func(childComplexity int) int
+		Username func(childComplexity int) int
 	}
 }
 
@@ -275,6 +301,9 @@ type MutationResolver interface {
 	UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error)
 	TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error)
 	UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error)
+	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
+	CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error)
+	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
 }
 type QueryResolver interface {
 	Devices(ctx context.Context) ([]*model.Device, error)
@@ -291,6 +320,9 @@ type QueryResolver interface {
 	MqttConfig(ctx context.Context) (*model.MqttConfig, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
+	SetupStatus(ctx context.Context) (*model.SetupStatus, error)
+	Me(ctx context.Context) (*model.User, error)
+	Users(ctx context.Context) ([]*model.User, error)
 }
 type SubscriptionResolver interface {
 	DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error)
@@ -314,6 +346,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "AuthPayload.token":
+		if e.ComplexityRoot.AuthPayload.Token == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthPayload.Token(childComplexity), true
+	case "AuthPayload.user":
+		if e.ComplexityRoot.AuthPayload.User == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthPayload.User(childComplexity), true
 
 	case "AutomationEdge.fromNodeId":
 		if e.ComplexityRoot.AutomationEdge.FromNodeID == nil {
@@ -340,6 +385,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationGraph.CooldownSeconds(childComplexity), true
+	case "AutomationGraph.createdBy":
+		if e.ComplexityRoot.AutomationGraph.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationGraph.CreatedBy(childComplexity), true
 	case "AutomationGraph.edges":
 		if e.ComplexityRoot.AutomationGraph.Edges == nil {
 			break
@@ -577,6 +628,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DeviceStateEvent.State(childComplexity), true
 
+	case "Group.createdBy":
+		if e.ComplexityRoot.Group.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.CreatedBy(childComplexity), true
 	case "Group.id":
 		if e.ComplexityRoot.Group.ID == nil {
 			break
@@ -781,6 +838,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateGroup(childComplexity, args["input"].(model.CreateGroupInput)), true
+	case "Mutation.createInitialUser":
+		if e.ComplexityRoot.Mutation.CreateInitialUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createInitialUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateInitialUser(childComplexity, args["input"].(model.CreateInitialUserInput)), true
 	case "Mutation.createRoom":
 		if e.ComplexityRoot.Mutation.CreateRoom == nil {
 			break
@@ -803,6 +871,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateScene(childComplexity, args["input"].(model.CreateSceneInput)), true
+	case "Mutation.createUser":
+		if e.ComplexityRoot.Mutation.CreateUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateUser(childComplexity, args["input"].(model.CreateUserInput)), true
 	case "Mutation.deleteAutomation":
 		if e.ComplexityRoot.Mutation.DeleteAutomation == nil {
 			break
@@ -847,6 +926,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteScene(childComplexity, args["id"].(string)), true
+	case "Mutation.login":
+		if e.ComplexityRoot.Mutation.Login == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_login_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.Login(childComplexity, args["input"].(model.LoginInput)), true
 	case "Mutation.removeGroupMember":
 		if e.ComplexityRoot.Mutation.RemoveGroupMember == nil {
 			break
@@ -1043,6 +1133,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Logs(childComplexity, args["search"].(*string), args["limit"].(*int)), true
+	case "Query.me":
+		if e.ComplexityRoot.Query.Me == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Me(childComplexity), true
 	case "Query.mqttConfig":
 		if e.ComplexityRoot.Query.MqttConfig == nil {
 			break
@@ -1100,7 +1196,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Settings(childComplexity), true
+	case "Query.setupStatus":
+		if e.ComplexityRoot.Query.SetupStatus == nil {
+			break
+		}
 
+		return e.ComplexityRoot.Query.SetupStatus(childComplexity), true
+	case "Query.users":
+		if e.ComplexityRoot.Query.Users == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Users(childComplexity), true
+
+	case "Room.createdBy":
+		if e.ComplexityRoot.Room.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.CreatedBy(childComplexity), true
 	case "Room.devices":
 		if e.ComplexityRoot.Room.Devices == nil {
 			break
@@ -1132,6 +1246,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.Actions(childComplexity), true
+	case "Scene.createdBy":
+		if e.ComplexityRoot.Scene.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.CreatedBy(childComplexity), true
 	case "Scene.id":
 		if e.ComplexityRoot.Scene.ID == nil {
 			break
@@ -1275,6 +1395,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Setting.Value(childComplexity), true
 
+	case "SetupStatus.hasInitialUser":
+		if e.ComplexityRoot.SetupStatus.HasInitialUser == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SetupStatus.HasInitialUser(childComplexity), true
+	case "SetupStatus.mqttConfigured":
+		if e.ComplexityRoot.SetupStatus.MqttConfigured == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SetupStatus.MqttConfigured(childComplexity), true
+
 	case "Subscription.automationNodeActivated":
 		if e.ComplexityRoot.Subscription.AutomationNodeActivated == nil {
 			break
@@ -1329,6 +1462,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SwitchState.Action(childComplexity), true
 
+	case "User.id":
+		if e.ComplexityRoot.User.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.ID(childComplexity), true
+	case "User.name":
+		if e.ComplexityRoot.User.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.Name(childComplexity), true
+	case "User.username":
+		if e.ComplexityRoot.User.Username == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.Username(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -1344,9 +1496,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputColorInput,
 		ec.unmarshalInputCreateAutomationInput,
 		ec.unmarshalInputCreateGroupInput,
+		ec.unmarshalInputCreateInitialUserInput,
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputCreateSceneInput,
+		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputLightStateInput,
+		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputMqttConfigInput,
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputUpdateAutomationInput,
@@ -1504,6 +1659,7 @@ type Scene {
   name: String!
   icon: String
   actions: [SceneAction!]!
+  createdBy: User
 }
 
 union SceneTarget = Device | Group | Room
@@ -1524,6 +1680,7 @@ type AutomationGraph {
   cooldownSeconds: Int!
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
+  createdBy: User
 }
 
 type AutomationNode {
@@ -1544,6 +1701,7 @@ type Group {
   icon: String
   members: [GroupMember!]!
   resolvedDevices: [Device!]!
+  createdBy: User
 }
 
 type GroupMember {
@@ -1560,6 +1718,7 @@ type Room {
   name: String!
   icon: String
   devices: [Device!]!
+  createdBy: User
 }
 
 type SensorReading {
@@ -1587,6 +1746,39 @@ type AutomationNodeActivationEvent {
   automationId: ID!
   nodeId: ID!
   active: Boolean!
+}
+
+type User {
+  id: ID!
+  username: String!
+  name: String!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type SetupStatus {
+  hasInitialUser: Boolean!
+  mqttConfigured: Boolean!
+}
+
+input LoginInput {
+  username: String!
+  password: String!
+}
+
+input CreateInitialUserInput {
+  username: String!
+  name: String!
+  password: String!
+}
+
+input CreateUserInput {
+  username: String!
+  name: String!
+  password: String!
 }
 
 type MqttConfig {
@@ -1729,6 +1921,9 @@ type Query {
   mqttConfig: MqttConfig
   settings: [Setting!]!
   logs(search: String, limit: Int): [LogEntry!]!
+  setupStatus: SetupStatus!
+  me: User
+  users: [User!]!
 }
 
 type Mutation {
@@ -1755,6 +1950,9 @@ type Mutation {
   updateMqttConfig(input: MqttConfigInput!): MqttConfig!
   testMqttConnection(input: MqttConfigInput!): ConnectionTestResult!
   updateSetting(key: String!, value: String!): Setting!
+  login(input: LoginInput!): AuthPayload!
+  createInitialUser(input: CreateInitialUserInput!): AuthPayload!
+  createUser(input: CreateUserInput!): User!
 }
 
 type Subscription {
@@ -1828,6 +2026,17 @@ func (ec *executionContext) field_Mutation_createGroup_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createInitialUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateInitialUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateInitialUserInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createRoom_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1843,6 +2052,17 @@ func (ec *executionContext) field_Mutation_createScene_args(ctx context.Context,
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateSceneInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateSceneInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateUserInput)
 	if err != nil {
 		return nil, err
 	}
@@ -1891,6 +2111,17 @@ func (ec *executionContext) field_Mutation_deleteScene_args(ctx context.Context,
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNLoginInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLoginInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -2253,6 +2484,72 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _AuthPayload_token(ctx context.Context, field graphql.CollectedField, obj *model.AuthPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthPayload_token,
+		func(ctx context.Context) (any, error) {
+			return obj.Token, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthPayload_token(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthPayload_user(ctx context.Context, field graphql.CollectedField, obj *model.AuthPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthPayload_user,
+		func(ctx context.Context) (any, error) {
+			return obj.User, nil
+		},
+		nil,
+		ec.marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AutomationEdge_id(ctx context.Context, field graphql.CollectedField, obj *model.AutomationEdge) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2554,6 +2851,43 @@ func (ec *executionContext) fieldContext_AutomationGraph_edges(_ context.Context
 				return ec.fieldContext_AutomationEdge_toNodeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationGraph_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationGraph_createdBy,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
 	}
 	return fc, nil
@@ -3680,6 +4014,43 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Group_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_createdBy,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GroupMember_id(ctx context.Context, field graphql.CollectedField, obj *model.GroupMember) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3848,6 +4219,8 @@ func (ec *executionContext) fieldContext_GroupMember_group(_ context.Context, fi
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
 				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
@@ -3887,6 +4260,8 @@ func (ec *executionContext) fieldContext_GroupMember_room(_ context.Context, fie
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -4434,6 +4809,8 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -4485,6 +4862,8 @@ func (ec *executionContext) fieldContext_Mutation_createScene(ctx context.Contex
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -4536,6 +4915,8 @@ func (ec *executionContext) fieldContext_Mutation_updateScene(ctx context.Contex
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -4634,6 +5015,8 @@ func (ec *executionContext) fieldContext_Mutation_createAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
 			case "edges":
 				return ec.fieldContext_AutomationGraph_edges(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_AutomationGraph_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
@@ -4691,6 +5074,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
 			case "edges":
 				return ec.fieldContext_AutomationGraph_edges(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_AutomationGraph_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
@@ -4789,6 +5174,8 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
 			case "edges":
 				return ec.fieldContext_AutomationGraph_edges(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_AutomationGraph_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
@@ -4842,6 +5229,8 @@ func (ec *executionContext) fieldContext_Mutation_createGroup(ctx context.Contex
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
 				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
@@ -4895,6 +5284,8 @@ func (ec *executionContext) fieldContext_Mutation_updateGroup(ctx context.Contex
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
 				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
@@ -5083,6 +5474,8 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -5134,6 +5527,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -5226,6 +5621,8 @@ func (ec *executionContext) fieldContext_Mutation_addRoomDevice(ctx context.Cont
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -5277,6 +5674,8 @@ func (ec *executionContext) fieldContext_Mutation_removeRoomDevice(ctx context.C
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -5440,6 +5839,149 @@ func (ec *executionContext) fieldContext_Mutation_updateSetting(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_login,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().Login(ctx, fc.Args["input"].(model.LoginInput))
+		},
+		nil,
+		ec.marshalNAuthPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAuthPayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_login(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "token":
+				return ec.fieldContext_AuthPayload_token(ctx, field)
+			case "user":
+				return ec.fieldContext_AuthPayload_user(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AuthPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_login_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createInitialUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createInitialUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateInitialUser(ctx, fc.Args["input"].(model.CreateInitialUserInput))
+		},
+		nil,
+		ec.marshalNAuthPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAuthPayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createInitialUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "token":
+				return ec.fieldContext_AuthPayload_token(ctx, field)
+			case "user":
+				return ec.fieldContext_AuthPayload_user(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AuthPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createInitialUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateUser(ctx, fc.Args["input"].(model.CreateUserInput))
+		},
+		nil,
+		ec.marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5578,6 +6120,8 @@ func (ec *executionContext) fieldContext_Query_scenes(_ context.Context, field g
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -5618,6 +6162,8 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -5674,6 +6220,8 @@ func (ec *executionContext) fieldContext_Query_automations(_ context.Context, fi
 				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
 			case "edges":
 				return ec.fieldContext_AutomationGraph_edges(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_AutomationGraph_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
@@ -5720,6 +6268,8 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 				return ec.fieldContext_AutomationGraph_nodes(ctx, field)
 			case "edges":
 				return ec.fieldContext_AutomationGraph_edges(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_AutomationGraph_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationGraph", field.Name)
 		},
@@ -5772,6 +6322,8 @@ func (ec *executionContext) fieldContext_Query_groups(_ context.Context, field g
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
 				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
@@ -5814,6 +6366,8 @@ func (ec *executionContext) fieldContext_Query_group(ctx context.Context, field 
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
 				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
@@ -5864,6 +6418,8 @@ func (ec *executionContext) fieldContext_Query_rooms(_ context.Context, field gr
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -5904,6 +6460,8 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_icon(ctx, field)
 			case "devices":
 				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
@@ -6102,6 +6660,115 @@ func (ec *executionContext) fieldContext_Query_logs(ctx context.Context, field g
 	if fc.Args, err = ec.field_Query_logs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_setupStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_setupStatus,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().SetupStatus(ctx)
+		},
+		nil,
+		ec.marshalNSetupStatus2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetupStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_setupStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasInitialUser":
+				return ec.fieldContext_SetupStatus_hasInitialUser(ctx, field)
+			case "mqttConfigured":
+				return ec.fieldContext_SetupStatus_mqttConfigured(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SetupStatus", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_me,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Me(ctx)
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_users(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_users,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Users(ctx)
+		},
+		nil,
+		ec.marshalNUser2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -6348,6 +7015,43 @@ func (ec *executionContext) fieldContext_Room_devices(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Room_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_createdBy,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Scene_id(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6471,6 +7175,43 @@ func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field 
 				return ec.fieldContext_SceneAction_payload(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SceneAction", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Scene_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Scene_createdBy,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Scene",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
 	}
 	return fc, nil
@@ -7056,6 +7797,64 @@ func (ec *executionContext) fieldContext_Setting_value(_ context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _SetupStatus_hasInitialUser(ctx context.Context, field graphql.CollectedField, obj *model.SetupStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SetupStatus_hasInitialUser,
+		func(ctx context.Context) (any, error) {
+			return obj.HasInitialUser, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SetupStatus_hasInitialUser(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SetupStatus",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SetupStatus_mqttConfigured(ctx context.Context, field graphql.CollectedField, obj *model.SetupStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SetupStatus_mqttConfigured,
+		func(ctx context.Context) (any, error) {
+			return obj.MqttConfigured, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SetupStatus_mqttConfigured(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SetupStatus",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Subscription_deviceStateChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -7321,6 +8120,93 @@ func (ec *executionContext) _SwitchState_action(ctx context.Context, field graph
 func (ec *executionContext) fieldContext_SwitchState_action(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "SwitchState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_id(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_username(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_username,
+		func(ctx context.Context) (any, error) {
+			return obj.Username, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_username(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_name(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -9085,6 +9971,50 @@ func (ec *executionContext) unmarshalInputCreateGroupInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateInitialUserInput(ctx context.Context, obj any) (model.CreateInitialUserInput, error) {
+	var it model.CreateInitialUserInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"username", "name", "password"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "username":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Username = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "password":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Password = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateRoomInput(ctx context.Context, obj any) (model.CreateRoomInput, error) {
 	var it model.CreateRoomInput
 	if obj == nil {
@@ -9152,6 +10082,50 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, obj any) (model.CreateUserInput, error) {
+	var it model.CreateUserInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"username", "name", "password"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "username":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Username = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "password":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Password = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLightStateInput(ctx context.Context, obj any) (model.LightStateInput, error) {
 	var it model.LightStateInput
 	if obj == nil {
@@ -9205,6 +10179,43 @@ func (ec *executionContext) unmarshalInputLightStateInput(ctx context.Context, o
 				return it, err
 			}
 			it.Transition = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
+	var it model.LoginInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"username", "password"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "username":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Username = data
+		case "password":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Password = data
 		}
 	}
 	return it, nil
@@ -9594,6 +10605,50 @@ func (ec *executionContext) _SceneTarget(ctx context.Context, sel ast.SelectionS
 
 // region    **************************** object.gotpl ****************************
 
+var authPayloadImplementors = []string{"AuthPayload"}
+
+func (ec *executionContext) _AuthPayload(ctx context.Context, sel ast.SelectionSet, obj *model.AuthPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, authPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuthPayload")
+		case "token":
+			out.Values[i] = ec._AuthPayload_token(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "user":
+			out.Values[i] = ec._AuthPayload_user(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var automationEdgeImplementors = []string{"AutomationEdge"}
 
 func (ec *executionContext) _AutomationEdge(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationEdge) graphql.Marshaler {
@@ -9686,6 +10741,8 @@ func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createdBy":
+			out.Values[i] = ec._AutomationGraph_createdBy(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10156,6 +11213,8 @@ func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createdBy":
+			out.Values[i] = ec._Group_createdBy(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10566,6 +11625,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "login":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_login(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createInitialUser":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createInitialUser(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createUser":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createUser(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10898,6 +11978,69 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "setupStatus":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_setupStatus(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "me":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_me(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "users":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_users(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -10957,6 +12100,8 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createdBy":
+			out.Values[i] = ec._Room_createdBy(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11008,6 +12153,8 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createdBy":
+			out.Values[i] = ec._Scene_createdBy(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11237,6 +12384,50 @@ func (ec *executionContext) _Setting(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
+var setupStatusImplementors = []string{"SetupStatus"}
+
+func (ec *executionContext) _SetupStatus(ctx context.Context, sel ast.SelectionSet, obj *model.SetupStatus) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, setupStatusImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SetupStatus")
+		case "hasInitialUser":
+			out.Values[i] = ec._SetupStatus_hasInitialUser(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mqttConfigured":
+			out.Values[i] = ec._SetupStatus_mqttConfigured(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var subscriptionImplementors = []string{"Subscription"}
 
 func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
@@ -11280,6 +12471,55 @@ func (ec *executionContext) _SwitchState(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = graphql.MarshalString("SwitchState")
 		case "action":
 			out.Values[i] = ec._SwitchState_action(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userImplementors = []string{"User"}
+
+func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *model.User) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("User")
+		case "id":
+			out.Values[i] = ec._User_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "username":
+			out.Values[i] = ec._User_username(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._User_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11648,6 +12888,20 @@ func (ec *executionContext) unmarshalNAddRoomDeviceInput2githubᚗcomᚋsaffronj
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNAuthPayload2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAuthPayload(ctx context.Context, sel ast.SelectionSet, v model.AuthPayload) graphql.Marshaler {
+	return ec._AuthPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAuthPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAuthPayload(ctx context.Context, sel ast.SelectionSet, v *model.AuthPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AuthPayload(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAutomationEdge2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AutomationEdge) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -11850,6 +13104,11 @@ func (ec *executionContext) unmarshalNCreateGroupInput2githubᚗcomᚋsaffronjam
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreateInitialUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateInitialUserInput(ctx context.Context, v any) (model.CreateInitialUserInput, error) {
+	res, err := ec.unmarshalInputCreateInitialUserInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCreateRoomInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateRoomInput(ctx context.Context, v any) (model.CreateRoomInput, error) {
 	res, err := ec.unmarshalInputCreateRoomInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -11857,6 +13116,11 @@ func (ec *executionContext) unmarshalNCreateRoomInput2githubᚗcomᚋsaffronjam�
 
 func (ec *executionContext) unmarshalNCreateSceneInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateSceneInput(ctx context.Context, v any) (model.CreateSceneInput, error) {
 	res, err := ec.unmarshalInputCreateSceneInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
+	res, err := ec.unmarshalInputCreateUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -12087,6 +13351,11 @@ func (ec *executionContext) marshalNLogEntry2ᚖgithubᚗcomᚋsaffronjamᚋsaff
 	return ec._LogEntry(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLoginInput(ctx context.Context, v any) (model.LoginInput, error) {
+	res, err := ec.unmarshalInputLoginInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNMqttConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig(ctx context.Context, sel ast.SelectionSet, v model.MqttConfig) graphql.Marshaler {
 	return ec._MqttConfig(ctx, sel, &v)
 }
@@ -12278,6 +13547,20 @@ func (ec *executionContext) marshalNSetting2ᚖgithubᚗcomᚋsaffronjamᚋsaffr
 	return ec._Setting(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSetupStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetupStatus(ctx context.Context, sel ast.SelectionSet, v model.SetupStatus) graphql.Marshaler {
+	return ec._SetupStatus(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSetupStatus2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetupStatus(ctx context.Context, sel ast.SelectionSet, v *model.SetupStatus) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SetupStatus(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -12317,6 +13600,36 @@ func (ec *executionContext) unmarshalNUpdateRoomInput2githubᚗcomᚋsaffronjam�
 func (ec *executionContext) unmarshalNUpdateSceneInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateSceneInput(ctx context.Context, v any) (model.UpdateSceneInput, error) {
 	res, err := ec.unmarshalInputUpdateSceneInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUser2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
+	return ec._User(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNUser2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.User) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._User(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -12731,6 +14044,13 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._User(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {
