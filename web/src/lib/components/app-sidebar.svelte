@@ -24,6 +24,7 @@
 		ScrollText,
 		Settings,
 		LogOut,
+		Activity,
 	} from "@lucide/svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 
@@ -40,6 +41,7 @@
 		{ href: "/automations", label: "Automations", icon: Workflow },
 		{ href: "/rooms", label: "Rooms", icon: DoorOpen },
 		{ href: "/groups", label: "Groups", icon: Group },
+		{ href: "/activity", label: "Activity", icon: Activity },
 	];
 
 	const footerItems: NavItem[] = [

@@ -137,3 +137,16 @@
     font-family: var(--font-sans);
   }
 }
+
+@keyframes activity-row-flash {
+  0%,
+  20% {
+    background-color: var(--accent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.activity-row-new {
+  animation: activity-row-flash 1800ms ease-out;
+}

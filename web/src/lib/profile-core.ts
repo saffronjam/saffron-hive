@@ -6,6 +6,7 @@ export interface ProfileState {
   "view.groups": ListView;
   "view.rooms": ListView;
   "view.scenes": ListView;
+  "activity.advanced": boolean;
 }
 
 export const PROFILE_STORAGE_KEY = "saffron-hive-profile";

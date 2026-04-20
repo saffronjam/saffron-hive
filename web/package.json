@@ -48,6 +48,7 @@
 		"@codemirror/lint": "^6.9.5",
 		"@codemirror/theme-one-dark": "^6.1.3",
 		"@mdi/js": "^7.4.47",
+		"@tanstack/svelte-virtual": "^3.13.24",
 		"@urql/exchange-graphcache": "^9.0.0",
 		"@urql/svelte": "^5.0.0",
 		"@xyflow/svelte": "^1.5.2",
