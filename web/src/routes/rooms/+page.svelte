@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { queryStore, getContextClient, gql } from "@urql/svelte";
+	import { queryStore, getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import {
@@ -47,7 +48,7 @@
 
 	const client = getContextClient();
 
-	const ROOMS_QUERY = gql`
+	const ROOMS_QUERY = graphql(`
 		query Rooms {
 			rooms {
 				id
@@ -59,6 +60,13 @@
 					type
 					source
 					available
+					lastSeen
+					capabilities { name type values valueMin valueMax unit access }
+					state {
+						... on LightState { __typename on brightness colorTemp color { r g b x y } transition }
+						... on SensorState { __typename temperature humidity battery pressure illuminance }
+						... on SwitchState { __typename action }
+					}
 				}
 				createdBy {
 					id
@@ -67,10 +75,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICES_QUERY = gql`
-		query Devices {
+	const DEVICES_QUERY = graphql(`
+		query RoomsPageDevices {
 			devices {
 				id
 				name
@@ -79,7 +87,7 @@
 				available
 			}
 		}
-	`;
+	`);
 
 	interface SimpleGroup {
 		id: string;
@@ -87,22 +95,35 @@
 		members: { memberId: string }[];
 	}
 
-	const GROUPS_QUERY = gql`
-		query Groups {
+	const GROUPS_QUERY = graphql(`
+		query RoomsPageGroups {
 			groups {
 				id
 				name
 				members { memberId }
 			}
 		}
-	`;
+	`);
 
-	const CREATE_ROOM = gql`
+	const CREATE_ROOM = graphql(`
 		mutation CreateRoom($input: CreateRoomInput!) {
 			createRoom(input: $input) {
 				id
 				name
-				devices { id name type source available }
+				devices {
+					id
+					name
+					type
+					source
+					available
+					lastSeen
+					capabilities { name type values valueMin valueMax unit access }
+					state {
+						... on LightState { __typename on brightness colorTemp color { r g b x y } transition }
+						... on SensorState { __typename temperature humidity battery pressure illuminance }
+						... on SwitchState { __typename action }
+					}
+				}
 				createdBy {
 					id
 					username
@@ -110,9 +131,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_ROOM = gql`
+	const UPDATE_ROOM = graphql(`
 		mutation UpdateRoom($id: ID!, $input: UpdateRoomInput!) {
 			updateRoom(id: $id, input: $input) {
 				id
@@ -120,15 +141,15 @@
 				icon
 			}
 		}
-	`;
+	`);
 
-	const DELETE_ROOM = gql`
+	const DELETE_ROOM = graphql(`
 		mutation DeleteRoom($id: ID!) {
 			deleteRoom(id: $id)
 		}
-	`;
+	`);
 
-	const ADD_ROOM_DEVICE = gql`
+	const ADD_ROOM_DEVICE = graphql(`
 		mutation AddRoomDevice($input: AddRoomDeviceInput!) {
 			addRoomDevice(input: $input) {
 				id
@@ -136,9 +157,9 @@
 				devices { id name type source available }
 			}
 		}
-	`;
+	`);
 
-	const REMOVE_ROOM_DEVICE = gql`
+	const REMOVE_ROOM_DEVICE = graphql(`
 		mutation RemoveRoomDevice($roomId: ID!, $deviceId: ID!) {
 			removeRoomDevice(roomId: $roomId, deviceId: $deviceId) {
 				id
@@ -146,7 +167,7 @@
 				devices { id name type source available }
 			}
 		}
-	`;
+	`);
 
 	const roomsQuery = queryStore<{ rooms: RoomData[] }>({ client, query: ROOMS_QUERY });
 	const devicesQuery = queryStore<{ devices: Device[] }>({ client, query: DEVICES_QUERY });

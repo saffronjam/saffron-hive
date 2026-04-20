@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { queryStore, getContextClient, gql } from "@urql/svelte";
+	import { queryStore, getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import {
@@ -91,7 +92,7 @@
 
 	const client = getContextClient();
 
-	const GROUPS_QUERY = gql`
+	const GROUPS_QUERY = graphql(`
 		query Groups {
 			groups {
 				id
@@ -185,10 +186,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICES_QUERY = gql`
-		query Devices {
+	const DEVICES_QUERY = graphql(`
+		query GroupsPageDevices {
 			devices {
 				id
 				name
@@ -217,19 +218,19 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const ROOMS_QUERY = gql`
-		query Rooms {
+	const ROOMS_QUERY = graphql(`
+		query GroupsPageRooms {
 			rooms {
 				id
 				name
 				devices { id name }
 			}
 		}
-	`;
+	`);
 
-	const CREATE_GROUP = gql`
+	const CREATE_GROUP = graphql(`
 		mutation CreateGroup($input: CreateGroupInput!) {
 			createGroup(input: $input) {
 				id
@@ -246,9 +247,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_GROUP = gql`
+	const UPDATE_GROUP = graphql(`
 		mutation UpdateGroup($id: ID!, $input: UpdateGroupInput!) {
 			updateGroup(id: $id, input: $input) {
 				id
@@ -256,15 +257,15 @@
 				icon
 			}
 		}
-	`;
+	`);
 
-	const DELETE_GROUP = gql`
+	const DELETE_GROUP = graphql(`
 		mutation DeleteGroup($id: ID!) {
 			deleteGroup(id: $id)
 		}
-	`;
+	`);
 
-	const ADD_GROUP_MEMBER = gql`
+	const ADD_GROUP_MEMBER = graphql(`
 		mutation AddGroupMember($input: AddGroupMemberInput!) {
 			addGroupMember(input: $input) {
 				id
@@ -272,13 +273,13 @@
 				memberId
 			}
 		}
-	`;
+	`);
 
-	const REMOVE_GROUP_MEMBER = gql`
+	const REMOVE_GROUP_MEMBER = graphql(`
 		mutation RemoveGroupMember($id: ID!) {
 			removeGroupMember(id: $id)
 		}
-	`;
+	`);
 
 	const groupsQuery = queryStore<GroupsQueryResult>({ client, query: GROUPS_QUERY });
 	const devicesQuery = queryStore<DevicesQueryResult>({ client, query: DEVICES_QUERY });
