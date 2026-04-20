@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from "svelte";
+	import { tick, onDestroy } from "svelte";
 	import { X } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
@@ -19,6 +19,10 @@
 		chips?: ChipConfig[];
 		placeholder?: string;
 		class?: string;
+		/** When > 0, free-text typing is debounced by this many ms before onchange fires. Chip commits always fire immediately. */
+		debounceMs?: number;
+		/** When true, blurring the live input flushes any pending debounced emit. */
+		commitOnBlur?: boolean;
 	}
 
 	let {
@@ -27,6 +31,8 @@
 		chips = [],
 		placeholder = "Search...",
 		class: className,
+		debounceMs = 0,
+		commitOnBlur = false,
 	}: Props = $props();
 
 	interface Token {
@@ -116,7 +122,17 @@
 		return false;
 	}
 
-	function emit() {
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function clearDebounce() {
+		if (debounceTimer !== null) {
+			clearTimeout(debounceTimer);
+			debounceTimer = null;
+		}
+	}
+
+	function emitNow() {
+		clearDebounce();
 		const texts = tokens.map((t) => t.text);
 		const lastIdx = texts.length - 1;
 		const emitTexts =
@@ -128,11 +144,26 @@
 		onchange(state);
 	}
 
-	function setLive(text: string) {
+	function emitDebounced() {
+		if (debounceMs <= 0) {
+			emitNow();
+			return;
+		}
+		clearDebounce();
+		debounceTimer = setTimeout(() => {
+			debounceTimer = null;
+			emitNow();
+		}, debounceMs);
+	}
+
+	onDestroy(clearDebounce);
+
+	function setLive(text: string, immediate: boolean = false) {
 		const next = tokens.slice();
 		next[next.length - 1] = { text };
 		tokens = next;
-		emit();
+		if (immediate) emitNow();
+		else emitDebounced();
 	}
 
 	function commitCurrent() {
@@ -140,14 +171,14 @@
 		tokens = [...tokens, { text: "" }];
 		suggestionIdx = 0;
 		showSuggestions = false;
-		emit();
+		emitNow();
 		tick().then(() => liveInput?.focus());
 	}
 
 	function reopenLastCommitted() {
 		if (committed.length === 0) return;
 		tokens = tokens.slice(0, -1);
-		emit();
+		emitNow();
 		tick().then(() => {
 			if (liveInput) {
 				const len = liveInput.value.length;
@@ -161,7 +192,7 @@
 		tokens = [{ text: "" }];
 		suggestionIdx = 0;
 		showSuggestions = false;
-		emit();
+		emitNow();
 		tick().then(() => liveInput?.focus());
 	}
 
@@ -170,12 +201,12 @@
 		tokens = [...tokens.slice(0, -1), { text: `${liveChip.keyword}:${opt.value}` }, { text: "" }];
 		suggestionIdx = 0;
 		showSuggestions = false;
-		emit();
+		emitNow();
 		tick().then(() => liveInput?.focus());
 	}
 
 	function pickKeyword(opt: ChipOption) {
-		setLive(`${opt.value}:`);
+		setLive(`${opt.value}:`, true);
 		suggestionIdx = 0;
 		showSuggestions = true;
 		tick().then(() => {
@@ -271,6 +302,7 @@
 	}
 
 	function onLiveBlur() {
+		if (commitOnBlur) emitNow();
 		setTimeout(() => {
 			showSuggestions = false;
 		}, 120);
@@ -290,8 +322,10 @@
 		{#each committed as token, i (i)}
 			{@const cfg = chipConfigForText(token.text)}
 			{#if cfg}
+				{@const raw = token.text.slice(cfg.keyword.length + 1)}
+				{@const shown = cfg.resolveLabel?.(raw) ?? raw}
 				<span class={badgeVariants({ variant: cfg.variant ?? "secondary" })}>
-					{cfg.label}: {token.text.slice(cfg.keyword.length + 1)}
+					{cfg.label}: {shown}
 				</span>
 			{:else}
 				<span class="text-foreground">{token.text}</span>

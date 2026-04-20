@@ -12,6 +12,12 @@ export interface ChipConfig {
   label: string;
   variant?: ChipVariant;
   options: (input: string) => ChipOption[];
+  /**
+   * Given a committed chip's raw value (e.g. a device UUID), return the label
+   * to display on the chip. Return null to fall back to the raw value. Useful
+   * when option values are IDs and labels are friendly names.
+   */
+  resolveLabel?: (value: string) => string | null;
 }
 
 export interface SearchChip {
