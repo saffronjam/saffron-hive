@@ -2,10 +2,11 @@ package store
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
+
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
 // internalEventTypes lists event types hidden from the default (non-advanced)
@@ -17,25 +18,24 @@ var internalEventTypes = []string{
 }
 
 // InsertActivityEvent inserts an activity event and returns it with the generated ID.
-func (s *SQLiteStore) InsertActivityEvent(ctx context.Context, params InsertActivityEventParams) (ActivityEvent, error) {
-	result, err := s.db.ExecContext(ctx,
-		`INSERT INTO activity_events (
-			type, timestamp, message, payload_json,
-			device_id, device_name, device_type, room_id, room_name,
-			scene_id, scene_name,
-			automation_id, automation_name
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		params.Type, params.Timestamp, params.Message, params.PayloadJSON,
-		params.DeviceID, params.DeviceName, params.DeviceType, params.RoomID, params.RoomName,
-		params.SceneID, params.SceneName,
-		params.AutomationID, params.AutomationName,
-	)
+func (s *DB) InsertActivityEvent(ctx context.Context, params InsertActivityEventParams) (ActivityEvent, error) {
+	id, err := s.q.InsertActivityEvent(ctx, sqlite.InsertActivityEventParams{
+		Type:           params.Type,
+		Timestamp:      params.Timestamp,
+		Message:        params.Message,
+		PayloadJson:    params.PayloadJSON,
+		DeviceID:       params.DeviceID,
+		DeviceName:     params.DeviceName,
+		DeviceType:     params.DeviceType,
+		RoomID:         params.RoomID,
+		RoomName:       params.RoomName,
+		SceneID:        params.SceneID,
+		SceneName:      params.SceneName,
+		AutomationID:   params.AutomationID,
+		AutomationName: params.AutomationName,
+	})
 	if err != nil {
 		return ActivityEvent{}, fmt.Errorf("insert activity event: %w", err)
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return ActivityEvent{}, fmt.Errorf("insert activity event last id: %w", err)
 	}
 	return ActivityEvent{
 		ID:             id,
@@ -56,114 +56,74 @@ func (s *SQLiteStore) InsertActivityEvent(ctx context.Context, params InsertActi
 }
 
 // QueryActivityEvents returns activity events matching the query, ordered most recent first.
-func (s *SQLiteStore) QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]ActivityEvent, error) {
-	var (
-		conditions []string
-		args       []interface{}
-	)
-
-	if len(query.Types) > 0 {
-		placeholders := make([]string, len(query.Types))
-		for i, t := range query.Types {
-			placeholders[i] = "?"
-			args = append(args, t)
-		}
-		conditions = append(conditions, fmt.Sprintf("type IN (%s)", strings.Join(placeholders, ",")))
+func (s *DB) QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]ActivityEvent, error) {
+	typesJSON, err := marshalStringArray(query.Types)
+	if err != nil {
+		return nil, fmt.Errorf("query activity events: types: %w", err)
 	}
+	excluded := []string(nil)
 	if !query.Advanced {
-		placeholders := make([]string, len(internalEventTypes))
-		for i, t := range internalEventTypes {
-			placeholders[i] = "?"
-			args = append(args, t)
-		}
-		conditions = append(conditions, fmt.Sprintf("type NOT IN (%s)", strings.Join(placeholders, ",")))
+		excluded = internalEventTypes
 	}
-	if query.DeviceID != nil {
-		conditions = append(conditions, "device_id = ?")
-		args = append(args, *query.DeviceID)
-	}
-	if query.RoomID != nil {
-		conditions = append(conditions, "room_id = ?")
-		args = append(args, *query.RoomID)
-	}
-	if query.Since != nil {
-		conditions = append(conditions, "timestamp >= ?")
-		args = append(args, *query.Since)
-	}
-	if query.Before != nil {
-		conditions = append(conditions, "id < ?")
-		args = append(args, *query.Before)
+	excludedJSON, err := marshalStringArray(excluded)
+	if err != nil {
+		return nil, fmt.Errorf("query activity events: excluded types: %w", err)
 	}
 
-	q := `SELECT
-		id, type, timestamp, message, payload_json,
-		device_id, device_name, device_type, room_id, room_name,
-		scene_id, scene_name,
-		automation_id, automation_name
-		FROM activity_events`
-	if len(conditions) > 0 {
-		q += " WHERE " + strings.Join(conditions, " AND ")
-	}
-	q += " ORDER BY timestamp DESC, id DESC"
-	if query.Limit > 0 {
-		q += " LIMIT ?"
-		args = append(args, query.Limit)
-	}
-
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	rows, err := s.q.QueryActivityEvents(ctx, sqlite.QueryActivityEventsParams{
+		TypesJson:         typesJSON,
+		ExcludedTypesJson: excludedJSON,
+		DeviceID:          query.DeviceID,
+		RoomID:            query.RoomID,
+		Since:             query.Since,
+		Before:            query.Before,
+		Lim:               int64(query.Limit),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("query activity events: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 
 	var events []ActivityEvent
-	for rows.Next() {
-		var (
-			e                                                                                                    ActivityEvent
-			deviceID, deviceName, deviceType, roomID, roomName, sceneID, sceneName, automationID, automationName sql.NullString
-		)
-		if err := rows.Scan(
-			&e.ID, &e.Type, &e.Timestamp, &e.Message, &e.PayloadJSON,
-			&deviceID, &deviceName, &deviceType, &roomID, &roomName,
-			&sceneID, &sceneName,
-			&automationID, &automationName,
-		); err != nil {
-			return nil, fmt.Errorf("scan activity event: %w", err)
-		}
-		e.DeviceID = nullStringPtr(deviceID)
-		e.DeviceName = nullStringPtr(deviceName)
-		e.DeviceType = nullStringPtr(deviceType)
-		e.RoomID = nullStringPtr(roomID)
-		e.RoomName = nullStringPtr(roomName)
-		e.SceneID = nullStringPtr(sceneID)
-		e.SceneName = nullStringPtr(sceneName)
-		e.AutomationID = nullStringPtr(automationID)
-		e.AutomationName = nullStringPtr(automationName)
-		events = append(events, e)
+	for _, r := range rows {
+		events = append(events, ActivityEvent{
+			ID:             r.ID,
+			Type:           r.Type,
+			Timestamp:      r.Timestamp,
+			Message:        r.Message,
+			PayloadJSON:    r.PayloadJson,
+			DeviceID:       r.DeviceID,
+			DeviceName:     r.DeviceName,
+			DeviceType:     r.DeviceType,
+			RoomID:         r.RoomID,
+			RoomName:       r.RoomName,
+			SceneID:        r.SceneID,
+			SceneName:      r.SceneName,
+			AutomationID:   r.AutomationID,
+			AutomationName: r.AutomationName,
+		})
 	}
-	return events, rows.Err()
+	return events, nil
 }
 
 // PruneActivityEventsOlderThan deletes activity events with timestamp < cutoff and
 // returns the number of rows removed.
-func (s *SQLiteStore) PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM activity_events WHERE timestamp < ?`, cutoff,
-	)
+func (s *DB) PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	n, err := s.q.PruneActivityEventsOlderThan(ctx, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("prune activity events: %w", err)
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("prune activity events rows affected: %w", err)
 	}
 	return n, nil
 }
 
-func nullStringPtr(ns sql.NullString) *string {
-	if !ns.Valid {
-		return nil
+// marshalStringArray always emits a JSON array literal (even for empty/nil
+// input). The query's json_each gate relies on "[]" meaning "match all".
+func marshalStringArray(values []string) (string, error) {
+	if values == nil {
+		return "[]", nil
 	}
-	v := ns.String
-	return &v
+	b, err := json.Marshal(values)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }

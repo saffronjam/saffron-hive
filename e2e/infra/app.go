@@ -248,7 +248,7 @@ func (r *reloader) Reload() error {
 	return r.engine.Reload(r.ctx)
 }
 
-func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, s store.Store) {
+func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, s *store.DB) {
 	ch := bus.Subscribe(eventbus.EventDeviceStateChanged)
 	defer bus.Unsubscribe(ch)
 

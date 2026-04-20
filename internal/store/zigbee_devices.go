@@ -2,17 +2,18 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
 // RegisterZigbeeDevice inserts a new zigbee device mapping.
-func (s *SQLiteStore) RegisterZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) (ZigbeeDevice, error) {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO zigbee_devices (device_id, ieee_address, friendly_name) VALUES (?, ?, ?)`,
-		params.DeviceID, params.IEEEAddress, params.FriendlyName,
-	)
-	if err != nil {
+func (s *DB) RegisterZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) (ZigbeeDevice, error) {
+	if err := s.q.RegisterZigbeeDevice(ctx, sqlite.RegisterZigbeeDeviceParams{
+		DeviceID:     params.DeviceID,
+		IeeeAddress:  params.IEEEAddress,
+		FriendlyName: params.FriendlyName,
+	}); err != nil {
 		return ZigbeeDevice{}, fmt.Errorf("register zigbee device: %w", err)
 	}
 	return ZigbeeDevice{
@@ -23,42 +24,39 @@ func (s *SQLiteStore) RegisterZigbeeDevice(ctx context.Context, params RegisterZ
 }
 
 // UpsertZigbeeDevice inserts or updates a zigbee device mapping.
-func (s *SQLiteStore) UpsertZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO zigbee_devices (device_id, ieee_address, friendly_name)
-		 VALUES (?, ?, ?)
-		 ON CONFLICT(device_id) DO UPDATE SET ieee_address=excluded.ieee_address, friendly_name=excluded.friendly_name`,
-		params.DeviceID, params.IEEEAddress, params.FriendlyName,
-	)
-	if err != nil {
+func (s *DB) UpsertZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) error {
+	if err := s.q.UpsertZigbeeDevice(ctx, sqlite.UpsertZigbeeDeviceParams{
+		DeviceID:     params.DeviceID,
+		IeeeAddress:  params.IEEEAddress,
+		FriendlyName: params.FriendlyName,
+	}); err != nil {
 		return fmt.Errorf("upsert zigbee device: %w", err)
 	}
 	return nil
 }
 
 // GetZigbeeDeviceByIEEEAddress looks up a zigbee device by its IEEE address.
-func (s *SQLiteStore) GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error) {
-	row := s.db.QueryRowContext(ctx,
-		`SELECT device_id, ieee_address, friendly_name FROM zigbee_devices WHERE ieee_address = ?`,
-		ieeeAddress,
-	)
-	return scanZigbeeDevice(row)
+func (s *DB) GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error) {
+	row, err := s.q.GetZigbeeDeviceByIEEEAddress(ctx, ieeeAddress)
+	if err != nil {
+		return ZigbeeDevice{}, fmt.Errorf("get zigbee device by ieee address: %w", err)
+	}
+	return mapZigbeeDeviceRow(row), nil
 }
 
 // GetZigbeeDeviceByFriendlyName looks up a zigbee device by its friendly name.
-func (s *SQLiteStore) GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error) {
-	row := s.db.QueryRowContext(ctx,
-		`SELECT device_id, ieee_address, friendly_name FROM zigbee_devices WHERE friendly_name = ?`,
-		friendlyName,
-	)
-	return scanZigbeeDevice(row)
+func (s *DB) GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error) {
+	row, err := s.q.GetZigbeeDeviceByFriendlyName(ctx, friendlyName)
+	if err != nil {
+		return ZigbeeDevice{}, fmt.Errorf("get zigbee device by friendly name: %w", err)
+	}
+	return mapZigbeeDeviceRow(row), nil
 }
 
-func scanZigbeeDevice(row *sql.Row) (ZigbeeDevice, error) {
-	var zd ZigbeeDevice
-	err := row.Scan(&zd.DeviceID, &zd.IEEEAddress, &zd.FriendlyName)
-	if err != nil {
-		return ZigbeeDevice{}, fmt.Errorf("scan zigbee device: %w", err)
+func mapZigbeeDeviceRow(row sqlite.ZigbeeDevice) ZigbeeDevice {
+	return ZigbeeDevice{
+		DeviceID:     row.DeviceID,
+		IEEEAddress:  row.IeeeAddress,
+		FriendlyName: row.FriendlyName,
 	}
-	return zd, nil
 }

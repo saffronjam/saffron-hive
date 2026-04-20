@@ -235,7 +235,7 @@ func wsInitFunc(svc *auth.Service) transport.WebsocketInitFunc {
 	}
 }
 
-func seedMQTTConfig(ctx context.Context, cfg config.Config, s store.Store) error {
+func seedMQTTConfig(ctx context.Context, cfg config.Config, s *store.DB) error {
 	if !cfg.HasMQTTConfig() {
 		return nil
 	}
@@ -258,7 +258,7 @@ func seedMQTTConfig(ctx context.Context, cfg config.Config, s store.Store) error
 // seedInitialUser creates the first user from HIVE_INIT_USER / HIVE_INIT_PASSWORD
 // when the users table is empty. Safe to run on every startup — if any user
 // exists, this is a no-op.
-func seedInitialUser(ctx context.Context, cfg config.Config, s store.Store) error {
+func seedInitialUser(ctx context.Context, cfg config.Config, s *store.DB) error {
 	if !cfg.HasInitUser() {
 		return nil
 	}
@@ -290,7 +290,7 @@ type adapterManager struct {
 	mu       sync.Mutex
 	client   zigbee.MQTTClient
 	adapter  *zigbee.ZigbeeAdapter
-	store    store.Store
+	store    *store.DB
 	bus      eventbus.EventBus
 	memStore *device.MemoryStore
 }
@@ -358,7 +358,7 @@ func (r *engineReloader) Reload() error {
 	return r.engine.Reload(r.ctx)
 }
 
-func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s store.Store) {
+func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {
 	defer bus.Unsubscribe(ch)
 
 	for {
@@ -389,7 +389,7 @@ func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eve
 	}
 }
 
-func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s store.Store) {
+func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {
 	defer bus.Unsubscribe(ch)
 
 	for {

@@ -1,70 +1,63 @@
 package store
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
-// buildUserRef assembles a *UserRef from three nullable columns returned by a
-// LEFT JOIN onto users. Returns nil when the creator id is NULL — which is the
+// userRefFromPtrs assembles a *UserRef from three nullable columns returned by
+// a LEFT JOIN onto users. Returns nil when the creator id is NULL — which is the
 // case for rows created before the users table existed, or whose creator has
 // been deleted (ON DELETE SET NULL).
-func buildUserRef(id, username, name sql.NullString) *UserRef {
-	if !id.Valid {
+func userRefFromPtrs(id, username, name *string) *UserRef {
+	if id == nil {
 		return nil
 	}
-	return &UserRef{
-		ID:       id.String,
-		Username: username.String,
-		Name:     name.String,
+	ref := &UserRef{ID: *id}
+	if username != nil {
+		ref.Username = *username
 	}
+	if name != nil {
+		ref.Name = *name
+	}
+	return ref
 }
 
-// DeviceRow represents the raw database columns for a device.
-type DeviceRow struct {
-	ID        string
-	Name      string
-	Source    string
-	Type      string
-	Available bool
-	Removed   bool
-	LastSeen  *time.Time
+// marshalCapabilities serializes a capability slice to JSON for storage.
+// A nil or empty slice is stored as "[]" so the column never holds NULL.
+func marshalCapabilities(caps []device.Capability) (string, error) {
+	if len(caps) == 0 {
+		return "[]", nil
+	}
+	b, err := json.Marshal(caps)
+	if err != nil {
+		return "", fmt.Errorf("marshal capabilities: %w", err)
+	}
+	return string(b), nil
 }
 
-// MapDeviceRowToDomain converts a DeviceRow to a domain Device.
-func MapDeviceRowToDomain(row DeviceRow) device.Device {
-	d := device.Device{
-		ID:        device.DeviceID(row.ID),
-		Name:      row.Name,
-		Source:    device.Source(row.Source),
-		Type:      device.DeviceType(row.Type),
-		Available: row.Available,
-		Removed:   row.Removed,
+// unmarshalCapabilities parses the devices.capabilities JSON blob. Accepts
+// both the current [{Name: ...}] shape and the legacy ["name", "name"] shape
+// so rows written before migration 006 keep decoding correctly.
+func unmarshalCapabilities(capsJSON string) []device.Capability {
+	if capsJSON == "" || capsJSON == "[]" {
+		return nil
 	}
-	if row.LastSeen != nil {
-		d.LastSeen = *row.LastSeen
+	var caps []device.Capability
+	if err := json.Unmarshal([]byte(capsJSON), &caps); err == nil {
+		return caps
 	}
-	return d
-}
-
-// MapDomainToDeviceRow converts a domain Device to a DeviceRow.
-func MapDomainToDeviceRow(d device.Device) DeviceRow {
-	row := DeviceRow{
-		ID:        string(d.ID),
-		Name:      d.Name,
-		Source:    string(d.Source),
-		Type:      string(d.Type),
-		Available: d.Available,
-		Removed:   d.Removed,
+	var legacy []string
+	if err := json.Unmarshal([]byte(capsJSON), &legacy); err == nil {
+		caps = make([]device.Capability, len(legacy))
+		for i, name := range legacy {
+			caps[i] = device.Capability{Name: name}
+		}
+		return caps
 	}
-	if !d.LastSeen.IsZero() {
-		row.LastSeen = &d.LastSeen
-	}
-	return row
+	return nil
 }
 
 // MarshalLightCommand serializes a LightCommand to JSON for storage.

@@ -1,7 +1,10 @@
+// Package store holds the domain-facing persistence types and the *DB wrapper
+// over sqlc-generated queries. Consumers import this package for the param /
+// result structs and receive *DB concretely; they define their own narrow
+// interfaces listing only the methods they need.
 package store
 
 import (
-	"context"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -360,85 +363,4 @@ type ActivityQuery struct {
 	Limit    int
 	Advanced bool
 	Before   *int64
-}
-
-// Store defines the persistence interface for the application.
-type Store interface {
-	CreateDevice(ctx context.Context, params CreateDeviceParams) (device.Device, error)
-	UpsertDevice(ctx context.Context, params CreateDeviceParams) error
-	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
-	ListDevices(ctx context.Context) ([]device.Device, error)
-	ListDevicesBySource(ctx context.Context, source device.Source) ([]device.Device, error)
-	UpdateDevice(ctx context.Context, params UpdateDeviceParams) (device.Device, error)
-	DeleteDevice(ctx context.Context, id device.DeviceID) error
-
-	RegisterZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) (ZigbeeDevice, error)
-	UpsertZigbeeDevice(ctx context.Context, params RegisterZigbeeDeviceParams) error
-	GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error)
-	GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error)
-
-	CreateScene(ctx context.Context, params CreateSceneParams) (Scene, error)
-	GetScene(ctx context.Context, id string) (Scene, error)
-	ListScenes(ctx context.Context) ([]Scene, error)
-	UpdateScene(ctx context.Context, id string, params UpdateSceneParams) (Scene, error)
-	DeleteScene(ctx context.Context, id string) error
-	CreateSceneAction(ctx context.Context, params CreateSceneActionParams) (SceneAction, error)
-	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
-	DeleteSceneAction(ctx context.Context, id string) error
-
-	CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error)
-	GetAutomation(ctx context.Context, id string) (Automation, error)
-	ListAutomations(ctx context.Context) ([]Automation, error)
-	ListEnabledAutomations(ctx context.Context) ([]Automation, error)
-	UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (Automation, error)
-	UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error
-	DeleteAutomation(ctx context.Context, id string) error
-	CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error)
-	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
-	DeleteAutomationNode(ctx context.Context, id string) error
-	CreateAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error)
-	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
-	DeleteAutomationEdge(ctx context.Context, id string) error
-	GetAutomationGraph(ctx context.Context, automationID string) (AutomationGraph, error)
-
-	CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error)
-	GetGroup(ctx context.Context, id string) (Group, error)
-	ListGroups(ctx context.Context) ([]Group, error)
-	UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error)
-	DeleteGroup(ctx context.Context, id string) error
-	AddGroupMember(ctx context.Context, params AddGroupMemberParams) (GroupMember, error)
-	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
-	RemoveGroupMember(ctx context.Context, id string) error
-	ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]Group, error)
-
-	InsertSensorReading(ctx context.Context, params InsertSensorReadingParams) (SensorReading, error)
-	QuerySensorHistory(ctx context.Context, query SensorHistoryQuery) ([]SensorReading, error)
-
-	InsertActivityEvent(ctx context.Context, params InsertActivityEventParams) (ActivityEvent, error)
-	QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]ActivityEvent, error)
-	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
-
-	GetMQTTConfig(ctx context.Context) (*MQTTConfig, error)
-	UpsertMQTTConfig(ctx context.Context, cfg MQTTConfig) error
-
-	GetSetting(ctx context.Context, key string) (Setting, error)
-	ListSettings(ctx context.Context) ([]Setting, error)
-	UpsertSetting(ctx context.Context, key, value string) error
-
-	CreateRoom(ctx context.Context, params CreateRoomParams) (Room, error)
-	GetRoom(ctx context.Context, id string) (Room, error)
-	ListRooms(ctx context.Context) ([]Room, error)
-	UpdateRoom(ctx context.Context, params UpdateRoomParams) (Room, error)
-	DeleteRoom(ctx context.Context, id string) error
-	AddRoomDevice(ctx context.Context, params AddRoomDeviceParams) (RoomDevice, error)
-	ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error)
-	RemoveRoomDevice(ctx context.Context, id string) error
-	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
-	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]Room, error)
-
-	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
-	GetUserByID(ctx context.Context, id string) (User, error)
-	GetUserByUsername(ctx context.Context, username string) (User, error)
-	ListUsers(ctx context.Context) ([]User, error)
-	CountUsers(ctx context.Context) (int, error)
 }

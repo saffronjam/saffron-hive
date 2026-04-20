@@ -9,7 +9,7 @@ import (
 // ResolveTargetDeviceIDs resolves a target (device, group, or room) to a flat
 // list of device IDs. Groups are expanded recursively, including any rooms
 // nested inside groups.
-func (s *SQLiteStore) ResolveTargetDeviceIDs(ctx context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
+func (s *DB) ResolveTargetDeviceIDs(ctx context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
 	switch targetType {
 	case device.TargetRoom:
 		return s.resolveRoomDeviceIDs(ctx, targetID)
@@ -21,7 +21,7 @@ func (s *SQLiteStore) ResolveTargetDeviceIDs(ctx context.Context, targetType dev
 	}
 }
 
-func (s *SQLiteStore) resolveRoomDeviceIDs(ctx context.Context, roomID string) []device.DeviceID {
+func (s *DB) resolveRoomDeviceIDs(ctx context.Context, roomID string) []device.DeviceID {
 	devices, err := s.ListRoomDevices(ctx, roomID)
 	if err != nil {
 		return nil
@@ -33,7 +33,7 @@ func (s *SQLiteStore) resolveRoomDeviceIDs(ctx context.Context, roomID string) [
 	return result
 }
 
-func (s *SQLiteStore) collectGroupDeviceIDs(ctx context.Context, groupID string, seen map[string]bool) []device.DeviceID {
+func (s *DB) collectGroupDeviceIDs(ctx context.Context, groupID string, seen map[string]bool) []device.DeviceID {
 	if seen[groupID] {
 		return nil
 	}

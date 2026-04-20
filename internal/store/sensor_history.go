@@ -2,22 +2,24 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
 // InsertSensorReading inserts a sensor reading and returns it with the generated ID.
-func (s *SQLiteStore) InsertSensorReading(ctx context.Context, params InsertSensorReadingParams) (SensorReading, error) {
-	result, err := s.db.ExecContext(ctx,
-		`INSERT INTO sensor_history (device_id, temperature, humidity, battery, pressure, illuminance, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		params.DeviceID, params.Temperature, params.Humidity, params.Battery, params.Pressure, params.Illuminance, params.RecordedAt,
-	)
+func (s *DB) InsertSensorReading(ctx context.Context, params InsertSensorReadingParams) (SensorReading, error) {
+	id, err := s.q.InsertSensorReading(ctx, sqlite.InsertSensorReadingParams{
+		DeviceID:    params.DeviceID,
+		Temperature: params.Temperature,
+		Humidity:    params.Humidity,
+		Battery:     intPtrToInt64Ptr(params.Battery),
+		Pressure:    params.Pressure,
+		Illuminance: params.Illuminance,
+		RecordedAt:  params.RecordedAt,
+	})
 	if err != nil {
 		return SensorReading{}, fmt.Errorf("insert sensor reading: %w", err)
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return SensorReading{}, fmt.Errorf("insert sensor reading last id: %w", err)
 	}
 	return SensorReading{
 		ID:          id,
@@ -32,43 +34,44 @@ func (s *SQLiteStore) InsertSensorReading(ctx context.Context, params InsertSens
 }
 
 // QuerySensorHistory returns sensor readings for a device within a time range, ordered by most recent first.
-func (s *SQLiteStore) QuerySensorHistory(ctx context.Context, query SensorHistoryQuery) ([]SensorReading, error) {
-	q := `SELECT id, device_id, temperature, humidity, battery, pressure, illuminance, recorded_at FROM sensor_history WHERE device_id = ? AND recorded_at >= ? AND recorded_at <= ? ORDER BY recorded_at DESC`
-	args := []interface{}{query.DeviceID, query.From, query.To}
-	if query.Limit > 0 {
-		q += ` LIMIT ?`
-		args = append(args, query.Limit)
-	}
-	rows, err := s.db.QueryContext(ctx, q, args...)
+func (s *DB) QuerySensorHistory(ctx context.Context, query SensorHistoryQuery) ([]SensorReading, error) {
+	rows, err := s.q.QuerySensorHistory(ctx, sqlite.QuerySensorHistoryParams{
+		DeviceID: query.DeviceID,
+		FromTime: query.From,
+		ToTime:   query.To,
+		Lim:      int64(query.Limit),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("query sensor history: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var readings []SensorReading
-	for rows.Next() {
-		var r SensorReading
-		var temp, hum, pres, illu sql.NullFloat64
-		var bat sql.NullInt64
-		if err := rows.Scan(&r.ID, &r.DeviceID, &temp, &hum, &bat, &pres, &illu, &r.RecordedAt); err != nil {
-			return nil, fmt.Errorf("scan sensor reading: %w", err)
-		}
-		if temp.Valid {
-			r.Temperature = &temp.Float64
-		}
-		if hum.Valid {
-			r.Humidity = &hum.Float64
-		}
-		if bat.Valid {
-			v := int(bat.Int64)
-			r.Battery = &v
-		}
-		if pres.Valid {
-			r.Pressure = &pres.Float64
-		}
-		if illu.Valid {
-			r.Illuminance = &illu.Float64
-		}
-		readings = append(readings, r)
+	for _, r := range rows {
+		readings = append(readings, SensorReading{
+			ID:          r.ID,
+			DeviceID:    r.DeviceID,
+			Temperature: r.Temperature,
+			Humidity:    r.Humidity,
+			Battery:     int64PtrToIntPtr(r.Battery),
+			Pressure:    r.Pressure,
+			Illuminance: r.Illuminance,
+			RecordedAt:  r.RecordedAt,
+		})
 	}
-	return readings, rows.Err()
+	return readings, nil
+}
+
+func intPtrToInt64Ptr(p *int) *int64 {
+	if p == nil {
+		return nil
+	}
+	v := int64(*p)
+	return &v
+}
+
+func int64PtrToIntPtr(p *int64) *int {
+	if p == nil {
+		return nil
+	}
+	v := int(*p)
+	return &v
 }

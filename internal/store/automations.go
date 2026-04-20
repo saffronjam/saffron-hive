@@ -2,127 +2,143 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
-const automationSelectColumns = `a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at, u.id, u.username, u.name`
-
-const automationFromJoin = `FROM automations a LEFT JOIN users u ON u.id = a.created_by`
-
 // CreateAutomation inserts a new automation and returns it.
-func (s *SQLiteStore) CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error) {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO automations (id, name, enabled, cooldown_seconds, created_by) VALUES (?, ?, ?, ?, ?)`,
-		params.ID, params.Name, params.Enabled, params.CooldownSeconds, params.CreatedBy,
-	)
-	if err != nil {
+func (s *DB) CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error) {
+	if err := s.q.CreateAutomation(ctx, sqlite.CreateAutomationParams{
+		ID:              params.ID,
+		Name:            params.Name,
+		Enabled:         params.Enabled,
+		CooldownSeconds: int64(params.CooldownSeconds),
+		CreatedBy:       params.CreatedBy,
+	}); err != nil {
 		return Automation{}, fmt.Errorf("create automation: %w", err)
 	}
 	return s.GetAutomation(ctx, params.ID)
 }
 
 // GetAutomation retrieves an automation by its ID.
-func (s *SQLiteStore) GetAutomation(ctx context.Context, id string) (Automation, error) {
-	row := s.db.QueryRowContext(ctx,
-		`SELECT `+automationSelectColumns+` `+automationFromJoin+` WHERE a.id = ?`, id,
-	)
-	return scanAutomation(row)
+func (s *DB) GetAutomation(ctx context.Context, id string) (Automation, error) {
+	row, err := s.q.GetAutomation(ctx, id)
+	if err != nil {
+		return Automation{}, fmt.Errorf("get automation: %w", err)
+	}
+	return Automation{
+		ID:              row.ID,
+		Name:            row.Name,
+		Icon:            row.Icon,
+		Enabled:         row.Enabled,
+		CooldownSeconds: int(row.CooldownSeconds),
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+		CreatedBy:       userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
+	}, nil
 }
 
 // ListAutomations returns all automations.
-func (s *SQLiteStore) ListAutomations(ctx context.Context) ([]Automation, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+automationSelectColumns+` `+automationFromJoin,
-	)
+func (s *DB) ListAutomations(ctx context.Context) ([]Automation, error) {
+	rows, err := s.q.ListAutomations(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list automations: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-	return scanAutomations(rows)
+	var automations []Automation
+	for _, r := range rows {
+		automations = append(automations, Automation{
+			ID:              r.ID,
+			Name:            r.Name,
+			Icon:            r.Icon,
+			Enabled:         r.Enabled,
+			CooldownSeconds: int(r.CooldownSeconds),
+			CreatedAt:       r.CreatedAt,
+			UpdatedAt:       r.UpdatedAt,
+			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+		})
+	}
+	return automations, nil
 }
 
 // ListEnabledAutomations returns all automations where enabled is true.
-func (s *SQLiteStore) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+automationSelectColumns+` `+automationFromJoin+` WHERE a.enabled = true`,
-	)
+func (s *DB) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
+	rows, err := s.q.ListEnabledAutomations(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list enabled automations: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-	return scanAutomations(rows)
+	var automations []Automation
+	for _, r := range rows {
+		automations = append(automations, Automation{
+			ID:              r.ID,
+			Name:            r.Name,
+			Icon:            r.Icon,
+			Enabled:         r.Enabled,
+			CooldownSeconds: int(r.CooldownSeconds),
+			CreatedAt:       r.CreatedAt,
+			UpdatedAt:       r.UpdatedAt,
+			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+		})
+	}
+	return automations, nil
 }
 
-// UpdateAutomation updates optional fields on an automation.
-func (s *SQLiteStore) UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (Automation, error) {
-	if params.Name != nil {
-		if _, err := s.db.ExecContext(ctx,
-			`UPDATE automations SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			*params.Name, id,
-		); err != nil {
-			return Automation{}, fmt.Errorf("update automation name: %w", err)
-		}
+// UpdateAutomation updates optional fields on an automation. Nil fields are left
+// unchanged. SetIcon=true with Icon=nil clears the icon column; SetIcon=false
+// leaves icon alone regardless of the Icon pointer.
+func (s *DB) UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (Automation, error) {
+	clearIcon := params.SetIcon && params.Icon == nil
+
+	args := sqlite.UpdateAutomationFieldsParams{
+		Name:    params.Name,
+		Enabled: params.Enabled,
+		ID:      id,
 	}
-	if params.SetIcon {
-		var iconArg any
-		if params.Icon != nil {
-			iconArg = *params.Icon
-		}
-		if _, err := s.db.ExecContext(ctx,
-			`UPDATE automations SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			iconArg, id,
-		); err != nil {
-			return Automation{}, fmt.Errorf("update automation icon: %w", err)
-		}
-	}
-	if params.Enabled != nil {
-		if _, err := s.db.ExecContext(ctx,
-			`UPDATE automations SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			*params.Enabled, id,
-		); err != nil {
-			return Automation{}, fmt.Errorf("update automation enabled: %w", err)
-		}
+	if params.SetIcon && params.Icon != nil {
+		args.Icon = params.Icon
 	}
 	if params.CooldownSeconds != nil {
-		if _, err := s.db.ExecContext(ctx,
-			`UPDATE automations SET cooldown_seconds = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			*params.CooldownSeconds, id,
-		); err != nil {
-			return Automation{}, fmt.Errorf("update automation cooldown: %w", err)
+		v := int64(*params.CooldownSeconds)
+		args.Cooldown = &v
+	}
+	if err := s.q.UpdateAutomationFields(ctx, args); err != nil {
+		return Automation{}, fmt.Errorf("update automation: %w", err)
+	}
+	if clearIcon {
+		if err := s.q.ClearAutomationIcon(ctx, id); err != nil {
+			return Automation{}, fmt.Errorf("clear automation icon: %w", err)
 		}
 	}
 	return s.GetAutomation(ctx, id)
 }
 
 // UpdateAutomationEnabled sets the enabled field of an automation.
-func (s *SQLiteStore) UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error {
-	_, err := s.db.ExecContext(ctx,
-		`UPDATE automations SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		enabled, id,
-	)
-	if err != nil {
+func (s *DB) UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error {
+	if err := s.q.UpdateAutomationEnabled(ctx, sqlite.UpdateAutomationEnabledParams{
+		Enabled: enabled,
+		ID:      id,
+	}); err != nil {
 		return fmt.Errorf("update automation enabled: %w", err)
 	}
 	return nil
 }
 
 // DeleteAutomation deletes an automation by its ID. Cascading deletes remove associated nodes and edges.
-func (s *SQLiteStore) DeleteAutomation(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM automations WHERE id = ?`, id)
-	if err != nil {
+func (s *DB) DeleteAutomation(ctx context.Context, id string) error {
+	if err := s.q.DeleteAutomation(ctx, id); err != nil {
 		return fmt.Errorf("delete automation: %w", err)
 	}
 	return nil
 }
 
 // CreateAutomationNode inserts a new automation node.
-func (s *SQLiteStore) CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error) {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO automation_nodes (id, automation_id, type, config) VALUES (?, ?, ?, ?)`,
-		params.ID, params.AutomationID, params.Type, params.Config,
-	)
-	if err != nil {
+func (s *DB) CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error) {
+	if err := s.q.CreateAutomationNode(ctx, sqlite.CreateAutomationNodeParams{
+		ID:           params.ID,
+		AutomationID: params.AutomationID,
+		Type:         params.Type,
+		Config:       params.Config,
+	}); err != nil {
 		return AutomationNode{}, fmt.Errorf("create automation node: %w", err)
 	}
 	return AutomationNode{
@@ -134,42 +150,39 @@ func (s *SQLiteStore) CreateAutomationNode(ctx context.Context, params CreateAut
 }
 
 // ListAutomationNodes returns all nodes belonging to an automation.
-func (s *SQLiteStore) ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, automation_id, type, config FROM automation_nodes WHERE automation_id = ?`,
-		automationID,
-	)
+func (s *DB) ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error) {
+	rows, err := s.q.ListAutomationNodes(ctx, automationID)
 	if err != nil {
 		return nil, fmt.Errorf("list automation nodes: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var nodes []AutomationNode
-	for rows.Next() {
-		var n AutomationNode
-		if err := rows.Scan(&n.ID, &n.AutomationID, &n.Type, &n.Config); err != nil {
-			return nil, fmt.Errorf("scan automation node: %w", err)
-		}
-		nodes = append(nodes, n)
+	for _, r := range rows {
+		nodes = append(nodes, AutomationNode{
+			ID:           r.ID,
+			AutomationID: r.AutomationID,
+			Type:         r.Type,
+			Config:       r.Config,
+		})
 	}
-	return nodes, rows.Err()
+	return nodes, nil
 }
 
 // DeleteAutomationNode deletes an automation node by its ID.
-func (s *SQLiteStore) DeleteAutomationNode(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM automation_nodes WHERE id = ?`, id)
-	if err != nil {
+func (s *DB) DeleteAutomationNode(ctx context.Context, id string) error {
+	if err := s.q.DeleteAutomationNode(ctx, id); err != nil {
 		return fmt.Errorf("delete automation node: %w", err)
 	}
 	return nil
 }
 
 // CreateAutomationEdge inserts a new automation edge.
-func (s *SQLiteStore) CreateAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error) {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO automation_edges (id, automation_id, from_node_id, to_node_id) VALUES (?, ?, ?, ?)`,
-		params.ID, params.AutomationID, params.FromNodeID, params.ToNodeID,
-	)
-	if err != nil {
+func (s *DB) CreateAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error) {
+	if err := s.q.CreateAutomationEdge(ctx, sqlite.CreateAutomationEdgeParams{
+		ID:           params.ID,
+		AutomationID: params.AutomationID,
+		FromNodeID:   params.FromNodeID,
+		ToNodeID:     params.ToNodeID,
+	}); err != nil {
 		return AutomationEdge{}, fmt.Errorf("create automation edge: %w", err)
 	}
 	return AutomationEdge{
@@ -181,37 +194,33 @@ func (s *SQLiteStore) CreateAutomationEdge(ctx context.Context, params CreateAut
 }
 
 // ListAutomationEdges returns all edges belonging to an automation.
-func (s *SQLiteStore) ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, automation_id, from_node_id, to_node_id FROM automation_edges WHERE automation_id = ?`,
-		automationID,
-	)
+func (s *DB) ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error) {
+	rows, err := s.q.ListAutomationEdges(ctx, automationID)
 	if err != nil {
 		return nil, fmt.Errorf("list automation edges: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var edges []AutomationEdge
-	for rows.Next() {
-		var e AutomationEdge
-		if err := rows.Scan(&e.ID, &e.AutomationID, &e.FromNodeID, &e.ToNodeID); err != nil {
-			return nil, fmt.Errorf("scan automation edge: %w", err)
-		}
-		edges = append(edges, e)
+	for _, r := range rows {
+		edges = append(edges, AutomationEdge{
+			ID:           r.ID,
+			AutomationID: r.AutomationID,
+			FromNodeID:   r.FromNodeID,
+			ToNodeID:     r.ToNodeID,
+		})
 	}
-	return edges, rows.Err()
+	return edges, nil
 }
 
 // DeleteAutomationEdge deletes an automation edge by its ID.
-func (s *SQLiteStore) DeleteAutomationEdge(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM automation_edges WHERE id = ?`, id)
-	if err != nil {
+func (s *DB) DeleteAutomationEdge(ctx context.Context, id string) error {
+	if err := s.q.DeleteAutomationEdge(ctx, id); err != nil {
 		return fmt.Errorf("delete automation edge: %w", err)
 	}
 	return nil
 }
 
 // GetAutomationGraph loads a full automation graph (automation + nodes + edges).
-func (s *SQLiteStore) GetAutomationGraph(ctx context.Context, automationID string) (AutomationGraph, error) {
+func (s *DB) GetAutomationGraph(ctx context.Context, automationID string) (AutomationGraph, error) {
 	a, err := s.GetAutomation(ctx, automationID)
 	if err != nil {
 		return AutomationGraph{}, fmt.Errorf("get automation graph: %w", err)
@@ -229,27 +238,4 @@ func (s *SQLiteStore) GetAutomationGraph(ctx context.Context, automationID strin
 		Nodes:      nodes,
 		Edges:      edges,
 	}, nil
-}
-
-func scanAutomation(row rowScanner) (Automation, error) {
-	var a Automation
-	var creatorID, creatorUsername, creatorName sql.NullString
-	err := row.Scan(&a.ID, &a.Name, &a.Icon, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt, &creatorID, &creatorUsername, &creatorName)
-	if err != nil {
-		return Automation{}, fmt.Errorf("scan automation: %w", err)
-	}
-	a.CreatedBy = buildUserRef(creatorID, creatorUsername, creatorName)
-	return a, nil
-}
-
-func scanAutomations(rows *sql.Rows) ([]Automation, error) {
-	var automations []Automation
-	for rows.Next() {
-		a, err := scanAutomation(rows)
-		if err != nil {
-			return nil, err
-		}
-		automations = append(automations, a)
-	}
-	return automations, rows.Err()
 }

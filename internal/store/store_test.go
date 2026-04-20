@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func newTestStore(t *testing.T) *SQLiteStore {
+func newTestStore(t *testing.T) *DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {

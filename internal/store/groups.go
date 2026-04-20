@@ -2,88 +2,89 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
-const groupSelectColumns = `g.id, g.name, g.icon, g.created_at, g.updated_at, u.id, u.username, u.name`
-
-const groupFromJoin = `FROM groups g LEFT JOIN users u ON u.id = g.created_by`
-
 // CreateGroup inserts a new group and returns it.
-func (s *SQLiteStore) CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error) {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO groups (id, name, created_by) VALUES (?, ?, ?)`,
-		params.ID, params.Name, params.CreatedBy,
-	)
-	if err != nil {
+func (s *DB) CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error) {
+	if err := s.q.CreateGroup(ctx, sqlite.CreateGroupParams{
+		ID:        params.ID,
+		Name:      params.Name,
+		CreatedBy: params.CreatedBy,
+	}); err != nil {
 		return Group{}, fmt.Errorf("create group: %w", err)
 	}
 	return s.GetGroup(ctx, params.ID)
 }
 
 // GetGroup retrieves a group by its ID.
-func (s *SQLiteStore) GetGroup(ctx context.Context, id string) (Group, error) {
-	row := s.db.QueryRowContext(ctx,
-		`SELECT `+groupSelectColumns+` `+groupFromJoin+` WHERE g.id = ?`, id,
-	)
-	g, err := scanGroup(row)
+func (s *DB) GetGroup(ctx context.Context, id string) (Group, error) {
+	row, err := s.q.GetGroup(ctx, id)
 	if err != nil {
 		return Group{}, fmt.Errorf("get group: %w", err)
 	}
-	return g, nil
+	return Group{
+		ID:        row.ID,
+		Name:      row.Name,
+		Icon:      row.Icon,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+		CreatedBy: userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
+	}, nil
 }
 
 // ListGroups returns all groups.
-func (s *SQLiteStore) ListGroups(ctx context.Context) ([]Group, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+groupSelectColumns+` `+groupFromJoin,
-	)
+func (s *DB) ListGroups(ctx context.Context) ([]Group, error) {
+	rows, err := s.q.ListGroups(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var groups []Group
-	for rows.Next() {
-		g, err := scanGroup(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan group: %w", err)
-		}
-		groups = append(groups, g)
+	for _, r := range rows {
+		groups = append(groups, Group{
+			ID:        r.ID,
+			Name:      r.Name,
+			Icon:      r.Icon,
+			CreatedAt: r.CreatedAt,
+			UpdatedAt: r.UpdatedAt,
+			CreatedBy: userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+		})
 	}
-	return groups, rows.Err()
+	return groups, nil
 }
 
 // UpdateGroup updates a group's name and (optionally) its icon, returning the updated group.
 // Icon is updated only when params.SetIcon is true; a nil params.Icon clears the column.
-func (s *SQLiteStore) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error) {
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE groups SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		params.Name, params.ID,
-	); err != nil {
+func (s *DB) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error) {
+	if err := s.q.UpdateGroupName(ctx, sqlite.UpdateGroupNameParams{
+		Name: params.Name,
+		ID:   params.ID,
+	}); err != nil {
 		return Group{}, fmt.Errorf("update group name: %w", err)
 	}
 	if params.SetIcon {
-		var iconArg any
-		if params.Icon != nil {
-			iconArg = *params.Icon
-		}
-		if _, err := s.db.ExecContext(ctx,
-			`UPDATE groups SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			iconArg, params.ID,
-		); err != nil {
-			return Group{}, fmt.Errorf("update group icon: %w", err)
+		if params.Icon == nil {
+			if err := s.q.ClearGroupIcon(ctx, params.ID); err != nil {
+				return Group{}, fmt.Errorf("clear group icon: %w", err)
+			}
+		} else {
+			if err := s.q.UpdateGroupIcon(ctx, sqlite.UpdateGroupIconParams{
+				Icon: params.Icon,
+				ID:   params.ID,
+			}); err != nil {
+				return Group{}, fmt.Errorf("update group icon: %w", err)
+			}
 		}
 	}
 	return s.GetGroup(ctx, params.ID)
 }
 
 // DeleteGroup deletes a group by its ID. Cascading deletes remove associated members.
-func (s *SQLiteStore) DeleteGroup(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM groups WHERE id = ?`, id)
-	if err != nil {
+func (s *DB) DeleteGroup(ctx context.Context, id string) error {
+	if err := s.q.DeleteGroup(ctx, id); err != nil {
 		return fmt.Errorf("delete group: %w", err)
 	}
 	return nil
@@ -91,12 +92,13 @@ func (s *SQLiteStore) DeleteGroup(ctx context.Context, id string) error {
 
 // AddGroupMember inserts a new group member. Returns the created member.
 // The caller is responsible for circular dependency checking before calling this method.
-func (s *SQLiteStore) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (GroupMember, error) {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO group_members (id, group_id, member_type, member_id) VALUES (?, ?, ?, ?)`,
-		params.ID, params.GroupID, params.MemberType, params.MemberID,
-	)
-	if err != nil {
+func (s *DB) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (GroupMember, error) {
+	if err := s.q.AddGroupMember(ctx, sqlite.AddGroupMemberParams{
+		ID:         params.ID,
+		GroupID:    params.GroupID,
+		MemberType: params.MemberType,
+		MemberID:   params.MemberID,
+	}); err != nil {
 		return GroupMember{}, fmt.Errorf("add group member: %w", err)
 	}
 	return GroupMember{
@@ -108,65 +110,50 @@ func (s *SQLiteStore) AddGroupMember(ctx context.Context, params AddGroupMemberP
 }
 
 // ListGroupMembers returns all members belonging to a group.
-func (s *SQLiteStore) ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, group_id, member_type, member_id FROM group_members WHERE group_id = ?`, groupID,
-	)
+func (s *DB) ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error) {
+	rows, err := s.q.ListGroupMembers(ctx, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("list group members: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var members []GroupMember
-	for rows.Next() {
-		var m GroupMember
-		if err := rows.Scan(&m.ID, &m.GroupID, &m.MemberType, &m.MemberID); err != nil {
-			return nil, fmt.Errorf("scan group member: %w", err)
-		}
-		members = append(members, m)
+	for _, r := range rows {
+		members = append(members, GroupMember{
+			ID:         r.ID,
+			GroupID:    r.GroupID,
+			MemberType: r.MemberType,
+			MemberID:   r.MemberID,
+		})
 	}
-	return members, rows.Err()
+	return members, nil
 }
 
 // RemoveGroupMember deletes a group member by its ID.
-func (s *SQLiteStore) RemoveGroupMember(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM group_members WHERE id = ?`, id)
-	if err != nil {
+func (s *DB) RemoveGroupMember(ctx context.Context, id string) error {
+	if err := s.q.RemoveGroupMember(ctx, id); err != nil {
 		return fmt.Errorf("remove group member: %w", err)
 	}
 	return nil
 }
 
 // ListGroupsContainingMember returns all groups that contain a specific member.
-func (s *SQLiteStore) ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]Group, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+groupSelectColumns+`
-		FROM groups g
-		INNER JOIN group_members gm ON g.id = gm.group_id
-		LEFT JOIN users u ON u.id = g.created_by
-		WHERE gm.member_type = ? AND gm.member_id = ?`,
-		memberType, memberID,
-	)
+func (s *DB) ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]Group, error) {
+	rows, err := s.q.ListGroupsContainingMember(ctx, sqlite.ListGroupsContainingMemberParams{
+		MemberType: memberType,
+		MemberID:   memberID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list groups containing member: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 	var groups []Group
-	for rows.Next() {
-		g, err := scanGroup(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan group: %w", err)
-		}
-		groups = append(groups, g)
+	for _, r := range rows {
+		groups = append(groups, Group{
+			ID:        r.ID,
+			Name:      r.Name,
+			Icon:      r.Icon,
+			CreatedAt: r.CreatedAt,
+			UpdatedAt: r.UpdatedAt,
+			CreatedBy: userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+		})
 	}
-	return groups, rows.Err()
-}
-
-func scanGroup(row rowScanner) (Group, error) {
-	var g Group
-	var creatorID, creatorUsername, creatorName sql.NullString
-	if err := row.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt, &creatorID, &creatorUsername, &creatorName); err != nil {
-		return Group{}, err
-	}
-	g.CreatedBy = buildUserRef(creatorID, creatorUsername, creatorName)
-	return g, nil
+	return groups, nil
 }

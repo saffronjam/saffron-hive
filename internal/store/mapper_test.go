@@ -2,78 +2,9 @@ package store
 
 import (
 	"testing"
-	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
-
-func TestMapDeviceRowToDomain(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Second)
-	row := DeviceRow{
-		ID:        "dev-1",
-		Name:      "Living Room Light",
-		Source:    "zigbee",
-		Type:      "light",
-		Available: true,
-		Removed:   false,
-		LastSeen:  &now,
-	}
-
-	d := MapDeviceRowToDomain(row)
-
-	if d.ID != "dev-1" {
-		t.Errorf("got ID %q, want %q", d.ID, "dev-1")
-	}
-	if d.Name != "Living Room Light" {
-		t.Errorf("got Name %q, want %q", d.Name, "Living Room Light")
-	}
-	if d.Source != "zigbee" {
-		t.Errorf("got Source %q, want %q", d.Source, "zigbee")
-	}
-	if d.Type != device.Light {
-		t.Errorf("got Type %q, want %q", d.Type, device.Light)
-	}
-	if !d.Available {
-		t.Error("expected Available to be true")
-	}
-	if d.Removed {
-		t.Error("expected Removed to be false")
-	}
-	if !d.LastSeen.Equal(now) {
-		t.Errorf("got LastSeen %v, want %v", d.LastSeen, now)
-	}
-}
-
-func TestMapDomainToDeviceRow(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Second)
-	d := device.Device{
-		ID:        "dev-1",
-		Name:      "Sensor",
-		Source:    "wifi",
-		Type:      device.Sensor,
-		Available: false,
-		Removed:   true,
-		LastSeen:  now,
-	}
-
-	row := MapDomainToDeviceRow(d)
-
-	if row.ID != "dev-1" {
-		t.Errorf("got ID %q, want %q", row.ID, "dev-1")
-	}
-	if row.Source != "wifi" {
-		t.Errorf("got Source %q, want %q", row.Source, "wifi")
-	}
-	if row.Type != "sensor" {
-		t.Errorf("got Type %q, want %q", row.Type, "sensor")
-	}
-	if !row.Removed {
-		t.Error("expected Removed to be true")
-	}
-	if row.LastSeen == nil || !row.LastSeen.Equal(now) {
-		t.Errorf("got LastSeen %v, want %v", row.LastSeen, now)
-	}
-}
 
 func TestMapSceneActionPayloadRoundTrip(t *testing.T) {
 	cmd := device.LightCommand{
