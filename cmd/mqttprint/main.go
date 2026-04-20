@@ -13,11 +13,11 @@ import (
 )
 
 func main() {
-	broker := os.Getenv("HIVE_MQTT_BROKER")
+	broker := os.Getenv("HIVE_MQTT_ADDRESS")
 	if broker == "" {
-		log.Fatal("HIVE_MQTT_BROKER not set")
+		log.Fatal("HIVE_MQTT_ADDRESS not set")
 	}
-	username := os.Getenv("HIVE_MQTT_USERNAME")
+	username := os.Getenv("HIVE_MQTT_USER")
 	password := os.Getenv("HIVE_MQTT_PASSWORD")
 	useWSS := strings.EqualFold(os.Getenv("HIVE_MQTT_USE_WSS"), "true")
 

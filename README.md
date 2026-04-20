@@ -36,9 +36,11 @@ docker run -d \
   --name hive \
   -p 8080:8080 \
   -v hive-data:/data \
-  -e HIVE_MQTT_BROKER=mqtt://192.168.1.200:1883 \
-  -e HIVE_MQTT_USERNAME=your_user \
+  -e HIVE_MQTT_ADDRESS=mqtt://192.168.1.200:1883 \
+  -e HIVE_MQTT_USER=your_user \
   -e HIVE_MQTT_PASSWORD=your_pass \
+  -e HIVE_INIT_USER=admin \
+  -e HIVE_INIT_PASSWORD=change-me \
   ghcr.io/saffronjam/saffron-hive:latest
 ```
 
