@@ -93,13 +93,13 @@
 	let password = $state("");
 	let useWss = $state(false);
 
-	let origBroker = "";
-	let origUsername = "";
-	let origPassword = "";
-	let origUseWss = false;
+	let origBroker = $state("");
+	let origUsername = $state("");
+	let origPassword = $state("");
+	let origUseWss = $state(false);
 
 	let logLevel = $state("INFO");
-	let origLogLevel = "";
+	let origLogLevel = $state("");
 
 	let saving = $state(false);
 	let testing = $state(false);
