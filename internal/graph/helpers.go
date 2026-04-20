@@ -59,7 +59,7 @@ func mapActivitySource(row store.ActivityEvent) *model.ActivitySource {
 	}
 }
 
-func createUserRow(ctx context.Context, s store.Store, username, name, password string) (store.User, error) {
+func createUserRow(ctx context.Context, s GraphStore, username, name, password string) (store.User, error) {
 	username = strings.TrimSpace(username)
 	name = strings.TrimSpace(name)
 	if username == "" {
@@ -180,7 +180,7 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) mod
 	return nil
 }
 
-func mapScene(ctx context.Context, sr device.StateReader, s store.Store, sc store.Scene, actions []store.SceneAction) *model.Scene {
+func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store.Scene, actions []store.SceneAction) *model.Scene {
 	ms := &model.Scene{
 		ID:        sc.ID,
 		Name:      sc.Name,
@@ -223,7 +223,7 @@ func mapUser(u store.User) *model.User {
 	}
 }
 
-func resolveSceneTarget(ctx context.Context, sr device.StateReader, s store.Store, targetType string, targetID string) model.SceneTarget {
+func resolveSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore, targetType string, targetID string) model.SceneTarget {
 	switch targetType {
 	case string(device.TargetGroup):
 		g, err := s.GetGroup(ctx, targetID)
@@ -250,7 +250,7 @@ func resolveSceneTarget(ctx context.Context, sr device.StateReader, s store.Stor
 	}
 }
 
-func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s store.Store, g store.Group, members []store.GroupMember) *model.Group {
+func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
 		ID:        g.ID,
 		Name:      g.Name,
@@ -304,7 +304,7 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 	return mg
 }
 
-func mapGroup(ctx context.Context, sr device.StateReader, s store.Store, g store.Group, members []store.GroupMember) *model.Group {
+func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
 		ID:        g.ID,
 		Name:      g.Name,
@@ -323,7 +323,7 @@ func mapGroup(ctx context.Context, sr device.StateReader, s store.Store, g store
 	return mg
 }
 
-func collectDevicesFromMembers(ctx context.Context, sr device.StateReader, s store.Store, members []store.GroupMember, seen map[string]bool) []*model.Device {
+func collectDevicesFromMembers(ctx context.Context, sr device.StateReader, s GraphStore, members []store.GroupMember, seen map[string]bool) []*model.Device {
 	var result []*model.Device
 	for _, m := range members {
 		if seen[m.MemberID] {
@@ -360,7 +360,7 @@ func collectDevicesFromMembers(ctx context.Context, sr device.StateReader, s sto
 	return result
 }
 
-func mapGroupMember(ctx context.Context, sr device.StateReader, s store.Store, m store.GroupMember) *model.GroupMember {
+func mapGroupMember(ctx context.Context, sr device.StateReader, s GraphStore, m store.GroupMember) *model.GroupMember {
 	gm := &model.GroupMember{
 		ID:         m.ID,
 		MemberType: string(m.MemberType),
@@ -451,7 +451,7 @@ func (r *mutationResolver) walkDescendants(ctx context.Context, current, target 
 	return nil
 }
 
-func mapRoom(ctx context.Context, sr device.StateReader, s store.Store, r store.Room) *model.Room {
+func mapRoom(ctx context.Context, sr device.StateReader, s GraphStore, r store.Room) *model.Room {
 	mr := &model.Room{
 		ID:        r.ID,
 		Name:      r.Name,

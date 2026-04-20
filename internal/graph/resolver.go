@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/activity"
 	"github.com/saffronjam/saffron-hive/internal/auth"
@@ -22,11 +23,79 @@ type MQTTReconnector interface {
 	Reconnect(ctx context.Context) error
 }
 
+// GraphStore is the store surface the GraphQL layer touches. Every method is
+// invoked by a resolver, mutation, or helper in this package; *store.DB
+// satisfies it implicitly.
+type GraphStore interface {
+	// Devices
+	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
+	UpdateDevice(ctx context.Context, params store.UpdateDeviceParams) (device.Device, error)
+
+	// Scenes
+	CreateScene(ctx context.Context, params store.CreateSceneParams) (store.Scene, error)
+	GetScene(ctx context.Context, id string) (store.Scene, error)
+	ListScenes(ctx context.Context) ([]store.Scene, error)
+	UpdateScene(ctx context.Context, id string, params store.UpdateSceneParams) (store.Scene, error)
+	DeleteScene(ctx context.Context, id string) error
+	CreateSceneAction(ctx context.Context, params store.CreateSceneActionParams) (store.SceneAction, error)
+	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
+	DeleteSceneAction(ctx context.Context, id string) error
+
+	// Automations
+	CreateAutomation(ctx context.Context, params store.CreateAutomationParams) (store.Automation, error)
+	GetAutomation(ctx context.Context, id string) (store.Automation, error)
+	ListAutomations(ctx context.Context) ([]store.Automation, error)
+	UpdateAutomation(ctx context.Context, id string, params store.UpdateAutomationParams) (store.Automation, error)
+	UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error
+	DeleteAutomation(ctx context.Context, id string) error
+	CreateAutomationNode(ctx context.Context, params store.CreateAutomationNodeParams) (store.AutomationNode, error)
+	ListAutomationNodes(ctx context.Context, automationID string) ([]store.AutomationNode, error)
+	DeleteAutomationNode(ctx context.Context, id string) error
+	CreateAutomationEdge(ctx context.Context, params store.CreateAutomationEdgeParams) (store.AutomationEdge, error)
+	DeleteAutomationEdge(ctx context.Context, id string) error
+	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
+
+	// Groups
+	CreateGroup(ctx context.Context, params store.CreateGroupParams) (store.Group, error)
+	GetGroup(ctx context.Context, id string) (store.Group, error)
+	ListGroups(ctx context.Context) ([]store.Group, error)
+	UpdateGroup(ctx context.Context, params store.UpdateGroupParams) (store.Group, error)
+	DeleteGroup(ctx context.Context, id string) error
+	AddGroupMember(ctx context.Context, params store.AddGroupMemberParams) (store.GroupMember, error)
+	ListGroupMembers(ctx context.Context, groupID string) ([]store.GroupMember, error)
+	RemoveGroupMember(ctx context.Context, id string) error
+	ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]store.Group, error)
+
+	// Rooms
+	CreateRoom(ctx context.Context, params store.CreateRoomParams) (store.Room, error)
+	GetRoom(ctx context.Context, id string) (store.Room, error)
+	ListRooms(ctx context.Context) ([]store.Room, error)
+	UpdateRoom(ctx context.Context, params store.UpdateRoomParams) (store.Room, error)
+	DeleteRoom(ctx context.Context, id string) error
+	AddRoomDevice(ctx context.Context, params store.AddRoomDeviceParams) (store.RoomDevice, error)
+	ListRoomDevices(ctx context.Context, roomID string) ([]store.RoomDevice, error)
+	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
+	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]store.Room, error)
+
+	// Sensor history, activity, settings, mqtt, users
+	QuerySensorHistory(ctx context.Context, query store.SensorHistoryQuery) ([]store.SensorReading, error)
+	QueryActivityEvents(ctx context.Context, query store.ActivityQuery) ([]store.ActivityEvent, error)
+	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+	GetMQTTConfig(ctx context.Context) (*store.MQTTConfig, error)
+	UpsertMQTTConfig(ctx context.Context, cfg store.MQTTConfig) error
+	ListSettings(ctx context.Context) ([]store.Setting, error)
+	UpsertSetting(ctx context.Context, key, value string) error
+	CreateUser(ctx context.Context, params store.CreateUserParams) (store.User, error)
+	GetUserByUsername(ctx context.Context, username string) (store.User, error)
+	ListUsers(ctx context.Context) ([]store.User, error)
+	CountUsers(ctx context.Context) (int, error)
+}
+
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
 type Resolver struct {
 	StateReader        device.StateReader
-	Store              store.Store
+	Store              GraphStore
 	TargetResolver     device.TargetResolver
 	EventBus           eventbus.EventBus
 	AutomationReloader AutomationReloader

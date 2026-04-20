@@ -137,48 +137,12 @@ func newMockStore() *mockStore {
 	}
 }
 
-func (m *mockStore) CreateDevice(_ context.Context, _ store.CreateDeviceParams) (device.Device, error) {
-	return device.Device{}, nil
-}
-
-func (m *mockStore) UpsertDevice(_ context.Context, _ store.CreateDeviceParams) error {
-	return nil
-}
-
 func (m *mockStore) GetDevice(_ context.Context, _ device.DeviceID) (device.Device, error) {
 	return device.Device{}, nil
 }
 
-func (m *mockStore) ListDevices(_ context.Context) ([]device.Device, error) {
-	return nil, nil
-}
-
-func (m *mockStore) ListDevicesBySource(_ context.Context, _ device.Source) ([]device.Device, error) {
-	return nil, nil
-}
-
 func (m *mockStore) UpdateDevice(_ context.Context, _ store.UpdateDeviceParams) (device.Device, error) {
 	return device.Device{}, nil
-}
-
-func (m *mockStore) DeleteDevice(_ context.Context, _ device.DeviceID) error {
-	return nil
-}
-
-func (m *mockStore) RegisterZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) (store.ZigbeeDevice, error) {
-	return store.ZigbeeDevice{}, nil
-}
-
-func (m *mockStore) UpsertZigbeeDevice(_ context.Context, _ store.RegisterZigbeeDeviceParams) error {
-	return nil
-}
-
-func (m *mockStore) GetZigbeeDeviceByIEEEAddress(_ context.Context, _ string) (store.ZigbeeDevice, error) {
-	return store.ZigbeeDevice{}, nil
-}
-
-func (m *mockStore) GetZigbeeDeviceByFriendlyName(_ context.Context, _ string) (store.ZigbeeDevice, error) {
-	return store.ZigbeeDevice{}, nil
 }
 
 func (m *mockStore) CreateScene(_ context.Context, params store.CreateSceneParams) (store.Scene, error) {
@@ -524,10 +488,6 @@ func (m *mockStore) ListGroupsContainingMember(_ context.Context, memberType dev
 	return out, nil
 }
 
-func (m *mockStore) InsertSensorReading(_ context.Context, _ store.InsertSensorReadingParams) (store.SensorReading, error) {
-	return store.SensorReading{}, nil
-}
-
 func (m *mockStore) QuerySensorHistory(_ context.Context, q store.SensorHistoryQuery) ([]store.SensorReading, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -548,30 +508,6 @@ func (m *mockStore) QuerySensorHistory(_ context.Context, q store.SensorHistoryQ
 		}
 	}
 	return out, nil
-}
-
-func (m *mockStore) InsertActivityEvent(_ context.Context, params store.InsertActivityEventParams) (store.ActivityEvent, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.activityCounter++
-	e := store.ActivityEvent{
-		ID:             m.activityCounter,
-		Type:           params.Type,
-		Timestamp:      params.Timestamp,
-		Message:        params.Message,
-		PayloadJSON:    params.PayloadJSON,
-		DeviceID:       params.DeviceID,
-		DeviceName:     params.DeviceName,
-		DeviceType:     params.DeviceType,
-		RoomID:         params.RoomID,
-		RoomName:       params.RoomName,
-		SceneID:        params.SceneID,
-		SceneName:      params.SceneName,
-		AutomationID:   params.AutomationID,
-		AutomationName: params.AutomationName,
-	}
-	m.activityEvents = append(m.activityEvents, e)
-	return e, nil
 }
 
 func (m *mockStore) QueryActivityEvents(_ context.Context, q store.ActivityQuery) ([]store.ActivityEvent, error) {
@@ -638,10 +574,6 @@ func (m *mockStore) UpsertMQTTConfig(_ context.Context, _ store.MQTTConfig) erro
 	return nil
 }
 
-func (m *mockStore) GetSetting(_ context.Context, _ string) (store.Setting, error) {
-	return store.Setting{}, nil
-}
-
 func (m *mockStore) ListSettings(_ context.Context) ([]store.Setting, error) {
 	return nil, nil
 }
@@ -678,10 +610,6 @@ func (m *mockStore) ListRoomDevices(_ context.Context, _ string) ([]store.RoomDe
 	return nil, nil
 }
 
-func (m *mockStore) RemoveRoomDevice(_ context.Context, _ string) error {
-	return nil
-}
-
 func (m *mockStore) RemoveRoomDeviceByRoomAndDevice(_ context.Context, _, _ string) error {
 	return nil
 }
@@ -705,16 +633,6 @@ func (m *mockStore) CreateUser(_ context.Context, params store.CreateUserParams)
 		PasswordHash: params.PasswordHash,
 	}
 	m.users[params.ID] = u
-	return u, nil
-}
-
-func (m *mockStore) GetUserByID(_ context.Context, id string) (store.User, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	u, ok := m.users[id]
-	if !ok {
-		return store.User{}, fmt.Errorf("user %q not found", id)
-	}
 	return u, nil
 }
 
