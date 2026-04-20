@@ -1,4 +1,6 @@
-.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version package prepare-for-commit
+.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version package sqlc sqlc-check prepare-for-commit
+
+SQLC_VERSION := 1.31.0
 
 deps:
 	go mod tidy
@@ -17,7 +19,7 @@ typecheck:
 	cd web && bun run check
 
 errcheck:
-	errcheck ./...
+	errcheck $(shell go list ./... | grep -v /internal/store/sqlite)
 
 test:
 	go test ./... -race -count=1
@@ -47,6 +49,20 @@ migrate-version:
 package:
 	docker build -t saffron-hive .
 
+sqlc:
+	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION)). Install: brew install sqlc"; exit 1; }
+	sqlc generate
+
+sqlc-check:
+	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION)). Install: brew install sqlc"; exit 1; }
+	@sqlc generate
+	@if ! git diff --quiet -- internal/store/sqlite/; then \
+		echo "sqlc output drift detected under internal/store/sqlite/."; \
+		echo "Run 'make sqlc' and commit the regenerated files."; \
+		git diff --stat -- internal/store/sqlite/; \
+		exit 1; \
+	fi
+
 e2e: e2e-go e2e-ts
 
 e2e-go:
@@ -56,4 +72,4 @@ e2e-ts:
 	docker build -t saffron-hive-test .
 	cd web && bun run test:e2e
 
-prepare-for-commit: deps format lint typecheck errcheck test
+prepare-for-commit: deps sqlc-check format lint typecheck errcheck test

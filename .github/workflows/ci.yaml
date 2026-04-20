@@ -58,6 +58,19 @@ jobs:
         run: bunx oxlint .
         working-directory: web
 
+  sqlc-check:
+    name: sqlc drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: "1.31.0"
+
+      - name: Verify sqlc output is up to date
+        run: make sqlc-check
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -83,7 +96,7 @@ jobs:
   e2e-go:
     name: E2E (Go)
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    needs: [format, lint, test]
+    needs: [format, lint, sqlc-check, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -99,7 +112,7 @@ jobs:
   e2e-ts:
     name: E2E (Frontend)
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    needs: [format, lint, test]
+    needs: [format, lint, sqlc-check, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
