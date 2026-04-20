@@ -9,7 +9,7 @@ All Go application code lives here. The `internal/` directory is a Go convention
 - `device/` — domain types (DeviceState, LightState, SensorState, etc.) and the in-memory state store
 - `eventbus/` — event bus interface (Publisher/Subscriber) and the channel-based implementation
 - `graph/` — GraphQL resolver implementations (gqlgen generated boilerplate + hand-written resolvers)
-- `store/` — database layer (sqlc generated queries, golang-migrate migrations)
+- `store/` — database layer. `queries/*.sql` (sqlc input) → `sqlite/` (sqlc-generated Go, committed). Domain-facing wrapper methods on `*store.DB` live in `users.go`, `scenes.go`, etc. `migrations/` holds the golang-migrate schema migrations (unchanged by the sqlc pipeline). See `store/CLAUDE.md` for the query gate patterns.
 
 ## Dependency direction
 
