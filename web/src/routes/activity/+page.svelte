@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile } from "$lib/stores/profile.svelte";
 	import { deviceStore } from "$lib/stores/devices";
@@ -12,7 +11,7 @@
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 
-	const ACTIVITY_QUERY = gql`
+	const ACTIVITY_QUERY = graphql(`
 		query Activity($filter: ActivityFilter) {
 			activity(filter: $filter) {
 				id
@@ -30,9 +29,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const ACTIVITY_STREAM = gql`
+	const ACTIVITY_STREAM = graphql(`
 		subscription ActivityStream($advanced: Boolean) {
 			activityStream(advanced: $advanced) {
 				id
@@ -50,16 +49,16 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const ROOMS_QUERY = gql`
+	const ROOMS_QUERY = graphql(`
 		query ActivityRooms {
 			rooms {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
 	interface RoomInfo {
 		id: string;
@@ -68,7 +67,7 @@
 
 	const PAGE_SIZE = 50;
 
-	let client: Client;
+	const client = getContextClient();
 	let events = $state<ActivityEvent[]>([]);
 	let recentIds = $state(new Set<string>());
 	let rooms = $state<RoomInfo[]>([]);
@@ -261,7 +260,6 @@
 	}
 
 	onMount(() => {
-		client = createGraphQLClient();
 		pageHeader.breadcrumbs = [{ label: "Activity" }];
 		void loadRooms();
 		loadInitial().then(() => {

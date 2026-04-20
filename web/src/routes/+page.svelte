@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import {
 		deviceStore,
 		type Device,
@@ -111,8 +110,8 @@
 		};
 	}
 
-	const DEVICES_QUERY = gql`
-		query Devices {
+	const DEVICES_QUERY = graphql(`
+		query DashboardDevices {
 			devices {
 				id
 				name
@@ -145,19 +144,19 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const SCENES_QUERY = gql`
-		query Scenes {
+	const SCENES_QUERY = graphql(`
+		query DashboardScenes {
 			scenes {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const GROUPS_QUERY = gql`
-		query Groups {
+	const GROUPS_QUERY = graphql(`
+		query DashboardGroups {
 			groups {
 				id
 				name
@@ -166,28 +165,28 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const AUTOMATIONS_QUERY = gql`
-		query Automations {
+	const AUTOMATIONS_QUERY = graphql(`
+		query DashboardAutomations {
 			automations {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const APPLY_SCENE = gql`
+	const APPLY_SCENE = graphql(`
 		mutation ApplyScene($sceneId: ID!) {
 			applyScene(sceneId: $sceneId) {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const SET_DEVICE_STATE = gql`
-		mutation SetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+	const SET_DEVICE_STATE = graphql(`
+		mutation DashboardSetDeviceState($deviceId: ID!, $state: LightStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
 				state {
@@ -202,10 +201,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_STATE_CHANGED = gql`
-		subscription DeviceStateChanged {
+	const DEVICE_STATE_CHANGED = graphql(`
+		subscription DashboardDeviceStateChanged {
 			deviceStateChanged {
 				deviceId
 				state {
@@ -232,18 +231,18 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_AVAILABILITY_CHANGED = gql`
+	const DEVICE_AVAILABILITY_CHANGED = graphql(`
 		subscription DeviceAvailabilityChanged {
 			deviceAvailabilityChanged {
 				deviceId
 				available
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_ADDED = gql`
+	const DEVICE_ADDED = graphql(`
 		subscription DeviceAdded {
 			deviceAdded {
 				id
@@ -277,27 +276,27 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DEVICE_REMOVED = gql`
+	const DEVICE_REMOVED = graphql(`
 		subscription DeviceRemoved {
 			deviceRemoved
 		}
-	`;
+	`);
 
-	const AUTOMATION_NODE_ACTIVATED = gql`
-		subscription AutomationNodeActivated {
+	const AUTOMATION_NODE_ACTIVATED = graphql(`
+		subscription DashboardAutomationNodeActivated {
 			automationNodeActivated {
 				automationId
 				nodeId
 				active
 			}
 		}
-	`;
+	`);
 
 	const MAX_ACTIVITY_ENTRIES = 20;
 
-	let clientRef: Client | null = null;
+	const clientRef = getContextClient();
 	let unsubscribers: (() => void)[] = [];
 
 	let scenes = $state<SceneData[]>([]);
@@ -432,8 +431,7 @@
 	}
 
 	onMount(() => {
-		const client = createGraphQLClient();
-		clientRef = client;
+		const client = clientRef;
 
 		client
 			.query<DevicesQueryResult>(DEVICES_QUERY, {})
