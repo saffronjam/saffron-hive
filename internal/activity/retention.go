@@ -4,8 +4,6 @@ import (
 	"context"
 	"strconv"
 	"time"
-
-	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 const (
@@ -21,11 +19,11 @@ const (
 // RunRetention prunes old activity events on a fixed interval. Blocks until
 // ctx is cancelled. The retention window is read from the settings table on
 // every tick so the user can change it without a restart.
-func RunRetention(ctx context.Context, s store.Store) {
+func RunRetention(ctx context.Context, s activityStore) {
 	runRetentionWithInterval(ctx, s, defaultPruneInterval, defaultStartupSettleS)
 }
 
-func runRetentionWithInterval(ctx context.Context, s store.Store, interval, initialDelay time.Duration) {
+func runRetentionWithInterval(ctx context.Context, s activityStore, interval, initialDelay time.Duration) {
 	// Give the app time to finish startup before the first prune so we don't
 	// contend with hydration queries.
 	timer := time.NewTimer(initialDelay)
@@ -50,7 +48,7 @@ func runRetentionWithInterval(ctx context.Context, s store.Store, interval, init
 	}
 }
 
-func pruneOnce(ctx context.Context, s store.Store) {
+func pruneOnce(ctx context.Context, s activityStore) {
 	days := retentionDays(ctx, s)
 	if days <= 0 {
 		return
@@ -66,7 +64,7 @@ func pruneOnce(ctx context.Context, s store.Store) {
 	}
 }
 
-func retentionDays(ctx context.Context, s store.Store) int {
+func retentionDays(ctx context.Context, s activityStore) int {
 	setting, err := s.GetSetting(ctx, RetentionSettingKey)
 	if err != nil {
 		return DefaultRetentionDays

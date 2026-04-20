@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -13,18 +14,29 @@ import (
 
 var logger = slog.Default().With("pkg", "activity")
 
+// activityStore is the narrow subset of store methods the activity recorder
+// and retention loop need. *store.DB satisfies it implicitly.
+type activityStore interface {
+	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]store.Room, error)
+	GetScene(ctx context.Context, id string) (store.Scene, error)
+	GetAutomation(ctx context.Context, id string) (store.Automation, error)
+	InsertActivityEvent(ctx context.Context, params store.InsertActivityEventParams) (store.ActivityEvent, error)
+	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+	GetSetting(ctx context.Context, key string) (store.Setting, error)
+}
+
 // Recorder subscribes to every event type on the bus, enriches each event with
 // device/scene/automation names, persists it to SQLite, and republishes the
 // enriched row onto a Buffer for live GraphQL subscribers.
 type Recorder struct {
 	bus         eventbus.Subscriber
-	store       store.Store
+	store       activityStore
 	stateReader device.StateReader
 	buffer      *Buffer
 }
 
 // NewRecorder wires a recorder to its dependencies. Call Run in a goroutine to start it.
-func NewRecorder(bus eventbus.Subscriber, s store.Store, stateReader device.StateReader, buffer *Buffer) *Recorder {
+func NewRecorder(bus eventbus.Subscriber, s activityStore, stateReader device.StateReader, buffer *Buffer) *Recorder {
 	return &Recorder{bus: bus, store: s, stateReader: stateReader, buffer: buffer}
 }
 

@@ -17,7 +17,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-func newTestStore(t *testing.T) *store.SQLiteStore {
+func newTestStore(t *testing.T) *store.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
