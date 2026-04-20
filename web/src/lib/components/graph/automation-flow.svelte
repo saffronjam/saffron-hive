@@ -98,6 +98,7 @@
 		fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
 		colorMode="system"
 		deleteKey={editable ? "Backspace" : null}
+		defaultEdgeOptions={{ animated: true }}
 		proOptions={{ hideAttribution: true }}
 	>
 		<Controls />

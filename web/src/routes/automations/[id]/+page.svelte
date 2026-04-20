@@ -562,11 +562,21 @@
 		});
 	}
 
-	function flowEdgesToAutomationEdges(edges: Edge[]): { fromNodeId: string; toNodeId: string }[] {
-		return edges.map((e) => ({
-			fromNodeId: e.source,
-			toNodeId: e.target,
-		}));
+	function flowEdgesToAutomationEdges(
+		edges: Edge[],
+		nodes: Node[]
+	): { fromNodeId: string; toNodeId: string }[] {
+		const validNodeIds = new Set(nodes.map((n) => n.id));
+		const seen = new Set<string>();
+		const result: { fromNodeId: string; toNodeId: string }[] = [];
+		for (const e of edges) {
+			if (!validNodeIds.has(e.source) || !validNodeIds.has(e.target)) continue;
+			const key = `${e.source}->${e.target}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			result.push({ fromNodeId: e.source, toNodeId: e.target });
+		}
+		return result;
 	}
 
 	interface AutomationJson {
@@ -743,14 +753,7 @@
 		takeSnapshot();
 	}
 
-	function handleConnect(connection: Connection) {
-		const newEdge: Edge = {
-			id: `edge-${connection.source}-${connection.target}`,
-			source: connection.source,
-			target: connection.target,
-			animated: true,
-		};
-		flowEdges = [...flowEdges, newEdge];
+	function handleConnect(_connection: Connection) {
 		takeSnapshot();
 	}
 
@@ -832,7 +835,7 @@
 					enabled: automationEnabled,
 					cooldownSeconds,
 					nodes: flowNodesToAutomationNodes(flowNodes),
-					edges: flowEdgesToAutomationEdges(flowEdges),
+					edges: flowEdgesToAutomationEdges(flowEdges, flowNodes),
 				},
 			})
 			.toPromise();
@@ -851,8 +854,8 @@
 			const idsChanged = oldIds.length !== newIds.length || oldIds.some((id, i) => id !== newIds[i]);
 			if (idsChanged) {
 				flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
-				flowEdges = automationEdgesToFlowEdges(auto.edges);
 			}
+			flowEdges = automationEdgesToFlowEdges(auto.edges);
 			jsonString = flowStateToJson();
 		}
 	}
