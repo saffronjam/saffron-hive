@@ -27,6 +27,7 @@
 		name: string;
 		icon?: string | null;
 		actions: SceneAction[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	interface Props {
@@ -58,6 +59,7 @@
 				<TableHead>Name</TableHead>
 				<TableHead>Targets</TableHead>
 				<TableHead>Breakdown</TableHead>
+				<TableHead>Created by</TableHead>
 				<TableHead class="w-32 text-right">Actions</TableHead>
 			</TableRow>
 		</TableHeader>
@@ -91,6 +93,9 @@
 					</TableCell>
 					<TableCell class="text-sm text-muted-foreground">
 						{sceneTargetBreakdown(scene.actions)}
+					</TableCell>
+					<TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+						{scene.createdBy?.name ?? "—"}
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">

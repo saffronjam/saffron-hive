@@ -38,6 +38,7 @@
 		cooldownSeconds: number;
 		nodes: AutomationNode[];
 		edges: AutomationEdge[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	interface Props {
@@ -59,6 +60,7 @@
 				<TableHead>Name</TableHead>
 				<TableHead>Meta</TableHead>
 				<TableHead>Composition</TableHead>
+				<TableHead>Created by</TableHead>
 				<TableHead class="w-20">Enabled</TableHead>
 				<TableHead class="w-24 text-right">Actions</TableHead>
 			</TableRow>
@@ -120,6 +122,9 @@
 								{/if}
 							</div>
 						{/if}
+					</TableCell>
+					<TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+						{automation.createdBy?.name ?? "—"}
 					</TableCell>
 					<TableCell>
 						<Switch

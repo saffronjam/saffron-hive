@@ -20,6 +20,7 @@
 		name: string;
 		icon?: string | null;
 		devices: Device[];
+		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
 	interface Props {
@@ -40,6 +41,7 @@
 				<TableHead class="w-12"></TableHead>
 				<TableHead>Name</TableHead>
 				<TableHead>Devices</TableHead>
+				<TableHead>Created by</TableHead>
 				<TableHead class="w-24 text-right">Actions</TableHead>
 			</TableRow>
 		</TableHeader>
@@ -68,6 +70,9 @@
 					</TableCell>
 					<TableCell class="text-sm text-muted-foreground whitespace-nowrap">
 						{room.devices.length} device{room.devices.length === 1 ? "" : "s"}
+					</TableCell>
+					<TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+						{room.createdBy?.name ?? "—"}
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">

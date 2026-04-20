@@ -1,4 +1,4 @@
-<script lang="ts" generics="G extends { id: string; name: string; icon?: string | null; members: { memberType: string }[] }">
+<script lang="ts" generics="G extends { id: string; name: string; icon?: string | null; members: { memberType: string }[]; createdBy?: { id: string; username: string; name: string } | null }">
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		Table,
@@ -34,6 +34,7 @@
 				<TableHead>Name</TableHead>
 				<TableHead>Members</TableHead>
 				<TableHead>Breakdown</TableHead>
+				<TableHead>Created by</TableHead>
 				<TableHead class="w-24 text-right">Actions</TableHead>
 			</TableRow>
 		</TableHeader>
@@ -69,6 +70,9 @@
 						{:else}
 							{groupMemberBreakdown(group.members)}
 						{/if}
+					</TableCell>
+					<TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+						{group.createdBy?.name ?? "—"}
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">
