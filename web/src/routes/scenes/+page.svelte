@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { gql } from "@urql/svelte";
 	import type { Client } from "@urql/svelte";
@@ -392,64 +393,68 @@
 	{/if}
 
 
-	{#if !loading && scenes.length === 0}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-				<Clapperboard class="size-6 text-muted-foreground" />
-			</div>
-			<p class="text-muted-foreground">No scenes yet.</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				Create a scene to save device state presets and apply them with a single action.
-			</p>
-			<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
-				<Plus class="size-4" />
-				<span>Create your first scene</span>
-			</Button>
-		</div>
-	{:else}
-		<div class="mb-6">
-			<HiveSearchbar
-				value={searchState}
-				onchange={(v) => (searchState = v)}
-				chips={searchChipConfigs}
-				placeholder="Search scenes..."
-			/>
-		</div>
+	{#if !loading}
+		<div in:fly={{ y: -4, duration: 150 }}>
+			{#if scenes.length === 0}
+				<div class="rounded-lg shadow-card bg-card p-12 text-center">
+					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+						<Clapperboard class="size-6 text-muted-foreground" />
+					</div>
+					<p class="text-muted-foreground">No scenes yet.</p>
+					<p class="mt-2 text-sm text-muted-foreground">
+						Create a scene to save device state presets and apply them with a single action.
+					</p>
+					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
+						<Plus class="size-4" />
+						<span>Create your first scene</span>
+					</Button>
+				</div>
+			{:else}
+				<div class="mb-6">
+					<HiveSearchbar
+						value={searchState}
+						onchange={(v) => (searchState = v)}
+						chips={searchChipConfigs}
+						placeholder="Search scenes..."
+					/>
+				</div>
 
-		{#if filteredScenes.length === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No scenes match your filters.</p>
-			</div>
-		{:else}
-			<ListView mode={view}>
-				{#snippet card()}
-					<AnimatedGrid>
-						{#each filteredScenes as scene (scene.id)}
-							<SceneCard
-								{scene}
-								applying={applyingId === scene.id}
+				{#if filteredScenes.length === 0}
+					<div class="rounded-lg shadow-card bg-card p-12 text-center">
+						<p class="text-muted-foreground">No scenes match your filters.</p>
+					</div>
+				{:else}
+					<ListView mode={view}>
+						{#snippet card()}
+							<AnimatedGrid>
+								{#each filteredScenes as scene (scene.id)}
+									<SceneCard
+										{scene}
+										applying={applyingId === scene.id}
+										onapply={handleApply}
+										onedit={handleEdit}
+										ondelete={(s) => (deleteConfirmScene = s)}
+										onrename={handleRename}
+										oniconchange={handleIconChange}
+									/>
+								{/each}
+							</AnimatedGrid>
+						{/snippet}
+						{#snippet table()}
+							<SceneTable
+								scenes={filteredScenes}
+								{applyingId}
 								onapply={handleApply}
 								onedit={handleEdit}
 								ondelete={(s) => (deleteConfirmScene = s)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 							/>
-						{/each}
-					</AnimatedGrid>
-				{/snippet}
-				{#snippet table()}
-					<SceneTable
-						scenes={filteredScenes}
-						{applyingId}
-						onapply={handleApply}
-						onedit={handleEdit}
-						ondelete={(s) => (deleteConfirmScene = s)}
-						onrename={handleRename}
-						oniconchange={handleIconChange}
-					/>
-				{/snippet}
-			</ListView>
-		{/if}
+						{/snippet}
+					</ListView>
+				{/if}
+			{/if}
+		</div>
 	{/if}
 
 	<Dialog bind:open={createDialogOpen}>

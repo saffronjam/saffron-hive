@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { Client } from "@urql/svelte";
 	import {
@@ -306,6 +307,7 @@
 
 	let client: Client;
 	let unsubscribers: (() => void)[] = [];
+	let ready = $state(false);
 
 	let rooms = $state<RoomInfo[]>([]);
 	let groups = $state<GroupInfo[]>([]);
@@ -403,16 +405,19 @@
 	onMount(() => {
 		client = createGraphQLClient();
 
-		client
-			.query<DevicesQueryResult>(DEVICES_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					deviceStore.hydrate(result.data.devices);
-				}
-			});
-
-		refreshMemberships();
+		Promise.all([
+			client
+				.query<DevicesQueryResult>(DEVICES_QUERY, {})
+				.toPromise()
+				.then((result) => {
+					if (result.data) {
+						deviceStore.hydrate(result.data.devices);
+					}
+				}),
+			refreshMemberships(),
+		]).finally(() => {
+			ready = true;
+		});
 
 		const { unsubscribe: unsubState } = client
 			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, {})
@@ -460,63 +465,65 @@
 	});
 </script>
 
-<div>
+{#if ready}
+	<div in:fly={{ y: -4, duration: 150 }}>
 
-	<div class="mb-6">
-		<HiveSearchbar
-			value={searchState}
-			onchange={(v) => (searchState = v)}
-			chips={searchChipConfigs}
-			placeholder="Search devices..."
+		<div class="mb-6">
+			<HiveSearchbar
+				value={searchState}
+				onchange={(v) => (searchState = v)}
+				chips={searchChipConfigs}
+				placeholder="Search devices..."
+			/>
+		</div>
+
+		{#if allDevices.length === 0}
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
+				<p class="text-muted-foreground">No devices discovered yet.</p>
+				<p class="mt-2 text-sm text-muted-foreground">
+					Devices will appear here once the backend connects to your MQTT broker.
+				</p>
+			</div>
+		{:else if filteredDevices.length === 0}
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
+				<p class="text-muted-foreground">No devices match your filters.</p>
+			</div>
+		{:else}
+			<ListView mode={view}>
+				{#snippet card()}
+					<AnimatedGrid>
+						{#each filteredDevices as device (device.id)}
+							{@const chips = chipsFor(device.id)}
+							<DeviceCard
+								{device}
+								roomChips={chips.roomChips}
+								groupChips={chips.groupChips}
+								onrename={handleRename}
+								onAddTo={handleAddTo}
+							/>
+						{/each}
+					</AnimatedGrid>
+				{/snippet}
+				{#snippet table()}
+					<DeviceTable
+						rows={filteredDevices.map((device) => {
+							const chips = chipsFor(device.id);
+							return { device, roomChips: chips.roomChips, groupChips: chips.groupChips };
+						})}
+						onrename={handleRename}
+						onAddTo={handleAddTo}
+					/>
+				{/snippet}
+			</ListView>
+		{/if}
+
+		<HiveDrawer
+			bind:open={addToPickerOpen}
+			title={pickerDevice ? `Add ${pickerDevice.name} to rooms or groups` : "Add to rooms or groups"}
+			description="Pick one or more rooms and groups for this device."
+			multiple
+			groups={pickerDrawerGroups}
+			onselect={handlePickerSelect}
 		/>
 	</div>
-
-	{#if allDevices.length === 0}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No devices discovered yet.</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				Devices will appear here once the backend connects to your MQTT broker.
-			</p>
-		</div>
-	{:else if filteredDevices.length === 0}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No devices match your filters.</p>
-		</div>
-	{:else}
-		<ListView mode={view}>
-			{#snippet card()}
-				<AnimatedGrid>
-					{#each filteredDevices as device (device.id)}
-						{@const chips = chipsFor(device.id)}
-						<DeviceCard
-							{device}
-							roomChips={chips.roomChips}
-							groupChips={chips.groupChips}
-							onrename={handleRename}
-							onAddTo={handleAddTo}
-						/>
-					{/each}
-				</AnimatedGrid>
-			{/snippet}
-			{#snippet table()}
-				<DeviceTable
-					rows={filteredDevices.map((device) => {
-						const chips = chipsFor(device.id);
-						return { device, roomChips: chips.roomChips, groupChips: chips.groupChips };
-					})}
-					onrename={handleRename}
-					onAddTo={handleAddTo}
-				/>
-			{/snippet}
-		</ListView>
-	{/if}
-
-	<HiveDrawer
-		bind:open={addToPickerOpen}
-		title={pickerDevice ? `Add ${pickerDevice.name} to rooms or groups` : "Add to rooms or groups"}
-		description="Pick one or more rooms and groups for this device."
-		multiple
-		groups={pickerDrawerGroups}
-		onselect={handlePickerSelect}
-	/>
-</div>
+{/if}

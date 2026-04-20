@@ -29,6 +29,7 @@
 		DoorOpen,
 	} from "@lucide/svelte";
 	import { onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -154,6 +155,13 @@
 	const rooms = $derived($roomsQuery.data?.rooms ?? []);
 	const devices = $derived($devicesQuery.data?.devices ?? []);
 	const allGroups = $derived($groupsQuery.data?.groups ?? []);
+
+	let hasLoadedOnce = $state(false);
+	$effect(() => {
+		if (!$roomsQuery.fetching && !hasLoadedOnce) {
+			hasLoadedOnce = true;
+		}
+	});
 
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
@@ -611,64 +619,66 @@
 			groups={pickerDrawerGroups}
 			onselect={(_type, id) => handleAddDevice(id)}
 		/>
-	{:else}
-		{#if !$roomsQuery.fetching && rooms.length === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-					<DoorOpen class="size-6 text-muted-foreground" />
-				</div>
-				<p class="text-muted-foreground">No rooms yet.</p>
-				<p class="mt-2 text-sm text-muted-foreground">
-					Create a room to organize your devices by location.
-				</p>
-				<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
-					<Plus class="size-4" />
-					<span>Create your first room</span>
-				</Button>
-			</div>
-		{:else if rooms.length > 0}
-			<div class="mb-6">
-				<HiveSearchbar
-					value={searchState}
-					onchange={(v) => (searchState = v)}
-					chips={searchChipConfigs}
-					placeholder="Search rooms..."
-				/>
-			</div>
-
-			{#if filteredRooms.length === 0}
+	{:else if hasLoadedOnce}
+		<div in:fly={{ y: -4, duration: 150 }}>
+			{#if rooms.length === 0}
 				<div class="rounded-lg shadow-card bg-card p-12 text-center">
-					<p class="text-muted-foreground">No rooms match your filters.</p>
+					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+						<DoorOpen class="size-6 text-muted-foreground" />
+					</div>
+					<p class="text-muted-foreground">No rooms yet.</p>
+					<p class="mt-2 text-sm text-muted-foreground">
+						Create a room to organize your devices by location.
+					</p>
+					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
+						<Plus class="size-4" />
+						<span>Create your first room</span>
+					</Button>
 				</div>
 			{:else}
-				<ListView mode={view}>
-					{#snippet card()}
-						<AnimatedGrid>
-							{#each filteredRooms as room (room.id)}
-								<RoomCard
-									{room}
-									onedit={startEditing}
-									ondelete={(r) => (deleteConfirmRoom = r)}
-									onrename={handleRename}
-									oniconchange={handleIconChange}
-									onAddTo={handleAddToRoom}
-								/>
-							{/each}
-						</AnimatedGrid>
-					{/snippet}
-					{#snippet table()}
-						<RoomTable
-							rooms={filteredRooms}
-							onedit={startEditing}
-							ondelete={(r) => (deleteConfirmRoom = r)}
-							onrename={handleRename}
-							oniconchange={handleIconChange}
-							onAddTo={handleAddToRoom}
-						/>
-					{/snippet}
-				</ListView>
+				<div class="mb-6">
+					<HiveSearchbar
+						value={searchState}
+						onchange={(v) => (searchState = v)}
+						chips={searchChipConfigs}
+						placeholder="Search rooms..."
+					/>
+				</div>
+
+				{#if filteredRooms.length === 0}
+					<div class="rounded-lg shadow-card bg-card p-12 text-center">
+						<p class="text-muted-foreground">No rooms match your filters.</p>
+					</div>
+				{:else}
+					<ListView mode={view}>
+						{#snippet card()}
+							<AnimatedGrid>
+								{#each filteredRooms as room (room.id)}
+									<RoomCard
+										{room}
+										onedit={startEditing}
+										ondelete={(r) => (deleteConfirmRoom = r)}
+										onrename={handleRename}
+										oniconchange={handleIconChange}
+										onAddTo={handleAddToRoom}
+									/>
+								{/each}
+							</AnimatedGrid>
+						{/snippet}
+						{#snippet table()}
+							<RoomTable
+								rooms={filteredRooms}
+								onedit={startEditing}
+								ondelete={(r) => (deleteConfirmRoom = r)}
+								onrename={handleRename}
+								oniconchange={handleIconChange}
+								onAddTo={handleAddToRoom}
+							/>
+						{/snippet}
+					</ListView>
+				{/if}
 			{/if}
-		{/if}
+		</div>
 
 		<Dialog bind:open={createDialogOpen}>
 			<DialogContent>

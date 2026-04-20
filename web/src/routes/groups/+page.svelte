@@ -31,6 +31,7 @@
 	} from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import { onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -286,6 +287,13 @@
 	const groups = $derived($groupsQuery.data?.groups ?? []);
 	const devices = $derived($devicesQuery.data?.devices ?? []);
 	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
+
+	let hasLoadedOnce = $state(false);
+	$effect(() => {
+		if (!$groupsQuery.fetching && !hasLoadedOnce) {
+			hasLoadedOnce = true;
+		}
+	});
 
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
@@ -864,65 +872,66 @@
 			groups={pickerDrawerGroups}
 			onselect={handleAddMember}
 		/>
-	{:else}
-
-		{#if !$groupsQuery.fetching && groups.length === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-					<GroupIcon class="size-6 text-muted-foreground" />
-				</div>
-				<p class="text-muted-foreground">No groups yet.</p>
-				<p class="mt-2 text-sm text-muted-foreground">
-					Create a group to organize your devices and other groups together.
-				</p>
-				<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
-					<Plus class="size-4" />
-					<span>Create your first group</span>
-				</Button>
-			</div>
-		{:else if groups.length > 0}
-			<div class="mb-6">
-				<HiveSearchbar
-					value={searchState}
-					onchange={(v) => (searchState = v)}
-					chips={searchChipConfigs}
-					placeholder="Search groups..."
-				/>
-			</div>
-
-			{#if filteredGroups.length === 0}
+	{:else if hasLoadedOnce}
+		<div in:fly={{ y: -4, duration: 150 }}>
+			{#if groups.length === 0}
 				<div class="rounded-lg shadow-card bg-card p-12 text-center">
-					<p class="text-muted-foreground">No groups match your filters.</p>
+					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+						<GroupIcon class="size-6 text-muted-foreground" />
+					</div>
+					<p class="text-muted-foreground">No groups yet.</p>
+					<p class="mt-2 text-sm text-muted-foreground">
+						Create a group to organize your devices and other groups together.
+					</p>
+					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
+						<Plus class="size-4" />
+						<span>Create your first group</span>
+					</Button>
 				</div>
 			{:else}
-				<ListView mode={view}>
-					{#snippet card()}
-						<AnimatedGrid>
-							{#each filteredGroups as group (group.id)}
-								<GroupCard
-									{group}
-									onedit={startEditing}
-									ondelete={(g) => (deleteConfirmGroup = g)}
-									onrename={handleRename}
-									oniconchange={handleIconChange}
-									onAddTo={handleAddToGroup}
-								/>
-							{/each}
-						</AnimatedGrid>
-					{/snippet}
-					{#snippet table()}
-						<GroupTable
-							groups={filteredGroups}
-							onedit={startEditing}
-							ondelete={(g) => (deleteConfirmGroup = g)}
-							onrename={handleRename}
-							oniconchange={handleIconChange}
-							onAddTo={handleAddToGroup}
-						/>
-					{/snippet}
-				</ListView>
+				<div class="mb-6">
+					<HiveSearchbar
+						value={searchState}
+						onchange={(v) => (searchState = v)}
+						chips={searchChipConfigs}
+						placeholder="Search groups..."
+					/>
+				</div>
+
+				{#if filteredGroups.length === 0}
+					<div class="rounded-lg shadow-card bg-card p-12 text-center">
+						<p class="text-muted-foreground">No groups match your filters.</p>
+					</div>
+				{:else}
+					<ListView mode={view}>
+						{#snippet card()}
+							<AnimatedGrid>
+								{#each filteredGroups as group (group.id)}
+									<GroupCard
+										{group}
+										onedit={startEditing}
+										ondelete={(g) => (deleteConfirmGroup = g)}
+										onrename={handleRename}
+										oniconchange={handleIconChange}
+										onAddTo={handleAddToGroup}
+									/>
+								{/each}
+							</AnimatedGrid>
+						{/snippet}
+						{#snippet table()}
+							<GroupTable
+								groups={filteredGroups}
+								onedit={startEditing}
+								ondelete={(g) => (deleteConfirmGroup = g)}
+								onrename={handleRename}
+								oniconchange={handleIconChange}
+								onAddTo={handleAddToGroup}
+							/>
+						{/snippet}
+					</ListView>
+				{/if}
 			{/if}
-		{/if}
+		</div>
 
 		<Dialog bind:open={createDialogOpen}>
 			<DialogContent>

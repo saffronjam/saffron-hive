@@ -26,6 +26,7 @@
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { Plus, Workflow, X } from "@lucide/svelte";
 	import { onMount, onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
@@ -184,6 +185,13 @@
 	const automations = $derived($automationsQuery.data?.automations ?? []);
 	const devicesRef = $derived($devicesQuery.data?.devices ?? []);
 	const scenesRef = $derived($scenesQuery.data?.scenes ?? []);
+
+	let hasLoadedOnce = $state(false);
+	$effect(() => {
+		if (!$automationsQuery.fetching && !hasLoadedOnce) {
+			hasLoadedOnce = true;
+		}
+	});
 
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
@@ -471,61 +479,65 @@
 	{/if}
 
 
-	{#if !$automationsQuery.fetching && automations.length === 0}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-				<Workflow class="size-6 text-muted-foreground" />
-			</div>
-			<p class="text-muted-foreground">No automations yet.</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				Create event-driven rules with triggers, conditions, and actions.
-			</p>
-			<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
-				<Plus class="size-4" />
-				<span>Create your first automation</span>
-			</Button>
-		</div>
-	{:else}
-		<div class="mb-6">
-			<HiveSearchbar
-				value={searchState}
-				onchange={(v) => (searchState = v)}
-				chips={searchChipConfigs}
-				placeholder="Search automations..."
-			/>
-		</div>
+	{#if hasLoadedOnce}
+		<div in:fly={{ y: -4, duration: 150 }}>
+			{#if automations.length === 0}
+				<div class="rounded-lg shadow-card bg-card p-12 text-center">
+					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+						<Workflow class="size-6 text-muted-foreground" />
+					</div>
+					<p class="text-muted-foreground">No automations yet.</p>
+					<p class="mt-2 text-sm text-muted-foreground">
+						Create event-driven rules with triggers, conditions, and actions.
+					</p>
+					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
+						<Plus class="size-4" />
+						<span>Create your first automation</span>
+					</Button>
+				</div>
+			{:else}
+				<div class="mb-6">
+					<HiveSearchbar
+						value={searchState}
+						onchange={(v) => (searchState = v)}
+						chips={searchChipConfigs}
+						placeholder="Search automations..."
+					/>
+				</div>
 
-		{#if filteredAutomations.length === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No automations match your filters.</p>
-			</div>
-		{:else}
-			<ListView mode={view}>
-				{#snippet card()}
-					<AnimatedGrid>
-						{#each filteredAutomations as automation (automation.id)}
-							<AutomationCard
-								{automation}
+				{#if filteredAutomations.length === 0}
+					<div class="rounded-lg shadow-card bg-card p-12 text-center">
+						<p class="text-muted-foreground">No automations match your filters.</p>
+					</div>
+				{:else}
+					<ListView mode={view}>
+						{#snippet card()}
+							<AnimatedGrid>
+								{#each filteredAutomations as automation (automation.id)}
+									<AutomationCard
+										{automation}
+										ontoggle={handleToggle}
+										onedit={handleCardClick}
+										ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
+										onrename={handleRename}
+										oniconchange={handleIconChange}
+									/>
+								{/each}
+							</AnimatedGrid>
+						{/snippet}
+						{#snippet table()}
+							<AutomationTable
+								automations={filteredAutomations}
 								ontoggle={handleToggle}
-								onedit={handleCardClick}
 								ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 							/>
-						{/each}
-					</AnimatedGrid>
-				{/snippet}
-				{#snippet table()}
-					<AutomationTable
-						automations={filteredAutomations}
-						ontoggle={handleToggle}
-						ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
-						onrename={handleRename}
-						oniconchange={handleIconChange}
-					/>
-				{/snippet}
-			</ListView>
-		{/if}
+						{/snippet}
+					</ListView>
+				{/if}
+			{/if}
+		</div>
 	{/if}
 
 	<Dialog bind:open={createDialogOpen}>

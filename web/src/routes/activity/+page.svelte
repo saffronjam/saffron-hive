@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { gql } from "@urql/svelte";
 	import type { Client } from "@urql/svelte";
 	import { createGraphQLClient } from "$lib/graphql/client";
@@ -76,6 +77,7 @@
 	let subUnsub: (() => void) | null = null;
 	let hasMore = $state(false);
 	let loadingMore = $state(false);
+	let ready = $state(false);
 
 	const BASIC_TYPES = [
 		{ value: "device.state_changed", label: "State changed" },
@@ -262,7 +264,10 @@
 		client = createGraphQLClient();
 		pageHeader.breadcrumbs = [{ label: "Activity" }];
 		void loadRooms();
-		loadInitial().then(startSubscription);
+		loadInitial().then(() => {
+			ready = true;
+			startSubscription();
+		});
 	});
 
 	onDestroy(() => {
@@ -274,44 +279,46 @@
 	});
 </script>
 
-<div class="flex h-[calc(100vh-8rem)] flex-col gap-4">
-	<div class="flex items-center gap-4">
-		<div class="flex-1">
-			<HiveSearchbar
-				value={searchState}
-				onchange={(v) => (searchState = v)}
-				chips={searchChipConfigs}
-				placeholder="Search activity..."
-				debounceMs={500}
-				commitOnBlur
-			/>
+{#if ready}
+	<div class="flex h-[calc(100vh-8rem)] flex-col gap-4" in:fly={{ y: -4, duration: 150 }}>
+		<div class="flex items-center gap-4">
+			<div class="flex-1">
+				<HiveSearchbar
+					value={searchState}
+					onchange={(v) => (searchState = v)}
+					chips={searchChipConfigs}
+					placeholder="Search activity..."
+					debounceMs={500}
+					commitOnBlur
+				/>
+			</div>
+			<div class="flex items-center gap-2">
+				<Switch id="advanced-toggle" checked={advanced} onCheckedChange={toggleAdvanced} />
+				<label for="advanced-toggle" class="text-sm text-foreground cursor-pointer select-none">Advanced</label>
+			</div>
 		</div>
-		<div class="flex items-center gap-2">
-			<Switch id="advanced-toggle" checked={advanced} onCheckedChange={toggleAdvanced} />
-			<label for="advanced-toggle" class="text-sm text-foreground cursor-pointer select-none">Advanced</label>
-		</div>
-	</div>
 
-	{#if events.length === 0}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No activity yet.</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				Device state changes, scene activations and automation runs will appear here as they happen.
-			</p>
-		</div>
-	{:else if filteredEvents.length === 0}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No activity matches your filters.</p>
-		</div>
-	{:else}
-		<div class="flex-1 min-h-0">
-			<ActivityTable
-				events={filteredEvents}
-				{recentIds}
-				{hasMore}
-				{loadingMore}
-				onLoadMore={loadMore}
-			/>
-		</div>
-	{/if}
-</div>
+		{#if events.length === 0}
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
+				<p class="text-muted-foreground">No activity yet.</p>
+				<p class="mt-2 text-sm text-muted-foreground">
+					Device state changes, scene activations and automation runs will appear here as they happen.
+				</p>
+			</div>
+		{:else if filteredEvents.length === 0}
+			<div class="rounded-lg shadow-card bg-card p-12 text-center">
+				<p class="text-muted-foreground">No activity matches your filters.</p>
+			</div>
+		{:else}
+			<div class="flex-1 min-h-0">
+				<ActivityTable
+					events={filteredEvents}
+					{recentIds}
+					{hasMore}
+					{loadingMore}
+					onLoadMore={loadMore}
+				/>
+			</div>
+		{/if}
+	</div>
+{/if}
