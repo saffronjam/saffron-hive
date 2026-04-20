@@ -245,6 +245,53 @@
 
 	let pickerOpen = $state(false);
 
+	let quickAddRoom = $state<RoomData | null>(null);
+	let quickAddOpen = $state(false);
+	let quickAddPending = 0;
+
+	const quickAddDrawerGroups = $derived.by((): DrawerGroup<"device">[] => {
+		if (!quickAddRoom) return [];
+		const roomDeviceIds = new Set(quickAddRoom.devices.map((d) => d.id));
+		const available = devices.filter((d) => !roomDeviceIds.has(d.id));
+		if (available.length === 0) return [];
+		return [
+			{
+				heading: "Devices",
+				items: available.map((d) => ({
+					type: "device" as const,
+					id: d.id,
+					name: d.name,
+					icon: deviceIcon(d.type),
+					searchValue: `${d.name} ${d.type}`,
+				})),
+			},
+		];
+	});
+
+	function handleAddToRoom(room: RoomData) {
+		quickAddRoom = room;
+		quickAddOpen = true;
+	}
+
+	async function handleQuickAddSelect(_type: "device", deviceId: string) {
+		if (!quickAddRoom) return;
+		const roomId = quickAddRoom.id;
+		quickAddPending++;
+		try {
+			const result = await client
+				.mutation(ADD_ROOM_DEVICE, { input: { roomId, deviceId } })
+				.toPromise();
+			if (result.error) {
+				errors.setWithAutoDismiss(result.error.message);
+			}
+		} finally {
+			quickAddPending--;
+			if (quickAddPending === 0) {
+				roomsQuery.reexecute({ requestPolicy: "network-only" });
+			}
+		}
+	}
+
 	const errors = new ErrorBanner();
 
 	let view = $state<ListViewMode>(profile.get("view.rooms", "card"));
@@ -604,6 +651,7 @@
 									ondelete={(r) => (deleteConfirmRoom = r)}
 									onrename={handleRename}
 									oniconchange={handleIconChange}
+									onAddTo={handleAddToRoom}
 								/>
 							{/each}
 						</AnimatedGrid>
@@ -615,6 +663,7 @@
 							ondelete={(r) => (deleteConfirmRoom = r)}
 							onrename={handleRename}
 							oniconchange={handleIconChange}
+							onAddTo={handleAddToRoom}
 						/>
 					{/snippet}
 				</ListView>
@@ -672,5 +721,14 @@
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
+
+		<HiveDrawer
+			bind:open={quickAddOpen}
+			title={quickAddRoom ? `Add devices to ${quickAddRoom.name}` : "Add devices"}
+			description="Pick one or more devices to add to this room."
+			multiple
+			groups={quickAddDrawerGroups}
+			onselect={handleQuickAddSelect}
+		/>
 	{/if}
 </div>

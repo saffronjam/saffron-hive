@@ -10,7 +10,7 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import { DoorOpen, Pencil, Trash2, EllipsisVertical } from "@lucide/svelte";
+	import { DoorOpen, Pencil, Plus, Trash2, EllipsisVertical } from "@lucide/svelte";
 	import type { Device } from "$lib/stores/devices";
 
 	interface RoomData {
@@ -26,9 +26,10 @@
 		ondelete: (room: RoomData) => void;
 		onrename: (room: RoomData, newName: string) => void;
 		oniconchange: (room: RoomData, icon: string | null) => void;
+		onAddTo: (room: RoomData) => void;
 	}
 
-	let { room, onedit, ondelete, onrename, oniconchange }: Props = $props();
+	let { room, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
 </script>
 
 <div class="rounded-lg shadow-card bg-card p-4">
@@ -59,6 +60,10 @@
 				<DropdownMenuItem onclick={() => onedit(room)}>
 					<Pencil class="size-4" />
 					Edit
+				</DropdownMenuItem>
+				<DropdownMenuItem onclick={() => onAddTo(room)}>
+					<Plus class="size-4" />
+					Add
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem variant="destructive" onclick={() => ondelete(room)}>

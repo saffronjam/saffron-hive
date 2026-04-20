@@ -12,7 +12,7 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
-	import { DoorOpen, Pencil, Trash2 } from "@lucide/svelte";
+	import { DoorOpen, Pencil, Plus, Trash2 } from "@lucide/svelte";
 	import type { Device } from "$lib/stores/devices";
 
 	interface RoomData {
@@ -29,9 +29,10 @@
 		ondelete: (room: RoomData) => void;
 		onrename: (room: RoomData, newName: string) => void;
 		oniconchange: (room: RoomData, icon: string | null) => void;
+		onAddTo: (room: RoomData) => void;
 	}
 
-	let { rooms, onedit, ondelete, onrename, oniconchange }: Props = $props();
+	let { rooms, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
 </script>
 
 <div class="overflow-x-auto rounded-lg shadow-card bg-card">
@@ -76,6 +77,19 @@
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">
+							<Tooltip>
+								<TooltipTrigger>
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onclick={() => onAddTo(room)}
+										aria-label="Add to room"
+									>
+										<Plus class="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Add…</TooltipContent>
+							</Tooltip>
 							<Tooltip>
 								<TooltipTrigger>
 									<Button

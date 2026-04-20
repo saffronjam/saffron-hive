@@ -415,6 +415,82 @@
 
 	let pickerOpen = $state(false);
 
+	let quickAddGroup = $state<GroupData | null>(null);
+	let quickAddOpen = $state(false);
+	let quickAddPending = 0;
+
+	const quickAddDrawerGroups = $derived.by((): DrawerGroup<"device" | "group" | "room">[] => {
+		if (!quickAddGroup) return [];
+		const memberIds = new Set(quickAddGroup.members.map((m) => m.memberId));
+		const devAvail = devices.filter((d) => !memberIds.has(d.id));
+		const grpAvail = groups.filter((g) => g.id !== quickAddGroup!.id && !memberIds.has(g.id));
+		const roomAvail = allRooms.filter((r) => !memberIds.has(r.id));
+		const result: DrawerGroup<"device" | "group" | "room">[] = [];
+		if (devAvail.length > 0) {
+			result.push({
+				heading: "Devices",
+				items: devAvail.map((d) => ({
+					type: "device" as const,
+					id: d.id,
+					name: d.name,
+					icon: deviceIcon(d.type),
+					searchValue: `${d.name} ${d.type}`,
+				})),
+			});
+		}
+		if (grpAvail.length > 0) {
+			result.push({
+				heading: "Groups",
+				items: grpAvail.map((g) => ({
+					type: "group" as const,
+					id: g.id,
+					name: g.name,
+					icon: GroupIcon,
+					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+				})),
+			});
+		}
+		if (roomAvail.length > 0) {
+			result.push({
+				heading: "Rooms",
+				items: roomAvail.map((r) => ({
+					type: "room" as const,
+					id: r.id,
+					name: r.name,
+					icon: DoorOpen,
+					badge: `${r.devices.length} device${r.devices.length === 1 ? "" : "s"}`,
+				})),
+			});
+		}
+		return result;
+	});
+
+	function handleAddToGroup(group: GroupData) {
+		quickAddGroup = group;
+		quickAddOpen = true;
+	}
+
+	async function handleQuickAddSelect(memberType: "device" | "group" | "room", memberId: string) {
+		if (!quickAddGroup) return;
+		const groupId = quickAddGroup.id;
+		quickAddPending++;
+		try {
+			const result = await client
+				.mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+					input: { groupId, memberType, memberId },
+				})
+				.toPromise();
+			if (result.error) {
+				errors.setWithAutoDismiss(result.error.message);
+			}
+		} finally {
+			quickAddPending--;
+			if (quickAddPending === 0) {
+				groupsQuery.reexecute({ requestPolicy: "network-only" });
+			}
+		}
+	}
+
 	const errors = new ErrorBanner();
 
 	const hasPendingChanges = $derived(
@@ -829,6 +905,7 @@
 									ondelete={(g) => (deleteConfirmGroup = g)}
 									onrename={handleRename}
 									oniconchange={handleIconChange}
+									onAddTo={handleAddToGroup}
 								/>
 							{/each}
 						</AnimatedGrid>
@@ -840,6 +917,7 @@
 							ondelete={(g) => (deleteConfirmGroup = g)}
 							onrename={handleRename}
 							oniconchange={handleIconChange}
+							onAddTo={handleAddToGroup}
 						/>
 					{/snippet}
 				</ListView>
@@ -897,5 +975,14 @@
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
+
+		<HiveDrawer
+			bind:open={quickAddOpen}
+			title={quickAddGroup ? `Add members to ${quickAddGroup.name}` : "Add members"}
+			description="Pick one or more devices, groups, or rooms to add."
+			multiple
+			groups={quickAddDrawerGroups}
+			onselect={handleQuickAddSelect}
+		/>
 	{/if}
 </div>

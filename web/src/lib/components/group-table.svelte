@@ -13,7 +13,7 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
 	import { groupMemberBreakdown } from "$lib/list-helpers";
-	import { Group as GroupIcon, Pencil, Trash2 } from "@lucide/svelte";
+	import { Group as GroupIcon, Pencil, Plus, Trash2 } from "@lucide/svelte";
 
 	interface Props {
 		groups: G[];
@@ -21,9 +21,10 @@
 		ondelete: (group: G) => void;
 		onrename: (group: G, newName: string) => void;
 		oniconchange: (group: G, icon: string | null) => void;
+		onAddTo: (group: G) => void;
 	}
 
-	let { groups, onedit, ondelete, onrename, oniconchange }: Props = $props();
+	let { groups, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
 </script>
 
 <div class="overflow-x-auto rounded-lg shadow-card bg-card">
@@ -76,6 +77,19 @@
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">
+							<Tooltip>
+								<TooltipTrigger>
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onclick={() => onAddTo(group)}
+										aria-label="Add to group"
+									>
+										<Plus class="size-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Add…</TooltipContent>
+							</Tooltip>
 							<Tooltip>
 								<TooltipTrigger>
 									<Button

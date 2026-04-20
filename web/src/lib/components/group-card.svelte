@@ -10,7 +10,7 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import { Group, Pencil, Trash2, EllipsisVertical } from "@lucide/svelte";
+	import { Group, Pencil, Plus, Trash2, EllipsisVertical } from "@lucide/svelte";
 	import type { Device } from "$lib/stores/devices";
 
 	interface RoomData {
@@ -41,9 +41,10 @@
 		ondelete: (group: GroupData) => void;
 		onrename: (group: GroupData, newName: string) => void;
 		oniconchange: (group: GroupData, icon: string | null) => void;
+		onAddTo: (group: GroupData) => void;
 	}
 
-	let { group, onedit, ondelete, onrename, oniconchange }: Props = $props();
+	let { group, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
 
 	const deviceCount = $derived(group.members.filter((m) => m.memberType === "device").length);
 	const groupCount = $derived(group.members.filter((m) => m.memberType === "group").length);
@@ -89,6 +90,10 @@
 				<DropdownMenuItem onclick={() => onedit(group)}>
 					<Pencil class="size-4" />
 					Edit
+				</DropdownMenuItem>
+				<DropdownMenuItem onclick={() => onAddTo(group)}>
+					<Plus class="size-4" />
+					Add
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem variant="destructive" onclick={() => ondelete(group)}>
