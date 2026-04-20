@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
@@ -31,4 +32,5 @@ type Resolver struct {
 	LogBuffer          *logging.Buffer
 	LevelVar           *slog.LevelVar
 	Reconnector        MQTTReconnector
+	Auth               *auth.Service
 }

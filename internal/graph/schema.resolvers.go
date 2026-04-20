@@ -12,10 +12,12 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -126,8 +128,9 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error) {
 	sceneID := uuid.New().String()
 	s, err := r.Store.CreateScene(ctx, store.CreateSceneParams{
-		ID:   sceneID,
-		Name: input.Name,
+		ID:        sceneID,
+		Name:      input.Name,
+		CreatedBy: currentUserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -233,6 +236,7 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 		Name:            input.Name,
 		Enabled:         input.Enabled,
 		CooldownSeconds: input.CooldownSeconds,
+		CreatedBy:       currentUserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -403,8 +407,9 @@ func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enab
 func (r *mutationResolver) CreateGroup(ctx context.Context, input model.CreateGroupInput) (*model.Group, error) {
 	groupID := uuid.New().String()
 	g, err := r.Store.CreateGroup(ctx, store.CreateGroupParams{
-		ID:   groupID,
-		Name: input.Name,
+		ID:        groupID,
+		Name:      input.Name,
+		CreatedBy: currentUserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -489,8 +494,9 @@ func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (bo
 func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoomInput) (*model.Room, error) {
 	roomID := uuid.New().String()
 	rm, err := r.Store.CreateRoom(ctx, store.CreateRoomParams{
-		ID:   roomID,
-		Name: input.Name,
+		ID:        roomID,
+		Name:      input.Name,
+		CreatedBy: currentUserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -621,6 +627,104 @@ func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value 
 	}
 
 	return &model.Setting{Key: key, Value: value}, nil
+}
+
+// Login is the resolver for the login field.
+func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error) {
+	u, err := r.Store.GetUserByUsername(ctx, strings.TrimSpace(input.Username))
+	if err != nil {
+		return nil, fmt.Errorf("invalid username or password")
+	}
+	if err := auth.VerifyPassword(u.PasswordHash, input.Password); err != nil {
+		return nil, fmt.Errorf("invalid username or password")
+	}
+	return signAuthPayload(r.Auth, u)
+}
+
+// CreateInitialUser is the resolver for the createInitialUser field. It is
+// allowed only when the users table is empty — this is the first-boot
+// bootstrap path reached via /setup.
+func (r *mutationResolver) CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error) {
+	count, err := r.Store.CountUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if count > 0 {
+		return nil, fmt.Errorf("initial user already exists")
+	}
+	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password)
+	if err != nil {
+		return nil, err
+	}
+	return signAuthPayload(r.Auth, u)
+}
+
+// CreateUser is the resolver for the createUser field. Requires an
+// authenticated caller. All authenticated users are currently full admins;
+// roles will come later.
+func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error) {
+	if _, ok := auth.UserFromContext(ctx); !ok {
+		return nil, fmt.Errorf("authentication required")
+	}
+	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password)
+	if err != nil {
+		return nil, err
+	}
+	return mapUser(u), nil
+}
+
+// createUserRow validates inputs, hashes the password, and inserts a new user.
+func createUserRow(ctx context.Context, s store.Store, username, name, password string) (store.User, error) {
+	username = strings.TrimSpace(username)
+	name = strings.TrimSpace(name)
+	if username == "" {
+		return store.User{}, fmt.Errorf("username is required")
+	}
+	if name == "" {
+		return store.User{}, fmt.Errorf("name is required")
+	}
+	if len(password) < 8 {
+		return store.User{}, fmt.Errorf("password must be at least 8 characters")
+	}
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return store.User{}, err
+	}
+	u, err := s.CreateUser(ctx, store.CreateUserParams{
+		ID:           uuid.New().String(),
+		Username:     username,
+		Name:         name,
+		PasswordHash: hash,
+	})
+	if err != nil {
+		return store.User{}, fmt.Errorf("create user: %w", err)
+	}
+	return u, nil
+}
+
+// signAuthPayload constructs the GraphQL AuthPayload from a user and the JWT
+// service. Used by both login and createInitialUser.
+func signAuthPayload(svc *auth.Service, u store.User) (*model.AuthPayload, error) {
+	token, err := svc.Sign(u.ID, u.Username, u.Name)
+	if err != nil {
+		return nil, fmt.Errorf("sign token: %w", err)
+	}
+	return &model.AuthPayload{
+		Token: token,
+		User:  mapUser(u),
+	}, nil
+}
+
+// currentUserID returns a pointer to the authenticated user's ID, or nil when
+// the request is unauthenticated. Used when populating created_by columns on
+// newly created rows.
+func currentUserID(ctx context.Context) *string {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil
+	}
+	id := u.ID
+	return &id
 }
 
 // Devices is the resolver for the devices field.
@@ -844,6 +948,49 @@ func (r *queryResolver) Logs(ctx context.Context, search *string, limit *int) ([
 		result[i], result[j] = result[j], result[i]
 	}
 
+	return result, nil
+}
+
+// SetupStatus is the resolver for the setupStatus field. Whitelisted — callable
+// without authentication so the frontend can decide whether to show /setup.
+func (r *queryResolver) SetupStatus(ctx context.Context) (*model.SetupStatus, error) {
+	count, err := r.Store.CountUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	mqtt, err := r.Store.GetMQTTConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &model.SetupStatus{
+		HasInitialUser: count > 0,
+		MqttConfigured: mqtt != nil && mqtt.Broker != "",
+	}, nil
+}
+
+// Me is the resolver for the me field. Returns nil when unauthenticated.
+func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
+	u, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, nil
+	}
+	return &model.User{
+		ID:       u.ID,
+		Username: u.Username,
+		Name:     u.Name,
+	}, nil
+}
+
+// Users is the resolver for the users field.
+func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
+	users, err := r.Store.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.User, len(users))
+	for i, u := range users {
+		result[i] = mapUser(u)
+	}
 	return result, nil
 }
 

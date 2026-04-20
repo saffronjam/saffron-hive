@@ -88,9 +88,10 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) mod
 
 func mapScene(ctx context.Context, sr device.StateReader, s store.Store, sc store.Scene, actions []store.SceneAction) *model.Scene {
 	ms := &model.Scene{
-		ID:   sc.ID,
-		Name: sc.Name,
-		Icon: sc.Icon,
+		ID:        sc.ID,
+		Name:      sc.Name,
+		Icon:      sc.Icon,
+		CreatedBy: mapUserRef(sc.CreatedBy),
 	}
 	ms.Actions = make([]*model.SceneAction, len(actions))
 	for i, a := range actions {
@@ -103,6 +104,29 @@ func mapScene(ctx context.Context, sr device.StateReader, s store.Store, sc stor
 		}
 	}
 	return ms
+}
+
+// mapUserRef converts a store.UserRef into the GraphQL User type. Returns nil
+// when the creator is unknown (unmigrated row or user deleted).
+func mapUserRef(ref *store.UserRef) *model.User {
+	if ref == nil {
+		return nil
+	}
+	return &model.User{
+		ID:       ref.ID,
+		Username: ref.Username,
+		Name:     ref.Name,
+	}
+}
+
+// mapUser converts a full store.User into the public GraphQL User type. The
+// password hash and timestamps are intentionally not exposed.
+func mapUser(u store.User) *model.User {
+	return &model.User{
+		ID:       u.ID,
+		Username: u.Username,
+		Name:     u.Name,
+	}
 }
 
 func resolveSceneTarget(ctx context.Context, sr device.StateReader, s store.Store, targetType string, targetID string) model.SceneTarget {
@@ -134,9 +158,10 @@ func resolveSceneTarget(ctx context.Context, sr device.StateReader, s store.Stor
 
 func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s store.Store, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
-		ID:   g.ID,
-		Name: g.Name,
-		Icon: g.Icon,
+		ID:        g.ID,
+		Name:      g.Name,
+		Icon:      g.Icon,
+		CreatedBy: mapUserRef(g.CreatedBy),
 	}
 	mg.Members = make([]*model.GroupMember, len(members))
 	for i, m := range members {
@@ -164,6 +189,7 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 		Icon:            g.Automation.Icon,
 		Enabled:         g.Automation.Enabled,
 		CooldownSeconds: g.Automation.CooldownSeconds,
+		CreatedBy:       mapUserRef(g.Automation.CreatedBy),
 	}
 	mg.Nodes = make([]*model.AutomationNode, len(g.Nodes))
 	for i, n := range g.Nodes {
@@ -186,9 +212,10 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 
 func mapGroup(ctx context.Context, sr device.StateReader, s store.Store, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
-		ID:   g.ID,
-		Name: g.Name,
-		Icon: g.Icon,
+		ID:        g.ID,
+		Name:      g.Name,
+		Icon:      g.Icon,
+		CreatedBy: mapUserRef(g.CreatedBy),
 	}
 
 	mg.Members = make([]*model.GroupMember, len(members))
@@ -332,9 +359,10 @@ func (r *mutationResolver) walkDescendants(ctx context.Context, current, target 
 
 func mapRoom(ctx context.Context, sr device.StateReader, s store.Store, r store.Room) *model.Room {
 	mr := &model.Room{
-		ID:   r.ID,
-		Name: r.Name,
-		Icon: r.Icon,
+		ID:        r.ID,
+		Name:      r.Name,
+		Icon:      r.Icon,
+		CreatedBy: mapUserRef(r.CreatedBy),
 	}
 	devices, err := s.ListRoomDevices(ctx, r.ID)
 	if err != nil {
