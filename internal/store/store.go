@@ -41,8 +41,9 @@ type ZigbeeDevice struct {
 
 // CreateSceneParams holds the parameters for creating a new scene.
 type CreateSceneParams struct {
-	ID   string
-	Name string
+	ID        string
+	Name      string
+	CreatedBy *string
 }
 
 // UpdateSceneParams holds optional fields for updating a scene.
@@ -61,6 +62,7 @@ type Scene struct {
 	Icon      *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	CreatedBy *UserRef
 }
 
 // CreateSceneActionParams holds the parameters for adding a scene action.
@@ -87,6 +89,7 @@ type CreateAutomationParams struct {
 	Name            string
 	Enabled         bool
 	CooldownSeconds int
+	CreatedBy       *string
 }
 
 // UpdateAutomationParams holds optional fields for updating an automation.
@@ -108,6 +111,7 @@ type Automation struct {
 	CooldownSeconds int
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	CreatedBy       *UserRef
 }
 
 // CreateAutomationNodeParams holds the parameters for creating an automation node.
@@ -151,8 +155,9 @@ type AutomationGraph struct {
 
 // CreateGroupParams holds the parameters for creating a new group.
 type CreateGroupParams struct {
-	ID   string
-	Name string
+	ID        string
+	Name      string
+	CreatedBy *string
 }
 
 // Group represents a group row.
@@ -162,6 +167,7 @@ type Group struct {
 	Icon      *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	CreatedBy *UserRef
 }
 
 // UpdateGroupParams holds the parameters for updating a group.
@@ -236,8 +242,9 @@ type Setting struct {
 
 // CreateRoomParams holds the parameters for creating a new room.
 type CreateRoomParams struct {
-	ID   string
-	Name string
+	ID        string
+	Name      string
+	CreatedBy *string
 }
 
 // Room represents a room row.
@@ -247,6 +254,7 @@ type Room struct {
 	Icon      *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	CreatedBy *UserRef
 }
 
 // UpdateRoomParams holds the parameters for updating a room.
@@ -270,6 +278,32 @@ type RoomDevice struct {
 	ID       string
 	RoomID   string
 	DeviceID string
+}
+
+// CreateUserParams holds the parameters for creating a new user.
+type CreateUserParams struct {
+	ID           string
+	Username     string
+	Name         string
+	PasswordHash string
+}
+
+// User represents a user row.
+type User struct {
+	ID           string
+	Username     string
+	Name         string
+	PasswordHash string
+	CreatedAt    time.Time
+}
+
+// UserRef is the lightweight creator reference embedded into other rows via
+// LEFT JOIN. Contains only the columns needed to render attribution — no
+// password hash, no timestamps.
+type UserRef struct {
+	ID       string
+	Username string
+	Name     string
 }
 
 // Store defines the persistence interface for the application.
@@ -341,4 +375,10 @@ type Store interface {
 	RemoveRoomDevice(ctx context.Context, id string) error
 	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
 	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]Room, error)
+
+	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
+	GetUserByID(ctx context.Context, id string) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
+	ListUsers(ctx context.Context) ([]User, error)
+	CountUsers(ctx context.Context) (int, error)
 }

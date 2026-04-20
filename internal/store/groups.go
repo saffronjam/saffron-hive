@@ -2,16 +2,21 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const groupSelectColumns = `g.id, g.name, g.icon, g.created_at, g.updated_at, u.id, u.username, u.name`
+
+const groupFromJoin = `FROM groups g LEFT JOIN users u ON u.id = g.created_by`
+
 // CreateGroup inserts a new group and returns it.
 func (s *SQLiteStore) CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error) {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO groups (id, name) VALUES (?, ?)`,
-		params.ID, params.Name,
+		`INSERT INTO groups (id, name, created_by) VALUES (?, ?, ?)`,
+		params.ID, params.Name, params.CreatedBy,
 	)
 	if err != nil {
 		return Group{}, fmt.Errorf("create group: %w", err)
@@ -22,10 +27,9 @@ func (s *SQLiteStore) CreateGroup(ctx context.Context, params CreateGroupParams)
 // GetGroup retrieves a group by its ID.
 func (s *SQLiteStore) GetGroup(ctx context.Context, id string) (Group, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, icon, created_at, updated_at FROM groups WHERE id = ?`, id,
+		`SELECT `+groupSelectColumns+` `+groupFromJoin+` WHERE g.id = ?`, id,
 	)
-	var g Group
-	err := row.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt)
+	g, err := scanGroup(row)
 	if err != nil {
 		return Group{}, fmt.Errorf("get group: %w", err)
 	}
@@ -34,15 +38,17 @@ func (s *SQLiteStore) GetGroup(ctx context.Context, id string) (Group, error) {
 
 // ListGroups returns all groups.
 func (s *SQLiteStore) ListGroups(ctx context.Context) ([]Group, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, icon, created_at, updated_at FROM groups`)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+groupSelectColumns+` `+groupFromJoin,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	var groups []Group
 	for rows.Next() {
-		var g Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		g, err := scanGroup(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan group: %w", err)
 		}
 		groups = append(groups, g)
@@ -133,9 +139,10 @@ func (s *SQLiteStore) RemoveGroupMember(ctx context.Context, id string) error {
 // ListGroupsContainingMember returns all groups that contain a specific member.
 func (s *SQLiteStore) ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]Group, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT g.id, g.name, g.icon, g.created_at, g.updated_at
+		`SELECT `+groupSelectColumns+`
 		FROM groups g
 		INNER JOIN group_members gm ON g.id = gm.group_id
+		LEFT JOIN users u ON u.id = g.created_by
 		WHERE gm.member_type = ? AND gm.member_id = ?`,
 		memberType, memberID,
 	)
@@ -145,11 +152,21 @@ func (s *SQLiteStore) ListGroupsContainingMember(ctx context.Context, memberType
 	defer func() { _ = rows.Close() }()
 	var groups []Group
 	for rows.Next() {
-		var g Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		g, err := scanGroup(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan group: %w", err)
 		}
 		groups = append(groups, g)
 	}
 	return groups, rows.Err()
+}
+
+func scanGroup(row rowScanner) (Group, error) {
+	var g Group
+	var creatorID, creatorUsername, creatorName sql.NullString
+	if err := row.Scan(&g.ID, &g.Name, &g.Icon, &g.CreatedAt, &g.UpdatedAt, &creatorID, &creatorUsername, &creatorName); err != nil {
+		return Group{}, err
+	}
+	g.CreatedBy = buildUserRef(creatorID, creatorUsername, creatorName)
+	return g, nil
 }

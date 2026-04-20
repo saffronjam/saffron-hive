@@ -6,11 +6,15 @@ import (
 	"fmt"
 )
 
+const automationSelectColumns = `a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at, u.id, u.username, u.name`
+
+const automationFromJoin = `FROM automations a LEFT JOIN users u ON u.id = a.created_by`
+
 // CreateAutomation inserts a new automation and returns it.
 func (s *SQLiteStore) CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error) {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO automations (id, name, enabled, cooldown_seconds) VALUES (?, ?, ?, ?)`,
-		params.ID, params.Name, params.Enabled, params.CooldownSeconds,
+		`INSERT INTO automations (id, name, enabled, cooldown_seconds, created_by) VALUES (?, ?, ?, ?, ?)`,
+		params.ID, params.Name, params.Enabled, params.CooldownSeconds, params.CreatedBy,
 	)
 	if err != nil {
 		return Automation{}, fmt.Errorf("create automation: %w", err)
@@ -21,7 +25,7 @@ func (s *SQLiteStore) CreateAutomation(ctx context.Context, params CreateAutomat
 // GetAutomation retrieves an automation by its ID.
 func (s *SQLiteStore) GetAutomation(ctx context.Context, id string) (Automation, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, icon, enabled, cooldown_seconds, created_at, updated_at FROM automations WHERE id = ?`, id,
+		`SELECT `+automationSelectColumns+` `+automationFromJoin+` WHERE a.id = ?`, id,
 	)
 	return scanAutomation(row)
 }
@@ -29,7 +33,7 @@ func (s *SQLiteStore) GetAutomation(ctx context.Context, id string) (Automation,
 // ListAutomations returns all automations.
 func (s *SQLiteStore) ListAutomations(ctx context.Context) ([]Automation, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, icon, enabled, cooldown_seconds, created_at, updated_at FROM automations`,
+		`SELECT `+automationSelectColumns+` `+automationFromJoin,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list automations: %w", err)
@@ -41,7 +45,7 @@ func (s *SQLiteStore) ListAutomations(ctx context.Context) ([]Automation, error)
 // ListEnabledAutomations returns all automations where enabled is true.
 func (s *SQLiteStore) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, icon, enabled, cooldown_seconds, created_at, updated_at FROM automations WHERE enabled = true`,
+		`SELECT `+automationSelectColumns+` `+automationFromJoin+` WHERE a.enabled = true`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list enabled automations: %w", err)
@@ -227,21 +231,23 @@ func (s *SQLiteStore) GetAutomationGraph(ctx context.Context, automationID strin
 	}, nil
 }
 
-func scanAutomation(row *sql.Row) (Automation, error) {
+func scanAutomation(row rowScanner) (Automation, error) {
 	var a Automation
-	err := row.Scan(&a.ID, &a.Name, &a.Icon, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt)
+	var creatorID, creatorUsername, creatorName sql.NullString
+	err := row.Scan(&a.ID, &a.Name, &a.Icon, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt, &creatorID, &creatorUsername, &creatorName)
 	if err != nil {
 		return Automation{}, fmt.Errorf("scan automation: %w", err)
 	}
+	a.CreatedBy = buildUserRef(creatorID, creatorUsername, creatorName)
 	return a, nil
 }
 
 func scanAutomations(rows *sql.Rows) ([]Automation, error) {
 	var automations []Automation
 	for rows.Next() {
-		var a Automation
-		if err := rows.Scan(&a.ID, &a.Name, &a.Icon, &a.Enabled, &a.CooldownSeconds, &a.CreatedAt, &a.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan automation: %w", err)
+		a, err := scanAutomation(rows)
+		if err != nil {
+			return nil, err
 		}
 		automations = append(automations, a)
 	}

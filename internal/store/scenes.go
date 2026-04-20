@@ -2,14 +2,17 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 )
+
+const sceneSelectColumns = `s.id, s.name, s.icon, s.created_at, s.updated_at, u.id, u.username, u.name`
 
 // CreateScene inserts a new scene and returns it.
 func (s *SQLiteStore) CreateScene(ctx context.Context, params CreateSceneParams) (Scene, error) {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO scenes (id, name) VALUES (?, ?)`,
-		params.ID, params.Name,
+		`INSERT INTO scenes (id, name, created_by) VALUES (?, ?, ?)`,
+		params.ID, params.Name, params.CreatedBy,
 	)
 	if err != nil {
 		return Scene{}, fmt.Errorf("create scene: %w", err)
@@ -20,10 +23,11 @@ func (s *SQLiteStore) CreateScene(ctx context.Context, params CreateSceneParams)
 // GetScene retrieves a scene by its ID.
 func (s *SQLiteStore) GetScene(ctx context.Context, id string) (Scene, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, icon, created_at, updated_at FROM scenes WHERE id = ?`, id,
+		`SELECT `+sceneSelectColumns+`
+		 FROM scenes s LEFT JOIN users u ON u.id = s.created_by
+		 WHERE s.id = ?`, id,
 	)
-	var sc Scene
-	err := row.Scan(&sc.ID, &sc.Name, &sc.Icon, &sc.CreatedAt, &sc.UpdatedAt)
+	sc, err := scanScene(row)
 	if err != nil {
 		return Scene{}, fmt.Errorf("get scene: %w", err)
 	}
@@ -32,15 +36,18 @@ func (s *SQLiteStore) GetScene(ctx context.Context, id string) (Scene, error) {
 
 // ListScenes returns all scenes.
 func (s *SQLiteStore) ListScenes(ctx context.Context) ([]Scene, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, icon, created_at, updated_at FROM scenes`)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+sceneSelectColumns+`
+		 FROM scenes s LEFT JOIN users u ON u.id = s.created_by`,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list scenes: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	var scenes []Scene
 	for rows.Next() {
-		var sc Scene
-		if err := rows.Scan(&sc.ID, &sc.Name, &sc.Icon, &sc.CreatedAt, &sc.UpdatedAt); err != nil {
+		sc, err := scanScene(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan scene: %w", err)
 		}
 		scenes = append(scenes, sc)
@@ -129,4 +136,18 @@ func (s *SQLiteStore) ListSceneActions(ctx context.Context, sceneID string) ([]S
 		actions = append(actions, a)
 	}
 	return actions, rows.Err()
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanScene(row rowScanner) (Scene, error) {
+	var sc Scene
+	var creatorID, creatorUsername, creatorName sql.NullString
+	if err := row.Scan(&sc.ID, &sc.Name, &sc.Icon, &sc.CreatedAt, &sc.UpdatedAt, &creatorID, &creatorUsername, &creatorName); err != nil {
+		return Scene{}, err
+	}
+	sc.CreatedBy = buildUserRef(creatorID, creatorUsername, creatorName)
+	return sc, nil
 }

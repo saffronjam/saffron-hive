@@ -1,12 +1,28 @@
 package store
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
+
+// buildUserRef assembles a *UserRef from three nullable columns returned by a
+// LEFT JOIN onto users. Returns nil when the creator id is NULL — which is the
+// case for rows created before the users table existed, or whose creator has
+// been deleted (ON DELETE SET NULL).
+func buildUserRef(id, username, name sql.NullString) *UserRef {
+	if !id.Valid {
+		return nil
+	}
+	return &UserRef{
+		ID:       id.String,
+		Username: username.String,
+		Name:     name.String,
+	}
+}
 
 // DeviceRow represents the raw database columns for a device.
 type DeviceRow struct {
