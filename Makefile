@@ -1,4 +1,4 @@
-.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version package sqlc sqlc-check prepare-for-commit
+.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version package sqlc sqlc-check codegen codegen-check prepare-for-commit
 
 SQLC_VERSION := 1.31.0
 
@@ -63,6 +63,18 @@ sqlc-check:
 		exit 1; \
 	fi
 
+codegen:
+	cd web && bun run codegen
+
+codegen-check:
+	@cd web && bun run codegen
+	@if ! git diff --quiet -- web/src/lib/gql/; then \
+		echo "graphql-codegen output drift detected under web/src/lib/gql/."; \
+		echo "Run 'make codegen' and commit the regenerated files."; \
+		git diff --stat -- web/src/lib/gql/; \
+		exit 1; \
+	fi
+
 e2e: e2e-go e2e-ts
 
 e2e-go:
@@ -72,4 +84,4 @@ e2e-ts:
 	docker build -t saffron-hive-test .
 	cd web && bun run test:e2e
 
-prepare-for-commit: deps sqlc-check format lint typecheck errcheck test
+prepare-for-commit: deps sqlc-check codegen-check format lint typecheck errcheck test
