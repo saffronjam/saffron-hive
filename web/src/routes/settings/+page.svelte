@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
@@ -37,7 +36,7 @@
 		value: string;
 	}
 
-	const MQTT_CONFIG_QUERY = gql`
+	const MQTT_CONFIG_QUERY = graphql(`
 		query MqttConfig {
 			mqttConfig {
 				broker
@@ -46,18 +45,18 @@
 				useWss
 			}
 		}
-	`;
+	`);
 
-	const SETTINGS_QUERY = gql`
+	const SETTINGS_QUERY = graphql(`
 		query Settings {
 			settings {
 				key
 				value
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_MQTT_CONFIG = gql`
+	const UPDATE_MQTT_CONFIG = graphql(`
 		mutation UpdateMqttConfig($input: MqttConfigInput!) {
 			updateMqttConfig(input: $input) {
 				broker
@@ -66,27 +65,27 @@
 				useWss
 			}
 		}
-	`;
+	`);
 
-	const TEST_MQTT_CONNECTION = gql`
+	const TEST_MQTT_CONNECTION = graphql(`
 		mutation TestMqttConnection($input: MqttConfigInput!) {
 			testMqttConnection(input: $input) {
 				success
 				message
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_SETTING = gql`
+	const UPDATE_SETTING = graphql(`
 		mutation UpdateSetting($key: String!, $value: String!) {
 			updateSetting(key: $key, value: $value) {
 				key
 				value
 			}
 		}
-	`;
+	`);
 
-	let client: Client;
+	const client = getContextClient();
 
 	let broker = $state("");
 	let username = $state("");
@@ -126,8 +125,8 @@
 
 	async function loadData() {
 		const [mqttResult, settingsResult] = await Promise.all([
-			client.query<{ mqttConfig: MqttConfig | null }>(MQTT_CONFIG_QUERY, {}).toPromise(),
-			client.query<{ settings: SettingData[] }>(SETTINGS_QUERY, {}).toPromise(),
+			client.query(MQTT_CONFIG_QUERY, {}).toPromise(),
+			client.query(SETTINGS_QUERY, {}).toPromise(),
 		]);
 
 		if (mqttResult.data?.mqttConfig) {
@@ -231,7 +230,6 @@
 	});
 
 	onMount(() => {
-		client = createGraphQLClient();
 		pageHeader.breadcrumbs = [{ label: "Settings" }];
 		loadData();
 	});

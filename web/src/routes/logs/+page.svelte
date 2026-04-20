@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { gql } from "@urql/svelte";
-	import type { Client } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
@@ -16,7 +15,7 @@
 		attrs: string;
 	}
 
-	const LOGS_QUERY = gql`
+	const LOGS_QUERY = graphql(`
 		query Logs($limit: Int) {
 			logs(limit: $limit) {
 				timestamp
@@ -25,9 +24,9 @@
 				attrs
 			}
 		}
-	`;
+	`);
 
-	const LOG_STREAM = gql`
+	const LOG_STREAM = graphql(`
 		subscription LogStream {
 			logStream {
 				timestamp
@@ -36,9 +35,9 @@
 				attrs
 			}
 		}
-	`;
+	`);
 
-	let client: Client;
+	const client = getContextClient();
 	let entries = $state<LogEntry[]>([]);
 	let search = $state("");
 	let live = $state(true);
@@ -141,7 +140,6 @@
 	}
 
 	onMount(() => {
-		client = createGraphQLClient();
 		pageHeader.breadcrumbs = [{ label: "Logs" }];
 		loadInitialLogs().then(() => {
 			startSubscription();
