@@ -451,6 +451,31 @@ func (m *mockStore) ListRoomsContainingDevice(_ context.Context, _ string) ([]st
 	return nil, nil
 }
 
+func (m *mockStore) CreateUser(_ context.Context, params store.CreateUserParams) (store.User, error) {
+	return store.User{
+		ID:           params.ID,
+		Username:     params.Username,
+		Name:         params.Name,
+		PasswordHash: params.PasswordHash,
+	}, nil
+}
+
+func (m *mockStore) GetUserByID(_ context.Context, id string) (store.User, error) {
+	return store.User{ID: id}, nil
+}
+
+func (m *mockStore) GetUserByUsername(_ context.Context, _ string) (store.User, error) {
+	return store.User{}, nil
+}
+
+func (m *mockStore) ListUsers(_ context.Context) ([]store.User, error) {
+	return nil, nil
+}
+
+func (m *mockStore) CountUsers(_ context.Context) (int, error) {
+	return 0, nil
+}
+
 func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
 	switch targetType {
 	case device.TargetGroup:

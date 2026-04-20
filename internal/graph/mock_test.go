@@ -109,6 +109,8 @@ type mockStore struct {
 	groups          map[string]store.Group
 	groupMembers    map[string][]store.GroupMember
 	sensorReadings  []store.SensorReading
+	users           map[string]store.User // keyed by id
+	mqttConfig      *store.MQTTConfig
 
 	createSceneCalled      bool
 	deleteSceneCalled      bool
@@ -128,6 +130,7 @@ func newMockStore() *mockStore {
 		automationEdges: make(map[string][]store.AutomationEdge),
 		groups:          make(map[string]store.Group),
 		groupMembers:    make(map[string][]store.GroupMember),
+		users:           make(map[string]store.User),
 	}
 }
 
@@ -545,7 +548,9 @@ func (m *mockStore) QuerySensorHistory(_ context.Context, q store.SensorHistoryQ
 }
 
 func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) {
-	return nil, nil
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.mqttConfig, nil
 }
 
 func (m *mockStore) UpsertMQTTConfig(_ context.Context, _ store.MQTTConfig) error {
@@ -602,6 +607,61 @@ func (m *mockStore) RemoveRoomDeviceByRoomAndDevice(_ context.Context, _, _ stri
 
 func (m *mockStore) ListRoomsContainingDevice(_ context.Context, _ string) ([]store.Room, error) {
 	return nil, nil
+}
+
+func (m *mockStore) CreateUser(_ context.Context, params store.CreateUserParams) (store.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, u := range m.users {
+		if u.Username == params.Username {
+			return store.User{}, fmt.Errorf("username %q already exists", params.Username)
+		}
+	}
+	u := store.User{
+		ID:           params.ID,
+		Username:     params.Username,
+		Name:         params.Name,
+		PasswordHash: params.PasswordHash,
+	}
+	m.users[params.ID] = u
+	return u, nil
+}
+
+func (m *mockStore) GetUserByID(_ context.Context, id string) (store.User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	u, ok := m.users[id]
+	if !ok {
+		return store.User{}, fmt.Errorf("user %q not found", id)
+	}
+	return u, nil
+}
+
+func (m *mockStore) GetUserByUsername(_ context.Context, username string) (store.User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, u := range m.users {
+		if u.Username == username {
+			return u, nil
+		}
+	}
+	return store.User{}, fmt.Errorf("user %q not found", username)
+}
+
+func (m *mockStore) ListUsers(_ context.Context) ([]store.User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]store.User, 0, len(m.users))
+	for _, u := range m.users {
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+func (m *mockStore) CountUsers(_ context.Context) (int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.users), nil
 }
 
 func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetType, targetID string) []device.DeviceID {
