@@ -88,9 +88,9 @@ type ActionConfig struct {
 // NodeActivation is the event payload published when a node activates or
 // deactivates during graph evaluation. Used for live visualization.
 type NodeActivation struct {
-	AutomationID string
-	NodeID       NodeID
-	Active       bool
+	AutomationID string `json:"automationId"`
+	NodeID       NodeID `json:"nodeId"`
+	Active       bool   `json:"active"`
 }
 
 func (ActionConfig) nodeConfig() {}

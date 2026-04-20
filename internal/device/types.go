@@ -45,23 +45,23 @@ const (
 // Capability describes a single device capability with optional rich metadata
 // extracted from the protocol adapter (e.g. zigbee2mqtt exposes).
 type Capability struct {
-	Name     string   // canonical name (e.g. "on_off", "brightness", "action")
-	Type     string   // feature type: "binary", "numeric", "enum", "text", "composite"
-	Values   []string // for enum types (e.g. ["single","double","hold"])
-	ValueMin *float64 // for numeric types
-	ValueMax *float64 // for numeric types
-	Unit     string   // for numeric types (e.g. "°C", "%", "lux")
-	Access   int      // bitmask: 1=published, 2=get, 4=set
+	Name     string   `json:"name"`               // canonical name (e.g. "on_off", "brightness", "action")
+	Type     string   `json:"type"`               // feature type: "binary", "numeric", "enum", "text", "composite"
+	Values   []string `json:"values,omitempty"`   // for enum types (e.g. ["single","double","hold"])
+	ValueMin *float64 `json:"valueMin,omitempty"` // for numeric types
+	ValueMax *float64 `json:"valueMax,omitempty"` // for numeric types
+	Unit     string   `json:"unit,omitempty"`     // for numeric types (e.g. "°C", "%", "lux")
+	Access   int      `json:"access"`             // bitmask: 1=published, 2=get, 4=set
 }
 
 // Device is the protocol-agnostic representation of a home automation device.
 type Device struct {
-	ID           DeviceID
-	Name         string
-	Source       Source
-	Type         DeviceType
-	Capabilities []Capability
-	Available    bool
-	Removed      bool
-	LastSeen     time.Time
+	ID           DeviceID     `json:"id"`
+	Name         string       `json:"name"`
+	Source       Source       `json:"source"`
+	Type         DeviceType   `json:"type"`
+	Capabilities []Capability `json:"capabilities"`
+	Available    bool         `json:"available"`
+	Removed      bool         `json:"removed"`
+	LastSeen     time.Time    `json:"lastSeen"`
 }

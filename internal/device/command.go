@@ -4,6 +4,6 @@ package device
 // Payload holds the typed command (e.g. LightCommand) and is one of the two
 // allowed uses of any in the codebase.
 type DeviceCommand struct {
-	DeviceID DeviceID
-	Payload  any
+	DeviceID DeviceID `json:"deviceId"`
+	Payload  any      `json:"payload"`
 }
