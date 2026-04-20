@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
-	import { queryStore, getContextClient, gql } from "@urql/svelte";
+	import { queryStore, getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import {
@@ -70,7 +71,7 @@
 
 	const client = getContextClient();
 
-	const AUTOMATIONS_QUERY = gql`
+	const AUTOMATIONS_QUERY = graphql(`
 		query Automations {
 			automations {
 				id
@@ -95,9 +96,9 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const CREATE_AUTOMATION = gql`
+	const CREATE_AUTOMATION = graphql(`
 		mutation CreateAutomation($input: CreateAutomationInput!) {
 			createAutomation(input: $input) {
 				id
@@ -121,49 +122,49 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const TOGGLE_AUTOMATION = gql`
+	const TOGGLE_AUTOMATION = graphql(`
 		mutation ToggleAutomation($id: ID!, $enabled: Boolean!) {
 			toggleAutomation(id: $id, enabled: $enabled) {
 				id
 				enabled
 			}
 		}
-	`;
+	`);
 
-	const DELETE_AUTOMATION = gql`
+	const DELETE_AUTOMATION = graphql(`
 		mutation DeleteAutomation($id: ID!) {
 			deleteAutomation(id: $id)
 		}
-	`;
+	`);
 
-	const UPDATE_AUTOMATION_NAME = gql`
-		mutation UpdateAutomation($id: ID!, $input: UpdateAutomationInput!) {
+	const UPDATE_AUTOMATION_NAME = graphql(`
+		mutation AutomationListUpdate($id: ID!, $input: UpdateAutomationInput!) {
 			updateAutomation(id: $id, input: $input) {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const DEVICES_QUERY = gql`
+	const DEVICES_QUERY = graphql(`
 		query AutomationsPageDevices {
 			devices {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
-	const SCENES_QUERY = gql`
+	const SCENES_QUERY = graphql(`
 		query AutomationsPageScenes {
 			scenes {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
 	interface DeviceRef {
 		id: string;

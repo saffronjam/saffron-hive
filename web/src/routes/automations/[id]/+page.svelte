@@ -2,8 +2,8 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy, untrack } from "svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
-	import { gql } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -143,7 +143,7 @@
 		};
 	}
 
-	const AUTOMATION_QUERY = gql`
+	const AUTOMATION_QUERY = graphql(`
 		query Automation($id: ID!) {
 			automation(id: $id) {
 				id
@@ -163,10 +163,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const UPDATE_AUTOMATION = gql`
-		mutation UpdateAutomation($id: ID!, $input: UpdateAutomationInput!) {
+	const UPDATE_AUTOMATION = graphql(`
+		mutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {
 			updateAutomation(id: $id, input: $input) {
 				id
 				name
@@ -185,25 +185,25 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const DELETE_AUTOMATION = gql`
+	const DELETE_AUTOMATION = graphql(`
 		mutation DeleteAutomation($id: ID!) {
 			deleteAutomation(id: $id)
 		}
-	`;
+	`);
 
-	const TOGGLE_AUTOMATION = gql`
+	const TOGGLE_AUTOMATION = graphql(`
 		mutation ToggleAutomation($id: ID!, $enabled: Boolean!) {
 			toggleAutomation(id: $id, enabled: $enabled) {
 				id
 				enabled
 			}
 		}
-	`;
+	`);
 
-	const DEVICES_QUERY = gql`
-		query Devices {
+	const DEVICES_QUERY = graphql(`
+		query AutomationEditDevices {
 			devices {
 				id
 				name
@@ -232,10 +232,10 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const GROUPS_QUERY = gql`
-		query Groups {
+	const GROUPS_QUERY = graphql(`
+		query AutomationEditGroups {
 			groups {
 				id
 				name
@@ -246,35 +246,35 @@
 				}
 			}
 		}
-	`;
+	`);
 
-	const SCENES_QUERY = gql`
-		query Scenes {
+	const SCENES_QUERY = graphql(`
+		query AutomationEditScenes {
 			scenes {
 				id
 				name
 			}
 		}
-	`;
+	`);
 
 	interface ScenesQueryResult {
 		scenes: { id: string; name: string }[];
 	}
 
-	const NODE_ACTIVATED_SUBSCRIPTION = gql`
-		subscription AutomationNodeActivated($automationId: ID) {
+	const NODE_ACTIVATED_SUBSCRIPTION = graphql(`
+		subscription AutomationEditNodeActivated($automationId: ID) {
 			automationNodeActivated(automationId: $automationId) {
 				automationId
 				nodeId
 				active
 			}
 		}
-	`;
+	`);
 
 	const automationId = $derived(page.params.id);
 	const isMobile = new IsMobile();
 
-	let client = $state<ReturnType<typeof createGraphQLClient> | null>(null);
+	const client = getContextClient();
 
 	let automationName = $state("");
 	let automationIcon = $state<string | null>(null);
@@ -885,8 +885,6 @@
 	}
 
 	onMount(() => {
-		client = createGraphQLClient();
-
 		client
 			.query<AutomationQueryResult>(AUTOMATION_QUERY, { id: automationId })
 			.toPromise()
