@@ -7,6 +7,7 @@ type EventType string
 
 const (
 	EventDeviceStateChanged        EventType = "device.state_changed"
+	EventDeviceActionFired         EventType = "device.action_fired"
 	EventDeviceAvailabilityChanged EventType = "device.availability_changed"
 	EventDeviceAdded               EventType = "device.added"
 	EventDeviceRemoved             EventType = "device.removed"

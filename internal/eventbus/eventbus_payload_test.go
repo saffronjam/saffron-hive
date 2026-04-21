@@ -12,9 +12,9 @@ func ptr[T any](v T) *T { return &v }
 
 func TestPayloadWithDomainTypes(t *testing.T) {
 	bus := eventbus.NewChannelBus()
-	ch := bus.Subscribe(eventbus.EventDeviceStateChanged)
+	ch := bus.Subscribe(eventbus.EventDeviceStateChanged, eventbus.EventDeviceActionFired)
 
-	light := device.LightState{
+	light := device.DeviceState{
 		On:         ptr(true),
 		Brightness: ptr(80),
 		Color:      &device.Color{R: 255, G: 128, B: 0, X: 0.5, Y: 0.4},
@@ -27,9 +27,9 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 	})
 
 	got := <-ch
-	ls, ok := got.Payload.(device.LightState)
+	ls, ok := got.Payload.(device.DeviceState)
 	if !ok {
-		t.Fatal("payload type assertion to LightState failed")
+		t.Fatal("payload type assertion to DeviceState failed")
 	}
 	if *ls.Brightness != 80 {
 		t.Fatalf("expected brightness 80, got %d", *ls.Brightness)
@@ -38,7 +38,7 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 		t.Fatalf("expected color R 255, got %d", ls.Color.R)
 	}
 
-	sensor := device.SensorState{
+	sensor := device.DeviceState{
 		Temperature: ptr(21.5),
 		Humidity:    ptr(55.0),
 		Battery:     ptr(87),
@@ -51,9 +51,9 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 	})
 
 	got = <-ch
-	ss, ok := got.Payload.(device.SensorState)
+	ss, ok := got.Payload.(device.DeviceState)
 	if !ok {
-		t.Fatal("payload type assertion to SensorState failed")
+		t.Fatal("payload type assertion to DeviceState failed")
 	}
 	if *ss.Temperature != 21.5 {
 		t.Fatalf("expected temperature 21.5, got %f", *ss.Temperature)
@@ -62,23 +62,21 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 		t.Fatalf("expected battery 87, got %d", *ss.Battery)
 	}
 
-	sw := device.SwitchState{
-		Action: ptr("toggle"),
-	}
+	action := device.Action{Action: "toggle"}
 	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventDeviceStateChanged,
+		Type:      eventbus.EventDeviceActionFired,
 		DeviceID:  "switch-1",
 		Timestamp: time.Now(),
-		Payload:   sw,
+		Payload:   action,
 	})
 
 	got = <-ch
-	sws, ok := got.Payload.(device.SwitchState)
+	act, ok := got.Payload.(device.Action)
 	if !ok {
-		t.Fatal("payload type assertion to SwitchState failed")
+		t.Fatal("payload type assertion to Action failed")
 	}
-	if *sws.Action != "toggle" {
-		t.Fatalf("expected action toggle, got %s", *sws.Action)
+	if act.Action != "toggle" {
+		t.Fatalf("expected action toggle, got %s", act.Action)
 	}
 }
 
