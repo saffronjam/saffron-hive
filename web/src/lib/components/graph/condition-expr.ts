@@ -83,6 +83,35 @@ export function defaultConditionConfig(): ConditionConfig {
   return { mode: "time_window" };
 }
 
+export type ConditionField = "device" | "property" | "value" | "customExpr";
+
+export interface ConditionValidationError {
+  field: ConditionField;
+  message: string;
+}
+
+export function validateConditionConfig(config: ConditionConfig): ConditionValidationError | null {
+  switch (config.mode) {
+    case "time_window":
+    case "weekday":
+      return null;
+    case "device_state":
+      if (!config.deviceId) return { field: "device", message: "Pick a device" };
+      if (!config.property) return { field: "property", message: "Pick a property" };
+      if (config.value === undefined || config.value === "") {
+        return { field: "value", message: "Set a value" };
+      }
+      return null;
+    case "custom":
+      if (!config.customExpr || config.customExpr.trim() === "") {
+        return { field: "customExpr", message: "Enter an expression" };
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
 export function serializeConditionConfig(config: ConditionConfig): string {
   return JSON.stringify({ expr: generateConditionExpr(config) });
 }

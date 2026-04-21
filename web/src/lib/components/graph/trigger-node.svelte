@@ -8,11 +8,13 @@
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { Button } from "$lib/components/ui/button/index.js";
 	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import { Zap } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
 	import {
 		type TriggerConfig,
 		type TriggerMode,
@@ -22,6 +24,7 @@
 		humanizeCron,
 		eventTypeForMode,
 		capabilityToExprProperty,
+		validateTriggerConfig,
 	} from "./trigger-expr";
 
 	interface TriggerNodeData extends Record<string, unknown> {
@@ -29,7 +32,9 @@
 		editable: boolean;
 		activated: boolean;
 		devices: Device[];
+		automationEnabled?: boolean;
 		onConfigChange?: (config: TriggerConfig) => void;
+		onFireManual?: () => void;
 	}
 
 	interface Props {
@@ -45,6 +50,7 @@
 		{ value: "button_action", label: "Button Action" },
 		{ value: "availability", label: "Availability" },
 		{ value: "schedule", label: "Schedule" },
+		{ value: "manual", label: "Manual" },
 		{ value: "custom", label: "Custom" },
 	];
 
@@ -78,6 +84,30 @@
 		{ value: "device.added", label: "Device Added" },
 		{ value: "device.removed", label: "Device Removed" },
 	];
+
+	const deviceTypeOptions = [
+		{ value: "light", label: "Light" },
+		{ value: "sensor", label: "Sensor" },
+		{ value: "switch", label: "Switch" },
+	];
+
+	const deviceChipConfigs: ChipConfig[] = [
+		{
+			keyword: "type",
+			label: "Type",
+			variant: "secondary",
+			options: (q: string) => {
+				const lower = q.toLowerCase();
+				return deviceTypeOptions.filter(
+					(o) => !lower || o.value.includes(lower) || o.label.toLowerCase().includes(lower),
+				);
+			},
+		},
+	];
+
+	const deviceChipMatchers: Record<string, (d: Device, v: string) => boolean> = {
+		type: (d, v) => d.type === v,
+	};
 
 	function update(patch: Partial<TriggerConfig>) {
 		if (!data.onConfigChange) return;
@@ -153,6 +183,8 @@
 	const generatedExpr = $derived(generateFilterExpr(data.config));
 	const generatedCron = $derived(generateCronExpr(data.config));
 	const humanSchedule = $derived(humanizeCron(generatedCron));
+	const validationError = $derived(validateTriggerConfig(data.config));
+	const INVALID_CLS = "border-destructive ring-2 ring-destructive/40";
 
 	function updateScheduleSubmode(value: ScheduleSubmode) {
 		// When switching submode, clear fields that don't apply to the new submode
@@ -202,6 +234,8 @@
 				return data.config.deviceName ?? "No device set";
 			case "schedule":
 				return humanSchedule;
+			case "manual":
+				return "Manual trigger";
 			case "custom":
 				return data.config.customExpr || "true";
 			default:
@@ -249,9 +283,11 @@
 					value={data.config.deviceId ?? ""}
 					getValue={(d) => d.id}
 					getLabel={(d) => d.name}
+					chipConfigs={deviceChipConfigs}
+					chipMatchers={deviceChipMatchers}
 					placeholder="Select device"
 					size="sm"
-					class="text-xs"
+					class={validationError?.field === "device" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handleDeviceChange(v)}
 				>
 					{#snippet renderSelected(d: Device)}
@@ -259,9 +295,9 @@
 						<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0" />
 					{/snippet}
 					{#snippet item(d: Device)}
-						<span class="flex items-center gap-1.5 overflow-hidden">
+						<span class="flex w-full items-center gap-1.5 overflow-hidden">
 							<span class="truncate">{d.name}</span>
-							<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0" />
+							<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
 						</span>
 					{/snippet}
 				</HiveSelectAutocomplete>
@@ -275,7 +311,7 @@
 					getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
 					placeholder="Select property"
 					size="sm"
-					class="text-xs"
+					class={validationError?.field === "property" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handlePropertyChange(v)}
 				>
 					{#snippet item(c: Capability)}
@@ -330,6 +366,7 @@
 								max={selectedCapability.valueMax ?? undefined}
 								placeholder={selectedCapability.unit ?? "value"}
 								class="text-xs"
+								aria-invalid={validationError?.field === "value" ? "true" : undefined}
 							/>
 						</div>
 					{:else if selectedCapability.type === "enum" && selectedCapability.values}
@@ -340,7 +377,7 @@
 							getLabel={(v) => sentenceCase(v)}
 							placeholder="Select value"
 							size="sm"
-							class="text-xs"
+							class={validationError?.field === "value" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 							onchange={(v) => v && update({ comparator: "==", value: v })}
 						/>
 					{:else}
@@ -367,6 +404,7 @@
 								}}
 								placeholder="value"
 								class="text-xs"
+								aria-invalid={validationError?.field === "value" ? "true" : undefined}
 							/>
 						</div>
 					{/if}
@@ -382,7 +420,9 @@
 						getLabel={(v) => sentenceCase(v)}
 						placeholder="Select action"
 						size="sm"
-						class="text-xs"
+						class={validationError?.field === "actionValue"
+							? `text-xs ${INVALID_CLS}`
+							: "text-xs"}
 						onchange={(v) => v && update({ actionValue: v })}
 					/>
 				{:else}
@@ -394,6 +434,7 @@
 						}}
 						placeholder="Action value (e.g. single)"
 						class="text-xs"
+						aria-invalid={validationError?.field === "actionValue" ? "true" : undefined}
 					/>
 				{/if}
 			{/if}
@@ -480,6 +521,7 @@
 							min={1}
 							placeholder="N"
 							class="text-xs w-16"
+							aria-invalid={validationError?.field === "interval" ? "true" : undefined}
 						/>
 						<Select
 							type="single"
@@ -505,10 +547,15 @@
 						}}
 						placeholder="* * * * * *  (sec min hr dom mon dow)"
 						class="text-xs font-mono"
+						aria-invalid={validationError?.field === "cronExpr" ? "true" : undefined}
 					/>
 				{/if}
 
 				<p class="text-[10px] text-muted-foreground">{humanSchedule}</p>
+			{/if}
+
+			{#if data.config.mode === "manual"}
+				<p class="text-[10px] text-muted-foreground">Fires from Live mode only.</p>
 			{/if}
 
 			{#if data.config.mode === "custom"}
@@ -534,6 +581,7 @@
 					}}
 					placeholder="Condition expression"
 					class="text-xs font-mono"
+					aria-invalid={validationError?.field === "customExpr" ? "true" : undefined}
 				/>
 			{/if}
 
@@ -541,22 +589,40 @@
 				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedCron}>
 					{generatedCron || "(not set)"}
 				</p>
-			{:else}
+			{:else if data.config.mode !== "manual"}
 				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
 					{generatedExpr}
 				</p>
 			{/if}
 		{:else}
-			<p class="text-xs text-foreground">{readableSummary()}</p>
+			{#if data.config.mode === "manual"}
+				{@const canFire = data.automationEnabled ?? false}
+				<Button
+					type="button"
+					size="sm"
+					class="w-full text-xs"
+					disabled={!canFire}
+					onclick={() => data.onFireManual?.()}
+					title={canFire ? "Fire this trigger now" : "Enable the automation to fire the trigger"}
+				>
+					<Zap class="size-3.5" />
+					Trigger
+				</Button>
+			{:else}
+				<p class="text-xs text-foreground">{readableSummary()}</p>
+			{/if}
 			{#if data.config.mode === "schedule"}
 				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedCron}>
 					{generatedCron}
 				</p>
-			{:else if generatedExpr !== "true"}
+			{:else if data.config.mode !== "manual" && generatedExpr !== "true"}
 				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
 					{generatedExpr}
 				</p>
 			{/if}
+		{/if}
+		{#if validationError && data.editable}
+			<p class="text-[10px] text-destructive">{validationError.message}</p>
 		{/if}
 	</div>
 

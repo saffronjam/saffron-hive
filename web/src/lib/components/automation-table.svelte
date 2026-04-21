@@ -16,6 +16,8 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
 	import { automationNodeCounts } from "$lib/list-helpers";
+	import { formatCooldown, formatFull, formatRelative } from "$lib/time-format";
+	import { nowStore } from "$lib/stores/now.svelte";
 	import { GitMerge, Pencil, Play, Trash2, Workflow, Zap } from "@lucide/svelte";
 
 	interface AutomationNode {
@@ -36,6 +38,7 @@
 		icon?: string | null;
 		enabled: boolean;
 		cooldownSeconds: number;
+		lastFiredAt?: string | null;
 		nodes: AutomationNode[];
 		edges: AutomationEdge[];
 		createdBy?: { id: string; username: string; name: string } | null;
@@ -60,6 +63,7 @@
 				<TableHead>Name</TableHead>
 				<TableHead>Meta</TableHead>
 				<TableHead>Composition</TableHead>
+				<TableHead>Last triggered</TableHead>
 				<TableHead>Created by</TableHead>
 				<TableHead class="w-20">Enabled</TableHead>
 				<TableHead class="w-24 text-right">Actions</TableHead>
@@ -95,7 +99,7 @@
 					<TableCell class="text-xs text-muted-foreground whitespace-nowrap">
 						{automation.nodes.length} node{automation.nodes.length === 1 ? "" : "s"}
 						&middot;
-						{automation.cooldownSeconds}s cooldown
+						{formatCooldown(automation.cooldownSeconds)}
 					</TableCell>
 					<TableCell>
 						{#if c.trigger === 0 && c.operator === 0 && c.action === 0}
@@ -121,6 +125,18 @@
 									</Badge>
 								{/if}
 							</div>
+						{/if}
+					</TableCell>
+					<TableCell class="text-xs text-muted-foreground whitespace-nowrap">
+						{#if automation.lastFiredAt}
+							<Tooltip>
+								<TooltipTrigger>
+									<span>{formatRelative(new Date(automation.lastFiredAt), nowStore.current)}</span>
+								</TooltipTrigger>
+								<TooltipContent>{formatFull(new Date(automation.lastFiredAt))}</TooltipContent>
+							</Tooltip>
+						{:else}
+							<span class="text-muted-foreground">—</span>
 						{/if}
 					</TableCell>
 					<TableCell class="text-sm text-muted-foreground whitespace-nowrap">

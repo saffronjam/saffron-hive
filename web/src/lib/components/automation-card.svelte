@@ -12,6 +12,9 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
+	import { formatCooldown, formatFull, formatRelative } from "$lib/time-format";
+	import { nowStore } from "$lib/stores/now.svelte";
 	import { Workflow, Zap, GitMerge, Play, Pencil, Trash2, EllipsisVertical } from "@lucide/svelte";
 
 	interface AutomationNode {
@@ -32,6 +35,7 @@
 		icon?: string | null;
 		enabled: boolean;
 		cooldownSeconds: number;
+		lastFiredAt?: string | null;
 		nodes: AutomationNode[];
 		edges: AutomationEdge[];
 	}
@@ -67,7 +71,16 @@
 				<p class="text-xs text-muted-foreground">
 					{automation.nodes.length} node{automation.nodes.length === 1 ? "" : "s"}
 					&middot;
-					{automation.cooldownSeconds}s cooldown
+					{formatCooldown(automation.cooldownSeconds)}
+					{#if automation.lastFiredAt}
+						&middot;
+						<Tooltip>
+							<TooltipTrigger>
+								<span>fired {formatRelative(new Date(automation.lastFiredAt), nowStore.current)}</span>
+							</TooltipTrigger>
+							<TooltipContent>{formatFull(new Date(automation.lastFiredAt))}</TooltipContent>
+						</Tooltip>
+					{/if}
 				</p>
 			</div>
 		</div>

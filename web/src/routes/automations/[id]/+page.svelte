@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy, untrack } from "svelte";
+	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -9,13 +10,10 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogFooter,
-		DialogHeader,
-		DialogTitle,
-	} from "$lib/components/ui/dialog/index.js";
+		Popover,
+		PopoverContent,
+		PopoverTrigger,
+	} from "$lib/components/ui/popover/index.js";
 	import {
 		Tabs,
 		TabsContent,
@@ -29,6 +27,7 @@
 	import { Clapperboard, Workflow } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
+	import type { FlowApi } from "$lib/components/graph/flow-bridge.svelte";
 	import JsonEditor from "$lib/components/json-editor.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -46,6 +45,9 @@
 		LayoutGrid,
 		Undo2,
 		Redo2,
+		Rows3,
+		Copy,
+		ClipboardPaste,
 		Settings,
 	} from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -61,12 +63,15 @@
 		serializeTriggerConfig,
 		serializeOperatorConfig,
 		serializeActionConfig,
+		validateTriggerConfig,
+		validateActionConfig,
 	} from "$lib/components/graph/trigger-expr";
 	import {
 		type ConditionConfig,
 		defaultConditionConfig,
 		normalizeConditionConfig,
 		serializeConditionConfig,
+		validateConditionConfig,
 	} from "$lib/components/graph/condition-expr";
 
 	interface OperatorConfig {
@@ -87,6 +92,8 @@
 		id: string;
 		type: string;
 		config: string;
+		positionX: number;
+		positionY: number;
 	}
 
 	interface AutomationEdgeData {
@@ -135,6 +142,16 @@
 		groups: GroupData[];
 	}
 
+	interface RoomData {
+		id: string;
+		name: string;
+		devices: { id: string }[];
+	}
+
+	interface RoomsQueryResult {
+		rooms: RoomData[];
+	}
+
 	interface AutomationNodeActivationResult {
 		automationNodeActivated: {
 			automationId: string;
@@ -155,6 +172,8 @@
 					id
 					type
 					config
+					positionX
+					positionY
 				}
 				edges {
 					id
@@ -177,6 +196,8 @@
 					id
 					type
 					config
+					positionX
+					positionY
 				}
 				edges {
 					id
@@ -202,6 +223,12 @@
 		}
 	`);
 
+	const FIRE_AUTOMATION_TRIGGER = graphql(`
+		mutation AutomationEditFireTrigger($automationId: ID!, $nodeId: ID!) {
+			fireAutomationTrigger(automationId: $automationId, nodeId: $nodeId)
+		}
+	`);
+
 	const DEVICES_QUERY = graphql(`
 		query AutomationEditDevices {
 			devices {
@@ -213,22 +240,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						on
-						brightness
-						colorTemp
-						transition
-					}
-					... on SensorState {
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -244,6 +269,16 @@
 					memberType
 					memberId
 				}
+			}
+		}
+	`);
+
+	const ROOMS_QUERY = graphql(`
+		query AutomationEditRooms {
+			rooms {
+				id
+				name
+				devices { id }
 			}
 		}
 	`);
@@ -297,12 +332,25 @@
 	$effect(() => {
 		pageHeader.actions = [
 			{ label: "Cancel", variant: "outline" as const, onclick: handleCancel },
-			{ label: "Save", saving, onclick: handleSave, disabled: !editMode || saving },
+			{
+				label: "Save",
+				saving,
+				onclick: handleSave,
+				disabled: !editMode || saving || hasValidationErrors || !isDirty,
+			},
 			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode },
 		];
 	});
 	let automationEnabled = $state(false);
-	let cooldownSeconds = $state(60);
+	let cooldownSeconds = $state(0.5);
+	const MIN_COOLDOWN_SECONDS = 0.001;
+	const cooldownError = $derived.by(() => {
+		if (cooldownSeconds < 0) return "Cooldown must not be negative";
+		if (cooldownSeconds > 0 && cooldownSeconds < MIN_COOLDOWN_SECONDS) {
+			return `Cooldown must be 0 or at least ${MIN_COOLDOWN_SECONDS} s`;
+		}
+		return null;
+	});
 	let flowNodes = $state<Node[]>([]);
 	let flowEdges = $state<Edge[]>([]);
 
@@ -316,26 +364,35 @@
 	const errors = new ErrorBanner();
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
-	let advancedOpen = $state(false);
 
 	let pickerOpen = $state(false);
 	let pickerTargetNodeId = $state<string | null>(null);
 	let pickerActionType = $state<string>("set_device_state");
 	let devices = $state<Device[]>([]);
 	let groups = $state<GroupData[]>([]);
+	let rooms = $state<RoomData[]>([]);
 	let scenes = $state<{ id: string; name: string }[]>([]);
 
-	const pickerGroups = $derived.by((): DrawerGroup<"device" | "group" | "scene">[] => {
+	const pickerGroups = $derived.by((): DrawerGroup<"device" | "group" | "room" | "scene">[] => {
 		if (pickerActionType === "activate_scene") {
 			return [{ heading: "Scenes", items: scenes.map((s) => ({ type: "scene" as const, id: s.id, name: s.name, icon: Clapperboard })) }];
 		}
-		return [{ heading: "Devices", items: devices.map((d) => ({ type: "device" as const, id: d.id, name: d.name, icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}` })) }];
+		return [
+			{ heading: "Devices", items: devices.map((d) => ({ type: "device" as const, id: d.id, name: d.name, icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}` })) },
+			{ heading: "Groups", items: groups.map((g) => ({ type: "group" as const, id: g.id, name: g.name, icon: Workflow })) },
+			{ heading: "Rooms", items: rooms.map((r) => ({ type: "room" as const, id: r.id, name: r.name, icon: Workflow })) },
+		];
 	});
 
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 	let unsubscribers: (() => void)[] = [];
 
 	let nodeIdCounter = $state(0);
+	let flowApi: FlowApi | null = $state(null);
+	// In-editor copy buffer for duplicating selected nodes. Not the OS
+	// clipboard — keyboard shortcuts deliberately aren't wired.
+	let copyBuffer = $state<{ nodes: Node[]; edges: Edge[] } | null>(null);
+	const anyNodeSelected = $derived(flowNodes.some((n) => n.selected));
 	let restoringSnapshot = false;
 
 	interface AutomationSnapshot {
@@ -348,7 +405,30 @@
 	}
 
 	const history = new HistoryStack<AutomationSnapshot>();
-	const isDirty = $derived(history.cursor > 0);
+	// Cursor of the snapshot that matches what's persisted in the DB. Set on
+	// initial load and after each successful save. isDirty compares against this
+	// so undo/redo back to the saved baseline cleanly turns Save off.
+	let savedCursor = $state(0);
+	const isDirty = $derived(history.cursor !== savedCursor);
+
+	const hasValidationErrors = $derived.by(() => {
+		if (cooldownError) return true;
+		for (const n of flowNodes) {
+			const nodeType = n.type ?? "";
+			const config = (n.data as Record<string, unknown>).config;
+			let err: { field: string; message: string } | null = null;
+			if (nodeType === "trigger") err = validateTriggerConfig(config as TriggerConfig);
+			else if (nodeType === "condition") err = validateConditionConfig(config as ConditionConfig);
+			else if (nodeType === "action") err = validateActionConfig(config as ActionConfig);
+			if (err) return true;
+		}
+		return false;
+	});
+
+	// Live button is disabled when a save is in flight, or when the graph has
+	// unsaved changes we can't persist (validation errors). Dirty-without-errors
+	// is allowed — we'll auto-save on the Live click.
+	const liveDisabled = $derived(saving || (isDirty && hasValidationErrors));
 
 	function cloneNodes(nodes: Node[]): Node[] {
 		return nodes.map((n) => {
@@ -397,6 +477,60 @@
 		restoringSnapshot = false;
 	}
 
+	function handleSort() {
+		flowNodes = layoutGraph(flowNodes);
+		takeSnapshot();
+	}
+
+	function handleCopy() {
+		const selectedNodes = flowNodes.filter((n) => n.selected);
+		if (selectedNodes.length === 0) return;
+		const selectedIds = new Set(selectedNodes.map((n) => n.id));
+		const internalEdges = flowEdges.filter(
+			(e) => selectedIds.has(e.source) && selectedIds.has(e.target)
+		);
+		copyBuffer = {
+			nodes: cloneNodes(selectedNodes),
+			edges: cloneEdges(internalEdges),
+		};
+	}
+
+	function handlePaste() {
+		if (!copyBuffer || copyBuffer.nodes.length === 0) return;
+		const idMap = new Map<string, string>();
+		for (const n of copyBuffer.nodes) {
+			idMap.set(n.id, `node-${crypto.randomUUID()}`);
+		}
+		const offset = 48;
+		const newNodes: Node[] = copyBuffer.nodes.map((n) => {
+			const newId = idMap.get(n.id)!;
+			const nodeType = n.type ?? "trigger";
+			const config = (n.data as Record<string, unknown>).config as NodeConfig;
+			return {
+				...n,
+				id: newId,
+				position: { x: n.position.x + offset, y: n.position.y + offset },
+				selected: true,
+				// Rebuild data so callbacks (onConfigChange etc.) close over the new
+				// nodeId. Reuse the existing makeNodeData so trigger/condition/action
+				// wiring stays consistent.
+				data: makeNodeData(nodeType, config, editMode, false, newId),
+			};
+		});
+		const newEdges: Edge[] = copyBuffer.edges.map((e) => ({
+			...e,
+			id: `edge-${crypto.randomUUID()}`,
+			source: idMap.get(e.source) ?? e.source,
+			target: idMap.get(e.target) ?? e.target,
+		}));
+		flowNodes = [
+			...flowNodes.map((n) => (n.selected ? { ...n, selected: false } : n)),
+			...newNodes,
+		];
+		flowEdges = [...flowEdges, ...newEdges];
+		takeSnapshot();
+	}
+
 	function handleUndo() {
 		const snap = history.undo();
 		if (snap) restoreSnapshot(snap);
@@ -419,11 +553,27 @@
 		}
 	}
 
+	function enrichTriggerConfigWithDevice(cfg: TriggerConfig): TriggerConfig {
+		// normalizeTriggerConfig can only recover one of {deviceId, deviceName}
+		// from an expression depending on the mode — look up the other side in
+		// the loaded devices list so the UI has both.
+		if (!devices.length) return cfg;
+		if (cfg.deviceId && !cfg.deviceName) {
+			const d = devices.find((x) => x.id === cfg.deviceId);
+			if (d) return { ...cfg, deviceName: d.name };
+		}
+		if (cfg.deviceName && !cfg.deviceId) {
+			const d = devices.find((x) => x.name === cfg.deviceName);
+			if (d) return { ...cfg, deviceId: d.id };
+		}
+		return cfg;
+	}
+
 	function parseConfig(nodeType: string, configJson: string): NodeConfig {
 		try {
 			const raw = JSON.parse(configJson) as Record<string, unknown>;
 			if (nodeType === "trigger") {
-				return normalizeTriggerConfig(raw);
+				return enrichTriggerConfigWithDevice(normalizeTriggerConfig(raw));
 			}
 			if (nodeType === "condition") {
 				return normalizeConditionConfig(raw);
@@ -479,6 +629,8 @@
 			return {
 				...base,
 				devices,
+				automationEnabled,
+				onFireManual: () => handleFireManual(nodeId),
 			};
 		}
 
@@ -492,6 +644,9 @@
 		if (nodeType === "action") {
 			return {
 				...base,
+				devices,
+				groups,
+				rooms,
 				onPickTarget: () => {
 					const actionConfig = config as ActionConfig;
 					pickerTargetNodeId = nodeId;
@@ -504,28 +659,61 @@
 		return base;
 	}
 
+	const EDGE_STYLE_IDLE = "stroke: var(--color-muted-foreground); stroke-width: 1px; opacity: 0.5;";
+	const EDGE_STYLE_SELECTED = "stroke: #ffffff; stroke-width: 2px; opacity: 1;";
+	// Active-edge color matches the source node's theme color so the user can
+	// tell at a glance what's driving a given line during Live mode.
+	const EDGE_STYLE_ACTIVE_BY_TYPE: Record<string, string> = {
+		trigger: "stroke: #60a5fa; stroke-width: 2px; opacity: 1;", // blue
+		condition: "stroke: #2dd4bf; stroke-width: 2px; opacity: 1;", // teal
+		operator: "stroke: #eab308; stroke-width: 2px; opacity: 1;", // yellow
+		action: "stroke: #22c55e; stroke-width: 2px; opacity: 1;", // green
+	};
+	const EDGE_STYLE_ACTIVE_FALLBACK = "stroke: #60a5fa; stroke-width: 2px; opacity: 1;";
+
+	const COLUMN_ORDER = ["trigger", "condition", "operator", "action"] as const;
+	const COLUMN_WIDTH = 280;
+	const ROW_SPACING: Record<string, number> = {
+		trigger: 320,
+		condition: 320,
+		operator: 150,
+		action: 300,
+	};
+
+	// layoutGraph assigns left-to-right column positions to nodes, compacting
+	// empty columns (e.g. if the graph has no operators, triggers sit next to
+	// actions without a gap). Returns a new array with updated positions.
+	function layoutGraph(nodes: Node[]): Node[] {
+		const presentTypes = COLUMN_ORDER.filter((t) => nodes.some((n) => n.type === t));
+		const columnIndex: Record<string, number> = {};
+		presentTypes.forEach((t, i) => (columnIndex[t] = i));
+		const yCounters: Record<string, number> = {};
+		return nodes.map((n) => {
+			const type = n.type ?? "trigger";
+			const col = columnIndex[type] ?? 0;
+			const row = yCounters[type] ?? 0;
+			yCounters[type] = row + 1;
+			const spacing = ROW_SPACING[type] ?? 250;
+			return { ...n, position: { x: col * COLUMN_WIDTH, y: row * spacing } };
+		});
+	}
+
 	function automationNodesToFlowNodes(
 		nodes: AutomationNodeData[],
 		isEditable: boolean,
 		activatedSet: Map<string, ReturnType<typeof setTimeout>>
 	): Node[] {
-		const xPositions: Record<string, number> = { trigger: 0, condition: 280, operator: 560, action: 840 };
-		const yCounters: Record<string, number> = { trigger: 0, condition: 0, operator: 0, action: 0 };
-
-		return nodes.map((n) => {
+		const allZeroPositions = nodes.every((n) => n.positionX === 0 && n.positionY === 0);
+		const baseNodes: Node[] = nodes.map((n) => {
 			const config = parseConfig(n.type, n.config);
-			const xPos = xPositions[n.type] ?? 0;
-			const spacing = ({ trigger: 320, condition: 320, operator: 150, action: 300 })[n.type] ?? 250;
-			const yPos = yCounters[n.type] * spacing;
-			yCounters[n.type] = (yCounters[n.type] ?? 0) + 1;
-
 			return {
 				id: n.id,
 				type: n.type,
-				position: { x: xPos, y: yPos },
+				position: { x: n.positionX, y: n.positionY },
 				data: makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id),
 			};
 		});
+		return allZeroPositions ? layoutGraph(baseNodes) : baseNodes;
 	}
 
 	function automationEdgesToFlowEdges(edges: AutomationEdgeData[]): Edge[] {
@@ -537,7 +725,9 @@
 		}));
 	}
 
-	function flowNodesToAutomationNodes(nodes: Node[]): { id: string; type: string; config: string }[] {
+	function flowNodesToAutomationNodes(
+		nodes: Node[]
+	): { id: string; type: string; config: string; positionX: number; positionY: number }[] {
 		return nodes.map((n) => {
 			const nodeType = n.type ?? "trigger";
 			const config = (n.data as Record<string, unknown>).config;
@@ -558,7 +748,13 @@
 				default:
 					serialized = JSON.stringify(config);
 			}
-			return { id: n.id, type: nodeType, config: serialized };
+			return {
+				id: n.id,
+				type: nodeType,
+				config: serialized,
+				positionX: n.position?.x ?? 0,
+				positionY: n.position?.y ?? 0,
+			};
 		});
 	}
 
@@ -582,7 +778,13 @@
 	interface AutomationJson {
 		name: string;
 		cooldownSeconds: number;
-		nodes: { id: string; type: string; config: Record<string, unknown> }[];
+		nodes: {
+			id: string;
+			type: string;
+			config: Record<string, unknown>;
+			positionX: number;
+			positionY: number;
+		}[];
 		edges: { from: string; to: string }[];
 	}
 
@@ -607,7 +809,13 @@
 							return config;
 					}
 				})();
-				return { id: n.id, type: nodeType, config: serialized as Record<string, unknown> };
+				return {
+					id: n.id,
+					type: nodeType,
+					config: serialized as Record<string, unknown>,
+					positionX: n.position?.x ?? 0,
+					positionY: n.position?.y ?? 0,
+				};
 			}),
 			edges: flowEdges.map((e) => ({
 				from: e.source,
@@ -683,6 +891,8 @@
 			id: n.id as string,
 			type: n.type as string,
 			config: JSON.stringify(n.config),
+			positionX: typeof n.positionX === "number" ? n.positionX : 0,
+			positionY: typeof n.positionY === "number" ? n.positionY : 0,
 		}));
 
 		const edges: AutomationEdgeData[] = (obj.edges as Record<string, unknown>[]).map((e, i) => ({
@@ -718,13 +928,24 @@
 		syncSource = null;
 	}
 
+	function nextPositionForType(
+		existingNodes: Node[],
+		newType: (typeof COLUMN_ORDER)[number]
+	): { x: number; y: number } {
+		const presentTypes = COLUMN_ORDER.filter(
+			(t) => t === newType || existingNodes.some((n) => n.type === t)
+		);
+		const colIndex = presentTypes.indexOf(newType);
+		const existingOfType = existingNodes.filter((n) => n.type === newType).length;
+		const spacing = ROW_SPACING[newType] ?? 250;
+		return { x: colIndex * COLUMN_WIDTH, y: existingOfType * spacing };
+	}
+
 	function addNode(nodeType: "trigger" | "condition" | "operator" | "action") {
 		nodeIdCounter++;
 		// Use a globally unique ID so saves from different browser sessions or
 		// automations don't collide on the automation_nodes.id PRIMARY KEY.
 		const tempId = `node-${crypto.randomUUID()}`;
-		const xPositions: Record<string, number> = { trigger: 0, condition: 280, operator: 560, action: 840 };
-		const existingOfType = flowNodes.filter((n) => n.type === nodeType).length;
 
 		let config: NodeConfig;
 		switch (nodeType) {
@@ -745,12 +966,13 @@
 		const newNode: Node = {
 			id: tempId,
 			type: nodeType,
-			position: { x: xPositions[nodeType] ?? 0, y: existingOfType * (({ trigger: 320, condition: 320, operator: 150, action: 300 })[nodeType] ?? 250) },
+			position: nextPositionForType(flowNodes, nodeType),
 			data: makeNodeData(nodeType, config, editMode, false, tempId),
 		};
 
 		flowNodes = [...flowNodes, newNode];
 		takeSnapshot();
+		queueMicrotask(() => flowApi?.panToNode(tempId));
 	}
 
 	function handleConnect(_connection: Connection) {
@@ -768,13 +990,15 @@
 		}
 	}
 
-	function handleTargetSelect(memberType: "device" | "group" | "scene", memberId: string) {
+	function handleTargetSelect(memberType: "device" | "group" | "room" | "scene", memberId: string) {
 		if (!pickerTargetNodeId) return;
 
 		const selectedDevice = devices.find((d) => d.id === memberId);
 		const selectedGroup = groups.find((g) => g.id === memberId);
+		const selectedRoom = rooms.find((r) => r.id === memberId);
 		const selectedScene = scenes.find((s) => s.id === memberId);
-		const targetName = selectedDevice?.name ?? selectedGroup?.name ?? selectedScene?.name ?? memberId;
+		const targetName =
+			selectedDevice?.name ?? selectedGroup?.name ?? selectedRoom?.name ?? selectedScene?.name ?? memberId;
 
 		flowNodes = flowNodes.map((n) => {
 			if (n.id !== pickerTargetNodeId) return n;
@@ -797,7 +1021,9 @@
 	function updateTriggerNodeDevices(deviceList: Device[]) {
 		flowNodes = flowNodes.map((n) => {
 			if (n.type !== "trigger") return n;
-			return { ...n, data: { ...n.data, devices: deviceList } };
+			const data = n.data as Record<string, unknown>;
+			const cfg = enrichTriggerConfigWithDevice(data.config as TriggerConfig);
+			return { ...n, data: { ...data, devices: deviceList, config: cfg } };
 		});
 	}
 
@@ -808,6 +1034,65 @@
 		}
 	});
 
+	function updateTriggerNodeEnabledState(enabled: boolean) {
+		flowNodes = flowNodes.map((n) => {
+			if (n.type !== "trigger") return n;
+			return {
+				...n,
+				data: { ...n.data, automationEnabled: enabled },
+			};
+		});
+	}
+
+	$effect(() => {
+		const enabled = automationEnabled;
+		untrack(() => updateTriggerNodeEnabledState(enabled));
+	});
+
+	function edgeStyleFor(e: Edge): string {
+		if (e.selected) return EDGE_STYLE_SELECTED;
+		if (!editMode && activatedNodes.has(e.source)) {
+			const src = flowNodes.find((n) => n.id === e.source);
+			const type = src?.type ?? "";
+			return EDGE_STYLE_ACTIVE_BY_TYPE[type] ?? EDGE_STYLE_ACTIVE_FALLBACK;
+		}
+		return EDGE_STYLE_IDLE;
+	}
+
+	function updateEdgeStyles() {
+		let mutated = false;
+		const next = flowEdges.map((e) => {
+			const targetStyle = edgeStyleFor(e);
+			if (e.style === targetStyle) return e;
+			mutated = true;
+			return { ...e, style: targetStyle };
+		});
+		if (mutated) flowEdges = next;
+	}
+
+	$effect(() => {
+		// Track dependencies, then recompute imperatively so we don't race with
+		// xyflow's own edge mutations.
+		void activatedNodes;
+		void editMode;
+		void flowEdges.length;
+		// Selection state lives inside each edge's `selected` field, which xyflow
+		// mutates on click. Summing selections gives us a reactive dep.
+		void flowEdges.reduce((acc, e) => acc + (e.selected ? 1 : 0), 0);
+		untrack(updateEdgeStyles);
+	});
+
+	async function handleFireManual(nodeId: string) {
+		if (!client || !automationId) return;
+		errors.clear();
+		const result = await client
+			.mutation(FIRE_AUTOMATION_TRIGGER, { automationId, nodeId })
+			.toPromise();
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+		}
+	}
+
 	function updateNodeEditability(isEditable: boolean) {
 		flowNodes = flowNodes.map((n) => ({
 			...n,
@@ -815,9 +1100,31 @@
 		}));
 	}
 
+	async function handleGoLive() {
+		if (!editMode || liveDisabled) return;
+		if (isDirty) {
+			await handleSave();
+			// If save was rejected (network error or late validation failure),
+			// don't leave Edit mode.
+			if (isDirty) return;
+		}
+		toggleMode();
+	}
+
 	function toggleMode() {
 		editMode = !editMode;
 		updateNodeEditability(editMode);
+		if (editMode) {
+			// Leaving Live mode: clear any in-flight activation glows so Edit
+			// mode is visually quiet.
+			for (const timeout of activatedNodes.values()) {
+				clearTimeout(timeout);
+			}
+			activatedNodes = new Map();
+			flowNodes = flowNodes.map((n) =>
+				n.data.activated ? { ...n, data: { ...n.data, activated: false } } : n
+			);
+		}
 	}
 
 	async function handleSave() {
@@ -857,6 +1164,7 @@
 			}
 			flowEdges = automationEdgesToFlowEdges(auto.edges);
 			jsonString = flowStateToJson();
+			savedCursor = history.cursor;
 		}
 	}
 
@@ -932,6 +1240,15 @@
 			});
 
 		client
+			.query<RoomsQueryResult>(ROOMS_QUERY, {})
+			.toPromise()
+			.then((result) => {
+				if (result.data) {
+					rooms = result.data.rooms;
+				}
+			});
+
+		client
 			.query<ScenesQueryResult>(SCENES_QUERY, {})
 			.toPromise()
 			.then((result) => {
@@ -946,6 +1263,7 @@
 			})
 			.subscribe((result) => {
 				if (!result.data) return;
+				if (editMode) return;
 				const { nodeId, active } = result.data.automationNodeActivated;
 
 				if (active) {
@@ -1072,9 +1390,35 @@
 					</Button>
 				</div>
 
-				<Button variant="ghost" size="icon-sm" onclick={() => (advancedOpen = true)} aria-label="Advanced settings">
-					<Settings class="size-4" />
-				</Button>
+				<Popover>
+					<PopoverTrigger>
+						<Button variant="ghost" size="icon-sm" aria-label="Advanced settings">
+							<Settings class="size-4" />
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent class="w-72 p-4" align="end">
+						<div class="grid gap-3">
+							<div class="text-sm font-semibold">Advanced</div>
+							<div class="grid gap-1.5">
+								<label for="cooldown" class="text-sm font-medium">Cooldown (s)</label>
+								<Input
+									id="cooldown"
+									type="number"
+									bind:value={cooldownSeconds}
+									min={0}
+									step={0.001}
+									disabled={!editMode}
+								/>
+								<p class="text-xs text-muted-foreground">
+									Minimum time between firings. <code>0</code> disables. Lower limit is 0.001 s.
+								</p>
+								{#if cooldownError}
+									<p class="text-xs text-destructive">{cooldownError}</p>
+								{/if}
+							</div>
+						</div>
+					</PopoverContent>
+				</Popover>
 			</div>
 		{/if}
 	</div>
@@ -1084,7 +1428,7 @@
 			<div class="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
 		</div>
 	{:else if viewMode === "visual"}
-		<div class="relative flex-1">
+		<div class="relative flex-1" in:fly={{ y: -4, duration: 150 }}>
 			<AutomationFlow
 				bind:nodes={flowNodes}
 				bind:edges={flowEdges}
@@ -1093,6 +1437,7 @@
 				onnodeclick={handleNodeClick}
 				onnodedragstop={takeSnapshot}
 				ondelete={takeSnapshot}
+				onReady={(api) => (flowApi = api)}
 			/>
 			<div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm">
 				<Button variant="ghost" size="icon-sm" onclick={handleUndo} disabled={!editMode || !history.canUndo}>
@@ -1100,6 +1445,28 @@
 				</Button>
 				<Button variant="ghost" size="icon-sm" onclick={handleRedo} disabled={!editMode || !history.canRedo}>
 					<Redo2 class="size-3.5" />
+				</Button>
+				<Button variant="ghost" size="sm" onclick={handleSort} disabled={!editMode}>
+					<Rows3 class="size-3.5" />
+					<span class="hidden sm:inline">Sort</span>
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={handleCopy}
+					disabled={!editMode || !anyNodeSelected}
+					aria-label="Copy selected nodes"
+				>
+					<Copy class="size-3.5" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={handlePaste}
+					disabled={!editMode || !copyBuffer}
+					aria-label="Paste copied nodes"
+				>
+					<ClipboardPaste class="size-3.5" />
 				</Button>
 				<div class="mx-1 h-4 w-px bg-border"></div>
 				<Button variant="ghost" size="sm" onclick={() => addNode("trigger")} disabled={!editMode}>
@@ -1133,7 +1500,8 @@
 						variant={!editMode ? "secondary" : "ghost"}
 						size="sm"
 						class="rounded-l-none border-0 h-7"
-						onclick={() => { if (editMode) toggleMode(); }}
+						disabled={editMode && liveDisabled}
+						onclick={handleGoLive}
 					>
 						<Eye class="size-3.5" />
 						<span class="hidden sm:inline">Live</span>
@@ -1142,7 +1510,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="relative flex-1 pt-2">
+		<div class="relative flex-1 pt-2" in:fly={{ y: -4, duration: 150 }}>
 			<JsonEditor
 				bind:value={jsonString}
 				bind:error={jsonError}
@@ -1178,29 +1546,4 @@
 		oncancel={() => (deleteConfirmOpen = false)}
 	/>
 
-	<Dialog bind:open={advancedOpen}>
-		<DialogContent class="sm:max-w-md">
-			<DialogHeader>
-				<DialogTitle>Advanced Settings</DialogTitle>
-				<DialogDescription>
-					Configure cooldown and other advanced options for this automation.
-				</DialogDescription>
-			</DialogHeader>
-			<div class="grid gap-4 py-2">
-				<div class="grid gap-1.5">
-					<label for="cooldown" class="text-sm font-medium">Cooldown (seconds)</label>
-					<p class="text-xs text-muted-foreground">
-						Minimum time between consecutive firings of this automation.
-					</p>
-					<Input
-						id="cooldown"
-						type="number"
-						bind:value={cooldownSeconds}
-						min={0}
-						disabled={!editMode}
-					/>
-				</div>
-			</div>
-		</DialogContent>
-	</Dialog>
 </div>

@@ -1,6 +1,12 @@
-export type TriggerMode = "device_state" | "button_action" | "availability" | "schedule" | "custom";
+export type TriggerMode =
+  | "device_state"
+  | "button_action"
+  | "availability"
+  | "schedule"
+  | "manual"
+  | "custom";
 
-export type TriggerKind = "event" | "schedule";
+export type TriggerKind = "event" | "schedule" | "manual";
 
 export type ScheduleSubmode = "at" | "every" | "custom";
 
@@ -65,13 +71,11 @@ export function generateFilterExpr(config: TriggerConfig): string {
       return `${prop} ${cmp} ${formatted}`;
     }
     case "button_action": {
-      if (!config.deviceId || !config.deviceName) return "true";
+      if (!config.deviceId) return "true";
       const parts: string[] = [];
       parts.push(`trigger.device_id == "${escapeExprString(config.deviceId)}"`);
       if (config.actionValue) {
-        parts.push(
-          `device("${escapeExprString(config.deviceName)}").action == "${escapeExprString(config.actionValue)}"`,
-        );
+        parts.push(`trigger.payload.action == "${escapeExprString(config.actionValue)}"`);
       }
       return parts.join(" && ");
     }
@@ -81,6 +85,8 @@ export function generateFilterExpr(config: TriggerConfig): string {
     }
     case "custom":
       return config.customExpr || "true";
+    case "manual":
+      return "true";
     default:
       return "true";
   }
@@ -186,19 +192,24 @@ export function parseEveryModeFromCron(cron: string): {
 export function eventTypeForMode(mode: TriggerMode): string {
   switch (mode) {
     case "device_state":
-    case "button_action":
       return "device.state_changed";
+    case "button_action":
+      return "device.action_fired";
     case "availability":
       return "device.availability_changed";
     case "schedule":
       return ""; // not used for schedule triggers
+    case "manual":
+      return ""; // not used for manual triggers
     case "custom":
       return "device.state_changed";
   }
 }
 
 export function triggerKindForMode(mode: TriggerMode): TriggerKind {
-  return mode === "schedule" ? "schedule" : "event";
+  if (mode === "schedule") return "schedule";
+  if (mode === "manual") return "manual";
+  return "event";
 }
 
 export function defaultTriggerConfig(): TriggerConfig {
@@ -213,6 +224,11 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
   // just coerce it.
   if (raw.mode && typeof raw.mode === "string") {
     return raw as unknown as TriggerConfig;
+  }
+
+  // Manual trigger (has no config beyond kind)
+  if (raw.kind === "manual") {
+    return { mode: "manual" };
   }
 
   // Schedule trigger (new shape)
@@ -258,6 +274,56 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     (raw.customExpr as string) ??
     "";
 
+  // Reverse-engineer the UI mode from the filter expression shape.
+  // deviceName can't be recovered from `trigger.device_id ==`-only filters;
+  // the UI will fill it by looking up deviceId in the devices list.
+  if (eventType === "device.availability_changed") {
+    const m = filter.match(/^trigger\.device_id == "([^"]+)"$/);
+    if (m) {
+      return { mode: "availability", eventType, deviceId: m[1] };
+    }
+  }
+  if (eventType === "device.action_fired") {
+    const btnFull = filter.match(
+      /^trigger\.device_id == "([^"]+)" && trigger\.payload\.action == "([^"]+)"$/,
+    );
+    if (btnFull) {
+      return {
+        mode: "button_action",
+        eventType,
+        deviceId: btnFull[1],
+        actionValue: btnFull[2],
+      };
+    }
+    const btnDevOnly = filter.match(/^trigger\.device_id == "([^"]+)"$/);
+    if (btnDevOnly) {
+      return {
+        mode: "button_action",
+        eventType,
+        deviceId: btnDevOnly[1],
+      };
+    }
+  }
+  if (eventType === "device.state_changed") {
+    const ds = filter.match(
+      /^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/,
+    );
+    if (ds) {
+      let val = ds[4].trim();
+      if (val.startsWith('"') && val.endsWith('"')) {
+        val = val.slice(1, -1);
+      }
+      return {
+        mode: "device_state",
+        eventType,
+        deviceName: ds[1],
+        property: ds[2],
+        comparator: ds[3],
+        value: val,
+      };
+    }
+  }
+
   return {
     mode: "custom",
     eventType,
@@ -271,6 +337,9 @@ export function serializeTriggerConfig(config: TriggerConfig): string {
       kind: "schedule",
       cron_expr: generateCronExpr(config),
     });
+  }
+  if (config.mode === "manual") {
+    return JSON.stringify({ kind: "manual" });
   }
   return JSON.stringify({
     kind: "event",
@@ -301,3 +370,86 @@ export function serializeActionConfig(config: {
 
 // Legacy alias so existing callers keep working until we update them all.
 export const generateConditionExpr = generateFilterExpr;
+
+export type TriggerField =
+  | "device"
+  | "property"
+  | "value"
+  | "actionValue"
+  | "interval"
+  | "cronExpr"
+  | "customExpr";
+
+export interface ValidationError<F extends string> {
+  field: F;
+  message: string;
+}
+
+export function validateTriggerConfig(config: TriggerConfig): ValidationError<TriggerField> | null {
+  switch (config.mode) {
+    case "device_state":
+      if (!config.deviceId) return { field: "device", message: "Pick a device" };
+      if (!config.property) return { field: "property", message: "Pick a property" };
+      if (config.value === undefined || config.value === "") {
+        return { field: "value", message: "Set a value" };
+      }
+      return null;
+    case "button_action":
+      if (!config.deviceId) return { field: "device", message: "Pick a device" };
+      if (!config.actionValue) return { field: "actionValue", message: "Pick an action" };
+      return null;
+    case "availability":
+      if (!config.deviceId) return { field: "device", message: "Pick a device" };
+      return null;
+    case "schedule": {
+      const submode = config.scheduleSubmode ?? "at";
+      if (submode === "every") {
+        if (!config.scheduleIntervalValue || config.scheduleIntervalValue <= 0) {
+          return { field: "interval", message: "Set a positive interval" };
+        }
+      } else if (submode === "custom") {
+        if (!config.cronExpr || config.cronExpr.trim() === "") {
+          return { field: "cronExpr", message: "Enter a cron expression" };
+        }
+      }
+      return null;
+    }
+    case "manual":
+      return null;
+    case "custom":
+      if (!config.customExpr || config.customExpr.trim() === "") {
+        return { field: "customExpr", message: "Enter an expression" };
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
+export interface ActionConfigShape {
+  actionType: string;
+  targetType: string;
+  targetId: string;
+  payload: string;
+}
+
+export type ActionField = "actionType" | "target" | "payload";
+
+export function validateActionConfig(config: ActionConfigShape): ValidationError<ActionField> | null {
+  if (!config.actionType) return { field: "actionType", message: "Pick an action type" };
+  if (config.actionType === "raise_alarm" || config.actionType === "clear_alarm") {
+    try {
+      const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;
+      if (!parsed.alarm_id || typeof parsed.alarm_id !== "string" || parsed.alarm_id.trim() === "") {
+        return { field: "payload", message: "Set an alarm id" };
+      }
+    } catch {
+      return { field: "payload", message: "Payload must be valid JSON" };
+    }
+    return null;
+  }
+  if (!config.targetType || !config.targetId) {
+    return { field: "target", message: "Pick a target" };
+  }
+  return null;
+}

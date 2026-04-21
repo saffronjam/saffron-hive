@@ -10,6 +10,7 @@
 		type IsValidConnection,
 	} from "@xyflow/svelte";
 	import "@xyflow/svelte/dist/style.css";
+	import FlowBridge, { type FlowApi } from "./flow-bridge.svelte";
 	import TriggerNode from "./trigger-node.svelte";
 	import ConditionNode from "./condition-node.svelte";
 	import OperatorNode from "./operator-node.svelte";
@@ -25,6 +26,7 @@
 		onnodeclick?: (event: { node: Node; event: MouseEvent | TouchEvent }) => void;
 		onnodedragstop?: () => void;
 		ondelete?: () => void;
+		onReady?: (api: FlowApi) => void;
 	}
 
 	let {
@@ -35,6 +37,7 @@
 		onnodeclick,
 		onnodedragstop,
 		ondelete,
+		onReady,
 	}: Props = $props();
 
 	const nodeTypes: NodeTypes = {
@@ -98,10 +101,14 @@
 		fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
 		colorMode="system"
 		deleteKey={editable ? "Backspace" : null}
-		defaultEdgeOptions={{ animated: true }}
+		defaultEdgeOptions={{
+			animated: true,
+			style: "stroke: var(--color-muted-foreground); stroke-width: 1px; opacity: 0.5;",
+		}}
 		proOptions={{ hideAttribution: true }}
 	>
 		<Controls />
 		<Background />
+		<FlowBridge {nodes} {onReady} />
 	</SvelteFlow>
 </div>

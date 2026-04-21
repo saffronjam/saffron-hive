@@ -52,6 +52,7 @@
 		icon?: string | null;
 		enabled: boolean;
 		cooldownSeconds: number;
+		lastFiredAt?: string | null;
 		nodes: AutomationNode[];
 		edges: AutomationEdge[];
 		createdBy?: { id: string; username: string; name: string } | null;
@@ -79,6 +80,7 @@
 				icon
 				enabled
 				cooldownSeconds
+				lastFiredAt
 				nodes {
 					id
 					type
@@ -209,6 +211,8 @@
 	const actionOptions = [
 		{ value: "set_device_state", label: "Set device state" },
 		{ value: "activate_scene", label: "Activate scene" },
+		{ value: "raise_alarm", label: "Raise alarm" },
+		{ value: "clear_alarm", label: "Clear alarm" },
 	];
 
 	const emptyOptions = [
@@ -346,6 +350,17 @@
 	});
 	onDestroy(() => pageHeader.reset());
 
+	// Poll the list so lastFiredAt updates reflect recent firings without
+	// needing a user gesture. 5s is low enough to feel live for button-driven
+	// automations and cheap: a few rows with `cache-and-network` mostly hits
+	// urql's cache unless the backend wrote.
+	$effect(() => {
+		const iv = setInterval(() => {
+			automationsQuery.reexecute({ requestPolicy: "cache-and-network" });
+		}, 5000);
+		return () => clearInterval(iv);
+	});
+
 	$effect(() => {
 		pageHeader.viewToggle = {
 			value: view,
@@ -370,7 +385,7 @@
 				input: {
 					name: newAutomationName.trim(),
 					enabled: false,
-					cooldownSeconds: 60,
+					cooldownSeconds: 0.5,
 					nodes: [],
 					edges: [],
 				},
