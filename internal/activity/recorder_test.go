@@ -51,9 +51,9 @@ func (f *fakeReader) GetDevice(id device.DeviceID) (device.Device, bool) {
 	d, ok := f.devices[id]
 	return d, ok
 }
-func (f *fakeReader) GetLightState(device.DeviceID) (*device.LightState, bool)   { return nil, false }
-func (f *fakeReader) GetSensorState(device.DeviceID) (*device.SensorState, bool) { return nil, false }
-func (f *fakeReader) GetSwitchState(device.DeviceID) (*device.SwitchState, bool) { return nil, false }
+func (f *fakeReader) GetDeviceState(device.DeviceID) (*device.DeviceState, bool) {
+	return nil, false
+}
 func (f *fakeReader) ListDevices() []device.Device                               { return nil }
 func (f *fakeReader) GetGroup(device.GroupID) (device.Group, bool)               { return device.Group{}, false }
 func (f *fakeReader) ListGroups() []device.Group                                 { return nil }
@@ -85,7 +85,7 @@ func TestRecorderEnrichesAndPersists(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "d1",
 		Timestamp: time.Now(),
-		Payload:   device.LightState{On: &on},
+		Payload:   device.DeviceState{On: &on},
 	})
 
 	select {

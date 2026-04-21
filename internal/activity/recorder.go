@@ -44,6 +44,7 @@ func NewRecorder(bus eventbus.Subscriber, s activityStore, stateReader device.St
 func (r *Recorder) Run(ctx context.Context) {
 	ch := r.bus.Subscribe(
 		eventbus.EventDeviceStateChanged,
+		eventbus.EventDeviceActionFired,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,

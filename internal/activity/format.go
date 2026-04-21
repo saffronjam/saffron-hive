@@ -21,15 +21,16 @@ func formatMessage(evt eventbus.Event, deviceName, sceneName, automationName str
 
 	switch evt.Type {
 	case eventbus.EventDeviceStateChanged:
-		switch p := evt.Payload.(type) {
-		case device.LightState:
-			return formatLight(source, p)
-		case device.SensorState:
-			return formatSensor(source, p)
-		case device.SwitchState:
-			return formatSwitch(source, p)
+		if s, ok := evt.Payload.(device.DeviceState); ok {
+			return formatDeviceState(source, s)
 		}
 		return fmt.Sprintf("%s state changed", source)
+
+	case eventbus.EventDeviceActionFired:
+		if a, ok := evt.Payload.(device.Action); ok && a.Action != "" {
+			return fmt.Sprintf("%s: %s", source, a.Action)
+		}
+		return fmt.Sprintf("%s action", source)
 
 	case eventbus.EventDeviceAvailabilityChanged:
 		online, _ := evt.Payload.(bool)
@@ -83,39 +84,49 @@ func formatMessage(evt eventbus.Event, deviceName, sceneName, automationName str
 	return string(evt.Type)
 }
 
-func formatLight(name string, s device.LightState) string {
-	var parts []string
-	if s.On != nil {
-		if *s.On {
-			parts = append(parts, "on")
-		} else {
-			return fmt.Sprintf("%s turned off", name)
+// formatDeviceState picks the most informative summary for a DeviceState
+// based on which pointer fields are populated. Priority:
+// metering > environmental sensor > light. A state with only On populated
+// is rendered as a plug toggle.
+func formatDeviceState(name string, s device.DeviceState) string {
+	if parts := meteringParts(s); len(parts) > 0 {
+		prefix := name
+		if s.On != nil {
+			if *s.On {
+				prefix = fmt.Sprintf("%s on", name)
+			} else {
+				prefix = fmt.Sprintf("%s off", name)
+			}
 		}
+		return fmt.Sprintf("%s: %s", prefix, strings.Join(parts, ", "))
 	}
-	if s.Brightness != nil {
-		// Zigbee brightness is 0-254; convert to a rough percentage for display.
-		pct := int((float64(*s.Brightness) / 254.0) * 100.0)
-		if pct < 0 {
-			pct = 0
-		}
-		if pct > 100 {
-			pct = 100
-		}
-		parts = append(parts, fmt.Sprintf("%d%%", pct))
+	if parts := sensorParts(s); len(parts) > 0 {
+		return fmt.Sprintf("%s: %s", name, strings.Join(parts, ", "))
 	}
-	if s.ColorTemp != nil {
-		parts = append(parts, fmt.Sprintf("%dK", *s.ColorTemp))
+	if parts := lightParts(s); len(parts) > 0 || s.On != nil {
+		return formatLight(name, s, parts)
 	}
-	if len(parts) == 0 {
-		return fmt.Sprintf("%s state updated", name)
-	}
-	if len(parts) == 1 && parts[0] == "on" {
-		return fmt.Sprintf("%s turned on", name)
-	}
-	return fmt.Sprintf("%s set to %s", name, strings.Join(parts, ", "))
+	return fmt.Sprintf("%s state updated", name)
 }
 
-func formatSensor(name string, s device.SensorState) string {
+func meteringParts(s device.DeviceState) []string {
+	var parts []string
+	if s.Power != nil {
+		parts = append(parts, fmt.Sprintf("%.0f W", *s.Power))
+	}
+	if s.Voltage != nil {
+		parts = append(parts, fmt.Sprintf("%.0f V", *s.Voltage))
+	}
+	if s.Current != nil {
+		parts = append(parts, fmt.Sprintf("%.2f A", *s.Current))
+	}
+	if s.Energy != nil {
+		parts = append(parts, fmt.Sprintf("%.2f kWh", *s.Energy))
+	}
+	return parts
+}
+
+func sensorParts(s device.DeviceState) []string {
 	var parts []string
 	if s.Temperature != nil {
 		parts = append(parts, fmt.Sprintf("%.1f°C", *s.Temperature))
@@ -132,15 +143,39 @@ func formatSensor(name string, s device.SensorState) string {
 	if s.Battery != nil {
 		parts = append(parts, fmt.Sprintf("battery %d%%", *s.Battery))
 	}
-	if len(parts) == 0 {
-		return fmt.Sprintf("%s reported", name)
-	}
-	return fmt.Sprintf("%s: %s", name, strings.Join(parts, ", "))
+	return parts
 }
 
-func formatSwitch(name string, s device.SwitchState) string {
-	if s.Action == nil || *s.Action == "" {
-		return fmt.Sprintf("%s pressed", name)
+func lightParts(s device.DeviceState) []string {
+	var parts []string
+	if s.Brightness != nil {
+		pct := int((float64(*s.Brightness) / 254.0) * 100.0)
+		if pct < 0 {
+			pct = 0
+		}
+		if pct > 100 {
+			pct = 100
+		}
+		parts = append(parts, fmt.Sprintf("%d%%", pct))
 	}
-	return fmt.Sprintf("%s: %s", name, *s.Action)
+	if s.ColorTemp != nil {
+		parts = append(parts, fmt.Sprintf("%dK", *s.ColorTemp))
+	}
+	return parts
+}
+
+func formatLight(name string, s device.DeviceState, parts []string) string {
+	if s.On != nil && !*s.On {
+		return fmt.Sprintf("%s turned off", name)
+	}
+	if s.On != nil {
+		parts = append([]string{"on"}, parts...)
+	}
+	if len(parts) == 0 {
+		return fmt.Sprintf("%s state updated", name)
+	}
+	if len(parts) == 1 && parts[0] == "on" {
+		return fmt.Sprintf("%s turned on", name)
+	}
+	return fmt.Sprintf("%s set to %s", name, strings.Join(parts, ", "))
 }
