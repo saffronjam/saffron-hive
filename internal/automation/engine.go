@@ -24,10 +24,11 @@ type compiledTrigger struct {
 
 type compiledGraph struct {
 	automationID    string
-	cooldownSeconds int
+	cooldownSeconds float64
 	nodes           map[NodeID]Node
 	topoOrder       []NodeID
 	incomingMap     map[NodeID][]NodeID
+	outgoingMap     map[NodeID][]NodeID
 	conditions      map[NodeID]*vm.Program
 }
 
@@ -39,6 +40,7 @@ type automationStore interface {
 	ListEnabledAutomations(ctx context.Context) ([]store.Automation, error)
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
+	UpdateAutomationLastFired(ctx context.Context, id string, firedAt time.Time) error
 }
 
 // Engine evaluates automation graphs against incoming events.
@@ -58,14 +60,15 @@ type Engine struct {
 	cronByNode map[NodeID]cron.EntryID
 }
 
-// NewEngine creates a new automation Engine.
-func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver) *Engine {
+// NewEngine creates a new automation Engine. alarmSvc may be nil in tests
+// that don't exercise alarm actions.
+func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser) *Engine {
 	return &Engine{
 		bus:        bus,
 		reader:     reader,
 		store:      s,
 		resolver:   resolver,
-		executor:   NewActionExecutor(bus, reader, s, resolver),
+		executor:   NewActionExecutor(bus, reader, s, resolver, alarmSvc),
 		now:        time.Now,
 		triggers:   make(map[string][]compiledTrigger),
 		graphs:     make(map[string]compiledGraph),
@@ -104,11 +107,14 @@ func (e *Engine) Reload(ctx context.Context) error {
 		graphs[a.ID] = cg
 
 		for _, ct := range triggers {
-			if ct.config.Kind == TriggerSchedule {
+			switch ct.config.Kind {
+			case TriggerSchedule:
 				scheduleTriggers = append(scheduleTriggers, ct)
-				continue
+			case TriggerManual:
+				// fires only via FireManualTrigger; no event or cron registration
+			default:
+				triggersByEvent[ct.config.EventType] = append(triggersByEvent[ct.config.EventType], ct)
 			}
-			triggersByEvent[ct.config.EventType] = append(triggersByEvent[ct.config.EventType], ct)
 		}
 	}
 
@@ -167,6 +173,7 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	ch := e.bus.Subscribe(
 		eventbus.EventDeviceStateChanged,
+		eventbus.EventDeviceActionFired,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
@@ -227,6 +234,36 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	}
 }
 
+// FireManualTrigger fires a manual trigger node directly, bypassing the event
+// bus and the automation's cooldown. It returns an error if the automation is
+// not currently loaded (disabled or unknown) or the named node is not a
+// manual trigger.
+func (e *Engine) FireManualTrigger(_ context.Context, automationID string, nodeID NodeID) error {
+	e.mu.RLock()
+	cg, ok := e.graphs[automationID]
+	e.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("automation %q is not loaded (disabled or unknown)", automationID)
+	}
+
+	node, ok := cg.nodes[nodeID]
+	if !ok {
+		return fmt.Errorf("node %q not found in automation %q", nodeID, automationID)
+	}
+	tc, ok := node.Config.(TriggerConfig)
+	if !ok || tc.Kind != TriggerManual {
+		return fmt.Errorf("node %q is not a manual trigger", nodeID)
+	}
+
+	now := e.now()
+	env := buildScheduledEnv(e.reader, now)
+	triggerResults := map[NodeID]bool{nodeID: true}
+	if e.evaluateGraph(cg, env, triggerResults) {
+		e.recordFired(automationID, now)
+	}
+	return nil
+}
+
 // handleScheduledTrigger is invoked by the cron scheduler when a schedule
 // trigger fires. It behaves like handleEvent but skips event matching — the
 // specific trigger node is known.
@@ -256,6 +293,30 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 		active[id] = result
 	}
 
+	// Reachable set: BFS from the triggers that actually fired. Activation
+	// events are published only for these nodes so the live view doesn't light
+	// up unrelated chains whose conditions/operators happen to evaluate along
+	// the side. The firing logic below (active map, allSatisfied) is
+	// independent of reachability — this gate is purely for visualization.
+	reachable := make(map[NodeID]bool)
+	queue := make([]NodeID, 0, len(triggerResults))
+	for id, fired := range triggerResults {
+		if fired {
+			reachable[id] = true
+			queue = append(queue, id)
+		}
+	}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, next := range cg.outgoingMap[id] {
+			if !reachable[next] {
+				reachable[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+
 	anyActionFired := false
 
 	for _, nodeID := range cg.topoOrder {
@@ -263,7 +324,7 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 
 		switch node.Type {
 		case NodeTrigger:
-			if active[nodeID] {
+			if active[nodeID] && reachable[nodeID] {
 				e.publishNodeActivation(cg.automationID, nodeID, true)
 			}
 
@@ -278,7 +339,9 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 				continue
 			}
 			active[nodeID] = result
-			e.publishNodeActivation(cg.automationID, nodeID, result)
+			if reachable[nodeID] {
+				e.publishNodeActivation(cg.automationID, nodeID, result)
+			}
 
 		case NodeOperator:
 			opCfg, ok := node.Config.(OperatorConfig)
@@ -288,21 +351,25 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			incoming := cg.incomingMap[nodeID]
 			nodeActive := evaluateOperator(opCfg.Kind, incoming, active)
 			active[nodeID] = nodeActive
-			e.publishNodeActivation(cg.automationID, nodeID, nodeActive)
+			if reachable[nodeID] {
+				e.publishNodeActivation(cg.automationID, nodeID, nodeActive)
+			}
 
 		case NodeAction:
 			incoming := cg.incomingMap[nodeID]
-			allSatisfied := len(incoming) > 0
+			anyActive := false
 			for _, src := range incoming {
-				if !active[src] {
-					allSatisfied = false
+				if active[src] {
+					anyActive = true
 					break
 				}
 			}
-			if allSatisfied {
+			if anyActive {
 				active[nodeID] = true
-				e.publishNodeActivation(cg.automationID, nodeID, true)
-				e.executeAction(node)
+				if reachable[nodeID] {
+					e.publishNodeActivation(cg.automationID, nodeID, true)
+				}
+				e.executeAction(node, cg.automationID)
 				anyActionFired = true
 			}
 		}
@@ -340,9 +407,17 @@ func evaluateOperator(kind OperatorKind, incoming []NodeID, active map[NodeID]bo
 	}
 }
 
-func (e *Engine) executeAction(node Node) {
+func (e *Engine) executeAction(node Node, automationID string) {
 	actionCfg, ok := node.Config.(ActionConfig)
 	if !ok {
+		return
+	}
+	actionCfg.AutomationID = automationID
+
+	// Alarm actions are not target-scoped; they fire exactly once per
+	// activation regardless of device/group/room membership.
+	if actionCfg.ActionType == ActionRaiseAlarm || actionCfg.ActionType == ActionClearAlarm {
+		e.executor.ExecuteGraphAction(actionCfg)
 		return
 	}
 
@@ -354,10 +429,11 @@ func (e *Engine) executeAction(node Node) {
 
 	for _, devID := range deviceIDs {
 		perDevice := ActionConfig{
-			ActionType: actionCfg.ActionType,
-			TargetType: TargetDevice,
-			TargetID:   string(devID),
-			Payload:    actionCfg.Payload,
+			ActionType:   actionCfg.ActionType,
+			TargetType:   TargetDevice,
+			TargetID:     string(devID),
+			Payload:      actionCfg.Payload,
+			AutomationID: automationID,
 		}
 		e.executor.ExecuteGraphAction(perDevice)
 	}
@@ -375,7 +451,7 @@ func (e *Engine) publishNodeActivation(automationID string, nodeID NodeID, isAct
 	})
 }
 
-func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds int) bool {
+func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds float64) bool {
 	if cooldownSeconds <= 0 {
 		return false
 	}
@@ -388,13 +464,17 @@ func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds 
 		return false
 	}
 
-	return now.Before(lastFired.Add(time.Duration(cooldownSeconds) * time.Second))
+	return now.Before(lastFired.Add(time.Duration(cooldownSeconds * float64(time.Second))))
 }
 
 func (e *Engine) recordFired(automationID string, now time.Time) {
 	e.mu.Lock()
 	e.cooldowns[automationID] = now
 	e.mu.Unlock()
+
+	if err := e.store.UpdateAutomationLastFired(context.Background(), automationID, now); err != nil {
+		logger.Warn("failed to persist last_fired_at", "automation_id", automationID, "error", err)
+	}
 }
 
 func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
@@ -404,8 +484,10 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 	}
 
 	incomingMap := make(map[NodeID][]NodeID, len(g.Nodes))
+	outgoingMap := make(map[NodeID][]NodeID, len(g.Nodes))
 	for _, e := range g.Edges {
 		incomingMap[e.ToNodeID] = append(incomingMap[e.ToNodeID], e.FromNodeID)
+		outgoingMap[e.FromNodeID] = append(outgoingMap[e.FromNodeID], e.ToNodeID)
 	}
 
 	order, err := topoSort(g.Nodes, g.Edges)
@@ -427,7 +509,7 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 				graphID: g.ID,
 				config:  tc,
 			}
-			if tc.Kind != TriggerSchedule {
+			if tc.Kind == TriggerEvent {
 				exprStr := tc.FilterExpr
 				if exprStr == "" {
 					exprStr = "true"
@@ -463,6 +545,7 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 		nodes:           nodeMap,
 		topoOrder:       order,
 		incomingMap:     incomingMap,
+		outgoingMap:     outgoingMap,
 		conditions:      conditions,
 	}
 
@@ -521,6 +604,8 @@ func mapStoreToDomain(sg store.AutomationGraph) AutomationGraph {
 			AutomationID: sn.AutomationID,
 			Type:         NodeType(sn.Type),
 			Config:       parseNodeConfig(NodeType(sn.Type), sn.Config),
+			PositionX:    sn.PositionX,
+			PositionY:    sn.PositionY,
 		}
 		g.Nodes = append(g.Nodes, n)
 	}
@@ -558,6 +643,9 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			} else {
 				kind = TriggerEvent
 			}
+		}
+		if kind == TriggerManual {
+			return TriggerConfig{Kind: TriggerManual}
 		}
 		filter := raw.FilterExpr
 		if filter == "" {

@@ -1,5 +1,27 @@
 package automation
 
+import "fmt"
+
+// MinCooldownSeconds is the smallest positive cooldown accepted for an
+// automation. Float seconds can represent nanoseconds; without a floor a
+// misconfigured automation could fire every microsecond and melt the bus.
+const MinCooldownSeconds = 0.001
+
+// ValidateCooldown enforces the millisecond floor. Zero is allowed and means
+// "no cooldown". Negative values are rejected.
+func ValidateCooldown(seconds float64) error {
+	if seconds == 0 {
+		return nil
+	}
+	if seconds < 0 {
+		return fmt.Errorf("cooldown must not be negative (got %g)", seconds)
+	}
+	if seconds < MinCooldownSeconds {
+		return fmt.Errorf("cooldown must be 0 or at least %.3f seconds (got %g)", MinCooldownSeconds, seconds)
+	}
+	return nil
+}
+
 // NodeID uniquely identifies a node within an automation graph.
 type NodeID string
 
@@ -21,6 +43,10 @@ const (
 	TriggerEvent TriggerKind = "event"
 	// TriggerSchedule is a trigger that fires based on a cron expression.
 	TriggerSchedule TriggerKind = "schedule"
+	// TriggerManual is a trigger that fires only when invoked directly via
+	// FireManualTrigger. It has no event type and no cron expression — it
+	// exists purely so operators can poke an automation during development.
+	TriggerManual TriggerKind = "manual"
 )
 
 // OperatorKind defines the logical operation performed by an operator node.
@@ -42,6 +68,7 @@ type NodeConfig interface {
 // Kind determines which other fields are populated:
 //   - TriggerEvent: EventType + FilterExpr are used. CronExpr is ignored.
 //   - TriggerSchedule: CronExpr is used. EventType + FilterExpr are ignored.
+//   - TriggerManual: no other fields are used.
 type TriggerConfig struct {
 	Kind       TriggerKind
 	EventType  string
@@ -78,11 +105,16 @@ const (
 )
 
 // ActionConfig holds the configuration for an action node.
+//
+// AutomationID is populated by the engine before dispatch so the executor can
+// attribute side effects (e.g. alarm source strings) to the automation that
+// triggered them. Stored configs never include this field.
 type ActionConfig struct {
-	ActionType string
-	TargetType TargetType
-	TargetID   string
-	Payload    string
+	ActionType   string
+	TargetType   TargetType
+	TargetID     string
+	Payload      string
+	AutomationID string
 }
 
 // NodeActivation is the event payload published when a node activates or
@@ -101,6 +133,8 @@ type Node struct {
 	AutomationID string
 	Type         NodeType
 	Config       NodeConfig
+	PositionX    float64
+	PositionY    float64
 }
 
 // Edge is a directed connection between two nodes in an automation graph.
@@ -117,7 +151,7 @@ type AutomationGraph struct {
 	ID              string
 	Name            string
 	Enabled         bool
-	CooldownSeconds int
+	CooldownSeconds float64
 	Nodes           []Node
 	Edges           []Edge
 }
