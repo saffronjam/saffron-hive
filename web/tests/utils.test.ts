@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Lightbulb, Thermometer, ToggleLeft, Package } from "@lucide/svelte";
+import { Lightbulb, Thermometer, MousePointerClick, Plug, Package } from "@lucide/svelte";
 import { cn, deviceIcon } from "$lib/utils";
 
 describe("cn", () => {
@@ -42,12 +42,17 @@ describe("deviceIcon", () => {
     expect(deviceIcon("sensor")).toBe(Thermometer);
   });
 
-  it("returns ToggleLeft for switch", () => {
-    expect(deviceIcon("switch")).toBe(ToggleLeft);
+  it("returns MousePointerClick for button", () => {
+    expect(deviceIcon("button")).toBe(MousePointerClick);
+  });
+
+  it("returns Plug for plug", () => {
+    expect(deviceIcon("plug")).toBe(Plug);
   });
 
   it("falls back to Package for unknown types", () => {
     expect(deviceIcon("unknown")).toBe(Package);
+    expect(deviceIcon("switch")).toBe(Package);
     expect(deviceIcon("")).toBe(Package);
   });
 });
