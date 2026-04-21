@@ -130,11 +130,11 @@
 		<Table>
 			<TableHeader>
 				<TableRow>
+					<TableHead class="w-24">Type</TableHead>
 					<TableHead>Name</TableHead>
 					{#if showRelated}
 						<TableHead>{relatedLabel}</TableHead>
 					{/if}
-					<TableHead>Type</TableHead>
 					<TableHead class="w-10"></TableHead>
 				</TableRow>
 			</TableHeader>
@@ -142,6 +142,13 @@
 				{#each filteredRows as row (row.id)}
 					{@const Icon = deviceIcon(row.type)}
 					<TableRow>
+						<TableCell>
+							{#if ["light", "sensor", "switch"].includes(row.type)}
+								<DeviceTypeBadge type={row.type} />
+							{:else}
+								<Badge variant="outline">{typeLabel(row.type)}</Badge>
+							{/if}
+						</TableCell>
 						<TableCell>
 							{#if row.onclick}
 								<button
@@ -201,13 +208,6 @@
 								{/if}
 							</TableCell>
 						{/if}
-						<TableCell>
-							{#if ["light", "sensor", "switch"].includes(row.type)}
-								<DeviceTypeBadge type={row.type} />
-							{:else}
-								<Badge variant="outline">{typeLabel(row.type)}</Badge>
-							{/if}
-						</TableCell>
 						<TableCell>
 							<Button
 								variant="ghost"

@@ -98,8 +98,10 @@
 		</div>
 	</div>
 
-	{#if triggerCount > 0 || operatorCount > 0 || actionCount > 0}
-		<div class="mt-3 flex gap-2">
+	<div class="mt-3 flex gap-2">
+		{#if triggerCount === 0 && operatorCount === 0 && actionCount === 0}
+			<Badge variant="secondary" class="text-xs text-muted-foreground">Empty</Badge>
+		{:else}
 			{#if triggerCount > 0}
 				<Badge variant="secondary" class="gap-1 text-xs">
 					<Zap class="size-3 text-blue-500" />
@@ -118,6 +120,6 @@
 					{actionCount} action{actionCount === 1 ? "" : "s"}
 				</Badge>
 			{/if}
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>

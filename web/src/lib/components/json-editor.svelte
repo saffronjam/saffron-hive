@@ -106,4 +106,4 @@
 	});
 </script>
 
-<div bind:this={container} class="h-full w-full overflow-hidden rounded-md border border-border"></div>
+<div bind:this={container} class="h-full w-full overflow-hidden rounded-md shadow-card bg-background"></div>

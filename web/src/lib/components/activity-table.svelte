@@ -182,7 +182,7 @@
 
 <div class="flex h-full flex-col overflow-hidden rounded-lg shadow-card bg-card">
 	<div
-		class="grid flex-shrink-0 items-center border-b border-border bg-card px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+		class="grid flex-shrink-0 items-center border-b border-border/50 bg-card px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
 		style="grid-template-columns: {GRID_COLS};"
 	>
 		<div></div>
@@ -212,9 +212,11 @@
 								toggle(event.id);
 							}
 						}}
-						class="absolute left-0 w-full cursor-pointer border-b border-border/50 hover:bg-muted/40 focus:outline-none focus:bg-muted/50 {isNew
-							? 'activity-row-new'
-							: ''}"
+						class="absolute left-0 w-full cursor-pointer hover:bg-muted/60 focus:outline-none focus:bg-muted/70 {row.index %
+							2 ===
+						1
+							? 'bg-muted/40'
+							: ''} {isNew ? 'activity-row-new' : ''}"
 						style="top: {row.start}px; height: {row.size}px;"
 					>
 						<div
@@ -271,7 +273,7 @@
 							</div>
 						</div>
 						{#if isOpen}
-							<div class="border-t border-border/40 bg-muted/30 px-2 py-2" style="height: {EXPANDED_ROW - COLLAPSED_ROW}px;">
+							<div class="bg-muted/30 px-2 py-2" style="height: {EXPANDED_ROW - COLLAPSED_ROW}px;">
 								<div class="h-full">
 									<JsonEditor value={prettyJson(event.payload)} readonly />
 								</div>
