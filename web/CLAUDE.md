@@ -76,3 +76,13 @@ Dark and light mode are supported via Tailwind's `dark:` class variant. The `<ht
 ## Card styling
 
 Content cards use `rounded-lg shadow-card bg-card` — no `border`. The `shadow-card` token provides the visual separation. Never use `border` on content cards; it produces a white outline in dark mode that clashes with the rest of the UI.
+
+## Cursor styling
+
+Do not set `cursor-*` utilities on interactive elements. Rely on visual cues — hover highlight, border/ring changes, color shifts — to signal interactivity. The default cursor stays the arrow everywhere except real text inputs (where the browser's native text caret applies).
+
+- No `cursor-pointer` on buttons, dropdown items, cards, clickable icons, or toggle affordances.
+- No `cursor-help`, `cursor-not-allowed`, or other cursor variants.
+- The only acceptable cursor is the browser default on `<input type="text">`, `<textarea>`, and `contenteditable` surfaces.
+
+If an element looks clickable but lacks a hover state, add the hover state — don't swap in `cursor-pointer`.
