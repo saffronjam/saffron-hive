@@ -19,7 +19,7 @@ var (
 	publisher  *infra.Publisher
 )
 
-const expectedDeviceCount = 6
+const expectedDeviceCount = 7
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()

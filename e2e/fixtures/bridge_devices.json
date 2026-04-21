@@ -101,7 +101,7 @@
   },
   {
     "ieee_address": "0x00158d0006f7a8b9",
-    "friendly_name": "Office Switch",
+    "friendly_name": "Office Button",
     "type": "EndDevice",
     "supported": true,
     "definition": {
@@ -110,6 +110,26 @@
       "description": "MiJia wireless switch",
       "exposes": [
         {"type": "enum", "name": "action", "property": "action", "access": 1, "values": ["single", "double", "hold"], "features": []}
+      ]
+    }
+  },
+  {
+    "ieee_address": "0x00158d000328303e",
+    "friendly_name": "Lava Lamp",
+    "type": "Router",
+    "supported": true,
+    "definition": {
+      "model": "SP 120",
+      "vendor": "Innr",
+      "description": "Smart plug",
+      "exposes": [
+        {"type": "switch", "name": "switch", "property": "switch", "features": [
+          {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []}
+        ]},
+        {"type": "numeric", "name": "power", "property": "power", "access": 5, "unit": "W", "features": []},
+        {"type": "numeric", "name": "voltage", "property": "voltage", "access": 5, "unit": "V", "features": []},
+        {"type": "numeric", "name": "current", "property": "current", "access": 5, "unit": "A", "features": []},
+        {"type": "numeric", "name": "energy", "property": "energy", "access": 5, "unit": "kWh", "features": []}
       ]
     }
   },

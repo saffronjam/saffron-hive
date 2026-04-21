@@ -18,6 +18,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -88,7 +89,10 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		return nil, fmt.Errorf("start adapter: %w", err)
 	}
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore)
+	alarmBuffer := alarms.NewBuffer()
+	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
+
+	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
 			log.Printf("automation engine error: %v", err)
@@ -139,6 +143,8 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		EventBus:           bus,
 		TargetResolver:     sqlStore,
 		AutomationReloader: &reloader{engine: engine, ctx: appCtx},
+		Alarms:             alarmSvc,
+		AlarmBuffer:        alarmBuffer,
 		Auth:               authSvc,
 	}
 
@@ -260,8 +266,11 @@ func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, s *store.DB) 
 			if !ok {
 				return
 			}
-			ss, ok := evt.Payload.(device.SensorState)
+			ss, ok := evt.Payload.(device.DeviceState)
 			if !ok {
+				continue
+			}
+			if ss.Temperature == nil && ss.Humidity == nil && ss.Battery == nil && ss.Pressure == nil && ss.Illuminance == nil {
 				continue
 			}
 			_, err := s.InsertSensorReading(ctx, store.InsertSensorReadingParams{

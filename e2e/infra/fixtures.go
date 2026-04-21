@@ -26,9 +26,16 @@ func LoadSensorState() ([]byte, error) {
 	return os.ReadFile(filepath.Join(fixturesDir(), "sensor_state.json"))
 }
 
-// LoadSwitchState returns the switch_state.json fixture content.
-func LoadSwitchState() ([]byte, error) {
-	return os.ReadFile(filepath.Join(fixturesDir(), "switch_state.json"))
+// LoadButtonState returns the button_state.json fixture content. Buttons
+// report a single transient "action" payload per press.
+func LoadButtonState() ([]byte, error) {
+	return os.ReadFile(filepath.Join(fixturesDir(), "button_state.json"))
+}
+
+// LoadPlugState returns the plug_state.json fixture content. Plugs report
+// on/off state together with power metering (power, voltage, current, energy).
+func LoadPlugState() ([]byte, error) {
+	return os.ReadFile(filepath.Join(fixturesDir(), "plug_state.json"))
 }
 
 // LoadMosquittoConf returns the path to the mosquitto.conf fixture.
