@@ -114,6 +114,16 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - No section comments (e.g. `// --- Helpers ---`, `// ========`). Never.
 - Godoc comments on exported types and functions: encouraged.
 - JSDoc comments on exported types and functions: encouraged.
+- **No migration / change-journey comments.** Strictly prohibited: anything that only makes sense if the reader remembers a previous version of the code. Concrete triggers — if a comment contains any of these, delete or rewrite it:
+  - "previously", "used to", "was (a|built|stored|classified|known|used) as", "no longer", "formerly", "legacy"
+  - "historic", "historical", "historical bug", "the historic bug"
+  - "refactor", "this refactor", "after the refactor", "post-refactor", "the new model", "under the new", "now that", "has been routed", "has been moved", "has been renamed"
+  - "rather than `__typename`", "rather than the old", "rather than the previous", "instead of type guards"
+  - "replaces `X`", "collapses `X`", "unified from `X`", "split out of `X`"
+  - "newly added", "recently added", "this commit", "this PR"
+  - Test helper comments like "regression: `X` used to `Y`", "the bug this refactor fixed" — name the invariant the test protects, not the patch history.
+  - Migration SQL comments: explain **what the migration does in the current schema**, not how the model changed.
+- Comments describe what the code does *now*. If a comment only adds value by contrasting with a previous version, delete it — `git log` and `git blame` carry that story. For non-obvious current behavior, say **why it is that way now**, with no reference to what it used to be.
 
 ### Logging
 - Use `log/slog` (Go stdlib) — structured, leveled logging. No external logging libraries.
