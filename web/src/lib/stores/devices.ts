@@ -1,14 +1,7 @@
 import { writable } from "svelte/store";
-import type {
-  Capability,
-  Device,
-  DeviceState,
-  LightState,
-  SensorState,
-  SwitchState,
-} from "$lib/gql/graphql";
+import type { Capability, Device, DeviceState } from "$lib/gql/graphql";
 
-export type { Capability, Device, DeviceState, LightState, SensorState, SwitchState };
+export type { Capability, Device, DeviceState };
 
 interface DeviceMap {
   [id: string]: Device;
@@ -67,14 +60,6 @@ function createDeviceStore() {
 
 export const deviceStore = createDeviceStore();
 
-export function isLightState(state: DeviceState | null | undefined): state is LightState {
-  return state?.__typename === "LightState";
-}
-
-export function isSensorState(state: DeviceState | null | undefined): state is SensorState {
-  return state?.__typename === "SensorState";
-}
-
-export function isSwitchState(state: DeviceState | null | undefined): state is SwitchState {
-  return state?.__typename === "SwitchState";
+export function deviceHasCapability(device: Device, name: string): boolean {
+  return device.capabilities.some((c) => c.name === name);
 }

@@ -2,71 +2,77 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
 import {
   deviceStore,
-  isLightState,
-  isSensorState,
-  isSwitchState,
+  deviceHasCapability,
   type Device,
-  type LightState,
-  type SensorState,
-  type SwitchState,
+  type DeviceState,
 } from "$lib/stores/devices";
 
-const lightState: LightState = {
-  __typename: "LightState",
+function empty(): DeviceState {
+  return {
+    on: null,
+    brightness: null,
+    colorTemp: null,
+    color: null,
+    transition: null,
+    temperature: null,
+    humidity: null,
+    pressure: null,
+    illuminance: null,
+    battery: null,
+    power: null,
+    voltage: null,
+    current: null,
+    energy: null,
+  };
+}
+
+const lightState: DeviceState = {
+  ...empty(),
   on: true,
   brightness: 200,
   colorTemp: 350,
-  color: null,
-  transition: null,
 };
 
-const sensorState: SensorState = {
-  __typename: "SensorState",
-  temperature: 22.5,
-  humidity: 45,
-  battery: 87,
-  pressure: null,
-  illuminance: null,
+const plugState: DeviceState = {
+  ...empty(),
+  on: true,
+  power: 42.5,
+  voltage: 230.1,
 };
 
-const switchState: SwitchState = {
-  __typename: "SwitchState",
-  action: "single",
-};
-
-function makeDevice(id: string, name: string, state: LightState | SensorState | SwitchState | null = null): Device {
-  return { id, name, source: "zigbee", type: "light", capabilities: [], available: true, lastSeen: "2026-01-01T00:00:00Z", state };
+function makeDevice(
+  id: string,
+  name: string,
+  state: DeviceState | null = null,
+  type = "light",
+): Device {
+  return {
+    id,
+    name,
+    source: "zigbee",
+    type,
+    capabilities: [],
+    available: true,
+    lastSeen: "2026-01-01T00:00:00Z",
+    state,
+  };
 }
 
-describe("type guards", () => {
-  it("isLightState returns true for LightState", () => {
-    expect(isLightState(lightState)).toBe(true);
+describe("deviceHasCapability", () => {
+  it("returns true when the capability is present", () => {
+    const d = makeDevice("d1", "Light");
+    d.capabilities = [
+      { name: "on_off", type: "binary", access: 7 },
+      { name: "brightness", type: "numeric", access: 7 },
+    ];
+    expect(deviceHasCapability(d, "on_off")).toBe(true);
+    expect(deviceHasCapability(d, "brightness")).toBe(true);
   });
 
-  it("isLightState returns false for SensorState", () => {
-    expect(isLightState(sensorState)).toBe(false);
-  });
-
-  it("isSensorState returns true for SensorState", () => {
-    expect(isSensorState(sensorState)).toBe(true);
-  });
-
-  it("isSensorState returns false for SwitchState", () => {
-    expect(isSensorState(switchState)).toBe(false);
-  });
-
-  it("isSwitchState returns true for SwitchState", () => {
-    expect(isSwitchState(switchState)).toBe(true);
-  });
-
-  it("isSwitchState returns false for LightState", () => {
-    expect(isSwitchState(lightState)).toBe(false);
-  });
-
-  it("all guards return false for null", () => {
-    expect(isLightState(null)).toBe(false);
-    expect(isSensorState(null)).toBe(false);
-    expect(isSwitchState(null)).toBe(false);
+  it("returns false when the capability is absent", () => {
+    const d = makeDevice("d1", "Light");
+    d.capabilities = [{ name: "on_off", type: "binary", access: 7 }];
+    expect(deviceHasCapability(d, "power")).toBe(false);
   });
 });
 
@@ -121,12 +127,19 @@ describe("deviceStore", () => {
     const original = makeDevice("d1", "Light", lightState);
     deviceStore.hydrate([original]);
 
-    const newState: LightState = { ...lightState, brightness: 100 };
+    const newState: DeviceState = { ...lightState, brightness: 100 };
     deviceStore.updateState("d1", newState);
 
     const map = get(deviceStore);
-    expect((map["d1"].state as LightState).brightness).toBe(100);
+    expect(map["d1"].state?.brightness).toBe(100);
     expect(original.state).toBe(lightState);
+  });
+
+  it("updateState carries metering fields for plugs", () => {
+    const original = makeDevice("p1", "Plug", plugState, "plug");
+    deviceStore.hydrate([original]);
+    deviceStore.updateState("p1", { ...plugState, power: 15 });
+    expect(get(deviceStore)["p1"].state?.power).toBe(15);
   });
 
   it("updateState is a no-op for unknown device", () => {
