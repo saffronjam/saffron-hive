@@ -25,8 +25,10 @@
 		Settings,
 		LogOut,
 		Activity,
+		BellRing,
 	} from "@lucide/svelte";
 	import { auth } from "$lib/stores/auth.svelte";
+	import { alarmsStore } from "$lib/stores/alarms.svelte";
 
 	interface NavItem {
 		href: string;
@@ -42,7 +44,20 @@
 		{ href: "/rooms", label: "Rooms", icon: DoorOpen },
 		{ href: "/groups", label: "Groups", icon: Group },
 		{ href: "/activity", label: "Activity", icon: Activity },
+		{ href: "/alarms", label: "Alarms", icon: BellRing },
 	];
+
+	function alarmBadgeClass(): string {
+		switch (alarmsStore.highestSeverity) {
+			case "HIGH":
+				return "bg-destructive text-destructive-foreground";
+			case "MEDIUM":
+				return "bg-amber-500 text-white";
+			case "LOW":
+			default:
+				return "bg-teal-500 text-white";
+		}
+	}
 
 	const footerItems: NavItem[] = [
 		{ href: "/logs", label: "Logs", icon: ScrollText },
@@ -80,6 +95,14 @@
 									<a href={item.href} {...props}>
 										<item.icon class="size-4" />
 										<span>{item.label}</span>
+										{#if item.href === "/alarms" && alarmsStore.activeCount > 0}
+											<span
+												class="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-xs font-medium {alarmBadgeClass()}"
+												aria-label="{alarmsStore.activeCount} active alarms"
+											>
+												{alarmsStore.activeCount}
+											</span>
+										{/if}
 									</a>
 								{/snippet}
 							</SidebarMenuButton>

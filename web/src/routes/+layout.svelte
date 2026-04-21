@@ -2,6 +2,7 @@
 	import "../app.css";
 	import AppSidebar from "$lib/components/app-sidebar.svelte";
 	import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar/index.js";
+	import { Toaster } from "$lib/components/ui/sonner/index.js";
 	import SmoothButton from "$lib/components/smooth-button.svelte";
 	import SaveButton from "$lib/components/save-button.svelte";
 	import ViewToggle from "$lib/components/view-toggle.svelte";
@@ -10,7 +11,8 @@
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
-	import { onMount } from "svelte";
+	import { alarmsStore } from "$lib/stores/alarms.svelte";
+	import { onMount, onDestroy } from "svelte";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/stores";
 
@@ -81,6 +83,19 @@
 	onMount(() => {
 		void gate();
 	});
+
+	// Start the alarms store once we know there's an authenticated session.
+	// The store handles its own hydration + subscription and is safe to
+	// call multiple times — it no-ops when already started.
+	$effect(() => {
+		if (ready && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) && auth.isAuthenticated()) {
+			alarmsStore.start(client);
+		}
+	});
+
+	onDestroy(() => {
+		alarmsStore.stop();
+	});
 </script>
 
 <svelte:head>
@@ -144,3 +159,5 @@
 		</SidebarInset>
 	</SidebarProvider>
 {/if}
+
+<Toaster richColors closeButton position="bottom-right" />
