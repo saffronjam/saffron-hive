@@ -18,7 +18,7 @@ type wsMessage struct {
 
 func TestSubscriptions_DeviceStateChanged(t *testing.T) {
 	ch, cleanup, err := wsSubscribe(
-		`subscription { deviceStateChanged { deviceId state { ... on LightState { brightness } } } }`,
+		`subscription { deviceStateChanged { deviceId state { brightness } } }`,
 		nil,
 	)
 	if err != nil {
@@ -105,7 +105,7 @@ func TestSubscriptions_DeviceStateChangedWithFilter(t *testing.T) {
 	}
 
 	ch, cleanup, err := wsSubscribe(
-		`subscription($deviceId: ID) { deviceStateChanged(deviceId: $deviceId) { deviceId state { ... on LightState { brightness } } } }`,
+		`subscription($deviceId: ID) { deviceStateChanged(deviceId: $deviceId) { deviceId state { brightness } } }`,
 		map[string]any{"deviceId": bedroomID},
 	)
 	if err != nil {

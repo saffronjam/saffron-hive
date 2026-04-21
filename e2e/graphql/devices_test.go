@@ -52,7 +52,7 @@ func TestDevices_QueryAll(t *testing.T) {
 		}
 	}
 
-	for _, expected := range []string{"Living Room Light", "Bedroom Light", "Kitchen Light", "Living Room Sensor", "Outdoor Sensor", "Office Switch"} {
+	for _, expected := range []string{"Living Room Light", "Bedroom Light", "Kitchen Light", "Living Room Sensor", "Outdoor Sensor", "Office Button", "Lava Lamp"} {
 		if _, ok := nameSet[expected]; !ok {
 			t.Errorf("expected device %q not found", expected)
 		}
@@ -81,7 +81,8 @@ func TestDevices_VerifyTypes(t *testing.T) {
 		"Kitchen Light":      "light",
 		"Living Room Sensor": "sensor",
 		"Outdoor Sensor":     "sensor",
-		"Office Switch":      "switch",
+		"Office Button":      "button",
+		"Lava Lamp":          "plug",
 	}
 
 	for _, d := range result.Devices {
@@ -107,9 +108,7 @@ func TestDevices_StateChange(t *testing.T) {
 		data, err := graphqlQuery(`{
 			devices {
 				name
-				state {
-					... on LightState { on brightness colorTemp }
-				}
+				state { on brightness colorTemp }
 			}
 		}`, nil)
 		if err != nil {
@@ -220,7 +219,7 @@ func TestDevices_SetDeviceState(t *testing.T) {
 		t.Fatalf("subscribe commands: %v", err)
 	}
 
-	_, err = graphqlMutation(`mutation($deviceId: ID!, $state: LightStateInput!) {
+	_, err = graphqlMutation(`mutation($deviceId: ID!, $state: DeviceStateInput!) {
 		setDeviceState(deviceId: $deviceId, state: $state) { id name }
 	}`, map[string]any{
 		"deviceId": deviceID,
@@ -311,7 +310,7 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 }
 
 func TestDevices_SetDeviceState_InvalidID(t *testing.T) {
-	err := graphqlMutationExpectError(`mutation($deviceId: ID!, $state: LightStateInput!) {
+	err := graphqlMutationExpectError(`mutation($deviceId: ID!, $state: DeviceStateInput!) {
 		setDeviceState(deviceId: $deviceId, state: $state) { id }
 	}`, map[string]any{
 		"deviceId": "nonexistent-device-id",
