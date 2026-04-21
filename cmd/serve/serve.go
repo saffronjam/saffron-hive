@@ -33,6 +33,12 @@ import (
 //go:embed all:webdist
 var webDist embed.FS
 
+var (
+	serveLogger           = slog.Default().With("pkg", "serve")
+	sensorLogger          = slog.Default().With("pkg", "sensor_recorder")
+	devicePersisterLogger = slog.Default().With("pkg", "device_persister")
+)
+
 // Run starts the Saffron Hive application. It blocks until ctx is cancelled,
 // then performs graceful shutdown.
 func Run(ctx context.Context) error {
@@ -79,14 +85,14 @@ func Run(ctx context.Context) error {
 
 	dbDevices, err := sqlStore.ListDevices(ctx)
 	if err != nil {
-		slog.Error("failed to load devices from db", "error", err)
+		serveLogger.Error("failed to load devices from db", "error", err)
 	} else {
 		for _, d := range dbDevices {
 			d.Available = false
 			memStore.Register(d)
 		}
 		if len(dbDevices) > 0 {
-			slog.Info("hydrated devices from database", "count", len(dbDevices))
+			serveLogger.Info("hydrated devices from database", "count", len(dbDevices))
 		}
 	}
 
@@ -122,14 +128,14 @@ func Run(ctx context.Context) error {
 			return err
 		}
 	} else {
-		slog.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
+		serveLogger.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
 	}
 	defer mgr.Stop()
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore)
 	go func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
-			slog.Error("automation engine error", "error", err)
+			serveLogger.Error("automation engine error", "error", err)
 		}
 	}()
 
@@ -180,7 +186,7 @@ func Run(ctx context.Context) error {
 		_ = srv.Shutdown(context.Background())
 	}()
 
-	slog.Info("listening", "addr", cfg.ListenAddr)
+	serveLogger.Info("listening", "addr", cfg.ListenAddr)
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		return err
 	}
@@ -246,7 +252,7 @@ func seedMQTTConfig(ctx context.Context, cfg config.Config, s *store.DB) error {
 	if existing != nil {
 		return nil
 	}
-	slog.Info("seeding MQTT config from environment variables")
+	serveLogger.Info("seeding MQTT config from environment variables")
 	return s.UpsertMQTTConfig(ctx, store.MQTTConfig{
 		Broker:   cfg.MQTTAddress,
 		Username: cfg.MQTTUser,
@@ -282,7 +288,7 @@ func seedInitialUser(ctx context.Context, cfg config.Config, s *store.DB) error 
 	if err != nil {
 		return fmt.Errorf("create init user: %w", err)
 	}
-	slog.Info("seeded initial user from environment variables", "username", cfg.InitUser)
+	serveLogger.Info("seeded initial user from environment variables", "username", cfg.InitUser)
 	return nil
 }
 
@@ -345,7 +351,7 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 	m.client = client
 	m.adapter = adapter
 
-	slog.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
+	serveLogger.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
 	return nil
 }
 
@@ -383,7 +389,7 @@ func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eve
 				RecordedAt:  time.Now(),
 			})
 			if err != nil {
-				slog.Error("failed to insert sensor reading", "pkg", "sensor_recorder", "device_id", evt.DeviceID, "error", err)
+				sensorLogger.Error("failed to insert sensor reading", "device_id", evt.DeviceID, "error", err)
 			}
 		}
 	}
@@ -414,7 +420,7 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 					Capabilities: d.Capabilities,
 				})
 				if err != nil {
-					slog.Error("failed to upsert device", "pkg", "device_persister", "device_id", d.ID, "error", err)
+					devicePersisterLogger.Error("failed to upsert device", "device_id", d.ID, "error", err)
 					continue
 				}
 				if d.Source == "zigbee" {
@@ -424,7 +430,7 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 						FriendlyName: d.Name,
 					})
 					if err != nil {
-						slog.Error("failed to upsert zigbee device", "pkg", "device_persister", "device_id", d.ID, "error", err)
+						devicePersisterLogger.Error("failed to upsert zigbee device", "device_id", d.ID, "error", err)
 					}
 				}
 
@@ -435,7 +441,7 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 					Removed: true,
 				})
 				if err != nil {
-					slog.Error("failed to mark device removed", "pkg", "device_persister", "device_id", evt.DeviceID, "error", err)
+					devicePersisterLogger.Error("failed to mark device removed", "device_id", evt.DeviceID, "error", err)
 				}
 			}
 		}

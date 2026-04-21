@@ -2,7 +2,6 @@ package zigbee
 
 import (
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -91,7 +90,7 @@ func (p *PahoClient) onConnect(c mqtt.Client) {
 		})
 		token.Wait()
 		if err := token.Error(); err != nil {
-			slog.Warn("mqtt subscribe failed", "pkg", "zigbee", "topic", s.topic, "error", err)
+			logger.Warn("mqtt subscribe failed", "topic", s.topic, "error", err)
 			if firstErr == nil {
 				firstErr = fmt.Errorf("subscribe %q: %w", s.topic, err)
 			}

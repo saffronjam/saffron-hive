@@ -3,7 +3,6 @@ package automation
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -41,7 +40,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 
 		var desired map[string]any
 		if err := json.Unmarshal([]byte(cfg.Payload), &desired); err != nil {
-			slog.Error("invalid action payload", "pkg", "automation", "device_id", deviceID, "error", err)
+			logger.Error("invalid action payload", "device_id", deviceID, "error", err)
 			return
 		}
 
@@ -125,7 +124,7 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 func (a *ActionExecutor) executeActivateScene(sceneID string) {
 	actions, err := a.store.ListSceneActions(context.Background(), sceneID)
 	if err != nil {
-		slog.Error("scene not found", "pkg", "automation", "scene_id", sceneID, "error", err)
+		logger.Error("scene not found", "scene_id", sceneID, "error", err)
 		return
 	}
 	if len(actions) == 0 {
@@ -135,7 +134,7 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 	for _, sa := range actions {
 		var desired map[string]any
 		if err := json.Unmarshal([]byte(sa.Payload), &desired); err != nil {
-			slog.Error("invalid scene action payload", "pkg", "automation", "target_id", sa.TargetID, "error", err)
+			logger.Error("invalid scene action payload", "target_id", sa.TargetID, "error", err)
 			continue
 		}
 

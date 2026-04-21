@@ -2,7 +2,6 @@ package zigbee
 
 import (
 	"encoding/json"
-	"log/slog"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
@@ -49,25 +48,25 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.DeviceCommand) {
 	a.mu.RUnlock()
 
 	if !ok {
-		slog.Warn("command for unknown device", "pkg", "zigbee", "device_id", cmd.DeviceID)
+		logger.Warn("command for unknown device", "device_id", cmd.DeviceID)
 		return
 	}
 
 	lightCmd, ok := cmd.Payload.(device.LightCommand)
 	if !ok {
-		slog.Warn("unsupported command payload type", "pkg", "zigbee", "device_id", cmd.DeviceID)
+		logger.Warn("unsupported command payload type", "device_id", cmd.DeviceID)
 		return
 	}
 
 	payload := translateLightCommand(lightCmd)
 	data, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("failed to marshal command", "pkg", "zigbee", "error", err)
+		logger.Error("failed to marshal command", "error", err)
 		return
 	}
 
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
 	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
-		slog.Error("failed to publish command", "pkg", "zigbee", "topic", topic, "error", err)
+		logger.Error("failed to publish command", "topic", topic, "error", err)
 	}
 }

@@ -2,7 +2,6 @@ package zigbee
 
 import (
 	"encoding/json"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -88,7 +87,7 @@ func flattenFeatures(features []z2mFeature) []z2mFeature {
 func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 	var devices []z2mBridgeDevice
 	if err := json.Unmarshal(payload, &devices); err != nil {
-		slog.Error("failed to parse bridge/devices", "pkg", "zigbee", "error", err)
+		logger.Error("failed to parse bridge/devices", "error", err)
 		return
 	}
 

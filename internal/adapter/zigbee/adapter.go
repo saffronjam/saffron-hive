@@ -11,6 +11,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
+var logger = slog.Default().With("pkg", "zigbee")
+
 // StateWriter is the subset of the device store used to register and update devices.
 type StateWriter interface {
 	Register(dev device.Device)
@@ -140,7 +142,7 @@ func (a *ZigbeeAdapter) commandLoop() {
 func (a *ZigbeeAdapter) handleBridgeLog(payload []byte) {
 	var logMsg z2mBridgeLog
 	if err := json.Unmarshal(payload, &logMsg); err != nil {
-		slog.Error("failed to parse bridge/log", "pkg", "zigbee", "error", err)
+		logger.Error("failed to parse bridge/log", "error", err)
 		return
 	}
 
@@ -221,7 +223,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case device.Light:
 		state, err := mapLightState(statePayload)
 		if err != nil {
-			slog.Error("failed to map light state", "pkg", "zigbee", "device", friendlyName, "error", err)
+			logger.Error("failed to map light state", "device", friendlyName, "error", err)
 			return
 		}
 		a.stateWriter.UpdateLightState(id, state)
@@ -235,7 +237,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case device.Sensor:
 		state, err := mapSensorState(statePayload)
 		if err != nil {
-			slog.Error("failed to map sensor state", "pkg", "zigbee", "device", friendlyName, "error", err)
+			logger.Error("failed to map sensor state", "device", friendlyName, "error", err)
 			return
 		}
 		a.stateWriter.UpdateSensorState(id, state)
@@ -249,7 +251,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case device.Switch:
 		state, err := mapSwitchState(statePayload)
 		if err != nil {
-			slog.Error("failed to map switch state", "pkg", "zigbee", "device", friendlyName, "error", err)
+			logger.Error("failed to map switch state", "device", friendlyName, "error", err)
 			return
 		}
 		a.stateWriter.UpdateSwitchState(id, state)

@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+var logger = slog.Default().With("pkg", "eventbus")
+
 const defaultBufferSize = 256
 
 // ChannelBus is an in-process EventBus backed by Go channels.
@@ -53,7 +55,7 @@ func (b *ChannelBus) Publish(event Event) {
 		select {
 		case sub.ch <- event:
 		default:
-			slog.Warn("dropping event for full subscriber channel", "event_type", event.Type)
+			logger.Warn("dropping event for full subscriber channel", "event_type", event.Type)
 		}
 	}
 }

@@ -14,6 +14,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+var logger = slog.Default().With("pkg", "migrate")
+
 // Run executes a database migration in the given direction.
 // Valid directions are "up", "down", and "version".
 // If steps > 0, only that many migrations are applied (up) or rolled back (down).
@@ -51,12 +53,12 @@ func Run(_ context.Context, direction string, steps int) error {
 			if err := m.Steps(steps); err != nil && err != migrate.ErrNoChange {
 				return fmt.Errorf("migrate up %d: %w", steps, err)
 			}
-			slog.Info("applied migrations", "count", steps)
+			logger.Info("applied migrations", "count", steps)
 		} else {
 			if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 				return fmt.Errorf("migrate up: %w", err)
 			}
-			slog.Info("all migrations applied")
+			logger.Info("all migrations applied")
 		}
 	case "down":
 		n := 1
@@ -66,13 +68,13 @@ func Run(_ context.Context, direction string, steps int) error {
 		if err := m.Steps(-n); err != nil && err != migrate.ErrNoChange {
 			return fmt.Errorf("migrate down %d: %w", n, err)
 		}
-		slog.Info("rolled back migrations", "count", n)
+		logger.Info("rolled back migrations", "count", n)
 	case "version":
 		version, dirty, err := m.Version()
 		if err != nil {
 			return fmt.Errorf("get version: %w", err)
 		}
-		slog.Info("migration version", "version", version, "dirty", dirty)
+		logger.Info("migration version", "version", version, "dirty", dirty)
 	default:
 		return fmt.Errorf("unknown migration direction: %q (expected up, down, or version)", direction)
 	}

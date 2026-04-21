@@ -31,6 +31,8 @@ type compiledGraph struct {
 	conditions      map[NodeID]*vm.Program
 }
 
+var logger = slog.Default().With("pkg", "automation")
+
 // automationStore is the narrow subset of store methods the engine and action
 // executor need. *store.DB satisfies it implicitly.
 type automationStore interface {
@@ -88,14 +90,14 @@ func (e *Engine) Reload(ctx context.Context) error {
 	for _, a := range autos {
 		graph, err := e.store.GetAutomationGraph(ctx, a.ID)
 		if err != nil {
-			slog.Warn("skipping automation, cannot load graph", "pkg", "automation", "id", a.ID, "name", a.Name, "error", err)
+			logger.Warn("skipping automation, cannot load graph", "id", a.ID, "name", a.Name, "error", err)
 			continue
 		}
 
 		domainGraph := mapStoreToDomain(graph)
 		cg, triggers, err := compileGraph(domainGraph)
 		if err != nil {
-			slog.Warn("skipping automation, compile error", "pkg", "automation", "id", a.ID, "name", a.Name, "error", err)
+			logger.Warn("skipping automation, compile error", "id", a.ID, "name", a.Name, "error", err)
 			continue
 		}
 
@@ -118,8 +120,7 @@ func (e *Engine) Reload(ctx context.Context) error {
 			e.handleScheduledTrigger(ct.graphID, ct.nodeID)
 		})
 		if err != nil {
-			slog.Warn("skipping schedule trigger, invalid cron expression",
-				"pkg", "automation",
+			logger.Warn("skipping schedule trigger, invalid cron expression",
 				"automation_id", ct.graphID,
 				"node_id", ct.nodeID,
 				"cron_expr", ct.config.CronExpr,
@@ -209,7 +210,7 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 
 		result, err := evalExpr(ct.program, env)
 		if err != nil {
-			slog.Error("trigger eval error", "pkg", "automation", "graph_id", ct.graphID, "node_id", ct.nodeID, "error", err)
+			logger.Error("trigger eval error", "graph_id", ct.graphID, "node_id", ct.nodeID, "error", err)
 			continue
 		}
 		evaluatedGraphs[ct.graphID][ct.nodeID] = result
@@ -273,7 +274,7 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			}
 			result, err := evalExpr(prog, env)
 			if err != nil {
-				slog.Error("condition eval error", "pkg", "automation", "graph_id", cg.automationID, "node_id", nodeID, "error", err)
+				logger.Error("condition eval error", "graph_id", cg.automationID, "node_id", nodeID, "error", err)
 				continue
 			}
 			active[nodeID] = result
@@ -547,7 +548,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			CronExpr      string `json:"cron_expr"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			slog.Error("failed to parse trigger config", "pkg", "automation", "error", err)
+			logger.Error("failed to parse trigger config", "error", err)
 			return TriggerConfig{}
 		}
 		kind := TriggerKind(raw.Kind)
@@ -573,7 +574,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			Expr string `json:"expr"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			slog.Error("failed to parse condition config", "pkg", "automation", "error", err)
+			logger.Error("failed to parse condition config", "error", err)
 			return ConditionConfig{}
 		}
 		return ConditionConfig{Expr: raw.Expr}
@@ -582,7 +583,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			Kind string `json:"kind"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			slog.Error("failed to parse operator config", "pkg", "automation", "error", err)
+			logger.Error("failed to parse operator config", "error", err)
 			return OperatorConfig{}
 		}
 		return OperatorConfig{Kind: OperatorKind(raw.Kind)}
@@ -594,7 +595,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			Payload    string `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			slog.Error("failed to parse action config", "pkg", "automation", "error", err)
+			logger.Error("failed to parse action config", "error", err)
 			return ActionConfig{}
 		}
 		tt := TargetType(raw.TargetType)
