@@ -15,7 +15,7 @@ func TestQueryDevices(t *testing.T) {
 
 	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: "zigbee", Type: device.Light, Available: true, LastSeen: now})
 	env.stateReader.addDevice(device.Device{ID: "d2", Name: "Sensor 1", Source: "zigbee", Type: device.Sensor, Available: true, LastSeen: now})
-	env.stateReader.addDevice(device.Device{ID: "d3", Name: "Switch 1", Source: "zigbee", Type: device.Switch, Available: false, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d3", Name: "Button 1", Source: "zigbee", Type: device.Button, Available: false, LastSeen: now})
 
 	resp := env.query(t, `{ devices { id name type } }`, nil)
 	if len(resp.Errors) > 0 {
@@ -52,12 +52,12 @@ func TestQueryDevice(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 
 	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: "zigbee", Type: device.Light, Available: true, LastSeen: now})
-	env.stateReader.setLightState("d1", &device.LightState{
+	env.stateReader.setDeviceState("d1", &device.DeviceState{
 		On:         device.Ptr(true),
 		Brightness: device.Ptr(200),
 	})
 
-	resp := env.query(t, `query($id: ID!) { device(id: $id) { id name source type available state { ... on LightState { on brightness } } } }`,
+	resp := env.query(t, `query($id: ID!) { device(id: $id) { id name source type available state { on brightness } } }`,
 		map[string]any{"id": "d1"})
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
@@ -118,12 +118,12 @@ func TestQueryDeviceLightState(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 
 	env.stateReader.addDevice(device.Device{ID: "l1", Name: "Bulb", Source: "zigbee", Type: device.Light, Available: true, LastSeen: now})
-	env.stateReader.setLightState("l1", &device.LightState{
+	env.stateReader.setDeviceState("l1", &device.DeviceState{
 		On:        device.Ptr(true),
 		ColorTemp: device.Ptr(350),
 	})
 
-	resp := env.query(t, `{ device(id: "l1") { state { ... on LightState { on brightness colorTemp } } } }`, nil)
+	resp := env.query(t, `{ device(id: "l1") { state { on brightness colorTemp } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -156,12 +156,12 @@ func TestQueryDeviceSensorState(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 
 	env.stateReader.addDevice(device.Device{ID: "s1", Name: "Temp Sensor", Source: "zigbee", Type: device.Sensor, Available: true, LastSeen: now})
-	env.stateReader.setSensorState("s1", &device.SensorState{
+	env.stateReader.setDeviceState("s1", &device.DeviceState{
 		Temperature: device.Ptr(22.5),
 		Humidity:    device.Ptr(55.0),
 	})
 
-	resp := env.query(t, `{ device(id: "s1") { state { ... on SensorState { temperature humidity battery } } } }`, nil)
+	resp := env.query(t, `{ device(id: "s1") { state { temperature humidity battery } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -238,10 +238,10 @@ func TestQueryAutomations(t *testing.T) {
 
 	var data struct {
 		Automations []struct {
-			ID              string `json:"id"`
-			Name            string `json:"name"`
-			Enabled         bool   `json:"enabled"`
-			CooldownSeconds int    `json:"cooldownSeconds"`
+			ID              string  `json:"id"`
+			Name            string  `json:"name"`
+			Enabled         bool    `json:"enabled"`
+			CooldownSeconds float64 `json:"cooldownSeconds"`
 		} `json:"automations"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -252,7 +252,7 @@ func TestQueryAutomations(t *testing.T) {
 	}
 	a := data.Automations[0]
 	if a.CooldownSeconds != 60 {
-		t.Errorf("expected cooldownSeconds 60, got %d", a.CooldownSeconds)
+		t.Errorf("expected cooldownSeconds 60, got %g", a.CooldownSeconds)
 	}
 }
 

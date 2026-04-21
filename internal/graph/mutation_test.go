@@ -15,7 +15,7 @@ func TestMutationSetDeviceState(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 
 	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: "zigbee", Type: device.Light, Available: true, LastSeen: now})
-	env.stateReader.setLightState("d1", &device.LightState{On: device.Ptr(false), Brightness: device.Ptr(0)})
+	env.stateReader.setDeviceState("d1", &device.DeviceState{On: device.Ptr(false), Brightness: device.Ptr(0)})
 
 	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
 	defer env.bus.Unsubscribe(ch)
@@ -30,16 +30,12 @@ func TestMutationSetDeviceState(t *testing.T) {
 		if evt.Type != eventbus.EventCommandRequested {
 			t.Fatalf("expected EventCommandRequested, got %s", evt.Type)
 		}
-		cmd, ok := evt.Payload.(device.DeviceCommand)
+		cmd, ok := evt.Payload.(device.Command)
 		if !ok {
-			t.Fatalf("payload is not DeviceCommand: %T", evt.Payload)
+			t.Fatalf("payload is not Command: %T", evt.Payload)
 		}
-		lc, ok := cmd.Payload.(device.LightCommand)
-		if !ok {
-			t.Fatalf("inner payload is not LightCommand: %T", cmd.Payload)
-		}
-		if lc.Brightness == nil || *lc.Brightness != 200 {
-			t.Errorf("expected brightness 200, got %v", lc.Brightness)
+		if cmd.Brightness == nil || *cmd.Brightness != 200 {
+			t.Errorf("expected brightness 200, got %v", cmd.Brightness)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for event")

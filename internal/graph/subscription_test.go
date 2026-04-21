@@ -7,7 +7,6 @@ import (
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
-	"github.com/saffronjam/saffron-hive/internal/graph/model"
 )
 
 func TestSubscriptionDeviceStateChanged(t *testing.T) {
@@ -15,7 +14,7 @@ func TestSubscriptionDeviceStateChanged(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 
 	sr.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: "zigbee", Type: device.Light, Available: true, LastSeen: time.Now()})
-	sr.setLightState("d1", &device.LightState{On: device.Ptr(true), Brightness: device.Ptr(200)})
+	sr.setDeviceState("d1", &device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(200)})
 
 	resolver := &Resolver{StateReader: sr, EventBus: bus}
 	sub := &subscriptionResolver{resolver}
@@ -39,11 +38,10 @@ func TestSubscriptionDeviceStateChanged(t *testing.T) {
 		if evt.DeviceID != "d1" {
 			t.Errorf("expected device d1, got %s", evt.DeviceID)
 		}
-		ls, ok := evt.State.(model.LightState)
-		if !ok {
-			t.Fatalf("expected LightState, got %T", evt.State)
+		if evt.State == nil {
+			t.Fatal("expected non-nil state")
 		}
-		if ls.On == nil || !*ls.On {
+		if evt.State.On == nil || !*evt.State.On {
 			t.Error("expected on=true")
 		}
 	case <-time.After(time.Second):
@@ -57,8 +55,8 @@ func TestSubscriptionDeviceStateFiltered(t *testing.T) {
 
 	sr.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: "zigbee", Type: device.Light, Available: true, LastSeen: time.Now()})
 	sr.addDevice(device.Device{ID: "d2", Name: "Light 2", Source: "zigbee", Type: device.Light, Available: true, LastSeen: time.Now()})
-	sr.setLightState("d1", &device.LightState{On: device.Ptr(true)})
-	sr.setLightState("d2", &device.LightState{On: device.Ptr(false)})
+	sr.setDeviceState("d1", &device.DeviceState{On: device.Ptr(true)})
+	sr.setDeviceState("d2", &device.DeviceState{On: device.Ptr(false)})
 
 	resolver := &Resolver{StateReader: sr, EventBus: bus}
 	sub := &subscriptionResolver{resolver}

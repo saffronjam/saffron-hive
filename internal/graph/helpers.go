@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -15,6 +16,84 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// mapAlarm converts a grouped domain Alarm into its GraphQL model.
+func mapAlarm(a alarms.Alarm) *model.Alarm {
+	return &model.Alarm{
+		ID:            a.ID,
+		LatestRowID:   strconv.FormatInt(a.LatestRowID, 10),
+		Severity:      severityToModel(a.Severity),
+		Kind:          kindToModel(a.Kind),
+		Message:       a.Message,
+		Source:        a.Source,
+		Count:         a.Count,
+		FirstRaisedAt: a.FirstRaisedAt,
+		LastRaisedAt:  a.LastRaisedAt,
+	}
+}
+
+// mapAlarmEvent converts a live bus Event into its GraphQL model.
+func mapAlarmEvent(e alarms.Event) *model.AlarmEvent {
+	out := &model.AlarmEvent{}
+	switch e.Kind {
+	case alarms.EventRaised:
+		out.Kind = model.AlarmEventKindRaised
+		if e.Alarm != nil {
+			out.Alarm = mapAlarm(*e.Alarm)
+		}
+	case alarms.EventCleared:
+		out.Kind = model.AlarmEventKindCleared
+		if e.ClearedAlarmID != "" {
+			id := e.ClearedAlarmID
+			out.ClearedAlarmID = &id
+		}
+	}
+	return out
+}
+
+func severityToModel(s store.AlarmSeverity) model.AlarmSeverity {
+	switch s {
+	case store.AlarmSeverityHigh:
+		return model.AlarmSeverityHigh
+	case store.AlarmSeverityMedium:
+		return model.AlarmSeverityMedium
+	case store.AlarmSeverityLow:
+		return model.AlarmSeverityLow
+	}
+	return model.AlarmSeverityLow
+}
+
+func severityFromModel(s model.AlarmSeverity) store.AlarmSeverity {
+	switch s {
+	case model.AlarmSeverityHigh:
+		return store.AlarmSeverityHigh
+	case model.AlarmSeverityMedium:
+		return store.AlarmSeverityMedium
+	case model.AlarmSeverityLow:
+		return store.AlarmSeverityLow
+	}
+	return store.AlarmSeverityLow
+}
+
+func kindToModel(k store.AlarmKind) model.AlarmKind {
+	switch k {
+	case store.AlarmKindAuto:
+		return model.AlarmKindAuto
+	case store.AlarmKindOneShot:
+		return model.AlarmKindOneShot
+	}
+	return model.AlarmKindAuto
+}
+
+func kindFromModel(k model.AlarmKind) store.AlarmKind {
+	switch k {
+	case model.AlarmKindAuto:
+		return store.AlarmKindAuto
+	case model.AlarmKindOneShot:
+		return store.AlarmKindOneShot
+	}
+	return store.AlarmKindAuto
+}
 
 // mapActivityEvent converts a persisted activity row into the GraphQL type.
 // The source discriminator is chosen by which denormalised columns are set on
@@ -144,40 +223,39 @@ func mapCapabilities(caps []device.Capability) []*model.Capability {
 	return result
 }
 
-func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) model.DeviceState {
-	if ls, ok := sr.GetLightState(id); ok && ls != nil {
-		ms := model.LightState{
-			On:         ls.On,
-			Brightness: ls.Brightness,
-			ColorTemp:  ls.ColorTemp,
-			Transition: ls.Transition,
-		}
-		if ls.Color != nil {
-			ms.Color = &model.Color{
-				R: ls.Color.R,
-				G: ls.Color.G,
-				B: ls.Color.B,
-				X: ls.Color.X,
-				Y: ls.Color.Y,
-			}
-		}
-		return ms
+// resolveDeviceStateFromReader copies a device.DeviceState into its GraphQL
+// model. Returns nil for unknown devices; optional fields pass through as nil
+// when the device has not reported them.
+func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *model.DeviceState {
+	ds, ok := sr.GetDeviceState(id)
+	if !ok || ds == nil {
+		return nil
 	}
-	if ss, ok := sr.GetSensorState(id); ok && ss != nil {
-		return model.SensorState{
-			Temperature: ss.Temperature,
-			Humidity:    ss.Humidity,
-			Battery:     ss.Battery,
-			Pressure:    ss.Pressure,
-			Illuminance: ss.Illuminance,
+	out := &model.DeviceState{
+		On:          ds.On,
+		Brightness:  ds.Brightness,
+		ColorTemp:   ds.ColorTemp,
+		Transition:  ds.Transition,
+		Temperature: ds.Temperature,
+		Humidity:    ds.Humidity,
+		Pressure:    ds.Pressure,
+		Illuminance: ds.Illuminance,
+		Battery:     ds.Battery,
+		Power:       ds.Power,
+		Voltage:     ds.Voltage,
+		Current:     ds.Current,
+		Energy:      ds.Energy,
+	}
+	if ds.Color != nil {
+		out.Color = &model.Color{
+			R: ds.Color.R,
+			G: ds.Color.G,
+			B: ds.Color.B,
+			X: ds.Color.X,
+			Y: ds.Color.Y,
 		}
 	}
-	if sw, ok := sr.GetSwitchState(id); ok && sw != nil {
-		return model.SwitchState{
-			Action: sw.Action,
-		}
-	}
-	return nil
+	return out
 }
 
 func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store.Scene, actions []store.SceneAction) *model.Scene {
@@ -283,14 +361,17 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 		Icon:            g.Automation.Icon,
 		Enabled:         g.Automation.Enabled,
 		CooldownSeconds: g.Automation.CooldownSeconds,
+		LastFiredAt:     g.Automation.LastFiredAt,
 		CreatedBy:       mapUserRef(g.Automation.CreatedBy),
 	}
 	mg.Nodes = make([]*model.AutomationNode, len(g.Nodes))
 	for i, n := range g.Nodes {
 		mg.Nodes[i] = &model.AutomationNode{
-			ID:     n.ID,
-			Type:   n.Type,
-			Config: n.Config,
+			ID:        n.ID,
+			Type:      n.Type,
+			Config:    n.Config,
+			PositionX: n.PositionX,
+			PositionY: n.PositionY,
 		}
 	}
 	mg.Edges = make([]*model.AutomationEdge, len(g.Edges))
@@ -393,8 +474,8 @@ func resolveSceneActionTargetDevices(ctx context.Context, tr device.TargetResolv
 	return tr.ResolveTargetDeviceIDs(ctx, device.TargetType(targetType), targetID)
 }
 
-func buildLightCommandFromMap(desired map[string]interface{}) device.LightCommand {
-	var cmd device.LightCommand
+func buildCommandFromMap(deviceID device.DeviceID, desired map[string]interface{}) device.Command {
+	cmd := device.Command{DeviceID: deviceID}
 	if v, ok := desired["on"]; ok {
 		if b, ok := v.(bool); ok {
 			cmd.On = device.Ptr(b)
@@ -523,6 +604,9 @@ func validateAutomationInput(inputNodes []*model.AutomationNodeInput, inputEdges
 		Edges: domainEdges,
 	})
 	if result.Valid() {
+		if err := validateAlarmActionPayloads(inputNodes); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -531,6 +615,59 @@ func validateAutomationInput(inputNodes []*model.AutomationNodeInput, inputEdges
 		msgs = append(msgs, err.Error())
 	}
 	return fmt.Errorf("automation validation failed: %s", strings.Join(msgs, "; "))
+}
+
+// validateAlarmActionPayloads type-checks the alarm-specific fields carried
+// inside action-node payloads. The outer automation.ValidateGraph treats
+// action payloads as opaque so this lives here.
+func validateAlarmActionPayloads(nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var outer struct {
+			ActionType string `json:"action_type"`
+			Payload    string `json:"payload"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
+			continue
+		}
+		switch outer.ActionType {
+		case automation.ActionRaiseAlarm:
+			var p struct {
+				AlarmID  string `json:"alarm_id"`
+				Severity string `json:"severity"`
+				Kind     string `json:"kind"`
+				Message  string `json:"message"`
+			}
+			if err := json.Unmarshal([]byte(outer.Payload), &p); err != nil {
+				return fmt.Errorf("node %s: invalid raise_alarm payload JSON", n.ID)
+			}
+			if p.AlarmID == "" {
+				return fmt.Errorf("node %s: raise_alarm requires alarm_id", n.ID)
+			}
+			if p.Severity != "high" && p.Severity != "medium" && p.Severity != "low" {
+				return fmt.Errorf("node %s: raise_alarm severity must be high, medium, or low", n.ID)
+			}
+			if p.Kind != "auto" && p.Kind != "one_shot" {
+				return fmt.Errorf("node %s: raise_alarm kind must be auto or one_shot", n.ID)
+			}
+			if p.Message == "" {
+				return fmt.Errorf("node %s: raise_alarm requires message", n.ID)
+			}
+		case automation.ActionClearAlarm:
+			var p struct {
+				AlarmID string `json:"alarm_id"`
+			}
+			if err := json.Unmarshal([]byte(outer.Payload), &p); err != nil {
+				return fmt.Errorf("node %s: invalid clear_alarm payload JSON", n.ID)
+			}
+			if p.AlarmID == "" {
+				return fmt.Errorf("node %s: clear_alarm requires alarm_id", n.ID)
+			}
+		}
+	}
+	return nil
 }
 
 func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, configJSON string) automation.NodeConfig {

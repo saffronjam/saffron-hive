@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/activity"
+	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -16,6 +17,12 @@ import (
 // AutomationReloader reloads automation rules after configuration changes.
 type AutomationReloader interface {
 	Reload() error
+}
+
+// AutomationTriggerer fires a manual trigger node on demand. Used by the
+// fireAutomationTrigger mutation for in-editor debugging.
+type AutomationTriggerer interface {
+	FireManualTrigger(ctx context.Context, automationID, nodeID string) error
 }
 
 // MQTTReconnector reconnects the MQTT adapter with the latest DB config.
@@ -53,6 +60,7 @@ type GraphStore interface {
 	DeleteAutomationNode(ctx context.Context, id string) error
 	CreateAutomationEdge(ctx context.Context, params store.CreateAutomationEdgeParams) (store.AutomationEdge, error)
 	DeleteAutomationEdge(ctx context.Context, id string) error
+	ListAutomationEdges(ctx context.Context, automationID string) ([]store.AutomationEdge, error)
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
 
 	// Groups
@@ -94,14 +102,17 @@ type GraphStore interface {
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
 type Resolver struct {
-	StateReader        device.StateReader
-	Store              GraphStore
-	TargetResolver     device.TargetResolver
-	EventBus           eventbus.EventBus
-	AutomationReloader AutomationReloader
-	LogBuffer          *logging.Buffer
-	ActivityBuffer     *activity.Buffer
-	LevelVar           *slog.LevelVar
-	Reconnector        MQTTReconnector
-	Auth               *auth.Service
+	StateReader         device.StateReader
+	Store               GraphStore
+	TargetResolver      device.TargetResolver
+	EventBus            eventbus.EventBus
+	AutomationReloader  AutomationReloader
+	AutomationTriggerer AutomationTriggerer
+	LogBuffer           *logging.Buffer
+	ActivityBuffer      *activity.Buffer
+	Alarms              *alarms.Service
+	AlarmBuffer         *alarms.Buffer
+	LevelVar            *slog.LevelVar
+	Reconnector         MQTTReconnector
+	Auth                *auth.Service
 }

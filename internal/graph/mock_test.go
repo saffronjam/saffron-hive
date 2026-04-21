@@ -11,18 +11,14 @@ import (
 )
 
 type mockStateReader struct {
-	mu       sync.RWMutex
-	devices  []device.Device
-	lights   map[device.DeviceID]*device.LightState
-	sensors  map[device.DeviceID]*device.SensorState
-	switches map[device.DeviceID]*device.SwitchState
+	mu      sync.RWMutex
+	devices []device.Device
+	states  map[device.DeviceID]*device.DeviceState
 }
 
 func newMockStateReader() *mockStateReader {
 	return &mockStateReader{
-		lights:   make(map[device.DeviceID]*device.LightState),
-		sensors:  make(map[device.DeviceID]*device.SensorState),
-		switches: make(map[device.DeviceID]*device.SwitchState),
+		states: make(map[device.DeviceID]*device.DeviceState),
 	}
 }
 
@@ -37,25 +33,11 @@ func (m *mockStateReader) GetDevice(id device.DeviceID) (device.Device, bool) {
 	return device.Device{}, false
 }
 
-func (m *mockStateReader) GetLightState(id device.DeviceID) (*device.LightState, bool) {
+func (m *mockStateReader) GetDeviceState(id device.DeviceID) (*device.DeviceState, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	ls, ok := m.lights[id]
-	return ls, ok
-}
-
-func (m *mockStateReader) GetSensorState(id device.DeviceID) (*device.SensorState, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	ss, ok := m.sensors[id]
-	return ss, ok
-}
-
-func (m *mockStateReader) GetSwitchState(id device.DeviceID) (*device.SwitchState, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	sw, ok := m.switches[id]
-	return sw, ok
+	st, ok := m.states[id]
+	return st, ok
 }
 
 func (m *mockStateReader) ListDevices() []device.Device {
@@ -82,22 +64,10 @@ func (m *mockStateReader) addDevice(d device.Device) {
 	m.devices = append(m.devices, d)
 }
 
-func (m *mockStateReader) setLightState(id device.DeviceID, ls *device.LightState) {
+func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.lights[id] = ls
-}
-
-func (m *mockStateReader) setSensorState(id device.DeviceID, ss *device.SensorState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.sensors[id] = ss
-}
-
-func (m *mockStateReader) setSwitchState(id device.DeviceID, sw *device.SwitchState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.switches[id] = sw
+	m.states[id] = st
 }
 
 type mockStore struct {
@@ -668,8 +638,15 @@ func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetTyp
 }
 
 type mockReloader struct {
-	mu     sync.Mutex
-	called bool
+	mu         sync.Mutex
+	called     bool
+	firedCalls []firedTrigger
+	fireErr    error
+}
+
+type firedTrigger struct {
+	automationID string
+	nodeID       string
 }
 
 func (m *mockReloader) Reload() error {
@@ -683,4 +660,14 @@ func (m *mockReloader) wasCalled() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.called
+}
+
+func (m *mockReloader) FireManualTrigger(_ context.Context, automationID, nodeID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.fireErr != nil {
+		return m.fireErr
+	}
+	m.firedCalls = append(m.firedCalls, firedTrigger{automationID: automationID, nodeID: nodeID})
+	return nil
 }

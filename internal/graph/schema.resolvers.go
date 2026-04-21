@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -51,14 +52,15 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 }
 
 // SetDeviceState is the resolver for the setDeviceState field.
-func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, state model.LightStateInput) (*model.Device, error) {
+func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, state model.DeviceStateInput) (*model.Device, error) {
 	id := device.DeviceID(deviceID)
 	d, ok := r.StateReader.GetDevice(id)
 	if !ok {
 		return nil, fmt.Errorf("device %q not found", deviceID)
 	}
 
-	cmd := device.LightCommand{
+	cmd := device.Command{
+		DeviceID:   id,
 		On:         state.On.Value(),
 		Brightness: state.Brightness.Value(),
 		ColorTemp:  state.ColorTemp.Value(),
@@ -78,7 +80,7 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 		Type:      eventbus.EventCommandRequested,
 		DeviceID:  deviceID,
 		Timestamp: time.Now(),
-		Payload:   device.DeviceCommand{DeviceID: id, Payload: cmd},
+		Payload:   cmd,
 	})
 
 	return mapDeviceFromReader(r.StateReader, d), nil
@@ -102,10 +104,7 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		}
 		deviceIDs := resolveSceneActionTargetDevices(ctx, r.TargetResolver, sa.TargetType, sa.TargetID)
 		for _, did := range deviceIDs {
-			cmd := device.DeviceCommand{
-				DeviceID: did,
-				Payload:  buildLightCommandFromMap(desired),
-			}
+			cmd := buildCommandFromMap(did, desired)
 			r.EventBus.Publish(eventbus.Event{
 				Type:      eventbus.EventCommandRequested,
 				DeviceID:  string(did),
@@ -229,6 +228,9 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 	if err := validateAutomationInput(input.Nodes, input.Edges); err != nil {
 		return nil, err
 	}
+	if err := automation.ValidateCooldown(input.CooldownSeconds); err != nil {
+		return nil, err
+	}
 
 	autoID := uuid.New().String()
 	_, err := r.Store.CreateAutomation(ctx, store.CreateAutomationParams{
@@ -248,6 +250,8 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 			AutomationID: autoID,
 			Type:         n.Type,
 			Config:       n.Config,
+			PositionX:    n.PositionX,
+			PositionY:    n.PositionY,
 		})
 		if err != nil {
 			return nil, err
@@ -311,6 +315,9 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 		updateAutomation = true
 	}
 	if cooldown, ok := input.CooldownSeconds.ValueOK(); ok {
+		if err := automation.ValidateCooldown(*cooldown); err != nil {
+			return nil, err
+		}
 		aParams.CooldownSeconds = cooldown
 		updateAutomation = true
 	}
@@ -321,6 +328,15 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	}
 
 	if nodesSet {
+		existingEdges, err := r.Store.ListAutomationEdges(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		for _, ee := range existingEdges {
+			if err := r.Store.DeleteAutomationEdge(ctx, ee.ID); err != nil {
+				return nil, err
+			}
+		}
 		existingNodes, err := r.Store.ListAutomationNodes(ctx, id)
 		if err != nil {
 			return nil, err
@@ -336,6 +352,8 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 				AutomationID: id,
 				Type:         n.Type,
 				Config:       n.Config,
+				PositionX:    n.PositionX,
+				PositionY:    n.PositionY,
 			})
 			if err != nil {
 				return nil, err
@@ -401,6 +419,17 @@ func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enab
 		return nil, err
 	}
 	return mapAutomationGraph(graph), nil
+}
+
+// FireAutomationTrigger is the resolver for the fireAutomationTrigger field.
+func (r *mutationResolver) FireAutomationTrigger(ctx context.Context, automationID string, nodeID string) (bool, error) {
+	if r.AutomationTriggerer == nil {
+		return false, fmt.Errorf("manual triggers are not configured")
+	}
+	if err := r.AutomationTriggerer.FireManualTrigger(ctx, automationID, nodeID); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // CreateGroup is the resolver for the createGroup field.
@@ -673,6 +702,34 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	return mapUser(u), nil
 }
 
+// RaiseAlarm is the resolver for the raiseAlarm field.
+func (r *mutationResolver) RaiseAlarm(ctx context.Context, input model.RaiseAlarmInput) (*model.Alarm, error) {
+	source := ""
+	if s, ok := input.Source.ValueOK(); ok && s != nil {
+		source = *s
+	}
+	a, err := r.Alarms.Raise(ctx, alarms.RaiseParams{
+		AlarmID:  input.AlarmID,
+		Severity: severityFromModel(input.Severity),
+		Kind:     kindFromModel(input.Kind),
+		Message:  input.Message,
+		Source:   source,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mapAlarm(a), nil
+}
+
+// DeleteAlarm is the resolver for the deleteAlarm field.
+func (r *mutationResolver) DeleteAlarm(ctx context.Context, alarmID string) (bool, error) {
+	deleted, err := r.Alarms.DeleteByAlarmID(ctx, alarmID)
+	if err != nil {
+		return false, err
+	}
+	return deleted, nil
+}
+
 // Devices is the resolver for the devices field.
 func (r *queryResolver) Devices(ctx context.Context) ([]*model.Device, error) {
 	devices := r.StateReader.ListDevices()
@@ -938,6 +995,71 @@ func (r *queryResolver) Activity(ctx context.Context, filter *model.ActivityFilt
 	return result, nil
 }
 
+// Alarms is the resolver for the alarms field. Returns grouped alarms ordered
+// most-recently-raised first. Filtering is performed in Go over the grouped
+// projection so the frontend can freely combine severity/kind/source/since
+// without the SQL layer having to understand grouping.
+func (r *queryResolver) Alarms(ctx context.Context, filter *model.AlarmFilter) ([]*model.Alarm, error) {
+	list, err := r.Resolver.Alarms.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		wantSeverities map[store.AlarmSeverity]struct{}
+		wantKinds      map[store.AlarmKind]struct{}
+		wantSources    map[string]struct{}
+		since          *time.Time
+	)
+	if filter != nil {
+		if sevs, ok := filter.Severities.ValueOK(); ok && len(sevs) > 0 {
+			wantSeverities = make(map[store.AlarmSeverity]struct{}, len(sevs))
+			for _, s := range sevs {
+				wantSeverities[severityFromModel(s)] = struct{}{}
+			}
+		}
+		if ks, ok := filter.Kinds.ValueOK(); ok && len(ks) > 0 {
+			wantKinds = make(map[store.AlarmKind]struct{}, len(ks))
+			for _, k := range ks {
+				wantKinds[kindFromModel(k)] = struct{}{}
+			}
+		}
+		if srcs, ok := filter.Sources.ValueOK(); ok && len(srcs) > 0 {
+			wantSources = make(map[string]struct{}, len(srcs))
+			for _, s := range srcs {
+				wantSources[s] = struct{}{}
+			}
+		}
+		if t, ok := filter.Since.ValueOK(); ok {
+			since = t
+		}
+	}
+
+	result := make([]*model.Alarm, 0, len(list))
+	for _, a := range list {
+		if wantSeverities != nil {
+			if _, ok := wantSeverities[a.Severity]; !ok {
+				continue
+			}
+		}
+		if wantKinds != nil {
+			if _, ok := wantKinds[a.Kind]; !ok {
+				continue
+			}
+		}
+		if wantSources != nil {
+			if _, ok := wantSources[a.Source]; !ok {
+				continue
+			}
+		}
+		if since != nil && a.LastRaisedAt.Before(*since) {
+			continue
+		}
+		result = append(result, mapAlarm(a))
+	}
+	return result, nil
+}
+
 // SetupStatus is the resolver for the setupStatus field. Whitelisted — callable
 // without authentication so the frontend can decide whether to show /setup.
 func (r *queryResolver) SetupStatus(ctx context.Context) (*model.SetupStatus, error) {
@@ -1009,6 +1131,46 @@ func (r *subscriptionResolver) DeviceStateChanged(ctx context.Context, deviceID 
 				case out <- &model.DeviceStateEvent{
 					DeviceID: evt.DeviceID,
 					State:    state,
+				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// DeviceActionFired is the resolver for the deviceActionFired field.
+func (r *subscriptionResolver) DeviceActionFired(ctx context.Context, deviceID *string) (<-chan *model.DeviceActionEvent, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventDeviceActionFired)
+	out := make(chan *model.DeviceActionEvent, 1)
+
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				if deviceID != nil && evt.DeviceID != *deviceID {
+					continue
+				}
+				action, ok := evt.Payload.(device.Action)
+				if !ok || action.Action == "" {
+					continue
+				}
+				select {
+				case out <- &model.DeviceActionEvent{
+					DeviceID: evt.DeviceID,
+					Action:   action.Action,
+					FiredAt:  evt.Timestamp,
 				}:
 				case <-ctx.Done():
 					return
@@ -1212,6 +1374,35 @@ func (r *subscriptionResolver) ActivityStream(ctx context.Context, advanced *boo
 				}
 				select {
 				case out <- mapActivityEvent(row):
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// AlarmEvent is the resolver for the alarmEvent field.
+func (r *subscriptionResolver) AlarmEvent(ctx context.Context) (<-chan *model.AlarmEvent, error) {
+	ch, unsub := r.AlarmBuffer.Subscribe()
+	out := make(chan *model.AlarmEvent, 16)
+
+	go func() {
+		defer close(out)
+		defer unsub()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				select {
+				case out <- mapAlarmEvent(evt):
 				case <-ctx.Done():
 					return
 				}
