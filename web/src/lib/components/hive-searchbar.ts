@@ -30,6 +30,16 @@ export interface SearchState {
   freeText: string;
 }
 
+/**
+ * Internal token shape used by `HiveSearchField` and (indirectly)
+ * `HiveSearchbar`. The last token is always the live (currently-edited)
+ * token; earlier tokens are committed chips or committed free-text
+ * fragments. Exported so both components can type against it.
+ */
+export interface Token {
+  text: string;
+}
+
 export function emptySearchState(): SearchState {
   return { chips: [], freeText: "" };
 }
