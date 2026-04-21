@@ -3,14 +3,14 @@
 package model
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 )
-
-type DeviceState interface {
-	IsDeviceState()
-}
 
 type SceneTarget interface {
 	IsSceneTarget()
@@ -55,6 +55,35 @@ type AddRoomDeviceInput struct {
 	DeviceID string `json:"deviceId"`
 }
 
+// An alarm is an actionable severity-tagged signal. Rows are persisted 1:1 per
+// raise; this type is the grouped projection — multiple raises sharing the same
+// id collapse into one Alarm whose message/severity/kind come from the latest
+// raise and whose count reflects the group size.
+type Alarm struct {
+	ID            string        `json:"id"`
+	LatestRowID   string        `json:"latestRowId"`
+	Severity      AlarmSeverity `json:"severity"`
+	Kind          AlarmKind     `json:"kind"`
+	Message       string        `json:"message"`
+	Source        string        `json:"source"`
+	Count         int           `json:"count"`
+	FirstRaisedAt time.Time     `json:"firstRaisedAt"`
+	LastRaisedAt  time.Time     `json:"lastRaisedAt"`
+}
+
+type AlarmEvent struct {
+	Kind           AlarmEventKind `json:"kind"`
+	Alarm          *Alarm         `json:"alarm,omitempty"`
+	ClearedAlarmID *string        `json:"clearedAlarmId,omitempty"`
+}
+
+type AlarmFilter struct {
+	Severities graphql.Omittable[[]AlarmSeverity] `json:"severities,omitempty"`
+	Kinds      graphql.Omittable[[]AlarmKind]     `json:"kinds,omitempty"`
+	Sources    graphql.Omittable[[]string]        `json:"sources,omitempty"`
+	Since      graphql.Omittable[*time.Time]      `json:"since,omitempty"`
+}
+
 type AuthPayload struct {
 	Token string `json:"token"`
 	User  *User  `json:"user"`
@@ -76,16 +105,19 @@ type AutomationGraph struct {
 	Name            string            `json:"name"`
 	Icon            *string           `json:"icon,omitempty"`
 	Enabled         bool              `json:"enabled"`
-	CooldownSeconds int               `json:"cooldownSeconds"`
+	CooldownSeconds float64           `json:"cooldownSeconds"`
+	LastFiredAt     *time.Time        `json:"lastFiredAt,omitempty"`
 	Nodes           []*AutomationNode `json:"nodes"`
 	Edges           []*AutomationEdge `json:"edges"`
 	CreatedBy       *User             `json:"createdBy,omitempty"`
 }
 
 type AutomationNode struct {
-	ID     string `json:"id"`
-	Type   string `json:"type"`
-	Config string `json:"config"`
+	ID        string  `json:"id"`
+	Type      string  `json:"type"`
+	Config    string  `json:"config"`
+	PositionX float64 `json:"positionX"`
+	PositionY float64 `json:"positionY"`
 }
 
 type AutomationNodeActivationEvent struct {
@@ -95,9 +127,11 @@ type AutomationNodeActivationEvent struct {
 }
 
 type AutomationNodeInput struct {
-	ID     string `json:"id"`
-	Type   string `json:"type"`
-	Config string `json:"config"`
+	ID        string  `json:"id"`
+	Type      string  `json:"type"`
+	Config    string  `json:"config"`
+	PositionX float64 `json:"positionX"`
+	PositionY float64 `json:"positionY"`
 }
 
 type Capability struct {
@@ -134,7 +168,7 @@ type ConnectionTestResult struct {
 type CreateAutomationInput struct {
 	Name            string                 `json:"name"`
 	Enabled         bool                   `json:"enabled"`
-	CooldownSeconds int                    `json:"cooldownSeconds"`
+	CooldownSeconds float64                `json:"cooldownSeconds"`
 	Nodes           []*AutomationNodeInput `json:"nodes"`
 	Edges           []*AutomationEdgeInput `json:"edges"`
 }
@@ -172,19 +206,54 @@ type Device struct {
 	Capabilities []*Capability `json:"capabilities"`
 	Available    bool          `json:"available"`
 	LastSeen     *time.Time    `json:"lastSeen,omitempty"`
-	State        DeviceState   `json:"state,omitempty"`
+	State        *DeviceState  `json:"state,omitempty"`
 }
 
 func (Device) IsSceneTarget() {}
+
+type DeviceActionEvent struct {
+	DeviceID string    `json:"deviceId"`
+	Action   string    `json:"action"`
+	FiredAt  time.Time `json:"firedAt"`
+}
 
 type DeviceAvailabilityEvent struct {
 	DeviceID  string `json:"deviceId"`
 	Available bool   `json:"available"`
 }
 
+// Current state of a device across every capability it reports. Every field is
+// nullable — null means the device has not reported (or does not report) that
+// value. Clients typically branch on Device.type to decide which fields to
+// display, but any field may be present on any device.
+type DeviceState struct {
+	On          *bool    `json:"on,omitempty"`
+	Brightness  *int     `json:"brightness,omitempty"`
+	ColorTemp   *int     `json:"colorTemp,omitempty"`
+	Color       *Color   `json:"color,omitempty"`
+	Transition  *float64 `json:"transition,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
+	Humidity    *float64 `json:"humidity,omitempty"`
+	Pressure    *float64 `json:"pressure,omitempty"`
+	Illuminance *float64 `json:"illuminance,omitempty"`
+	Battery     *int     `json:"battery,omitempty"`
+	Power       *float64 `json:"power,omitempty"`
+	Voltage     *float64 `json:"voltage,omitempty"`
+	Current     *float64 `json:"current,omitempty"`
+	Energy      *float64 `json:"energy,omitempty"`
+}
+
 type DeviceStateEvent struct {
-	DeviceID string      `json:"deviceId"`
-	State    DeviceState `json:"state"`
+	DeviceID string       `json:"deviceId"`
+	State    *DeviceState `json:"state"`
+}
+
+type DeviceStateInput struct {
+	On         graphql.Omittable[*bool]       `json:"on,omitempty"`
+	Brightness graphql.Omittable[*int]        `json:"brightness,omitempty"`
+	ColorTemp  graphql.Omittable[*int]        `json:"colorTemp,omitempty"`
+	Color      graphql.Omittable[*ColorInput] `json:"color,omitempty"`
+	Transition graphql.Omittable[*float64]    `json:"transition,omitempty"`
 }
 
 type Group struct {
@@ -205,24 +274,6 @@ type GroupMember struct {
 	Device     *Device `json:"device,omitempty"`
 	Group      *Group  `json:"group,omitempty"`
 	Room       *Room   `json:"room,omitempty"`
-}
-
-type LightState struct {
-	On         *bool    `json:"on,omitempty"`
-	Brightness *int     `json:"brightness,omitempty"`
-	ColorTemp  *int     `json:"colorTemp,omitempty"`
-	Color      *Color   `json:"color,omitempty"`
-	Transition *float64 `json:"transition,omitempty"`
-}
-
-func (LightState) IsDeviceState() {}
-
-type LightStateInput struct {
-	On         graphql.Omittable[*bool]       `json:"on,omitempty"`
-	Brightness graphql.Omittable[*int]        `json:"brightness,omitempty"`
-	ColorTemp  graphql.Omittable[*int]        `json:"colorTemp,omitempty"`
-	Color      graphql.Omittable[*ColorInput] `json:"color,omitempty"`
-	Transition graphql.Omittable[*float64]    `json:"transition,omitempty"`
 }
 
 type LogEntry struct {
@@ -255,6 +306,14 @@ type Mutation struct {
 }
 
 type Query struct {
+}
+
+type RaiseAlarmInput struct {
+	AlarmID  string                     `json:"alarmId"`
+	Severity AlarmSeverity              `json:"severity"`
+	Kind     AlarmKind                  `json:"kind"`
+	Message  string                     `json:"message"`
+	Source   graphql.Omittable[*string] `json:"source,omitempty"`
 }
 
 type Room struct {
@@ -300,16 +359,6 @@ type SensorReading struct {
 	RecordedAt  time.Time `json:"recordedAt"`
 }
 
-type SensorState struct {
-	Temperature *float64 `json:"temperature,omitempty"`
-	Humidity    *float64 `json:"humidity,omitempty"`
-	Battery     *int     `json:"battery,omitempty"`
-	Pressure    *float64 `json:"pressure,omitempty"`
-	Illuminance *float64 `json:"illuminance,omitempty"`
-}
-
-func (SensorState) IsDeviceState() {}
-
 type Setting struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -323,17 +372,11 @@ type SetupStatus struct {
 type Subscription struct {
 }
 
-type SwitchState struct {
-	Action *string `json:"action,omitempty"`
-}
-
-func (SwitchState) IsDeviceState() {}
-
 type UpdateAutomationInput struct {
 	Name            graphql.Omittable[*string]                `json:"name,omitempty"`
 	Icon            graphql.Omittable[*string]                `json:"icon,omitempty"`
 	Enabled         graphql.Omittable[*bool]                  `json:"enabled,omitempty"`
-	CooldownSeconds graphql.Omittable[*int]                   `json:"cooldownSeconds,omitempty"`
+	CooldownSeconds graphql.Omittable[*float64]               `json:"cooldownSeconds,omitempty"`
 	Nodes           graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
 	Edges           graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
 }
@@ -362,4 +405,171 @@ type User struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
+}
+
+type AlarmEventKind string
+
+const (
+	AlarmEventKindRaised  AlarmEventKind = "RAISED"
+	AlarmEventKindCleared AlarmEventKind = "CLEARED"
+)
+
+var AllAlarmEventKind = []AlarmEventKind{
+	AlarmEventKindRaised,
+	AlarmEventKindCleared,
+}
+
+func (e AlarmEventKind) IsValid() bool {
+	switch e {
+	case AlarmEventKindRaised, AlarmEventKindCleared:
+		return true
+	}
+	return false
+}
+
+func (e AlarmEventKind) String() string {
+	return string(e)
+}
+
+func (e *AlarmEventKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AlarmEventKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AlarmEventKind", str)
+	}
+	return nil
+}
+
+func (e AlarmEventKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AlarmEventKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AlarmEventKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AlarmKind string
+
+const (
+	AlarmKindAuto    AlarmKind = "AUTO"
+	AlarmKindOneShot AlarmKind = "ONE_SHOT"
+)
+
+var AllAlarmKind = []AlarmKind{
+	AlarmKindAuto,
+	AlarmKindOneShot,
+}
+
+func (e AlarmKind) IsValid() bool {
+	switch e {
+	case AlarmKindAuto, AlarmKindOneShot:
+		return true
+	}
+	return false
+}
+
+func (e AlarmKind) String() string {
+	return string(e)
+}
+
+func (e *AlarmKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AlarmKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AlarmKind", str)
+	}
+	return nil
+}
+
+func (e AlarmKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AlarmKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AlarmKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AlarmSeverity string
+
+const (
+	AlarmSeverityHigh   AlarmSeverity = "HIGH"
+	AlarmSeverityMedium AlarmSeverity = "MEDIUM"
+	AlarmSeverityLow    AlarmSeverity = "LOW"
+)
+
+var AllAlarmSeverity = []AlarmSeverity{
+	AlarmSeverityHigh,
+	AlarmSeverityMedium,
+	AlarmSeverityLow,
+}
+
+func (e AlarmSeverity) IsValid() bool {
+	switch e {
+	case AlarmSeverityHigh, AlarmSeverityMedium, AlarmSeverityLow:
+		return true
+	}
+	return false
+}
+
+func (e AlarmSeverity) String() string {
+	return string(e)
+}
+
+func (e *AlarmSeverity) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AlarmSeverity(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AlarmSeverity", str)
+	}
+	return nil
+}
+
+func (e AlarmSeverity) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AlarmSeverity) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
