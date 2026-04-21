@@ -21,7 +21,7 @@ func evalTestExpr(t *testing.T, expression string, reader device.StateReader, ev
 func TestExprSimpleComparison(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(200)})
+	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > 100`, reader, eventbus.Event{}, time.Now())
 	if err != nil {
@@ -35,7 +35,7 @@ func TestExprSimpleComparison(t *testing.T) {
 func TestExprSimpleComparisonFalse(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(50)})
+	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(50)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > 100`, reader, eventbus.Event{}, time.Now())
 	if err != nil {
@@ -50,8 +50,8 @@ func TestExprAnd(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
 	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
-	reader.setLightState("light-1", &device.LightState{On: device.Ptr(true)})
-	reader.setSensorState("sensor-1", &device.SensorState{Temperature: device.Ptr(30.0)})
+	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
+	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(30.0)})
 
 	result, err := evalTestExpr(t, `device("light-1").on == true && device("sensor-1").temperature > 25`, reader, eventbus.Event{}, time.Now())
 	if err != nil {
@@ -66,8 +66,8 @@ func TestExprAndPartialFalse(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
 	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
-	reader.setLightState("light-1", &device.LightState{On: device.Ptr(true)})
-	reader.setSensorState("sensor-1", &device.SensorState{Temperature: device.Ptr(20.0)})
+	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
+	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(20.0)})
 
 	result, err := evalTestExpr(t, `device("light-1").on == true && device("sensor-1").temperature > 25`, reader, eventbus.Event{}, time.Now())
 	if err != nil {
@@ -81,7 +81,7 @@ func TestExprAndPartialFalse(t *testing.T) {
 func TestExprOr(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
-	reader.setSensorState("sensor-1", &device.SensorState{
+	reader.setDeviceState("sensor-1", &device.DeviceState{
 		Temperature: device.Ptr(25.0),
 		Humidity:    device.Ptr(75.0),
 	})
@@ -98,7 +98,7 @@ func TestExprOr(t *testing.T) {
 func TestExprNot(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{On: device.Ptr(true)})
+	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	result, err := evalTestExpr(t, `!(device("light-1").on == true)`, reader, eventbus.Event{}, time.Now())
 	if err != nil {
@@ -188,7 +188,7 @@ func TestExprSyntaxError(t *testing.T) {
 func TestExprTypeError(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(200)})
+	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > "hello"`, reader, eventbus.Event{}, time.Now())
 	if err != nil {

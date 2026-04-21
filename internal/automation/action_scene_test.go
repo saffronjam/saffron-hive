@@ -24,7 +24,7 @@ func TestActivateSceneExpandsToCommands(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
@@ -56,7 +56,7 @@ func TestActivateSceneNotFound(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "nonexistent",
@@ -79,7 +79,7 @@ func TestActivateSceneEmptyActions(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-empty",
@@ -98,7 +98,7 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	s := newMockStore()
 
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(100)})
+	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(100)})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
 		{ID: "sa-1", SceneID: "scene-1", TargetType: "device", TargetID: "light-1", Payload: `{"brightness": 100}`},
@@ -108,7 +108,7 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
@@ -116,7 +116,7 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 
 	select {
 	case evt := <-ch:
-		cmd := evt.Payload.(device.DeviceCommand)
+		cmd := evt.Payload.(device.Command)
 		if cmd.DeviceID != "light-2" {
 			t.Fatalf("expected command for light-2, got %s", cmd.DeviceID)
 		}

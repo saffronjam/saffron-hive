@@ -55,40 +55,46 @@ func deviceLookup(reader device.StateReader) func(string) map[string]any {
 			return result
 		}
 
-		if ls, ok := reader.GetLightState(targetID); ok && ls != nil {
-			if ls.On != nil {
-				result["on"] = *ls.On
-			}
-			if ls.Brightness != nil {
-				result["brightness"] = *ls.Brightness
-			}
-			if ls.ColorTemp != nil {
-				result["color_temp"] = *ls.ColorTemp
-			}
+		st, ok := reader.GetDeviceState(targetID)
+		if !ok || st == nil {
+			return result
 		}
 
-		if ss, ok := reader.GetSensorState(targetID); ok && ss != nil {
-			if ss.Temperature != nil {
-				result["temperature"] = *ss.Temperature
-			}
-			if ss.Humidity != nil {
-				result["humidity"] = *ss.Humidity
-			}
-			if ss.Battery != nil {
-				result["battery"] = *ss.Battery
-			}
-			if ss.Pressure != nil {
-				result["pressure"] = *ss.Pressure
-			}
-			if ss.Illuminance != nil {
-				result["illuminance"] = *ss.Illuminance
-			}
+		if st.On != nil {
+			result["on"] = *st.On
 		}
-
-		if sw, ok := reader.GetSwitchState(targetID); ok && sw != nil {
-			if sw.Action != nil {
-				result["action"] = *sw.Action
-			}
+		if st.Brightness != nil {
+			result["brightness"] = *st.Brightness
+		}
+		if st.ColorTemp != nil {
+			result["color_temp"] = *st.ColorTemp
+		}
+		if st.Temperature != nil {
+			result["temperature"] = *st.Temperature
+		}
+		if st.Humidity != nil {
+			result["humidity"] = *st.Humidity
+		}
+		if st.Battery != nil {
+			result["battery"] = *st.Battery
+		}
+		if st.Pressure != nil {
+			result["pressure"] = *st.Pressure
+		}
+		if st.Illuminance != nil {
+			result["illuminance"] = *st.Illuminance
+		}
+		if st.Power != nil {
+			result["power"] = *st.Power
+		}
+		if st.Voltage != nil {
+			result["voltage"] = *st.Voltage
+		}
+		if st.Current != nil {
+			result["current"] = *st.Current
+		}
+		if st.Energy != nil {
+			result["energy"] = *st.Energy
 		}
 
 		return result

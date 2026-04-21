@@ -3,26 +3,23 @@ package automation
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 type mockStateReader struct {
-	mu       sync.RWMutex
-	devices  []device.Device
-	lights   map[device.DeviceID]*device.LightState
-	sensors  map[device.DeviceID]*device.SensorState
-	switches map[device.DeviceID]*device.SwitchState
-	groups   map[device.GroupID][]device.DeviceID
+	mu      sync.RWMutex
+	devices []device.Device
+	states  map[device.DeviceID]*device.DeviceState
+	groups  map[device.GroupID][]device.DeviceID
 }
 
 func newMockStateReader() *mockStateReader {
 	return &mockStateReader{
-		lights:   make(map[device.DeviceID]*device.LightState),
-		sensors:  make(map[device.DeviceID]*device.SensorState),
-		switches: make(map[device.DeviceID]*device.SwitchState),
-		groups:   make(map[device.GroupID][]device.DeviceID),
+		states: make(map[device.DeviceID]*device.DeviceState),
+		groups: make(map[device.GroupID][]device.DeviceID),
 	}
 }
 
@@ -37,25 +34,11 @@ func (m *mockStateReader) GetDevice(id device.DeviceID) (device.Device, bool) {
 	return device.Device{}, false
 }
 
-func (m *mockStateReader) GetLightState(id device.DeviceID) (*device.LightState, bool) {
+func (m *mockStateReader) GetDeviceState(id device.DeviceID) (*device.DeviceState, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	ls, ok := m.lights[id]
-	return ls, ok
-}
-
-func (m *mockStateReader) GetSensorState(id device.DeviceID) (*device.SensorState, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	ss, ok := m.sensors[id]
-	return ss, ok
-}
-
-func (m *mockStateReader) GetSwitchState(id device.DeviceID) (*device.SwitchState, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	sw, ok := m.switches[id]
-	return sw, ok
+	st, ok := m.states[id]
+	return st, ok
 }
 
 func (m *mockStateReader) ListDevices() []device.Device {
@@ -86,22 +69,10 @@ func (m *mockStateReader) addDevice(d device.Device) {
 	m.devices = append(m.devices, d)
 }
 
-func (m *mockStateReader) setLightState(id device.DeviceID, ls *device.LightState) {
+func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.lights[id] = ls
-}
-
-func (m *mockStateReader) setSensorState(id device.DeviceID, ss *device.SensorState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.sensors[id] = ss
-}
-
-func (m *mockStateReader) setSwitchState(id device.DeviceID, sw *device.SwitchState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.switches[id] = sw
+	m.states[id] = st
 }
 
 func (m *mockStateReader) setGroupDevices(gid device.GroupID, deviceIDs []device.DeviceID) {
@@ -170,6 +141,19 @@ func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store
 		return nil, err
 	}
 	return m.sceneActions[sceneID], nil
+}
+
+func (m *mockStore) UpdateAutomationLastFired(_ context.Context, id string, firedAt time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.automations {
+		if m.automations[i].ID == id {
+			t := firedAt
+			m.automations[i].LastFiredAt = &t
+			return nil
+		}
+	}
+	return nil
 }
 
 func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.TargetType, targetID string) []device.DeviceID {

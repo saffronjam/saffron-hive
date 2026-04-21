@@ -14,12 +14,12 @@ func TestSkipCommandWhenStateMatches(t *testing.T) {
 	s := newMockStore()
 
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(200)})
+	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
@@ -40,12 +40,12 @@ func TestSendCommandWhenStateDiffers(t *testing.T) {
 	s := newMockStore()
 
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{Brightness: device.Ptr(200)})
+	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
@@ -55,16 +55,12 @@ func TestSendCommandWhenStateDiffers(t *testing.T) {
 
 	select {
 	case evt := <-ch:
-		cmd, ok := evt.Payload.(device.DeviceCommand)
+		cmd, ok := evt.Payload.(device.Command)
 		if !ok {
-			t.Fatal("expected DeviceCommand payload")
+			t.Fatal("expected Command payload")
 		}
-		lc, ok := cmd.Payload.(device.LightCommand)
-		if !ok {
-			t.Fatal("expected LightCommand")
-		}
-		if lc.Brightness == nil || *lc.Brightness != 100 {
-			t.Fatalf("expected brightness 100, got %v", lc.Brightness)
+		if cmd.Brightness == nil || *cmd.Brightness != 100 {
+			t.Fatalf("expected brightness 100, got %v", cmd.Brightness)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected command to be published")
@@ -79,7 +75,7 @@ func TestSendCommandWhenCurrentStateUnknown(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
@@ -100,7 +96,7 @@ func TestPartialStateComparison(t *testing.T) {
 	s := newMockStore()
 
 	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.setLightState("light-1", &device.LightState{
+	reader.setDeviceState("light-1", &device.DeviceState{
 		Brightness: device.Ptr(200),
 		ColorTemp:  device.Ptr(350),
 	})
@@ -108,7 +104,7 @@ func TestPartialStateComparison(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s)
+	executor := NewActionExecutor(bus, reader, s, s, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
