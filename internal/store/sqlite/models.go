@@ -27,15 +27,26 @@ type ActivityEvent struct {
 	AutomationName *string
 }
 
+type Alarm struct {
+	ID       int64
+	AlarmID  string
+	Severity string
+	Kind     string
+	Message  string
+	Source   string
+	RaisedAt time.Time
+}
+
 type Automation struct {
 	ID              string
 	Name            string
 	Enabled         bool
-	CooldownSeconds int64
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Icon            *string
 	CreatedBy       *string
+	CooldownSeconds float64
+	LastFiredAt     *time.Time
 }
 
 type AutomationEdge struct {
@@ -50,6 +61,8 @@ type AutomationNode struct {
 	AutomationID string
 	Type         string
 	Config       string
+	PositionX    float64
+	PositionY    float64
 }
 
 type Device struct {

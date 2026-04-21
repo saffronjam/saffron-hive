@@ -18,6 +18,7 @@ type Querier interface {
 	ClearGroupIcon(ctx context.Context, id string) error
 	ClearRoomIcon(ctx context.Context, id string) error
 	ClearSceneIcon(ctx context.Context, id string) error
+	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	// Automations own three related tables: automations, automation_nodes,
 	// automation_edges. GetAutomationGraph is composed in Go from three sqlc
@@ -42,6 +43,7 @@ type Querier interface {
 	CreateScene(ctx context.Context, arg CreateSceneParams) error
 	CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdge(ctx context.Context, id string) error
 	DeleteAutomationNode(ctx context.Context, id string) error
@@ -75,8 +77,13 @@ type Querier interface {
 	//   - IIF(lim > 0, lim, -1): single-query optional LIMIT; SQLite treats -1 as
 	//     unbounded.
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) (int64, error)
+	// Alarms persistence. One row per raise; grouping by alarm_id happens in Go.
+	// Deletion is by alarm_id, removing every row belonging to a logical alarm
+	// in one shot. The user-facing identity is alarm_id, not the row id.
+	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
 	// Returns the auto-generated id; other fields echo the input.
 	InsertSensorReading(ctx context.Context, arg InsertSensorReadingParams) (int64, error)
+	ListAlarms(ctx context.Context) ([]Alarm, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
@@ -109,6 +116,9 @@ type Querier interface {
 	// SQLite emitter keeps a consistent indexing scheme (mixing named and bare
 	// positional `?` produced off-by-one parameter indices in 1.31.0).
 	UpdateAutomationFields(ctx context.Context, arg UpdateAutomationFieldsParams) error
+	// Stamps when the automation most recently fired. updated_at is intentionally
+	// NOT touched so the "last edited" semantics stay distinct from "last fired".
+	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error

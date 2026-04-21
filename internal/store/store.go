@@ -91,7 +91,7 @@ type CreateAutomationParams struct {
 	ID              string
 	Name            string
 	Enabled         bool
-	CooldownSeconds int
+	CooldownSeconds float64
 	CreatedBy       *string
 }
 
@@ -102,7 +102,7 @@ type UpdateAutomationParams struct {
 	SetIcon         bool
 	Icon            *string
 	Enabled         *bool
-	CooldownSeconds *int
+	CooldownSeconds *float64
 }
 
 // Automation represents an automation row.
@@ -111,7 +111,8 @@ type Automation struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds int
+	CooldownSeconds float64
+	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatedBy       *UserRef
@@ -123,6 +124,8 @@ type CreateAutomationNodeParams struct {
 	AutomationID string
 	Type         string
 	Config       string
+	PositionX    float64
+	PositionY    float64
 }
 
 // AutomationNode represents an automation node row.
@@ -131,6 +134,8 @@ type AutomationNode struct {
 	AutomationID string
 	Type         string
 	Config       string
+	PositionX    float64
+	PositionY    float64
 }
 
 // CreateAutomationEdgeParams holds the parameters for creating an automation edge.
@@ -363,4 +368,46 @@ type ActivityQuery struct {
 	Limit    int
 	Advanced bool
 	Before   *int64
+}
+
+// AlarmSeverity classifies an alarm by how urgently it should be acted on.
+type AlarmSeverity string
+
+const (
+	AlarmSeverityHigh   AlarmSeverity = "high"
+	AlarmSeverityMedium AlarmSeverity = "medium"
+	AlarmSeverityLow    AlarmSeverity = "low"
+)
+
+// AlarmKind classifies an alarm's lifecycle semantics. Auto alarms represent
+// an ongoing condition that is normally cleared when the condition resolves;
+// one-shot alarms represent a point-in-time event that sticks until the user
+// deletes it.
+type AlarmKind string
+
+const (
+	AlarmKindAuto    AlarmKind = "auto"
+	AlarmKindOneShot AlarmKind = "one_shot"
+)
+
+// AlarmRow is a single persisted alarm raise. Multiple rows may share the same
+// AlarmID; grouping happens above the store.
+type AlarmRow struct {
+	ID       int64
+	AlarmID  string
+	Severity AlarmSeverity
+	Kind     AlarmKind
+	Message  string
+	Source   string
+	RaisedAt time.Time
+}
+
+// InsertAlarmParams holds the fields for inserting a new alarm raise.
+type InsertAlarmParams struct {
+	AlarmID  string
+	Severity AlarmSeverity
+	Kind     AlarmKind
+	Message  string
+	Source   string
+	RaisedAt time.Time
 }
