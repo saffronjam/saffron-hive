@@ -51,11 +51,12 @@ func TestListDevices(t *testing.T) {
 	s := NewMemoryStore()
 	s.Register(Device{ID: "a", Type: Light})
 	s.Register(Device{ID: "b", Type: Sensor})
-	s.Register(Device{ID: "c", Type: Switch})
+	s.Register(Device{ID: "c", Type: Button})
+	s.Register(Device{ID: "d", Type: Plug})
 
 	list := s.ListDevices()
-	if len(list) != 3 {
-		t.Fatalf("expected 3 devices, got %d", len(list))
+	if len(list) != 4 {
+		t.Fatalf("expected 4 devices, got %d", len(list))
 	}
 }
 
@@ -70,14 +71,14 @@ func TestListDevicesEmpty(t *testing.T) {
 	}
 }
 
-func TestUpdateLightState(t *testing.T) {
+func TestUpdateDeviceState_LightFields(t *testing.T) {
 	s := NewMemoryStore()
 	s.Register(Device{ID: "l1", Type: Light})
-	s.UpdateLightState("l1", LightState{Brightness: Ptr(200), On: Ptr(true)})
+	s.UpdateDeviceState("l1", DeviceState{Brightness: Ptr(200), On: Ptr(true)})
 
-	ls, ok := s.GetLightState("l1")
+	ls, ok := s.GetDeviceState("l1")
 	if !ok {
-		t.Fatal("expected light state found")
+		t.Fatal("expected state found")
 	}
 	if ls.Brightness == nil || *ls.Brightness != 200 {
 		t.Fatalf("expected brightness 200, got %v", ls.Brightness)
@@ -87,15 +88,15 @@ func TestUpdateLightState(t *testing.T) {
 	}
 }
 
-func TestUpdateLightStatePartialMerge(t *testing.T) {
+func TestUpdateDeviceState_PartialMergePreservesOtherFields(t *testing.T) {
 	s := NewMemoryStore()
 	s.Register(Device{ID: "l1", Type: Light})
-	s.UpdateLightState("l1", LightState{Brightness: Ptr(200)})
-	s.UpdateLightState("l1", LightState{ColorTemp: Ptr(350)})
+	s.UpdateDeviceState("l1", DeviceState{Brightness: Ptr(200)})
+	s.UpdateDeviceState("l1", DeviceState{ColorTemp: Ptr(350)})
 
-	ls, ok := s.GetLightState("l1")
+	ls, ok := s.GetDeviceState("l1")
 	if !ok {
-		t.Fatal("expected light state found")
+		t.Fatal("expected state found")
 	}
 	if ls.Brightness == nil || *ls.Brightness != 200 {
 		t.Fatalf("expected brightness 200 preserved, got %v", ls.Brightness)
@@ -105,14 +106,14 @@ func TestUpdateLightStatePartialMerge(t *testing.T) {
 	}
 }
 
-func TestUpdateSensorState(t *testing.T) {
+func TestUpdateDeviceState_SensorFields(t *testing.T) {
 	s := NewMemoryStore()
 	s.Register(Device{ID: "s1", Type: Sensor})
-	s.UpdateSensorState("s1", SensorState{Temperature: Ptr(22.5), Humidity: Ptr(45.0)})
+	s.UpdateDeviceState("s1", DeviceState{Temperature: Ptr(22.5), Humidity: Ptr(45.0)})
 
-	ss, ok := s.GetSensorState("s1")
+	ss, ok := s.GetDeviceState("s1")
 	if !ok {
-		t.Fatal("expected sensor state found")
+		t.Fatal("expected state found")
 	}
 	if ss.Temperature == nil || *ss.Temperature != 22.5 {
 		t.Fatalf("expected temperature 22.5, got %v", ss.Temperature)
@@ -122,45 +123,59 @@ func TestUpdateSensorState(t *testing.T) {
 	}
 }
 
-func TestUpdateSwitchState(t *testing.T) {
+func TestUpdateDeviceState_PlugMetering(t *testing.T) {
 	s := NewMemoryStore()
-	s.Register(Device{ID: "sw1", Type: Switch})
-	s.UpdateSwitchState("sw1", SwitchState{Action: Ptr("toggle")})
+	s.Register(Device{ID: "p1", Type: Plug})
+	s.UpdateDeviceState("p1", DeviceState{
+		On:      Ptr(true),
+		Power:   Ptr(42.5),
+		Voltage: Ptr(230.1),
+		Current: Ptr(0.18),
+		Energy:  Ptr(12.3),
+	})
 
-	sw, ok := s.GetSwitchState("sw1")
+	ps, ok := s.GetDeviceState("p1")
 	if !ok {
-		t.Fatal("expected switch state found")
+		t.Fatal("expected state found")
 	}
-	if sw.Action == nil || *sw.Action != "toggle" {
-		t.Fatalf("expected action toggle, got %v", sw.Action)
+	if ps.On == nil || *ps.On != true {
+		t.Fatal("expected On=true")
+	}
+	if ps.Power == nil || *ps.Power != 42.5 {
+		t.Fatal("expected Power=42.5")
+	}
+	if ps.Voltage == nil || *ps.Voltage != 230.1 {
+		t.Fatal("expected Voltage=230.1")
 	}
 }
 
-func TestGetLightStateWrongType(t *testing.T) {
+func TestGetDeviceState_UnknownDevice(t *testing.T) {
 	s := NewMemoryStore()
-	s.Register(Device{ID: "s1", Type: Sensor})
-
-	ls, ok := s.GetLightState("s1")
+	ls, ok := s.GetDeviceState("nope")
 	if ok || ls != nil {
-		t.Fatal("expected nil, false for wrong device type")
+		t.Fatal("expected nil, false for unknown device")
 	}
 }
 
-func TestGetSensorStateWrongType(t *testing.T) {
+func TestGetDeviceState_RegisteredNoState(t *testing.T) {
 	s := NewMemoryStore()
 	s.Register(Device{ID: "l1", Type: Light})
-
-	ss, ok := s.GetSensorState("l1")
-	if ok || ss != nil {
-		t.Fatal("expected nil, false for wrong device type")
+	ls, ok := s.GetDeviceState("l1")
+	if !ok {
+		t.Fatal("expected ok for registered device with no state")
+	}
+	if ls == nil {
+		t.Fatal("expected non-nil zero state")
+	}
+	if ls.On != nil || ls.Brightness != nil {
+		t.Fatal("expected zero-value state fields")
 	}
 }
 
 func TestUpdateStateForUnknownDevice(t *testing.T) {
 	s := NewMemoryStore()
-	s.UpdateLightState("unknown", LightState{Brightness: Ptr(100)})
-	s.UpdateSensorState("unknown", SensorState{Temperature: Ptr(20.0)})
-	s.UpdateSwitchState("unknown", SwitchState{Action: Ptr("press")})
+	s.UpdateDeviceState("unknown", DeviceState{Brightness: Ptr(100)})
+	s.UpdateDeviceState("unknown", DeviceState{Temperature: Ptr(20.0)})
 }
 
 func TestRemoveDevice(t *testing.T) {

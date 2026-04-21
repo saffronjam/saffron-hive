@@ -22,11 +22,11 @@ func TestRunHandlesDeviceStateChanged(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "l1",
 		Timestamp: time.Now(),
-		Payload:   LightState{Brightness: Ptr(150)},
+		Payload:   DeviceState{Brightness: Ptr(150)},
 	})
 
 	assertEventually(t, func() bool {
-		ls, ok := s.GetLightState("l1")
+		ls, ok := s.GetDeviceState("l1")
 		return ok && ls.Brightness != nil && *ls.Brightness == 150
 	})
 }

@@ -2,52 +2,47 @@ package device
 
 import "testing"
 
-func TestDeviceCommandWithLightCommand(t *testing.T) {
-	cmd := DeviceCommand{
-		DeviceID: DeviceID("light-1"),
-		Payload: LightCommand{
-			On:         Ptr(true),
-			Brightness: Ptr(75),
-		},
+func TestCommandFields(t *testing.T) {
+	cmd := Command{
+		DeviceID:   DeviceID("light-1"),
+		On:         Ptr(true),
+		Brightness: Ptr(75),
+		ColorTemp:  Ptr(3000),
+		Color:      &Color{R: 10, G: 20, B: 30, X: 0.1, Y: 0.2},
+		Transition: Ptr(0.5),
 	}
 	if cmd.DeviceID != "light-1" {
 		t.Fatalf("expected light-1, got %s", cmd.DeviceID)
 	}
-	lc, ok := cmd.Payload.(LightCommand)
-	if !ok {
-		t.Fatal("expected payload to be LightCommand")
+	if *cmd.On != true {
+		t.Fatal("expected On=true")
 	}
-	if *lc.On != true {
-		t.Fatal("expected On to be true")
+	if *cmd.Brightness != 75 {
+		t.Fatalf("expected 75, got %d", *cmd.Brightness)
 	}
-	if *lc.Brightness != 75 {
-		t.Fatalf("expected 75, got %d", *lc.Brightness)
+	if *cmd.ColorTemp != 3000 {
+		t.Fatalf("expected 3000, got %d", *cmd.ColorTemp)
 	}
-}
-
-func TestDeviceCommandWithSensorState(t *testing.T) {
-	cmd := DeviceCommand{
-		DeviceID: DeviceID("sensor-1"),
-		Payload: SensorState{
-			Temperature: Ptr(19.5),
-		},
+	if cmd.Color.R != 10 {
+		t.Fatalf("expected R=10, got %d", cmd.Color.R)
 	}
-	ss, ok := cmd.Payload.(SensorState)
-	if !ok {
-		t.Fatal("expected payload to be SensorState")
-	}
-	if *ss.Temperature != 19.5 {
-		t.Fatalf("expected 19.5, got %f", *ss.Temperature)
+	if *cmd.Transition != 0.5 {
+		t.Fatalf("expected 0.5, got %f", *cmd.Transition)
 	}
 }
 
-func TestDeviceCommandTypeAssertion(t *testing.T) {
-	cmd := DeviceCommand{
-		DeviceID: DeviceID("light-2"),
-		Payload:  LightCommand{On: Ptr(false)},
+func TestCommandPartial(t *testing.T) {
+	cmd := Command{
+		DeviceID: DeviceID("plug-1"),
+		On:       Ptr(false),
 	}
-	_, ok := cmd.Payload.(SensorState)
-	if ok {
-		t.Fatal("LightCommand should not assert to SensorState")
+	if *cmd.On != false {
+		t.Fatal("expected On=false")
+	}
+	if cmd.Brightness != nil {
+		t.Fatal("Brightness should be nil")
+	}
+	if cmd.Color != nil {
+		t.Fatal("Color should be nil")
 	}
 }

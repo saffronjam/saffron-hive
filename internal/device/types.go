@@ -16,8 +16,12 @@ const (
 	Light DeviceType = "light"
 	// Sensor represents a device that reports environmental readings.
 	Sensor DeviceType = "sensor"
-	// Switch represents a button or switch input device.
-	Switch DeviceType = "switch"
+	// Button represents an input device that reports discrete action events
+	// (e.g. single / double / hold) without an on/off state of its own.
+	Button DeviceType = "button"
+	// Plug represents a switchable outlet, usually with on/off control and
+	// often with power metering (power, voltage, current, energy).
+	Plug DeviceType = "plug"
 	// Speaker represents an audio output device.
 	Speaker DeviceType = "speaker"
 	// Unknown represents a device whose type could not be determined.

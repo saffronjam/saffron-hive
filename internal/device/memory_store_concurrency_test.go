@@ -14,14 +14,14 @@ func TestConcurrentReadWrite(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.UpdateLightState("l1", LightState{Brightness: Ptr(i)})
+			s.UpdateDeviceState("l1", DeviceState{Brightness: Ptr(i)})
 		}()
 	}
 	for range 50 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.GetLightState("l1")
+			s.GetDeviceState("l1")
 		}()
 	}
 	wg.Wait()

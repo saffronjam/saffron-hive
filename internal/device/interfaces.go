@@ -3,9 +3,7 @@ package device
 // StateReader provides read-only access to device state.
 type StateReader interface {
 	GetDevice(DeviceID) (Device, bool)
-	GetLightState(DeviceID) (*LightState, bool)
-	GetSensorState(DeviceID) (*SensorState, bool)
-	GetSwitchState(DeviceID) (*SwitchState, bool)
+	GetDeviceState(DeviceID) (*DeviceState, bool)
 	ListDevices() []Device
 	GetGroup(GroupID) (Group, bool)
 	ListGroups() []Group
@@ -17,9 +15,7 @@ type StateReader interface {
 type StateWriter interface {
 	Register(Device)
 	Remove(DeviceID)
-	UpdateLightState(DeviceID, LightState)
-	UpdateSensorState(DeviceID, SensorState)
-	UpdateSwitchState(DeviceID, SwitchState)
+	UpdateDeviceState(DeviceID, DeviceState)
 	SetAvailability(DeviceID, bool)
 	CreateGroup(Group) error
 	DeleteGroup(GroupID)

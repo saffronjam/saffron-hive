@@ -9,7 +9,8 @@ func TestDeviceTypeConstants(t *testing.T) {
 	}{
 		{Light, "light"},
 		{Sensor, "sensor"},
-		{Switch, "switch"},
+		{Button, "button"},
+		{Plug, "plug"},
 		{Speaker, "speaker"},
 		{Unknown, "unknown"},
 	}
