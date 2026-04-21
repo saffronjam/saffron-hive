@@ -17,18 +17,14 @@ var logger = slog.Default().With("pkg", "zigbee")
 type StateWriter interface {
 	Register(dev device.Device)
 	Remove(id device.DeviceID)
-	UpdateLightState(id device.DeviceID, state device.LightState)
-	UpdateSensorState(id device.DeviceID, state device.SensorState)
-	UpdateSwitchState(id device.DeviceID, state device.SwitchState)
+	UpdateDeviceState(id device.DeviceID, state device.DeviceState)
 	SetAvailability(id device.DeviceID, available bool)
 }
 
 // StateReader is the subset of the device store used to query device state.
 type StateReader interface {
 	GetDevice(id device.DeviceID) (device.Device, bool)
-	GetLightState(id device.DeviceID) (*device.LightState, bool)
-	GetSensorState(id device.DeviceID) (*device.SensorState, bool)
-	GetSwitchState(id device.DeviceID) (*device.SwitchState, bool)
+	GetDeviceState(id device.DeviceID) (*device.DeviceState, bool)
 	ListDevices() []device.Device
 }
 
@@ -44,7 +40,6 @@ type ZigbeeAdapter struct {
 	ieeeToID     map[string]device.DeviceID
 	nameToID     map[string]device.DeviceID
 	idToName     map[device.DeviceID]string
-	deviceTypes  map[device.DeviceID]device.DeviceType
 	knownDevices map[device.DeviceID]struct{}
 
 	stopCh chan struct{}
@@ -61,7 +56,6 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 		ieeeToID:     make(map[string]device.DeviceID),
 		nameToID:     make(map[string]device.DeviceID),
 		idToName:     make(map[device.DeviceID]string),
-		deviceTypes:  make(map[device.DeviceID]device.DeviceType),
 		knownDevices: make(map[device.DeviceID]struct{}),
 		stopCh:       make(chan struct{}),
 	}
@@ -130,7 +124,7 @@ func (a *ZigbeeAdapter) commandLoop() {
 			if !ok {
 				return
 			}
-			cmd, ok := evt.Payload.(device.DeviceCommand)
+			cmd, ok := evt.Payload.(device.Command)
 			if !ok {
 				continue
 			}
@@ -211,55 +205,46 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 
 	a.mu.RLock()
 	id, ok := a.nameToID[friendlyName]
-	devType := a.deviceTypes[id]
 	a.mu.RUnlock()
 	if !ok {
 		return
 	}
 
 	var statePayload json.RawMessage = payload
+	now := time.Now()
 
-	switch devType {
-	case device.Light:
-		state, err := mapLightState(statePayload)
-		if err != nil {
-			logger.Error("failed to map light state", "device", friendlyName, "error", err)
-			return
-		}
-		a.stateWriter.UpdateLightState(id, state)
+	if action, ok := mapAction(statePayload); ok {
 		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceStateChanged,
+			Type:      eventbus.EventDeviceActionFired,
 			DeviceID:  string(id),
-			Timestamp: time.Now(),
-			Payload:   state,
-		})
-
-	case device.Sensor:
-		state, err := mapSensorState(statePayload)
-		if err != nil {
-			logger.Error("failed to map sensor state", "device", friendlyName, "error", err)
-			return
-		}
-		a.stateWriter.UpdateSensorState(id, state)
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceStateChanged,
-			DeviceID:  string(id),
-			Timestamp: time.Now(),
-			Payload:   state,
-		})
-
-	case device.Switch:
-		state, err := mapSwitchState(statePayload)
-		if err != nil {
-			logger.Error("failed to map switch state", "device", friendlyName, "error", err)
-			return
-		}
-		a.stateWriter.UpdateSwitchState(id, state)
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceStateChanged,
-			DeviceID:  string(id),
-			Timestamp: time.Now(),
-			Payload:   state,
+			Timestamp: now,
+			Payload:   device.Action{Action: action},
 		})
 	}
+
+	state, err := mapDeviceState(statePayload)
+	if err != nil {
+		logger.Error("failed to map device state", "device", friendlyName, "error", err)
+		return
+	}
+	if !hasAnyField(state) {
+		return
+	}
+	a.stateWriter.UpdateDeviceState(id, state)
+	a.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceStateChanged,
+		DeviceID:  string(id),
+		Timestamp: now,
+		Payload:   state,
+	})
+}
+
+// hasAnyField reports whether any DeviceState pointer field is non-nil. Used
+// to skip state-changed publishes for payloads that carry only an action.
+func hasAnyField(s device.DeviceState) bool {
+	return s.On != nil || s.Brightness != nil || s.ColorTemp != nil ||
+		s.Color != nil || s.Transition != nil ||
+		s.Temperature != nil || s.Humidity != nil || s.Pressure != nil ||
+		s.Illuminance != nil || s.Battery != nil ||
+		s.Power != nil || s.Voltage != nil || s.Current != nil || s.Energy != nil
 }

@@ -9,24 +9,38 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
+// detectDeviceType classifies a device from its zigbee2mqtt exposes list. A
+// top-level "light" expose is a light; an action-reporting feature without
+// on/off is a button; on/off (with or without power metering) is a plug;
+// environmental readings without controls are a sensor.
 func detectDeviceType(exposes []z2mFeature) device.DeviceType {
 	for _, e := range exposes {
-		switch e.Type {
-		case "light":
+		if e.Type == "light" {
 			return device.Light
-		case "switch":
-			return device.Switch
 		}
 	}
 
-	flat := flattenFeatures(exposes)
-	for _, f := range flat {
+	var hasOnOff, hasAction, hasEnv bool
+	for _, f := range flattenFeatures(exposes) {
 		switch f.Property {
-		case "temperature", "humidity", "pressure", "illuminance":
-			return device.Sensor
+		case "state":
+			if f.Type == "binary" {
+				hasOnOff = true
+			}
 		case "action":
-			return device.Switch
+			hasAction = true
+		case "temperature", "humidity", "pressure", "illuminance":
+			hasEnv = true
 		}
+	}
+
+	switch {
+	case hasAction && !hasOnOff:
+		return device.Button
+	case hasOnOff:
+		return device.Plug
+	case hasEnv:
+		return device.Sensor
 	}
 	return device.Unknown
 }
@@ -118,7 +132,6 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		a.ieeeToID[d.IEEEAddress] = id
 		a.nameToID[d.FriendlyName] = id
 		a.idToName[id] = d.FriendlyName
-		a.deviceTypes[id] = devType
 		a.knownDevices[id] = struct{}{}
 		a.mu.Unlock()
 

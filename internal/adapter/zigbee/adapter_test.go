@@ -15,12 +15,13 @@ func setupAdapterWithDevice(t *testing.T, friendlyName, ieee string, devType dev
 		t.Fatal(err)
 	}
 
-	adapter.mu.Lock()
 	id := device.DeviceID(ieee)
+	sw.Register(device.Device{ID: id, Name: friendlyName, Type: devType, Available: true})
+
+	adapter.mu.Lock()
 	adapter.nameToID[friendlyName] = id
 	adapter.idToName[id] = friendlyName
 	adapter.ieeeToID[ieee] = id
-	adapter.deviceTypes[id] = devType
 	adapter.mu.Unlock()
 
 	return adapter, mqtt, bus, sw
@@ -44,9 +45,9 @@ func TestStateChangePublishesEvent(t *testing.T) {
 			if e.DeviceID != "0xabc" {
 				t.Fatalf("expected device ID 0xabc, got %s", e.DeviceID)
 			}
-			state, ok := e.Payload.(device.LightState)
+			state, ok := e.Payload.(device.DeviceState)
 			if !ok {
-				t.Fatal("expected LightState payload")
+				t.Fatal("expected DeviceState payload")
 			}
 			if state.On == nil || !*state.On {
 				t.Fatal("expected On=true")

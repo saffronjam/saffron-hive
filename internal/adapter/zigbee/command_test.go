@@ -32,12 +32,10 @@ func TestCommandTranslation_LightOn(t *testing.T) {
 		Type:      eventbus.EventCommandRequested,
 		DeviceID:  "0xabc",
 		Timestamp: time.Now(),
-		Payload: device.DeviceCommand{
-			DeviceID: device.DeviceID("0xabc"),
-			Payload: device.LightCommand{
-				On:         device.Ptr(true),
-				Brightness: device.Ptr(200),
-			},
+		Payload: device.Command{
+			DeviceID:   device.DeviceID("0xabc"),
+			On:         device.Ptr(true),
+			Brightness: device.Ptr(200),
 		},
 	})
 
@@ -71,11 +69,9 @@ func TestCommandTranslation_ColorTemp(t *testing.T) {
 		Type:      eventbus.EventCommandRequested,
 		DeviceID:  "0xdef",
 		Timestamp: time.Now(),
-		Payload: device.DeviceCommand{
-			DeviceID: device.DeviceID("0xdef"),
-			Payload: device.LightCommand{
-				ColorTemp: device.Ptr(400),
-			},
+		Payload: device.Command{
+			DeviceID:  device.DeviceID("0xdef"),
+			ColorTemp: device.Ptr(400),
 		},
 	})
 
@@ -101,11 +97,9 @@ func TestCommandTranslation_Color(t *testing.T) {
 		Type:      eventbus.EventCommandRequested,
 		DeviceID:  "0xrgb",
 		Timestamp: time.Now(),
-		Payload: device.DeviceCommand{
+		Payload: device.Command{
 			DeviceID: device.DeviceID("0xrgb"),
-			Payload: device.LightCommand{
-				Color: &device.Color{R: 255, G: 0, B: 128},
-			},
+			Color:    &device.Color{R: 255, G: 0, B: 128},
 		},
 	})
 
@@ -137,11 +131,9 @@ func TestCommandTranslation_UnknownDevice(t *testing.T) {
 		Type:      eventbus.EventCommandRequested,
 		DeviceID:  "0xunknown",
 		Timestamp: time.Now(),
-		Payload: device.DeviceCommand{
+		Payload: device.Command{
 			DeviceID: device.DeviceID("0xunknown"),
-			Payload: device.LightCommand{
-				On: device.Ptr(true),
-			},
+			On:       device.Ptr(true),
 		},
 	})
 
@@ -161,13 +153,11 @@ func TestCommandTranslation_WithTransition(t *testing.T) {
 		Type:      eventbus.EventCommandRequested,
 		DeviceID:  "0xbed",
 		Timestamp: time.Now(),
-		Payload: device.DeviceCommand{
-			DeviceID: device.DeviceID("0xbed"),
-			Payload: device.LightCommand{
-				On:         device.Ptr(true),
-				Brightness: device.Ptr(150),
-				Transition: device.Ptr(2.5),
-			},
+		Payload: device.Command{
+			DeviceID:   device.DeviceID("0xbed"),
+			On:         device.Ptr(true),
+			Brightness: device.Ptr(150),
+			Transition: device.Ptr(2.5),
 		},
 	})
 

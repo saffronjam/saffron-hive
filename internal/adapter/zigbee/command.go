@@ -14,7 +14,7 @@ type z2mSetPayload struct {
 	Transition *float64  `json:"transition,omitempty"`
 }
 
-func translateLightCommand(cmd device.LightCommand) z2mSetPayload {
+func translateCommand(cmd device.Command) z2mSetPayload {
 	var p z2mSetPayload
 
 	if cmd.On != nil {
@@ -42,7 +42,7 @@ func translateLightCommand(cmd device.LightCommand) z2mSetPayload {
 	return p
 }
 
-func (a *ZigbeeAdapter) handleCommand(cmd device.DeviceCommand) {
+func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 	a.mu.RLock()
 	friendlyName, ok := a.idToName[cmd.DeviceID]
 	a.mu.RUnlock()
@@ -52,13 +52,7 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.DeviceCommand) {
 		return
 	}
 
-	lightCmd, ok := cmd.Payload.(device.LightCommand)
-	if !ok {
-		logger.Warn("unsupported command payload type", "device_id", cmd.DeviceID)
-		return
-	}
-
-	payload := translateLightCommand(lightCmd)
+	payload := translateCommand(cmd)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		logger.Error("failed to marshal command", "error", err)

@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestMapLightState_Full(t *testing.T) {
+func TestMapDeviceState_LightFull(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","brightness":200,"color_temp":350,"color":{"r":255,"g":100,"b":0}}`)
-	state, err := mapLightState(raw)
+	state, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,9 +28,9 @@ func TestMapLightState_Full(t *testing.T) {
 	}
 }
 
-func TestMapLightState_Partial(t *testing.T) {
+func TestMapDeviceState_Partial(t *testing.T) {
 	raw := json.RawMessage(`{"brightness":100}`)
-	state, err := mapLightState(raw)
+	state, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,9 +48,9 @@ func TestMapLightState_Partial(t *testing.T) {
 	}
 }
 
-func TestMapLightState_OnOff(t *testing.T) {
+func TestMapDeviceState_OnOff(t *testing.T) {
 	onRaw := json.RawMessage(`{"state":"ON"}`)
-	onState, err := mapLightState(onRaw)
+	onState, err := mapDeviceState(onRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestMapLightState_OnOff(t *testing.T) {
 	}
 
 	offRaw := json.RawMessage(`{"state":"OFF"}`)
-	offState, err := mapLightState(offRaw)
+	offState, err := mapDeviceState(offRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,9 +68,9 @@ func TestMapLightState_OnOff(t *testing.T) {
 	}
 }
 
-func TestMapSensorState(t *testing.T) {
+func TestMapDeviceState_SensorFields(t *testing.T) {
 	raw := json.RawMessage(`{"temperature":22.5,"humidity":45.0,"battery":87}`)
-	state, err := mapSensorState(raw)
+	state, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,48 +85,72 @@ func TestMapSensorState(t *testing.T) {
 	}
 }
 
-func TestMapSwitchState(t *testing.T) {
+func TestMapDeviceState_PlugMetering(t *testing.T) {
+	raw := json.RawMessage(`{"state":"ON","power":42.5,"voltage":230.1,"current":0.18,"energy":12.3}`)
+	state, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.On == nil || !*state.On {
+		t.Fatal("expected On=true")
+	}
+	if state.Power == nil || *state.Power != 42.5 {
+		t.Fatalf("expected Power=42.5, got %v", state.Power)
+	}
+	if state.Voltage == nil || *state.Voltage != 230.1 {
+		t.Fatalf("expected Voltage=230.1, got %v", state.Voltage)
+	}
+	if state.Current == nil || *state.Current != 0.18 {
+		t.Fatalf("expected Current=0.18, got %v", state.Current)
+	}
+	if state.Energy == nil || *state.Energy != 12.3 {
+		t.Fatalf("expected Energy=12.3, got %v", state.Energy)
+	}
+}
+
+func TestMapAction_Present(t *testing.T) {
 	raw := json.RawMessage(`{"action":"single"}`)
-	state, err := mapSwitchState(raw)
-	if err != nil {
-		t.Fatal(err)
+	action, ok := mapAction(raw)
+	if !ok {
+		t.Fatal("expected action to be present")
 	}
-	if state.Action == nil || *state.Action != "single" {
-		t.Fatalf("expected Action=single, got %v", state.Action)
+	if action != "single" {
+		t.Fatalf("expected single, got %s", action)
 	}
 }
 
-func TestMapState_EmptyPayload(t *testing.T) {
+func TestMapAction_Absent(t *testing.T) {
+	raw := json.RawMessage(`{"state":"ON","power":10}`)
+	_, ok := mapAction(raw)
+	if ok {
+		t.Fatal("expected no action")
+	}
+}
+
+func TestMapDeviceState_EmptyPayload(t *testing.T) {
 	raw := json.RawMessage(`{}`)
-
-	ls, err := mapLightState(raw)
+	state, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ls.On != nil || ls.Brightness != nil || ls.ColorTemp != nil || ls.Color != nil {
-		t.Fatal("expected all nil for empty payload")
+	if state.On != nil || state.Brightness != nil || state.ColorTemp != nil || state.Color != nil {
+		t.Fatal("expected all light fields nil for empty payload")
+	}
+	if state.Temperature != nil || state.Humidity != nil || state.Battery != nil {
+		t.Fatal("expected all sensor fields nil for empty payload")
+	}
+	if state.Power != nil || state.Voltage != nil || state.Current != nil || state.Energy != nil {
+		t.Fatal("expected all metering fields nil for empty payload")
 	}
 
-	ss, err := mapSensorState(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ss.Temperature != nil || ss.Humidity != nil || ss.Battery != nil {
-		t.Fatal("expected all nil for empty payload")
-	}
-
-	sw, err := mapSwitchState(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sw.Action != nil {
-		t.Fatal("expected Action=nil for empty payload")
+	if _, ok := mapAction(raw); ok {
+		t.Fatal("expected no action for empty payload")
 	}
 }
 
-func TestMapState_UnknownFields(t *testing.T) {
+func TestMapDeviceState_UnknownFields(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","brightness":100,"unknown_field":"value","another":42}`)
-	state, err := mapLightState(raw)
+	state, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}

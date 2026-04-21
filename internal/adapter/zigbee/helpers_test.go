@@ -9,21 +9,17 @@ import (
 )
 
 type mockStateWriter struct {
-	mu       sync.Mutex
-	devices  map[device.DeviceID]device.Device
-	lights   map[device.DeviceID]device.LightState
-	sensors  map[device.DeviceID]device.SensorState
-	switches map[device.DeviceID]device.SwitchState
-	avail    map[device.DeviceID]bool
+	mu      sync.Mutex
+	devices map[device.DeviceID]device.Device
+	states  map[device.DeviceID]device.DeviceState
+	avail   map[device.DeviceID]bool
 }
 
 func newMockStateWriter() *mockStateWriter {
 	return &mockStateWriter{
-		devices:  make(map[device.DeviceID]device.Device),
-		lights:   make(map[device.DeviceID]device.LightState),
-		sensors:  make(map[device.DeviceID]device.SensorState),
-		switches: make(map[device.DeviceID]device.SwitchState),
-		avail:    make(map[device.DeviceID]bool),
+		devices: make(map[device.DeviceID]device.Device),
+		states:  make(map[device.DeviceID]device.DeviceState),
+		avail:   make(map[device.DeviceID]bool),
 	}
 }
 
@@ -39,22 +35,10 @@ func (m *mockStateWriter) Remove(id device.DeviceID) {
 	delete(m.devices, id)
 }
 
-func (m *mockStateWriter) UpdateLightState(id device.DeviceID, state device.LightState) {
+func (m *mockStateWriter) UpdateDeviceState(id device.DeviceID, state device.DeviceState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.lights[id] = state
-}
-
-func (m *mockStateWriter) UpdateSensorState(id device.DeviceID, state device.SensorState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.sensors[id] = state
-}
-
-func (m *mockStateWriter) UpdateSwitchState(id device.DeviceID, state device.SwitchState) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.switches[id] = state
+	m.states[id] = device.MergeDeviceState(m.states[id], state)
 }
 
 func (m *mockStateWriter) SetAvailability(id device.DeviceID, available bool) {
@@ -63,43 +47,17 @@ func (m *mockStateWriter) SetAvailability(id device.DeviceID, available bool) {
 	m.avail[id] = available
 }
 
-func (m *mockStateWriter) CreateGroup(_ device.Group) error { return nil }
-
-func (m *mockStateWriter) DeleteGroup(_ device.GroupID) {}
-
-func (m *mockStateWriter) AddGroupMember(_ device.GroupMember) error { return nil }
-
-func (m *mockStateWriter) RemoveGroupMember(_ device.GroupID, _ device.GroupMemberType, _ string) {}
-
 type mockStateReader struct{}
 
 func (m *mockStateReader) GetDevice(_ device.DeviceID) (device.Device, bool) {
 	return device.Device{}, false
 }
 
-func (m *mockStateReader) GetLightState(_ device.DeviceID) (*device.LightState, bool) {
-	return nil, false
-}
-
-func (m *mockStateReader) GetSensorState(_ device.DeviceID) (*device.SensorState, bool) {
-	return nil, false
-}
-
-func (m *mockStateReader) GetSwitchState(_ device.DeviceID) (*device.SwitchState, bool) {
+func (m *mockStateReader) GetDeviceState(_ device.DeviceID) (*device.DeviceState, bool) {
 	return nil, false
 }
 
 func (m *mockStateReader) ListDevices() []device.Device { return nil }
-
-func (m *mockStateReader) GetGroup(_ device.GroupID) (device.Group, bool) {
-	return device.Group{}, false
-}
-
-func (m *mockStateReader) ListGroups() []device.Group { return nil }
-
-func (m *mockStateReader) ListGroupMembers(_ device.GroupID) []device.GroupMember { return nil }
-
-func (m *mockStateReader) ResolveGroupDevices(_ device.GroupID) []device.DeviceID { return nil }
 
 type mockEventBus struct {
 	mu     sync.Mutex

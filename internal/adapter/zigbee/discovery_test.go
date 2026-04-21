@@ -77,7 +77,7 @@ func TestDiscoverDevices_Sensor(t *testing.T) {
 	}
 }
 
-func TestDiscoverDevices_Switch(t *testing.T) {
+func TestDiscoverDevices_Button(t *testing.T) {
 	adapter, mqtt, _, sw := newTestAdapter()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
@@ -104,8 +104,79 @@ func TestDiscoverDevices_Switch(t *testing.T) {
 	if !ok {
 		t.Fatal("device not registered")
 	}
-	if dev.Type != device.Switch {
-		t.Fatalf("expected Switch, got %s", dev.Type)
+	if dev.Type != device.Button {
+		t.Fatalf("expected Button, got %s", dev.Type)
+	}
+}
+
+func TestDiscoverDevices_Plug(t *testing.T) {
+	adapter, mqtt, _, sw := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+		"ieee_address": "0x00158d000328303e",
+		"friendly_name": "lava_lamp",
+		"type": "Router",
+		"supported": true,
+		"definition": {
+			"model": "SP 120", "vendor": "Innr", "description": "Smart plug",
+			"exposes": [
+				{"type": "switch", "features": [
+					{"type": "binary", "name": "state", "property": "state"}
+				]},
+				{"type": "numeric", "name": "power", "property": "power", "unit": "W"},
+				{"type": "numeric", "name": "voltage", "property": "voltage", "unit": "V"},
+				{"type": "numeric", "name": "current", "property": "current", "unit": "A"},
+				{"type": "numeric", "name": "energy", "property": "energy", "unit": "kWh"}
+			]
+		}
+	}]`))
+
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	dev, ok := sw.devices[device.DeviceID("0x00158d000328303e")]
+	if !ok {
+		t.Fatal("device not registered")
+	}
+	if dev.Type != device.Plug {
+		t.Fatalf("expected Plug, got %s", dev.Type)
+	}
+}
+
+func TestDiscoverDevices_PlainPlug(t *testing.T) {
+	adapter, mqtt, _, sw := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+		"ieee_address": "0xplainplug",
+		"friendly_name": "bare_plug",
+		"type": "Router",
+		"supported": true,
+		"definition": {
+			"exposes": [
+				{"type": "switch", "features": [
+					{"type": "binary", "name": "state", "property": "state"}
+				]}
+			]
+		}
+	}]`))
+
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	dev, ok := sw.devices[device.DeviceID("0xplainplug")]
+	if !ok {
+		t.Fatal("device not registered")
+	}
+	if dev.Type != device.Plug {
+		t.Fatalf("expected Plug, got %s", dev.Type)
 	}
 }
 
@@ -168,8 +239,8 @@ func TestDiscoverDevices_Multiple(t *testing.T) {
 	if sw.devices[device.DeviceID("0x03")].Type != device.Sensor {
 		t.Fatal("device 0x03 should be Sensor")
 	}
-	if sw.devices[device.DeviceID("0x04")].Type != device.Switch {
-		t.Fatal("device 0x04 should be Switch")
+	if sw.devices[device.DeviceID("0x04")].Type != device.Button {
+		t.Fatal("device 0x04 should be Button")
 	}
 	if sw.devices[device.DeviceID("0x05")].Type != device.Unknown {
 		t.Fatal("device 0x05 should be Unknown")

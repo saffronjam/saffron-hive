@@ -39,6 +39,11 @@ type z2mDeviceState struct {
 	Pressure    *float64 `json:"pressure"`
 	Illuminance *float64 `json:"illuminance"`
 
+	Power   *float64 `json:"power"`
+	Voltage *float64 `json:"voltage"`
+	Current *float64 `json:"current"`
+	Energy  *float64 `json:"energy"`
+
 	Action string `json:"action"`
 }
 
