@@ -1,6 +1,7 @@
 export interface MembershipRoom {
   id: string;
   name: string;
+  icon?: string | null;
   devices: { id: string }[];
 }
 
@@ -16,18 +17,21 @@ export interface MembershipGroupMember extends MembershipGroupMemberRef {
 export interface MembershipGroupRef {
   id: string;
   name: string;
+  icon?: string | null;
   members: MembershipGroupMemberRef[];
 }
 
 export interface MembershipGroup {
   id: string;
   name: string;
+  icon?: string | null;
   members: MembershipGroupMember[];
 }
 
 export interface Chip {
   id: string;
   name: string;
+  icon?: string | null;
 }
 
 export interface DeviceChips {
@@ -49,7 +53,7 @@ export function chipsByDevice(
   for (const room of rooms) {
     for (const d of room.devices) {
       const entry = map.get(d.id) ?? { roomChips: [], groupChips: [] };
-      entry.roomChips.push({ id: room.id, name: room.name });
+      entry.roomChips.push({ id: room.id, name: room.name, icon: room.icon ?? null });
       map.set(d.id, entry);
     }
   }
@@ -57,7 +61,7 @@ export function chipsByDevice(
     for (const m of group.members) {
       if (m.memberType !== "device") continue;
       const entry = map.get(m.memberId) ?? { roomChips: [], groupChips: [] };
-      entry.groupChips.push({ id: group.id, name: group.name });
+      entry.groupChips.push({ id: group.id, name: group.name, icon: group.icon ?? null });
       map.set(m.memberId, entry);
     }
   }

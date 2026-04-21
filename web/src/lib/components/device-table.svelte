@@ -15,12 +15,14 @@
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
 	import { sentenceCase } from "$lib/utils";
 	import { DoorOpen, Group as GroupIcon, Pencil, Plus } from "@lucide/svelte";
 
 	interface MembershipChip {
 		id: string;
 		name: string;
+		icon?: string | null;
 	}
 
 	interface Row {
@@ -43,8 +45,8 @@
 		<TableHeader>
 			<TableRow>
 				<TableHead class="w-8"></TableHead>
+				<TableHead class="w-24">Type</TableHead>
 				<TableHead>Name</TableHead>
-				<TableHead>Type</TableHead>
 				<TableHead>Source</TableHead>
 				<TableHead>Rooms &amp; Groups</TableHead>
 				<TableHead>State</TableHead>
@@ -63,13 +65,13 @@
 						></span>
 					</TableCell>
 					<TableCell>
+						<DeviceTypeBadge type={device.type} />
+					</TableCell>
+					<TableCell>
 						<InlineEditName
 							name={device.name}
 							onsave={(newName) => onrename(device.id, newName)}
 						/>
-					</TableCell>
-					<TableCell>
-						<DeviceTypeBadge type={device.type} />
 					</TableCell>
 					<TableCell>
 						<Badge variant="outline">{sentenceCase(device.source)}</Badge>
@@ -82,7 +84,11 @@
 								{#each roomChips as chip (chip.id)}
 									<a href={`/rooms?edit=${chip.id}`} class="inline-flex">
 										<Badge variant="outline" class="cursor-pointer gap-1 hover:bg-muted">
-											<DoorOpen class="size-3" />
+											<DynamicIcon icon={chip.icon} class="size-3">
+												{#snippet fallback()}
+													<DoorOpen class="size-3" />
+												{/snippet}
+											</DynamicIcon>
 											{chip.name}
 										</Badge>
 									</a>
@@ -90,7 +96,11 @@
 								{#each groupChips as chip (chip.id)}
 									<a href={`/groups?edit=${chip.id}`} class="inline-flex">
 										<Badge variant="outline" class="cursor-pointer gap-1 hover:bg-muted">
-											<GroupIcon class="size-3" />
+											<DynamicIcon icon={chip.icon} class="size-3">
+												{#snippet fallback()}
+													<GroupIcon class="size-3" />
+												{/snippet}
+											</DynamicIcon>
 											{chip.name}
 										</Badge>
 									</a>

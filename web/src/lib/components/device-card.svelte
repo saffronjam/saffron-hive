@@ -14,12 +14,14 @@
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
 	import { DoorOpen, EllipsisVertical, Group as GroupIcon, Pencil, Plus } from "@lucide/svelte";
 
 
 	interface MembershipChip {
 		id: string;
 		name: string;
+		icon?: string | null;
 	}
 
 	interface Props {
@@ -83,7 +85,11 @@
 				{#each roomChips as chip (chip.id)}
 					<a href={`/rooms?edit=${chip.id}`} class="inline-flex">
 						<Badge variant="outline" class="cursor-pointer gap-1 hover:bg-muted">
-							<DoorOpen class="size-3" />
+							<DynamicIcon icon={chip.icon} class="size-3">
+								{#snippet fallback()}
+									<DoorOpen class="size-3" />
+								{/snippet}
+							</DynamicIcon>
 							{chip.name}
 						</Badge>
 					</a>
@@ -91,7 +97,11 @@
 				{#each groupChips as chip (chip.id)}
 					<a href={`/groups?edit=${chip.id}`} class="inline-flex">
 						<Badge variant="outline" class="cursor-pointer gap-1 hover:bg-muted">
-							<GroupIcon class="size-3" />
+							<DynamicIcon icon={chip.icon} class="size-3">
+								{#snippet fallback()}
+									<GroupIcon class="size-3" />
+								{/snippet}
+							</DynamicIcon>
 							{chip.name}
 						</Badge>
 					</a>

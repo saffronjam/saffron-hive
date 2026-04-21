@@ -212,6 +212,7 @@
 			rooms {
 				id
 				name
+				icon
 				devices { id }
 			}
 		}
@@ -222,6 +223,7 @@
 			groups {
 				id
 				name
+				icon
 				members { memberType memberId }
 			}
 		}

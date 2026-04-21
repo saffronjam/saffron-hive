@@ -20,13 +20,13 @@ describe("chipsByDevice", () => {
 		const result = chipsByDevice(rooms, []);
 
 		expect(result.get("d1")).toEqual({
-			roomChips: [{ id: "r1", name: "Kitchen" }],
+			roomChips: [{ id: "r1", name: "Kitchen", icon: null }],
 			groupChips: [],
 		});
 		expect(result.get("d2")).toEqual({
 			roomChips: [
-				{ id: "r1", name: "Kitchen" },
-				{ id: "r2", name: "Hallway" },
+				{ id: "r1", name: "Kitchen", icon: null },
+				{ id: "r2", name: "Hallway", icon: null },
 			],
 			groupChips: [],
 		});
@@ -46,8 +46,8 @@ describe("chipsByDevice", () => {
 
 		const result = chipsByDevice([], groups);
 
-		expect(result.get("d1")?.groupChips).toEqual([{ id: "g1", name: "All lights" }]);
-		expect(result.get("d2")?.groupChips).toEqual([{ id: "g1", name: "All lights" }]);
+		expect(result.get("d1")?.groupChips).toEqual([{ id: "g1", name: "All lights", icon: null }]);
+		expect(result.get("d2")?.groupChips).toEqual([{ id: "g1", name: "All lights", icon: null }]);
 	});
 
 	it("skips non-device group members (nested groups and rooms)", () => {
@@ -86,8 +86,8 @@ describe("chipsByDevice", () => {
 		const result = chipsByDevice(rooms, groups);
 
 		expect(result.get("d1")).toEqual({
-			roomChips: [{ id: "r1", name: "Kitchen" }],
-			groupChips: [{ id: "g1", name: "Lights" }],
+			roomChips: [{ id: "r1", name: "Kitchen", icon: null }],
+			groupChips: [{ id: "g1", name: "Lights", icon: null }],
 		});
 	});
 });
