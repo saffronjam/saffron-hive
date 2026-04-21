@@ -4,6 +4,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
+	import HiveSearchField from "./hive-search-field.svelte";
 	import {
 		matchChipKeyword,
 		stateToTokens,
@@ -58,16 +59,14 @@
 	let tokens = $state<Token[]>([{ text: "" }]);
 	let lastEmitted = $state("");
 	let liveInput = $state<HTMLInputElement | null>(null);
-	let suggestionIdx = $state(0);
-	let showSuggestions = $state(false);
+	let open = $state(false);
 
 	$effect(() => {
 		const key = stateKey(value);
 		if (key !== lastEmitted) {
 			tokens = hydrate(value);
 			lastEmitted = key;
-			suggestionIdx = 0;
-			showSuggestions = false;
+			open = false;
 		}
 	});
 
@@ -169,8 +168,7 @@
 	function commitCurrent() {
 		if (liveText === "") return;
 		tokens = [...tokens, { text: "" }];
-		suggestionIdx = 0;
-		showSuggestions = false;
+		open = false;
 		emitNow();
 		tick().then(() => liveInput?.focus());
 	}
@@ -190,8 +188,7 @@
 
 	function clearAll() {
 		tokens = [{ text: "" }];
-		suggestionIdx = 0;
-		showSuggestions = false;
+		open = false;
 		emitNow();
 		tick().then(() => liveInput?.focus());
 	}
@@ -199,16 +196,14 @@
 	function pickSuggestion(opt: ChipOption) {
 		if (!liveChip) return;
 		tokens = [...tokens.slice(0, -1), { text: `${liveChip.keyword}:${opt.value}` }, { text: "" }];
-		suggestionIdx = 0;
-		showSuggestions = false;
+		open = false;
 		emitNow();
 		tick().then(() => liveInput?.focus());
 	}
 
 	function pickKeyword(opt: ChipOption) {
 		setLive(`${opt.value}:`, true);
-		suggestionIdx = 0;
-		showSuggestions = true;
+		open = true;
 		tick().then(() => {
 			if (liveInput) {
 				const len = liveInput.value.length;
@@ -223,94 +218,41 @@
 		else if (suggestionMode === "value") pickSuggestion(opt);
 	}
 
-	function onLiveInput(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		const newText = liveChip ? `${liveChip.keyword}:${input.value}` : input.value;
+	function handleQueryInput(next: string) {
+		const newText = liveChip ? `${liveChip.keyword}:${next}` : next;
 		setLive(newText);
-		showSuggestions = true;
-		suggestionIdx = 0;
 	}
 
-	function onLiveKeydown(e: KeyboardEvent) {
-		const input = e.currentTarget as HTMLInputElement;
-
-		if (e.key === "Backspace" && input.value === "") {
-			if (liveChip) {
-				e.preventDefault();
-				setLive(liveChip.keyword);
-				showSuggestions = false;
-				return;
-			}
-			if (committed.length > 0) {
-				e.preventDefault();
-				reopenLastCommitted();
-				return;
-			}
+	function handleBackspaceEmpty() {
+		if (liveChip) {
+			setLive(liveChip.keyword);
+			open = false;
 			return;
 		}
-
-		if (e.key === "Enter") {
-			e.preventDefault();
-			if (showSuggestions && activeSuggestions.length > 0) {
-				pickActive(activeSuggestions[suggestionIdx] ?? activeSuggestions[0]);
-				return;
-			}
-			if (liveText !== "") {
-				commitCurrent();
-			}
-			return;
-		}
-
-		if (e.key === "Tab" && showSuggestions && activeSuggestions.length > 0) {
-			e.preventDefault();
-			if (e.shiftKey) {
-				suggestionIdx =
-					(suggestionIdx - 1 + activeSuggestions.length) % activeSuggestions.length;
-			} else {
-				suggestionIdx = (suggestionIdx + 1) % activeSuggestions.length;
-			}
-			return;
-		}
-
-		if (e.key === "ArrowDown") {
-			if (showSuggestions && activeSuggestions.length > 0) {
-				e.preventDefault();
-				suggestionIdx = (suggestionIdx + 1) % activeSuggestions.length;
-			}
-			return;
-		}
-
-		if (e.key === "ArrowUp") {
-			if (showSuggestions && activeSuggestions.length > 0) {
-				e.preventDefault();
-				suggestionIdx =
-					(suggestionIdx - 1 + activeSuggestions.length) % activeSuggestions.length;
-			}
-			return;
-		}
-
-		if (e.key === "Escape") {
-			if (showSuggestions) {
-				e.preventDefault();
-				showSuggestions = false;
-			}
+		if (committed.length > 0) {
+			reopenLastCommitted();
 		}
 	}
 
-	function onLiveFocus() {
-		if (suggestionMode !== "none") showSuggestions = true;
-	}
-
-	function onLiveBlur() {
+	function handleBlur() {
 		if (commitOnBlur) emitNow();
-		setTimeout(() => {
-			showSuggestions = false;
-		}, 120);
 	}
 
 	function focusBar(e: MouseEvent) {
 		if (e.target === e.currentTarget) liveInput?.focus();
 	}
+
+	const fieldQuery = $derived(liveChip ? liveValue : liveText);
+	const fieldPlaceholder = $derived(!liveChip && committed.length === 0 ? placeholder : "");
+	const headerLabel = $derived(suggestionMode === "keyword" ? "Filters" : undefined);
+	const fieldSize = $derived(liveChip ? Math.max(liveValue.length + 1, 3) : undefined);
+	const fieldInputClass = $derived(
+		cn(
+			liveChip
+				? "min-w-[2ch] text-inherit"
+				: "min-w-[6ch] flex-1 text-foreground",
+		),
+	);
 </script>
 
 <div class={cn("relative", className)}>
@@ -343,24 +285,23 @@
 			{#if liveChip}
 				<span class="mr-1">{liveChip.label}:</span>
 			{/if}
-			<input
-				bind:this={liveInput}
-				type="text"
-				class={cn(
-					"bg-transparent outline-none",
-					liveChip
-						? "min-w-[2ch] text-inherit"
-						: "min-w-[6ch] flex-1 text-foreground placeholder:text-muted-foreground",
-				)}
-				size={liveChip ? Math.max(liveValue.length + 1, 3) : undefined}
-				value={liveChip ? liveValue : liveText}
-				placeholder={!liveChip && committed.length === 0 ? placeholder : ""}
-				oninput={onLiveInput}
-				onkeydown={onLiveKeydown}
-				onfocus={onLiveFocus}
-				onblur={onLiveBlur}
-				autocomplete="off"
-				spellcheck="false"
+			<HiveSearchField
+				bind:open
+				bind:inputRef={liveInput}
+				query={fieldQuery}
+				onqueryinput={handleQueryInput}
+				suggestions={activeSuggestions}
+				getKey={(o) => o.value}
+				getLabel={(o) => o.label}
+				placeholder={fieldPlaceholder}
+				class={liveChip ? "w-auto" : "flex-1"}
+				inputClass={fieldInputClass}
+				size={fieldSize}
+				headerLabel={headerLabel}
+				onpick={pickActive}
+				oncommit={commitCurrent}
+				onbackspaceEmpty={handleBackspaceEmpty}
+				onblur={handleBlur}
 			/>
 		</span>
 
@@ -377,36 +318,4 @@
 			</Button>
 		{/if}
 	</div>
-
-	{#if showSuggestions && activeSuggestions.length > 0}
-		<ul
-			role="listbox"
-			class="absolute top-full left-0 z-50 mt-1 max-h-64 min-w-48 w-fit overflow-auto rounded-md shadow-card bg-card py-1"
-		>
-			{#if suggestionMode === "keyword"}
-				<li class="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-					Filters
-				</li>
-			{/if}
-			{#each activeSuggestions as opt, i (opt.value)}
-				<li
-					role="option"
-					aria-selected={i === suggestionIdx}
-					class={cn(
-						"cursor-pointer border-l-2 px-3 py-1.5 text-sm transition-colors",
-						i === suggestionIdx
-							? "border-primary bg-primary/10 text-foreground"
-							: "border-transparent text-foreground hover:bg-muted",
-					)}
-					onmousedown={(e) => {
-						e.preventDefault();
-						pickActive(opt);
-					}}
-					onmouseenter={() => (suggestionIdx = i)}
-				>
-					{opt.label}
-				</li>
-			{/each}
-		</ul>
-	{/if}
 </div>

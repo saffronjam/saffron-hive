@@ -9,6 +9,7 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import { Zap } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
@@ -243,49 +244,49 @@
 			</Select>
 
 			{#if data.config.mode === "device_state" || data.config.mode === "button_action" || data.config.mode === "availability"}
-				<Select
-					type="single"
+				<HiveSelectAutocomplete
+					items={devicesForMode}
 					value={data.config.deviceId ?? ""}
-					onValueChange={handleDeviceChange}
+					getValue={(d) => d.id}
+					getLabel={(d) => d.name}
+					placeholder="Select device"
+					size="sm"
+					class="text-xs"
+					onchange={(v) => handleDeviceChange(v)}
 				>
-					<SelectTrigger class="w-full text-xs">
-						{data.config.deviceName ?? "Select device"}
-					</SelectTrigger>
-					<SelectContent class="max-w-(--bits-select-anchor-width)">
-						{#each devicesForMode as dev (dev.id)}
-							<SelectItem value={dev.id}>
-								<span class="flex items-center gap-1.5 overflow-hidden">
-									<span class="truncate">{dev.name}</span>
-									<DeviceTypeBadge type={dev.type} class="text-[10px] py-0 shrink-0" />
-								</span>
-							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
+					{#snippet renderSelected(d: Device)}
+						<span class="truncate">{d.name}</span>
+						<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0" />
+					{/snippet}
+					{#snippet item(d: Device)}
+						<span class="flex items-center gap-1.5 overflow-hidden">
+							<span class="truncate">{d.name}</span>
+							<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0" />
+						</span>
+					{/snippet}
+				</HiveSelectAutocomplete>
 			{/if}
 
 			{#if data.config.mode === "device_state" && data.config.deviceId}
-				<Select
-					type="single"
+				<HiveSelectAutocomplete
+					items={selectedDeviceCapabilities}
 					value={data.config.property ?? ""}
-					onValueChange={handlePropertyChange}
+					getValue={(c) => capabilityToExprProperty(c.name)}
+					getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
+					placeholder="Select property"
+					size="sm"
+					class="text-xs"
+					onchange={(v) => handlePropertyChange(v)}
 				>
-					<SelectTrigger class="w-full text-xs">
-						{data.config.property ? sentenceCase(data.config.property) : "Select property"}
-					</SelectTrigger>
-					<SelectContent>
-						{#each selectedDeviceCapabilities as cap (cap.name)}
-							<SelectItem value={capabilityToExprProperty(cap.name)}>
-								<span class="flex items-center gap-1.5">
-									<span>{sentenceCase(capabilityToExprProperty(cap.name))}</span>
-									{#if cap.unit}
-										<span class="text-muted-foreground">({cap.unit})</span>
-									{/if}
-								</span>
-							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
+					{#snippet item(c: Capability)}
+						<span class="flex items-center gap-1.5">
+							<span>{sentenceCase(capabilityToExprProperty(c.name))}</span>
+							{#if c.unit}
+								<span class="text-muted-foreground">({c.unit})</span>
+							{/if}
+						</span>
+					{/snippet}
+				</HiveSelectAutocomplete>
 
 				{#if data.config.property && selectedCapability}
 					{#if selectedCapability.type === "binary"}
@@ -332,20 +333,16 @@
 							/>
 						</div>
 					{:else if selectedCapability.type === "enum" && selectedCapability.values}
-						<Select
-							type="single"
+						<HiveSelectAutocomplete
+							items={selectedCapability.values}
 							value={data.config.value ?? ""}
-							onValueChange={(v) => v && update({ comparator: "==", value: v })}
-						>
-							<SelectTrigger class="w-full text-xs">
-								{data.config.value ? sentenceCase(data.config.value) : "Select value"}
-							</SelectTrigger>
-							<SelectContent>
-								{#each selectedCapability.values as val (val)}
-									<SelectItem value={val}>{sentenceCase(val)}</SelectItem>
-								{/each}
-							</SelectContent>
-						</Select>
+							getValue={(v) => v}
+							getLabel={(v) => sentenceCase(v)}
+							placeholder="Select value"
+							size="sm"
+							class="text-xs"
+							onchange={(v) => v && update({ comparator: "==", value: v })}
+						/>
 					{:else}
 						<div class="flex gap-1">
 							<Select
@@ -378,20 +375,16 @@
 
 			{#if data.config.mode === "button_action" && data.config.deviceId && actionCapability}
 				{#if actionCapability.values && actionCapability.values.length > 0}
-					<Select
-						type="single"
+					<HiveSelectAutocomplete
+						items={actionCapability.values}
 						value={data.config.actionValue ?? ""}
-						onValueChange={(v) => v && update({ actionValue: v })}
-					>
-						<SelectTrigger class="w-full text-xs">
-							{data.config.actionValue ? sentenceCase(data.config.actionValue) : "Select action"}
-						</SelectTrigger>
-						<SelectContent class="max-h-60">
-							{#each actionCapability.values as val (val)}
-								<SelectItem value={val}>{sentenceCase(val)}</SelectItem>
-							{/each}
-						</SelectContent>
-					</Select>
+						getValue={(v) => v}
+						getLabel={(v) => sentenceCase(v)}
+						placeholder="Select action"
+						size="sm"
+						class="text-xs"
+						onchange={(v) => v && update({ actionValue: v })}
+					/>
 				{:else}
 					<Input
 						value={data.config.actionValue ?? ""}
