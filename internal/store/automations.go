@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
@@ -13,7 +14,7 @@ func (s *DB) CreateAutomation(ctx context.Context, params CreateAutomationParams
 		ID:              params.ID,
 		Name:            params.Name,
 		Enabled:         params.Enabled,
-		CooldownSeconds: int64(params.CooldownSeconds),
+		CooldownSeconds: params.CooldownSeconds,
 		CreatedBy:       params.CreatedBy,
 	}); err != nil {
 		return Automation{}, fmt.Errorf("create automation: %w", err)
@@ -32,7 +33,8 @@ func (s *DB) GetAutomation(ctx context.Context, id string) (Automation, error) {
 		Name:            row.Name,
 		Icon:            row.Icon,
 		Enabled:         row.Enabled,
-		CooldownSeconds: int(row.CooldownSeconds),
+		CooldownSeconds: row.CooldownSeconds,
+		LastFiredAt:     row.LastFiredAt,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 		CreatedBy:       userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
@@ -52,7 +54,8 @@ func (s *DB) ListAutomations(ctx context.Context) ([]Automation, error) {
 			Name:            r.Name,
 			Icon:            r.Icon,
 			Enabled:         r.Enabled,
-			CooldownSeconds: int(r.CooldownSeconds),
+			CooldownSeconds: r.CooldownSeconds,
+			LastFiredAt:     r.LastFiredAt,
 			CreatedAt:       r.CreatedAt,
 			UpdatedAt:       r.UpdatedAt,
 			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
@@ -74,7 +77,8 @@ func (s *DB) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 			Name:            r.Name,
 			Icon:            r.Icon,
 			Enabled:         r.Enabled,
-			CooldownSeconds: int(r.CooldownSeconds),
+			CooldownSeconds: r.CooldownSeconds,
+			LastFiredAt:     r.LastFiredAt,
 			CreatedAt:       r.CreatedAt,
 			UpdatedAt:       r.UpdatedAt,
 			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
@@ -98,7 +102,7 @@ func (s *DB) UpdateAutomation(ctx context.Context, id string, params UpdateAutom
 		args.Icon = params.Icon
 	}
 	if params.CooldownSeconds != nil {
-		v := int64(*params.CooldownSeconds)
+		v := *params.CooldownSeconds
 		args.Cooldown = &v
 	}
 	if err := s.q.UpdateAutomationFields(ctx, args); err != nil {
@@ -123,6 +127,18 @@ func (s *DB) UpdateAutomationEnabled(ctx context.Context, id string, enabled boo
 	return nil
 }
 
+// UpdateAutomationLastFired stamps last_fired_at on the given automation.
+// Does not touch updated_at — "last edited" and "last fired" are distinct.
+func (s *DB) UpdateAutomationLastFired(ctx context.Context, id string, firedAt time.Time) error {
+	if err := s.q.UpdateAutomationLastFired(ctx, sqlite.UpdateAutomationLastFiredParams{
+		LastFiredAt: &firedAt,
+		ID:          id,
+	}); err != nil {
+		return fmt.Errorf("update automation last fired: %w", err)
+	}
+	return nil
+}
+
 // DeleteAutomation deletes an automation by its ID. Cascading deletes remove associated nodes and edges.
 func (s *DB) DeleteAutomation(ctx context.Context, id string) error {
 	if err := s.q.DeleteAutomation(ctx, id); err != nil {
@@ -138,6 +154,8 @@ func (s *DB) CreateAutomationNode(ctx context.Context, params CreateAutomationNo
 		AutomationID: params.AutomationID,
 		Type:         params.Type,
 		Config:       params.Config,
+		PositionX:    params.PositionX,
+		PositionY:    params.PositionY,
 	}); err != nil {
 		return AutomationNode{}, fmt.Errorf("create automation node: %w", err)
 	}
@@ -146,6 +164,8 @@ func (s *DB) CreateAutomationNode(ctx context.Context, params CreateAutomationNo
 		AutomationID: params.AutomationID,
 		Type:         params.Type,
 		Config:       params.Config,
+		PositionX:    params.PositionX,
+		PositionY:    params.PositionY,
 	}, nil
 }
 
@@ -162,6 +182,8 @@ func (s *DB) ListAutomationNodes(ctx context.Context, automationID string) ([]Au
 			AutomationID: r.AutomationID,
 			Type:         r.Type,
 			Config:       r.Config,
+			PositionX:    r.PositionX,
+			PositionY:    r.PositionY,
 		})
 	}
 	return nodes, nil

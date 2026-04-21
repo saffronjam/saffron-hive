@@ -29,7 +29,7 @@ type CreateAutomationParams struct {
 	ID              string
 	Name            string
 	Enabled         bool
-	CooldownSeconds int64
+	CooldownSeconds float64
 	CreatedBy       *string
 }
 
@@ -70,8 +70,8 @@ func (q *Queries) CreateAutomationEdge(ctx context.Context, arg CreateAutomation
 }
 
 const createAutomationNode = `-- name: CreateAutomationNode :exec
-INSERT INTO automation_nodes (id, automation_id, type, config)
-VALUES (?, ?, ?, ?)
+INSERT INTO automation_nodes (id, automation_id, type, config, position_x, position_y)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateAutomationNodeParams struct {
@@ -79,6 +79,8 @@ type CreateAutomationNodeParams struct {
 	AutomationID string
 	Type         string
 	Config       string
+	PositionX    float64
+	PositionY    float64
 }
 
 func (q *Queries) CreateAutomationNode(ctx context.Context, arg CreateAutomationNodeParams) error {
@@ -87,6 +89,8 @@ func (q *Queries) CreateAutomationNode(ctx context.Context, arg CreateAutomation
 		arg.AutomationID,
 		arg.Type,
 		arg.Config,
+		arg.PositionX,
+		arg.PositionY,
 	)
 	return err
 }
@@ -119,7 +123,7 @@ func (q *Queries) DeleteAutomationNode(ctx context.Context, id string) error {
 }
 
 const getAutomation = `-- name: GetAutomation :one
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -133,7 +137,8 @@ type GetAutomationRow struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds int64
+	CooldownSeconds float64
+	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -150,6 +155,7 @@ func (q *Queries) GetAutomation(ctx context.Context, id string) (GetAutomationRo
 		&i.Icon,
 		&i.Enabled,
 		&i.CooldownSeconds,
+		&i.LastFiredAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CreatorID,
@@ -194,7 +200,7 @@ func (q *Queries) ListAutomationEdges(ctx context.Context, automationID string) 
 }
 
 const listAutomationNodes = `-- name: ListAutomationNodes :many
-SELECT id, automation_id, type, config
+SELECT id, automation_id, type, config, position_x, position_y
 FROM automation_nodes
 WHERE automation_id = ?
 `
@@ -213,6 +219,8 @@ func (q *Queries) ListAutomationNodes(ctx context.Context, automationID string) 
 			&i.AutomationID,
 			&i.Type,
 			&i.Config,
+			&i.PositionX,
+			&i.PositionY,
 		); err != nil {
 			return nil, err
 		}
@@ -228,7 +236,7 @@ func (q *Queries) ListAutomationNodes(ctx context.Context, automationID string) 
 }
 
 const listAutomations = `-- name: ListAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -241,7 +249,8 @@ type ListAutomationsRow struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds int64
+	CooldownSeconds float64
+	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -264,6 +273,7 @@ func (q *Queries) ListAutomations(ctx context.Context) ([]ListAutomationsRow, er
 			&i.Icon,
 			&i.Enabled,
 			&i.CooldownSeconds,
+			&i.LastFiredAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CreatorID,
@@ -284,7 +294,7 @@ func (q *Queries) ListAutomations(ctx context.Context) ([]ListAutomationsRow, er
 }
 
 const listEnabledAutomations = `-- name: ListEnabledAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -298,7 +308,8 @@ type ListEnabledAutomationsRow struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds int64
+	CooldownSeconds float64
+	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -321,6 +332,7 @@ func (q *Queries) ListEnabledAutomations(ctx context.Context) ([]ListEnabledAuto
 			&i.Icon,
 			&i.Enabled,
 			&i.CooldownSeconds,
+			&i.LastFiredAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CreatorID,
@@ -368,7 +380,7 @@ type UpdateAutomationFieldsParams struct {
 	Name     *string
 	Icon     *string
 	Enabled  *bool
-	Cooldown *int64
+	Cooldown *float64
 	ID       string
 }
 
@@ -385,5 +397,21 @@ func (q *Queries) UpdateAutomationFields(ctx context.Context, arg UpdateAutomati
 		arg.Cooldown,
 		arg.ID,
 	)
+	return err
+}
+
+const updateAutomationLastFired = `-- name: UpdateAutomationLastFired :exec
+UPDATE automations SET last_fired_at = ? WHERE id = ?
+`
+
+type UpdateAutomationLastFiredParams struct {
+	LastFiredAt *time.Time
+	ID          string
+}
+
+// Stamps when the automation most recently fired. updated_at is intentionally
+// NOT touched so the "last edited" semantics stay distinct from "last fired".
+func (q *Queries) UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error {
+	_, err := q.db.ExecContext(ctx, updateAutomationLastFired, arg.LastFiredAt, arg.ID)
 	return err
 }

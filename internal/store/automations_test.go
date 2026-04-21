@@ -29,7 +29,7 @@ func TestCreateAutomation(t *testing.T) {
 		t.Error("expected Enabled to be true")
 	}
 	if a.CooldownSeconds != 10 {
-		t.Errorf("got CooldownSeconds %d, want %d", a.CooldownSeconds, 10)
+		t.Errorf("got CooldownSeconds %g, want %g", a.CooldownSeconds, 10.0)
 	}
 	if a.CreatedAt.IsZero() {
 		t.Error("expected CreatedAt to be set")

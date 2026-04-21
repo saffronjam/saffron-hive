@@ -7,7 +7,7 @@ INSERT INTO automations (id, name, enabled, cooldown_seconds, created_by)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetAutomation :one
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -16,7 +16,7 @@ LEFT JOIN users u ON u.id = a.created_by
 WHERE a.id = ?;
 
 -- name: ListAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -24,7 +24,7 @@ FROM automations a
 LEFT JOIN users u ON u.id = a.created_by;
 
 -- name: ListEnabledAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -52,15 +52,20 @@ UPDATE automations SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: UpdateAutomationEnabled :exec
 UPDATE automations SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
+-- name: UpdateAutomationLastFired :exec
+-- Stamps when the automation most recently fired. updated_at is intentionally
+-- NOT touched so the "last edited" semantics stay distinct from "last fired".
+UPDATE automations SET last_fired_at = ? WHERE id = ?;
+
 -- name: DeleteAutomation :exec
 DELETE FROM automations WHERE id = ?;
 
 -- name: CreateAutomationNode :exec
-INSERT INTO automation_nodes (id, automation_id, type, config)
-VALUES (?, ?, ?, ?);
+INSERT INTO automation_nodes (id, automation_id, type, config, position_x, position_y)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: ListAutomationNodes :many
-SELECT id, automation_id, type, config
+SELECT id, automation_id, type, config, position_x, position_y
 FROM automation_nodes
 WHERE automation_id = ?;
 
