@@ -1,7 +1,5 @@
 scalar DateTime
 
-union DeviceState = LightState | SensorState | SwitchState
-
 type Capability {
   name: String!
   type: String!
@@ -23,24 +21,27 @@ type Device {
   state: DeviceState
 }
 
-type LightState {
+"""
+Current state of a device across every capability it reports. Every field is
+nullable — null means the device has not reported (or does not report) that
+value. Clients typically branch on Device.type to decide which fields to
+display, but any field may be present on any device.
+"""
+type DeviceState {
   on: Boolean
   brightness: Int
   colorTemp: Int
   color: Color
   transition: Float
-}
-
-type SensorState {
   temperature: Float
   humidity: Float
-  battery: Int
   pressure: Float
   illuminance: Float
-}
-
-type SwitchState {
-  action: String
+  battery: Int
+  power: Float
+  voltage: Float
+  current: Float
+  energy: Float
 }
 
 type Color {
@@ -74,7 +75,8 @@ type AutomationGraph {
   name: String!
   icon: String
   enabled: Boolean!
-  cooldownSeconds: Int!
+  cooldownSeconds: Float!
+  lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
   createdBy: User
@@ -84,6 +86,8 @@ type AutomationNode {
   id: ID!
   type: String!
   config: String!
+  positionX: Float!
+  positionY: Float!
 }
 
 type AutomationEdge {
@@ -132,6 +136,12 @@ type SensorReading {
 type DeviceStateEvent {
   deviceId: ID!
   state: DeviceState!
+}
+
+type DeviceActionEvent {
+  deviceId: ID!
+  action: String!
+  firedAt: DateTime!
 }
 
 type DeviceAvailabilityEvent {
@@ -230,6 +240,61 @@ input ActivityFilter {
   before: ID
 }
 
+enum AlarmSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AlarmKind {
+  AUTO
+  ONE_SHOT
+}
+
+"""
+An alarm is an actionable severity-tagged signal. Rows are persisted 1:1 per
+raise; this type is the grouped projection — multiple raises sharing the same
+id collapse into one Alarm whose message/severity/kind come from the latest
+raise and whose count reflects the group size.
+"""
+type Alarm {
+  id: ID!
+  latestRowId: ID!
+  severity: AlarmSeverity!
+  kind: AlarmKind!
+  message: String!
+  source: String!
+  count: Int!
+  firstRaisedAt: DateTime!
+  lastRaisedAt: DateTime!
+}
+
+enum AlarmEventKind {
+  RAISED
+  CLEARED
+}
+
+type AlarmEvent {
+  kind: AlarmEventKind!
+  alarm: Alarm
+  clearedAlarmId: ID
+}
+
+input AlarmFilter {
+  severities: [AlarmSeverity!]
+  kinds: [AlarmKind!]
+  sources: [String!]
+  since: DateTime
+}
+
+input RaiseAlarmInput {
+  alarmId: ID!
+  severity: AlarmSeverity!
+  kind: AlarmKind!
+  message: String!
+  source: String
+}
+
 input MqttConfigInput {
   broker: String!
   username: String!
@@ -237,7 +302,7 @@ input MqttConfigInput {
   useWss: Boolean!
 }
 
-input LightStateInput {
+input DeviceStateInput {
   on: Boolean
   brightness: Int
   colorTemp: Int
@@ -277,7 +342,7 @@ input UpdateSceneInput {
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
-  cooldownSeconds: Int!
+  cooldownSeconds: Float!
   nodes: [AutomationNodeInput!]!
   edges: [AutomationEdgeInput!]!
 }
@@ -286,6 +351,8 @@ input AutomationNodeInput {
   id: ID!
   type: String!
   config: String!
+  positionX: Float! = 0
+  positionY: Float! = 0
 }
 
 input AutomationEdgeInput {
@@ -326,7 +393,7 @@ input UpdateAutomationInput {
   name: String
   icon: String
   enabled: Boolean
-  cooldownSeconds: Int
+  cooldownSeconds: Float
   nodes: [AutomationNodeInput!]
   edges: [AutomationEdgeInput!]
 }
@@ -347,6 +414,7 @@ type Query {
   settings: [Setting!]!
   logs(search: String, limit: Int): [LogEntry!]!
   activity(filter: ActivityFilter): [ActivityEvent!]!
+  alarms(filter: AlarmFilter): [Alarm!]!
   setupStatus: SetupStatus!
   me: User
   users: [User!]!
@@ -354,7 +422,7 @@ type Query {
 
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
-  setDeviceState(deviceId: ID!, state: LightStateInput!): Device!
+  setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device!
   applyScene(sceneId: ID!): Scene!
   createScene(input: CreateSceneInput!): Scene!
   updateScene(id: ID!, input: UpdateSceneInput!): Scene!
@@ -363,6 +431,12 @@ type Mutation {
   updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph!
   deleteAutomation(id: ID!): Boolean!
   toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph!
+  """
+  Fires a manual trigger node immediately. The automation must be enabled and
+  the node must be a trigger with mode=manual. Bypasses the automation's
+  cooldown. Intended for debugging automations from the editor.
+  """
+  fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean!
   createGroup(input: CreateGroupInput!): Group!
   updateGroup(id: ID!, input: UpdateGroupInput!): Group!
   deleteGroup(id: ID!): Boolean!
@@ -379,14 +453,18 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User!
+  raiseAlarm(input: RaiseAlarmInput!): Alarm!
+  deleteAlarm(alarmId: ID!): Boolean!
 }
 
 type Subscription {
   deviceStateChanged(deviceId: ID): DeviceStateEvent!
+  deviceActionFired(deviceId: ID): DeviceActionEvent!
   deviceAvailabilityChanged: DeviceAvailabilityEvent!
   deviceAdded: Device!
   deviceRemoved: ID!
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
   logStream: LogEntry!
   activityStream(advanced: Boolean): ActivityEvent!
+  alarmEvent: AlarmEvent!
 }
