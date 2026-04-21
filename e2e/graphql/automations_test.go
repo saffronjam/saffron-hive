@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/saffronjam/saffron-hive/e2e/infra"
 )
 
 func TestAutomations_CreateAndQuery(t *testing.T) {
@@ -52,10 +54,10 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 
 	var result struct {
 		CreateAutomation struct {
-			ID              string `json:"id"`
-			Name            string `json:"name"`
-			Enabled         bool   `json:"enabled"`
-			CooldownSeconds int    `json:"cooldownSeconds"`
+			ID              string  `json:"id"`
+			Name            string  `json:"name"`
+			Enabled         bool    `json:"enabled"`
+			CooldownSeconds float64 `json:"cooldownSeconds"`
 			Nodes           []struct {
 				ID     string `json:"id"`
 				Type   string `json:"type"`
@@ -535,5 +537,248 @@ func TestAutomations_DisableStopsFiring(t *testing.T) {
 	})
 	if fired {
 		t.Fatal("disabled automation should not have fired")
+	}
+}
+
+// TestAutomations_TriggerViaButtonAction verifies that an automation with a
+// button_action trigger (event_type=device.action_fired, filter on
+// trigger.payload.action) fires a downstream action when the button publishes
+// the matching action value — and does NOT fire when a different action is
+// reported by the same button.
+func TestAutomations_TriggerViaButtonAction(t *testing.T) {
+	buttonID, err := queryDeviceIDByName("Office Button")
+	if err != nil {
+		t.Fatalf("find button: %v", err)
+	}
+	targetID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find target: %v", err)
+	}
+
+	triggerConfig, _ := json.Marshal(map[string]string{
+		"kind":        "event",
+		"event_type":  "device.action_fired",
+		"filter_expr": fmt.Sprintf(`trigger.device_id == %q && trigger.payload.action == "single"`, buttonID),
+	})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "device",
+		"target_id":   targetID,
+		"payload":     `{"on":true,"brightness":200}`,
+	})
+
+	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":            "Button Trigger Test",
+			"enabled":         true,
+			"cooldownSeconds": 0,
+			"nodes": []map[string]any{
+				{"id": "btn-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "btn-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "btn-t1", "toNodeId": "btn-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
+	}
+	var ar struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data, &ar)
+	autoID := ar.CreateAutomation.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
+	})
+
+	cmdCh, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+
+	nonMatching, _ := json.Marshal(map[string]string{"action": "double"})
+	if err := publisher.PublishDeviceState("Office Button", nonMatching); err != nil {
+		t.Fatalf("publish non-matching action: %v", err)
+	}
+	fired := pollUntil(500*time.Millisecond, 50*time.Millisecond, func() bool {
+		select {
+		case msg := <-cmdCh:
+			if msg.Topic == "zigbee2mqtt/Kitchen Light/set" {
+				return true
+			}
+		default:
+		}
+		return false
+	})
+	if fired {
+		t.Fatal("automation must not fire on non-matching action value")
+	}
+
+	buttonState, err := infra.LoadButtonState()
+	if err != nil {
+		t.Fatalf("load button fixture: %v", err)
+	}
+	if err := publisher.PublishDeviceState("Office Button", buttonState); err != nil {
+		t.Fatalf("publish matching action: %v", err)
+	}
+
+	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case msg := <-cmdCh:
+			if msg.Topic == "zigbee2mqtt/Kitchen Light/set" {
+				return true
+			}
+		default:
+		}
+		return false
+	})
+	if !ok {
+		t.Fatal("timed out waiting for MQTT command after matching button press")
+	}
+}
+
+// TestAutomations_CooldownSubSecond verifies that a fractional-second
+// cooldown is enforced by the live engine: a 50 ms cooldown blocks a refire
+// at ~30 ms but permits one well past the window.
+func TestAutomations_CooldownSubSecond(t *testing.T) {
+	targetID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find target: %v", err)
+	}
+
+	triggerConfig, _ := json.Marshal(map[string]string{
+		"event_type":     "device.state_changed",
+		"condition_expr": "true",
+	})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "device",
+		"target_id":   targetID,
+		"payload":     `{"on":true}`,
+	})
+
+	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id cooldownSeconds }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":            "Sub-second Cooldown",
+			"enabled":         true,
+			"cooldownSeconds": 0.05,
+			"nodes": []map[string]any{
+				{"id": "sub-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "sub-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "sub-t1", "toNodeId": "sub-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	var ar struct {
+		CreateAutomation struct {
+			ID              string  `json:"id"`
+			CooldownSeconds float64 `json:"cooldownSeconds"`
+		} `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data, &ar)
+	autoID := ar.CreateAutomation.ID
+	if ar.CreateAutomation.CooldownSeconds != 0.05 {
+		t.Fatalf("expected cooldownSeconds 0.05, got %g", ar.CreateAutomation.CooldownSeconds)
+	}
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
+	})
+
+	cmdCh, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+
+	sensorState, _ := json.Marshal(map[string]float64{"temperature": 20})
+	firstFire := func() bool {
+		if err := publisher.PublishDeviceState("Living Room Sensor", sensorState); err != nil {
+			t.Fatalf("publish: %v", err)
+		}
+		return pollUntil(2*time.Second, 20*time.Millisecond, func() bool {
+			select {
+			case msg := <-cmdCh:
+				if msg.Topic == "zigbee2mqtt/Kitchen Light/set" {
+					return true
+				}
+			default:
+			}
+			return false
+		})
+	}
+
+	if !firstFire() {
+		t.Fatal("expected first fire to succeed")
+	}
+
+	// Within the 50 ms cooldown. This fires synchronously via MQTT so use a
+	// short sleep smaller than 50 ms to stay inside the cooldown window.
+	time.Sleep(20 * time.Millisecond)
+	if err := publisher.PublishDeviceState("Living Room Sensor", sensorState); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	blocked := pollUntil(150*time.Millisecond, 20*time.Millisecond, func() bool {
+		select {
+		case msg := <-cmdCh:
+			if msg.Topic == "zigbee2mqtt/Kitchen Light/set" {
+				return true
+			}
+		default:
+		}
+		return false
+	})
+	if blocked {
+		t.Fatal("refire within 50 ms cooldown must not reach MQTT")
+	}
+
+	// Wait past the cooldown window.
+	time.Sleep(120 * time.Millisecond)
+	if !firstFire() {
+		t.Fatal("refire past 50 ms cooldown should succeed")
+	}
+}
+
+// TestAutomations_RejectsSubMillisecondCooldown verifies the server rejects
+// a cooldown below the 1 ms floor.
+func TestAutomations_RejectsSubMillisecondCooldown(t *testing.T) {
+	triggerConfig, _ := json.Marshal(map[string]string{
+		"event_type":     "device.state_changed",
+		"condition_expr": "true",
+	})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "set_device_state",
+		"target_type": "device",
+		"target_id":   "nonexistent",
+		"payload":     `{"on":true}`,
+	})
+
+	err := graphqlMutationExpectError(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":            "Sub-ms Rejected",
+			"enabled":         false,
+			"cooldownSeconds": 0.0005,
+			"nodes": []map[string]any{
+				{"id": "rej-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "rej-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "rej-t1", "toNodeId": "rej-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected sub-millisecond cooldown to be rejected, got: %v", err)
 	}
 }
