@@ -7,7 +7,8 @@ import (
 )
 
 func TestMapSceneActionPayloadRoundTrip(t *testing.T) {
-	cmd := device.LightCommand{
+	cmd := device.Command{
+		DeviceID:   device.DeviceID("light-1"),
 		On:         device.Ptr(true),
 		Brightness: device.Ptr(200),
 		ColorTemp:  device.Ptr(350),
@@ -15,12 +16,12 @@ func TestMapSceneActionPayloadRoundTrip(t *testing.T) {
 		Transition: device.Ptr(1.5),
 	}
 
-	data, err := MarshalLightCommand(cmd)
+	data, err := MarshalCommand(cmd)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	restored, err := UnmarshalLightCommand(data)
+	restored, err := UnmarshalCommand(data)
 	if err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}

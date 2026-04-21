@@ -60,20 +60,20 @@ func unmarshalCapabilities(capsJSON string) []device.Capability {
 	return nil
 }
 
-// MarshalLightCommand serializes a LightCommand to JSON for storage.
-func MarshalLightCommand(cmd device.LightCommand) (string, error) {
+// MarshalCommand serializes a Command to JSON for storage.
+func MarshalCommand(cmd device.Command) (string, error) {
 	b, err := json.Marshal(cmd)
 	if err != nil {
-		return "", fmt.Errorf("marshal light command: %w", err)
+		return "", fmt.Errorf("marshal command: %w", err)
 	}
 	return string(b), nil
 }
 
-// UnmarshalLightCommand deserializes a LightCommand from JSON.
-func UnmarshalLightCommand(data string) (device.LightCommand, error) {
-	var cmd device.LightCommand
+// UnmarshalCommand deserializes a Command from JSON.
+func UnmarshalCommand(data string) (device.Command, error) {
+	var cmd device.Command
 	if err := json.Unmarshal([]byte(data), &cmd); err != nil {
-		return device.LightCommand{}, fmt.Errorf("unmarshal light command: %w", err)
+		return device.Command{}, fmt.Errorf("unmarshal command: %w", err)
 	}
 	return cmd, nil
 }
