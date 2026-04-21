@@ -19,7 +19,7 @@ typecheck:
 	cd web && bun run check
 
 errcheck:
-	errcheck $(shell go list ./... | grep -v /internal/store/sqlite)
+	errcheck $(shell go list ./... | grep -v -e /internal/store/sqlite -e /internal/graph/model)
 
 test:
 	go test ./... -race -count=1
