@@ -32,6 +32,7 @@ Event types:
 - `command.requested` — user or automation wants to set a device state
 - `scene.applied` — a scene was activated
 - `automation.triggered` — a rule matched and produced commands
+- `automation.node_activated` — a single node inside an automation graph fired (used by the frontend graph view to show live activity)
 
 Flow: MQTT message arrives -> adapter parses MQTT DTO -> maps to domain types -> publishes event on bus -> subscribers react (state store, automation engine, GraphQL subscription resolvers).
 
@@ -92,10 +93,20 @@ Three distinct type layers, each with a clear purpose:
 
 Domain types are the authoritative representation. Everything else maps to/from them.
 
+### Repository layout
+
+- `api/` — GraphQL schema (the single source of truth for API types) and `gqlgen.yml`.
+- `cmd/` — binary entry points: `serve` (the main application), `migrate` (CLI wrapper around golang-migrate), `mqttprint` (MQTT debug subscriber).
+- `internal/` — all Go application code. See `internal/CLAUDE.md` for the per-package breakdown.
+- `web/` — Svelte frontend. See `web/CLAUDE.md`.
+- `e2e/` — in-process end-to-end tests (Go side). Frontend e2e lives under `web/tests/`.
+- `plans/` — design sketches and implementation plans organised into layers (`layer-0/` through `layer-6/`). Not checked against for drift; treat as documentation of intent rather than current state.
+- `resources/` — project brand assets (`brand.md`, `icon.svg`).
+
 ## Code style
 
 ### Type safety
-- `any` is forbidden in both Go and TypeScript. Use concrete types, generics, or union types. The only exception is the event bus payload, which uses `any` at the interface boundary but is immediately type-asserted by subscribers.
+- Avoid `any` in domain and business logic. Use concrete types, generics, or union types. `any` is acceptable only at framework boundaries: the event bus payload (type-asserted by subscribers), gqlgen-generated code, and raw JSON envelopes at the HTTP / MQTT edges.
 - Prefer compile-time type checking over runtime assertions wherever possible.
 
 ### Comments
