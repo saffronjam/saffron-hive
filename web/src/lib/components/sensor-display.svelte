@@ -3,10 +3,10 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import { Thermometer, Droplets, Gauge, Sun, Battery } from "@lucide/svelte";
-	import type { SensorState } from "$lib/stores/devices";
+	import type { DeviceState } from "$lib/stores/devices";
 
 	interface Props {
-		state: SensorState;
+		state: DeviceState;
 	}
 
 	let { state }: Props = $props();

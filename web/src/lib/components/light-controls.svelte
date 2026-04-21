@@ -5,9 +5,9 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import ColorPicker from "$lib/components/color-picker.svelte";
-	import type { LightState } from "$lib/stores/devices";
+	import type { DeviceState } from "$lib/stores/devices";
 
-	interface LightStateInput {
+	interface CommandInput {
 		on?: boolean;
 		brightness?: number;
 		colorTemp?: number;
@@ -16,8 +16,8 @@
 	}
 
 	interface Props {
-		lightState: LightState;
-		oncommand: (input: LightStateInput) => void;
+		lightState: DeviceState;
+		oncommand: (input: CommandInput) => void;
 		sending: boolean;
 	}
 

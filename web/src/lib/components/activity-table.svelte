@@ -26,6 +26,7 @@
 	import JsonInline from "$lib/components/json-inline.svelte";
 	import JsonEditor from "$lib/components/json-editor.svelte";
 	import { formatRelative, formatFull } from "$lib/time-format";
+	import { nowStore } from "$lib/stores/now.svelte";
 	import {
 		ChevronRight,
 		ChevronDown,
@@ -114,6 +115,7 @@
 
 	const TYPE_LABELS: Record<string, string> = {
 		"device.state_changed": "State",
+		"device.action_fired": "Action",
 		"device.availability_changed": "Availability",
 		"device.added": "Added",
 		"device.removed": "Removed",
@@ -131,6 +133,8 @@
 		switch (t) {
 			case "device.state_changed":
 				return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20";
+			case "device.action_fired":
+				return "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20";
 			case "device.availability_changed":
 				return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20";
 			case "device.added":
@@ -233,7 +237,7 @@
 							<div class="whitespace-nowrap text-xs text-muted-foreground">
 								<Tooltip>
 									<TooltipTrigger>
-										<span>{formatRelative(new Date(event.timestamp))}</span>
+										<span>{formatRelative(new Date(event.timestamp), nowStore.current)}</span>
 									</TooltipTrigger>
 									<TooltipContent>{formatFull(new Date(event.timestamp))}</TooltipContent>
 								</Tooltip>

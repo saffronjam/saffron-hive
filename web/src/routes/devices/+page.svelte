@@ -92,26 +92,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -122,26 +116,20 @@
 			deviceStateChanged {
 				deviceId
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -167,26 +155,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}

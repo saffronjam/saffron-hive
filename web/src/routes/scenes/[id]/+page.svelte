@@ -2,6 +2,7 @@
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
+	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -20,7 +21,7 @@
 	import { deviceIcon } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
-	import type { Device, LightState, SensorState, SwitchState } from "$lib/stores/devices";
+	import type { Device, DeviceState } from "$lib/stores/devices";
 	import {
 		parsePayload,
 		buildTargetInfo,
@@ -32,8 +33,6 @@
 		type TargetInfo,
 		type EditableAction,
 	} from "$lib/scene-editable";
-
-	type DeviceState = LightState | SensorState | SwitchState;
 
 	const sceneId = $derived($page.params.id);
 
@@ -63,26 +62,20 @@
 							available
 							lastSeen
 							state {
-								... on LightState {
-									__typename
-									on
-									brightness
-									colorTemp
-									color { r g b x y }
-									transition
-								}
-								... on SensorState {
-									__typename
-									temperature
-									humidity
-									battery
-									pressure
-									illuminance
-								}
-								... on SwitchState {
-									__typename
-									action
-								}
+								on
+								brightness
+								colorTemp
+								color { r g b x y }
+								transition
+								temperature
+								humidity
+								pressure
+								illuminance
+								battery
+								power
+								voltage
+								current
+								energy
 							}
 						}
 						... on Group {
@@ -102,26 +95,20 @@
 								available
 								lastSeen
 								state {
-									... on LightState {
-										__typename
-										on
-										brightness
-										colorTemp
-										color { r g b x y }
-										transition
-									}
-									... on SensorState {
-										__typename
-										temperature
-										humidity
-										battery
-										pressure
-										illuminance
-									}
-									... on SwitchState {
-										__typename
-										action
-									}
+									on
+									brightness
+									colorTemp
+									color { r g b x y }
+									transition
+									temperature
+									humidity
+									pressure
+									illuminance
+									battery
+									power
+									voltage
+									current
+									energy
 								}
 							}
 						}
@@ -142,26 +129,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -185,26 +166,20 @@
 					available
 					lastSeen
 					state {
-						... on LightState {
-							__typename
-							on
-							brightness
-							colorTemp
-							color { r g b x y }
-							transition
-						}
-						... on SensorState {
-							__typename
-							temperature
-							humidity
-							battery
-							pressure
-							illuminance
-						}
-						... on SwitchState {
-							__typename
-							action
-						}
+						on
+						brightness
+						colorTemp
+						color { r g b x y }
+						transition
+						temperature
+						humidity
+						pressure
+						illuminance
+						battery
+						power
+						voltage
+						current
+						energy
 					}
 				}
 			}
@@ -228,7 +203,7 @@
 	`);
 
 	const SET_DEVICE_STATE = graphql(`
-		mutation SceneEditSetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+		mutation SceneEditSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
 			}
@@ -240,26 +215,20 @@
 			deviceStateChanged {
 				deviceId
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -403,7 +372,7 @@
 			const group = allGroups.find((g) => g.id === action.targetId);
 			if (group) {
 				for (const dev of group.resolvedDevices) {
-					if (dev.type === "light") {
+					if (dev.type === "light" || dev.type === "plug") {
 						sendDeviceCommand(dev.id, action.payload);
 					}
 				}
@@ -601,7 +570,7 @@
 			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>
 		</div>
 	{:else if scene}
-		<div class="space-y-6">
+		<div class="space-y-6" in:fly={{ y: -4, duration: 150 }}>
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="scene-name">
 					Scene Name

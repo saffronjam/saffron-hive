@@ -40,7 +40,7 @@
 		onAddTo,
 	}: Props = $props();
 
-	const summary = $derived(stateSummary(device.state));
+	const summary = $derived(stateSummary(device.state, device.type));
 </script>
 
 <Card

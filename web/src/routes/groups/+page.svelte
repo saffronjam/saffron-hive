@@ -111,22 +111,20 @@
 						available
 						lastSeen
 						state {
-							... on LightState {
-								on
-								brightness
-								colorTemp
-								transition
-							}
-							... on SensorState {
-								temperature
-								humidity
-								battery
-								pressure
-								illuminance
-							}
-							... on SwitchState {
-								action
-							}
+							on
+							brightness
+							colorTemp
+							color { r g b x y }
+							transition
+							temperature
+							humidity
+							pressure
+							illuminance
+							battery
+							power
+							voltage
+							current
+							energy
 						}
 					}
 					group {
@@ -144,22 +142,20 @@
 								available
 								lastSeen
 								state {
-									... on LightState {
-										on
-										brightness
-										colorTemp
-										transition
-									}
-									... on SensorState {
-										temperature
-										humidity
-										battery
-										pressure
-										illuminance
-									}
-									... on SwitchState {
-										action
-									}
+									on
+									brightness
+									colorTemp
+									color { r g b x y }
+									transition
+									temperature
+									humidity
+									pressure
+									illuminance
+									battery
+									power
+									voltage
+									current
+									energy
 								}
 							}
 							group {
@@ -199,22 +195,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						on
-						brightness
-						colorTemp
-						transition
-					}
-					... on SensorState {
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -821,7 +815,7 @@
 	{/if}
 
 	{#if editingGroupFresh}
-		<div>
+		<div in:fly={{ y: -4, duration: 150 }}>
 
 			<div class="space-y-6">
 				<div class="rounded-lg shadow-card bg-card p-4">

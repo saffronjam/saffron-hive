@@ -109,7 +109,7 @@
 						{/if}
 					</TableCell>
 					<TableCell class="text-sm text-muted-foreground">
-						{stateSummary(device.state)}
+						{stateSummary(device.state, device.type)}
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">

@@ -2,15 +2,8 @@
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
-	import {
-		isLightState,
-		isSensorState,
-		isSwitchState,
-		type Device,
-		type LightState,
-		type SensorState,
-		type SwitchState,
-	} from "$lib/stores/devices";
+	import { fly } from "svelte/transition";
+	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
@@ -24,7 +17,8 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import LightControls from "$lib/components/light-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
-	import SwitchDisplay from "$lib/components/switch-display.svelte";
+	import ButtonDisplay from "$lib/components/button-display.svelte";
+	import PlugDisplay from "$lib/components/plug-display.svelte";
 	import MemberTable from "$lib/components/member-table.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
@@ -34,8 +28,6 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	type DeviceState = LightState | SensorState | SwitchState;
-
 	const deviceId = $derived($page.params.id ?? "");
 
 	let device = $state<Device | null>(null);
@@ -88,26 +80,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -162,18 +148,24 @@
 	`);
 
 	const SET_DEVICE_STATE = graphql(`
-		mutation SetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+		mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -184,26 +176,20 @@
 			deviceStateChanged(deviceId: $deviceId) {
 				deviceId
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -251,9 +237,10 @@
 	let unsubscribers: (() => void)[] = [];
 	const clientRef = getContextClient();
 
-	const light = $derived(device && isLightState(device.state) ? device.state : null);
-	const sensor = $derived(device && isSensorState(device.state) ? device.state : null);
-	const sw = $derived(device && isSwitchState(device.state) ? device.state : null);
+	const light = $derived(device?.type === "light" ? device.state : null);
+	const plug = $derived(device?.type === "plug" ? device.state : null);
+	const sensor = $derived(device?.type === "sensor" ? device.state : null);
+	const isButton = $derived(device?.type === "button");
 
 	const membershipData = $derived(membershipRowsForDevice(deviceId, rooms, groups));
 
@@ -370,7 +357,7 @@
 		}
 	}
 
-	interface LightStateInput {
+	interface CommandInput {
 		on?: boolean;
 		brightness?: number;
 		colorTemp?: number;
@@ -378,7 +365,7 @@
 		transition?: number;
 	}
 
-	async function handleLightCommand(input: LightStateInput) {
+	async function handleDeviceCommand(input: CommandInput) {
 		if (!clientRef || !device) return;
 		sending = true;
 
@@ -483,7 +470,7 @@
 			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>
 		</div>
 	{:else if device}
-		<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]" in:fly={{ y: -4, duration: 150 }}>
 			<div class="space-y-6">
 				<Card>
 					<CardHeader>
@@ -583,11 +570,13 @@
 
 			<div>
 				{#if light}
-					<LightControls lightState={light} oncommand={handleLightCommand} {sending} />
+					<LightControls lightState={light} oncommand={handleDeviceCommand} {sending} />
+				{:else if plug}
+					<PlugDisplay state={plug} oncommand={handleDeviceCommand} {sending} />
 				{:else if sensor}
 					<SensorDisplay state={sensor} />
-				{:else if sw}
-					<SwitchDisplay state={sw} lastSeen={device.lastSeen} />
+				{:else if isButton}
+					<ButtonDisplay lastSeen={device.lastSeen} />
 				{:else}
 					<Card>
 						<CardContent class="py-8 text-center">

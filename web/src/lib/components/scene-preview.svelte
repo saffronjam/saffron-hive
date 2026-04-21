@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import type { Device, LightState, SensorState } from "$lib/stores/devices";
-	import { isLightState, isSensorState } from "$lib/stores/devices";
+	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { deviceIcon } from "$lib/utils";
 
 	interface Props {
@@ -10,14 +9,14 @@
 
 	let { devices }: Props = $props();
 
-	function brightnessPercent(light: LightState): string {
-		if (light.brightness == null) return "";
-		return `${Math.round((light.brightness / 254) * 100)}%`;
+	function brightnessPercent(state: DeviceState): string {
+		if (state.brightness == null) return "";
+		return `${Math.round((state.brightness / 254) * 100)}%`;
 	}
 
-	function colorPreview(light: LightState): string | null {
-		if (!light.color) return null;
-		return `rgb(${light.color.r}, ${light.color.g}, ${light.color.b})`;
+	function colorPreview(state: DeviceState): string | null {
+		if (!state.color) return null;
+		return `rgb(${state.color.r}, ${state.color.g}, ${state.color.b})`;
 	}
 </script>
 
@@ -29,8 +28,8 @@
 	<div class="space-y-2">
 		{#each devices as device (device.id)}
 			{@const Icon = deviceIcon(device.type)}
-			{@const light = isLightState(device.state) ? device.state : null}
-			{@const sensor = isSensorState(device.state) ? device.state : null}
+			{@const light = device.type === "light" ? device.state : null}
+			{@const sensor = device.type === "sensor" ? device.state : null}
 			<div class="flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-muted/50">
 				<Icon class="size-4 shrink-0 text-muted-foreground" />
 				<span class="min-w-0 flex-1 truncate text-sm text-foreground">{device.name}</span>

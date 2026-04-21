@@ -2,15 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import {
-		deviceStore,
-		type Device,
-		type LightState,
-		type SensorState,
-		type SwitchState,
-		isLightState,
-		isSensorState,
-	} from "$lib/stores/devices";
+	import { deviceStore, type Device, type DeviceState } from "$lib/stores/devices";
 	import DashboardDeviceCard from "$lib/components/dashboard-device-card.svelte";
 	import SceneQuickBar from "$lib/components/scene-quick-bar.svelte";
 	import ActivityFeed from "$lib/components/activity-feed.svelte";
@@ -22,8 +14,6 @@
 		pageHeader.breadcrumbs = [{ label: "Dashboard" }];
 	});
 	onDestroy(() => pageHeader.reset());
-
-	type DeviceState = LightState | SensorState | SwitchState;
 
 	interface SceneData {
 		id: string;
@@ -48,7 +38,7 @@
 		timestamp: Date;
 	}
 
-	interface LightStateInput {
+	interface CommandInput {
 		on?: boolean;
 		brightness?: number;
 		colorTemp?: number;
@@ -121,26 +111,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -186,18 +170,24 @@
 	`);
 
 	const SET_DEVICE_STATE = graphql(`
-		mutation DashboardSetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+		mutation DashboardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -208,26 +198,20 @@
 			deviceStateChanged {
 				deviceId
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -253,26 +237,20 @@
 				available
 				lastSeen
 				state {
-					... on LightState {
-						__typename
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-					}
-					... on SensorState {
-						__typename
-						temperature
-						humidity
-						battery
-						pressure
-						illuminance
-					}
-					... on SwitchState {
-						__typename
-						action
-					}
+					on
+					brightness
+					colorTemp
+					color { r g b x y }
+					transition
+					temperature
+					humidity
+					pressure
+					illuminance
+					battery
+					power
+					voltage
+					current
+					energy
 				}
 			}
 		}
@@ -360,18 +338,14 @@
 		return result;
 	});
 
-	const sensorDevices = $derived(
-		devices.filter((d) => isSensorState(d.state))
-	);
+	const sensorDevices = $derived(devices.filter((d) => d.type === "sensor"));
 
 	const sensorSummary = $derived.by(() => {
 		const temps: number[] = [];
 		const humids: number[] = [];
 		for (const d of sensorDevices) {
-			if (isSensorState(d.state)) {
-				if (d.state.temperature != null) temps.push(d.state.temperature);
-				if (d.state.humidity != null) humids.push(d.state.humidity);
-			}
+			if (d.state?.temperature != null) temps.push(d.state.temperature);
+			if (d.state?.humidity != null) humids.push(d.state.humidity);
 		}
 		return {
 			avgTemp: temps.length > 0 ? temps.reduce((a, b) => a + b, 0) / temps.length : null,
@@ -409,7 +383,7 @@
 		}
 	}
 
-	async function handleDeviceCommand(deviceId: string, input: LightStateInput) {
+	async function handleDeviceCommand(deviceId: string, input: CommandInput) {
 		if (!clientRef) return;
 		sendingDeviceId = deviceId;
 
@@ -650,7 +624,7 @@
 						</div>
 					{/if}
 					{#each sensorDevices as sDevice (sDevice.id)}
-						{#if isSensorState(sDevice.state)}
+						{#if sDevice.state}
 							<div class="flex items-center justify-between border-t border-border pt-2 text-xs">
 								<span class="truncate text-muted-foreground">{sDevice.name}</span>
 								<span class="shrink-0 text-foreground">
