@@ -14,19 +14,16 @@ const DEVICE_STATE_CHANGED = gql`
     deviceStateChanged {
       deviceId
       state {
-        ... on LightState {
-          on
-          brightness
-          colorTemp
-        }
-        ... on SensorState {
-          temperature
-          humidity
-          battery
-        }
-        ... on SwitchState {
-          action
-        }
+        on
+        brightness
+        colorTemp
+        temperature
+        humidity
+        battery
+        power
+        voltage
+        current
+        energy
       }
     }
   }
@@ -41,26 +38,23 @@ const DEVICE_AVAILABILITY_CHANGED = gql`
   }
 `;
 
-interface LightStateFields {
+interface DeviceStateFields {
   on?: boolean;
   brightness?: number;
   colorTemp?: number;
-}
-
-interface SensorStateFields {
   temperature?: number;
   humidity?: number;
   battery?: number;
-}
-
-interface SwitchStateFields {
-  action?: string;
+  power?: number;
+  voltage?: number;
+  current?: number;
+  energy?: number;
 }
 
 interface DeviceStateChangedEvent {
   deviceStateChanged: {
     deviceId: string;
-    state: LightStateFields | SensorStateFields | SwitchStateFields;
+    state: DeviceStateFields;
   };
 }
 
@@ -103,14 +97,10 @@ const DEVICE_STATE_CHANGED_FILTERED = gql`
     deviceStateChanged(deviceId: $deviceId) {
       deviceId
       state {
-        ... on LightState {
-          on
-          brightness
-        }
-        ... on SensorState {
-          temperature
-          humidity
-        }
+        on
+        brightness
+        temperature
+        humidity
       }
     }
   }
@@ -323,7 +313,7 @@ describe("subscriptions", () => {
     await new Promise((r) => setTimeout(r, 500));
 
     const reducedDevices = fixtures.filter(
-      (d) => d.friendly_name !== "Office Switch",
+      (d) => d.friendly_name !== "Office Button",
     );
     await publishBridgeDevices(reducedDevices);
 

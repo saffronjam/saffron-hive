@@ -18,19 +18,16 @@ const DEVICES_QUERY = gql`
       type
       available
       state {
-        ... on LightState {
-          on
-          brightness
-          colorTemp
-        }
-        ... on SensorState {
-          temperature
-          humidity
-          battery
-        }
-        ... on SwitchState {
-          action
-        }
+        on
+        brightness
+        colorTemp
+        temperature
+        humidity
+        battery
+        power
+        voltage
+        current
+        energy
       }
     }
   }
@@ -45,19 +42,16 @@ const DEVICE_QUERY = gql`
       type
       available
       state {
-        ... on LightState {
-          on
-          brightness
-          colorTemp
-        }
-        ... on SensorState {
-          temperature
-          humidity
-          battery
-        }
-        ... on SwitchState {
-          action
-        }
+        on
+        brightness
+        colorTemp
+        temperature
+        humidity
+        battery
+        power
+        voltage
+        current
+        energy
       }
     }
   }
@@ -81,7 +75,10 @@ interface DeviceFields {
     temperature?: number;
     humidity?: number;
     battery?: number;
-    action?: string;
+    power?: number;
+    voltage?: number;
+    current?: number;
+    energy?: number;
   } | null;
 }
 
@@ -94,17 +91,15 @@ interface DeviceQueryResult {
 }
 
 const SET_DEVICE_STATE = gql`
-  mutation SetDeviceState($deviceId: ID!, $state: LightStateInput!) {
+  mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
     setDeviceState(deviceId: $deviceId, state: $state) {
       id
       name
       type
       state {
-        ... on LightState {
-          on
-          brightness
-          colorTemp
-        }
+        on
+        brightness
+        colorTemp
       }
     }
   }
@@ -230,11 +225,9 @@ describe("devices", () => {
         deviceStateChanged {
           deviceId
           state {
-            ... on LightState {
-              on
-              brightness
-              colorTemp
-            }
+            on
+            brightness
+            colorTemp
           }
         }
       }

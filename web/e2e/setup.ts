@@ -49,8 +49,12 @@ export function getSensorStateFixture(): Record<string, unknown> {
   return loadFixture<Record<string, unknown>>("sensor_state.json");
 }
 
-export function getSwitchStateFixture(): Record<string, unknown> {
-  return loadFixture<Record<string, unknown>>("switch_state.json");
+export function getButtonStateFixture(): Record<string, unknown> {
+  return loadFixture<Record<string, unknown>>("button_state.json");
+}
+
+export function getPlugStateFixture(): Record<string, unknown> {
+  return loadFixture<Record<string, unknown>>("plug_state.json");
 }
 
 export async function publishBridgeDevices(
