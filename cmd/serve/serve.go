@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/activity"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/config"
@@ -115,6 +116,10 @@ func Run(ctx context.Context) error {
 	go activityRecorder.Run(ctx)
 	go activity.RunRetention(ctx, sqlStore)
 
+	alarmBuffer := alarms.NewBuffer()
+	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
+	go alarms.RunMonitor(ctx, alarmSvc, memStore, mgr)
+
 	if mqttCfg != nil && mqttCfg.Broker != "" {
 		mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
 			Broker:   mqttCfg.Broker,
@@ -132,24 +137,28 @@ func Run(ctx context.Context) error {
 	}
 	defer mgr.Stop()
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore)
+	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
 	go func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			serveLogger.Error("automation engine error", "error", err)
 		}
 	}()
 
+	engineAdapter := &engineReloader{engine: engine, ctx: ctx}
 	resolver := &graph.Resolver{
-		StateReader:        memStore,
-		Store:              sqlStore,
-		TargetResolver:     sqlStore,
-		EventBus:           bus,
-		AutomationReloader: &engineReloader{engine: engine, ctx: ctx},
-		LogBuffer:          logBuffer,
-		ActivityBuffer:     activityBuffer,
-		LevelVar:           levelVar,
-		Reconnector:        mgr,
-		Auth:               authSvc,
+		StateReader:         memStore,
+		Store:               sqlStore,
+		TargetResolver:      sqlStore,
+		EventBus:            bus,
+		AutomationReloader:  engineAdapter,
+		AutomationTriggerer: engineAdapter,
+		LogBuffer:           logBuffer,
+		ActivityBuffer:      activityBuffer,
+		Alarms:              alarmSvc,
+		AlarmBuffer:         alarmBuffer,
+		LevelVar:            levelVar,
+		Reconnector:         mgr,
+		Auth:                authSvc,
 	}
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -301,6 +310,18 @@ type adapterManager struct {
 	memStore *device.MemoryStore
 }
 
+// MQTTConnected reports whether the managed MQTT client is currently
+// connected. Returns false when no client has been configured yet (e.g.
+// before /setup is complete).
+func (m *adapterManager) MQTTConnected() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.client == nil {
+		return false
+	}
+	return m.client.IsConnected()
+}
+
 // Stop shuts down the current adapter if one is running.
 func (m *adapterManager) Stop() {
 	m.mu.Lock()
@@ -364,6 +385,10 @@ func (r *engineReloader) Reload() error {
 	return r.engine.Reload(r.ctx)
 }
 
+func (r *engineReloader) FireManualTrigger(ctx context.Context, automationID, nodeID string) error {
+	return r.engine.FireManualTrigger(ctx, automationID, automation.NodeID(nodeID))
+}
+
 func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {
 	defer bus.Unsubscribe(ch)
 
@@ -375,8 +400,11 @@ func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eve
 			if !ok {
 				return
 			}
-			ss, ok := evt.Payload.(device.SensorState)
+			ss, ok := evt.Payload.(device.DeviceState)
 			if !ok {
+				continue
+			}
+			if ss.Temperature == nil && ss.Humidity == nil && ss.Battery == nil && ss.Pressure == nil && ss.Illuminance == nil {
 				continue
 			}
 			_, err := s.InsertSensorReading(ctx, store.InsertSensorReadingParams{
