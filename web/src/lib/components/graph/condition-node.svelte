@@ -212,7 +212,7 @@
 		{/if}
 	</div>
 
-	<div class="space-y-2 p-3">
+	<div class="space-y-2 p-3 nodrag">
 		{#if data.editable}
 			<Select type="single" value={data.config.mode} onValueChange={handleModeChange}>
 				<SelectTrigger class="w-full text-xs">{modeLabel}</SelectTrigger>

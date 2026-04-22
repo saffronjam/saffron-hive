@@ -11,6 +11,9 @@
 	import { Play } from "@lucide/svelte";
 	import { validateActionConfig } from "./trigger-expr";
 	import DeviceStateEditor from "./device-state-editor.svelte";
+	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
+	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import { Badge } from "$lib/components/ui/badge/index.js";
 	import type { GroupLite, RoomLite, TargetKind } from "./capability-union";
 	import type { Device } from "$lib/gql/graphql";
 
@@ -22,16 +25,39 @@
 		payload: string;
 	}
 
+	interface SceneRef {
+		id: string;
+		name: string;
+	}
+
 	interface ActionNodeData extends Record<string, unknown> {
 		config: ActionConfig;
 		editable: boolean;
 		activated: boolean;
 		devices?: Device[];
-		groups?: GroupLite[];
-		rooms?: RoomLite[];
+		groups?: (GroupLite & { name: string })[];
+		rooms?: (RoomLite & { name: string })[];
+		scenes?: SceneRef[];
 		onConfigChange?: (config: ActionConfig) => void;
-		onPickTarget?: () => void;
 	}
+
+	interface TargetItem {
+		kind: "device" | "group" | "room" | "scene";
+		id: string;
+		name: string;
+		deviceType?: string;
+	}
+
+	function targetKey(t: TargetItem): string {
+		return `${t.kind}:${t.id}`;
+	}
+
+	const targetKindLabel: Record<TargetItem["kind"], string> = {
+		device: "Device",
+		group: "Group",
+		room: "Room",
+		scene: "Scene",
+	};
 
 	interface Props {
 		data: ActionNodeData;
@@ -125,6 +151,43 @@
 		actionTypes.find((t) => t.value === data.config.actionType)?.label ?? "Select action",
 	);
 
+	// Inline target picker. activate_scene only picks scenes; set_device_state
+	// picks across devices + groups + rooms (best-effort fan-out downstream).
+	const targetItemsList = $derived.by<TargetItem[]>(() => {
+		if (data.config.actionType === "activate_scene") {
+			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name }));
+		}
+		const items: TargetItem[] = [];
+		for (const d of data.devices ?? []) {
+			items.push({ kind: "device", id: d.id, name: d.name, deviceType: d.type });
+		}
+		for (const g of data.groups ?? []) {
+			items.push({ kind: "group", id: g.id, name: g.name });
+		}
+		for (const r of data.rooms ?? []) {
+			items.push({ kind: "room", id: r.id, name: r.name });
+		}
+		return items;
+	});
+
+	const selectedTargetKey = $derived(
+		data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "",
+	);
+
+	function handleTargetChange(value: string) {
+		if (!data.onConfigChange) return;
+		if (!value) return;
+		const [kind, ...idParts] = value.split(":");
+		const id = idParts.join(":");
+		const item = targetItemsList.find((t) => t.kind === kind && t.id === id);
+		data.onConfigChange({
+			...data.config,
+			targetType: kind,
+			targetId: id,
+			targetName: item?.name ?? "",
+		});
+	}
+
 	const targetDisplay = $derived(
 		data.config.targetName || (data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "No target"),
 	);
@@ -152,7 +215,7 @@
 		<span class="text-sm font-medium text-green-600 dark:text-green-400">Action</span>
 	</div>
 
-	<div class="space-y-2 p-3">
+	<div class="space-y-2 p-3 nodrag">
 		{#if data.editable}
 			<Select
 				type="single"
@@ -217,16 +280,39 @@
 					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
 				/>
 			{:else}
-				<button
-					type="button"
-					class="w-full rounded-md border bg-transparent px-2.5 py-1.5 text-left text-xs shadow-xs transition-colors hover:bg-muted {validationError?.field ===
-					'target'
-						? INVALID_CLS
-						: 'border-input'}"
-					onclick={() => data.onPickTarget?.()}
+				<HiveSelectAutocomplete
+					items={targetItemsList}
+					value={selectedTargetKey}
+					getValue={targetKey}
+					getLabel={(t) => t.name}
+					placeholder={data.config.actionType === "activate_scene" ? "Select scene" : "Select target"}
+					size="sm"
+					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
+					onchange={handleTargetChange}
 				>
-					{targetDisplay}
-				</button>
+					{#snippet renderSelected(t: TargetItem)}
+						<span class="truncate">{t.name}</span>
+						{#if t.kind === "device" && t.deviceType}
+							<DeviceTypeBadge type={t.deviceType} class="text-[10px] py-0 shrink-0" />
+						{:else}
+							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">
+								{targetKindLabel[t.kind]}
+							</Badge>
+						{/if}
+					{/snippet}
+					{#snippet item(t: TargetItem)}
+						<span class="flex w-full items-center gap-1.5 overflow-hidden">
+							<span class="truncate">{t.name}</span>
+							{#if t.kind === "device" && t.deviceType}
+								<DeviceTypeBadge type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
+							{:else}
+								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">
+									{targetKindLabel[t.kind]}
+								</Badge>
+							{/if}
+						</span>
+					{/snippet}
+				</HiveSelectAutocomplete>
 
 				{#if data.config.actionType === "set_device_state"}
 					{#if data.config.targetType && data.config.targetId}

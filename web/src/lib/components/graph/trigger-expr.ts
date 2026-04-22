@@ -305,9 +305,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     }
   }
   if (eventType === "device.state_changed") {
-    const ds = filter.match(
-      /^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/,
-    );
+    const ds = filter.match(/^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/);
     if (ds) {
       let val = ds[4].trim();
       if (val.startsWith('"') && val.endsWith('"')) {
@@ -435,12 +433,18 @@ export interface ActionConfigShape {
 
 export type ActionField = "actionType" | "target" | "payload";
 
-export function validateActionConfig(config: ActionConfigShape): ValidationError<ActionField> | null {
+export function validateActionConfig(
+  config: ActionConfigShape,
+): ValidationError<ActionField> | null {
   if (!config.actionType) return { field: "actionType", message: "Pick an action type" };
   if (config.actionType === "raise_alarm" || config.actionType === "clear_alarm") {
     try {
       const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;
-      if (!parsed.alarm_id || typeof parsed.alarm_id !== "string" || parsed.alarm_id.trim() === "") {
+      if (
+        !parsed.alarm_id ||
+        typeof parsed.alarm_id !== "string" ||
+        parsed.alarm_id.trim() === ""
+      ) {
         return { field: "payload", message: "Set an alarm id" };
       }
     } catch {

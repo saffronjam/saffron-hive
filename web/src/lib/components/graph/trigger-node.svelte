@@ -260,7 +260,7 @@
 		{/if}
 	</div>
 
-	<div class="space-y-2 p-3">
+	<div class="space-y-2 p-3 nodrag">
 		{#if data.editable}
 			<Select
 				type="single"

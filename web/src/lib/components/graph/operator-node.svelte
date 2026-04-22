@@ -52,7 +52,7 @@
 		<span class="text-sm font-medium text-yellow-600 dark:text-yellow-400">Operator</span>
 	</div>
 
-	<div class="p-3">
+	<div class="p-3 nodrag">
 		{#if data.editable}
 			<Select
 				type="single"

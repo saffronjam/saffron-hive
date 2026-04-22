@@ -541,8 +541,18 @@
 		if (snap) restoreSnapshot(snap);
 	}
 
+	function isEditableTarget(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		const tag = target.tagName;
+		if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+		return target.isContentEditable;
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (!editMode) return;
+		// Don't hijack native copy/paste/undo inside form fields. Graph-level
+		// shortcuts only fire when focus is on the canvas (or nothing).
+		if (isEditableTarget(e.target)) return;
 		const mod = e.metaKey || e.ctrlKey;
 		if (mod && e.key === "z" && !e.shiftKey) {
 			e.preventDefault();
@@ -550,6 +560,14 @@
 		} else if (mod && (e.key === "Z" || e.key === "y")) {
 			e.preventDefault();
 			handleRedo();
+		} else if (mod && e.key === "c") {
+			if (!anyNodeSelected) return;
+			e.preventDefault();
+			handleCopy();
+		} else if (mod && e.key === "v") {
+			if (!copyBuffer) return;
+			e.preventDefault();
+			handlePaste();
 		}
 	}
 
@@ -569,6 +587,22 @@
 		return cfg;
 	}
 
+	function enrichConditionConfigWithDevice(cfg: ConditionConfig): ConditionConfig {
+		// The stored expression carries only the device name (it's what expr-lang
+		// looks up). On reload we re-derive deviceId so the UI dropdown can
+		// pre-select the correct row. Symmetric to the trigger enrichment.
+		if (cfg.mode !== "device_state" || !devices.length) return cfg;
+		if (cfg.deviceName && !cfg.deviceId) {
+			const d = devices.find((x) => x.name === cfg.deviceName);
+			if (d) return { ...cfg, deviceId: d.id };
+		}
+		if (cfg.deviceId && !cfg.deviceName) {
+			const d = devices.find((x) => x.id === cfg.deviceId);
+			if (d) return { ...cfg, deviceName: d.name };
+		}
+		return cfg;
+	}
+
 	function parseConfig(nodeType: string, configJson: string): NodeConfig {
 		try {
 			const raw = JSON.parse(configJson) as Record<string, unknown>;
@@ -576,7 +610,7 @@
 				return enrichTriggerConfigWithDevice(normalizeTriggerConfig(raw));
 			}
 			if (nodeType === "condition") {
-				return normalizeConditionConfig(raw);
+				return enrichConditionConfigWithDevice(normalizeConditionConfig(raw));
 			}
 			if (nodeType === "operator") {
 				return { operator: ((raw.kind as string) ?? (raw.operator as string) ?? "AND").toUpperCase() };
@@ -647,12 +681,7 @@
 				devices,
 				groups,
 				rooms,
-				onPickTarget: () => {
-					const actionConfig = config as ActionConfig;
-					pickerTargetNodeId = nodeId;
-					pickerActionType = actionConfig.actionType || "set_device_state";
-					pickerOpen = true;
-				},
+				scenes,
 			};
 		}
 
@@ -1018,20 +1047,89 @@
 		takeSnapshot();
 	}
 
-	function updateTriggerNodeDevices(deviceList: Device[]) {
+	function resolveTargetName(
+		targetType: string,
+		targetId: string,
+		deviceList: Device[],
+		groupList: GroupData[],
+		roomList: RoomData[],
+	): string {
+		if (!targetId) return "";
+		switch (targetType) {
+			case "device":
+				return deviceList.find((d) => d.id === targetId)?.name ?? "";
+			case "group":
+				return groupList.find((g) => g.id === targetId)?.name ?? "";
+			case "room":
+				return roomList.find((r) => r.id === targetId)?.name ?? "";
+			case "scene":
+				return scenes.find((s) => s.id === targetId)?.name ?? "";
+			default:
+				return "";
+		}
+	}
+
+	// Re-attach devices / groups / rooms to every node whose UI needs them.
+	// Node data is captured at makeNodeData() time with the *current* value of
+	// these arrays, so nodes built before the queries resolve carry empty
+	// lists and never self-update — xyflow doesn't pass new props, so we
+	// rewrite data in place when the queries arrive.
+	function hydrateNodesWithLookups(
+		deviceList: Device[],
+		groupList: GroupData[],
+		roomList: RoomData[],
+		sceneList: { id: string; name: string }[],
+	) {
 		flowNodes = flowNodes.map((n) => {
-			if (n.type !== "trigger") return n;
 			const data = n.data as Record<string, unknown>;
-			const cfg = enrichTriggerConfigWithDevice(data.config as TriggerConfig);
-			return { ...n, data: { ...data, devices: deviceList, config: cfg } };
+			if (n.type === "trigger") {
+				const cfg = enrichTriggerConfigWithDevice(data.config as TriggerConfig);
+				return { ...n, data: { ...data, devices: deviceList, config: cfg } };
+			}
+			if (n.type === "condition") {
+				const cfg = enrichConditionConfigWithDevice(data.config as ConditionConfig);
+				return { ...n, data: { ...data, devices: deviceList, config: cfg } };
+			}
+			if (n.type === "action") {
+				const cfg = data.config as ActionConfig;
+				// targetName isn't persisted; rehydrate it from the live lookups so
+				// reloaded automations don't display "device:0x001...". Prefer the
+				// existing name when set (it came from handleTargetSelect in the
+				// current session and we don't want to clobber typing races).
+				let name = cfg.targetName;
+				if (!name) {
+					name = resolveTargetName(cfg.targetType, cfg.targetId, deviceList, groupList, roomList);
+				}
+				const nextCfg = name === cfg.targetName ? cfg : { ...cfg, targetName: name };
+				return {
+					...n,
+					data: {
+						...data,
+						devices: deviceList,
+						groups: groupList,
+						rooms: roomList,
+						scenes: sceneList,
+						config: nextCfg,
+					},
+				};
+			}
+			return n;
 		});
 	}
 
 	$effect(() => {
 		const deviceList = devices;
-		if (deviceList.length > 0) {
-			untrack(() => updateTriggerNodeDevices(deviceList));
-		}
+		const groupList = groups;
+		const roomList = rooms;
+		const sceneList = scenes;
+		// Trigger whenever ANY lookup changes. Don't gate on .length>0; an
+		// automation editor opened on an instance with zero groups/rooms still
+		// needs the hydration pass to resolve targetName from devices.
+		void deviceList.length;
+		void groupList.length;
+		void roomList.length;
+		void sceneList.length;
+		untrack(() => hydrateNodesWithLookups(deviceList, groupList, roomList, sceneList));
 	});
 
 	function updateTriggerNodeEnabledState(enabled: boolean) {
@@ -1404,7 +1502,15 @@
 								<Input
 									id="cooldown"
 									type="number"
-									bind:value={cooldownSeconds}
+									value={cooldownSeconds}
+									oninput={(e) => {
+										const raw = (e.currentTarget as HTMLInputElement).value;
+										const next = raw === "" ? 0 : Number(raw);
+										if (Number.isFinite(next) && next !== cooldownSeconds) {
+											cooldownSeconds = next;
+											takeSnapshot();
+										}
+									}}
 									min={0}
 									step={0.001}
 									disabled={!editMode}
