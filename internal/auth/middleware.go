@@ -2,10 +2,13 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 // RefreshedTokenHeader carries a freshly signed JWT on every authenticated
@@ -24,6 +27,14 @@ var whitelistedOps = map[string]bool{
 	"IntrospectionQuery": true,
 }
 
+// UserLookup loads the current user row. The Middleware calls it after parsing
+// the JWT so deleted accounts reject on their next authenticated request. Keep
+// the interface narrow so tests can provide a fake without pulling in the
+// whole store package.
+type UserLookup interface {
+	GetUserByID(ctx context.Context, id string) (store.User, error)
+}
+
 // Middleware enforces auth on the GraphQL HTTP endpoint.
 //
 // Behaviour:
@@ -31,10 +42,14 @@ var whitelistedOps = map[string]bool{
 //     whitelist, the request is allowed through without a token. The ctx
 //     carries no user.
 //  2. Otherwise, an `Authorization: Bearer <token>` header is required; the
-//     token is verified and its claims are attached to the request context
-//     via WithUser. A freshly signed token is returned in the
-//     X-Refreshed-Token response header.
-func Middleware(svc *Service) func(http.Handler) http.Handler {
+//     token is verified, the user is reloaded from the DB, and the fresh
+//     name/username are attached to the request context via WithUser. A
+//     freshly signed token is returned in the X-Refreshed-Token response
+//     header.
+//  3. If the user row no longer exists (e.g. deleted by an admin while the
+//     session was live), the request gets a 401 UNAUTHENTICATED so the
+//     frontend redirects to /login.
+func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// WebSocket upgrade requests authenticate via the graphql-ws
@@ -51,33 +66,59 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 				return
 			}
 
-			token := extractBearer(r)
-			if token == "" {
-				writeAuthError(w, "missing authorization token")
-				return
-			}
-			claims, err := svc.Parse(token)
+			user, err := authenticate(r, svc, lookup)
 			if err != nil {
-				writeAuthError(w, "invalid or expired token")
+				writeAuthError(w, err.Error())
 				return
 			}
 
-			fresh, err := svc.Sign(claims.UserID, claims.Username, claims.Name)
-			if err == nil {
+			fresh, signErr := svc.Sign(user.ID, user.Username, user.Name)
+			if signErr == nil {
 				w.Header().Set(RefreshedTokenHeader, fresh)
-				// Expose the header for browser JS (CORS allow-list).
 				w.Header().Add("Access-Control-Expose-Headers", RefreshedTokenHeader)
 			}
 
-			ctx := WithUser(r.Context(), CtxUser{
-				ID:       claims.UserID,
-				Username: claims.Username,
-				Name:     claims.Name,
-			})
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), user)))
 		})
 	}
 }
+
+// RequireAuth wraps an HTTP handler with JWT + DB-lookup authentication, used
+// by non-GraphQL endpoints (e.g. avatar upload). Returns 401 with a clear
+// UNAUTHENTICATED code on failure so the frontend's existing 401 handler
+// behaves identically for GraphQL and REST.
+func RequireAuth(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, err := authenticate(r, svc, lookup)
+			if err != nil {
+				writeAuthError(w, err.Error())
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), user)))
+		})
+	}
+}
+
+func authenticate(r *http.Request, svc *Service, lookup UserLookup) (CtxUser, error) {
+	token := extractBearer(r)
+	if token == "" {
+		return CtxUser{}, errStr("missing authorization token")
+	}
+	claims, err := svc.Parse(token)
+	if err != nil {
+		return CtxUser{}, errStr("invalid or expired token")
+	}
+	u, err := lookup.GetUserByID(r.Context(), claims.UserID)
+	if err != nil {
+		return CtxUser{}, errStr("user no longer exists")
+	}
+	return CtxUser{ID: u.ID, Username: u.Username, Name: u.Name}, nil
+}
+
+type errStr string
+
+func (e errStr) Error() string { return string(e) }
 
 func isWebSocketUpgrade(r *http.Request) bool {
 	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {

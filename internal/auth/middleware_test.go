@@ -2,13 +2,37 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// fakeLookup returns a single user keyed by ID; unknown IDs produce an error,
+// matching the "deleted user" path the middleware guards against.
+type fakeLookup struct {
+	users map[string]store.User
+}
+
+func (f fakeLookup) GetUserByID(_ context.Context, id string) (store.User, error) {
+	u, ok := f.users[id]
+	if !ok {
+		return store.User{}, fmt.Errorf("not found")
+	}
+	return u, nil
+}
+
+func lookupWith(u store.User) fakeLookup {
+	return fakeLookup{users: map[string]store.User{u.ID: u}}
+}
+
+func emptyLookup() fakeLookup { return fakeLookup{users: map[string]store.User{}} }
 
 // testHandler records whether it was invoked and exposes the user carried on
 // the incoming request's context.
@@ -36,7 +60,7 @@ func gqlRequest(t *testing.T, opName string) *http.Request {
 func TestMiddlewareWhitelistedBypassesAuth(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	h := &testHandler{}
-	wrapped := Middleware(svc)(h)
+	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
 
 	for _, op := range []string{"setupStatus", "login", "createInitialUser", "IntrospectionQuery"} {
 		rec := httptest.NewRecorder()
@@ -58,7 +82,7 @@ func TestMiddlewareWhitelistedBypassesAuth(t *testing.T) {
 func TestMiddlewareRejectsMissingToken(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	h := &testHandler{}
-	wrapped := Middleware(svc)(h)
+	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
 
 	rec := httptest.NewRecorder()
 	wrapped.ServeHTTP(rec, gqlRequest(t, "scenes"))
@@ -73,7 +97,7 @@ func TestMiddlewareRejectsMissingToken(t *testing.T) {
 func TestMiddlewareRejectsInvalidToken(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	h := &testHandler{}
-	wrapped := Middleware(svc)(h)
+	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
 
 	req := gqlRequest(t, "scenes")
 	req.Header.Set("Authorization", "Bearer not-a-valid-jwt")
@@ -96,7 +120,7 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	}
 
 	h := &testHandler{}
-	wrapped := Middleware(svc)(h)
+	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
 
 	req := gqlRequest(t, "scenes")
 	req.Header.Set("Authorization", "Bearer "+tok)
@@ -133,10 +157,33 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	}
 }
 
+func TestMiddlewareRejectsDeletedUser(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	tok, err := svc.Sign("u-gone", "alice", "Alice")
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	h := &testHandler{}
+	wrapped := Middleware(svc, emptyLookup())(h)
+
+	req := gqlRequest(t, "scenes")
+	req.Header.Set("Authorization", "Bearer "+tok)
+
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401 for deleted user", rec.Code)
+	}
+	if h.called {
+		t.Error("downstream called despite user no longer existing")
+	}
+}
+
 func TestMiddlewareAllowsWebSocketUpgrade(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	h := &testHandler{}
-	wrapped := Middleware(svc)(h)
+	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/graphql", nil)
 	req.Header.Set("Upgrade", "websocket")
