@@ -174,7 +174,23 @@ func TestCooldownZero(t *testing.T) {
 
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s, s, nil)
-	engine.now = func() time.Time { return time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) }
+	// CooldownSeconds=0 still gets the system-level minSystemDebounce floor to
+	// absorb protocol echoes. Advance the mock clock between fires by more
+	// than the floor to prove they're independent, not back-to-back bursts.
+	var (
+		clockMu sync.Mutex
+		clock   = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	)
+	engine.now = func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		return clock
+	}
+	advance := func(d time.Duration) {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		clock = clock.Add(d)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -185,12 +201,86 @@ func TestCooldownZero(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	for i := 0; i < 3; i++ {
+		if i > 0 {
+			advance(200 * time.Millisecond)
+		}
 		bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
 		select {
 		case <-ch:
 		case <-time.After(time.Second):
-			t.Fatalf("fire %d should succeed with zero cooldown", i+1)
+			t.Fatalf("fire %d should succeed with zero cooldown (past system debounce)", i+1)
 		}
+	}
+}
+
+// TestCooldownZeroBlocksEchoWithinSystemDebounce verifies that even with
+// CooldownSeconds=0, re-fires inside the system debounce window (~50 ms)
+// are suppressed. This covers the MQTT/z2m echo protection that motivated
+// the minSystemDebounce floor.
+func TestCooldownZeroBlocksEchoWithinSystemDebounce(t *testing.T) {
+	reader := newMockStateReader()
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-echo", Name: "echo-guard", Enabled: true, CooldownSeconds: 0},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-echo", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-echo", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-echo", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	)
+
+	bus := eventbus.NewChannelBus()
+	engine := NewEngine(bus, reader, s, s, nil)
+
+	var (
+		clockMu sync.Mutex
+		clock   = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	)
+	engine.now = func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		return clock
+	}
+	advance := func(d time.Duration) {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		clock = clock.Add(d)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = engine.Run(ctx) }()
+	time.Sleep(20 * time.Millisecond)
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("first fire should succeed")
+	}
+
+	// Simulated echo: second event lands 10 ms later, well inside the 50 ms
+	// debounce. Must be suppressed.
+	advance(10 * time.Millisecond)
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
+	select {
+	case <-ch:
+		t.Fatal("echo within system debounce must not re-fire")
+	case <-time.After(150 * time.Millisecond):
+	}
+
+	// Past the debounce window, a legitimate follow-up fires.
+	advance(100 * time.Millisecond)
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("event past system debounce should fire")
 	}
 }
 

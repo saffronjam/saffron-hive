@@ -451,11 +451,16 @@ func (e *Engine) publishNodeActivation(automationID string, nodeID NodeID, isAct
 	})
 }
 
-func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds float64) bool {
-	if cooldownSeconds <= 0 {
-		return false
-	}
+// minSystemDebounce is the floor applied to every automation's cooldown to
+// absorb protocol-level echoes: z2m's optimistic+confirmed double-publish of
+// the same state, MQTT retransmits, button hardware debouncing that emits
+// the same action twice. Short enough to feel instant for button-driven
+// toggles; long enough to kill echoes. Users who set cooldownSeconds to 0
+// still get this protection — 0 in the UI means "no perceptible user-facing
+// throttle", not "no protection against duplicate physical events".
+const minSystemDebounce = 50 * time.Millisecond
 
+func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds float64) bool {
 	e.mu.RLock()
 	lastFired, exists := e.cooldowns[automationID]
 	e.mu.RUnlock()
@@ -464,7 +469,11 @@ func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds 
 		return false
 	}
 
-	return now.Before(lastFired.Add(time.Duration(cooldownSeconds * float64(time.Second))))
+	effective := time.Duration(cooldownSeconds * float64(time.Second))
+	if effective < minSystemDebounce {
+		effective = minSystemDebounce
+	}
+	return now.Before(lastFired.Add(effective))
 }
 
 func (e *Engine) recordFired(automationID string, now time.Time) {
