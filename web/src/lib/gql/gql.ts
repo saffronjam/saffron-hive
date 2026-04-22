@@ -16,6 +16,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
 type Documents = {
     "\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\tid\n\t\t\tlatestRowId\n\t\t\tseverity\n\t\t\tkind\n\t\t\tmessage\n\t\t\tsource\n\t\t\tcount\n\t\t\tfirstRaisedAt\n\t\t\tlastRaisedAt\n\t\t}\n\t}\n": typeof types.ActiveAlarmsDocument,
     "\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n": typeof types.AlarmEventsDocument,
+    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n": typeof types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": typeof types.SetupStatusDocument,
     "\n\t\tquery DashboardDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tsource\n\t\t\t\ttype\n\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\tavailable\n\t\t\t\tlastSeen\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\ttransition\n\t\t\t\t\ttemperature\n\t\t\t\t\thumidity\n\t\t\t\t\tpressure\n\t\t\t\t\tilluminance\n\t\t\t\t\tbattery\n\t\t\t\t\tpower\n\t\t\t\t\tvoltage\n\t\t\t\t\tcurrent\n\t\t\t\t\tenergy\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardDevicesDocument,
     "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardScenesDocument,
@@ -74,6 +75,8 @@ type Documents = {
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogStreamDocument,
+    "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.ProfileUpdateCurrentUserDocument,
+    "\n\t\tmutation ProfileChangePassword($input: ChangePasswordInput!) {\n\t\t\tchangePassword(input: $input)\n\t\t}\n\t": typeof types.ProfileChangePasswordDocument,
     "\n\t\tquery Rooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tdevices {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\tsource\n\t\t\t\t\tavailable\n\t\t\t\t\tlastSeen\n\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\tstate {\n\t\t\t\t\t\ton\n\t\t\t\t\t\tbrightness\n\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\ttransition\n\t\t\t\t\t\ttemperature\n\t\t\t\t\t\thumidity\n\t\t\t\t\t\tpressure\n\t\t\t\t\t\tilluminance\n\t\t\t\t\t\tbattery\n\t\t\t\t\t\tpower\n\t\t\t\t\t\tvoltage\n\t\t\t\t\t\tcurrent\n\t\t\t\t\t\tenergy\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.RoomsDocument,
     "\n\t\tquery RoomsPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ttype\n\t\t\t\tsource\n\t\t\t\tavailable\n\t\t\t}\n\t\t}\n\t": typeof types.RoomsPageDevicesDocument,
     "\n\t\tquery RoomsPageGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers { memberId }\n\t\t\t}\n\t\t}\n\t": typeof types.RoomsPageGroupsDocument,
@@ -99,10 +102,15 @@ type Documents = {
     "\n\t\tmutation UpdateSetting($key: String!, $value: String!) {\n\t\t\tupdateSetting(key: $key, value: $value) {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateSettingDocument,
     "\n\t\tmutation createInitialUser($input: CreateInitialUserInput!) {\n\t\t\tcreateInitialUser(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateInitialUserDocument,
     "\n\t\tmutation SetupUpdateMqttConfig($input: MqttConfigInput!) {\n\t\t\tupdateMqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t}\n\t\t}\n\t": typeof types.SetupUpdateMqttConfigDocument,
+    "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": typeof types.UsersListDocument,
+    "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": typeof types.UsersCreateDocument,
+    "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": typeof types.UsersDeleteDocument,
+    "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": typeof types.UsersResetPasswordDocument,
 };
 const documents: Documents = {
     "\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\tid\n\t\t\tlatestRowId\n\t\t\tseverity\n\t\t\tkind\n\t\t\tmessage\n\t\t\tsource\n\t\t\tcount\n\t\t\tfirstRaisedAt\n\t\t\tlastRaisedAt\n\t\t}\n\t}\n": types.ActiveAlarmsDocument,
     "\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n": types.AlarmEventsDocument,
+    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n": types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": types.SetupStatusDocument,
     "\n\t\tquery DashboardDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tsource\n\t\t\t\ttype\n\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\tavailable\n\t\t\t\tlastSeen\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\ttransition\n\t\t\t\t\ttemperature\n\t\t\t\t\thumidity\n\t\t\t\t\tpressure\n\t\t\t\t\tilluminance\n\t\t\t\t\tbattery\n\t\t\t\t\tpower\n\t\t\t\t\tvoltage\n\t\t\t\t\tcurrent\n\t\t\t\t\tenergy\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.DashboardDevicesDocument,
     "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.DashboardScenesDocument,
@@ -161,6 +169,8 @@ const documents: Documents = {
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogStreamDocument,
+    "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.ProfileUpdateCurrentUserDocument,
+    "\n\t\tmutation ProfileChangePassword($input: ChangePasswordInput!) {\n\t\t\tchangePassword(input: $input)\n\t\t}\n\t": types.ProfileChangePasswordDocument,
     "\n\t\tquery Rooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tdevices {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\tsource\n\t\t\t\t\tavailable\n\t\t\t\t\tlastSeen\n\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\tstate {\n\t\t\t\t\t\ton\n\t\t\t\t\t\tbrightness\n\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\ttransition\n\t\t\t\t\t\ttemperature\n\t\t\t\t\t\thumidity\n\t\t\t\t\t\tpressure\n\t\t\t\t\t\tilluminance\n\t\t\t\t\t\tbattery\n\t\t\t\t\t\tpower\n\t\t\t\t\t\tvoltage\n\t\t\t\t\t\tcurrent\n\t\t\t\t\t\tenergy\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.RoomsDocument,
     "\n\t\tquery RoomsPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ttype\n\t\t\t\tsource\n\t\t\t\tavailable\n\t\t\t}\n\t\t}\n\t": types.RoomsPageDevicesDocument,
     "\n\t\tquery RoomsPageGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers { memberId }\n\t\t\t}\n\t\t}\n\t": types.RoomsPageGroupsDocument,
@@ -186,6 +196,10 @@ const documents: Documents = {
     "\n\t\tmutation UpdateSetting($key: String!, $value: String!) {\n\t\t\tupdateSetting(key: $key, value: $value) {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": types.UpdateSettingDocument,
     "\n\t\tmutation createInitialUser($input: CreateInitialUserInput!) {\n\t\t\tcreateInitialUser(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateInitialUserDocument,
     "\n\t\tmutation SetupUpdateMqttConfig($input: MqttConfigInput!) {\n\t\t\tupdateMqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t}\n\t\t}\n\t": types.SetupUpdateMqttConfigDocument,
+    "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": types.UsersListDocument,
+    "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": types.UsersCreateDocument,
+    "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": types.UsersDeleteDocument,
+    "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": types.UsersResetPasswordDocument,
 };
 
 /**
@@ -210,6 +224,10 @@ export function graphql(source: "\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\ti
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n"): (typeof documents)["\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -445,6 +463,14 @@ export function graphql(source: "\n\t\tsubscription LogStream {\n\t\t\tlogStream
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation ProfileChangePassword($input: ChangePasswordInput!) {\n\t\t\tchangePassword(input: $input)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation ProfileChangePassword($input: ChangePasswordInput!) {\n\t\t\tchangePassword(input: $input)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\t\tquery Rooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tdevices {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\tsource\n\t\t\t\t\tavailable\n\t\t\t\t\tlastSeen\n\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\tstate {\n\t\t\t\t\t\ton\n\t\t\t\t\t\tbrightness\n\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\ttransition\n\t\t\t\t\t\ttemperature\n\t\t\t\t\t\thumidity\n\t\t\t\t\t\tpressure\n\t\t\t\t\t\tilluminance\n\t\t\t\t\t\tbattery\n\t\t\t\t\t\tpower\n\t\t\t\t\t\tvoltage\n\t\t\t\t\t\tcurrent\n\t\t\t\t\t\tenergy\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Rooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tdevices {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\tsource\n\t\t\t\t\tavailable\n\t\t\t\t\tlastSeen\n\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\tstate {\n\t\t\t\t\t\ton\n\t\t\t\t\t\tbrightness\n\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\ttransition\n\t\t\t\t\t\ttemperature\n\t\t\t\t\t\thumidity\n\t\t\t\t\t\tpressure\n\t\t\t\t\t\tilluminance\n\t\t\t\t\t\tbattery\n\t\t\t\t\t\tpower\n\t\t\t\t\t\tvoltage\n\t\t\t\t\t\tcurrent\n\t\t\t\t\t\tenergy\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -542,6 +568,22 @@ export function graphql(source: "\n\t\tmutation createInitialUser($input: Create
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation SetupUpdateMqttConfig($input: MqttConfigInput!) {\n\t\t\tupdateMqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation SetupUpdateMqttConfig($input: MqttConfigInput!) {\n\t\t\tupdateMqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
