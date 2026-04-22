@@ -16,39 +16,39 @@ export interface Alarm {
 }
 
 const ALARMS_QUERY = graphql(`
-	query ActiveAlarms {
-		alarms {
-			id
-			latestRowId
-			severity
-			kind
-			message
-			source
-			count
-			firstRaisedAt
-			lastRaisedAt
-		}
-	}
+  query ActiveAlarms {
+    alarms {
+      id
+      latestRowId
+      severity
+      kind
+      message
+      source
+      count
+      firstRaisedAt
+      lastRaisedAt
+    }
+  }
 `);
 
 const ALARM_EVENT_SUBSCRIPTION = graphql(`
-	subscription AlarmEvents {
-		alarmEvent {
-			kind
-			clearedAlarmId
-			alarm {
-				id
-				latestRowId
-				severity
-				kind
-				message
-				source
-				count
-				firstRaisedAt
-				lastRaisedAt
-			}
-		}
-	}
+  subscription AlarmEvents {
+    alarmEvent {
+      kind
+      clearedAlarmId
+      alarm {
+        id
+        latestRowId
+        severity
+        kind
+        message
+        source
+        count
+        firstRaisedAt
+        lastRaisedAt
+      }
+    }
+  }
 `);
 
 const TOAST_COALESCE_WINDOW_MS = 2000;
