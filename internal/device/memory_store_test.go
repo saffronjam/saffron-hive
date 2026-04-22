@@ -1,6 +1,9 @@
 package device
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestMemoryStoreImplementsStateStore(t *testing.T) {
 	var _ StateStore = (*MemoryStore)(nil)
@@ -232,4 +235,72 @@ func TestSetAvailability(t *testing.T) {
 func TestSetAvailabilityUnknownDevice(t *testing.T) {
 	s := NewMemoryStore()
 	s.SetAvailability("unknown", true)
+}
+
+// TestUpdateDeviceStateRefreshesLastSeen pins the invariant that every
+// state message is evidence the device is alive. Without this, the stale
+// branch of the monitor's device-unavailable check would never flip back
+// to "fresh" and auto-clear would stop working for Zigbee devices.
+func TestUpdateDeviceStateRefreshesLastSeen(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "l1", Type: Light}) // LastSeen defaults to zero
+
+	before := time.Now()
+	on := true
+	s.UpdateDeviceState("l1", DeviceState{On: &on})
+	after := time.Now()
+
+	d, _ := s.GetDevice("l1")
+	if d.LastSeen.Before(before) || d.LastSeen.After(after) {
+		t.Fatalf("expected LastSeen within [%v, %v], got %v", before, after, d.LastSeen)
+	}
+}
+
+// TestSetAvailabilityTrueRefreshesLastSeen covers the case where a device
+// drops off the mesh and then re-joins. zigbee2mqtt's availability ping is
+// the fresh signal, and LastSeen must move forward so the monitor's
+// staleness check reflects reality.
+func TestSetAvailabilityTrueRefreshesLastSeen(t *testing.T) {
+	s := NewMemoryStore()
+	stale := time.Now().Add(-24 * time.Hour)
+	s.Register(Device{ID: "l1", Type: Light, LastSeen: stale})
+
+	before := time.Now()
+	s.SetAvailability("l1", true)
+	after := time.Now()
+
+	d, _ := s.GetDevice("l1")
+	if d.LastSeen.Before(before) || d.LastSeen.After(after) {
+		t.Fatalf("expected LastSeen within [%v, %v], got %v", before, after, d.LastSeen)
+	}
+}
+
+// TestSetAvailabilityFalseDoesNotTouchLastSeen locks in the asymmetry:
+// "available=false" is the absence of a signal, so LastSeen must stay at
+// whatever the last real observation was. This is load-bearing for the
+// monitor check, which uses stale LastSeen as the second required signal
+// before raising.
+func TestSetAvailabilityFalseDoesNotTouchLastSeen(t *testing.T) {
+	s := NewMemoryStore()
+	fresh := time.Now().Add(-time.Minute)
+	s.Register(Device{ID: "l1", Type: Light, LastSeen: fresh})
+
+	s.SetAvailability("l1", false)
+
+	d, _ := s.GetDevice("l1")
+	if !d.LastSeen.Equal(fresh) {
+		t.Fatalf("expected LastSeen unchanged at %v, got %v", fresh, d.LastSeen)
+	}
+}
+
+// TestUpdateDeviceStateIgnoresUnknownDevice guards the early-return path —
+// a state message for a device we haven't registered yet must not
+// accidentally create a ghost entry via the LastSeen write.
+func TestUpdateDeviceStateIgnoresUnknownDevice(t *testing.T) {
+	s := NewMemoryStore()
+	on := true
+	s.UpdateDeviceState("ghost", DeviceState{On: &on})
+	if _, ok := s.GetDevice("ghost"); ok {
+		t.Fatal("expected ghost device to not be registered after state update")
+	}
 }

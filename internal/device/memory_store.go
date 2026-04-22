@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // MemoryStore is an in-memory implementation of StateStore.
@@ -83,26 +84,38 @@ func (s *MemoryStore) Remove(id DeviceID) {
 
 // UpdateDeviceState merges a partial DeviceState update for a device. Non-nil
 // fields in state overwrite the corresponding fields in the stored snapshot;
-// nil fields leave the stored value untouched. If the device is not
-// registered, the update is silently ignored.
+// nil fields leave the stored value untouched. LastSeen is refreshed to now
+// because any state message is fresh evidence that the device is reporting.
+// If the device is not registered, the update is silently ignored.
 func (s *MemoryStore) UpdateDeviceState(id DeviceID, state DeviceState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.devices[id]; !ok {
+	d, ok := s.devices[id]
+	if !ok {
 		return
 	}
 	s.states[id] = MergeDeviceState(s.states[id], state)
+	d.LastSeen = time.Now()
+	s.devices[id] = d
 }
 
-// SetAvailability updates the availability of a device.
+// SetAvailability updates the availability of a device. An "available=true"
+// transition is treated as a fresh signal from the device and refreshes
+// LastSeen; an "available=false" transition is the absence of a signal and
+// leaves LastSeen alone so the monitor's staleness check remains meaningful.
 // If the device is not registered, the update is silently ignored.
 func (s *MemoryStore) SetAvailability(id DeviceID, available bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if d, ok := s.devices[id]; ok {
-		d.Available = available
-		s.devices[id] = d
+	d, ok := s.devices[id]
+	if !ok {
+		return
 	}
+	d.Available = available
+	if available {
+		d.LastSeen = time.Now()
+	}
+	s.devices[id] = d
 }
 
 // GetGroup returns a group by ID and whether it was found.

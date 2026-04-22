@@ -80,7 +80,7 @@ func (s *Service) Raise(ctx context.Context, p RaiseParams) (Alarm, error) {
 	}
 
 	s.buffer.Publish(Event{Kind: EventRaised, Alarm: grouped})
-	logger.Info("alarm raised",
+	logger.Debug("alarm raised",
 		slog.String("alarm_id", p.AlarmID),
 		slog.String("severity", string(p.Severity)),
 		slog.String("kind", string(p.Kind)),
@@ -104,7 +104,7 @@ func (s *Service) DeleteByAlarmID(ctx context.Context, alarmID string) (bool, er
 		return false, nil
 	}
 	s.buffer.Publish(Event{Kind: EventCleared, ClearedAlarmID: alarmID})
-	logger.Info("alarm deleted", slog.String("alarm_id", alarmID), slog.Int64("rows", n))
+	logger.Debug("alarm deleted", slog.String("alarm_id", alarmID), slog.Int64("rows", n))
 	return true, nil
 }
 
@@ -117,15 +117,20 @@ func (s *Service) ListActive(ctx context.Context) ([]Alarm, error) {
 	return groupRows(rows), nil
 }
 
-// ActiveAlarmIDs returns the set of currently-active alarm_ids. Used by the
-// monitor to learn which auto alarms to clear when their condition resolves.
-func (s *Service) ActiveAlarmIDs(ctx context.Context) (map[string]struct{}, error) {
+// ActiveAlarmIDsBySource returns the set of currently-active alarm_ids whose
+// most recent raise has the given Source. Used by the monitor to scope its
+// view to alarms it owns, so one-shot or API-raised alarms with different
+// sources are invisible to the monitor and never touched by its clear loop.
+func (s *Service) ActiveAlarmIDsBySource(ctx context.Context, source string) (map[string]struct{}, error) {
 	alarms, err := s.ListActive(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make(map[string]struct{}, len(alarms))
 	for _, a := range alarms {
+		if a.Source != source {
+			continue
+		}
 		out[a.ID] = struct{}{}
 	}
 	return out, nil
