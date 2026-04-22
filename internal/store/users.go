@@ -26,7 +26,15 @@ func (s *DB) GetUserByID(ctx context.Context, id string) (User, error) {
 	if err != nil {
 		return User{}, fmt.Errorf("get user by id: %w", err)
 	}
-	return mapUserRow(row), nil
+	return User{
+		ID:           row.ID,
+		Username:     row.Username,
+		Name:         row.Name,
+		PasswordHash: row.PasswordHash,
+		AvatarPath:   row.AvatarPath,
+		Theme:        row.Theme,
+		CreatedAt:    row.CreatedAt,
+	}, nil
 }
 
 // GetUserByUsername retrieves a user by username. Usernames are unique.
@@ -35,7 +43,15 @@ func (s *DB) GetUserByUsername(ctx context.Context, username string) (User, erro
 	if err != nil {
 		return User{}, fmt.Errorf("get user by username: %w", err)
 	}
-	return mapUserRow(row), nil
+	return User{
+		ID:           row.ID,
+		Username:     row.Username,
+		Name:         row.Name,
+		PasswordHash: row.PasswordHash,
+		AvatarPath:   row.AvatarPath,
+		Theme:        row.Theme,
+		CreatedAt:    row.CreatedAt,
+	}, nil
 }
 
 // ListUsers returns all users ordered by creation time ascending.
@@ -44,9 +60,17 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
-	var users []User
+	users := make([]User, 0, len(rows))
 	for _, row := range rows {
-		users = append(users, mapUserRow(row))
+		users = append(users, User{
+			ID:           row.ID,
+			Username:     row.Username,
+			Name:         row.Name,
+			PasswordHash: row.PasswordHash,
+			AvatarPath:   row.AvatarPath,
+			Theme:        row.Theme,
+			CreatedAt:    row.CreatedAt,
+		})
 	}
 	return users, nil
 }
@@ -60,12 +84,56 @@ func (s *DB) CountUsers(ctx context.Context) (int, error) {
 	return int(n), nil
 }
 
-func mapUserRow(row sqlite.User) User {
-	return User{
-		ID:           row.ID,
-		Username:     row.Username,
-		Name:         row.Name,
-		PasswordHash: row.PasswordHash,
-		CreatedAt:    row.CreatedAt,
+// UpdateUserProfile applies a partial update to name / theme / avatar_path.
+// Nil fields leave their column untouched. AvatarPath cannot clear to NULL
+// here; use ClearUserAvatar for that.
+func (s *DB) UpdateUserProfile(ctx context.Context, params UpdateUserProfileParams) (User, error) {
+	if err := s.q.UpdateUserProfile(ctx, sqlite.UpdateUserProfileParams{
+		ID:         params.ID,
+		Name:       params.Name,
+		Theme:      params.Theme,
+		AvatarPath: params.AvatarPath,
+	}); err != nil {
+		return User{}, fmt.Errorf("update user profile: %w", err)
 	}
+	return s.GetUserByID(ctx, params.ID)
+}
+
+// ClearUserAvatar sets the avatar_path column to NULL for the given user.
+func (s *DB) ClearUserAvatar(ctx context.Context, id string) error {
+	if err := s.q.ClearUserAvatar(ctx, id); err != nil {
+		return fmt.Errorf("clear user avatar: %w", err)
+	}
+	return nil
+}
+
+// UpdateUserPasswordHash replaces the stored bcrypt hash for the given user.
+func (s *DB) UpdateUserPasswordHash(ctx context.Context, id, hash string) error {
+	if err := s.q.UpdateUserPasswordHash(ctx, sqlite.UpdateUserPasswordHashParams{
+		ID:           id,
+		PasswordHash: hash,
+	}); err != nil {
+		return fmt.Errorf("update user password hash: %w", err)
+	}
+	return nil
+}
+
+// DeleteUser removes a user row. Foreign keys on scenes/automations/groups/rooms
+// are configured ON DELETE SET NULL, so creator attribution becomes null but
+// the attributed rows remain.
+func (s *DB) DeleteUser(ctx context.Context, id string) error {
+	if err := s.q.DeleteUser(ctx, id); err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	return nil
+}
+
+// GetUserAvatarPath returns the stored avatar filename for a user, or nil when
+// no avatar is set. Returns a not-found error if the user does not exist.
+func (s *DB) GetUserAvatarPath(ctx context.Context, id string) (*string, error) {
+	path, err := s.q.GetUserAvatarPath(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get user avatar path: %w", err)
+	}
+	return path, nil
 }

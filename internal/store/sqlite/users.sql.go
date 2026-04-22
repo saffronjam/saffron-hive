@@ -7,7 +7,17 @@ package sqlite
 
 import (
 	"context"
+	"time"
 )
+
+const clearUserAvatar = `-- name: ClearUserAvatar :exec
+UPDATE users SET avatar_path = NULL WHERE id = ?
+`
+
+func (q *Queries) ClearUserAvatar(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearUserAvatar, id)
+	return err
+}
 
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
@@ -42,64 +52,120 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = ?
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, id)
+	return err
+}
+
+const getUserAvatarPath = `-- name: GetUserAvatarPath :one
+SELECT avatar_path FROM users WHERE id = ?
+`
+
+func (q *Queries) GetUserAvatarPath(ctx context.Context, id string) (*string, error) {
+	row := q.db.QueryRowContext(ctx, getUserAvatarPath, id)
+	var avatar_path *string
+	err := row.Scan(&avatar_path)
+	return avatar_path, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, name, password_hash, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, created_at
 FROM users
 WHERE id = ?
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
+type GetUserByIDRow struct {
+	ID           string
+	Username     string
+	Name         string
+	PasswordHash string
+	AvatarPath   *string
+	Theme        string
+	CreatedAt    time.Time
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Name,
 		&i.PasswordHash,
+		&i.AvatarPath,
+		&i.Theme,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, created_at
 FROM users
 WHERE username = ?
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+type GetUserByUsernameRow struct {
+	ID           string
+	Username     string
+	Name         string
+	PasswordHash string
+	AvatarPath   *string
+	Theme        string
+	CreatedAt    time.Time
+}
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
-	var i User
+	var i GetUserByUsernameRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Name,
 		&i.PasswordHash,
+		&i.AvatarPath,
+		&i.Theme,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, name, password_hash, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, created_at
 FROM users
 ORDER BY created_at ASC
 `
 
-func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+type ListUsersRow struct {
+	ID           string
+	Username     string
+	Name         string
+	PasswordHash string
+	AvatarPath   *string
+	Theme        string
+	CreatedAt    time.Time
+}
+
+func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListUsersRow
 	for rows.Next() {
-		var i User
+		var i ListUsersRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Username,
 			&i.Name,
 			&i.PasswordHash,
+			&i.AvatarPath,
+			&i.Theme,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -113,4 +179,47 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserPasswordHash = `-- name: UpdateUserPasswordHash :exec
+UPDATE users SET password_hash = ? WHERE id = ?
+`
+
+type UpdateUserPasswordHashParams struct {
+	PasswordHash string
+	ID           string
+}
+
+func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPasswordHash, arg.PasswordHash, arg.ID)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :exec
+UPDATE users SET
+    name        = COALESCE(?1,        name),
+    theme       = COALESCE(?2,       theme),
+    avatar_path = COALESCE(?3, avatar_path)
+WHERE id = ?4
+`
+
+type UpdateUserProfileParams struct {
+	Name       *string
+	Theme      *string
+	AvatarPath *string
+	ID         string
+}
+
+// Partial update of mutable profile fields. Nil narg values leave their column
+// untouched. avatar_path can be set to a value here but cannot be cleared to
+// NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
+// from "set to NULL"). theme is constrained by a CHECK in the migration.
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserProfile,
+		arg.Name,
+		arg.Theme,
+		arg.AvatarPath,
+		arg.ID,
+	)
+	return err
 }

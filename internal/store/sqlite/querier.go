@@ -18,6 +18,7 @@ type Querier interface {
 	ClearGroupIcon(ctx context.Context, id string) error
 	ClearRoomIcon(ctx context.Context, id string) error
 	ClearSceneIcon(ctx context.Context, id string) error
+	ClearUserAvatar(ctx context.Context, id string) error
 	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	// Automations own three related tables: automations, automation_nodes,
@@ -52,6 +53,7 @@ type Querier interface {
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
 	DeleteSceneAction(ctx context.Context, id string) error
+	DeleteUser(ctx context.Context, id string) error
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
@@ -59,8 +61,9 @@ type Querier interface {
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
-	GetUserByID(ctx context.Context, id string) (User, error)
-	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
+	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
+	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
 	GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error)
 	GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error)
 	// Activity event persistence. QueryActivityEvents is the only query in the
@@ -99,7 +102,7 @@ type Querier interface {
 	ListSceneActions(ctx context.Context, sceneID string) ([]ListSceneActionsRow, error)
 	ListScenes(ctx context.Context) ([]ListScenesRow, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
-	ListUsers(ctx context.Context) ([]User, error)
+	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
 	// Optional LIMIT collapsed into one query: SQLite treats LIMIT -1 as unbounded,
@@ -126,6 +129,12 @@ type Querier interface {
 	UpdateRoomName(ctx context.Context, arg UpdateRoomNameParams) error
 	UpdateSceneIcon(ctx context.Context, arg UpdateSceneIconParams) error
 	UpdateSceneName(ctx context.Context, arg UpdateSceneNameParams) error
+	UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error
+	// Partial update of mutable profile fields. Nil narg values leave their column
+	// untouched. avatar_path can be set to a value here but cannot be cleared to
+	// NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
+	// from "set to NULL"). theme is constrained by a CHECK in the migration.
+	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
 	// Clears the removed flag on conflict so re-discovered devices become active.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertMQTTConfig(ctx context.Context, arg UpsertMQTTConfigParams) error

@@ -154,6 +154,8 @@ type User struct {
 	Name         string
 	PasswordHash string
 	CreatedAt    time.Time
+	AvatarPath   *string
+	Theme        string
 }
 
 type ZigbeeDevice struct {

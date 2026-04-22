@@ -302,7 +302,19 @@ type User struct {
 	Username     string
 	Name         string
 	PasswordHash string
+	AvatarPath   *string
+	Theme        string
 	CreatedAt    time.Time
+}
+
+// UpdateUserProfileParams holds optional fields for updating a user's profile.
+// Nil fields leave the corresponding column untouched. AvatarPath cannot clear
+// the column to NULL here — use ClearUserAvatar for that.
+type UpdateUserProfileParams struct {
+	ID         string
+	Name       *string
+	Theme      *string
+	AvatarPath *string
 }
 
 // UserRef is the lightweight creator reference embedded into other rows via
