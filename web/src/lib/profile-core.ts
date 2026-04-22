@@ -6,6 +6,7 @@ export interface ProfileState {
   "view.groups": ListView;
   "view.rooms": ListView;
   "view.scenes": ListView;
+  "view.users": ListView;
   "activity.advanced": boolean;
 }
 

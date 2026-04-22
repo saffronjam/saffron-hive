@@ -77,6 +77,14 @@ Dark and light mode are supported via Tailwind's `dark:` class variant. The `<ht
 
 Content cards use `rounded-lg shadow-card bg-card` — no `border`. The `shadow-card` token provides the visual separation. Never use `border` on content cards; it produces a white outline in dark mode that clashes with the rest of the UI.
 
+## Context menus
+
+Destructive or admin actions that are currently unavailable (e.g. the logged-in
+user trying to delete themselves) should render as **disabled with a tooltip**
+explaining why, not hidden. Users must be able to see what's possible and why
+it isn't available right now — options appearing and disappearing based on
+state makes the UI feel unpredictable.
+
 ## Cursor styling
 
 Do not set `cursor-*` utilities on interactive elements. Rely on visual cues — hover highlight, border/ring changes, color shifts — to signal interactivity. The default cursor stays the arrow everywhere except real text inputs (where the browser's native text caret applies).
