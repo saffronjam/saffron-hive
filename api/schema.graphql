@@ -491,6 +491,20 @@ type Mutation {
   deleteUser(id: ID!): Boolean!
   raiseAlarm(input: RaiseAlarmInput!): Alarm!
   deleteAlarm(alarmId: ID!): Boolean!
+
+  batchDeleteScenes(ids: [ID!]!): Int!
+  batchDeleteAutomations(ids: [ID!]!): Int!
+  batchDeleteGroups(ids: [ID!]!): Int!
+  batchDeleteRooms(ids: [ID!]!): Int!
+  batchDeleteAlarms(alarmIds: [ID!]!): Int!
+  """
+  Deletes the specified users. The currently authenticated user is silently
+  skipped if present in the list. Returns the number of users actually deleted.
+  """
+  batchDeleteUsers(ids: [ID!]!): Int!
+
+  batchAddRoomDevices(roomId: ID!, deviceIds: [ID!]!): Room!
+  batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
 }
 
 type Subscription {

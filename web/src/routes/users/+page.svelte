@@ -34,6 +34,11 @@
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
@@ -51,7 +56,6 @@
 				username
 				name
 				avatarPath
-				theme
 			}
 		}
 	`);
@@ -63,7 +67,6 @@
 				username
 				name
 				avatarPath
-				theme
 			}
 		}
 	`);
@@ -71,6 +74,12 @@
 	const DELETE_USER = graphql(`
 		mutation UsersDelete($id: ID!) {
 			deleteUser(id: $id)
+		}
+	`);
+
+	const BATCH_DELETE_USERS = graphql(`
+		mutation UsersBatchDelete($ids: [ID!]!) {
+			batchDeleteUsers(ids: $ids)
 		}
 	`);
 
@@ -85,7 +94,6 @@
 		username: string;
 		name: string;
 		avatarPath: string | null;
-		theme: "LIGHT" | "DARK";
 	}
 
 	const users = queryStore({ client, query: USERS_QUERY });
@@ -97,7 +105,6 @@
 			username: u.username,
 			name: u.name,
 			avatarPath: u.avatarPath ?? null,
-			theme: (u.theme ?? "DARK") as "LIGHT" | "DARK",
 		}));
 	});
 
@@ -133,6 +140,41 @@
 
 	let deleteTarget = $state<UserRow | null>(null);
 	let deleteSaving = $state(false);
+
+	const selection = createTableSelection();
+	let batchDeleteConfirm = $state(false);
+	let batchDeleteSaving = $state(false);
+
+	const filteredIds = $derived(filtered.map((u) => u.id));
+	$effect(() => {
+		selection.pruneTo(filteredIds);
+	});
+	$effect(() => {
+		const meId = me.user?.id ?? auth.user?.id;
+		selection.setDisabled(meId ? [meId] : []);
+	});
+
+	async function handleBatchDelete() {
+		const ids = selection.selectedIds();
+		if (ids.length === 0) {
+			batchDeleteConfirm = false;
+			return;
+		}
+		batchDeleteSaving = true;
+		try {
+			const result = await client.mutation(BATCH_DELETE_USERS, { ids }).toPromise();
+			if (result.error) throw new Error(result.error.message);
+			const n = result.data?.batchDeleteUsers ?? 0;
+			toast.success(`${n} user${n === 1 ? "" : "s"} deleted`);
+			batchDeleteConfirm = false;
+			selection.clear();
+			users.reexecute({ requestPolicy: "network-only" });
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Failed to delete users");
+		} finally {
+			batchDeleteSaving = false;
+		}
+	}
 
 	pageHeader.breadcrumbs = [{ label: "Users" }];
 	pageHeader.actions = [
@@ -253,12 +295,34 @@
 </script>
 
 <div class="space-y-4">
-	<HiveSearchbar
-		chips={chipConfigs}
-		value={search}
-		onchange={(v) => (search = v)}
-		placeholder="Search users..."
-	/>
+	<div class="flex items-stretch gap-2">
+		<div class="min-w-0 flex-1">
+			<HiveSearchbar
+				chips={chipConfigs}
+				value={search}
+				onchange={(v) => (search = v)}
+				placeholder="Search users..."
+			/>
+		</div>
+		<div
+			class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+			style:max-width={view === "table" && selection.count > 0 ? "32rem" : "0px"}
+			style:opacity={view === "table" && selection.count > 0 ? "1" : "0"}
+			aria-hidden={!(view === "table" && selection.count > 0)}
+		>
+			<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+				{#snippet actions()}
+					<Button
+						variant="destructive"
+						size="sm"
+						onclick={() => (batchDeleteConfirm = true)}
+					>
+						Delete
+					</Button>
+				{/snippet}
+			</TableSelectionToolbar>
+		</div>
+	</div>
 
 	{#if $users.fetching && userList.length === 0}
 		<p class="text-sm text-muted-foreground">Loading users…</p>
@@ -312,16 +376,27 @@
 						<Table>
 							<TableHeader>
 								<TableRow>
+									<TableHead class="w-10">
+										<TableHeaderCheckbox {selection} orderedIds={filteredIds} />
+									</TableHead>
 									<TableHead class="w-16"></TableHead>
 									<TableHead>Name</TableHead>
 									<TableHead>Username</TableHead>
-									<TableHead>Theme</TableHead>
 									<TableHead class="w-10"></TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{#each filtered as u (u.id)}
-									<TableRow>
+									<TableRow data-state={selection.isSelected(u.id) ? "selected" : undefined}>
+										<TableCell>
+											<TableRowCheckbox
+												id={u.id}
+												{selection}
+												orderedIds={filteredIds}
+												tooltip={deleteDisabledReason(u)}
+												ariaLabel="Select {u.name}"
+											/>
+										</TableCell>
 										<TableCell>
 											<Avatar user={u} size="sm" />
 										</TableCell>
@@ -329,7 +404,6 @@
 										<TableCell class="font-mono text-xs text-muted-foreground">
 											@{u.username}
 										</TableCell>
-										<TableCell class="text-xs">{u.theme === "LIGHT" ? "Light" : "Dark"}</TableCell>
 										<TableCell>
 											<DropdownMenu>
 												<DropdownMenuTrigger>
@@ -462,3 +536,13 @@
 		</DialogFooter>
 	</DialogContent>
 </Dialog>
+
+<ConfirmDialog
+	open={batchDeleteConfirm}
+	title="Delete {selection.count} user{selection.count === 1 ? '' : 's'}?"
+	description="This permanently removes the selected users. Resources they created stay, with their attribution cleared."
+	confirmLabel="Delete"
+	loading={batchDeleteSaving}
+	onconfirm={handleBatchDelete}
+	oncancel={() => (batchDeleteConfirm = false)}
+/>

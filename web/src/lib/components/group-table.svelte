@@ -12,11 +12,16 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { groupMemberBreakdown } from "$lib/list-helpers";
 	import { Group as GroupIcon, Pencil, Plus, Trash2 } from "@lucide/svelte";
 
 	interface Props {
 		groups: G[];
+		orderedIds: readonly string[];
+		selection: TableSelection;
 		onedit: (group: G) => void;
 		ondelete: (group: G) => void;
 		onrename: (group: G, newName: string) => void;
@@ -24,13 +29,16 @@
 		onAddTo: (group: G) => void;
 	}
 
-	let { groups, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
+	let { groups, orderedIds, selection, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
 </script>
 
 <div class="overflow-x-auto rounded-lg shadow-card bg-card">
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead class="w-10">
+					<TableHeaderCheckbox {selection} {orderedIds} />
+				</TableHead>
 				<TableHead class="w-12"></TableHead>
 				<TableHead>Name</TableHead>
 				<TableHead>Members</TableHead>
@@ -41,7 +49,10 @@
 		</TableHeader>
 		<TableBody>
 			{#each groups as group (group.id)}
-				<TableRow>
+				<TableRow data-state={selection.isSelected(group.id) ? "selected" : undefined}>
+					<TableCell>
+						<TableRowCheckbox id={group.id} {selection} {orderedIds} ariaLabel="Select {group.name}" />
+					</TableCell>
 					<TableCell>
 						<IconPicker value={group.icon} onselect={(icon) => oniconchange(group, icon)}>
 							<button

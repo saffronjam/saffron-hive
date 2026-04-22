@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,8 +28,6 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
-
-var graphLogger = slog.Default().With("pkg", "graph")
 
 // UpdateDevice is the resolver for the updateDevice field.
 func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error) {
@@ -839,6 +836,124 @@ func (r *mutationResolver) DeleteAlarm(ctx context.Context, alarmID string) (boo
 		return false, err
 	}
 	return deleted, nil
+}
+
+// BatchDeleteScenes is the resolver for the batchDeleteScenes field.
+func (r *mutationResolver) BatchDeleteScenes(ctx context.Context, ids []string) (int, error) {
+	n, err := r.Store.BatchDeleteScenes(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
+// BatchDeleteAutomations is the resolver for the batchDeleteAutomations field.
+func (r *mutationResolver) BatchDeleteAutomations(ctx context.Context, ids []string) (int, error) {
+	n, err := r.Store.BatchDeleteAutomations(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	if n > 0 && r.AutomationReloader != nil {
+		if err := r.AutomationReloader.Reload(); err != nil {
+			return 0, fmt.Errorf("failed to reload automations: %w", err)
+		}
+	}
+	return int(n), nil
+}
+
+// BatchDeleteGroups is the resolver for the batchDeleteGroups field.
+func (r *mutationResolver) BatchDeleteGroups(ctx context.Context, ids []string) (int, error) {
+	n, err := r.Store.BatchDeleteGroups(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
+// BatchDeleteRooms is the resolver for the batchDeleteRooms field.
+func (r *mutationResolver) BatchDeleteRooms(ctx context.Context, ids []string) (int, error) {
+	n, err := r.Store.BatchDeleteRooms(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
+// BatchDeleteAlarms is the resolver for the batchDeleteAlarms field.
+func (r *mutationResolver) BatchDeleteAlarms(ctx context.Context, alarmIds []string) (int, error) {
+	n, err := r.Alarms.BatchDeleteByAlarmIDs(ctx, alarmIds)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// BatchDeleteUsers is the resolver for the batchDeleteUsers field. The
+// currently authenticated user is silently filtered out before the store call,
+// mirroring the single deleteUser self-protection rule.
+func (r *mutationResolver) BatchDeleteUsers(ctx context.Context, ids []string) (int, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return 0, fmt.Errorf("authentication required")
+	}
+	targetIDs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id == cu.ID {
+			continue
+		}
+		targetIDs = append(targetIDs, id)
+	}
+	if len(targetIDs) == 0 {
+		return 0, nil
+	}
+	avatars, err := r.Store.GetUserAvatarPathsByIDs(ctx, targetIDs)
+	if err != nil {
+		return 0, fmt.Errorf("load target users: %w", err)
+	}
+	n, err := r.Store.BatchDeleteUsers(ctx, targetIDs)
+	if err != nil {
+		return 0, err
+	}
+	if r.AvatarDir != "" {
+		for _, avatar := range avatars {
+			full := filepath.Join(r.AvatarDir, avatar)
+			if rmErr := os.Remove(full); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+				graphLogger.Warn("failed to remove avatar file on batch user delete", "path", full, "error", rmErr)
+			}
+		}
+	}
+	return int(n), nil
+}
+
+// BatchAddRoomDevices is the resolver for the batchAddRoomDevices field.
+// Devices already in the room are silently skipped. Returns the updated room.
+func (r *mutationResolver) BatchAddRoomDevices(ctx context.Context, roomID string, deviceIds []string) (*model.Room, error) {
+	if _, err := r.Store.BatchAddRoomDevices(ctx, roomID, deviceIds); err != nil {
+		return nil, err
+	}
+	rm, err := r.Store.GetRoom(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+}
+
+// BatchAddGroupDevices is the resolver for the batchAddGroupDevices field.
+// Devices already members of the group are silently skipped. Returns the
+// updated group.
+func (r *mutationResolver) BatchAddGroupDevices(ctx context.Context, groupID string, deviceIds []string) (*model.Group, error) {
+	if _, err := r.Store.BatchAddGroupDevices(ctx, groupID, deviceIds); err != nil {
+		return nil, err
+	}
+	g, err := r.Store.GetGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	members, err := r.Store.ListGroupMembers(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return mapGroup(ctx, r.StateReader, r.Store, g, members), nil
 }
 
 // Devices is the resolver for the devices field.

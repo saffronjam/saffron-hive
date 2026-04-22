@@ -14,8 +14,12 @@
 	} from "$lib/components/ui/table/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { sentenceCase } from "$lib/utils";
 	import { DoorOpen, Group as GroupIcon, Pencil, Plus } from "@lucide/svelte";
 
@@ -33,17 +37,22 @@
 
 	interface Props {
 		rows: Row[];
+		orderedIds: readonly string[];
+		selection: TableSelection;
 		onrename: (id: string, newName: string) => void;
 		onAddTo: (device: Device) => void;
 	}
 
-	let { rows, onrename, onAddTo }: Props = $props();
+	let { rows, orderedIds, selection, onrename, onAddTo }: Props = $props();
 </script>
 
 <div class="overflow-x-auto rounded-lg shadow-card bg-card">
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead class="w-10">
+					<TableHeaderCheckbox {selection} {orderedIds} />
+				</TableHead>
 				<TableHead class="w-8"></TableHead>
 				<TableHead class="w-24">Type</TableHead>
 				<TableHead>Name</TableHead>
@@ -55,7 +64,10 @@
 		</TableHeader>
 		<TableBody>
 			{#each rows as { device, roomChips, groupChips } (device.id)}
-				<TableRow>
+				<TableRow data-state={selection.isSelected(device.id) ? "selected" : undefined}>
+					<TableCell>
+						<TableRowCheckbox id={device.id} {selection} {orderedIds} ariaLabel="Select {device.name}" />
+					</TableCell>
 					<TableCell>
 						<span
 							class="inline-block h-2.5 w-2.5 shrink-0 rounded-full {device.available
@@ -113,6 +125,7 @@
 					</TableCell>
 					<TableCell>
 						<div class="flex items-center justify-end gap-1">
+							<DeviceQuickControls {device} />
 							<Tooltip>
 								<TooltipTrigger>
 									<Button

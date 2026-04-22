@@ -14,6 +14,8 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import AutomationCard from "$lib/components/automation-card.svelte";
 	import AutomationTable from "$lib/components/automation-table.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import {
@@ -138,6 +140,12 @@
 	const DELETE_AUTOMATION = graphql(`
 		mutation DeleteAutomation($id: ID!) {
 			deleteAutomation(id: $id)
+		}
+	`);
+
+	const BATCH_DELETE_AUTOMATIONS = graphql(`
+		mutation BatchDeleteAutomations($ids: [ID!]!) {
+			batchDeleteAutomations(ids: $ids)
 		}
 	`);
 
@@ -340,9 +348,15 @@
 		});
 	});
 
+	const filteredIds = $derived(filteredAutomations.map((a) => a.id));
+	$effect(() => {
+		selection.pruneTo(filteredIds);
+	});
+
 	let createDialogOpen = $state(false);
 	let newAutomationName = $state("");
 	let createLoading = $state(false);
+	let newAutomationNameInput = $state<HTMLInputElement | null>(null);
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Automations" }];
@@ -375,7 +389,11 @@
 	let deleteConfirmName = $state("");
 	let deleteLoading = $state(false);
 
-	async function handleCreateAutomation() {
+	const selection = createTableSelection();
+	let batchDeleteConfirm = $state(false);
+	let batchDeleteLoading = $state(false);
+
+	async function handleCreateAutomation(options: { keepOpen?: boolean } = {}) {
 		if (!newAutomationName.trim()) return;
 		createLoading = true;
 		errors.clear();
@@ -400,6 +418,13 @@
 		}
 
 		newAutomationName = "";
+
+		if (options.keepOpen) {
+			automationsQuery.reexecute({ requestPolicy: "network-only" });
+			newAutomationNameInput?.focus();
+			return;
+		}
+
 		createDialogOpen = false;
 
 		if (result.data) {
@@ -448,6 +473,25 @@
 		}
 
 		deleteConfirmId = null;
+		automationsQuery.reexecute({ requestPolicy: "network-only" });
+	}
+
+	async function handleBatchDelete() {
+		const ids = selection.selectedIds();
+		if (ids.length === 0) {
+			batchDeleteConfirm = false;
+			return;
+		}
+		batchDeleteLoading = true;
+		errors.clear();
+		const result = await client.mutation(BATCH_DELETE_AUTOMATIONS, { ids }).toPromise();
+		batchDeleteLoading = false;
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
+		batchDeleteConfirm = false;
+		selection.clear();
 		automationsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
@@ -512,13 +556,33 @@
 					</Button>
 				</div>
 			{:else}
-				<div class="mb-6">
-					<HiveSearchbar
-						value={searchState}
-						onchange={(v) => (searchState = v)}
-						chips={searchChipConfigs}
-						placeholder="Search automations..."
-					/>
+				<div class="mb-6 flex items-stretch gap-2">
+					<div class="min-w-0 flex-1">
+						<HiveSearchbar
+							value={searchState}
+							onchange={(v) => (searchState = v)}
+							chips={searchChipConfigs}
+							placeholder="Search automations..."
+						/>
+					</div>
+					<div
+						class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+						style:max-width={view === "table" && selection.count > 0 ? "32rem" : "0px"}
+						style:opacity={view === "table" && selection.count > 0 ? "1" : "0"}
+						aria-hidden={!(view === "table" && selection.count > 0)}
+					>
+						<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+							{#snippet actions()}
+								<Button
+									variant="destructive"
+									size="sm"
+									onclick={() => (batchDeleteConfirm = true)}
+								>
+									Delete
+								</Button>
+							{/snippet}
+						</TableSelectionToolbar>
+					</div>
 				</div>
 
 				{#if filteredAutomations.length === 0}
@@ -544,6 +608,8 @@
 						{#snippet table()}
 							<AutomationTable
 								automations={filteredAutomations}
+								orderedIds={filteredIds}
+								{selection}
 								ontoggle={handleToggle}
 								ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
 								onrename={handleRename}
@@ -570,7 +636,7 @@
 					handleCreateAutomation();
 				}}
 			>
-				<Input bind:value={newAutomationName} placeholder="Automation name" autofocus />
+				<Input bind:ref={newAutomationNameInput} bind:value={newAutomationName} placeholder="Automation name" autofocus />
 				<DialogFooter class="mt-4">
 					<Button
 						variant="outline"
@@ -581,6 +647,14 @@
 						}}
 					>
 						Cancel
+					</Button>
+					<Button
+						variant="secondary"
+						type="button"
+						disabled={!newAutomationName.trim() || createLoading}
+						onclick={() => handleCreateAutomation({ keepOpen: true })}
+					>
+						Create more
 					</Button>
 					<Button type="submit" disabled={!newAutomationName.trim() || createLoading}>
 						{createLoading ? "Creating..." : "Create"}
@@ -598,5 +672,15 @@
 		loading={deleteLoading}
 		onconfirm={handleConfirmDelete}
 		oncancel={() => (deleteConfirmId = null)}
+	/>
+
+	<ConfirmDialog
+		open={batchDeleteConfirm}
+		title="Delete {selection.count} automation{selection.count === 1 ? '' : 's'}?"
+		description="This permanently deletes the selected automations and their nodes. This cannot be undone."
+		confirmLabel="Delete"
+		loading={batchDeleteLoading}
+		onconfirm={handleBatchDelete}
+		oncancel={() => (batchDeleteConfirm = false)}
 	/>
 </div>

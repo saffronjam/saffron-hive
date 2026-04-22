@@ -167,6 +167,20 @@ func (m *mockStore) DeleteScene(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockStore) BatchDeleteScenes(_ context.Context, ids []string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var n int64
+	for _, id := range ids {
+		if _, ok := m.scenes[id]; ok {
+			delete(m.scenes, id)
+			delete(m.sceneActions, id)
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (m *mockStore) CreateSceneAction(_ context.Context, params store.CreateSceneActionParams) (store.SceneAction, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -273,6 +287,21 @@ func (m *mockStore) DeleteAutomation(_ context.Context, id string) error {
 	delete(m.automationNodes, id)
 	delete(m.automationEdges, id)
 	return nil
+}
+
+func (m *mockStore) BatchDeleteAutomations(_ context.Context, ids []string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var n int64
+	for _, id := range ids {
+		if _, ok := m.automations[id]; ok {
+			delete(m.automations, id)
+			delete(m.automationNodes, id)
+			delete(m.automationEdges, id)
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (m *mockStore) CreateAutomationNode(_ context.Context, params store.CreateAutomationNodeParams) (store.AutomationNode, error) {
@@ -407,6 +436,20 @@ func (m *mockStore) DeleteGroup(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockStore) BatchDeleteGroups(_ context.Context, ids []string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var n int64
+	for _, id := range ids {
+		if _, ok := m.groups[id]; ok {
+			delete(m.groups, id)
+			delete(m.groupMembers, id)
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (m *mockStore) AddGroupMember(_ context.Context, params store.AddGroupMemberParams) (store.GroupMember, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -418,6 +461,32 @@ func (m *mockStore) AddGroupMember(_ context.Context, params store.AddGroupMembe
 	}
 	m.groupMembers[params.GroupID] = append(m.groupMembers[params.GroupID], gm)
 	return gm, nil
+}
+
+func (m *mockStore) BatchAddGroupDevices(_ context.Context, groupID string, deviceIDs []string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	existing := make(map[string]struct{})
+	for _, gm := range m.groupMembers[groupID] {
+		if gm.MemberType == device.GroupMemberDevice {
+			existing[gm.MemberID] = struct{}{}
+		}
+	}
+	var n int64
+	for _, did := range deviceIDs {
+		if _, ok := existing[did]; ok {
+			continue
+		}
+		m.groupMembers[groupID] = append(m.groupMembers[groupID], store.GroupMember{
+			ID:         "mock-" + did,
+			GroupID:    groupID,
+			MemberType: device.GroupMemberDevice,
+			MemberID:   did,
+		})
+		existing[did] = struct{}{}
+		n++
+	}
+	return n, nil
 }
 
 func (m *mockStore) ListGroupMembers(_ context.Context, groupID string) ([]store.GroupMember, error) {
@@ -572,8 +641,16 @@ func (m *mockStore) DeleteRoom(_ context.Context, _ string) error {
 	return nil
 }
 
+func (m *mockStore) BatchDeleteRooms(_ context.Context, _ []string) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockStore) AddRoomDevice(_ context.Context, _ store.AddRoomDeviceParams) (store.RoomDevice, error) {
 	return store.RoomDevice{}, nil
+}
+
+func (m *mockStore) BatchAddRoomDevices(_ context.Context, _ string, deviceIDs []string) (int64, error) {
+	return int64(len(deviceIDs)), nil
 }
 
 func (m *mockStore) ListRoomDevices(_ context.Context, _ string) ([]store.RoomDevice, error) {
@@ -697,6 +774,19 @@ func (m *mockStore) DeleteUser(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockStore) BatchDeleteUsers(_ context.Context, ids []string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var n int64
+	for _, id := range ids {
+		if _, ok := m.users[id]; ok {
+			delete(m.users, id)
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (m *mockStore) GetUserAvatarPath(_ context.Context, id string) (*string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -705,6 +795,22 @@ func (m *mockStore) GetUserAvatarPath(_ context.Context, id string) (*string, er
 		return nil, fmt.Errorf("user %q not found", id)
 	}
 	return u.AvatarPath, nil
+}
+
+func (m *mockStore) GetUserAvatarPathsByIDs(_ context.Context, ids []string) (map[string]string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make(map[string]string)
+	for _, id := range ids {
+		u, ok := m.users[id]
+		if !ok {
+			continue
+		}
+		if u.AvatarPath != nil && *u.AvatarPath != "" {
+			out[id] = *u.AvatarPath
+		}
+	}
+	return out, nil
 }
 
 func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetType, targetID string) []device.DeviceID {

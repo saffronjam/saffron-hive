@@ -13,7 +13,15 @@ import (
 
 type Querier interface {
 	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
+	AddGroupMemberIfMissing(ctx context.Context, arg AddGroupMemberIfMissingParams) (int64, error)
 	AddRoomDevice(ctx context.Context, arg AddRoomDeviceParams) error
+	AddRoomDeviceIfMissing(ctx context.Context, arg AddRoomDeviceIfMissingParams) (int64, error)
+	BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIdsJson string) (int64, error)
+	BatchDeleteAutomations(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteGroups(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteRooms(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
 	ClearAutomationIcon(ctx context.Context, id string) error
 	ClearGroupIcon(ctx context.Context, id string) error
 	ClearRoomIcon(ctx context.Context, id string) error
@@ -62,6 +70,7 @@ type Querier interface {
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
+	GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) ([]GetUserAvatarPathsByIDsRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
 	GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error)

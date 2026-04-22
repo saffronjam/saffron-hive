@@ -38,8 +38,15 @@ UPDATE rooms SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: DeleteRoom :exec
 DELETE FROM rooms WHERE id = ?;
 
+-- name: BatchDeleteRooms :execrows
+DELETE FROM rooms
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
 -- name: AddRoomDevice :exec
 INSERT INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?);
+
+-- name: AddRoomDeviceIfMissing :execrows
+INSERT OR IGNORE INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?);
 
 -- name: ListRoomDevices :many
 SELECT id, room_id, device_id FROM room_devices WHERE room_id = ?;

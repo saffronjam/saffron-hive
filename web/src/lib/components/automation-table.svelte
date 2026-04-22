@@ -15,6 +15,9 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { automationNodeCounts } from "$lib/list-helpers";
 	import { formatCooldown, formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
@@ -46,19 +49,24 @@
 
 	interface Props {
 		automations: AutomationData[];
+		orderedIds: readonly string[];
+		selection: TableSelection;
 		ontoggle: (id: string, enabled: boolean) => void;
 		ondelete: (id: string) => void;
 		onrename: (id: string, newName: string) => void;
 		oniconchange: (id: string, icon: string | null) => void;
 	}
 
-	let { automations, ontoggle, ondelete, onrename, oniconchange }: Props = $props();
+	let { automations, orderedIds, selection, ontoggle, ondelete, onrename, oniconchange }: Props = $props();
 </script>
 
 <div class="overflow-x-auto rounded-lg shadow-card bg-card">
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead class="w-10">
+					<TableHeaderCheckbox {selection} {orderedIds} />
+				</TableHead>
 				<TableHead class="w-12"></TableHead>
 				<TableHead>Name</TableHead>
 				<TableHead>Meta</TableHead>
@@ -72,7 +80,10 @@
 		<TableBody>
 			{#each automations as automation (automation.id)}
 				{@const c = automationNodeCounts(automation.nodes)}
-				<TableRow>
+				<TableRow data-state={selection.isSelected(automation.id) ? "selected" : undefined}>
+					<TableCell>
+						<TableRowCheckbox id={automation.id} {selection} {orderedIds} ariaLabel="Select {automation.name}" />
+					</TableCell>
 					<TableCell>
 						<IconPicker
 							value={automation.icon}

@@ -6,6 +6,10 @@
 	import { deviceStore, type Device } from "$lib/stores/devices";
 	import DeviceCard from "$lib/components/device-card.svelte";
 	import DeviceTable from "$lib/components/device-table.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import DeviceBatchAddDialog from "$lib/components/device-batch-add-dialog.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
@@ -79,6 +83,13 @@
 			}
 			return true;
 		});
+	});
+
+	const selection = createTableSelection();
+	let batchAddOpen = $state(false);
+	const filteredIds = $derived(filteredDevices.map((d) => d.id));
+	$effect(() => {
+		selection.pruneTo(filteredIds);
 	});
 
 	const DEVICES_QUERY = graphql(`
@@ -376,13 +387,33 @@
 {#if ready}
 	<div in:fly={{ y: -4, duration: 150 }}>
 
-		<div class="mb-6">
-			<HiveSearchbar
-				value={searchState}
-				onchange={(v) => (searchState = v)}
-				chips={searchChipConfigs}
-				placeholder="Search devices..."
-			/>
+		<div class="mb-6 flex items-stretch gap-2">
+			<div class="min-w-0 flex-1">
+				<HiveSearchbar
+					value={searchState}
+					onchange={(v) => (searchState = v)}
+					chips={searchChipConfigs}
+					placeholder="Search devices..."
+				/>
+			</div>
+			<div
+				class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+				style:max-width={view === "table" && selection.count > 0 ? "32rem" : "0px"}
+				style:opacity={view === "table" && selection.count > 0 ? "1" : "0"}
+				aria-hidden={!(view === "table" && selection.count > 0)}
+			>
+				<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+					{#snippet actions()}
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={() => (batchAddOpen = true)}
+						>
+							Add to…
+						</Button>
+					{/snippet}
+				</TableSelectionToolbar>
+			</div>
 		</div>
 
 		{#if allDevices.length === 0}
@@ -418,6 +449,8 @@
 							const chips = chipsFor(device.id);
 							return { device, roomChips: chips.roomChips, groupChips: chips.groupChips };
 						})}
+						orderedIds={filteredIds}
+						{selection}
 						onrename={handleRename}
 						onAddTo={handleAddTo}
 					/>
@@ -432,6 +465,14 @@
 			multiple
 			groups={pickerDrawerGroups}
 			onselect={handlePickerSelect}
+		/>
+
+		<DeviceBatchAddDialog
+			bind:open={batchAddOpen}
+			deviceIds={selection.selectedIds()}
+			onadded={() => {
+				selection.clear();
+			}}
 		/>
 	</div>
 {/if}

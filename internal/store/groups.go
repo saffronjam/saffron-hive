@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
@@ -90,6 +91,23 @@ func (s *DB) DeleteGroup(ctx context.Context, id string) error {
 	return nil
 }
 
+// BatchDeleteGroups deletes the groups with the given IDs. Returns the number
+// of rows actually deleted; missing IDs are silently ignored.
+func (s *DB) BatchDeleteGroups(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete groups: %w", err)
+	}
+	n, err := s.q.BatchDeleteGroups(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete groups: %w", err)
+	}
+	return n, nil
+}
+
 // AddGroupMember inserts a new group member. Returns the created member.
 // The caller is responsible for circular dependency checking before calling this method.
 func (s *DB) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (GroupMember, error) {
@@ -107,6 +125,36 @@ func (s *DB) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (G
 		MemberType: params.MemberType,
 		MemberID:   params.MemberID,
 	}, nil
+}
+
+// BatchAddGroupDevices adds the listed devices as members of a group. Devices
+// already members are silently skipped (UNIQUE(group_id, member_type, member_id)).
+// Membership IDs are generated for each new row. Returns the number of newly
+// added rows.
+func (s *DB) BatchAddGroupDevices(ctx context.Context, groupID string, deviceIDs []string) (int64, error) {
+	if len(deviceIDs) == 0 {
+		return 0, nil
+	}
+	var added int64
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		for _, did := range deviceIDs {
+			n, err := q.AddGroupMemberIfMissing(ctx, sqlite.AddGroupMemberIfMissingParams{
+				ID:         uuid.New().String(),
+				GroupID:    groupID,
+				MemberType: device.GroupMemberDevice,
+				MemberID:   did,
+			})
+			if err != nil {
+				return fmt.Errorf("add group device %s: %w", did, err)
+			}
+			added += n
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return added, nil
 }
 
 // ListGroupMembers returns all members belonging to a group.

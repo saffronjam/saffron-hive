@@ -14,8 +14,12 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\tid\n\t\t\tlatestRowId\n\t\t\tseverity\n\t\t\tkind\n\t\t\tmessage\n\t\t\tsource\n\t\t\tcount\n\t\t\tfirstRaisedAt\n\t\t\tlastRaisedAt\n\t\t}\n\t}\n": typeof types.ActiveAlarmsDocument,
-    "\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n": typeof types.AlarmEventsDocument,
+    "\n\t\tquery DeviceBatchAddTargets {\n\t\t\trooms { id name icon }\n\t\t\tgroups { id name icon }\n\t\t}\n\t": typeof types.DeviceBatchAddTargetsDocument,
+    "\n\t\tmutation BatchAddRoomDevices($roomId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddRoomDevices(roomId: $roomId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t": typeof types.BatchAddRoomDevicesDocument,
+    "\n\t\tmutation BatchAddGroupDevices($groupId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddGroupDevices(groupId: $groupId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t": typeof types.BatchAddGroupDevicesDocument,
+    "\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetDeviceState(deviceId: $deviceId, state: $state) {\n\t\t\t\tid\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.DeviceTableSetDeviceStateDocument,
+    "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n": typeof types.ActiveAlarmsDocument,
+    "\n  subscription AlarmEvents {\n    alarmEvent {\n      kind\n      clearedAlarmId\n      alarm {\n        id\n        latestRowId\n        severity\n        kind\n        message\n        source\n        count\n        firstRaisedAt\n        lastRaisedAt\n      }\n    }\n  }\n": typeof types.AlarmEventsDocument,
     "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n": typeof types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": typeof types.SetupStatusDocument,
     "\n\t\tquery DashboardDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tsource\n\t\t\t\ttype\n\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\tavailable\n\t\t\t\tlastSeen\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\ttransition\n\t\t\t\t\ttemperature\n\t\t\t\t\thumidity\n\t\t\t\t\tpressure\n\t\t\t\t\tilluminance\n\t\t\t\t\tbattery\n\t\t\t\t\tpower\n\t\t\t\t\tvoltage\n\t\t\t\t\tcurrent\n\t\t\t\t\tenergy\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardDevicesDocument,
@@ -33,10 +37,12 @@ type Documents = {
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityStreamDocument,
     "\n\t\tquery ActivityRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityRoomsDocument,
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": typeof types.DeleteAlarmDocument,
+    "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t": typeof types.BatchDeleteAlarmsDocument,
     "\n\t\tquery Automations {\n\t\t\tautomations {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcooldownSeconds\n\t\t\t\tlastFiredAt\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tid\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationsDocument,
     "\n\t\tmutation CreateAutomation($input: CreateAutomationInput!) {\n\t\t\tcreateAutomation(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tenabled\n\t\t\t\tcooldownSeconds\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tid\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateAutomationDocument,
     "\n\t\tmutation ToggleAutomation($id: ID!, $enabled: Boolean!) {\n\t\t\ttoggleAutomation(id: $id, enabled: $enabled) {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": typeof types.ToggleAutomationDocument,
     "\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t": typeof types.DeleteAutomationDocument,
+    "\n\t\tmutation BatchDeleteAutomations($ids: [ID!]!) {\n\t\t\tbatchDeleteAutomations(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteAutomationsDocument,
     "\n\t\tmutation AutomationListUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationListUpdateDocument,
     "\n\t\tquery AutomationsPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationsPageDevicesDocument,
     "\n\t\tquery AutomationsPageScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationsPageScenesDocument,
@@ -70,6 +76,7 @@ type Documents = {
     "\n\t\tmutation CreateGroup($input: CreateGroupInput!) {\n\t\t\tcreateGroup(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateGroupDocument,
     "\n\t\tmutation UpdateGroup($id: ID!, $input: UpdateGroupInput!) {\n\t\t\tupdateGroup(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateGroupDocument,
     "\n\t\tmutation DeleteGroup($id: ID!) {\n\t\t\tdeleteGroup(id: $id)\n\t\t}\n\t": typeof types.DeleteGroupDocument,
+    "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteGroupsDocument,
     "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t": typeof types.AddGroupMemberDocument,
     "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\t\t\tremoveGroupMember(id: $id)\n\t\t}\n\t": typeof types.RemoveGroupMemberDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
@@ -83,11 +90,13 @@ type Documents = {
     "\n\t\tmutation CreateRoom($input: CreateRoomInput!) {\n\t\t\tcreateRoom(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\tsource\n\t\t\t\t\tavailable\n\t\t\t\t\tlastSeen\n\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\tstate {\n\t\t\t\t\t\ton\n\t\t\t\t\t\tbrightness\n\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\ttransition\n\t\t\t\t\t\ttemperature\n\t\t\t\t\t\thumidity\n\t\t\t\t\t\tpressure\n\t\t\t\t\t\tilluminance\n\t\t\t\t\t\tbattery\n\t\t\t\t\t\tpower\n\t\t\t\t\t\tvoltage\n\t\t\t\t\t\tcurrent\n\t\t\t\t\t\tenergy\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateRoomDocument,
     "\n\t\tmutation UpdateRoom($id: ID!, $input: UpdateRoomInput!) {\n\t\t\tupdateRoom(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateRoomDocument,
     "\n\t\tmutation DeleteRoom($id: ID!) {\n\t\t\tdeleteRoom(id: $id)\n\t\t}\n\t": typeof types.DeleteRoomDocument,
+    "\n\t\tmutation BatchDeleteRooms($ids: [ID!]!) {\n\t\t\tbatchDeleteRooms(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteRoomsDocument,
     "\n\t\tmutation AddRoomDevice($input: AddRoomDeviceInput!) {\n\t\t\taddRoomDevice(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices { id name type source available }\n\t\t\t}\n\t\t}\n\t": typeof types.AddRoomDeviceDocument,
     "\n\t\tmutation RemoveRoomDevice($roomId: ID!, $deviceId: ID!) {\n\t\t\tremoveRoomDevice(roomId: $roomId, deviceId: $deviceId) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices { id name type source available }\n\t\t\t}\n\t\t}\n\t": typeof types.RemoveRoomDeviceDocument,
     "\n\t\tquery Scenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tactions {\n\t\t\t\t\tid\n\t\t\t\t\ttargetType\n\t\t\t\t\ttargetId\n\t\t\t\t\tpayload\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ScenesDocument,
     "\n\t\tmutation CreateScene($input: CreateSceneInput!) {\n\t\t\tcreateScene(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tactions {\n\t\t\t\t\tid\n\t\t\t\t\ttargetType\n\t\t\t\t\ttargetId\n\t\t\t\t\tpayload\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateSceneDocument,
     "\n\t\tmutation DeleteScene($id: ID!) {\n\t\t\tdeleteScene(id: $id)\n\t\t}\n\t": typeof types.DeleteSceneDocument,
+    "\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) {\n\t\t\tbatchDeleteScenes(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteScenesDocument,
     "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.SceneListUpdateDocument,
     "\n\t\tquery ScenesPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.ScenesPageDevicesDocument,
     "\n\t\tquery Scene($id: ID!) {\n\t\t\tscene(id: $id) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tactions {\n\t\t\t\t\tid\n\t\t\t\t\ttargetType\n\t\t\t\t\ttargetId\n\t\t\t\t\ttarget {\n\t\t\t\t\t\t... on Device {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\tname\n\t\t\t\t\t\t\ttype\n\t\t\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\t\t\tavailable\n\t\t\t\t\t\t\tlastSeen\n\t\t\t\t\t\t\tstate {\n\t\t\t\t\t\t\t\ton\n\t\t\t\t\t\t\t\tbrightness\n\t\t\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\t\t\ttransition\n\t\t\t\t\t\t\t\ttemperature\n\t\t\t\t\t\t\t\thumidity\n\t\t\t\t\t\t\t\tpressure\n\t\t\t\t\t\t\t\tilluminance\n\t\t\t\t\t\t\t\tbattery\n\t\t\t\t\t\t\t\tpower\n\t\t\t\t\t\t\t\tvoltage\n\t\t\t\t\t\t\t\tcurrent\n\t\t\t\t\t\t\t\tenergy\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\t... on Group {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\tname\n\t\t\t\t\t\t\tmembers {\n\t\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\t\tmemberType\n\t\t\t\t\t\t\t\tmemberId\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tresolvedDevices {\n\t\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\t\tname\n\t\t\t\t\t\t\t\ttype\n\t\t\t\t\t\t\t\tsource\n\t\t\t\t\t\t\t\tavailable\n\t\t\t\t\t\t\t\tlastSeen\n\t\t\t\t\t\t\t\tstate {\n\t\t\t\t\t\t\t\t\ton\n\t\t\t\t\t\t\t\t\tbrightness\n\t\t\t\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\t\t\t\ttransition\n\t\t\t\t\t\t\t\t\ttemperature\n\t\t\t\t\t\t\t\t\thumidity\n\t\t\t\t\t\t\t\t\tpressure\n\t\t\t\t\t\t\t\t\tilluminance\n\t\t\t\t\t\t\t\t\tbattery\n\t\t\t\t\t\t\t\t\tpower\n\t\t\t\t\t\t\t\t\tvoltage\n\t\t\t\t\t\t\t\t\tcurrent\n\t\t\t\t\t\t\t\t\tenergy\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\tpayload\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.SceneDocument,
@@ -102,14 +111,19 @@ type Documents = {
     "\n\t\tmutation UpdateSetting($key: String!, $value: String!) {\n\t\t\tupdateSetting(key: $key, value: $value) {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateSettingDocument,
     "\n\t\tmutation createInitialUser($input: CreateInitialUserInput!) {\n\t\t\tcreateInitialUser(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateInitialUserDocument,
     "\n\t\tmutation SetupUpdateMqttConfig($input: MqttConfigInput!) {\n\t\t\tupdateMqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t}\n\t\t}\n\t": typeof types.SetupUpdateMqttConfigDocument,
-    "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": typeof types.UsersListDocument,
-    "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": typeof types.UsersCreateDocument,
+    "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t": typeof types.UsersListDocument,
+    "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t": typeof types.UsersCreateDocument,
     "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": typeof types.UsersDeleteDocument,
+    "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t": typeof types.UsersBatchDeleteDocument,
     "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": typeof types.UsersResetPasswordDocument,
 };
 const documents: Documents = {
-    "\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\tid\n\t\t\tlatestRowId\n\t\t\tseverity\n\t\t\tkind\n\t\t\tmessage\n\t\t\tsource\n\t\t\tcount\n\t\t\tfirstRaisedAt\n\t\t\tlastRaisedAt\n\t\t}\n\t}\n": types.ActiveAlarmsDocument,
-    "\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n": types.AlarmEventsDocument,
+    "\n\t\tquery DeviceBatchAddTargets {\n\t\t\trooms { id name icon }\n\t\t\tgroups { id name icon }\n\t\t}\n\t": types.DeviceBatchAddTargetsDocument,
+    "\n\t\tmutation BatchAddRoomDevices($roomId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddRoomDevices(roomId: $roomId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t": types.BatchAddRoomDevicesDocument,
+    "\n\t\tmutation BatchAddGroupDevices($groupId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddGroupDevices(groupId: $groupId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t": types.BatchAddGroupDevicesDocument,
+    "\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetDeviceState(deviceId: $deviceId, state: $state) {\n\t\t\t\tid\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.DeviceTableSetDeviceStateDocument,
+    "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n": types.ActiveAlarmsDocument,
+    "\n  subscription AlarmEvents {\n    alarmEvent {\n      kind\n      clearedAlarmId\n      alarm {\n        id\n        latestRowId\n        severity\n        kind\n        message\n        source\n        count\n        firstRaisedAt\n        lastRaisedAt\n      }\n    }\n  }\n": types.AlarmEventsDocument,
     "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n": types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": types.SetupStatusDocument,
     "\n\t\tquery DashboardDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tsource\n\t\t\t\ttype\n\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\tavailable\n\t\t\t\tlastSeen\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\ttransition\n\t\t\t\t\ttemperature\n\t\t\t\t\thumidity\n\t\t\t\t\tpressure\n\t\t\t\t\tilluminance\n\t\t\t\t\tbattery\n\t\t\t\t\tpower\n\t\t\t\t\tvoltage\n\t\t\t\t\tcurrent\n\t\t\t\t\tenergy\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.DashboardDevicesDocument,
@@ -127,10 +141,12 @@ const documents: Documents = {
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityStreamDocument,
     "\n\t\tquery ActivityRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.ActivityRoomsDocument,
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": types.DeleteAlarmDocument,
+    "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t": types.BatchDeleteAlarmsDocument,
     "\n\t\tquery Automations {\n\t\t\tautomations {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcooldownSeconds\n\t\t\t\tlastFiredAt\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tid\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationsDocument,
     "\n\t\tmutation CreateAutomation($input: CreateAutomationInput!) {\n\t\t\tcreateAutomation(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tenabled\n\t\t\t\tcooldownSeconds\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tid\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateAutomationDocument,
     "\n\t\tmutation ToggleAutomation($id: ID!, $enabled: Boolean!) {\n\t\t\ttoggleAutomation(id: $id, enabled: $enabled) {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": types.ToggleAutomationDocument,
     "\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t": types.DeleteAutomationDocument,
+    "\n\t\tmutation BatchDeleteAutomations($ids: [ID!]!) {\n\t\t\tbatchDeleteAutomations(ids: $ids)\n\t\t}\n\t": types.BatchDeleteAutomationsDocument,
     "\n\t\tmutation AutomationListUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.AutomationListUpdateDocument,
     "\n\t\tquery AutomationsPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.AutomationsPageDevicesDocument,
     "\n\t\tquery AutomationsPageScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.AutomationsPageScenesDocument,
@@ -164,6 +180,7 @@ const documents: Documents = {
     "\n\t\tmutation CreateGroup($input: CreateGroupInput!) {\n\t\t\tcreateGroup(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateGroupDocument,
     "\n\t\tmutation UpdateGroup($id: ID!, $input: UpdateGroupInput!) {\n\t\t\tupdateGroup(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.UpdateGroupDocument,
     "\n\t\tmutation DeleteGroup($id: ID!) {\n\t\t\tdeleteGroup(id: $id)\n\t\t}\n\t": types.DeleteGroupDocument,
+    "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t": types.BatchDeleteGroupsDocument,
     "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t": types.AddGroupMemberDocument,
     "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\t\t\tremoveGroupMember(id: $id)\n\t\t}\n\t": types.RemoveGroupMemberDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
@@ -177,11 +194,13 @@ const documents: Documents = {
     "\n\t\tmutation CreateRoom($input: CreateRoomInput!) {\n\t\t\tcreateRoom(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\tsource\n\t\t\t\t\tavailable\n\t\t\t\t\tlastSeen\n\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\tstate {\n\t\t\t\t\t\ton\n\t\t\t\t\t\tbrightness\n\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\ttransition\n\t\t\t\t\t\ttemperature\n\t\t\t\t\t\thumidity\n\t\t\t\t\t\tpressure\n\t\t\t\t\t\tilluminance\n\t\t\t\t\t\tbattery\n\t\t\t\t\t\tpower\n\t\t\t\t\t\tvoltage\n\t\t\t\t\t\tcurrent\n\t\t\t\t\t\tenergy\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateRoomDocument,
     "\n\t\tmutation UpdateRoom($id: ID!, $input: UpdateRoomInput!) {\n\t\t\tupdateRoom(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.UpdateRoomDocument,
     "\n\t\tmutation DeleteRoom($id: ID!) {\n\t\t\tdeleteRoom(id: $id)\n\t\t}\n\t": types.DeleteRoomDocument,
+    "\n\t\tmutation BatchDeleteRooms($ids: [ID!]!) {\n\t\t\tbatchDeleteRooms(ids: $ids)\n\t\t}\n\t": types.BatchDeleteRoomsDocument,
     "\n\t\tmutation AddRoomDevice($input: AddRoomDeviceInput!) {\n\t\t\taddRoomDevice(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices { id name type source available }\n\t\t\t}\n\t\t}\n\t": types.AddRoomDeviceDocument,
     "\n\t\tmutation RemoveRoomDevice($roomId: ID!, $deviceId: ID!) {\n\t\t\tremoveRoomDevice(roomId: $roomId, deviceId: $deviceId) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices { id name type source available }\n\t\t\t}\n\t\t}\n\t": types.RemoveRoomDeviceDocument,
     "\n\t\tquery Scenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tactions {\n\t\t\t\t\tid\n\t\t\t\t\ttargetType\n\t\t\t\t\ttargetId\n\t\t\t\t\tpayload\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ScenesDocument,
     "\n\t\tmutation CreateScene($input: CreateSceneInput!) {\n\t\t\tcreateScene(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tactions {\n\t\t\t\t\tid\n\t\t\t\t\ttargetType\n\t\t\t\t\ttargetId\n\t\t\t\t\tpayload\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateSceneDocument,
     "\n\t\tmutation DeleteScene($id: ID!) {\n\t\t\tdeleteScene(id: $id)\n\t\t}\n\t": types.DeleteSceneDocument,
+    "\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) {\n\t\t\tbatchDeleteScenes(ids: $ids)\n\t\t}\n\t": types.BatchDeleteScenesDocument,
     "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.SceneListUpdateDocument,
     "\n\t\tquery ScenesPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.ScenesPageDevicesDocument,
     "\n\t\tquery Scene($id: ID!) {\n\t\t\tscene(id: $id) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tactions {\n\t\t\t\t\tid\n\t\t\t\t\ttargetType\n\t\t\t\t\ttargetId\n\t\t\t\t\ttarget {\n\t\t\t\t\t\t... on Device {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\tname\n\t\t\t\t\t\t\ttype\n\t\t\t\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\t\t\t\tavailable\n\t\t\t\t\t\t\tlastSeen\n\t\t\t\t\t\t\tstate {\n\t\t\t\t\t\t\t\ton\n\t\t\t\t\t\t\t\tbrightness\n\t\t\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\t\t\ttransition\n\t\t\t\t\t\t\t\ttemperature\n\t\t\t\t\t\t\t\thumidity\n\t\t\t\t\t\t\t\tpressure\n\t\t\t\t\t\t\t\tilluminance\n\t\t\t\t\t\t\t\tbattery\n\t\t\t\t\t\t\t\tpower\n\t\t\t\t\t\t\t\tvoltage\n\t\t\t\t\t\t\t\tcurrent\n\t\t\t\t\t\t\t\tenergy\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\t... on Group {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\tname\n\t\t\t\t\t\t\tmembers {\n\t\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\t\tmemberType\n\t\t\t\t\t\t\t\tmemberId\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tresolvedDevices {\n\t\t\t\t\t\t\t\tid\n\t\t\t\t\t\t\t\tname\n\t\t\t\t\t\t\t\ttype\n\t\t\t\t\t\t\t\tsource\n\t\t\t\t\t\t\t\tavailable\n\t\t\t\t\t\t\t\tlastSeen\n\t\t\t\t\t\t\t\tstate {\n\t\t\t\t\t\t\t\t\ton\n\t\t\t\t\t\t\t\t\tbrightness\n\t\t\t\t\t\t\t\t\tcolorTemp\n\t\t\t\t\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\t\t\t\t\ttransition\n\t\t\t\t\t\t\t\t\ttemperature\n\t\t\t\t\t\t\t\t\thumidity\n\t\t\t\t\t\t\t\t\tpressure\n\t\t\t\t\t\t\t\t\tilluminance\n\t\t\t\t\t\t\t\t\tbattery\n\t\t\t\t\t\t\t\t\tpower\n\t\t\t\t\t\t\t\t\tvoltage\n\t\t\t\t\t\t\t\t\tcurrent\n\t\t\t\t\t\t\t\t\tenergy\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\tpayload\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.SceneDocument,
@@ -196,9 +215,10 @@ const documents: Documents = {
     "\n\t\tmutation UpdateSetting($key: String!, $value: String!) {\n\t\t\tupdateSetting(key: $key, value: $value) {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": types.UpdateSettingDocument,
     "\n\t\tmutation createInitialUser($input: CreateInitialUserInput!) {\n\t\t\tcreateInitialUser(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateInitialUserDocument,
     "\n\t\tmutation SetupUpdateMqttConfig($input: MqttConfigInput!) {\n\t\t\tupdateMqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t}\n\t\t}\n\t": types.SetupUpdateMqttConfigDocument,
-    "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": types.UsersListDocument,
-    "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t": types.UsersCreateDocument,
+    "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t": types.UsersListDocument,
+    "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t": types.UsersCreateDocument,
     "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": types.UsersDeleteDocument,
+    "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t": types.UsersBatchDeleteDocument,
     "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": types.UsersResetPasswordDocument,
 };
 
@@ -219,11 +239,27 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\tid\n\t\t\tlatestRowId\n\t\t\tseverity\n\t\t\tkind\n\t\t\tmessage\n\t\t\tsource\n\t\t\tcount\n\t\t\tfirstRaisedAt\n\t\t\tlastRaisedAt\n\t\t}\n\t}\n"): (typeof documents)["\n\tquery ActiveAlarms {\n\t\talarms {\n\t\t\tid\n\t\t\tlatestRowId\n\t\t\tseverity\n\t\t\tkind\n\t\t\tmessage\n\t\t\tsource\n\t\t\tcount\n\t\t\tfirstRaisedAt\n\t\t\tlastRaisedAt\n\t\t}\n\t}\n"];
+export function graphql(source: "\n\t\tquery DeviceBatchAddTargets {\n\t\t\trooms { id name icon }\n\t\t\tgroups { id name icon }\n\t\t}\n\t"): (typeof documents)["\n\t\tquery DeviceBatchAddTargets {\n\t\t\trooms { id name icon }\n\t\t\tgroups { id name icon }\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n"): (typeof documents)["\n\tsubscription AlarmEvents {\n\t\talarmEvent {\n\t\t\tkind\n\t\t\tclearedAlarmId\n\t\t\talarm {\n\t\t\t\tid\n\t\t\t\tlatestRowId\n\t\t\t\tseverity\n\t\t\t\tkind\n\t\t\t\tmessage\n\t\t\t\tsource\n\t\t\t\tcount\n\t\t\t\tfirstRaisedAt\n\t\t\t\tlastRaisedAt\n\t\t\t}\n\t\t}\n\t}\n"];
+export function graphql(source: "\n\t\tmutation BatchAddRoomDevices($roomId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddRoomDevices(roomId: $roomId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchAddRoomDevices($roomId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddRoomDevices(roomId: $roomId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation BatchAddGroupDevices($groupId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddGroupDevices(groupId: $groupId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchAddGroupDevices($groupId: ID!, $deviceIds: [ID!]!) {\n\t\t\tbatchAddGroupDevices(groupId: $groupId, deviceIds: $deviceIds) { id name }\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetDeviceState(deviceId: $deviceId, state: $state) {\n\t\t\t\tid\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetDeviceState(deviceId: $deviceId, state: $state) {\n\t\t\t\tid\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n"): (typeof documents)["\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription AlarmEvents {\n    alarmEvent {\n      kind\n      clearedAlarmId\n      alarm {\n        id\n        latestRowId\n        severity\n        kind\n        message\n        source\n        count\n        firstRaisedAt\n        lastRaisedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  subscription AlarmEvents {\n    alarmEvent {\n      kind\n      clearedAlarmId\n      alarm {\n        id\n        latestRowId\n        severity\n        kind\n        message\n        source\n        count\n        firstRaisedAt\n        lastRaisedAt\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -295,6 +331,10 @@ export function graphql(source: "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\t\tquery Automations {\n\t\t\tautomations {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcooldownSeconds\n\t\t\t\tlastFiredAt\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tid\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Automations {\n\t\t\tautomations {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcooldownSeconds\n\t\t\t\tlastFiredAt\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tid\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -308,6 +348,10 @@ export function graphql(source: "\n\t\tmutation ToggleAutomation($id: ID!, $enab
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation BatchDeleteAutomations($ids: [ID!]!) {\n\t\t\tbatchDeleteAutomations(ids: $ids)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchDeleteAutomations($ids: [ID!]!) {\n\t\t\tbatchDeleteAutomations(ids: $ids)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -443,6 +487,10 @@ export function graphql(source: "\n\t\tmutation DeleteGroup($id: ID!) {\n\t\t\td
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -495,6 +543,10 @@ export function graphql(source: "\n\t\tmutation DeleteRoom($id: ID!) {\n\t\t\tde
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\t\tmutation BatchDeleteRooms($ids: [ID!]!) {\n\t\t\tbatchDeleteRooms(ids: $ids)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchDeleteRooms($ids: [ID!]!) {\n\t\t\tbatchDeleteRooms(ids: $ids)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\t\tmutation AddRoomDevice($input: AddRoomDeviceInput!) {\n\t\t\taddRoomDevice(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices { id name type source available }\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation AddRoomDevice($input: AddRoomDeviceInput!) {\n\t\t\taddRoomDevice(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tdevices { id name type source available }\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -512,6 +564,10 @@ export function graphql(source: "\n\t\tmutation CreateScene($input: CreateSceneI
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation DeleteScene($id: ID!) {\n\t\t\tdeleteScene(id: $id)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeleteScene($id: ID!) {\n\t\t\tdeleteScene(id: $id)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) {\n\t\t\tbatchDeleteScenes(ids: $ids)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) {\n\t\t\tbatchDeleteScenes(ids: $ids)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -571,15 +627,19 @@ export function graphql(source: "\n\t\tmutation SetupUpdateMqttConfig($input: Mq
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery UsersList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

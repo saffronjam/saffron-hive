@@ -12,6 +12,19 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const batchDeleteScenes = `-- name: BatchDeleteScenes :execrows
+DELETE FROM scenes
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteScenes, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearSceneIcon = `-- name: ClearSceneIcon :exec
 UPDATE scenes SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

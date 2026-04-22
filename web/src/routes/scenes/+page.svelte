@@ -16,6 +16,8 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import SceneCard from "$lib/components/scene-card.svelte";
 	import SceneTable from "$lib/components/scene-table.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
@@ -113,6 +115,12 @@
 		}
 	`);
 
+	const BATCH_DELETE_SCENES = graphql(`
+		mutation BatchDeleteScenes($ids: [ID!]!) {
+			batchDeleteScenes(ids: $ids)
+		}
+	`);
+
 	const UPDATE_SCENE_NAME = graphql(`
 		mutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {
 			updateScene(id: $id, input: $input) {
@@ -149,6 +157,7 @@
 	let createDialogOpen = $state(false);
 	let newSceneName = $state("");
 	let createLoading = $state(false);
+	let newSceneNameInput = $state<HTMLInputElement | null>(null);
 
 	let view = $state<ListViewMode>(profile.get("view.scenes", "card"));
 
@@ -171,6 +180,10 @@
 	let deleteLoading = $state(false);
 	const errors = new ErrorBanner();
 
+	const selection = createTableSelection();
+	let batchDeleteConfirm = $state(false);
+	let batchDeleteLoading = $state(false);
+
 	async function fetchScenes() {
 		if (!clientRef) return;
 		const result = await clientRef
@@ -187,7 +200,7 @@
 		}
 	}
 
-	async function handleCreateScene() {
+	async function handleCreateScene(options: { keepOpen?: boolean } = {}) {
 		if (!clientRef || !newSceneName.trim()) return;
 		createLoading = true;
 		errors.clear();
@@ -209,6 +222,13 @@
 		}
 
 		newSceneName = "";
+
+		if (options.keepOpen) {
+			void fetchScenes();
+			newSceneNameInput?.focus();
+			return;
+		}
+
 		createDialogOpen = false;
 
 		if (result.data) {
@@ -372,6 +392,31 @@
 		});
 	});
 
+	const filteredIds = $derived(filteredScenes.map((s) => s.id));
+	$effect(() => {
+		selection.pruneTo(filteredIds);
+	});
+
+	async function handleBatchDelete() {
+		if (!clientRef) return;
+		const ids = selection.selectedIds();
+		if (ids.length === 0) {
+			batchDeleteConfirm = false;
+			return;
+		}
+		batchDeleteLoading = true;
+		errors.clear();
+		const result = await clientRef.mutation(BATCH_DELETE_SCENES, { ids }).toPromise();
+		batchDeleteLoading = false;
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
+		batchDeleteConfirm = false;
+		selection.clear();
+		fetchScenes();
+	}
+
 	onMount(() => {
 		fetchScenes();
 		fetchDevices();
@@ -408,13 +453,33 @@
 					</Button>
 				</div>
 			{:else}
-				<div class="mb-6">
-					<HiveSearchbar
-						value={searchState}
-						onchange={(v) => (searchState = v)}
-						chips={searchChipConfigs}
-						placeholder="Search scenes..."
-					/>
+				<div class="mb-6 flex items-stretch gap-2">
+					<div class="min-w-0 flex-1">
+						<HiveSearchbar
+							value={searchState}
+							onchange={(v) => (searchState = v)}
+							chips={searchChipConfigs}
+							placeholder="Search scenes..."
+						/>
+					</div>
+					<div
+						class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+						style:max-width={view === "table" && selection.count > 0 ? "32rem" : "0px"}
+						style:opacity={view === "table" && selection.count > 0 ? "1" : "0"}
+						aria-hidden={!(view === "table" && selection.count > 0)}
+					>
+						<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+							{#snippet actions()}
+								<Button
+									variant="destructive"
+									size="sm"
+									onclick={() => (batchDeleteConfirm = true)}
+								>
+									Delete
+								</Button>
+							{/snippet}
+						</TableSelectionToolbar>
+					</div>
 				</div>
 
 				{#if filteredScenes.length === 0}
@@ -441,6 +506,8 @@
 						{#snippet table()}
 							<SceneTable
 								scenes={filteredScenes}
+								orderedIds={filteredIds}
+								{selection}
 								{applyingId}
 								onapply={handleApply}
 								onedit={handleEdit}
@@ -469,7 +536,7 @@
 					handleCreateScene();
 				}}
 			>
-				<Input bind:value={newSceneName} placeholder="Scene name" autofocus />
+				<Input bind:ref={newSceneNameInput} bind:value={newSceneName} placeholder="Scene name" autofocus />
 				<DialogFooter class="mt-4">
 					<Button
 						variant="outline"
@@ -480,6 +547,14 @@
 						}}
 					>
 						Cancel
+					</Button>
+					<Button
+						variant="secondary"
+						type="button"
+						disabled={!newSceneName.trim() || createLoading}
+						onclick={() => handleCreateScene({ keepOpen: true })}
+					>
+						Create more
 					</Button>
 					<Button type="submit" disabled={!newSceneName.trim() || createLoading}>
 						{createLoading ? "Creating..." : "Create"}
@@ -497,5 +572,15 @@
 		loading={deleteLoading}
 		onconfirm={handleDelete}
 		oncancel={() => (deleteConfirmScene = null)}
+	/>
+
+	<ConfirmDialog
+		open={batchDeleteConfirm}
+		title="Delete {selection.count} scene{selection.count === 1 ? '' : 's'}?"
+		description="This permanently deletes the selected scenes and all their actions. This cannot be undone."
+		confirmLabel="Delete"
+		loading={batchDeleteLoading}
+		onconfirm={handleBatchDelete}
+		oncancel={() => (batchDeleteConfirm = false)}
 	/>
 </div>

@@ -11,6 +11,8 @@
 	import AlarmTable from "$lib/components/alarm-table.svelte";
 	import AlarmSeverityBadge from "$lib/components/alarm-severity-badge.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import type { AlarmSeverity } from "$lib/gql/graphql";
 
 	type SeverityKey = "HIGH" | "MEDIUM" | "LOW";
@@ -21,11 +23,21 @@
 		}
 	`);
 
+	const BATCH_DELETE_ALARMS = graphql(`
+		mutation BatchDeleteAlarms($alarmIds: [ID!]!) {
+			batchDeleteAlarms(alarmIds: $alarmIds)
+		}
+	`);
+
 	const client = getContextClient();
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 	let activeSeverities = $state(new Set<SeverityKey>(["HIGH", "MEDIUM", "LOW"]));
 	let deleteTarget = $state<Alarm | null>(null);
 	let deleteLoading = $state(false);
+
+	const selection = createTableSelection();
+	let batchDeleteConfirm = $state(false);
+	let batchDeleteLoading = $state(false);
 
 	const SINCE_OPTIONS = [
 		{ value: "5m", label: "Last 5 minutes" },
@@ -177,6 +189,24 @@
 		deleteTarget = null;
 	}
 
+	const filteredIds = $derived(filtered.map((a) => a.id));
+	$effect(() => {
+		selection.pruneTo(filteredIds);
+	});
+
+	async function handleBatchDelete() {
+		const alarmIds = selection.selectedIds();
+		if (alarmIds.length === 0) {
+			batchDeleteConfirm = false;
+			return;
+		}
+		batchDeleteLoading = true;
+		await client.mutation(BATCH_DELETE_ALARMS, { alarmIds }).toPromise();
+		batchDeleteLoading = false;
+		batchDeleteConfirm = false;
+		selection.clear();
+	}
+
 	const deleteDescription = $derived.by(() => {
 		if (!deleteTarget) return "";
 		if (deleteTarget.kind === "AUTO") {
@@ -207,8 +237,8 @@
 </script>
 
 <div class="flex flex-col gap-4" in:fly={{ y: -4, duration: 150 }}>
-	<div class="flex items-center gap-4">
-		<div class="flex-1">
+	<div class="flex items-stretch gap-2">
+		<div class="min-w-0 flex-1">
 			<HiveSearchbar
 				value={searchState}
 				onchange={(v) => (searchState = v)}
@@ -218,7 +248,25 @@
 				commitOnBlur
 			/>
 		</div>
-		<div class="flex items-center rounded-md overflow-hidden">
+		<div
+			class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+			style:max-width={selection.count > 0 ? "32rem" : "0px"}
+			style:opacity={selection.count > 0 ? "1" : "0"}
+			aria-hidden={!(selection.count > 0)}
+		>
+			<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+				{#snippet actions()}
+					<Button
+						variant="destructive"
+						size="sm"
+						onclick={() => (batchDeleteConfirm = true)}
+					>
+						Delete
+					</Button>
+				{/snippet}
+			</TableSelectionToolbar>
+		</div>
+		<div class="flex shrink-0 items-center rounded-md overflow-hidden">
 			{#each SEVERITY_OPTIONS as opt (opt.value)}
 				<Button
 					variant={activeSeverities.has(opt.value) ? "secondary" : "ghost"}
@@ -246,7 +294,12 @@
 			<p class="text-muted-foreground">No alarms match your filters.</p>
 		</div>
 	{:else}
-		<AlarmTable alarms={filtered} ondelete={(a) => (deleteTarget = a)} />
+		<AlarmTable
+			alarms={filtered}
+			orderedIds={filteredIds}
+			{selection}
+			ondelete={(a) => (deleteTarget = a)}
+		/>
 	{/if}
 </div>
 
@@ -258,4 +311,14 @@
 	loading={deleteLoading}
 	onconfirm={handleDelete}
 	oncancel={() => (deleteTarget = null)}
+/>
+
+<ConfirmDialog
+	open={batchDeleteConfirm}
+	title="Delete {selection.count} alarm{selection.count === 1 ? '' : 's'}?"
+	description="This permanently clears the selected alarms. Auto alarms that are still actively being raised will reappear."
+	confirmLabel="Delete"
+	loading={batchDeleteLoading}
+	onconfirm={handleBatchDelete}
+	oncancel={() => (batchDeleteConfirm = false)}
 />

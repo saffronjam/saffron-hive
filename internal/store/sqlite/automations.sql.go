@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+const batchDeleteAutomations = `-- name: BatchDeleteAutomations :execrows
+DELETE FROM automations
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteAutomations(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteAutomations, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearAutomationIcon = `-- name: ClearAutomationIcon :exec
 UPDATE automations SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

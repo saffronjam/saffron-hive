@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+var graphLogger = slog.Default().With("pkg", "graph")
 
 // mapAlarm converts a grouped domain Alarm into its GraphQL model.
 func mapAlarm(a alarms.Alarm) *model.Alarm {

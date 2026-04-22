@@ -60,6 +60,10 @@ UPDATE automations SET last_fired_at = ? WHERE id = ?;
 -- name: DeleteAutomation :exec
 DELETE FROM automations WHERE id = ?;
 
+-- name: BatchDeleteAutomations :execrows
+DELETE FROM automations
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
 -- name: CreateAutomationNode :exec
 INSERT INTO automation_nodes (id, automation_id, type, config, position_x, position_y)
 VALUES (?, ?, ?, ?, ?, ?);

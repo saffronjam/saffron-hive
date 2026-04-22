@@ -128,6 +128,25 @@ func (s *DB) DeleteUser(ctx context.Context, id string) error {
 	return nil
 }
 
+// BatchDeleteUsers deletes the users with the given IDs. Same FK semantics as
+// DeleteUser apply to every row removed. Returns the number of rows actually
+// deleted; missing IDs are silently ignored. The caller is responsible for
+// excluding the currently authenticated user from the input.
+func (s *DB) BatchDeleteUsers(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete users: %w", err)
+	}
+	n, err := s.q.BatchDeleteUsers(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete users: %w", err)
+	}
+	return n, nil
+}
+
 // GetUserAvatarPath returns the stored avatar filename for a user, or nil when
 // no avatar is set. Returns a not-found error if the user does not exist.
 func (s *DB) GetUserAvatarPath(ctx context.Context, id string) (*string, error) {
@@ -136,4 +155,27 @@ func (s *DB) GetUserAvatarPath(ctx context.Context, id string) (*string, error) 
 		return nil, fmt.Errorf("get user avatar path: %w", err)
 	}
 	return path, nil
+}
+
+// GetUserAvatarPathsByIDs returns the (id, avatar_path) pairs for users with
+// non-null avatars. Used to clean up files after BatchDeleteUsers.
+func (s *DB) GetUserAvatarPathsByIDs(ctx context.Context, ids []string) (map[string]string, error) {
+	if len(ids) == 0 {
+		return map[string]string{}, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return nil, fmt.Errorf("get user avatar paths: %w", err)
+	}
+	rows, err := s.q.GetUserAvatarPathsByIDs(ctx, js)
+	if err != nil {
+		return nil, fmt.Errorf("get user avatar paths: %w", err)
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		if r.AvatarPath != nil && *r.AvatarPath != "" {
+			out[r.ID] = *r.AvatarPath
+		}
+	}
+	return out, nil
 }

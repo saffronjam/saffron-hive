@@ -32,8 +32,16 @@ UPDATE groups SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: DeleteGroup :exec
 DELETE FROM groups WHERE id = ?;
 
+-- name: BatchDeleteGroups :execrows
+DELETE FROM groups
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
 -- name: AddGroupMember :exec
 INSERT INTO group_members (id, group_id, member_type, member_id)
+VALUES (?, ?, ?, ?);
+
+-- name: AddGroupMemberIfMissing :execrows
+INSERT OR IGNORE INTO group_members (id, group_id, member_type, member_id)
 VALUES (?, ?, ?, ?);
 
 -- name: ListGroupMembers :many

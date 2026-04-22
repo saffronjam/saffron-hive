@@ -40,5 +40,13 @@ UPDATE users SET password_hash = ? WHERE id = ?;
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;
 
+-- name: BatchDeleteUsers :execrows
+DELETE FROM users
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
 -- name: GetUserAvatarPath :one
 SELECT avatar_path FROM users WHERE id = ?;
+
+-- name: GetUserAvatarPathsByIDs :many
+SELECT id, avatar_path FROM users
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));

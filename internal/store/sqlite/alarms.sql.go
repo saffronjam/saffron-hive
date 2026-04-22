@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+const batchDeleteAlarmsByAlarmIDs = `-- name: BatchDeleteAlarmsByAlarmIDs :execrows
+DELETE FROM alarms
+WHERE alarm_id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIdsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteAlarmsByAlarmIDs, alarmIdsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countAlarmsByAlarmID = `-- name: CountAlarmsByAlarmID :one
 SELECT COUNT(*) FROM alarms WHERE alarm_id = ?
 `

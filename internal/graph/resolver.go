@@ -44,6 +44,7 @@ type GraphStore interface {
 	ListScenes(ctx context.Context) ([]store.Scene, error)
 	UpdateScene(ctx context.Context, id string, params store.UpdateSceneParams) (store.Scene, error)
 	DeleteScene(ctx context.Context, id string) error
+	BatchDeleteScenes(ctx context.Context, ids []string) (int64, error)
 	CreateSceneAction(ctx context.Context, params store.CreateSceneActionParams) (store.SceneAction, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
 	DeleteSceneAction(ctx context.Context, id string) error
@@ -55,6 +56,7 @@ type GraphStore interface {
 	UpdateAutomation(ctx context.Context, id string, params store.UpdateAutomationParams) (store.Automation, error)
 	UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error
 	DeleteAutomation(ctx context.Context, id string) error
+	BatchDeleteAutomations(ctx context.Context, ids []string) (int64, error)
 	CreateAutomationNode(ctx context.Context, params store.CreateAutomationNodeParams) (store.AutomationNode, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]store.AutomationNode, error)
 	DeleteAutomationNode(ctx context.Context, id string) error
@@ -69,7 +71,9 @@ type GraphStore interface {
 	ListGroups(ctx context.Context) ([]store.Group, error)
 	UpdateGroup(ctx context.Context, params store.UpdateGroupParams) (store.Group, error)
 	DeleteGroup(ctx context.Context, id string) error
+	BatchDeleteGroups(ctx context.Context, ids []string) (int64, error)
 	AddGroupMember(ctx context.Context, params store.AddGroupMemberParams) (store.GroupMember, error)
+	BatchAddGroupDevices(ctx context.Context, groupID string, deviceIDs []string) (int64, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]store.GroupMember, error)
 	RemoveGroupMember(ctx context.Context, id string) error
 	ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]store.Group, error)
@@ -80,7 +84,9 @@ type GraphStore interface {
 	ListRooms(ctx context.Context) ([]store.Room, error)
 	UpdateRoom(ctx context.Context, params store.UpdateRoomParams) (store.Room, error)
 	DeleteRoom(ctx context.Context, id string) error
+	BatchDeleteRooms(ctx context.Context, ids []string) (int64, error)
 	AddRoomDevice(ctx context.Context, params store.AddRoomDeviceParams) (store.RoomDevice, error)
+	BatchAddRoomDevices(ctx context.Context, roomID string, deviceIDs []string) (int64, error)
 	ListRoomDevices(ctx context.Context, roomID string) ([]store.RoomDevice, error)
 	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
 	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]store.Room, error)
@@ -102,7 +108,9 @@ type GraphStore interface {
 	ClearUserAvatar(ctx context.Context, id string) error
 	UpdateUserPasswordHash(ctx context.Context, id, hash string) error
 	DeleteUser(ctx context.Context, id string) error
+	BatchDeleteUsers(ctx context.Context, ids []string) (int64, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
+	GetUserAvatarPathsByIDs(ctx context.Context, ids []string) (map[string]string, error)
 }
 
 // Resolver is the root resolver that holds all dependencies required by the

@@ -30,6 +30,10 @@ UPDATE scenes SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: DeleteScene :exec
 DELETE FROM scenes WHERE id = ?;
 
+-- name: BatchDeleteScenes :execrows
+DELETE FROM scenes
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
 -- name: CreateSceneAction :exec
 INSERT INTO scene_actions (id, scene_id, target_type, target_id, payload)
 VALUES (?, ?, ?, ?, ?);

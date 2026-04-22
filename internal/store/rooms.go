@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
@@ -89,6 +90,23 @@ func (s *DB) DeleteRoom(ctx context.Context, id string) error {
 	return nil
 }
 
+// BatchDeleteRooms deletes the rooms with the given IDs. Returns the number of
+// rows actually deleted; missing IDs are silently ignored.
+func (s *DB) BatchDeleteRooms(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete rooms: %w", err)
+	}
+	n, err := s.q.BatchDeleteRooms(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete rooms: %w", err)
+	}
+	return n, nil
+}
+
 // AddRoomDevice adds a device to a room and returns the created membership.
 func (s *DB) AddRoomDevice(ctx context.Context, params AddRoomDeviceParams) (RoomDevice, error) {
 	if err := s.q.AddRoomDevice(ctx, sqlite.AddRoomDeviceParams{
@@ -103,6 +121,35 @@ func (s *DB) AddRoomDevice(ctx context.Context, params AddRoomDeviceParams) (Roo
 		RoomID:   params.RoomID,
 		DeviceID: params.DeviceID,
 	}, nil
+}
+
+// BatchAddRoomDevices adds the listed devices to a room. Devices already
+// associated with the room are silently skipped (UNIQUE(room_id, device_id)).
+// Membership IDs are generated for each new row. Returns the number of newly
+// added rows.
+func (s *DB) BatchAddRoomDevices(ctx context.Context, roomID string, deviceIDs []string) (int64, error) {
+	if len(deviceIDs) == 0 {
+		return 0, nil
+	}
+	var added int64
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		for _, did := range deviceIDs {
+			n, err := q.AddRoomDeviceIfMissing(ctx, sqlite.AddRoomDeviceIfMissingParams{
+				ID:       uuid.New().String(),
+				RoomID:   roomID,
+				DeviceID: did,
+			})
+			if err != nil {
+				return fmt.Errorf("add room device %s: %w", did, err)
+			}
+			added += n
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return added, nil
 }
 
 // ListRoomDevices returns all device memberships for a room.

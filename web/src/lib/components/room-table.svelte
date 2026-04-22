@@ -12,6 +12,9 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { DoorOpen, Pencil, Plus, Trash2 } from "@lucide/svelte";
 	import type { Device } from "$lib/stores/devices";
 
@@ -25,6 +28,8 @@
 
 	interface Props {
 		rooms: RoomData[];
+		orderedIds: readonly string[];
+		selection: TableSelection;
 		onedit: (room: RoomData) => void;
 		ondelete: (room: RoomData) => void;
 		onrename: (room: RoomData, newName: string) => void;
@@ -32,13 +37,16 @@
 		onAddTo: (room: RoomData) => void;
 	}
 
-	let { rooms, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
+	let { rooms, orderedIds, selection, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
 </script>
 
 <div class="overflow-x-auto rounded-lg shadow-card bg-card">
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead class="w-10">
+					<TableHeaderCheckbox {selection} {orderedIds} />
+				</TableHead>
 				<TableHead class="w-12"></TableHead>
 				<TableHead>Name</TableHead>
 				<TableHead>Devices</TableHead>
@@ -48,7 +56,10 @@
 		</TableHeader>
 		<TableBody>
 			{#each rooms as room (room.id)}
-				<TableRow>
+				<TableRow data-state={selection.isSelected(room.id) ? "selected" : undefined}>
+					<TableCell>
+						<TableRowCheckbox id={room.id} {selection} {orderedIds} ariaLabel="Select {room.name}" />
+					</TableCell>
 					<TableCell>
 						<IconPicker value={room.icon} onselect={(icon) => oniconchange(room, icon)}>
 							<button

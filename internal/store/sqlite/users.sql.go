@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+const batchDeleteUsers = `-- name: BatchDeleteUsers :execrows
+DELETE FROM users
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteUsers, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearUserAvatar = `-- name: ClearUserAvatar :exec
 UPDATE users SET avatar_path = NULL WHERE id = ?
 `
@@ -70,6 +83,39 @@ func (q *Queries) GetUserAvatarPath(ctx context.Context, id string) (*string, er
 	var avatar_path *string
 	err := row.Scan(&avatar_path)
 	return avatar_path, err
+}
+
+const getUserAvatarPathsByIDs = `-- name: GetUserAvatarPathsByIDs :many
+SELECT id, avatar_path FROM users
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+type GetUserAvatarPathsByIDsRow struct {
+	ID         string
+	AvatarPath *string
+}
+
+func (q *Queries) GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) ([]GetUserAvatarPathsByIDsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserAvatarPathsByIDs, idsJson)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserAvatarPathsByIDsRow
+	for rows.Next() {
+		var i GetUserAvatarPathsByIDsRow
+		if err := rows.Scan(&i.ID, &i.AvatarPath); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByID = `-- name: GetUserByID :one

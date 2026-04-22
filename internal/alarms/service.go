@@ -16,6 +16,7 @@ var logger = slog.Default().With("pkg", "alarms")
 type alarmStore interface {
 	InsertAlarmTx(ctx context.Context, p store.InsertAlarmParams) (store.AlarmRow, bool, error)
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
+	BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIDs []string) (int64, error)
 	ListAlarms(ctx context.Context) ([]store.AlarmRow, error)
 }
 
@@ -106,6 +107,46 @@ func (s *Service) DeleteByAlarmID(ctx context.Context, alarmID string) (bool, er
 	s.buffer.Publish(Event{Kind: EventCleared, ClearedAlarmID: alarmID})
 	logger.Debug("alarm deleted", slog.String("alarm_id", alarmID), slog.Int64("rows", n))
 	return true, nil
+}
+
+// BatchDeleteByAlarmIDs removes every row belonging to any of the given alarm
+// groups. Returns the number of distinct alarm groups that had at least one
+// row removed (i.e. the count the caller most likely wants to surface). One
+// EventCleared is published per input alarm_id; subscribers treat events for
+// already-absent groups as no-ops.
+func (s *Service) BatchDeleteByAlarmIDs(ctx context.Context, alarmIDs []string) (int, error) {
+	if len(alarmIDs) == 0 {
+		return 0, nil
+	}
+	before, err := s.activeAlarmIDSet(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := s.store.BatchDeleteAlarmsByAlarmIDs(ctx, alarmIDs); err != nil {
+		return 0, fmt.Errorf("batch delete alarms by alarm_id: %w", err)
+	}
+	cleared := 0
+	for _, id := range alarmIDs {
+		if _, ok := before[id]; !ok {
+			continue
+		}
+		s.buffer.Publish(Event{Kind: EventCleared, ClearedAlarmID: id})
+		cleared++
+	}
+	logger.Debug("alarms batch deleted", slog.Int("requested", len(alarmIDs)), slog.Int("cleared_groups", cleared))
+	return cleared, nil
+}
+
+func (s *Service) activeAlarmIDSet(ctx context.Context) (map[string]struct{}, error) {
+	rows, err := s.store.ListAlarms(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list alarms: %w", err)
+	}
+	out := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		out[r.AlarmID] = struct{}{}
+	}
+	return out, nil
 }
 
 // ListActive returns every currently-persisted alarm, grouped by alarm_id.

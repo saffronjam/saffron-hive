@@ -12,6 +12,9 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
 	import { Clapperboard, Pencil, Play, Trash2 } from "@lucide/svelte";
 
@@ -32,6 +35,8 @@
 
 	interface Props {
 		scenes: SceneData[];
+		orderedIds: readonly string[];
+		selection: TableSelection;
 		applyingId: string | null;
 		onapply: (scene: SceneData) => void;
 		onedit: (scene: SceneData) => void;
@@ -42,6 +47,8 @@
 
 	let {
 		scenes,
+		orderedIds,
+		selection,
 		applyingId,
 		onapply,
 		onedit,
@@ -55,6 +62,9 @@
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead class="w-10">
+					<TableHeaderCheckbox {selection} {orderedIds} />
+				</TableHead>
 				<TableHead class="w-12"></TableHead>
 				<TableHead>Name</TableHead>
 				<TableHead>Targets</TableHead>
@@ -67,7 +77,10 @@
 			{#each scenes as scene (scene.id)}
 				{@const noTargets = scene.actions.length === 0}
 				{@const applying = applyingId === scene.id}
-				<TableRow>
+				<TableRow data-state={selection.isSelected(scene.id) ? "selected" : undefined}>
+					<TableCell>
+						<TableRowCheckbox id={scene.id} {selection} {orderedIds} ariaLabel="Select {scene.name}" />
+					</TableCell>
 					<TableCell>
 						<IconPicker value={scene.icon} onselect={(icon) => oniconchange(scene, icon)}>
 							<button

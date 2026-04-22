@@ -16,6 +16,9 @@
 	import MemberTable from "$lib/components/member-table.svelte";
 	import RoomCard from "$lib/components/room-card.svelte";
 	import RoomTable from "$lib/components/room-table.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
@@ -171,6 +174,12 @@
 		}
 	`);
 
+	const BATCH_DELETE_ROOMS = graphql(`
+		mutation BatchDeleteRooms($ids: [ID!]!) {
+			batchDeleteRooms(ids: $ids)
+		}
+	`);
+
 	const ADD_ROOM_DEVICE = graphql(`
 		mutation AddRoomDevice($input: AddRoomDeviceInput!) {
 			addRoomDevice(input: $input) {
@@ -277,9 +286,15 @@
 		});
 	});
 
+	const filteredIds = $derived(filteredRooms.map((r) => r.id));
+	$effect(() => {
+		selection.pruneTo(filteredIds);
+	});
+
 	let createDialogOpen = $state(false);
 	let newRoomName = $state("");
 	let createLoading = $state(false);
+	let newRoomNameInput = $state<HTMLInputElement | null>(null);
 
 	let editingRoom = $state<RoomData | null>(null);
 	let editName = $state("");
@@ -293,6 +308,10 @@
 
 	let deleteConfirmRoom = $state<RoomData | null>(null);
 	let deleteLoading = $state(false);
+
+	const selection = createTableSelection();
+	let batchDeleteConfirm = $state(false);
+	let batchDeleteLoading = $state(false);
 
 	let pickerOpen = $state(false);
 
@@ -421,7 +440,7 @@
 		})
 	);
 
-	async function handleCreateRoom() {
+	async function handleCreateRoom(options: { keepOpen?: boolean } = {}) {
 		if (!newRoomName.trim()) return;
 		createLoading = true;
 		errors.clear();
@@ -438,8 +457,14 @@
 
 		const created = result.data?.createRoom;
 		newRoomName = "";
-		createDialogOpen = false;
 		roomsQuery.reexecute({ requestPolicy: "network-only" });
+
+		if (options.keepOpen) {
+			newRoomNameInput?.focus();
+			return;
+		}
+
+		createDialogOpen = false;
 		if (created) {
 			startEditing(created);
 		}
@@ -528,6 +553,26 @@
 		editIconDirty = false;
 		pendingDeviceAdds = [];
 		pendingDeviceRemovals = new Set();
+		roomsQuery.reexecute({ requestPolicy: "network-only" });
+	}
+
+	async function handleBatchDelete() {
+		const ids = selection.selectedIds();
+		if (ids.length === 0) {
+			batchDeleteConfirm = false;
+			return;
+		}
+		batchDeleteLoading = true;
+		errors.clear();
+		const result = await client.mutation(BATCH_DELETE_ROOMS, { ids }).toPromise();
+		batchDeleteLoading = false;
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
+		if (editingRoom && ids.includes(editingRoom.id)) stopEditing();
+		batchDeleteConfirm = false;
+		selection.clear();
 		roomsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
@@ -679,13 +724,33 @@
 					</Button>
 				</div>
 			{:else}
-				<div class="mb-6">
-					<HiveSearchbar
-						value={searchState}
-						onchange={(v) => (searchState = v)}
-						chips={searchChipConfigs}
-						placeholder="Search rooms..."
-					/>
+				<div class="mb-6 flex items-stretch gap-2">
+					<div class="min-w-0 flex-1">
+						<HiveSearchbar
+							value={searchState}
+							onchange={(v) => (searchState = v)}
+							chips={searchChipConfigs}
+							placeholder="Search rooms..."
+						/>
+					</div>
+					<div
+						class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+						style:max-width={view === "table" && selection.count > 0 ? "32rem" : "0px"}
+						style:opacity={view === "table" && selection.count > 0 ? "1" : "0"}
+						aria-hidden={!(view === "table" && selection.count > 0)}
+					>
+						<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+							{#snippet actions()}
+								<Button
+									variant="destructive"
+									size="sm"
+									onclick={() => (batchDeleteConfirm = true)}
+								>
+									Delete
+								</Button>
+							{/snippet}
+						</TableSelectionToolbar>
+					</div>
 				</div>
 
 				{#if filteredRooms.length === 0}
@@ -711,6 +776,8 @@
 						{#snippet table()}
 							<RoomTable
 								rooms={filteredRooms}
+								orderedIds={filteredIds}
+								{selection}
 								onedit={startEditing}
 								ondelete={(r) => (deleteConfirmRoom = r)}
 								onrename={handleRename}
@@ -735,7 +802,7 @@
 						handleCreateRoom();
 					}}
 				>
-					<Input bind:value={newRoomName} placeholder="Room name" autofocus />
+					<Input bind:ref={newRoomNameInput} bind:value={newRoomName} placeholder="Room name" autofocus />
 					<DialogFooter class="mt-4">
 						<Button
 							variant="outline"
@@ -746,6 +813,14 @@
 							}}
 						>
 							Cancel
+						</Button>
+						<Button
+							variant="secondary"
+							type="button"
+							disabled={!newRoomName.trim() || createLoading}
+							onclick={() => handleCreateRoom({ keepOpen: true })}
+						>
+							Create more
 						</Button>
 						<Button type="submit" disabled={!newRoomName.trim() || createLoading}>
 							{createLoading ? "Creating..." : "Create"}
@@ -774,6 +849,16 @@
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
+
+		<ConfirmDialog
+			open={batchDeleteConfirm}
+			title="Delete {selection.count} room{selection.count === 1 ? '' : 's'}?"
+			description="This permanently deletes the selected rooms and removes their device assignments. This cannot be undone."
+			confirmLabel="Delete"
+			loading={batchDeleteLoading}
+			onconfirm={handleBatchDelete}
+			oncancel={() => (batchDeleteConfirm = false)}
+		/>
 
 		<HiveDrawer
 			bind:open={quickAddOpen}

@@ -13,6 +13,10 @@ SELECT COUNT(*) FROM alarms WHERE alarm_id = ?;
 -- name: DeleteAlarmsByAlarmID :execrows
 DELETE FROM alarms WHERE alarm_id = ?;
 
+-- name: BatchDeleteAlarmsByAlarmIDs :execrows
+DELETE FROM alarms
+WHERE alarm_id IN (SELECT value FROM json_each(CAST(sqlc.arg('alarm_ids_json') AS TEXT)));
+
 -- name: ListAlarms :many
 SELECT id, alarm_id, severity, kind, message, source, raised_at
 FROM alarms

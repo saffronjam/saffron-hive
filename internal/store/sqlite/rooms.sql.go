@@ -25,6 +25,37 @@ func (q *Queries) AddRoomDevice(ctx context.Context, arg AddRoomDeviceParams) er
 	return err
 }
 
+const addRoomDeviceIfMissing = `-- name: AddRoomDeviceIfMissing :execrows
+INSERT OR IGNORE INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?)
+`
+
+type AddRoomDeviceIfMissingParams struct {
+	ID       string
+	RoomID   string
+	DeviceID string
+}
+
+func (q *Queries) AddRoomDeviceIfMissing(ctx context.Context, arg AddRoomDeviceIfMissingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, addRoomDeviceIfMissing, arg.ID, arg.RoomID, arg.DeviceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const batchDeleteRooms = `-- name: BatchDeleteRooms :execrows
+DELETE FROM rooms
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteRooms(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteRooms, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearRoomIcon = `-- name: ClearRoomIcon :exec
 UPDATE rooms SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

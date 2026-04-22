@@ -34,6 +34,44 @@ func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) 
 	return err
 }
 
+const addGroupMemberIfMissing = `-- name: AddGroupMemberIfMissing :execrows
+INSERT OR IGNORE INTO group_members (id, group_id, member_type, member_id)
+VALUES (?, ?, ?, ?)
+`
+
+type AddGroupMemberIfMissingParams struct {
+	ID         string
+	GroupID    string
+	MemberType device.GroupMemberType
+	MemberID   string
+}
+
+func (q *Queries) AddGroupMemberIfMissing(ctx context.Context, arg AddGroupMemberIfMissingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, addGroupMemberIfMissing,
+		arg.ID,
+		arg.GroupID,
+		arg.MemberType,
+		arg.MemberID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const batchDeleteGroups = `-- name: BatchDeleteGroups :execrows
+DELETE FROM groups
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteGroups(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteGroups, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearGroupIcon = `-- name: ClearGroupIcon :exec
 UPDATE groups SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

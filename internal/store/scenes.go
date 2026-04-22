@@ -91,6 +91,23 @@ func (s *DB) DeleteScene(ctx context.Context, id string) error {
 	return nil
 }
 
+// BatchDeleteScenes deletes the scenes with the given IDs. Returns the number
+// of rows actually deleted; missing IDs are silently ignored.
+func (s *DB) BatchDeleteScenes(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete scenes: %w", err)
+	}
+	n, err := s.q.BatchDeleteScenes(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete scenes: %w", err)
+	}
+	return n, nil
+}
+
 // CreateSceneAction inserts a new scene action.
 func (s *DB) CreateSceneAction(ctx context.Context, params CreateSceneActionParams) (SceneAction, error) {
 	if err := s.q.CreateSceneAction(ctx, sqlite.CreateSceneActionParams{

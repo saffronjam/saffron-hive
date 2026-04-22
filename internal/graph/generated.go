@@ -210,39 +210,47 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddGroupMember        func(childComplexity int, input model.AddGroupMemberInput) int
-		AddRoomDevice         func(childComplexity int, input model.AddRoomDeviceInput) int
-		ApplyScene            func(childComplexity int, sceneID string) int
-		ChangePassword        func(childComplexity int, input model.ChangePasswordInput) int
-		CreateAutomation      func(childComplexity int, input model.CreateAutomationInput) int
-		CreateGroup           func(childComplexity int, input model.CreateGroupInput) int
-		CreateInitialUser     func(childComplexity int, input model.CreateInitialUserInput) int
-		CreateRoom            func(childComplexity int, input model.CreateRoomInput) int
-		CreateScene           func(childComplexity int, input model.CreateSceneInput) int
-		CreateUser            func(childComplexity int, input model.CreateUserInput) int
-		DeleteAlarm           func(childComplexity int, alarmID string) int
-		DeleteAutomation      func(childComplexity int, id string) int
-		DeleteGroup           func(childComplexity int, id string) int
-		DeleteRoom            func(childComplexity int, id string) int
-		DeleteScene           func(childComplexity int, id string) int
-		DeleteUser            func(childComplexity int, id string) int
-		FireAutomationTrigger func(childComplexity int, automationID string, nodeID string) int
-		Login                 func(childComplexity int, input model.LoginInput) int
-		RaiseAlarm            func(childComplexity int, input model.RaiseAlarmInput) int
-		RemoveGroupMember     func(childComplexity int, id string) int
-		RemoveRoomDevice      func(childComplexity int, roomID string, deviceID string) int
-		ResetUserPassword     func(childComplexity int, id string, newPassword string) int
-		SetDeviceState        func(childComplexity int, deviceID string, state model.DeviceStateInput) int
-		TestMqttConnection    func(childComplexity int, input model.MqttConfigInput) int
-		ToggleAutomation      func(childComplexity int, id string, enabled bool) int
-		UpdateAutomation      func(childComplexity int, id string, input model.UpdateAutomationInput) int
-		UpdateCurrentUser     func(childComplexity int, input model.UpdateCurrentUserInput) int
-		UpdateDevice          func(childComplexity int, id string, input model.UpdateDeviceInput) int
-		UpdateGroup           func(childComplexity int, id string, input model.UpdateGroupInput) int
-		UpdateMqttConfig      func(childComplexity int, input model.MqttConfigInput) int
-		UpdateRoom            func(childComplexity int, id string, input model.UpdateRoomInput) int
-		UpdateScene           func(childComplexity int, id string, input model.UpdateSceneInput) int
-		UpdateSetting         func(childComplexity int, key string, value string) int
+		AddGroupMember         func(childComplexity int, input model.AddGroupMemberInput) int
+		AddRoomDevice          func(childComplexity int, input model.AddRoomDeviceInput) int
+		ApplyScene             func(childComplexity int, sceneID string) int
+		BatchAddGroupDevices   func(childComplexity int, groupID string, deviceIds []string) int
+		BatchAddRoomDevices    func(childComplexity int, roomID string, deviceIds []string) int
+		BatchDeleteAlarms      func(childComplexity int, alarmIds []string) int
+		BatchDeleteAutomations func(childComplexity int, ids []string) int
+		BatchDeleteGroups      func(childComplexity int, ids []string) int
+		BatchDeleteRooms       func(childComplexity int, ids []string) int
+		BatchDeleteScenes      func(childComplexity int, ids []string) int
+		BatchDeleteUsers       func(childComplexity int, ids []string) int
+		ChangePassword         func(childComplexity int, input model.ChangePasswordInput) int
+		CreateAutomation       func(childComplexity int, input model.CreateAutomationInput) int
+		CreateGroup            func(childComplexity int, input model.CreateGroupInput) int
+		CreateInitialUser      func(childComplexity int, input model.CreateInitialUserInput) int
+		CreateRoom             func(childComplexity int, input model.CreateRoomInput) int
+		CreateScene            func(childComplexity int, input model.CreateSceneInput) int
+		CreateUser             func(childComplexity int, input model.CreateUserInput) int
+		DeleteAlarm            func(childComplexity int, alarmID string) int
+		DeleteAutomation       func(childComplexity int, id string) int
+		DeleteGroup            func(childComplexity int, id string) int
+		DeleteRoom             func(childComplexity int, id string) int
+		DeleteScene            func(childComplexity int, id string) int
+		DeleteUser             func(childComplexity int, id string) int
+		FireAutomationTrigger  func(childComplexity int, automationID string, nodeID string) int
+		Login                  func(childComplexity int, input model.LoginInput) int
+		RaiseAlarm             func(childComplexity int, input model.RaiseAlarmInput) int
+		RemoveGroupMember      func(childComplexity int, id string) int
+		RemoveRoomDevice       func(childComplexity int, roomID string, deviceID string) int
+		ResetUserPassword      func(childComplexity int, id string, newPassword string) int
+		SetDeviceState         func(childComplexity int, deviceID string, state model.DeviceStateInput) int
+		TestMqttConnection     func(childComplexity int, input model.MqttConfigInput) int
+		ToggleAutomation       func(childComplexity int, id string, enabled bool) int
+		UpdateAutomation       func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateCurrentUser      func(childComplexity int, input model.UpdateCurrentUserInput) int
+		UpdateDevice           func(childComplexity int, id string, input model.UpdateDeviceInput) int
+		UpdateGroup            func(childComplexity int, id string, input model.UpdateGroupInput) int
+		UpdateMqttConfig       func(childComplexity int, input model.MqttConfigInput) int
+		UpdateRoom             func(childComplexity int, id string, input model.UpdateRoomInput) int
+		UpdateScene            func(childComplexity int, id string, input model.UpdateSceneInput) int
+		UpdateSetting          func(childComplexity int, key string, value string) int
 	}
 
 	Query struct {
@@ -368,6 +376,14 @@ type MutationResolver interface {
 	DeleteUser(ctx context.Context, id string) (bool, error)
 	RaiseAlarm(ctx context.Context, input model.RaiseAlarmInput) (*model.Alarm, error)
 	DeleteAlarm(ctx context.Context, alarmID string) (bool, error)
+	BatchDeleteScenes(ctx context.Context, ids []string) (int, error)
+	BatchDeleteAutomations(ctx context.Context, ids []string) (int, error)
+	BatchDeleteGroups(ctx context.Context, ids []string) (int, error)
+	BatchDeleteRooms(ctx context.Context, ids []string) (int, error)
+	BatchDeleteAlarms(ctx context.Context, alarmIds []string) (int, error)
+	BatchDeleteUsers(ctx context.Context, ids []string) (int, error)
+	BatchAddRoomDevices(ctx context.Context, roomID string, deviceIds []string) (*model.Room, error)
+	BatchAddGroupDevices(ctx context.Context, groupID string, deviceIds []string) (*model.Group, error)
 }
 type QueryResolver interface {
 	Devices(ctx context.Context) ([]*model.Device, error)
@@ -1124,6 +1140,94 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ApplyScene(childComplexity, args["sceneId"].(string)), true
+	case "Mutation.batchAddGroupDevices":
+		if e.ComplexityRoot.Mutation.BatchAddGroupDevices == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchAddGroupDevices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchAddGroupDevices(childComplexity, args["groupId"].(string), args["deviceIds"].([]string)), true
+	case "Mutation.batchAddRoomDevices":
+		if e.ComplexityRoot.Mutation.BatchAddRoomDevices == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchAddRoomDevices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchAddRoomDevices(childComplexity, args["roomId"].(string), args["deviceIds"].([]string)), true
+	case "Mutation.batchDeleteAlarms":
+		if e.ComplexityRoot.Mutation.BatchDeleteAlarms == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteAlarms_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteAlarms(childComplexity, args["alarmIds"].([]string)), true
+	case "Mutation.batchDeleteAutomations":
+		if e.ComplexityRoot.Mutation.BatchDeleteAutomations == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteAutomations_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteAutomations(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteGroups":
+		if e.ComplexityRoot.Mutation.BatchDeleteGroups == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteGroups_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteGroups(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteRooms":
+		if e.ComplexityRoot.Mutation.BatchDeleteRooms == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteRooms_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteRooms(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteScenes":
+		if e.ComplexityRoot.Mutation.BatchDeleteScenes == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteScenes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteScenes(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteUsers":
+		if e.ComplexityRoot.Mutation.BatchDeleteUsers == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteUsers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteUsers(childComplexity, args["ids"].([]string)), true
 	case "Mutation.changePassword":
 		if e.ComplexityRoot.Mutation.ChangePassword == nil {
 			break
@@ -2514,6 +2618,20 @@ type Mutation {
   deleteUser(id: ID!): Boolean!
   raiseAlarm(input: RaiseAlarmInput!): Alarm!
   deleteAlarm(alarmId: ID!): Boolean!
+
+  batchDeleteScenes(ids: [ID!]!): Int!
+  batchDeleteAutomations(ids: [ID!]!): Int!
+  batchDeleteGroups(ids: [ID!]!): Int!
+  batchDeleteRooms(ids: [ID!]!): Int!
+  batchDeleteAlarms(alarmIds: [ID!]!): Int!
+  """
+  Deletes the specified users. The currently authenticated user is silently
+  skipped if present in the list. Returns the number of users actually deleted.
+  """
+  batchDeleteUsers(ids: [ID!]!): Int!
+
+  batchAddRoomDevices(roomId: ID!, deviceIds: [ID!]!): Room!
+  batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
 }
 
 type Subscription {
@@ -2565,6 +2683,104 @@ func (ec *executionContext) field_Mutation_applyScene_args(ctx context.Context, 
 		return nil, err
 	}
 	args["sceneId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchAddGroupDevices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "groupId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["groupId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "deviceIds", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceIds"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchAddRoomDevices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "roomId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["roomId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "deviceIds", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceIds"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteAlarms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "alarmIds", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["alarmIds"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteAutomations_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteGroups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteRooms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteScenes_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteUsers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
 	return args, nil
 }
 
@@ -8251,6 +8467,360 @@ func (ec *executionContext) fieldContext_Mutation_deleteAlarm(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteAlarm_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteScenes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteScenes,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteScenes(ctx, fc.Args["ids"].([]string))
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteScenes(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteScenes_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteAutomations(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteAutomations,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteAutomations(ctx, fc.Args["ids"].([]string))
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteAutomations(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteAutomations_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteGroups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteGroups,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteGroups(ctx, fc.Args["ids"].([]string))
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteGroups(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteGroups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteRooms(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteRooms,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteRooms(ctx, fc.Args["ids"].([]string))
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteRooms(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteRooms_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteAlarms(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteAlarms,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteAlarms(ctx, fc.Args["alarmIds"].([]string))
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteAlarms(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteAlarms_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteUsers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteUsers,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteUsers(ctx, fc.Args["ids"].([]string))
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteUsers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteUsers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchAddRoomDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchAddRoomDevices,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchAddRoomDevices(ctx, fc.Args["roomId"].(string), fc.Args["deviceIds"].([]string))
+		},
+		nil,
+		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchAddRoomDevices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Room_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Room_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Room_icon(ctx, field)
+			case "devices":
+				return ec.fieldContext_Room_devices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchAddRoomDevices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchAddGroupDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchAddGroupDevices,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchAddGroupDevices(ctx, fc.Args["groupId"].(string), fc.Args["deviceIds"].([]string))
+		},
+		nil,
+		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchAddGroupDevices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Group_icon(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchAddGroupDevices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -14724,6 +15294,62 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "batchDeleteScenes":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteScenes(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteAutomations":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteAutomations(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteGroups":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteGroups(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteRooms":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteRooms(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteAlarms":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteAlarms(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteUsers":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteUsers(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchAddRoomDevices":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchAddRoomDevices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchAddGroupDevices":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchAddGroupDevices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16490,6 +17116,36 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {

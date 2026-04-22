@@ -11,6 +11,9 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import AlarmSeverityBadge from "$lib/components/alarm-severity-badge.svelte";
+	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
+	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
+	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { formatRelative, formatFull } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { Trash2 } from "@lucide/svelte";
@@ -18,10 +21,12 @@
 
 	interface Props {
 		alarms: Alarm[];
+		orderedIds: readonly string[];
+		selection: TableSelection;
 		ondelete: (alarm: Alarm) => void;
 	}
 
-	let { alarms, ondelete }: Props = $props();
+	let { alarms, orderedIds, selection, ondelete }: Props = $props();
 
 	function kindLabel(k: Alarm["kind"]): string {
 		return k === "AUTO" ? "Auto" : "One-shot";
@@ -32,6 +37,9 @@
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead class="w-10">
+					<TableHeaderCheckbox {selection} {orderedIds} />
+				</TableHead>
 				<TableHead class="w-28">Severity</TableHead>
 				<TableHead class="w-24">Kind</TableHead>
 				<TableHead>Message</TableHead>
@@ -44,7 +52,10 @@
 		</TableHeader>
 		<TableBody>
 			{#each alarms as alarm (alarm.id)}
-				<TableRow>
+				<TableRow data-state={selection.isSelected(alarm.id) ? "selected" : undefined}>
+					<TableCell>
+						<TableRowCheckbox id={alarm.id} {selection} {orderedIds} ariaLabel="Select alarm {alarm.id}" />
+					</TableCell>
 					<TableCell>
 						<AlarmSeverityBadge severity={alarm.severity} />
 					</TableCell>

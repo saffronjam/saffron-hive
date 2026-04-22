@@ -147,6 +147,23 @@ func (s *DB) DeleteAutomation(ctx context.Context, id string) error {
 	return nil
 }
 
+// BatchDeleteAutomations deletes the automations with the given IDs. Returns
+// the number of rows actually deleted; missing IDs are silently ignored.
+func (s *DB) BatchDeleteAutomations(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete automations: %w", err)
+	}
+	n, err := s.q.BatchDeleteAutomations(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete automations: %w", err)
+	}
+	return n, nil
+}
+
 // CreateAutomationNode inserts a new automation node.
 func (s *DB) CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error) {
 	if err := s.q.CreateAutomationNode(ctx, sqlite.CreateAutomationNodeParams{
