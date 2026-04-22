@@ -27,10 +27,10 @@ func TestFilterCommandFields(t *testing.T) {
 	}
 
 	cases := []struct {
-		name   string
-		dev    Device
-		in     map[string]any
-		want   map[string]any
+		name string
+		dev  Device
+		in   map[string]any
+		want map[string]any
 	}{
 		{
 			name: "light keeps all fields it supports",

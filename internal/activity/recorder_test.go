@@ -54,11 +54,11 @@ func (f *fakeReader) GetDevice(id device.DeviceID) (device.Device, bool) {
 func (f *fakeReader) GetDeviceState(device.DeviceID) (*device.DeviceState, bool) {
 	return nil, false
 }
-func (f *fakeReader) ListDevices() []device.Device                               { return nil }
-func (f *fakeReader) GetGroup(device.GroupID) (device.Group, bool)               { return device.Group{}, false }
-func (f *fakeReader) ListGroups() []device.Group                                 { return nil }
-func (f *fakeReader) ListGroupMembers(device.GroupID) []device.GroupMember       { return nil }
-func (f *fakeReader) ResolveGroupDevices(device.GroupID) []device.DeviceID       { return nil }
+func (f *fakeReader) ListDevices() []device.Device                         { return nil }
+func (f *fakeReader) GetGroup(device.GroupID) (device.Group, bool)         { return device.Group{}, false }
+func (f *fakeReader) ListGroups() []device.Group                           { return nil }
+func (f *fakeReader) ListGroupMembers(device.GroupID) []device.GroupMember { return nil }
+func (f *fakeReader) ResolveGroupDevices(device.GroupID) []device.DeviceID { return nil }
 
 func TestRecorderEnrichesAndPersists(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
