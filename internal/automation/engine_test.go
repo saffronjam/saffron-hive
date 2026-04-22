@@ -248,18 +248,22 @@ func TestEngineOROperator(t *testing.T) {
 
 func TestEngineNOTOperator(t *testing.T) {
 	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(20.0)})
 
 	s := newMockStore()
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "not-test", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"false"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"device.state_changed","filter_expr":"true"}`},
+			{ID: "c1", AutomationID: "auto-1", Type: "condition", Config: `{"expr":"device(\"sensor-1\").temperature > 25"}`},
 			{ID: "op1", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"not"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "c1"},
+			{ID: "e2", AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
+			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -278,7 +282,7 @@ func TestEngineNOTOperator(t *testing.T) {
 	select {
 	case <-ch:
 	case <-time.After(time.Second):
-		t.Fatal("expected command when NOT inverts inactive trigger")
+		t.Fatal("expected command when NOT inverts a false condition")
 	}
 }
 
@@ -779,6 +783,119 @@ func TestEngineButtonActionTriggerDeviceIDFilter(t *testing.T) {
 	case <-ch:
 	case <-time.After(time.Second):
 		t.Fatal("expected fire when the configured button published the action")
+	}
+}
+
+// TestEngineTriggerFilterFalseSkipsGraph verifies that when a trigger's filter
+// expression evaluates to false, the graph is not evaluated at all — no
+// downstream condition runs and no action fires. This guards the toggle
+// pattern (trigger → condition → action plus trigger → condition → NOT →
+// other action) against the press-release double-fire: a Philips Hue-style
+// switch emits on_press followed by on_press_release, and the second event
+// must be a no-op for a trigger filtered on action == "on_press".
+func TestEngineTriggerFilterFalseSkipsGraph(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "light-1", Name: "Ceiling"})
+	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-toggle", Name: "toggle", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-toggle", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"on_press\""}`},
+			{ID: "c1", AutomationID: "auto-toggle", Type: "condition",
+				Config: `{"expr":"device(\"Ceiling\").on == true"}`},
+			{ID: "op1", AutomationID: "auto-toggle", Type: "operator",
+				Config: `{"kind":"not"}`},
+			{ID: "aOff", AutomationID: "auto-toggle", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":false}"}`},
+			{ID: "aOn", AutomationID: "auto-toggle", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-toggle", FromNodeID: "t1", ToNodeID: "c1"},
+			{ID: "e2", AutomationID: "auto-toggle", FromNodeID: "c1", ToNodeID: "aOff"},
+			{ID: "e3", AutomationID: "auto-toggle", FromNodeID: "c1", ToNodeID: "op1"},
+			{ID: "e4", AutomationID: "auto-toggle", FromNodeID: "op1", ToNodeID: "aOn"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "on_press_release"},
+	})
+
+	select {
+	case ev := <-ch:
+		t.Fatalf("unexpected command on filter-false event: %+v", ev)
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
+// TestEngineDisjointSubgraphsIsolatedByReachability verifies that a graph
+// containing two disjoint trigger→NOT→action chains only fires the chain
+// whose trigger matched. Without a reachability gate on execution, the NOT
+// operator downstream of the non-firing trigger would invert its zero-value
+// active state to true and fire the wrong action — e.g. pressing off_press
+// would turn the lamp on because the on_press → NOT → on:true chain sees
+// its trigger as false and inverts.
+func TestEngineDisjointSubgraphsIsolatedByReachability(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-disjoint", Name: "disjoint", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tOff", AutomationID: "auto-disjoint", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"off_press\""}`},
+			{ID: "notOff", AutomationID: "auto-disjoint", Type: "operator",
+				Config: `{"kind":"not"}`},
+			{ID: "aOff", AutomationID: "auto-disjoint", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":false}"}`},
+			{ID: "tOn", AutomationID: "auto-disjoint", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"on_press\""}`},
+			{ID: "notOn", AutomationID: "auto-disjoint", Type: "operator",
+				Config: `{"kind":"not"}`},
+			{ID: "aOn", AutomationID: "auto-disjoint", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-disjoint", FromNodeID: "tOff", ToNodeID: "notOff"},
+			{ID: "e2", AutomationID: "auto-disjoint", FromNodeID: "notOff", ToNodeID: "aOff"},
+			{ID: "e3", AutomationID: "auto-disjoint", FromNodeID: "tOn", ToNodeID: "notOn"},
+			{ID: "e4", AutomationID: "auto-disjoint", FromNodeID: "notOn", ToNodeID: "aOn"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "off_press"},
+	})
+
+	select {
+	case ev := <-ch:
+		t.Fatalf("unexpected command — non-firing subgraph's NOT inverted a zero-value trigger: %+v", ev)
+	case <-time.After(150 * time.Millisecond):
 	}
 }
 

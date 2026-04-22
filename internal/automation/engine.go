@@ -211,16 +211,19 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 			continue
 		}
 
-		if evaluatedGraphs[ct.graphID] == nil {
-			evaluatedGraphs[ct.graphID] = make(map[NodeID]bool)
-		}
-
 		result, err := evalExpr(ct.program, env)
 		if err != nil {
 			logger.Error("trigger eval error", "graph_id", ct.graphID, "node_id", ct.nodeID, "error", err)
 			continue
 		}
-		evaluatedGraphs[ct.graphID][ct.nodeID] = result
+		if !result {
+			continue
+		}
+
+		if evaluatedGraphs[ct.graphID] == nil {
+			evaluatedGraphs[ct.graphID] = make(map[NodeID]bool)
+		}
+		evaluatedGraphs[ct.graphID][ct.nodeID] = true
 	}
 
 	for graphID, triggerResults := range evaluatedGraphs {
@@ -293,26 +296,43 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 		active[id] = result
 	}
 
-	// Reachable set: BFS from the triggers that actually fired. Activation
-	// events are published only for these nodes so the live view doesn't light
-	// up unrelated chains whose conditions/operators happen to evaluate along
-	// the side. The firing logic below (active map, allSatisfied) is
-	// independent of reachability — this gate is purely for visualization.
+	// Reachable set: nodes on any path from a fired trigger, plus all
+	// incoming ancestors of those nodes. Only reachable nodes are processed
+	// below. Forward BFS finds the active paths; a backward pass pulls in
+	// orphan inputs (e.g. a standalone condition feeding an AND operator
+	// that also has a firing trigger as input) so merge nodes see their
+	// full set of inputs. Without this gate, NOT operators in disjoint
+	// subgraphs would invert a zero-value trigger state and fire unrelated
+	// actions.
 	reachable := make(map[NodeID]bool)
-	queue := make([]NodeID, 0, len(triggerResults))
+	fwdQueue := make([]NodeID, 0, len(triggerResults))
 	for id, fired := range triggerResults {
 		if fired {
 			reachable[id] = true
-			queue = append(queue, id)
+			fwdQueue = append(fwdQueue, id)
 		}
 	}
-	for len(queue) > 0 {
-		id := queue[0]
-		queue = queue[1:]
+	for len(fwdQueue) > 0 {
+		id := fwdQueue[0]
+		fwdQueue = fwdQueue[1:]
 		for _, next := range cg.outgoingMap[id] {
 			if !reachable[next] {
 				reachable[next] = true
-				queue = append(queue, next)
+				fwdQueue = append(fwdQueue, next)
+			}
+		}
+	}
+	backQueue := make([]NodeID, 0, len(reachable))
+	for id := range reachable {
+		backQueue = append(backQueue, id)
+	}
+	for len(backQueue) > 0 {
+		id := backQueue[0]
+		backQueue = backQueue[1:]
+		for _, prev := range cg.incomingMap[id] {
+			if !reachable[prev] {
+				reachable[prev] = true
+				backQueue = append(backQueue, prev)
 			}
 		}
 	}
@@ -320,11 +340,14 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 	anyActionFired := false
 
 	for _, nodeID := range cg.topoOrder {
+		if !reachable[nodeID] {
+			continue
+		}
 		node := cg.nodes[nodeID]
 
 		switch node.Type {
 		case NodeTrigger:
-			if active[nodeID] && reachable[nodeID] {
+			if active[nodeID] {
 				e.publishNodeActivation(cg.automationID, nodeID, true)
 			}
 
@@ -339,9 +362,7 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 				continue
 			}
 			active[nodeID] = result
-			if reachable[nodeID] {
-				e.publishNodeActivation(cg.automationID, nodeID, result)
-			}
+			e.publishNodeActivation(cg.automationID, nodeID, result)
 
 		case NodeOperator:
 			opCfg, ok := node.Config.(OperatorConfig)
@@ -351,9 +372,7 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			incoming := cg.incomingMap[nodeID]
 			nodeActive := evaluateOperator(opCfg.Kind, incoming, active)
 			active[nodeID] = nodeActive
-			if reachable[nodeID] {
-				e.publishNodeActivation(cg.automationID, nodeID, nodeActive)
-			}
+			e.publishNodeActivation(cg.automationID, nodeID, nodeActive)
 
 		case NodeAction:
 			incoming := cg.incomingMap[nodeID]
@@ -366,9 +385,7 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			}
 			if anyActive {
 				active[nodeID] = true
-				if reachable[nodeID] {
-					e.publishNodeActivation(cg.automationID, nodeID, true)
-				}
+				e.publishNodeActivation(cg.automationID, nodeID, true)
 				e.executeAction(node, cg.automationID)
 				anyActionFired = true
 			}

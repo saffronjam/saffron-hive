@@ -208,7 +208,10 @@
 		<ShieldCheck class="size-4 text-teal-500" />
 		<span class="text-sm font-medium text-teal-600 dark:text-teal-400">Condition</span>
 		{#if !data.editable}
-			<Badge variant="secondary" class="ml-auto text-[10px]">{modeLabel}</Badge>
+			<Badge
+				variant="outline"
+				class="ml-auto text-[10px] border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400"
+			>{modeLabel}</Badge>
 		{/if}
 	</div>
 

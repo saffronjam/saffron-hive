@@ -256,7 +256,10 @@
 		<Zap class="size-4 text-blue-500" />
 		<span class="text-sm font-medium text-blue-600 dark:text-blue-400">Trigger</span>
 		{#if !data.editable}
-			<Badge variant="secondary" class="ml-auto text-[10px]">{modeLabel}</Badge>
+			<Badge
+				variant="outline"
+				class="ml-auto text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+			>{modeLabel}</Badge>
 		{/if}
 	</div>
 
