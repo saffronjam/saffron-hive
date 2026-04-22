@@ -174,3 +174,20 @@
 .activity-row-new {
   animation: activity-row-flash 2000ms ease-out both;
 }
+
+/* Theme crossfade. The `theme-transitioning` class is added to <html> just
+   before the `dark` class flips and removed ~300ms later; scoping the
+   transition this way keeps it out of the default hover/focus behaviour so
+   normal interactions stay snappy. */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 260ms ease,
+    color 260ms ease,
+    border-color 260ms ease,
+    box-shadow 260ms ease,
+    fill 260ms ease,
+    stroke 260ms ease !important;
+}
