@@ -11,6 +11,7 @@
 	import { createGraphQLClient } from "$lib/graphql/client";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
+	import { me } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
 	import { onMount, onDestroy } from "svelte";
 	import { goto } from "$app/navigation";
@@ -90,6 +91,7 @@
 	$effect(() => {
 		if (ready && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) && auth.isAuthenticated()) {
 			alarmsStore.start(client);
+			if (!me.user) void me.refresh(client);
 		}
 	});
 
