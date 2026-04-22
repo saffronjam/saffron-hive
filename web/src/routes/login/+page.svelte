@@ -28,6 +28,12 @@
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 
+	function friendlyError(msg: string | undefined): string | null {
+		if (!msg) return null;
+		const stripped = msg.replace(/^\[GraphQL\]\s*/i, "").replace(/^\[Network\]\s*/i, "");
+		return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
@@ -37,7 +43,7 @@
 				.mutation(LOGIN, { input: { username, password } })
 				.toPromise();
 			if (result.error || !result.data) {
-				error = result.error?.message ?? "Login failed";
+				error = friendlyError(result.error?.message) ?? "Login failed";
 				return;
 			}
 			auth.setToken(result.data.login.token);

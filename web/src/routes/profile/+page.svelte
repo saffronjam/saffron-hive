@@ -24,7 +24,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { Theme as ThemeEnum } from "$lib/gql/graphql";
-	import { Sun, Moon, Upload } from "@lucide/svelte";
+	import { Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { toast } from "svelte-sonner";
 
@@ -57,6 +57,7 @@
 	let nameDraft = $state(me.user?.name ?? auth.user?.name ?? "");
 	let nameSaving = $state(false);
 	let uploading = $state(false);
+	let clearing = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let passwordOpen = $state(false);
 	let oldPw = $state("");
@@ -111,8 +112,8 @@
 	}
 
 	async function uploadAvatar(file: File) {
-		if (file.size > 2 * 1024 * 1024) {
-			toast.error("Image too large (max 2 MB)");
+		if (file.size > 10 * 1024 * 1024) {
+			toast.error("Image too large (max 10 MB)");
 			return;
 		}
 		uploading = true;
@@ -135,6 +136,27 @@
 		} finally {
 			uploading = false;
 			if (fileInput) fileInput.value = "";
+		}
+	}
+
+	async function clearAvatar() {
+		if (!me.user?.avatarPath) return;
+		clearing = true;
+		try {
+			const res = await fetch("/api/avatars", {
+				method: "DELETE",
+				headers: { Authorization: `Bearer ${auth.token}` },
+			});
+			if (!res.ok && res.status !== 204) {
+				const msg = await res.text();
+				throw new Error(msg || `Clear failed (${res.status})`);
+			}
+			await me.refresh(client);
+			toast.success("Avatar removed");
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Failed to clear avatar");
+		} finally {
+			clearing = false;
 		}
 	}
 
@@ -204,16 +226,29 @@
 							bind:this={fileInput}
 							onchange={onFilePicked}
 						/>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={uploading}
-							onclick={() => fileInput?.click()}
-						>
-							<Upload class="size-4" />
-							{uploading ? "Uploading..." : "Change avatar"}
-						</Button>
-						<p class="text-xs text-muted-foreground">JPEG, PNG, or WebP. Max 2 MB.</p>
+						<div class="flex flex-wrap gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={uploading || clearing}
+								onclick={() => fileInput?.click()}
+							>
+								<Upload class="size-4" />
+								{uploading ? "Uploading..." : "Change avatar"}
+							</Button>
+							{#if me.user.avatarPath}
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={uploading || clearing}
+									onclick={clearAvatar}
+								>
+									<X class="size-4" />
+									{clearing ? "Removing..." : "Remove"}
+								</Button>
+							{/if}
+						</div>
+						<p class="text-xs text-muted-foreground">JPEG, PNG, or WebP. Max 10 MB.</p>
 					</div>
 				</div>
 

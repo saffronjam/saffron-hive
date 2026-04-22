@@ -129,7 +129,7 @@
 											<span>{item.label}</span>
 											{#if item.href === "/alarms" && alarmsStore.activeCount > 0}
 												<span
-													class="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-xs font-medium {alarmBadgeClass()}"
+													class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs leading-none font-medium tabular-nums {alarmBadgeClass()}"
 													aria-label="{alarmsStore.activeCount} active alarms"
 												>
 													{alarmsStore.activeCount}
@@ -190,7 +190,7 @@
 					<SidebarMenuButton isActive={isActive("/profile")} tooltipContent="Profile">
 						{#snippet child({ props })}
 							<a href="/profile" {...props}>
-								<Avatar user={profileUser} size="sm" />
+								<Avatar user={profileUser} size="xs" />
 								<span>Profile</span>
 							</a>
 						{/snippet}
@@ -199,7 +199,7 @@
 				<SidebarMenuItem>
 					<SidebarMenuButton tooltipContent="Signed in as {currentUser.name}">
 						{#snippet child({ props })}
-							<button type="button" onclick={logout} {...props}>
+							<button type="button" {...props} onclick={logout}>
 								<LogOut class="size-4" />
 								<span class="truncate">Log out ({currentUser.name})</span>
 							</button>

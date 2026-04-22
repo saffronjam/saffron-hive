@@ -22,9 +22,10 @@ import (
 
 var logger = slog.Default().With("pkg", "avatars")
 
-// MaxUploadBytes caps a single upload at 2 MiB. Covers reasonable avatar sizes
-// while protecting the server from accidental large uploads.
-const MaxUploadBytes = 2 << 20
+// MaxUploadBytes caps a single upload at 10 MiB. Covers phone-camera shots
+// without forcing the user to resize, while still protecting the server from
+// accidental large uploads.
+const MaxUploadBytes = 10 << 20
 
 // allowedMIMEs are the image types we accept. Detected via http.DetectContentType
 // on the actual file bytes, not the client-provided Content-Type header.
@@ -34,18 +35,24 @@ var allowedMIMEs = map[string]string{
 	"image/webp": ".webp",
 }
 
-// ProfileWriter is the store surface needed to persist the new filename and
-// look up the previous one. *store.DB satisfies it structurally.
+// ProfileWriter is the store surface needed to persist the new filename, clear
+// it, and look up the previous one. *store.DB satisfies it structurally.
 type ProfileWriter interface {
 	UpdateUserProfile(ctx context.Context, params store.UpdateUserProfileParams) (store.User, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
+	ClearUserAvatar(ctx context.Context, id string) error
 }
 
-// NewUploadHandler returns the POST /api/avatars handler. It expects to be
-// wrapped in auth.RequireAuth so the current user can be read from the
-// request context.
+// NewUploadHandler returns the /api/avatars handler. It expects to be wrapped
+// in auth.RequireAuth so the current user can be read from the request
+// context. POST uploads a new avatar; DELETE clears the current user's avatar
+// (removes the file from disk and nulls the column).
 func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			handleDelete(w, r, dir, writer)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -58,7 +65,7 @@ func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 
 		r.Body = http.MaxBytesReader(w, r.Body, MaxUploadBytes)
 		if err := r.ParseMultipartForm(MaxUploadBytes); err != nil {
-			http.Error(w, "file too large (max 2 MB) or invalid multipart form", http.StatusBadRequest)
+			http.Error(w, "file too large (max 10 MB) or invalid multipart form", http.StatusBadRequest)
 			return
 		}
 		file, _, err := r.FormFile("file")
@@ -144,6 +151,27 @@ func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"avatarPath": filename})
 	})
+}
+
+func handleDelete(w http.ResponseWriter, r *http.Request, dir string, writer ProfileWriter) {
+	cu, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	prev, _ := writer.GetUserAvatarPath(r.Context(), cu.ID)
+	if err := writer.ClearUserAvatar(r.Context(), cu.ID); err != nil {
+		logger.Error("clear avatar failed", "user_id", cu.ID, "error", err)
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+	if prev != nil && *prev != "" {
+		oldPath := filepath.Join(dir, *prev)
+		if rmErr := os.Remove(oldPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+			logger.Warn("failed to remove avatar file on clear", "path", oldPath, "error", rmErr)
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // NewServeHandler returns the GET /avatars/{filename} handler. Unauthenticated
