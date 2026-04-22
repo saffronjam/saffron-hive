@@ -20,9 +20,8 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
-	import { Save, Sun, Moon, Plug, Loader2, CircleCheck, CircleX } from "@lucide/svelte";
+	import { Save, Plug, Loader2, CircleCheck, CircleX } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { theme, type Theme } from "$lib/stores/theme";
 
 	interface MqttConfig {
 		broker: string;
@@ -214,10 +213,6 @@
 		}
 	}
 
-	function setTheme(t: Theme) {
-		theme.setTheme(t);
-	}
-
 	$effect(() => {
 		pageHeader.actions = [
 			{
@@ -240,31 +235,6 @@
 <UnsavedGuard dirty={isDirty} />
 
 <div class="flex flex-col gap-6">
-	<div class="rounded-lg shadow-card bg-card p-6">
-		<h2 class="text-lg font-semibold mb-4">Appearance</h2>
-		<div class="flex items-center gap-3">
-			<span class="text-sm text-muted-foreground">Theme</span>
-			<div class="flex gap-2">
-				<Button
-					variant={$theme === "light" ? "default" : "outline"}
-					size="sm"
-					onclick={() => setTheme("light")}
-				>
-					<Sun class="size-4 mr-1.5" />
-					Light
-				</Button>
-				<Button
-					variant={$theme === "dark" ? "default" : "outline"}
-					size="sm"
-					onclick={() => setTheme("dark")}
-				>
-					<Moon class="size-4 mr-1.5" />
-					Dark
-				</Button>
-			</div>
-		</div>
-	</div>
-
 	<div class="rounded-lg shadow-card bg-card p-6">
 		<h2 class="text-lg font-semibold mb-4">MQTT</h2>
 		<div class="grid gap-4 max-w-lg">
