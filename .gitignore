@@ -32,3 +32,6 @@ Thumbs.db
 
 # Temp
 /tmp/
+
+# Local runtime data (avatars live under HIVE_DATA_DIR; default "." drops them here)
+/avatars/
