@@ -155,10 +155,32 @@ type AutomationNodeActivationEvent {
   active: Boolean!
 }
 
+enum Theme {
+  LIGHT
+  DARK
+}
+
 type User {
   id: ID!
   username: String!
   name: String!
+  """
+  Avatar filename on the server, relative to the avatars endpoint. Null when
+  no avatar has been uploaded; clients fall back to rendered initials. Resolve
+  to a URL by prefixing with `/avatars/`.
+  """
+  avatarPath: String
+  """
+  UI theme preference stored per user. Present on full user loads (`me`,
+  `users`). Null on attribution references (e.g. `scene.createdBy`), which
+  only populate `id`, `username`, and `name`.
+  """
+  theme: Theme
+  """
+  Timestamp the user was created; used on the profile page as "member since".
+  Present on full user loads, null on attribution references.
+  """
+  createdAt: DateTime
 }
 
 type AuthPayload {
@@ -186,6 +208,16 @@ input CreateUserInput {
   username: String!
   name: String!
   password: String!
+}
+
+input UpdateCurrentUserInput {
+  name: String
+  theme: Theme
+}
+
+input ChangePasswordInput {
+  oldPassword: String!
+  newPassword: String!
 }
 
 type MqttConfig {
@@ -453,6 +485,10 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User!
+  updateCurrentUser(input: UpdateCurrentUserInput!): User!
+  changePassword(input: ChangePasswordInput!): Boolean!
+  resetUserPassword(id: ID!, newPassword: String!): Boolean!
+  deleteUser(id: ID!): Boolean!
   raiseAlarm(input: RaiseAlarmInput!): Alarm!
   deleteAlarm(alarmId: ID!): Boolean!
 }

@@ -144,6 +144,11 @@ type Capability struct {
 	Access   int      `json:"access"`
 }
 
+type ChangePasswordInput struct {
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
+}
+
 type Color struct {
 	R int     `json:"r"`
 	G int     `json:"g"`
@@ -381,6 +386,11 @@ type UpdateAutomationInput struct {
 	Edges           graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
 }
 
+type UpdateCurrentUserInput struct {
+	Name  graphql.Omittable[*string] `json:"name,omitempty"`
+	Theme graphql.Omittable[*Theme]  `json:"theme,omitempty"`
+}
+
 type UpdateDeviceInput struct {
 	Name graphql.Omittable[*string] `json:"name,omitempty"`
 }
@@ -405,6 +415,17 @@ type User struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
+	// Avatar filename on the server, relative to the avatars endpoint. Null when
+	// no avatar has been uploaded; clients fall back to rendered initials. Resolve
+	// to a URL by prefixing with `/avatars/`.
+	AvatarPath *string `json:"avatarPath,omitempty"`
+	// UI theme preference stored per user. Present on full user loads (`me`,
+	// `users`). Null on attribution references (e.g. `scene.createdBy`), which
+	// only populate `id`, `username`, and `name`.
+	Theme *Theme `json:"theme,omitempty"`
+	// Timestamp the user was created; used on the profile page as "member since".
+	// Present on full user loads, null on attribution references.
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
 type AlarmEventKind string
@@ -569,6 +590,61 @@ func (e *AlarmSeverity) UnmarshalJSON(b []byte) error {
 }
 
 func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type Theme string
+
+const (
+	ThemeLight Theme = "LIGHT"
+	ThemeDark  Theme = "DARK"
+)
+
+var AllTheme = []Theme{
+	ThemeLight,
+	ThemeDark,
+}
+
+func (e Theme) IsValid() bool {
+	switch e {
+	case ThemeLight, ThemeDark:
+		return true
+	}
+	return false
+}
+
+func (e Theme) String() string {
+	return string(e)
+}
+
+func (e *Theme) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Theme(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Theme", str)
+	}
+	return nil
+}
+
+func (e Theme) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Theme) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Theme) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

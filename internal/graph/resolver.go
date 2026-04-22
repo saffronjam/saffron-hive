@@ -94,9 +94,15 @@ type GraphStore interface {
 	ListSettings(ctx context.Context) ([]store.Setting, error)
 	UpsertSetting(ctx context.Context, key, value string) error
 	CreateUser(ctx context.Context, params store.CreateUserParams) (store.User, error)
+	GetUserByID(ctx context.Context, id string) (store.User, error)
 	GetUserByUsername(ctx context.Context, username string) (store.User, error)
 	ListUsers(ctx context.Context) ([]store.User, error)
 	CountUsers(ctx context.Context) (int, error)
+	UpdateUserProfile(ctx context.Context, params store.UpdateUserProfileParams) (store.User, error)
+	ClearUserAvatar(ctx context.Context, id string) error
+	UpdateUserPasswordHash(ctx context.Context, id, hash string) error
+	DeleteUser(ctx context.Context, id string) error
+	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
 }
 
 // Resolver is the root resolver that holds all dependencies required by the
@@ -115,4 +121,7 @@ type Resolver struct {
 	LevelVar            *slog.LevelVar
 	Reconnector         MQTTReconnector
 	Auth                *auth.Service
+	// AvatarDir is the filesystem directory where per-user avatar files live.
+	// Used by deleteUser to remove the file alongside the row.
+	AvatarDir string
 }

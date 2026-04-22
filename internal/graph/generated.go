@@ -213,6 +213,7 @@ type ComplexityRoot struct {
 		AddGroupMember        func(childComplexity int, input model.AddGroupMemberInput) int
 		AddRoomDevice         func(childComplexity int, input model.AddRoomDeviceInput) int
 		ApplyScene            func(childComplexity int, sceneID string) int
+		ChangePassword        func(childComplexity int, input model.ChangePasswordInput) int
 		CreateAutomation      func(childComplexity int, input model.CreateAutomationInput) int
 		CreateGroup           func(childComplexity int, input model.CreateGroupInput) int
 		CreateInitialUser     func(childComplexity int, input model.CreateInitialUserInput) int
@@ -224,15 +225,18 @@ type ComplexityRoot struct {
 		DeleteGroup           func(childComplexity int, id string) int
 		DeleteRoom            func(childComplexity int, id string) int
 		DeleteScene           func(childComplexity int, id string) int
+		DeleteUser            func(childComplexity int, id string) int
 		FireAutomationTrigger func(childComplexity int, automationID string, nodeID string) int
 		Login                 func(childComplexity int, input model.LoginInput) int
 		RaiseAlarm            func(childComplexity int, input model.RaiseAlarmInput) int
 		RemoveGroupMember     func(childComplexity int, id string) int
 		RemoveRoomDevice      func(childComplexity int, roomID string, deviceID string) int
+		ResetUserPassword     func(childComplexity int, id string, newPassword string) int
 		SetDeviceState        func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		TestMqttConnection    func(childComplexity int, input model.MqttConfigInput) int
 		ToggleAutomation      func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation      func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateCurrentUser     func(childComplexity int, input model.UpdateCurrentUserInput) int
 		UpdateDevice          func(childComplexity int, id string, input model.UpdateDeviceInput) int
 		UpdateGroup           func(childComplexity int, id string, input model.UpdateGroupInput) int
 		UpdateMqttConfig      func(childComplexity int, input model.MqttConfigInput) int
@@ -321,9 +325,12 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		ID       func(childComplexity int) int
-		Name     func(childComplexity int) int
-		Username func(childComplexity int) int
+		AvatarPath func(childComplexity int) int
+		CreatedAt  func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Theme      func(childComplexity int) int
+		Username   func(childComplexity int) int
 	}
 }
 
@@ -355,6 +362,10 @@ type MutationResolver interface {
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error)
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
+	UpdateCurrentUser(ctx context.Context, input model.UpdateCurrentUserInput) (*model.User, error)
+	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error)
+	ResetUserPassword(ctx context.Context, id string, newPassword string) (bool, error)
+	DeleteUser(ctx context.Context, id string) (bool, error)
 	RaiseAlarm(ctx context.Context, input model.RaiseAlarmInput) (*model.Alarm, error)
 	DeleteAlarm(ctx context.Context, alarmID string) (bool, error)
 }
@@ -1113,6 +1124,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ApplyScene(childComplexity, args["sceneId"].(string)), true
+	case "Mutation.changePassword":
+		if e.ComplexityRoot.Mutation.ChangePassword == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changePassword_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ChangePassword(childComplexity, args["input"].(model.ChangePasswordInput)), true
 	case "Mutation.createAutomation":
 		if e.ComplexityRoot.Mutation.CreateAutomation == nil {
 			break
@@ -1234,6 +1256,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteScene(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteUser":
+		if e.ComplexityRoot.Mutation.DeleteUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteUser(childComplexity, args["id"].(string)), true
 	case "Mutation.fireAutomationTrigger":
 		if e.ComplexityRoot.Mutation.FireAutomationTrigger == nil {
 			break
@@ -1289,6 +1322,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RemoveRoomDevice(childComplexity, args["roomId"].(string), args["deviceId"].(string)), true
+	case "Mutation.resetUserPassword":
+		if e.ComplexityRoot.Mutation.ResetUserPassword == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_resetUserPassword_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ResetUserPassword(childComplexity, args["id"].(string), args["newPassword"].(string)), true
 	case "Mutation.setDeviceState":
 		if e.ComplexityRoot.Mutation.SetDeviceState == nil {
 			break
@@ -1333,6 +1377,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateAutomation(childComplexity, args["id"].(string), args["input"].(model.UpdateAutomationInput)), true
+	case "Mutation.updateCurrentUser":
+		if e.ComplexityRoot.Mutation.UpdateCurrentUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCurrentUser_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateCurrentUser(childComplexity, args["input"].(model.UpdateCurrentUserInput)), true
 	case "Mutation.updateDevice":
 		if e.ComplexityRoot.Mutation.UpdateDevice == nil {
 			break
@@ -1804,6 +1859,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Subscription.LogStream(childComplexity), true
 
+	case "User.avatarPath":
+		if e.ComplexityRoot.User.AvatarPath == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.AvatarPath(childComplexity), true
+	case "User.createdAt":
+		if e.ComplexityRoot.User.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.CreatedAt(childComplexity), true
 	case "User.id":
 		if e.ComplexityRoot.User.ID == nil {
 			break
@@ -1816,6 +1883,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.Name(childComplexity), true
+	case "User.theme":
+		if e.ComplexityRoot.User.Theme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.Theme(childComplexity), true
 	case "User.username":
 		if e.ComplexityRoot.User.Username == nil {
 			break
@@ -1837,6 +1910,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAlarmFilter,
 		ec.unmarshalInputAutomationEdgeInput,
 		ec.unmarshalInputAutomationNodeInput,
+		ec.unmarshalInputChangePasswordInput,
 		ec.unmarshalInputColorInput,
 		ec.unmarshalInputCreateAutomationInput,
 		ec.unmarshalInputCreateGroupInput,
@@ -1850,6 +1924,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRaiseAlarmInput,
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputUpdateAutomationInput,
+		ec.unmarshalInputUpdateCurrentUserInput,
 		ec.unmarshalInputUpdateDeviceInput,
 		ec.unmarshalInputUpdateGroupInput,
 		ec.unmarshalInputUpdateRoomInput,
@@ -2103,10 +2178,32 @@ type AutomationNodeActivationEvent {
   active: Boolean!
 }
 
+enum Theme {
+  LIGHT
+  DARK
+}
+
 type User {
   id: ID!
   username: String!
   name: String!
+  """
+  Avatar filename on the server, relative to the avatars endpoint. Null when
+  no avatar has been uploaded; clients fall back to rendered initials. Resolve
+  to a URL by prefixing with ` + "`" + `/avatars/` + "`" + `.
+  """
+  avatarPath: String
+  """
+  UI theme preference stored per user. Present on full user loads (` + "`" + `me` + "`" + `,
+  ` + "`" + `users` + "`" + `). Null on attribution references (e.g. ` + "`" + `scene.createdBy` + "`" + `), which
+  only populate ` + "`" + `id` + "`" + `, ` + "`" + `username` + "`" + `, and ` + "`" + `name` + "`" + `.
+  """
+  theme: Theme
+  """
+  Timestamp the user was created; used on the profile page as "member since".
+  Present on full user loads, null on attribution references.
+  """
+  createdAt: DateTime
 }
 
 type AuthPayload {
@@ -2134,6 +2231,16 @@ input CreateUserInput {
   username: String!
   name: String!
   password: String!
+}
+
+input UpdateCurrentUserInput {
+  name: String
+  theme: Theme
+}
+
+input ChangePasswordInput {
+  oldPassword: String!
+  newPassword: String!
 }
 
 type MqttConfig {
@@ -2401,6 +2508,10 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User!
+  updateCurrentUser(input: UpdateCurrentUserInput!): User!
+  changePassword(input: ChangePasswordInput!): Boolean!
+  resetUserPassword(id: ID!, newPassword: String!): Boolean!
+  deleteUser(id: ID!): Boolean!
   raiseAlarm(input: RaiseAlarmInput!): Alarm!
   deleteAlarm(alarmId: ID!): Boolean!
 }
@@ -2454,6 +2565,17 @@ func (ec *executionContext) field_Mutation_applyScene_args(ctx context.Context, 
 		return nil, err
 	}
 	args["sceneId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_changePassword_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNChangePasswordInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐChangePasswordInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -2578,6 +2700,17 @@ func (ec *executionContext) field_Mutation_deleteScene_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_fireAutomationTrigger_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2643,6 +2776,22 @@ func (ec *executionContext) field_Mutation_removeRoomDevice_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "newPassword", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["newPassword"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setDeviceState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2699,6 +2848,17 @@ func (ec *executionContext) field_Mutation_updateAutomation_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCurrentUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateCurrentUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateCurrentUserInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -3808,6 +3968,12 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -4184,6 +4350,12 @@ func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Con
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -5965,6 +6137,12 @@ func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -7775,6 +7953,12 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -7787,6 +7971,184 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCurrentUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateCurrentUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateCurrentUser(ctx, fc.Args["input"].(model.UpdateCurrentUserInput))
+		},
+		nil,
+		ec.marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCurrentUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCurrentUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_changePassword(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_changePassword,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ChangePassword(ctx, fc.Args["input"].(model.ChangePasswordInput))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_changePassword(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_changePassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_resetUserPassword(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_resetUserPassword,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ResetUserPassword(ctx, fc.Args["id"].(string), fc.Args["newPassword"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_resetUserPassword(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_resetUserPassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteUser,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteUser(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8762,6 +9124,12 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -8799,6 +9167,12 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -9078,6 +9452,12 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -9243,6 +9623,12 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_username(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -10212,6 +10598,93 @@ func (ec *executionContext) fieldContext_User_name(_ context.Context, field grap
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_avatarPath(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_avatarPath,
+		func(ctx context.Context) (any, error) {
+			return obj.AvatarPath, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_avatarPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_theme(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_theme,
+		func(ctx context.Context) (any, error) {
+			return obj.Theme, nil
+		},
+		nil,
+		ec.marshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTheme,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_theme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Theme does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11969,6 +12442,43 @@ func (ec *executionContext) unmarshalInputAutomationNodeInput(ctx context.Contex
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChangePasswordInput(ctx context.Context, obj any) (model.ChangePasswordInput, error) {
+	var it model.ChangePasswordInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"oldPassword", "newPassword"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "oldPassword":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("oldPassword"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OldPassword = data
+		case "newPassword":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("newPassword"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NewPassword = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputColorInput(ctx context.Context, obj any) (model.ColorInput, error) {
 	var it model.ColorInput
 	if obj == nil {
@@ -12578,6 +13088,43 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Edges = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Context, obj any) (model.UpdateCurrentUserInput, error) {
+	var it model.UpdateCurrentUserInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "theme"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = graphql.OmittableOf(data)
+		case "theme":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("theme"))
+			data, err := ec.unmarshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTheme(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Theme = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -14135,6 +14682,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateCurrentUser":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCurrentUser(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "changePassword":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_changePassword(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resetUserPassword":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_resetUserPassword(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteUser":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteUser(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "raiseAlarm":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_raiseAlarm(ctx, field)
@@ -14993,6 +15568,12 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "avatarPath":
+			out.Values[i] = ec._User_avatarPath(ctx, field, obj)
+		case "theme":
+			out.Values[i] = ec._User_theme(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15667,6 +16248,11 @@ func (ec *executionContext) marshalNCapability2ᚖgithubᚗcomᚋsaffronjamᚋsa
 	return ec._Capability(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐChangePasswordInput(ctx context.Context, v any) (model.ChangePasswordInput, error) {
+	res, err := ec.unmarshalInputChangePasswordInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNConnectionTestResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult(ctx context.Context, sel ast.SelectionSet, v model.ConnectionTestResult) graphql.Marshaler {
 	return ec._ConnectionTestResult(ctx, sel, &v)
 }
@@ -16185,6 +16771,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 
 func (ec *executionContext) unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput(ctx context.Context, v any) (model.UpdateAutomationInput, error) {
 	res, err := ec.unmarshalInputUpdateAutomationInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateCurrentUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateCurrentUserInput(ctx context.Context, v any) (model.UpdateCurrentUserInput, error) {
+	res, err := ec.unmarshalInputUpdateCurrentUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -16747,6 +17338,22 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTheme(ctx context.Context, v any) (*model.Theme, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.Theme)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTheme(ctx context.Context, sel ast.SelectionSet, v *model.Theme) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {

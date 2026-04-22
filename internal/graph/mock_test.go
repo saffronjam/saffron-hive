@@ -633,6 +633,80 @@ func (m *mockStore) CountUsers(_ context.Context) (int, error) {
 	return len(m.users), nil
 }
 
+func (m *mockStore) GetUserByID(_ context.Context, id string) (store.User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	u, ok := m.users[id]
+	if !ok {
+		return store.User{}, fmt.Errorf("user %q not found", id)
+	}
+	return u, nil
+}
+
+func (m *mockStore) UpdateUserProfile(_ context.Context, params store.UpdateUserProfileParams) (store.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[params.ID]
+	if !ok {
+		return store.User{}, fmt.Errorf("user %q not found", params.ID)
+	}
+	if params.Name != nil {
+		u.Name = *params.Name
+	}
+	if params.Theme != nil {
+		u.Theme = *params.Theme
+	}
+	if params.AvatarPath != nil {
+		u.AvatarPath = params.AvatarPath
+	}
+	m.users[params.ID] = u
+	return u, nil
+}
+
+func (m *mockStore) ClearUserAvatar(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return fmt.Errorf("user %q not found", id)
+	}
+	u.AvatarPath = nil
+	m.users[id] = u
+	return nil
+}
+
+func (m *mockStore) UpdateUserPasswordHash(_ context.Context, id, hash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return fmt.Errorf("user %q not found", id)
+	}
+	u.PasswordHash = hash
+	m.users[id] = u
+	return nil
+}
+
+func (m *mockStore) DeleteUser(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.users[id]; !ok {
+		return fmt.Errorf("user %q not found", id)
+	}
+	delete(m.users, id)
+	return nil
+}
+
+func (m *mockStore) GetUserAvatarPath(_ context.Context, id string) (*string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	u, ok := m.users[id]
+	if !ok {
+		return nil, fmt.Errorf("user %q not found", id)
+	}
+	return u.AvatarPath, nil
+}
+
 func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetType, targetID string) []device.DeviceID {
 	return []device.DeviceID{device.DeviceID(targetID)}
 }

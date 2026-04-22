@@ -11,6 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +29,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+var graphLogger = slog.Default().With("pkg", "graph")
 
 // UpdateDevice is the resolver for the updateDevice field.
 func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error) {
@@ -702,6 +707,112 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	return mapUser(u), nil
 }
 
+// UpdateCurrentUser applies a partial update to the authenticated user's
+// profile. Currently covers display name and theme; avatar changes go through
+// the POST /api/avatars upload endpoint.
+func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.UpdateCurrentUserInput) (*model.User, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("authentication required")
+	}
+	params := store.UpdateUserProfileParams{ID: cu.ID}
+	if namePtr, ok := input.Name.ValueOK(); ok && namePtr != nil {
+		trimmed := strings.TrimSpace(*namePtr)
+		if trimmed == "" {
+			return nil, fmt.Errorf("name must not be empty")
+		}
+		params.Name = &trimmed
+	}
+	if themePtr, ok := input.Theme.ValueOK(); ok && themePtr != nil {
+		s := themeToStore(*themePtr)
+		params.Theme = &s
+	}
+	u, err := r.Store.UpdateUserProfile(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return mapUser(u), nil
+}
+
+// ChangePassword replaces the authenticated user's password after verifying
+// their existing one. The current JWT continues to work until it expires;
+// server-side revocation of previously issued tokens is out of scope.
+func (r *mutationResolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return false, fmt.Errorf("authentication required")
+	}
+	if err := validatePassword(input.NewPassword); err != nil {
+		return false, err
+	}
+	u, err := r.Store.GetUserByID(ctx, cu.ID)
+	if err != nil {
+		return false, fmt.Errorf("load current user: %w", err)
+	}
+	if err := auth.VerifyPassword(u.PasswordHash, input.OldPassword); err != nil {
+		return false, fmt.Errorf("old password is incorrect")
+	}
+	hash, err := auth.HashPassword(input.NewPassword)
+	if err != nil {
+		return false, fmt.Errorf("hash password: %w", err)
+	}
+	if err := r.Store.UpdateUserPasswordHash(ctx, cu.ID, hash); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ResetUserPassword sets a new password for an arbitrary user, without
+// requiring the old one. Every authenticated user is a full admin today
+// (roles/permissions are a future patch), so any caller can reset any target.
+func (r *mutationResolver) ResetUserPassword(ctx context.Context, id string, newPassword string) (bool, error) {
+	if _, ok := auth.UserFromContext(ctx); !ok {
+		return false, fmt.Errorf("authentication required")
+	}
+	if err := validatePassword(newPassword); err != nil {
+		return false, err
+	}
+	if _, err := r.Store.GetUserByID(ctx, id); err != nil {
+		return false, fmt.Errorf("load target user: %w", err)
+	}
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return false, fmt.Errorf("hash password: %w", err)
+	}
+	if err := r.Store.UpdateUserPasswordHash(ctx, id, hash); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// DeleteUser removes a user. Rejects self-delete so the acting admin can't
+// lock themselves out. The row's avatar file (if any) is deleted best-effort.
+// Creator attribution on scenes/automations/groups/rooms becomes NULL via the
+// FK ON DELETE SET NULL configured on those tables.
+func (r *mutationResolver) DeleteUser(ctx context.Context, id string) (bool, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return false, fmt.Errorf("authentication required")
+	}
+	if cu.ID == id {
+		return false, fmt.Errorf("you cannot delete yourself")
+	}
+	avatar, err := r.Store.GetUserAvatarPath(ctx, id)
+	if err != nil {
+		return false, fmt.Errorf("load target user: %w", err)
+	}
+	if err := r.Store.DeleteUser(ctx, id); err != nil {
+		return false, err
+	}
+	if avatar != nil && *avatar != "" && r.AvatarDir != "" {
+		full := filepath.Join(r.AvatarDir, *avatar)
+		if rmErr := os.Remove(full); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+			graphLogger.Warn("failed to remove avatar file on user delete", "path", full, "error", rmErr)
+		}
+	}
+	return true, nil
+}
+
 // RaiseAlarm is the resolver for the raiseAlarm field.
 func (r *mutationResolver) RaiseAlarm(ctx context.Context, input model.RaiseAlarmInput) (*model.Alarm, error) {
 	source := ""
@@ -1077,17 +1188,19 @@ func (r *queryResolver) SetupStatus(ctx context.Context) (*model.SetupStatus, er
 	}, nil
 }
 
-// Me is the resolver for the me field. Returns nil when unauthenticated.
+// Me is the resolver for the me field. Returns nil when unauthenticated. The
+// full row is loaded from the DB so avatar / theme / name updates take effect
+// without requiring the client to re-authenticate.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	u, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.UserFromContext(ctx)
 	if !ok {
 		return nil, nil
 	}
-	return &model.User{
-		ID:       u.ID,
-		Username: u.Username,
-		Name:     u.Name,
-	}, nil
+	u, err := r.Store.GetUserByID(ctx, cu.ID)
+	if err != nil {
+		return nil, fmt.Errorf("load current user: %w", err)
+	}
+	return mapUser(u), nil
 }
 
 // Users is the resolver for the users field.

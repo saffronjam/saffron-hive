@@ -147,8 +147,8 @@ func createUserRow(ctx context.Context, s GraphStore, username, name, password s
 	if name == "" {
 		return store.User{}, fmt.Errorf("name is required")
 	}
-	if len(password) < 6 {
-		return store.User{}, fmt.Errorf("password must be at least 6 characters")
+	if err := validatePassword(password); err != nil {
+		return store.User{}, err
 	}
 	hash, err := auth.HashPassword(password)
 	if err != nil {
@@ -292,13 +292,54 @@ func mapUserRef(ref *store.UserRef) *model.User {
 }
 
 // mapUser converts a full store.User into the public GraphQL User type. The
-// password hash and timestamps are intentionally not exposed.
+// password hash is intentionally not exposed. Theme and CreatedAt are returned
+// as pointers because the GraphQL User type is also used for attribution
+// references (e.g. scene.createdBy) which only populate id/username/name.
 func mapUser(u store.User) *model.User {
+	theme := themeFromStore(u.Theme)
+	createdAt := u.CreatedAt
 	return &model.User{
-		ID:       u.ID,
-		Username: u.Username,
-		Name:     u.Name,
+		ID:         u.ID,
+		Username:   u.Username,
+		Name:       u.Name,
+		AvatarPath: u.AvatarPath,
+		Theme:      &theme,
+		CreatedAt:  &createdAt,
 	}
+}
+
+// themeFromStore converts the DB's lowercase string representation into the
+// GraphQL enum. Unknown values fall back to dark to match the column default.
+func themeFromStore(s string) model.Theme {
+	switch s {
+	case "light":
+		return model.ThemeLight
+	case "dark":
+		return model.ThemeDark
+	default:
+		return model.ThemeDark
+	}
+}
+
+// themeToStore converts the GraphQL enum into the DB's lowercase string form.
+func themeToStore(t model.Theme) string {
+	switch t {
+	case model.ThemeLight:
+		return "light"
+	case model.ThemeDark:
+		return "dark"
+	default:
+		return "dark"
+	}
+}
+
+// validatePassword enforces the minimum-length rule shared by every path that
+// accepts a new password (createUser, changePassword, resetUserPassword).
+func validatePassword(pw string) error {
+	if len(pw) < 6 {
+		return fmt.Errorf("password must be at least 6 characters")
+	}
+	return nil
 }
 
 func resolveSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore, targetType string, targetID string) model.SceneTarget {
