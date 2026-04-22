@@ -94,8 +94,8 @@ describe("stateSummary", () => {
   });
 
   describe("button", () => {
-    it("returns 'No action' because actions are transient events, not state", () => {
-      expect(stateSummary(state({}), "button")).toBe("No action");
+    it("returns '—' because presses are transient events surfaced elsewhere", () => {
+      expect(stateSummary(state({}), "button")).toBe("—");
     });
   });
 });

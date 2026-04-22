@@ -1,9 +1,10 @@
 import type { DeviceState } from "$lib/stores/devices";
 
-/** Short one-line summary of a device's current state. Dispatch is keyed on
- * device type; a button has no persistent state and shows "No action" until
- * a press arrives via the deviceActionFired subscription. */
+/** Short one-line summary of a device's current state. Buttons have no
+ * persistent state — presses arrive as transient events over the
+ * deviceActionFired subscription and are surfaced elsewhere. */
 export function stateSummary(state: DeviceState | null | undefined, type: string): string {
+  if (type === "button") return "—";
   if (!state) return "Unknown";
 
   if (type === "light") {
@@ -27,10 +28,6 @@ export function stateSummary(state: DeviceState | null | undefined, type: string
     if (parts.length > 0) return parts.join(" / ");
     if (state.battery != null) return `Battery ${state.battery}%`;
     return "No data";
-  }
-
-  if (type === "button") {
-    return "No action";
   }
 
   return "Unknown";

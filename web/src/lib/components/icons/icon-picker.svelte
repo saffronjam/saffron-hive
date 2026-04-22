@@ -7,7 +7,6 @@
 	} from "$lib/components/ui/popover/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import { Search, X } from "@lucide/svelte";
 	import DynamicIcon from "./dynamic-icon.svelte";
 
@@ -131,20 +130,13 @@
 				<div class="max-h-72 overflow-y-auto">
 					<div class="grid grid-cols-6 gap-1.5">
 						{#each results as ref (ref)}
-							<Tooltip>
-								<TooltipTrigger>
-									<button
-										type="button"
-										class="flex h-12 w-12 items-center justify-center rounded-md hover:bg-muted transition-colors {ref === value ? 'bg-muted ring-1 ring-foreground/20' : ''}"
-										onclick={() => handleSelect(ref)}
-									>
-										<DynamicIcon icon={ref} class="size-6" />
-									</button>
-								</TooltipTrigger>
-								<TooltipContent>
-									<p class="text-xs">{ref}</p>
-								</TooltipContent>
-							</Tooltip>
+							<button
+								type="button"
+								class="flex h-12 w-12 items-center justify-center rounded-md hover:bg-muted transition-colors {ref === value ? 'bg-muted ring-1 ring-foreground/20' : ''}"
+								onclick={() => handleSelect(ref)}
+							>
+								<DynamicIcon icon={ref} class="size-6" />
+							</button>
 						{/each}
 					</div>
 				</div>
