@@ -17,6 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/activity"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
@@ -54,7 +55,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	dbPath := tmpFile.Name()
 	_ = tmpFile.Close()
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", dbPath+"?_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -91,6 +92,10 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
+
+	activityBuffer := activity.NewBuffer()
+	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, activityBuffer)
+	go activityRecorder.Run(appCtx)
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
 	go func() {
@@ -145,6 +150,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		AutomationReloader: &reloader{engine: engine, ctx: appCtx},
 		Alarms:             alarmSvc,
 		AlarmBuffer:        alarmBuffer,
+		ActivityBuffer:     activityBuffer,
 		Auth:               authSvc,
 	}
 
@@ -172,7 +178,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", auth.Middleware(authSvc)(gqlSrv))
+	mux.Handle("/graphql", auth.Middleware(authSvc, sqlStore)(gqlSrv))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})

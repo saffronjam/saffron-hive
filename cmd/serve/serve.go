@@ -17,11 +17,14 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/google/uuid"
+	"os"
+
 	"github.com/saffronjam/saffron-hive/internal/activity"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
+	"github.com/saffronjam/saffron-hive/internal/avatars"
 	"github.com/saffronjam/saffron-hive/internal/config"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -47,7 +50,13 @@ func Run(ctx context.Context) error {
 
 	levelVar, logBuffer := logging.Setup(slog.LevelInfo)
 
-	db, err := sql.Open("sqlite", cfg.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	// _txlock=immediate makes BeginTx issue BEGIN IMMEDIATE instead of the
+	// default BEGIN DEFERRED. Deferred tx acquire only a read lock at the
+	// start and upgrade to a write lock on first write — but SQLite returns
+	// SQLITE_BUSY immediately on upgrade contention, and busy_timeout does
+	// NOT retry that case. Writing the lock upfront lets busy_timeout cover
+	// the full wait on concurrent writers.
+	db, err := sql.Open("sqlite", cfg.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_txlock=immediate")
 	if err != nil {
 		return err
 	}
@@ -144,6 +153,11 @@ func Run(ctx context.Context) error {
 		}
 	}()
 
+	avatarDir := avatars.Dir(cfg.DataDir)
+	if err := os.MkdirAll(avatarDir, 0o755); err != nil {
+		return fmt.Errorf("create avatar dir: %w", err)
+	}
+
 	engineAdapter := &engineReloader{engine: engine, ctx: ctx}
 	resolver := &graph.Resolver{
 		StateReader:         memStore,
@@ -159,6 +173,7 @@ func Run(ctx context.Context) error {
 		LevelVar:            levelVar,
 		Reconnector:         mgr,
 		Auth:                authSvc,
+		AvatarDir:           avatarDir,
 	}
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -171,7 +186,9 @@ func Run(ctx context.Context) error {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", auth.Middleware(authSvc)(gqlSrv))
+	mux.Handle("/graphql", auth.Middleware(authSvc, sqlStore)(gqlSrv))
+	mux.Handle("/api/avatars", auth.RequireAuth(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
+	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
