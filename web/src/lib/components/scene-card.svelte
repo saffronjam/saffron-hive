@@ -12,11 +12,17 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import { Clapperboard, EllipsisVertical, Pencil, Play, Trash2 } from "@lucide/svelte";
+	import { sceneTintFromPayloads } from "$lib/device-tint";
+	import { parsePayload } from "$lib/scene-editable";
 
 	interface SceneAction {
 		id: string;
 		targetType: string;
 		targetId: string;
+	}
+
+	interface SceneDevicePayload {
+		deviceId: string;
 		payload: string;
 	}
 
@@ -25,6 +31,7 @@
 		name: string;
 		icon?: string | null;
 		actions: SceneAction[];
+		devicePayloads: SceneDevicePayload[];
 	}
 
 	interface Props {
@@ -50,10 +57,19 @@
 		if (parts.length === 0) return "No targets";
 		return parts.join(", ");
 	}
+
+	const tintGradient = $derived(
+		sceneTintFromPayloads(scene.devicePayloads.map((p) => parsePayload(p.payload))),
+	);
 </script>
 
-<div class="rounded-lg shadow-card bg-card p-4">
-	<div class="flex items-center justify-between">
+<div class="relative overflow-hidden rounded-lg shadow-card bg-card p-4">
+	<div
+		class="pointer-events-none absolute inset-0 opacity-15"
+		style="background: {tintGradient}"
+		aria-hidden="true"
+	></div>
+	<div class="relative flex items-center justify-between">
 		<div class="flex flex-1 min-w-0 items-center gap-3">
 			<IconPicker value={scene.icon} onselect={(icon) => oniconchange(scene, icon)}>
 				<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors">

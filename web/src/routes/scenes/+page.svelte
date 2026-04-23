@@ -32,6 +32,10 @@
 		id: string;
 		targetType: string;
 		targetId: string;
+	}
+
+	interface SceneDevicePayload {
+		deviceId: string;
 		payload: string;
 	}
 
@@ -40,6 +44,7 @@
 		name: string;
 		icon?: string | null;
 		actions: SceneAction[];
+		devicePayloads: SceneDevicePayload[];
 		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
@@ -69,6 +74,9 @@
 					id
 					targetType
 					targetId
+				}
+				devicePayloads {
+					deviceId
 					payload
 				}
 				createdBy {
@@ -89,6 +97,9 @@
 					id
 					targetType
 					targetId
+				}
+				devicePayloads {
+					deviceId
 					payload
 				}
 				createdBy {
@@ -506,7 +517,6 @@
 						{#snippet table()}
 							<SceneTable
 								scenes={filteredScenes}
-								orderedIds={filteredIds}
 								{selection}
 								{applyingId}
 								onapply={handleApply}
