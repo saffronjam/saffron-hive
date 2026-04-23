@@ -18,17 +18,17 @@ func TestScenes_CreateWithDeviceTarget(t *testing.T) {
 		createScene(input: $input) {
 			id
 			name
-			actions { id targetType targetId payload }
+			actions { id targetType targetId }
+			devicePayloads { deviceId payload }
 		}
 	}`, map[string]any{
 		"input": map[string]any{
 			"name": "Evening",
 			"actions": []map[string]any{
-				{
-					"targetType": "device",
-					"targetId":   deviceID,
-					"payload":    `{"on":true,"brightness":150}`,
-				},
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":150}`},
 			},
 		},
 	})
@@ -44,8 +44,11 @@ func TestScenes_CreateWithDeviceTarget(t *testing.T) {
 				ID         string `json:"id"`
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-				Payload    string `json:"payload"`
 			} `json:"actions"`
+			DevicePayloads []struct {
+				DeviceID string `json:"deviceId"`
+				Payload  string `json:"payload"`
+			} `json:"devicePayloads"`
 		} `json:"createScene"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
@@ -88,11 +91,7 @@ func TestScenes_CreateWithGroupTarget(t *testing.T) {
 		"input": map[string]any{
 			"name": "Group Scene",
 			"actions": []map[string]any{
-				{
-					"targetType": "group",
-					"targetId":   groupID,
-					"payload":    `{"on":true}`,
-				},
+				{"targetType": "group", "targetId": groupID},
 			},
 		},
 	})
@@ -141,11 +140,10 @@ func TestScenes_ApplyScene(t *testing.T) {
 		"input": map[string]any{
 			"name": "Apply Test Scene",
 			"actions": []map[string]any{
-				{
-					"targetType": "device",
-					"targetId":   deviceID,
-					"payload":    `{"on":true,"brightness":255}`,
-				},
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":255}`},
 			},
 		},
 	})
@@ -190,7 +188,10 @@ func TestScenes_QueryAll(t *testing.T) {
 	sceneInput := map[string]any{
 		"name": "QueryAll Scene A",
 		"actions": []map[string]any{
-			{"targetType": "device", "targetId": deviceID, "payload": `{"on":true}`},
+			{"targetType": "device", "targetId": deviceID},
+		},
+		"devicePayloads": []map[string]any{
+			{"deviceId": deviceID, "payload": `{"on":true}`},
 		},
 	}
 	data1, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
@@ -266,7 +267,10 @@ func TestScenes_UpdateScene(t *testing.T) {
 		"input": map[string]any{
 			"name": "Before Update",
 			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID, "payload": `{"on":true}`},
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true}`},
 			},
 		},
 	})
@@ -283,13 +287,16 @@ func TestScenes_UpdateScene(t *testing.T) {
 	})
 
 	data, err = graphqlMutation(`mutation($id: ID!, $input: UpdateSceneInput!) {
-		updateScene(id: $id, input: $input) { id name actions { targetId payload } }
+		updateScene(id: $id, input: $input) { id name actions { targetId } devicePayloads { deviceId payload } }
 	}`, map[string]any{
 		"id": sceneID,
 		"input": map[string]any{
 			"name": "After Update",
 			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID, "payload": `{"on":false,"brightness":50}`},
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":false,"brightness":50}`},
 			},
 		},
 	})
@@ -303,8 +310,11 @@ func TestScenes_UpdateScene(t *testing.T) {
 			Name    string `json:"name"`
 			Actions []struct {
 				TargetID string `json:"targetId"`
-				Payload  string `json:"payload"`
 			} `json:"actions"`
+			DevicePayloads []struct {
+				DeviceID string `json:"deviceId"`
+				Payload  string `json:"payload"`
+			} `json:"devicePayloads"`
 		} `json:"updateScene"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
@@ -371,7 +381,10 @@ func TestScenes_ApplySceneWithGroupTarget(t *testing.T) {
 		"input": map[string]any{
 			"name": "Group Target Scene",
 			"actions": []map[string]any{
-				{"targetType": "group", "targetId": groupID, "payload": `{"on":true,"brightness":200}`},
+				{"targetType": "group", "targetId": groupID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":200}`},
 			},
 		},
 	})

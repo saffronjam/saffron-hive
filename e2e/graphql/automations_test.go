@@ -30,15 +30,14 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 
 	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
 		createAutomation(input: $input) {
-			id name enabled cooldownSeconds
+			id name enabled
 			nodes { id type config }
 			edges { id fromNodeId toNodeId }
 		}
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Test Automation",
-			"enabled":         true,
-			"cooldownSeconds": 0,
+			"name":    "Test Automation",
+			"enabled": true,
 			"nodes": []map[string]any{
 				{"id": "trigger-1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "action-1", "type": "action", "config": string(actionConfig)},
@@ -54,11 +53,10 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 
 	var result struct {
 		CreateAutomation struct {
-			ID              string  `json:"id"`
-			Name            string  `json:"name"`
-			Enabled         bool    `json:"enabled"`
-			CooldownSeconds float64 `json:"cooldownSeconds"`
-			Nodes           []struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Enabled bool   `json:"enabled"`
+			Nodes   []struct {
 				ID     string `json:"id"`
 				Type   string `json:"type"`
 				Config string `json:"config"`
@@ -114,9 +112,8 @@ func TestAutomations_TriggerViaEvent(t *testing.T) {
 		createAutomation(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Trigger Test",
-			"enabled":         true,
-			"cooldownSeconds": 0,
+			"name":    "Trigger Test",
+			"enabled": true,
 			"nodes": []map[string]any{
 				{"id": "tve-t1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "tve-a1", "type": "action", "config": string(actionConfig)},
@@ -184,9 +181,8 @@ func TestAutomations_QueryAll(t *testing.T) {
 		tID := fmt.Sprintf("qa-t%d", counter)
 		aID := fmt.Sprintf("qa-a%d", counter)
 		return map[string]any{
-			"name":            name,
-			"enabled":         false,
-			"cooldownSeconds": 60,
+			"name":    name,
+			"enabled": false,
 			"nodes": []map[string]any{
 				{"id": tID, "type": "trigger", "config": string(triggerConfig)},
 				{"id": aID, "type": "action", "config": string(actionConfig)},
@@ -278,9 +274,8 @@ func TestAutomations_UpdateAutomation(t *testing.T) {
 		createAutomation(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Before Update",
-			"enabled":         false,
-			"cooldownSeconds": 10,
+			"name":    "Before Update",
+			"enabled": false,
 			"nodes": []map[string]any{
 				{"id": "upd-t1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "upd-a1", "type": "action", "config": string(actionConfig)},
@@ -409,9 +404,8 @@ func TestAutomations_TriggerWithGroupTargetAction(t *testing.T) {
 		createAutomation(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Group Target Automation",
-			"enabled":         true,
-			"cooldownSeconds": 0,
+			"name":    "Group Target Automation",
+			"enabled": true,
 			"nodes": []map[string]any{
 				{"id": "grp-t1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "grp-a1", "type": "action", "config": string(actionConfig)},
@@ -481,9 +475,8 @@ func TestAutomations_DisableStopsFiring(t *testing.T) {
 		createAutomation(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Disable Test",
-			"enabled":         true,
-			"cooldownSeconds": 0,
+			"name":    "Disable Test",
+			"enabled": true,
 			"nodes": []map[string]any{
 				{"id": "dis-t1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "dis-a1", "type": "action", "config": string(actionConfig)},
@@ -571,9 +564,8 @@ func TestAutomations_TriggerViaButtonAction(t *testing.T) {
 		createAutomation(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Button Trigger Test",
-			"enabled":         true,
-			"cooldownSeconds": 0,
+			"name":    "Button Trigger Test",
+			"enabled": true,
 			"nodes": []map[string]any{
 				{"id": "btn-t1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "btn-a1", "type": "action", "config": string(actionConfig)},
@@ -641,18 +633,20 @@ func TestAutomations_TriggerViaButtonAction(t *testing.T) {
 	}
 }
 
-// TestAutomations_CooldownSubSecond verifies that a fractional-second
-// cooldown is enforced by the live engine: a 50 ms cooldown blocks a refire
-// at ~30 ms but permits one well past the window.
-func TestAutomations_CooldownSubSecond(t *testing.T) {
+// TestAutomations_TriggerCooldownSubSecond verifies that a per-trigger
+// cooldown_ms is enforced by the live engine: a 50 ms window blocks a refire
+// at ~20 ms but permits one well past it.
+func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 	targetID, err := queryDeviceIDByName("Kitchen Light")
 	if err != nil {
 		t.Fatalf("find target: %v", err)
 	}
 
-	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+	triggerConfig, _ := json.Marshal(map[string]any{
+		"kind":        "event",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
+		"cooldown_ms": 50,
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -662,12 +656,11 @@ func TestAutomations_CooldownSubSecond(t *testing.T) {
 	})
 
 	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
-		createAutomation(input: $input) { id cooldownSeconds }
+		createAutomation(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":            "Sub-second Cooldown",
-			"enabled":         true,
-			"cooldownSeconds": 0.05,
+			"name":    "Sub-second Trigger Cooldown",
+			"enabled": true,
 			"nodes": []map[string]any{
 				{"id": "sub-t1", "type": "trigger", "config": string(triggerConfig)},
 				{"id": "sub-a1", "type": "action", "config": string(actionConfig)},
@@ -682,15 +675,11 @@ func TestAutomations_CooldownSubSecond(t *testing.T) {
 	}
 	var ar struct {
 		CreateAutomation struct {
-			ID              string  `json:"id"`
-			CooldownSeconds float64 `json:"cooldownSeconds"`
+			ID string `json:"id"`
 		} `json:"createAutomation"`
 	}
 	_ = json.Unmarshal(data, &ar)
 	autoID := ar.CreateAutomation.ID
-	if ar.CreateAutomation.CooldownSeconds != 0.05 {
-		t.Fatalf("expected cooldownSeconds 0.05, got %g", ar.CreateAutomation.CooldownSeconds)
-	}
 	t.Cleanup(func() {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
 	})
@@ -721,8 +710,6 @@ func TestAutomations_CooldownSubSecond(t *testing.T) {
 		t.Fatal("expected first fire to succeed")
 	}
 
-	// Within the 50 ms cooldown. This fires synchronously via MQTT so use a
-	// short sleep smaller than 50 ms to stay inside the cooldown window.
 	time.Sleep(20 * time.Millisecond)
 	if err := publisher.PublishDeviceState("Living Room Sensor", sensorState); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -738,47 +725,11 @@ func TestAutomations_CooldownSubSecond(t *testing.T) {
 		return false
 	})
 	if blocked {
-		t.Fatal("refire within 50 ms cooldown must not reach MQTT")
+		t.Fatal("refire within 50 ms trigger cooldown must not reach MQTT")
 	}
 
-	// Wait past the cooldown window.
 	time.Sleep(120 * time.Millisecond)
 	if !firstFire() {
-		t.Fatal("refire past 50 ms cooldown should succeed")
-	}
-}
-
-// TestAutomations_RejectsSubMillisecondCooldown verifies the server rejects
-// a cooldown below the 1 ms floor.
-func TestAutomations_RejectsSubMillisecondCooldown(t *testing.T) {
-	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
-	})
-	actionConfig, _ := json.Marshal(map[string]string{
-		"action_type": "set_device_state",
-		"target_type": "device",
-		"target_id":   "nonexistent",
-		"payload":     `{"on":true}`,
-	})
-
-	err := graphqlMutationExpectError(`mutation($input: CreateAutomationInput!) {
-		createAutomation(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name":            "Sub-ms Rejected",
-			"enabled":         false,
-			"cooldownSeconds": 0.0005,
-			"nodes": []map[string]any{
-				{"id": "rej-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "rej-a1", "type": "action", "config": string(actionConfig)},
-			},
-			"edges": []map[string]any{
-				{"fromNodeId": "rej-t1", "toNodeId": "rej-a1"},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("expected sub-millisecond cooldown to be rejected, got: %v", err)
+		t.Fatal("refire past 50 ms trigger cooldown should succeed")
 	}
 }

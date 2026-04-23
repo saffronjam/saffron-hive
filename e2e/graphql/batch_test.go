@@ -13,7 +13,7 @@ func TestBatch_DeleteScenes(t *testing.T) {
 		data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
 			createScene(input: $input) { id }
 		}`, map[string]any{
-			"input": map[string]any{"name": "Batch scene"},
+			"input": map[string]any{"name": "Batch scene", "actions": []any{}},
 		})
 		if err != nil {
 			t.Fatalf("create scene: %v", err)
