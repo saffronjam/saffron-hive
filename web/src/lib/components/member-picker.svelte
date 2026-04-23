@@ -5,7 +5,7 @@
 	} from "$lib/components/ui/command/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Group, DoorOpen, Clapperboard } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import type { Device } from "$lib/stores/devices";
@@ -113,7 +113,7 @@
 				>
 					<Icon class="size-4 text-muted-foreground" />
 					<span class="flex-1 truncate">{device.name}</span>
-					<DeviceTypeBadge type={device.type} class="text-xs" />
+					<HiveChip type={device.type} class="text-xs" />
 				</CommandItem>
 			{/each}
 		</CommandGroup>

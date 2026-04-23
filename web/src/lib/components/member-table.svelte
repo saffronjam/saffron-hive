@@ -15,7 +15,7 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import {
 		Lightbulb,
 		Thermometer,
@@ -144,7 +144,7 @@
 					<TableRow>
 						<TableCell>
 							{#if ["light", "sensor", "switch"].includes(row.type)}
-								<DeviceTypeBadge type={row.type} />
+								<HiveChip type={row.type} />
 							{:else}
 								<Badge variant="outline">{typeLabel(row.type)}</Badge>
 							{/if}
