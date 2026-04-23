@@ -1,11 +1,12 @@
 package eventbus
 
 import (
-	"log/slog"
 	"sync"
+
+	"github.com/saffronjam/saffron-hive/internal/logging"
 )
 
-var logger = slog.Default().With("pkg", "eventbus")
+var logger = logging.Named("eventbus")
 
 const defaultBufferSize = 256
 

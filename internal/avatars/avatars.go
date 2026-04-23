@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,10 +16,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/auth"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-var logger = slog.Default().With("pkg", "avatars")
+var logger = logging.Named("avatars")
 
 // MaxUploadBytes caps a single upload at 10 MiB. Covers phone-camera shots
 // without forcing the user to resize, while still protecting the server from

@@ -6,10 +6,11 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-var logger = slog.Default().With("pkg", "alarms")
+var logger = logging.Named("alarms")
 
 // alarmStore is the narrow subset of store methods the service needs.
 // *store.DB satisfies it implicitly.

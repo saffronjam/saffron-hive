@@ -4,17 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
 )
 
-var logger = slog.Default().With("pkg", "migrate")
+var logger = logging.Named("migrate")
 
 // Run executes a database migration in the given direction.
 // Valid directions are "up", "down", and "version".

@@ -2,16 +2,16 @@ package zigbee
 
 import (
 	"encoding/json"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 )
 
-var logger = slog.Default().With("pkg", "zigbee")
+var logger = logging.Named("zigbee")
 
 // StateWriter is the subset of the device store used to register and update devices.
 type StateWriter interface {

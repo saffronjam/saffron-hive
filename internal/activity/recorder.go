@@ -3,16 +3,16 @@ package activity
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-var logger = slog.Default().With("pkg", "activity")
+var logger = logging.Named("activity")
 
 // activityStore is the narrow subset of store methods the activity recorder
 // and retention loop need. *store.DB satisfies it implicitly.
