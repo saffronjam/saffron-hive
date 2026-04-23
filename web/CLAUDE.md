@@ -31,19 +31,30 @@ Regenerate with `make codegen` (or `cd web && bun run codegen`). `make codegen-c
 **Single urql client.** `routes/+layout.svelte` creates one `Client` via `createGraphQLClient()` (which sets up `authenticatedFetch`, `graphql-ws` subscriptions, and auth-refresh handling) and publishes it through `setContextClient`. Every other component pulls it via `getContextClient()` — **never** call `createGraphQLClient()` outside the layout.
 
 **Queries.**
+
 ```ts
 import { getContextClient, queryStore } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 
-const DEVICES_QUERY = graphql(`query Devices { devices { id name } }`);
+const DEVICES_QUERY = graphql(`
+  query Devices {
+    devices {
+      id
+      name
+    }
+  }
+`);
 const client = getContextClient();
 const devices = queryStore({ client, query: DEVICES_QUERY });
 $effect(() => {
-    if ($devices.data) { /* $devices.data.devices is fully typed */ }
+  if ($devices.data) {
+    /* $devices.data.devices is fully typed */
+  }
 });
 ```
 
 **Subscriptions.**
+
 ```ts
 import { subscriptionStore } from "@urql/svelte";
 const changes = subscriptionStore({ client, query: DEVICE_STATE_CHANGED });
@@ -51,9 +62,11 @@ $effect(() => {
     if ($changes.data) deviceStore.updateState(...);
 });
 ```
+
 No manual `.subscribe(sink)` + `onDestroy` unsubscribe sweep — `subscriptionStore` handles teardown when the component unmounts.
 
 **Mutations.** Imperative — the caller awaits completion:
+
 ```ts
 const result = await client.mutation(UPDATE_DEVICE, { id, input }).toPromise();
 if (result.data) deviceStore.updateName(id, result.data.updateDevice.name);

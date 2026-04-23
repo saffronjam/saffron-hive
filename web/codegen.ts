@@ -2,7 +2,7 @@ import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
   schema: "../api/schema.graphql",
-  documents: ["src/**/*.{svelte,ts}"],
+  documents: ["src/**/*.{svelte,ts}", "e2e/**/*.ts"],
   generates: {
     "src/lib/gql/": {
       preset: "client",
