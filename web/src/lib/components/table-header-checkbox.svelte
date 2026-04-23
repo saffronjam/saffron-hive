@@ -35,7 +35,7 @@
 	aria-label="Select all rows"
 	onclick={toggleAll}
 	{onkeydown}
-	class="inline-flex select-none"
+	class="inline-flex select-none align-middle"
 >
 	<Checkbox {checked} {indeterminate} tabindex={-1} aria-hidden="true" />
 </span>

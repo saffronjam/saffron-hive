@@ -34,7 +34,7 @@
 	title={tooltip ?? undefined}
 	{onclick}
 	{onkeydown}
-	class="inline-flex select-none"
+	class="inline-flex select-none align-middle"
 >
 	<Checkbox
 		checked={selection.isSelected(id)}
