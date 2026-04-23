@@ -11,11 +11,10 @@ import (
 // CreateAutomation inserts a new automation and returns it.
 func (s *DB) CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error) {
 	if err := s.q.CreateAutomation(ctx, sqlite.CreateAutomationParams{
-		ID:              params.ID,
-		Name:            params.Name,
-		Enabled:         params.Enabled,
-		CooldownSeconds: params.CooldownSeconds,
-		CreatedBy:       params.CreatedBy,
+		ID:        params.ID,
+		Name:      params.Name,
+		Enabled:   params.Enabled,
+		CreatedBy: params.CreatedBy,
 	}); err != nil {
 		return Automation{}, fmt.Errorf("create automation: %w", err)
 	}
@@ -29,15 +28,14 @@ func (s *DB) GetAutomation(ctx context.Context, id string) (Automation, error) {
 		return Automation{}, fmt.Errorf("get automation: %w", err)
 	}
 	return Automation{
-		ID:              row.ID,
-		Name:            row.Name,
-		Icon:            row.Icon,
-		Enabled:         row.Enabled,
-		CooldownSeconds: row.CooldownSeconds,
-		LastFiredAt:     row.LastFiredAt,
-		CreatedAt:       row.CreatedAt,
-		UpdatedAt:       row.UpdatedAt,
-		CreatedBy:       userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
+		ID:          row.ID,
+		Name:        row.Name,
+		Icon:        row.Icon,
+		Enabled:     row.Enabled,
+		LastFiredAt: row.LastFiredAt,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+		CreatedBy:   userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
 	}, nil
 }
 
@@ -50,15 +48,14 @@ func (s *DB) ListAutomations(ctx context.Context) ([]Automation, error) {
 	var automations []Automation
 	for _, r := range rows {
 		automations = append(automations, Automation{
-			ID:              r.ID,
-			Name:            r.Name,
-			Icon:            r.Icon,
-			Enabled:         r.Enabled,
-			CooldownSeconds: r.CooldownSeconds,
-			LastFiredAt:     r.LastFiredAt,
-			CreatedAt:       r.CreatedAt,
-			UpdatedAt:       r.UpdatedAt,
-			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+			ID:          r.ID,
+			Name:        r.Name,
+			Icon:        r.Icon,
+			Enabled:     r.Enabled,
+			LastFiredAt: r.LastFiredAt,
+			CreatedAt:   r.CreatedAt,
+			UpdatedAt:   r.UpdatedAt,
+			CreatedBy:   userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
 		})
 	}
 	return automations, nil
@@ -73,15 +70,14 @@ func (s *DB) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 	var automations []Automation
 	for _, r := range rows {
 		automations = append(automations, Automation{
-			ID:              r.ID,
-			Name:            r.Name,
-			Icon:            r.Icon,
-			Enabled:         r.Enabled,
-			CooldownSeconds: r.CooldownSeconds,
-			LastFiredAt:     r.LastFiredAt,
-			CreatedAt:       r.CreatedAt,
-			UpdatedAt:       r.UpdatedAt,
-			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+			ID:          r.ID,
+			Name:        r.Name,
+			Icon:        r.Icon,
+			Enabled:     r.Enabled,
+			LastFiredAt: r.LastFiredAt,
+			CreatedAt:   r.CreatedAt,
+			UpdatedAt:   r.UpdatedAt,
+			CreatedBy:   userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
 		})
 	}
 	return automations, nil
@@ -100,10 +96,6 @@ func (s *DB) UpdateAutomation(ctx context.Context, id string, params UpdateAutom
 	}
 	if params.SetIcon && params.Icon != nil {
 		args.Icon = params.Icon
-	}
-	if params.CooldownSeconds != nil {
-		v := *params.CooldownSeconds
-		args.Cooldown = &v
 	}
 	if err := s.q.UpdateAutomationFields(ctx, args); err != nil {
 		return Automation{}, fmt.Errorf("update automation: %w", err)

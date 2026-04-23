@@ -6,18 +6,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-func TestCooldownBlocksRefire(t *testing.T) {
+// TestTriggerCooldownBlocksRefire verifies that the trigger's own cooldown_ms
+// suppresses re-matches inside the window, even when the event filter would
+// otherwise pass.
+func TestTriggerCooldownBlocksRefire(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "cooldown", Enabled: true, CooldownSeconds: 60},
+		store.Automation{ID: "auto-1", Name: "cooldown", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.state_changed","filter_expr":"true","cooldown_ms":60000}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
 			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -27,226 +33,19 @@ func TestCooldownBlocksRefire(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	engine := NewEngine(bus, reader, s, s, nil)
 
-	currentTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	engine.now = func() time.Time { return currentTime }
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = engine.Run(ctx) }()
-	time.Sleep(20 * time.Millisecond)
-
-	ch := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(ch)
-
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Fatal("first fire should succeed")
-	}
-
-	currentTime = currentTime.Add(30 * time.Second)
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-		t.Fatal("second fire within cooldown should be blocked")
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func TestCooldownExpiresAllowsRefire(t *testing.T) {
-	reader := newMockStateReader()
-	s := newMockStore()
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "cooldown", Enabled: true, CooldownSeconds: 60},
-		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
-		},
-		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-		},
-	)
-
-	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
-
-	currentTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	engine.now = func() time.Time { return currentTime }
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = engine.Run(ctx) }()
-	time.Sleep(20 * time.Millisecond)
-
-	ch := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(ch)
-
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Fatal("first fire should succeed")
-	}
-
-	currentTime = currentTime.Add(61 * time.Second)
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Fatal("second fire after cooldown should succeed")
-	}
-}
-
-func TestCooldownPerAutomation(t *testing.T) {
-	reader := newMockStateReader()
-	s := newMockStore()
-
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-a", Name: "a", Enabled: true, CooldownSeconds: 60},
-		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-a", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-a", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
-		},
-		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-a", FromNodeID: "t1", ToNodeID: "a1"},
-		},
-	)
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-b", Name: "b", Enabled: true, CooldownSeconds: 60},
-		[]store.AutomationNode{
-			{ID: "t2", AutomationID: "auto-b", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a2", AutomationID: "auto-b", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-2","payload":"{\"brightness\":200}"}`},
-		},
-		[]store.AutomationEdge{
-			{ID: "e2", AutomationID: "auto-b", FromNodeID: "t2", ToNodeID: "a2"},
-		},
-	)
-
-	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
-
-	currentTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	engine.now = func() time.Time { return currentTime }
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = engine.Run(ctx) }()
-	time.Sleep(20 * time.Millisecond)
-
-	ch := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(ch)
-
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	got := 0
-	timeout := time.After(time.Second)
-	for got < 2 {
-		select {
-		case <-ch:
-			got++
-		case <-timeout:
-			t.Fatalf("expected 2 commands on first fire, got %d", got)
-		}
-	}
-
-	currentTime = currentTime.Add(30 * time.Second)
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-		t.Fatal("both should be in cooldown")
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func TestCooldownZero(t *testing.T) {
-	reader := newMockStateReader()
-	s := newMockStore()
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "no-cooldown", Enabled: true, CooldownSeconds: 0},
-		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
-		},
-		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-		},
-	)
-
-	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
-	// CooldownSeconds=0 still gets the system-level minSystemDebounce floor to
-	// absorb protocol echoes. Advance the mock clock between fires by more
-	// than the floor to prove they're independent, not back-to-back bursts.
 	var (
-		clockMu sync.Mutex
-		clock   = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+		mu  sync.Mutex
+		clk = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	)
 	engine.now = func() time.Time {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		return clock
+		mu.Lock()
+		defer mu.Unlock()
+		return clk
 	}
 	advance := func(d time.Duration) {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		clock = clock.Add(d)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = engine.Run(ctx) }()
-	time.Sleep(20 * time.Millisecond)
-
-	ch := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(ch)
-
-	for i := 0; i < 3; i++ {
-		if i > 0 {
-			advance(200 * time.Millisecond)
-		}
-		bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-		select {
-		case <-ch:
-		case <-time.After(time.Second):
-			t.Fatalf("fire %d should succeed with zero cooldown (past system debounce)", i+1)
-		}
-	}
-}
-
-// TestCooldownZeroBlocksEchoWithinSystemDebounce verifies that even with
-// CooldownSeconds=0, re-fires inside the system debounce window (~50 ms)
-// are suppressed. This covers the MQTT/z2m echo protection that motivated
-// the minSystemDebounce floor.
-func TestCooldownZeroBlocksEchoWithinSystemDebounce(t *testing.T) {
-	reader := newMockStateReader()
-	s := newMockStore()
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-echo", Name: "echo-guard", Enabled: true, CooldownSeconds: 0},
-		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-echo", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-echo", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
-		},
-		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-echo", FromNodeID: "t1", ToNodeID: "a1"},
-		},
-	)
-
-	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
-
-	var (
-		clockMu sync.Mutex
-		clock   = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	)
-	engine.now = func() time.Time {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		return clock
-	}
-	advance := func(d time.Duration) {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		clock = clock.Add(d)
+		mu.Lock()
+		defer mu.Unlock()
+		clk = clk.Add(d)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -264,124 +63,237 @@ func TestCooldownZeroBlocksEchoWithinSystemDebounce(t *testing.T) {
 		t.Fatal("first fire should succeed")
 	}
 
-	// Simulated echo: second event lands 10 ms later, well inside the 50 ms
-	// debounce. Must be suppressed.
-	advance(10 * time.Millisecond)
+	advance(30 * time.Second)
 	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
 	select {
 	case <-ch:
-		t.Fatal("echo within system debounce must not re-fire")
-	case <-time.After(150 * time.Millisecond):
-	}
-
-	// Past the debounce window, a legitimate follow-up fires.
-	advance(100 * time.Millisecond)
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Fatal("event past system debounce should fire")
-	}
-}
-
-// TestCooldownSubSecond verifies that fractional-second cooldowns are
-// honoured — a 50 ms cooldown blocks a refire at +20 ms and allows one at
-// +80 ms. This exercises the time.Duration(x * float64(time.Second)) math in
-// engine.inCooldown.
-func TestCooldownSubSecond(t *testing.T) {
-	reader := newMockStateReader()
-	s := newMockStore()
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "subsecond", Enabled: true, CooldownSeconds: 0.05},
-		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
-		},
-		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-		},
-	)
-
-	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
-
-	// The engine reads time.Now via the injected closure from its goroutine; the
-	// test needs to advance time between publishes. Guard the shared variable
-	// with a mutex so -race stays happy.
-	var (
-		clockMu     sync.Mutex
-		currentTime = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	)
-	getTime := func() time.Time {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		return currentTime
-	}
-	advanceTime := func(d time.Duration) {
-		clockMu.Lock()
-		defer clockMu.Unlock()
-		currentTime = currentTime.Add(d)
-	}
-	engine.now = getTime
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = engine.Run(ctx) }()
-	time.Sleep(20 * time.Millisecond)
-
-	ch := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(ch)
-
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Fatal("first fire should succeed")
-	}
-
-	advanceTime(20 * time.Millisecond)
-	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
-	select {
-	case <-ch:
-		t.Fatal("fire at +20ms (inside 50ms cooldown) should be blocked")
+		t.Fatal("second fire within trigger cooldown should be blocked")
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	advanceTime(60 * time.Millisecond) // total +80ms
+	advance(31 * time.Second) // total 61s, past the 60s cooldown
 	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceStateChanged, DeviceID: "x", Timestamp: time.Now()})
 	select {
 	case <-ch:
 	case <-time.After(time.Second):
-		t.Fatal("fire at +80ms (past 50ms cooldown) should succeed")
+		t.Fatal("fire after cooldown should succeed")
 	}
 }
 
-// TestValidateCooldown covers the millisecond floor enforcement used by both
-// the GraphQL resolver and the frontend.
-func TestValidateCooldown(t *testing.T) {
+// TestTriggerCooldownIndependentPerTrigger verifies that two triggers in the
+// same graph have independent cooldowns — throttling one does not throttle the
+// other.
+func TestTriggerCooldownIndependentPerTrigger(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "btn-1"})
+	reader.addDevice(device.Device{ID: "btn-2", Name: "btn-2"})
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "two-triggers", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\"","cooldown_ms":1000}`},
+			{ID: "t2", AutomationID: "auto-1", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-2\""}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "a1"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-1", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("btn-1 first fire should succeed")
+	}
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-1", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+		t.Fatal("btn-1 second fire should be in cooldown")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-2", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("btn-2 fire should be independent of btn-1's cooldown")
+	}
+}
+
+// TestTriggerGraceWindowCombinesWithLaterEvent verifies that grace_ms keeps a
+// trigger "active" so a later event from a second trigger satisfies an AND
+// operator. Without grace, AND can never fire when its inputs come from
+// separate events.
+func TestTriggerGraceWindowCombinesWithLaterEvent(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-a", Name: "btn-a"})
+	reader.addDevice(device.Device{ID: "btn-b", Name: "btn-b"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-and", Name: "combo", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tA", AutomationID: "auto-and", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-a\"","grace_ms":5000}`},
+			{ID: "tB", AutomationID: "auto-and", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-b\"","grace_ms":5000}`},
+			{ID: "op", AutomationID: "auto-and", Type: "operator", Config: `{"kind":"and"}`},
+			{ID: "a1", AutomationID: "auto-and", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-and", FromNodeID: "tA", ToNodeID: "op"},
+			{ID: "e2", AutomationID: "auto-and", FromNodeID: "tB", ToNodeID: "op"},
+			{ID: "e3", AutomationID: "auto-and", FromNodeID: "op", ToNodeID: "a1"},
+		},
+	)
+
+	bus := eventbus.NewChannelBus()
+	engine := NewEngine(bus, reader, s, s, nil)
+
+	var (
+		mu  sync.Mutex
+		clk = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	)
+	engine.now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return clk
+	}
+	advance := func(d time.Duration) {
+		mu.Lock()
+		defer mu.Unlock()
+		clk = clk.Add(d)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = engine.Run(ctx) }()
+	time.Sleep(20 * time.Millisecond)
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-a", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+		t.Fatal("AND should not fire on btn-a alone")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	advance(2 * time.Second) // inside tA's 5s grace window
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-b", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("AND should fire when btn-b arrives inside btn-a's grace window")
+	}
+}
+
+// TestTriggerGraceExpiresDoesNotFire confirms that past the grace window, the
+// earlier trigger is no longer considered active — AND stays false.
+func TestTriggerGraceExpiresDoesNotFire(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-a", Name: "btn-a"})
+	reader.addDevice(device.Device{ID: "btn-b", Name: "btn-b"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-and-expire", Name: "combo-expire", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tA", AutomationID: "auto-and-expire", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-a\"","grace_ms":500}`},
+			{ID: "tB", AutomationID: "auto-and-expire", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-b\""}`},
+			{ID: "op", AutomationID: "auto-and-expire", Type: "operator", Config: `{"kind":"and"}`},
+			{ID: "a1", AutomationID: "auto-and-expire", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{ID: "e1", AutomationID: "auto-and-expire", FromNodeID: "tA", ToNodeID: "op"},
+			{ID: "e2", AutomationID: "auto-and-expire", FromNodeID: "tB", ToNodeID: "op"},
+			{ID: "e3", AutomationID: "auto-and-expire", FromNodeID: "op", ToNodeID: "a1"},
+		},
+	)
+
+	bus := eventbus.NewChannelBus()
+	engine := NewEngine(bus, reader, s, s, nil)
+
+	var (
+		mu  sync.Mutex
+		clk = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	)
+	engine.now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return clk
+	}
+	advance := func(d time.Duration) {
+		mu.Lock()
+		defer mu.Unlock()
+		clk = clk.Add(d)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = engine.Run(ctx) }()
+	time.Sleep(20 * time.Millisecond)
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-a", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+		t.Fatal("AND should not fire on btn-a alone")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	advance(1 * time.Second) // past tA's 500ms grace
+	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceActionFired, DeviceID: "btn-b", Timestamp: time.Now(), Payload: device.Action{Action: "single"}})
+	select {
+	case <-ch:
+		t.Fatal("btn-a grace has expired, AND must not fire")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// TestValidateTriggerTiming covers the validation helper used by callers that
+// need to reject negative values before persisting.
+func TestValidateTriggerTiming(t *testing.T) {
 	cases := []struct {
-		name    string
-		value   float64
-		wantErr bool
+		name       string
+		graceMs    int64
+		cooldownMs int64
+		wantErr    bool
 	}{
-		{"zero allowed", 0, false},
-		{"minimum allowed", 0.001, false},
-		{"half second", 0.5, false},
-		{"one second", 1, false},
-		{"large", 3600, false},
-		{"just below minimum", 0.0009, true},
-		{"sub-microsecond", 0.00005, true},
-		{"negative", -1, true},
-		{"negative small", -0.0001, true},
+		{"both zero", 0, 0, false},
+		{"grace positive", 500, 0, false},
+		{"cooldown positive", 0, 500, false},
+		{"both positive", 5000, 1000, false},
+		{"negative grace", -1, 0, true},
+		{"negative cooldown", 0, -1, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateCooldown(tc.value)
+			err := ValidateTriggerTiming(tc.graceMs, tc.cooldownMs)
 			if tc.wantErr && err == nil {
-				t.Fatalf("ValidateCooldown(%g) = nil, want error", tc.value)
+				t.Fatalf("ValidateTriggerTiming(%d, %d) = nil, want error", tc.graceMs, tc.cooldownMs)
 			}
 			if !tc.wantErr && err != nil {
-				t.Fatalf("ValidateCooldown(%g) = %v, want nil", tc.value, err)
+				t.Fatalf("ValidateTriggerTiming(%d, %d) = %v, want nil", tc.graceMs, tc.cooldownMs, err)
 			}
 		})
 	}

@@ -262,29 +262,53 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 }
 
 func (a *ActionExecutor) executeActivateScene(sceneID string) {
-	actions, err := a.store.ListSceneActions(context.Background(), sceneID)
+	ctx := context.Background()
+	actions, err := a.store.ListSceneActions(ctx, sceneID)
 	if err != nil {
 		logger.Error("scene not found", "scene_id", sceneID, "error", err)
+		return
+	}
+	payloads, err := a.store.ListSceneDevicePayloads(ctx, sceneID)
+	if err != nil {
+		logger.Error("scene payloads unavailable", "scene_id", sceneID, "error", err)
 		return
 	}
 	if len(actions) == 0 {
 		return
 	}
 
-	for _, sa := range actions {
+	payloadByDevice := make(map[device.DeviceID]map[string]any, len(payloads))
+	for _, p := range payloads {
 		var desired map[string]any
-		if err := json.Unmarshal([]byte(sa.Payload), &desired); err != nil {
-			logger.Error("invalid scene action payload", "target_id", sa.TargetID, "error", err)
+		if err := json.Unmarshal([]byte(p.Payload), &desired); err != nil {
+			logger.Error("invalid scene device payload", "device_id", p.DeviceID, "error", err)
 			continue
 		}
+		payloadByDevice[p.DeviceID] = desired
+	}
 
-		deviceIDs := a.resolveTargetDevices(sa.TargetType, sa.TargetID)
-		for _, did := range deviceIDs {
-			if a.stateMatches(did, desired) {
+	seen := make(map[device.DeviceID]struct{})
+	for _, sa := range actions {
+		for _, did := range a.resolveTargetDevices(sa.TargetType, sa.TargetID) {
+			if _, ok := seen[did]; ok {
 				continue
 			}
+			seen[did] = struct{}{}
 
-			cmd := buildCommand(did, desired)
+			desired, explicit := payloadByDevice[did]
+			var cmd device.Command
+			if explicit {
+				if a.stateMatches(did, desired) {
+					continue
+				}
+				cmd = buildCommand(did, desired)
+			} else {
+				cmd = a.defaultSceneCommand(did)
+				if a.stateMatches(did, commandToDesired(cmd)) {
+					continue
+				}
+			}
+
 			a.bus.Publish(eventbus.Event{
 				Type:      eventbus.EventCommandRequested,
 				DeviceID:  string(did),
@@ -293,6 +317,52 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 			})
 		}
 	}
+}
+
+// defaultSceneCommand returns the warm-white "on" default for devices pulled
+// into a scene via a group/room target but never individually customized.
+// Fields the device's capabilities don't accept are omitted.
+func (a *ActionExecutor) defaultSceneCommand(deviceID device.DeviceID) device.Command {
+	cmd := device.Command{DeviceID: deviceID}
+	d, ok := a.reader.GetDevice(deviceID)
+	if !ok {
+		cmd.On = device.Ptr(true)
+		return cmd
+	}
+	has := func(name string) bool {
+		for _, c := range d.Capabilities {
+			if c.Name == name && c.Access&2 != 0 {
+				return true
+			}
+		}
+		return false
+	}
+	if has(device.CapOnOff) {
+		cmd.On = device.Ptr(true)
+	}
+	if has(device.CapBrightness) {
+		cmd.Brightness = device.Ptr(200)
+	}
+	if has(device.CapColorTemp) {
+		cmd.ColorTemp = device.Ptr(370)
+	}
+	return cmd
+}
+
+// commandToDesired reverses a command back into the desired map expected by
+// stateMatches (which keys by the field name the scene payload would use).
+func commandToDesired(cmd device.Command) map[string]any {
+	m := map[string]any{}
+	if cmd.On != nil {
+		m["on"] = *cmd.On
+	}
+	if cmd.Brightness != nil {
+		m["brightness"] = float64(*cmd.Brightness)
+	}
+	if cmd.ColorTemp != nil {
+		m["color_temp"] = float64(*cmd.ColorTemp)
+	}
+	return m
 }
 
 func (a *ActionExecutor) resolveTargetDevices(targetType string, targetID string) []device.DeviceID {

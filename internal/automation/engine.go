@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -23,16 +23,15 @@ type compiledTrigger struct {
 }
 
 type compiledGraph struct {
-	automationID    string
-	cooldownSeconds float64
-	nodes           map[NodeID]Node
-	topoOrder       []NodeID
-	incomingMap     map[NodeID][]NodeID
-	outgoingMap     map[NodeID][]NodeID
-	conditions      map[NodeID]*vm.Program
+	automationID string
+	nodes        map[NodeID]Node
+	topoOrder    []NodeID
+	incomingMap  map[NodeID][]NodeID
+	outgoingMap  map[NodeID][]NodeID
+	conditions   map[NodeID]*vm.Program
 }
 
-var logger = slog.Default().With("pkg", "automation")
+var logger = logging.Named("automation")
 
 // automationStore is the narrow subset of store methods the engine and action
 // executor need. *store.DB satisfies it implicitly.
@@ -40,6 +39,7 @@ type automationStore interface {
 	ListEnabledAutomations(ctx context.Context) ([]store.Automation, error)
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
+	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]store.SceneDevicePayload, error)
 	UpdateAutomationLastFired(ctx context.Context, id string, firedAt time.Time) error
 }
 
@@ -52,28 +52,28 @@ type Engine struct {
 	executor *ActionExecutor
 	now      func() time.Time
 
-	mu         sync.RWMutex
-	triggers   map[string][]compiledTrigger
-	graphs     map[string]compiledGraph
-	cooldowns  map[string]time.Time
-	cron       *cron.Cron
-	cronByNode map[NodeID]cron.EntryID
+	mu               sync.RWMutex
+	triggers         map[string][]compiledTrigger
+	graphs           map[string]compiledGraph
+	triggerLastFired map[string]map[NodeID]time.Time
+	cron             *cron.Cron
+	cronByNode       map[NodeID]cron.EntryID
 }
 
 // NewEngine creates a new automation Engine. alarmSvc may be nil in tests
 // that don't exercise alarm actions.
 func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser) *Engine {
 	return &Engine{
-		bus:        bus,
-		reader:     reader,
-		store:      s,
-		resolver:   resolver,
-		executor:   NewActionExecutor(bus, reader, s, resolver, alarmSvc),
-		now:        time.Now,
-		triggers:   make(map[string][]compiledTrigger),
-		graphs:     make(map[string]compiledGraph),
-		cooldowns:  make(map[string]time.Time),
-		cronByNode: make(map[NodeID]cron.EntryID),
+		bus:              bus,
+		reader:           reader,
+		store:            s,
+		resolver:         resolver,
+		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc),
+		now:              time.Now,
+		triggers:         make(map[string][]compiledTrigger),
+		graphs:           make(map[string]compiledGraph),
+		triggerLastFired: make(map[string]map[NodeID]time.Time),
+		cronByNode:       make(map[NodeID]cron.EntryID),
 	}
 }
 
@@ -199,15 +199,14 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	now := e.now()
 	env := buildEnv(e.reader, event, now)
 
-	evaluatedGraphs := make(map[string]map[NodeID]bool)
+	firedThisTick := make(map[string]map[NodeID]bool)
 
 	for _, ct := range triggers {
-		cg, ok := graphs[ct.graphID]
-		if !ok {
+		if _, ok := graphs[ct.graphID]; !ok {
 			continue
 		}
 
-		if e.inCooldown(ct.graphID, now, cg.cooldownSeconds) {
+		if e.triggerInCooldown(ct.graphID, ct.nodeID, now, ct.config.CooldownMs) {
 			continue
 		}
 
@@ -220,27 +219,25 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 			continue
 		}
 
-		if evaluatedGraphs[ct.graphID] == nil {
-			evaluatedGraphs[ct.graphID] = make(map[NodeID]bool)
+		e.recordTriggerFired(ct.graphID, ct.nodeID, now)
+		if firedThisTick[ct.graphID] == nil {
+			firedThisTick[ct.graphID] = make(map[NodeID]bool)
 		}
-		evaluatedGraphs[ct.graphID][ct.nodeID] = true
+		firedThisTick[ct.graphID][ct.nodeID] = true
 	}
 
-	for graphID, triggerResults := range evaluatedGraphs {
+	for graphID, freshFires := range firedThisTick {
 		cg := graphs[graphID]
-		if e.inCooldown(graphID, now, cg.cooldownSeconds) {
-			continue
-		}
+		triggerResults := e.combineWithGrace(cg, freshFires, now)
 		if e.evaluateGraph(cg, env, triggerResults) {
-			e.recordFired(graphID, now)
+			e.recordAutomationFired(graphID, now)
 		}
 	}
 }
 
-// FireManualTrigger fires a manual trigger node directly, bypassing the event
-// bus and the automation's cooldown. It returns an error if the automation is
-// not currently loaded (disabled or unknown) or the named node is not a
-// manual trigger.
+// FireManualTrigger fires a manual trigger node directly. Per-trigger cooldown
+// still applies. Returns an error if the automation is not currently loaded
+// (disabled or unknown) or the named node is not a manual trigger.
 func (e *Engine) FireManualTrigger(_ context.Context, automationID string, nodeID NodeID) error {
 	e.mu.RLock()
 	cg, ok := e.graphs[automationID]
@@ -259,10 +256,15 @@ func (e *Engine) FireManualTrigger(_ context.Context, automationID string, nodeI
 	}
 
 	now := e.now()
+	if e.triggerInCooldown(automationID, nodeID, now, tc.CooldownMs) {
+		return nil
+	}
+	e.recordTriggerFired(automationID, nodeID, now)
+
 	env := buildScheduledEnv(e.reader, now)
-	triggerResults := map[NodeID]bool{nodeID: true}
+	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
 	if e.evaluateGraph(cg, env, triggerResults) {
-		e.recordFired(automationID, now)
+		e.recordAutomationFired(automationID, now)
 	}
 	return nil
 }
@@ -278,16 +280,57 @@ func (e *Engine) handleScheduledTrigger(automationID string, nodeID NodeID) {
 		return
 	}
 
-	now := e.now()
-	if e.inCooldown(automationID, now, cg.cooldownSeconds) {
+	node, ok := cg.nodes[nodeID]
+	if !ok {
 		return
 	}
+	tc, _ := node.Config.(TriggerConfig)
+
+	now := e.now()
+	if e.triggerInCooldown(automationID, nodeID, now, tc.CooldownMs) {
+		return
+	}
+	e.recordTriggerFired(automationID, nodeID, now)
 
 	env := buildScheduledEnv(e.reader, now)
-	triggerResults := map[NodeID]bool{nodeID: true}
+	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
 	if e.evaluateGraph(cg, env, triggerResults) {
-		e.recordFired(automationID, now)
+		e.recordAutomationFired(automationID, now)
 	}
+}
+
+// combineWithGrace returns the set of triggers to treat as active for this
+// evaluation: every trigger that fired this tick, plus every trigger in the
+// same graph whose last-fire is still inside its grace window.
+func (e *Engine) combineWithGrace(cg compiledGraph, freshFires map[NodeID]bool, now time.Time) map[NodeID]bool {
+	e.mu.RLock()
+	lastFired := e.triggerLastFired[cg.automationID]
+	e.mu.RUnlock()
+
+	active := make(map[NodeID]bool, len(freshFires))
+	for id := range freshFires {
+		active[id] = true
+	}
+	for _, n := range cg.nodes {
+		if n.Type != NodeTrigger {
+			continue
+		}
+		if active[n.ID] {
+			continue
+		}
+		tc, ok := n.Config.(TriggerConfig)
+		if !ok || tc.GraceMs <= 0 {
+			continue
+		}
+		last, ok := lastFired[n.ID]
+		if !ok {
+			continue
+		}
+		if now.Sub(last) <= time.Duration(tc.GraceMs)*time.Millisecond {
+			active[n.ID] = true
+		}
+	}
+	return active
 }
 
 func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map[NodeID]bool) bool {
@@ -468,36 +511,29 @@ func (e *Engine) publishNodeActivation(automationID string, nodeID NodeID, isAct
 	})
 }
 
-// minSystemDebounce is the floor applied to every automation's cooldown to
-// absorb protocol-level echoes: z2m's optimistic+confirmed double-publish of
-// the same state, MQTT retransmits, button hardware debouncing that emits
-// the same action twice. Short enough to feel instant for button-driven
-// toggles; long enough to kill echoes. Users who set cooldownSeconds to 0
-// still get this protection — 0 in the UI means "no perceptible user-facing
-// throttle", not "no protection against duplicate physical events".
-const minSystemDebounce = 50 * time.Millisecond
-
-func (e *Engine) inCooldown(automationID string, now time.Time, cooldownSeconds float64) bool {
+func (e *Engine) triggerInCooldown(automationID string, nodeID NodeID, now time.Time, cooldownMs int64) bool {
+	if cooldownMs <= 0 {
+		return false
+	}
 	e.mu.RLock()
-	lastFired, exists := e.cooldowns[automationID]
+	last, exists := e.triggerLastFired[automationID][nodeID]
 	e.mu.RUnlock()
-
 	if !exists {
 		return false
 	}
-
-	effective := time.Duration(cooldownSeconds * float64(time.Second))
-	if effective < minSystemDebounce {
-		effective = minSystemDebounce
-	}
-	return now.Before(lastFired.Add(effective))
+	return now.Before(last.Add(time.Duration(cooldownMs) * time.Millisecond))
 }
 
-func (e *Engine) recordFired(automationID string, now time.Time) {
+func (e *Engine) recordTriggerFired(automationID string, nodeID NodeID, now time.Time) {
 	e.mu.Lock()
-	e.cooldowns[automationID] = now
+	if e.triggerLastFired[automationID] == nil {
+		e.triggerLastFired[automationID] = make(map[NodeID]time.Time)
+	}
+	e.triggerLastFired[automationID][nodeID] = now
 	e.mu.Unlock()
+}
 
+func (e *Engine) recordAutomationFired(automationID string, now time.Time) {
 	if err := e.store.UpdateAutomationLastFired(context.Background(), automationID, now); err != nil {
 		logger.Warn("failed to persist last_fired_at", "automation_id", automationID, "error", err)
 	}
@@ -566,13 +602,12 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 	}
 
 	cg := compiledGraph{
-		automationID:    g.ID,
-		cooldownSeconds: g.CooldownSeconds,
-		nodes:           nodeMap,
-		topoOrder:       order,
-		incomingMap:     incomingMap,
-		outgoingMap:     outgoingMap,
-		conditions:      conditions,
+		automationID: g.ID,
+		nodes:        nodeMap,
+		topoOrder:    order,
+		incomingMap:  incomingMap,
+		outgoingMap:  outgoingMap,
+		conditions:   conditions,
 	}
 
 	return cg, triggers, nil
@@ -618,10 +653,9 @@ func topoSort(nodes []Node, edges []Edge) ([]NodeID, error) {
 
 func mapStoreToDomain(sg store.AutomationGraph) AutomationGraph {
 	g := AutomationGraph{
-		ID:              sg.Automation.ID,
-		Name:            sg.Automation.Name,
-		Enabled:         sg.Automation.Enabled,
-		CooldownSeconds: sg.Automation.CooldownSeconds,
+		ID:      sg.Automation.ID,
+		Name:    sg.Automation.Name,
+		Enabled: sg.Automation.Enabled,
 	}
 
 	for _, sn := range sg.Nodes {
@@ -657,6 +691,8 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			FilterExpr    string `json:"filter_expr"`
 			ConditionExpr string `json:"condition_expr"` // legacy field for backward compat
 			CronExpr      string `json:"cron_expr"`
+			GraceMs       int64  `json:"grace_ms"`
+			CooldownMs    int64  `json:"cooldown_ms"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			logger.Error("failed to parse trigger config", "error", err)
@@ -671,7 +707,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			}
 		}
 		if kind == TriggerManual {
-			return TriggerConfig{Kind: TriggerManual}
+			return TriggerConfig{Kind: TriggerManual, GraceMs: raw.GraceMs, CooldownMs: raw.CooldownMs}
 		}
 		filter := raw.FilterExpr
 		if filter == "" {
@@ -682,6 +718,8 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			EventType:  raw.EventType,
 			FilterExpr: filter,
 			CronExpr:   raw.CronExpr,
+			GraceMs:    raw.GraceMs,
+			CooldownMs: raw.CooldownMs,
 		}
 	case NodeCondition:
 		var raw struct {

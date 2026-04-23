@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
@@ -115,7 +116,6 @@ func (s *DB) CreateSceneAction(ctx context.Context, params CreateSceneActionPara
 		SceneID:    params.SceneID,
 		TargetType: device.TargetType(params.TargetType),
 		TargetID:   params.TargetID,
-		Payload:    params.Payload,
 	}); err != nil {
 		return SceneAction{}, fmt.Errorf("create scene action: %w", err)
 	}
@@ -124,7 +124,6 @@ func (s *DB) CreateSceneAction(ctx context.Context, params CreateSceneActionPara
 		SceneID:    params.SceneID,
 		TargetType: params.TargetType,
 		TargetID:   params.TargetID,
-		Payload:    params.Payload,
 	}, nil
 }
 
@@ -149,8 +148,58 @@ func (s *DB) ListSceneActions(ctx context.Context, sceneID string) ([]SceneActio
 			SceneID:    r.SceneID,
 			TargetType: string(r.TargetType),
 			TargetID:   r.TargetID,
-			Payload:    r.Payload,
 		})
 	}
 	return actions, nil
+}
+
+// ListSceneDevicePayloads returns all per-device payloads for a scene.
+func (s *DB) ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error) {
+	rows, err := s.q.ListSceneDevicePayloads(ctx, sceneID)
+	if err != nil {
+		return nil, fmt.Errorf("list scene device payloads: %w", err)
+	}
+	var payloads []SceneDevicePayload
+	for _, r := range rows {
+		payloads = append(payloads, SceneDevicePayload{
+			SceneID:  r.SceneID,
+			DeviceID: r.DeviceID,
+			Payload:  r.Payload,
+		})
+	}
+	return payloads, nil
+}
+
+// SaveSceneContent atomically replaces a scene's target membership and
+// per-device payloads. All deletes and inserts happen inside a single
+// transaction so concurrent readers never observe a half-written scene.
+func (s *DB) SaveSceneContent(ctx context.Context, params SaveSceneContentParams) error {
+	return s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.DeleteSceneActionsByScene(ctx, params.SceneID); err != nil {
+			return fmt.Errorf("delete scene actions: %w", err)
+		}
+		if err := q.DeleteSceneDevicePayloadsByScene(ctx, params.SceneID); err != nil {
+			return fmt.Errorf("delete scene device payloads: %w", err)
+		}
+		for _, t := range params.Targets {
+			if err := q.CreateSceneAction(ctx, sqlite.CreateSceneActionParams{
+				ID:         uuid.New().String(),
+				SceneID:    params.SceneID,
+				TargetType: device.TargetType(t.TargetType),
+				TargetID:   t.TargetID,
+			}); err != nil {
+				return fmt.Errorf("insert scene action: %w", err)
+			}
+		}
+		for _, p := range params.Payloads {
+			if err := q.UpsertSceneDevicePayload(ctx, sqlite.UpsertSceneDevicePayloadParams{
+				SceneID:  params.SceneID,
+				DeviceID: p.DeviceID,
+				Payload:  p.Payload,
+			}); err != nil {
+				return fmt.Errorf("upsert scene device payload: %w", err)
+			}
+		}
+		return nil
+	})
 }

@@ -2,22 +2,16 @@ package automation
 
 import "fmt"
 
-// MinCooldownSeconds is the smallest positive cooldown accepted for an
-// automation. Float seconds can represent nanoseconds; without a floor a
-// misconfigured automation could fire every microsecond and melt the bus.
-const MinCooldownSeconds = 0.001
-
-// ValidateCooldown enforces the millisecond floor. Zero is allowed and means
-// "no cooldown". Negative values are rejected.
-func ValidateCooldown(seconds float64) error {
-	if seconds == 0 {
-		return nil
+// ValidateTriggerTiming rejects negative grace and cooldown values. Zero is
+// allowed and means "immediate" (no memory, no throttle). Non-zero values are
+// expressed in milliseconds and accepted without a floor — echo protection is
+// an opt-in per-trigger choice, not a system default.
+func ValidateTriggerTiming(graceMs, cooldownMs int64) error {
+	if graceMs < 0 {
+		return fmt.Errorf("grace must not be negative (got %d ms)", graceMs)
 	}
-	if seconds < 0 {
-		return fmt.Errorf("cooldown must not be negative (got %g)", seconds)
-	}
-	if seconds < MinCooldownSeconds {
-		return fmt.Errorf("cooldown must be 0 or at least %.3f seconds (got %g)", MinCooldownSeconds, seconds)
+	if cooldownMs < 0 {
+		return fmt.Errorf("cooldown must not be negative (got %d ms)", cooldownMs)
 	}
 	return nil
 }
@@ -69,11 +63,19 @@ type NodeConfig interface {
 //   - TriggerEvent: EventType + FilterExpr are used. CronExpr is ignored.
 //   - TriggerSchedule: CronExpr is used. EventType + FilterExpr are ignored.
 //   - TriggerManual: no other fields are used.
+//
+// GraceMs and CooldownMs apply to every kind. Grace keeps the trigger's
+// active state alive for a window after it fires so downstream AND/OR can
+// combine with later events from other triggers. Cooldown suppresses the
+// trigger's own re-matches inside the window — useful for absorbing echoes
+// and retransmits. 0 means "immediate" / "no throttle".
 type TriggerConfig struct {
 	Kind       TriggerKind
 	EventType  string
 	FilterExpr string
 	CronExpr   string
+	GraceMs    int64
+	CooldownMs int64
 }
 
 func (TriggerConfig) nodeConfig() {}
@@ -148,10 +150,9 @@ type Edge struct {
 // AutomationGraph represents a complete automation as a directed acyclic graph
 // of trigger, operator, and action nodes connected by edges.
 type AutomationGraph struct {
-	ID              string
-	Name            string
-	Enabled         bool
-	CooldownSeconds float64
-	Nodes           []Node
-	Edges           []Edge
+	ID      string
+	Name    string
+	Enabled bool
+	Nodes   []Node
+	Edges   []Edge
 }

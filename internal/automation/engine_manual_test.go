@@ -117,13 +117,15 @@ func TestFireManualTriggerNotManualKind(t *testing.T) {
 	}
 }
 
-func TestFireManualTriggerBypassesCooldown(t *testing.T) {
+// TestFireManualTriggerHonoursCooldown verifies that per-trigger cooldown_ms
+// throttles manual-trigger fires the same way it throttles event-driven ones.
+func TestFireManualTriggerHonoursCooldown(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "manual-cd", Enabled: true, CooldownSeconds: 3600},
+		store.Automation{ID: "auto-1", Name: "manual-cd", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual","cooldown_ms":60000}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
@@ -134,21 +136,25 @@ func TestFireManualTriggerBypassesCooldown(t *testing.T) {
 	engine, bus, cancel := setupEngine(t, reader, s)
 	defer cancel()
 
-	engine.mu.Lock()
-	engine.cooldowns["auto-1"] = engine.now()
-	engine.mu.Unlock()
-
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
 	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
 		t.Fatalf("FireManualTrigger: %v", err)
 	}
-
 	select {
 	case <-ch:
 	case <-time.After(time.Second):
-		t.Fatal("manual trigger should bypass cooldown and fire")
+		t.Fatal("first manual fire should succeed")
+	}
+
+	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireManualTrigger: %v", err)
+	}
+	select {
+	case <-ch:
+		t.Fatal("second manual fire inside cooldown window must be suppressed")
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 

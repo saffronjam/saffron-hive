@@ -86,22 +86,24 @@ func (m *mockStateReader) setGroupDevices(gid device.GroupID, deviceIDs []device
 // test-helper methods configure in-memory fixtures the engine/action code
 // then reads through the interface methods.
 type mockStore struct {
-	mu           sync.RWMutex
-	automations  []store.Automation
-	nodes        map[string][]store.AutomationNode
-	edges        map[string][]store.AutomationEdge
-	sceneActions map[string][]store.SceneAction
-	sceneErr     map[string]error
-	groupMembers map[string][]store.GroupMember
+	mu            sync.RWMutex
+	automations   []store.Automation
+	nodes         map[string][]store.AutomationNode
+	edges         map[string][]store.AutomationEdge
+	sceneActions  map[string][]store.SceneAction
+	scenePayloads map[string][]store.SceneDevicePayload
+	sceneErr      map[string]error
+	groupMembers  map[string][]store.GroupMember
 }
 
 func newMockStore() *mockStore {
 	return &mockStore{
-		nodes:        make(map[string][]store.AutomationNode),
-		edges:        make(map[string][]store.AutomationEdge),
-		sceneActions: make(map[string][]store.SceneAction),
-		sceneErr:     make(map[string]error),
-		groupMembers: make(map[string][]store.GroupMember),
+		nodes:         make(map[string][]store.AutomationNode),
+		edges:         make(map[string][]store.AutomationEdge),
+		sceneActions:  make(map[string][]store.SceneAction),
+		scenePayloads: make(map[string][]store.SceneDevicePayload),
+		sceneErr:      make(map[string]error),
+		groupMembers:  make(map[string][]store.GroupMember),
 	}
 }
 
@@ -141,6 +143,12 @@ func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store
 		return nil, err
 	}
 	return m.sceneActions[sceneID], nil
+}
+
+func (m *mockStore) ListSceneDevicePayloads(_ context.Context, sceneID string) ([]store.SceneDevicePayload, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.scenePayloads[sceneID], nil
 }
 
 func (m *mockStore) UpdateAutomationLastFired(_ context.Context, id string, firedAt time.Time) error {
@@ -200,6 +208,12 @@ func (m *mockStore) setSceneActions(sceneID string, actions []store.SceneAction)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sceneActions[sceneID] = actions
+}
+
+func (m *mockStore) setSceneDevicePayloads(sceneID string, payloads []store.SceneDevicePayload) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.scenePayloads[sceneID] = payloads
 }
 
 func (m *mockStore) setSceneError(sceneID string, err error) {

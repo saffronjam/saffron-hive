@@ -1,0 +1,1 @@
+ALTER TABLE scene_actions ADD COLUMN payload TEXT NOT NULL DEFAULT '{}';

@@ -34,16 +34,15 @@ func (q *Queries) ClearAutomationIcon(ctx context.Context, id string) error {
 
 const createAutomation = `-- name: CreateAutomation :exec
 
-INSERT INTO automations (id, name, enabled, cooldown_seconds, created_by)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO automations (id, name, enabled, created_by)
+VALUES (?, ?, ?, ?)
 `
 
 type CreateAutomationParams struct {
-	ID              string
-	Name            string
-	Enabled         bool
-	CooldownSeconds float64
-	CreatedBy       *string
+	ID        string
+	Name      string
+	Enabled   bool
+	CreatedBy *string
 }
 
 // Automations own three related tables: automations, automation_nodes,
@@ -54,7 +53,6 @@ func (q *Queries) CreateAutomation(ctx context.Context, arg CreateAutomationPara
 		arg.ID,
 		arg.Name,
 		arg.Enabled,
-		arg.CooldownSeconds,
 		arg.CreatedBy,
 	)
 	return err
@@ -136,7 +134,7 @@ func (q *Queries) DeleteAutomationNode(ctx context.Context, id string) error {
 }
 
 const getAutomation = `-- name: GetAutomation :one
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -150,7 +148,6 @@ type GetAutomationRow struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds float64
 	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -167,7 +164,6 @@ func (q *Queries) GetAutomation(ctx context.Context, id string) (GetAutomationRo
 		&i.Name,
 		&i.Icon,
 		&i.Enabled,
-		&i.CooldownSeconds,
 		&i.LastFiredAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -249,7 +245,7 @@ func (q *Queries) ListAutomationNodes(ctx context.Context, automationID string) 
 }
 
 const listAutomations = `-- name: ListAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -262,7 +258,6 @@ type ListAutomationsRow struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds float64
 	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -285,7 +280,6 @@ func (q *Queries) ListAutomations(ctx context.Context) ([]ListAutomationsRow, er
 			&i.Name,
 			&i.Icon,
 			&i.Enabled,
-			&i.CooldownSeconds,
 			&i.LastFiredAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -307,7 +301,7 @@ func (q *Queries) ListAutomations(ctx context.Context) ([]ListAutomationsRow, er
 }
 
 const listEnabledAutomations = `-- name: ListEnabledAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.cooldown_seconds, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.id, a.name, a.icon, a.enabled, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -321,7 +315,6 @@ type ListEnabledAutomationsRow struct {
 	Name            string
 	Icon            *string
 	Enabled         bool
-	CooldownSeconds float64
 	LastFiredAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -344,7 +337,6 @@ func (q *Queries) ListEnabledAutomations(ctx context.Context) ([]ListEnabledAuto
 			&i.Name,
 			&i.Icon,
 			&i.Enabled,
-			&i.CooldownSeconds,
 			&i.LastFiredAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -381,20 +373,18 @@ func (q *Queries) UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomat
 
 const updateAutomationFields = `-- name: UpdateAutomationFields :exec
 UPDATE automations SET
-    name             = COALESCE(?1,     name),
-    icon             = COALESCE(?2,     icon),
-    enabled          = COALESCE(?3,  enabled),
-    cooldown_seconds = COALESCE(?4, cooldown_seconds),
-    updated_at       = CURRENT_TIMESTAMP
-WHERE id = ?5
+    name       = COALESCE(?1,    name),
+    icon       = COALESCE(?2,    icon),
+    enabled    = COALESCE(?3, enabled),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?4
 `
 
 type UpdateAutomationFieldsParams struct {
-	Name     *string
-	Icon     *string
-	Enabled  *bool
-	Cooldown *float64
-	ID       string
+	Name    *string
+	Icon    *string
+	Enabled *bool
+	ID      string
 }
 
 // Partial update via COALESCE(narg, col) gate. Nil narg values leave their
@@ -407,7 +397,6 @@ func (q *Queries) UpdateAutomationFields(ctx context.Context, arg UpdateAutomati
 		arg.Name,
 		arg.Icon,
 		arg.Enabled,
-		arg.Cooldown,
 		arg.ID,
 	)
 	return err

@@ -10,10 +10,9 @@ func TestCreateAutomation(t *testing.T) {
 	ctx := context.Background()
 
 	a, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID:              "auto-1",
-		Name:            "Night Light",
-		Enabled:         true,
-		CooldownSeconds: 10,
+		ID:      "auto-1",
+		Name:    "Night Light",
+		Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)
@@ -28,9 +27,6 @@ func TestCreateAutomation(t *testing.T) {
 	if !a.Enabled {
 		t.Error("expected Enabled to be true")
 	}
-	if a.CooldownSeconds != 10 {
-		t.Errorf("got CooldownSeconds %g, want %g", a.CooldownSeconds, 10.0)
-	}
 	if a.CreatedAt.IsZero() {
 		t.Error("expected CreatedAt to be set")
 	}
@@ -41,7 +37,7 @@ func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test Graph", Enabled: true, CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test Graph", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)
@@ -94,7 +90,7 @@ func TestDeleteAutomationCascadesNodesAndEdges(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)
@@ -157,7 +153,7 @@ func TestListEnabledAutomations(t *testing.T) {
 		{"auto-3", false},
 	} {
 		_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-			ID: tc.id, Name: tc.id, Enabled: tc.enabled, CooldownSeconds: 5,
+			ID: tc.id, Name: tc.id, Enabled: tc.enabled,
 		})
 		if err != nil {
 			t.Fatalf("create automation %s: %v", tc.id, err)
@@ -178,7 +174,7 @@ func TestToggleAutomation(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -202,7 +198,7 @@ func TestDeleteAutomationNode(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)
@@ -234,7 +230,7 @@ func TestDeleteAutomationEdge(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true, CooldownSeconds: 5,
+		ID: "auto-1", Name: "Test", Enabled: true,
 	})
 	if err != nil {
 		t.Fatalf("create automation: %v", err)

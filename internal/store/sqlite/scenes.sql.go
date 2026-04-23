@@ -50,8 +50,8 @@ func (q *Queries) CreateScene(ctx context.Context, arg CreateSceneParams) error 
 }
 
 const createSceneAction = `-- name: CreateSceneAction :exec
-INSERT INTO scene_actions (id, scene_id, target_type, target_id, payload)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO scene_actions (id, scene_id, target_type, target_id)
+VALUES (?, ?, ?, ?)
 `
 
 type CreateSceneActionParams struct {
@@ -59,7 +59,6 @@ type CreateSceneActionParams struct {
 	SceneID    string
 	TargetType device.TargetType
 	TargetID   string
-	Payload    string
 }
 
 func (q *Queries) CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error {
@@ -68,7 +67,6 @@ func (q *Queries) CreateSceneAction(ctx context.Context, arg CreateSceneActionPa
 		arg.SceneID,
 		arg.TargetType,
 		arg.TargetID,
-		arg.Payload,
 	)
 	return err
 }
@@ -89,6 +87,43 @@ DELETE FROM scene_actions WHERE id = ?
 func (q *Queries) DeleteSceneAction(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteSceneAction, id)
 	return err
+}
+
+const deleteSceneActionsByScene = `-- name: DeleteSceneActionsByScene :exec
+DELETE FROM scene_actions WHERE scene_id = ?
+`
+
+func (q *Queries) DeleteSceneActionsByScene(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneActionsByScene, sceneID)
+	return err
+}
+
+const deleteSceneDevicePayloadsByScene = `-- name: DeleteSceneDevicePayloadsByScene :exec
+DELETE FROM scene_device_payloads WHERE scene_id = ?
+`
+
+func (q *Queries) DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneDevicePayloadsByScene, sceneID)
+	return err
+}
+
+const deleteSceneDevicePayloadsNotIn = `-- name: DeleteSceneDevicePayloadsNotIn :execrows
+DELETE FROM scene_device_payloads
+WHERE scene_id = ?
+  AND device_id NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
+`
+
+type DeleteSceneDevicePayloadsNotInParams struct {
+	SceneID string
+	KeepIds string
+}
+
+func (q *Queries) DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSceneDevicePayloadsNotIn, arg.SceneID, arg.KeepIds)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getScene = `-- name: GetScene :one
@@ -129,7 +164,7 @@ func (q *Queries) GetScene(ctx context.Context, id string) (GetSceneRow, error) 
 }
 
 const listSceneActions = `-- name: ListSceneActions :many
-SELECT id, scene_id, target_type, target_id, payload
+SELECT id, scene_id, target_type, target_id
 FROM scene_actions
 WHERE scene_id = ?
 `
@@ -139,7 +174,6 @@ type ListSceneActionsRow struct {
 	SceneID    string
 	TargetType device.TargetType
 	TargetID   string
-	Payload    string
 }
 
 func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]ListSceneActionsRow, error) {
@@ -156,8 +190,36 @@ func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]ListS
 			&i.SceneID,
 			&i.TargetType,
 			&i.TargetID,
-			&i.Payload,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSceneDevicePayloads = `-- name: ListSceneDevicePayloads :many
+SELECT scene_id, device_id, payload
+FROM scene_device_payloads
+WHERE scene_id = ?
+`
+
+func (q *Queries) ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error) {
+	rows, err := q.db.QueryContext(ctx, listSceneDevicePayloads, sceneID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SceneDevicePayload
+	for rows.Next() {
+		var i SceneDevicePayload
+		if err := rows.Scan(&i.SceneID, &i.DeviceID, &i.Payload); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -248,5 +310,22 @@ type UpdateSceneNameParams struct {
 
 func (q *Queries) UpdateSceneName(ctx context.Context, arg UpdateSceneNameParams) error {
 	_, err := q.db.ExecContext(ctx, updateSceneName, arg.Name, arg.ID)
+	return err
+}
+
+const upsertSceneDevicePayload = `-- name: UpsertSceneDevicePayload :exec
+INSERT INTO scene_device_payloads (scene_id, device_id, payload)
+VALUES (?, ?, ?)
+ON CONFLICT(scene_id, device_id) DO UPDATE SET payload = excluded.payload
+`
+
+type UpsertSceneDevicePayloadParams struct {
+	SceneID  string
+	DeviceID device.DeviceID
+	Payload  string
+}
+
+func (q *Queries) UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSceneDevicePayload, arg.SceneID, arg.DeviceID, arg.Payload)
 	return err
 }
