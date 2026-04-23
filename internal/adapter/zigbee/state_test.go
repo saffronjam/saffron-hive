@@ -28,6 +28,66 @@ func TestMapDeviceState_LightFull(t *testing.T) {
 	}
 }
 
+func TestMapDeviceState_ColorXYOnly(t *testing.T) {
+	raw := json.RawMessage(`{"state":"ON","brightness":198,"color":{"x":0.5934,"y":0.3298}}`)
+	state, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Color == nil {
+		t.Fatal("expected Color to be set")
+	}
+	if state.Color.X != 0.5934 || state.Color.Y != 0.3298 {
+		t.Fatalf("expected xy 0.5934,0.3298 got %v,%v", state.Color.X, state.Color.Y)
+	}
+	if state.Color.R == 0 && state.Color.G == 0 && state.Color.B == 0 {
+		t.Fatalf("expected RGB derived from xy, got all zero")
+	}
+	if state.Color.R < state.Color.G || state.Color.R < state.Color.B {
+		t.Fatalf("expected red-dominant RGB for xy 0.5934,0.3298, got %d,%d,%d", state.Color.R, state.Color.G, state.Color.B)
+	}
+}
+
+func TestMapDeviceState_ColorRGBPreserved(t *testing.T) {
+	raw := json.RawMessage(`{"color":{"r":12,"g":34,"b":56,"x":0.5,"y":0.5}}`)
+	state, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Color == nil {
+		t.Fatal("expected Color to be set")
+	}
+	if state.Color.R != 12 || state.Color.G != 34 || state.Color.B != 56 {
+		t.Fatalf("explicit RGB should be preserved, got %d,%d,%d", state.Color.R, state.Color.G, state.Color.B)
+	}
+}
+
+func TestXYToRGB_KnownChromaticities(t *testing.T) {
+	cases := []struct {
+		name                string
+		x, y                float64
+		wantR, wantG, wantB int
+	}{
+		{"red", 0.64, 0.33, 255, 0, 0},
+		{"green", 0.3, 0.6, 0, 255, 0},
+		{"blue", 0.15, 0.06, 0, 0, 255},
+		{"white D65", 0.3127, 0.329, 255, 255, 255},
+	}
+	for _, c := range cases {
+		r, g, b := xyToRGB(c.x, c.y)
+		if absDiff(r, c.wantR) > 3 || absDiff(g, c.wantG) > 3 || absDiff(b, c.wantB) > 3 {
+			t.Fatalf("%s: xy(%v,%v) got rgb(%d,%d,%d) want rgb(%d,%d,%d)", c.name, c.x, c.y, r, g, b, c.wantR, c.wantG, c.wantB)
+		}
+	}
+}
+
+func absDiff(a, b int) int {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
 func TestMapDeviceState_Partial(t *testing.T) {
 	raw := json.RawMessage(`{"brightness":100}`)
 	state, err := mapDeviceState(raw)
