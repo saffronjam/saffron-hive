@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gql } from "@urql/core";
+import { graphql } from "$lib/gql";
 import { pipe, subscribe } from "wonka";
 import {
   getContext,
@@ -9,8 +9,8 @@ import {
   subscribeMQTTCommands,
 } from "./setup.js";
 
-const DEVICES_QUERY = gql`
-  query Devices {
+const DEVICES_QUERY = graphql(`
+  query E2EDevicesList {
     devices {
       id
       name
@@ -31,10 +31,10 @@ const DEVICES_QUERY = gql`
       }
     }
   }
-`;
+`);
 
-const DEVICE_QUERY = gql`
-  query Device($id: ID!) {
+const DEVICE_QUERY = graphql(`
+  query E2EDevice($id: ID!) {
     device(id: $id) {
       id
       name
@@ -55,43 +55,15 @@ const DEVICE_QUERY = gql`
       }
     }
   }
-`;
+`);
 
 interface BridgeDevice {
   friendly_name: string;
   type: string;
 }
 
-interface DeviceFields {
-  id: string;
-  name: string;
-  source: string;
-  type: string;
-  available: boolean;
-  state: {
-    on?: boolean;
-    brightness?: number;
-    colorTemp?: number;
-    temperature?: number;
-    humidity?: number;
-    battery?: number;
-    power?: number;
-    voltage?: number;
-    current?: number;
-    energy?: number;
-  } | null;
-}
-
-interface DevicesQueryResult {
-  devices: DeviceFields[];
-}
-
-interface DeviceQueryResult {
-  device: DeviceFields | null;
-}
-
-const SET_DEVICE_STATE = gql`
-  mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
+const SET_DEVICE_STATE = graphql(`
+  mutation E2ESetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
     setDeviceState(deviceId: $deviceId, state: $state) {
       id
       name
@@ -103,36 +75,29 @@ const SET_DEVICE_STATE = gql`
       }
     }
   }
-`;
+`);
 
-const UPDATE_DEVICE = gql`
-  mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
+const UPDATE_DEVICE = graphql(`
+  mutation E2EUpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
     updateDevice(id: $id, input: $input) {
       id
       name
     }
   }
-`;
+`);
 
-interface UpdateDeviceResult {
-  updateDevice: {
-    id: string;
-    name: string;
-  };
-}
-
-interface SetDeviceStateResult {
-  setDeviceState: {
-    id: string;
-    name: string;
-    type: string;
-    state: {
-      on?: boolean;
-      brightness?: number;
-      colorTemp?: number;
-    } | null;
-  };
-}
+const DEVICE_STATE_CHANGED_SUB = graphql(`
+  subscription E2EDevicesDeviceStateChanged {
+    deviceStateChanged {
+      deviceId
+      state {
+        on
+        brightness
+        colorTemp
+      }
+    }
+  }
+`);
 
 const COORDINATOR_TYPE = "Coordinator";
 
@@ -140,13 +105,9 @@ describe("devices", () => {
   it("should return all non-coordinator devices", async () => {
     const { graphqlClient } = getContext();
     const fixtures = getBridgeDevicesFixture() as BridgeDevice[];
-    const expectedCount = fixtures.filter(
-      (d) => d.type !== COORDINATOR_TYPE,
-    ).length;
+    const expectedCount = fixtures.filter((d) => d.type !== COORDINATOR_TYPE).length;
 
-    const result = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -157,9 +118,7 @@ describe("devices", () => {
     const { graphqlClient } = getContext();
     const fixtures = getBridgeDevicesFixture() as BridgeDevice[];
 
-    const result = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(result.data).toBeDefined();
 
@@ -180,16 +139,12 @@ describe("devices", () => {
   it("should query a single device by ID", async () => {
     const { graphqlClient } = getContext();
 
-    const listResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const listResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(listResult.data).toBeDefined();
     const firstDevice = listResult.data!.devices[0];
 
-    const result = await graphqlClient
-      .query<DeviceQueryResult>(DEVICE_QUERY, { id: firstDevice.id })
-      .toPromise();
+    const result = await graphqlClient.query(DEVICE_QUERY, { id: firstDevice.id }).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -205,14 +160,10 @@ describe("devices", () => {
     await publishDeviceState("Living Room Light", lightState);
     await new Promise((r) => setTimeout(r, 1000));
 
-    const result = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(result.data).toBeDefined();
-    const light = result.data!.devices.find(
-      (d) => d.name === "Living Room Light",
-    );
+    const light = result.data!.devices.find((d) => d.name === "Living Room Light");
     expect(light).toBeDefined();
     expect(light!.state).toBeDefined();
   });
@@ -220,43 +171,16 @@ describe("devices", () => {
   it("should deliver state changes via subscription", async () => {
     const { graphqlClient } = getContext();
 
-    const SUBSCRIPTION = gql`
-      subscription DeviceStateChanged {
-        deviceStateChanged {
-          deviceId
-          state {
-            on
-            brightness
-            colorTemp
-          }
-        }
-      }
-    `;
-
-    interface StateChangedEvent {
-      deviceStateChanged: {
-        deviceId: string;
-        state: {
-          on?: boolean;
-          brightness?: number;
-          colorTemp?: number;
-        };
-      };
-    }
-
-    const received = new Promise<StateChangedEvent>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error("Subscription timed out")),
-        10_000,
-      );
+    const received = new Promise<{ deviceId: string }>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Subscription timed out")), 10_000);
 
       const { unsubscribe } = pipe(
-        graphqlClient.subscription<StateChangedEvent>(SUBSCRIPTION, {}),
+        graphqlClient.subscription(DEVICE_STATE_CHANGED_SUB, {}),
         subscribe((result) => {
           if (result.data) {
             clearTimeout(timeout);
             unsubscribe();
-            resolve(result.data);
+            resolve(result.data.deviceStateChanged);
           }
         }),
       );
@@ -270,16 +194,13 @@ describe("devices", () => {
     });
 
     const event = await received;
-    expect(event.deviceStateChanged).toBeDefined();
-    expect(event.deviceStateChanged.deviceId).toBeTruthy();
+    expect(event.deviceId).toBeTruthy();
   });
 
   it("should return null for nonexistent device ID", async () => {
     const { graphqlClient } = getContext();
 
-    const result = await graphqlClient
-      .query<DeviceQueryResult>(DEVICE_QUERY, { id: "nonexistent" })
-      .toPromise();
+    const result = await graphqlClient.query(DEVICE_QUERY, { id: "nonexistent" }).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -289,20 +210,16 @@ describe("devices", () => {
   it("should set device state via mutation", async () => {
     const { graphqlClient } = getContext();
 
-    const listResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const listResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(listResult.data).toBeDefined();
-    const lightDevice = listResult.data!.devices.find(
-      (d) => d.name === "Living Room Light",
-    );
+    const lightDevice = listResult.data!.devices.find((d) => d.name === "Living Room Light");
     expect(lightDevice).toBeDefined();
 
     const { messages, cleanup } = await subscribeMQTTCommands();
 
     const result = await graphqlClient
-      .mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
+      .mutation(SET_DEVICE_STATE, {
         deviceId: lightDevice!.id,
         state: { on: true, brightness: 200 },
       })
@@ -322,7 +239,7 @@ describe("devices", () => {
     const { graphqlClient } = getContext();
 
     const result = await graphqlClient
-      .mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
+      .mutation(SET_DEVICE_STATE, {
         deviceId: "nonexistent",
         state: { on: true },
       })
@@ -336,9 +253,7 @@ describe("devices", () => {
   it.skip("should rename a device via updateDevice", async () => {
     const { graphqlClient } = getContext();
 
-    const devicesResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
     expect(devicesResult.data!.devices.length).toBeGreaterThan(0);
 
@@ -347,7 +262,7 @@ describe("devices", () => {
     const newName = `Renamed ${Date.now()}`;
 
     const updateResult = await graphqlClient
-      .mutation<UpdateDeviceResult>(UPDATE_DEVICE, {
+      .mutation(UPDATE_DEVICE, {
         id: device.id,
         input: { name: newName },
       })
@@ -357,16 +272,14 @@ describe("devices", () => {
     expect(updateResult.data).toBeDefined();
     expect(updateResult.data!.updateDevice.name).toBe(newName);
 
-    const queryResult = await graphqlClient
-      .query<DeviceQueryResult>(DEVICE_QUERY, { id: device.id })
-      .toPromise();
+    const queryResult = await graphqlClient.query(DEVICE_QUERY, { id: device.id }).toPromise();
 
     expect(queryResult.data).toBeDefined();
     expect(queryResult.data!.device).toBeDefined();
     expect(queryResult.data!.device!.name).toBe(newName);
 
     await graphqlClient
-      .mutation<UpdateDeviceResult>(UPDATE_DEVICE, {
+      .mutation(UPDATE_DEVICE, {
         id: device.id,
         input: { name: originalName },
       })

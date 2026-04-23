@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { gql } from "@urql/core";
+import { graphql } from "$lib/gql";
+import { Theme } from "$lib/gql/graphql";
 import { getContext } from "./setup.js";
 
-const CREATE_USER = gql`
-  mutation CreateUser($input: CreateUserInput!) {
+const CREATE_USER = graphql(`
+  mutation E2ECreateUser($input: CreateUserInput!) {
     createUser(input: $input) {
       id
       username
@@ -12,32 +13,32 @@ const CREATE_USER = gql`
       theme
     }
   }
-`;
+`);
 
-const UPDATE_CURRENT_USER = gql`
-  mutation UpdateCurrentUser($input: UpdateCurrentUserInput!) {
+const UPDATE_CURRENT_USER = graphql(`
+  mutation E2EUpdateCurrentUser($input: UpdateCurrentUserInput!) {
     updateCurrentUser(input: $input) {
       id
       name
       theme
     }
   }
-`;
+`);
 
-const DELETE_USER = gql`
-  mutation DeleteUser($id: ID!) {
+const DELETE_USER = graphql(`
+  mutation E2EDeleteUser($id: ID!) {
     deleteUser(id: $id)
   }
-`;
+`);
 
-const RESET_PASSWORD = gql`
-  mutation ResetPassword($id: ID!, $p: String!) {
+const RESET_PASSWORD = graphql(`
+  mutation E2EResetPassword($id: ID!, $p: String!) {
     resetUserPassword(id: $id, newPassword: $p)
   }
-`;
+`);
 
-const ME_QUERY = gql`
-  query Me {
+const ME_QUERY = graphql(`
+  query E2EMe {
     me {
       id
       username
@@ -46,7 +47,7 @@ const ME_QUERY = gql`
       avatarPath
     }
   }
-`;
+`);
 
 describe("users", () => {
   it("creates, updates, and deletes users", async () => {
@@ -59,7 +60,7 @@ describe("users", () => {
       .toPromise();
     expect(created.error).toBeUndefined();
     expect(created.data?.createUser.username).toBe("ts-user-a");
-    expect(created.data?.createUser.theme).toBe("DARK");
+    expect(created.data?.createUser.theme).toBe(Theme.Dark);
     expect(created.data?.createUser.avatarPath).toBeNull();
 
     const deleted = await graphqlClient
@@ -74,22 +75,24 @@ describe("users", () => {
 
     // Flip to LIGHT, confirm via me, flip back.
     const light = await graphqlClient
-      .mutation(UPDATE_CURRENT_USER, { input: { theme: "LIGHT" } })
+      .mutation(UPDATE_CURRENT_USER, { input: { theme: Theme.Light } })
       .toPromise();
     expect(light.error).toBeUndefined();
-    expect(light.data?.updateCurrentUser.theme).toBe("LIGHT");
+    expect(light.data?.updateCurrentUser.theme).toBe(Theme.Light);
 
-    const me = await graphqlClient.query(ME_QUERY, {}, { requestPolicy: "network-only" }).toPromise();
-    expect(me.data?.me?.theme).toBe("LIGHT");
-
-    await graphqlClient
-      .mutation(UPDATE_CURRENT_USER, { input: { theme: "DARK" } })
+    const me = await graphqlClient
+      .query(ME_QUERY, {}, { requestPolicy: "network-only" })
       .toPromise();
+    expect(me.data?.me?.theme).toBe(Theme.Light);
+
+    await graphqlClient.mutation(UPDATE_CURRENT_USER, { input: { theme: Theme.Dark } }).toPromise();
   });
 
   it("rejects deleting self", async () => {
     const { graphqlClient } = getContext();
-    const me = await graphqlClient.query(ME_QUERY, {}, { requestPolicy: "network-only" }).toPromise();
+    const me = await graphqlClient
+      .query(ME_QUERY, {}, { requestPolicy: "network-only" })
+      .toPromise();
     const selfId = me.data!.me!.id;
 
     const result = await graphqlClient.mutation(DELETE_USER, { id: selfId }).toPromise();

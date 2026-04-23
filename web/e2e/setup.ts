@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 import ws from "ws";
-import { gql } from "@urql/core";
+import { graphql } from "$lib/gql";
 
 const FIXTURES_DIR = resolve(import.meta.dirname, "../../e2e/fixtures");
 const _PROJECT_ROOT = resolve(import.meta.dirname, "../..");
@@ -57,15 +57,11 @@ export function getPlugStateFixture(): Record<string, unknown> {
   return loadFixture<Record<string, unknown>>("plug_state.json");
 }
 
-export async function publishBridgeDevices(
-  devices: unknown[],
-): Promise<void> {
+export async function publishBridgeDevices(devices: unknown[]): Promise<void> {
   const { mqttClient } = getContext();
-  await mqttClient.publishAsync(
-    "zigbee2mqtt/bridge/devices",
-    JSON.stringify(devices),
-    { retain: true },
-  );
+  await mqttClient.publishAsync("zigbee2mqtt/bridge/devices", JSON.stringify(devices), {
+    retain: true,
+  });
 }
 
 export async function publishDeviceState(
@@ -73,17 +69,12 @@ export async function publishDeviceState(
   payload: Record<string, unknown>,
 ): Promise<void> {
   const { mqttClient } = getContext();
-  await mqttClient.publishAsync(
-    `zigbee2mqtt/${friendlyName}`,
-    JSON.stringify(payload),
-    { retain: true },
-  );
+  await mqttClient.publishAsync(`zigbee2mqtt/${friendlyName}`, JSON.stringify(payload), {
+    retain: true,
+  });
 }
 
-export async function publishAvailability(
-  friendlyName: string,
-  available: boolean,
-): Promise<void> {
+export async function publishAvailability(friendlyName: string, available: boolean): Promise<void> {
   const { mqttClient } = getContext();
   await mqttClient.publishAsync(
     `zigbee2mqtt/${friendlyName}/availability`,
@@ -92,8 +83,8 @@ export async function publishAvailability(
   );
 }
 
-const DEVICES_QUERY = gql`
-  query Devices {
+const DEVICES_QUERY = graphql(`
+  query E2EDevices {
     devices {
       id
       name
@@ -102,29 +93,14 @@ const DEVICES_QUERY = gql`
       available
     }
   }
-`;
+`);
 
-interface DevicesQueryResult {
-  devices: Array<{
-    id: string;
-    name: string;
-    source: string;
-    type: string;
-    available: boolean;
-  }>;
-}
-
-export async function waitForDevices(
-  expectedCount: number,
-  timeoutMs: number,
-): Promise<void> {
+export async function waitForDevices(expectedCount: number, timeoutMs: number): Promise<void> {
   const { graphqlClient } = getContext();
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const result = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     if (result.data && result.data.devices.length >= expectedCount) {
       return;
@@ -133,9 +109,7 @@ export async function waitForDevices(
     await new Promise((r) => setTimeout(r, 250));
   }
 
-  throw new Error(
-    `Timed out waiting for ${expectedCount} devices after ${timeoutMs}ms`,
-  );
+  throw new Error(`Timed out waiting for ${expectedCount} devices after ${timeoutMs}ms`);
 }
 
 function createTestGraphQLClient(httpUrl: string, wsUrl: string, token: string): Client {
@@ -187,7 +161,7 @@ async function loginForE2E(graphqlUrl: string): Promise<string> {
         body,
       });
       if (res.ok) {
-        const json = await res.json() as { data?: { login?: { token: string } } };
+        const json = (await res.json()) as { data?: { login?: { token: string } } };
         const token = json.data?.login?.token;
         if (token) return token;
       }

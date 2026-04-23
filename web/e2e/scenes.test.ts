@@ -1,19 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { gql } from "@urql/core";
+import { graphql } from "$lib/gql";
 import { getContext, subscribeMQTTCommands } from "./setup.js";
 
-const DEVICES_QUERY = gql`
-  query Devices {
+const DEVICES_QUERY = graphql(`
+  query E2EScenesDevices {
     devices {
       id
       name
       type
     }
   }
-`;
+`);
 
-const CREATE_SCENE = gql`
-  mutation CreateScene($input: CreateSceneInput!) {
+const CREATE_SCENE = graphql(`
+  mutation E2ECreateScene($input: CreateSceneInput!) {
     createScene(input: $input) {
       id
       name
@@ -21,23 +21,26 @@ const CREATE_SCENE = gql`
         id
         targetType
         targetId
+      }
+      devicePayloads {
+        deviceId
         payload
       }
     }
   }
-`;
+`);
 
-const APPLY_SCENE = gql`
-  mutation ApplyScene($sceneId: ID!) {
+const APPLY_SCENE = graphql(`
+  mutation E2EApplyScene($sceneId: ID!) {
     applyScene(sceneId: $sceneId) {
       id
       name
     }
   }
-`;
+`);
 
-const SCENE_QUERY = gql`
-  query Scene($id: ID!) {
+const SCENE_QUERY = graphql(`
+  query E2EScene($id: ID!) {
     scene(id: $id) {
       id
       name
@@ -45,20 +48,23 @@ const SCENE_QUERY = gql`
         id
         targetType
         targetId
+      }
+      devicePayloads {
+        deviceId
         payload
       }
     }
   }
-`;
+`);
 
-const DELETE_SCENE = gql`
-  mutation DeleteScene($id: ID!) {
+const DELETE_SCENE = graphql(`
+  mutation E2EDeleteScene($id: ID!) {
     deleteScene(id: $id)
   }
-`;
+`);
 
-const SCENES_QUERY = gql`
-  query Scenes {
+const SCENES_QUERY = graphql(`
+  query E2EScenes {
     scenes {
       id
       name
@@ -66,14 +72,17 @@ const SCENES_QUERY = gql`
         id
         targetType
         targetId
+      }
+      devicePayloads {
+        deviceId
         payload
       }
     }
   }
-`;
+`);
 
-const UPDATE_SCENE = gql`
-  mutation UpdateScene($id: ID!, $input: UpdateSceneInput!) {
+const UPDATE_SCENE = graphql(`
+  mutation E2EUpdateScene($id: ID!, $input: UpdateSceneInput!) {
     updateScene(id: $id, input: $input) {
       id
       name
@@ -81,101 +90,37 @@ const UPDATE_SCENE = gql`
         id
         targetType
         targetId
+      }
+      devicePayloads {
+        deviceId
         payload
       }
     }
   }
-`;
+`);
 
-const CREATE_GROUP = gql`
-  mutation CreateGroup($input: CreateGroupInput!) {
+const CREATE_GROUP = graphql(`
+  mutation E2EScenesCreateGroup($input: CreateGroupInput!) {
     createGroup(input: $input) {
       id
       name
     }
   }
-`;
+`);
 
-const ADD_GROUP_MEMBER = gql`
-  mutation AddGroupMember($input: AddGroupMemberInput!) {
+const ADD_GROUP_MEMBER = graphql(`
+  mutation E2EScenesAddGroupMember($input: AddGroupMemberInput!) {
     addGroupMember(input: $input) {
       id
     }
   }
-`;
+`);
 
-const DELETE_GROUP = gql`
-  mutation DeleteGroup($id: ID!) {
+const DELETE_GROUP = graphql(`
+  mutation E2EScenesDeleteGroup($id: ID!) {
     deleteGroup(id: $id)
   }
-`;
-
-interface SceneActionFields {
-  id: string;
-  targetType: string;
-  targetId: string;
-  payload: string;
-}
-
-interface SceneFields {
-  id: string;
-  name: string;
-  actions: SceneActionFields[];
-}
-
-interface CreateSceneResult {
-  createScene: SceneFields;
-}
-
-interface ApplySceneResult {
-  applyScene: {
-    id: string;
-    name: string;
-  };
-}
-
-interface SceneQueryResult {
-  scene: SceneFields | null;
-}
-
-interface DeleteSceneResult {
-  deleteScene: boolean;
-}
-
-interface ScenesQueryResult {
-  scenes: SceneFields[];
-}
-
-interface UpdateSceneResult {
-  updateScene: SceneFields;
-}
-
-interface CreateGroupResult {
-  createGroup: {
-    id: string;
-    name: string;
-  };
-}
-
-interface AddGroupMemberResult {
-  addGroupMember: {
-    id: string;
-  };
-}
-
-interface DeleteGroupResult {
-  deleteGroup: boolean;
-}
-
-interface DeviceFields {
-  id: string;
-  name: string;
-  type: string;
-}
-
-interface DevicesQueryResult {
-  devices: DeviceFields[];
-}
+`);
 
 describe("scenes", () => {
   let sceneId: string;
@@ -184,30 +129,21 @@ describe("scenes", () => {
   it("should create a scene with a device target", async () => {
     const { graphqlClient } = getContext();
 
-    const devicesResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(devicesResult.data).toBeDefined();
-    const lightDevice = devicesResult.data!.devices.find(
-      (d) => d.type === "light",
-    );
+    const lightDevice = devicesResult.data!.devices.find((d) => d.type === "light");
     expect(lightDevice).toBeDefined();
     targetDeviceId = lightDevice!.id;
 
     const payload = JSON.stringify({ on: true, brightness: 200 });
 
     const result = await graphqlClient
-      .mutation<CreateSceneResult>(CREATE_SCENE, {
+      .mutation(CREATE_SCENE, {
         input: {
           name: "Evening Lights",
-          actions: [
-            {
-              targetType: "device",
-              targetId: targetDeviceId,
-              payload,
-            },
-          ],
+          actions: [{ targetType: "device", targetId: targetDeviceId }],
+          devicePayloads: [{ deviceId: targetDeviceId, payload }],
         },
       })
       .toPromise();
@@ -225,9 +161,7 @@ describe("scenes", () => {
   it("should query the created scene", async () => {
     const { graphqlClient } = getContext();
 
-    const result = await graphqlClient
-      .query<SceneQueryResult>(SCENE_QUERY, { id: sceneId })
-      .toPromise();
+    const result = await graphqlClient.query(SCENE_QUERY, { id: sceneId }).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -239,9 +173,7 @@ describe("scenes", () => {
   it("should apply the scene", async () => {
     const { graphqlClient } = getContext();
 
-    const result = await graphqlClient
-      .mutation<ApplySceneResult>(APPLY_SCENE, { sceneId })
-      .toPromise();
+    const result = await graphqlClient.mutation(APPLY_SCENE, { sceneId }).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -252,9 +184,7 @@ describe("scenes", () => {
   it("should delete the scene", async () => {
     const { graphqlClient } = getContext();
 
-    const result = await graphqlClient
-      .mutation<DeleteSceneResult>(DELETE_SCENE, { id: sceneId })
-      .toPromise();
+    const result = await graphqlClient.mutation(DELETE_SCENE, { id: sceneId }).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -264,39 +194,29 @@ describe("scenes", () => {
   it("should list all scenes", async () => {
     const { graphqlClient } = getContext();
 
-    const devicesResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
-    const lightDevice = devicesResult.data!.devices.find(
-      (d) => d.type === "light",
-    );
+    const lightDevice = devicesResult.data!.devices.find((d) => d.type === "light");
     expect(lightDevice).toBeDefined();
 
     const scene1 = await graphqlClient
-      .mutation<CreateSceneResult>(CREATE_SCENE, {
+      .mutation(CREATE_SCENE, {
         input: {
           name: "List Scene A",
-          actions: [
-            {
-              targetType: "device",
-              targetId: lightDevice!.id,
-              payload: JSON.stringify({ on: true }),
-            },
+          actions: [{ targetType: "device", targetId: lightDevice!.id }],
+          devicePayloads: [
+            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) },
           ],
         },
       })
       .toPromise();
     const scene2 = await graphqlClient
-      .mutation<CreateSceneResult>(CREATE_SCENE, {
+      .mutation(CREATE_SCENE, {
         input: {
           name: "List Scene B",
-          actions: [
-            {
-              targetType: "device",
-              targetId: lightDevice!.id,
-              payload: JSON.stringify({ on: false }),
-            },
+          actions: [{ targetType: "device", targetId: lightDevice!.id }],
+          devicePayloads: [
+            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: false }) },
           ],
         },
       })
@@ -305,9 +225,7 @@ describe("scenes", () => {
     expect(scene1.data).toBeDefined();
     expect(scene2.data).toBeDefined();
 
-    const result = await graphqlClient
-      .query<ScenesQueryResult>(SCENES_QUERY, {})
-      .toPromise();
+    const result = await graphqlClient.query(SCENES_QUERY, {}).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
@@ -316,12 +234,12 @@ describe("scenes", () => {
     expect(names).toContain("List Scene B");
 
     await graphqlClient
-      .mutation<DeleteSceneResult>(DELETE_SCENE, {
+      .mutation(DELETE_SCENE, {
         id: scene1.data!.createScene.id,
       })
       .toPromise();
     await graphqlClient
-      .mutation<DeleteSceneResult>(DELETE_SCENE, {
+      .mutation(DELETE_SCENE, {
         id: scene2.data!.createScene.id,
       })
       .toPromise();
@@ -330,25 +248,18 @@ describe("scenes", () => {
   it("should update scene name", async () => {
     const { graphqlClient } = getContext();
 
-    const devicesResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
-    const lightDevice = devicesResult.data!.devices.find(
-      (d) => d.type === "light",
-    );
+    const lightDevice = devicesResult.data!.devices.find((d) => d.type === "light");
     expect(lightDevice).toBeDefined();
 
     const created = await graphqlClient
-      .mutation<CreateSceneResult>(CREATE_SCENE, {
+      .mutation(CREATE_SCENE, {
         input: {
           name: "Original Scene Name",
-          actions: [
-            {
-              targetType: "device",
-              targetId: lightDevice!.id,
-              payload: JSON.stringify({ on: true }),
-            },
+          actions: [{ targetType: "device", targetId: lightDevice!.id }],
+          devicePayloads: [
+            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) },
           ],
         },
       })
@@ -357,7 +268,7 @@ describe("scenes", () => {
     const id = created.data!.createScene.id;
 
     const updated = await graphqlClient
-      .mutation<UpdateSceneResult>(UPDATE_SCENE, {
+      .mutation(UPDATE_SCENE, {
         id,
         input: { name: "Renamed Scene" },
       })
@@ -367,33 +278,24 @@ describe("scenes", () => {
     expect(updated.data).toBeDefined();
     expect(updated.data!.updateScene.name).toBe("Renamed Scene");
 
-    await graphqlClient
-      .mutation<DeleteSceneResult>(DELETE_SCENE, { id })
-      .toPromise();
+    await graphqlClient.mutation(DELETE_SCENE, { id }).toPromise();
   });
 
   it("should update scene actions", async () => {
     const { graphqlClient } = getContext();
 
-    const devicesResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
-    const lightDevice = devicesResult.data!.devices.find(
-      (d) => d.type === "light",
-    );
+    const lightDevice = devicesResult.data!.devices.find((d) => d.type === "light");
     expect(lightDevice).toBeDefined();
 
     const created = await graphqlClient
-      .mutation<CreateSceneResult>(CREATE_SCENE, {
+      .mutation(CREATE_SCENE, {
         input: {
           name: "Actions Test Scene",
-          actions: [
-            {
-              targetType: "device",
-              targetId: lightDevice!.id,
-              payload: JSON.stringify({ on: true }),
-            },
+          actions: [{ targetType: "device", targetId: lightDevice!.id }],
+          devicePayloads: [
+            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) },
           ],
         },
       })
@@ -403,16 +305,11 @@ describe("scenes", () => {
 
     const newPayload = JSON.stringify({ on: false, brightness: 50 });
     const updated = await graphqlClient
-      .mutation<UpdateSceneResult>(UPDATE_SCENE, {
+      .mutation(UPDATE_SCENE, {
         id,
         input: {
-          actions: [
-            {
-              targetType: "device",
-              targetId: lightDevice!.id,
-              payload: newPayload,
-            },
-          ],
+          actions: [{ targetType: "device", targetId: lightDevice!.id }],
+          devicePayloads: [{ deviceId: lightDevice!.id, payload: newPayload }],
         },
       })
       .toPromise();
@@ -420,11 +317,10 @@ describe("scenes", () => {
     expect(updated.error).toBeUndefined();
     expect(updated.data).toBeDefined();
     expect(updated.data!.updateScene.actions).toHaveLength(1);
-    expect(updated.data!.updateScene.actions[0].payload).toBe(newPayload);
+    expect(updated.data!.updateScene.devicePayloads).toHaveLength(1);
+    expect(updated.data!.updateScene.devicePayloads[0].payload).toBe(newPayload);
 
-    await graphqlClient
-      .mutation<DeleteSceneResult>(DELETE_SCENE, { id })
-      .toPromise();
+    await graphqlClient.mutation(DELETE_SCENE, { id }).toPromise();
   });
 
   it("should apply scene with group target", async () => {
@@ -434,17 +330,13 @@ describe("scenes", () => {
     // mutations are persisted to the database, not the in-memory state reader.
     const { graphqlClient } = getContext();
 
-    const devicesResult = await graphqlClient
-      .query<DevicesQueryResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
-    const lightDevice = devicesResult.data!.devices.find(
-      (d) => d.type === "light",
-    );
+    const lightDevice = devicesResult.data!.devices.find((d) => d.type === "light");
     expect(lightDevice).toBeDefined();
 
     const group = await graphqlClient
-      .mutation<CreateGroupResult>(CREATE_GROUP, {
+      .mutation(CREATE_GROUP, {
         input: { name: "Scene Target Group" },
       })
       .toPromise();
@@ -452,19 +344,19 @@ describe("scenes", () => {
     const groupId = group.data!.createGroup.id;
 
     await graphqlClient
-      .mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
+      .mutation(ADD_GROUP_MEMBER, {
         input: { groupId, memberType: "device", memberId: lightDevice!.id },
       })
       .toPromise();
 
     const scene = await graphqlClient
-      .mutation<CreateSceneResult>(CREATE_SCENE, {
+      .mutation(CREATE_SCENE, {
         input: {
           name: "Group Target Scene",
-          actions: [
+          actions: [{ targetType: "group", targetId: groupId }],
+          devicePayloads: [
             {
-              targetType: "group",
-              targetId: groupId,
+              deviceId: lightDevice!.id,
               payload: JSON.stringify({ on: true, brightness: 255 }),
             },
           ],
@@ -476,20 +368,14 @@ describe("scenes", () => {
 
     const { messages, cleanup } = await subscribeMQTTCommands();
 
-    await graphqlClient
-      .mutation<ApplySceneResult>(APPLY_SCENE, { sceneId: sceneIdLocal })
-      .toPromise();
+    await graphqlClient.mutation(APPLY_SCENE, { sceneId: sceneIdLocal }).toPromise();
 
     await new Promise((r) => setTimeout(r, 1000));
 
     expect(messages.length).toBeGreaterThan(0);
 
     await cleanup();
-    await graphqlClient
-      .mutation<DeleteSceneResult>(DELETE_SCENE, { id: sceneIdLocal })
-      .toPromise();
-    await graphqlClient
-      .mutation<DeleteGroupResult>(DELETE_GROUP, { id: groupId })
-      .toPromise();
+    await graphqlClient.mutation(DELETE_SCENE, { id: sceneIdLocal }).toPromise();
+    await graphqlClient.mutation(DELETE_GROUP, { id: groupId }).toPromise();
   });
 });

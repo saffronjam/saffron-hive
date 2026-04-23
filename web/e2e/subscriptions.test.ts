@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { gql } from "@urql/core";
+import { graphql } from "$lib/gql";
 import { pipe, subscribe } from "wonka";
+import type { ResultOf, TypedDocumentNode } from "@graphql-typed-document-node/core";
+import type { AnyVariables, Client } from "@urql/core";
 import {
   getContext,
   publishDeviceState,
@@ -9,8 +11,8 @@ import {
   getBridgeDevicesFixture,
 } from "./setup.js";
 
-const DEVICE_STATE_CHANGED = gql`
-  subscription DeviceStateChanged {
+const DEVICE_STATE_CHANGED = graphql(`
+  subscription E2EDeviceStateChanged {
     deviceStateChanged {
       deviceId
       state {
@@ -27,46 +29,19 @@ const DEVICE_STATE_CHANGED = gql`
       }
     }
   }
-`;
+`);
 
-const DEVICE_AVAILABILITY_CHANGED = gql`
-  subscription DeviceAvailabilityChanged {
+const DEVICE_AVAILABILITY_CHANGED = graphql(`
+  subscription E2EDeviceAvailabilityChanged {
     deviceAvailabilityChanged {
       deviceId
       available
     }
   }
-`;
+`);
 
-interface DeviceStateFields {
-  on?: boolean;
-  brightness?: number;
-  colorTemp?: number;
-  temperature?: number;
-  humidity?: number;
-  battery?: number;
-  power?: number;
-  voltage?: number;
-  current?: number;
-  energy?: number;
-}
-
-interface DeviceStateChangedEvent {
-  deviceStateChanged: {
-    deviceId: string;
-    state: DeviceStateFields;
-  };
-}
-
-interface DeviceAvailabilityChangedEvent {
-  deviceAvailabilityChanged: {
-    deviceId: string;
-    available: boolean;
-  };
-}
-
-const DEVICE_ADDED = gql`
-  subscription DeviceAdded {
+const DEVICE_ADDED = graphql(`
+  subscription E2EDeviceAdded {
     deviceAdded {
       id
       name
@@ -74,26 +49,26 @@ const DEVICE_ADDED = gql`
       source
     }
   }
-`;
+`);
 
-const DEVICE_REMOVED = gql`
-  subscription DeviceRemoved {
+const DEVICE_REMOVED = graphql(`
+  subscription E2EDeviceRemoved {
     deviceRemoved
   }
-`;
+`);
 
-const AUTOMATION_NODE_ACTIVATED = gql`
-  subscription AutomationNodeActivated($automationId: ID) {
+const AUTOMATION_NODE_ACTIVATED = graphql(`
+  subscription E2EAutomationNodeActivated($automationId: ID) {
     automationNodeActivated(automationId: $automationId) {
       automationId
       nodeId
       active
     }
   }
-`;
+`);
 
-const DEVICE_STATE_CHANGED_FILTERED = gql`
-  subscription DeviceStateChangedFiltered($deviceId: ID) {
+const DEVICE_STATE_CHANGED_FILTERED = graphql(`
+  subscription E2EDeviceStateChangedFiltered($deviceId: ID) {
     deviceStateChanged(deviceId: $deviceId) {
       deviceId
       state {
@@ -104,28 +79,36 @@ const DEVICE_STATE_CHANGED_FILTERED = gql`
       }
     }
   }
-`;
+`);
 
-interface DeviceAddedEvent {
-  deviceAdded: {
-    id: string;
-    name: string;
-    type: string;
-    source: string;
-  };
-}
+const DEVICES_QUERY = graphql(`
+  query E2ESubscriptionsDevices {
+    devices {
+      id
+      name
+      type
+    }
+  }
+`);
 
-interface DeviceRemovedEvent {
-  deviceRemoved: string;
-}
+const CREATE_AUTOMATION = graphql(`
+  mutation E2ESubscriptionsCreateAutomation($input: CreateAutomationInput!) {
+    createAutomation(input: $input) {
+      id
+      name
+      nodes {
+        id
+        type
+      }
+    }
+  }
+`);
 
-interface AutomationNodeActivatedEvent {
-  automationNodeActivated: {
-    automationId: string;
-    nodeId: string;
-    active: boolean;
-  };
-}
+const DELETE_AUTOMATION = graphql(`
+  mutation E2ESubscriptionsDeleteAutomation($id: ID!) {
+    deleteAutomation(id: $id)
+  }
+`);
 
 interface BridgeDevice {
   ieee_address: string;
@@ -145,20 +128,17 @@ interface BridgeDevice {
   }>;
 }
 
-function subscribeAndWait<T>(
-  graphqlClient: ReturnType<typeof getContext>["graphqlClient"],
-  subscription: ReturnType<typeof gql>,
+function subscribeAndWait<TData, TVars extends AnyVariables>(
+  graphqlClient: Client,
+  subscription: TypedDocumentNode<TData, TVars>,
   timeoutMs: number,
-  variables?: Record<string, unknown>,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error("Subscription timed out")),
-      timeoutMs,
-    );
+  variables: TVars,
+): Promise<TData> {
+  return new Promise<TData>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Subscription timed out")), timeoutMs);
 
     const { unsubscribe } = pipe(
-      graphqlClient.subscription<T>(subscription, variables ?? {}),
+      graphqlClient.subscription(subscription, variables),
       subscribe((result) => {
         if (result.data) {
           clearTimeout(timeout);
@@ -179,11 +159,7 @@ describe("subscriptions", () => {
   it("should receive deviceStateChanged events", async () => {
     const { graphqlClient } = getContext();
 
-    const eventPromise = subscribeAndWait<DeviceStateChangedEvent>(
-      graphqlClient,
-      DEVICE_STATE_CHANGED,
-      10_000,
-    );
+    const eventPromise = subscribeAndWait(graphqlClient, DEVICE_STATE_CHANGED, 10_000, {});
 
     await new Promise((r) => setTimeout(r, 500));
     await publishDeviceState("Living Room Light", {
@@ -201,11 +177,7 @@ describe("subscriptions", () => {
   it("should receive deviceAvailabilityChanged events", async () => {
     const { graphqlClient } = getContext();
 
-    const eventPromise = subscribeAndWait<DeviceAvailabilityChangedEvent>(
-      graphqlClient,
-      DEVICE_AVAILABILITY_CHANGED,
-      10_000,
-    );
+    const eventPromise = subscribeAndWait(graphqlClient, DEVICE_AVAILABILITY_CHANGED, 10_000, {});
 
     await new Promise((r) => setTimeout(r, 500));
     await publishAvailability("Living Room Light", false);
@@ -219,18 +191,14 @@ describe("subscriptions", () => {
   it("should handle multiple concurrent subscriptions", async () => {
     const { graphqlClient } = getContext();
 
-    const statePromise = subscribeAndWait<DeviceStateChangedEvent>(
-      graphqlClient,
-      DEVICE_STATE_CHANGED,
-      10_000,
-    );
+    const statePromise = subscribeAndWait(graphqlClient, DEVICE_STATE_CHANGED, 10_000, {});
 
-    const availabilityPromise =
-      subscribeAndWait<DeviceAvailabilityChangedEvent>(
-        graphqlClient,
-        DEVICE_AVAILABILITY_CHANGED,
-        10_000,
-      );
+    const availabilityPromise = subscribeAndWait(
+      graphqlClient,
+      DEVICE_AVAILABILITY_CHANGED,
+      10_000,
+      {},
+    );
 
     await new Promise((r) => setTimeout(r, 500));
 
@@ -240,10 +208,7 @@ describe("subscriptions", () => {
     });
     await publishAvailability("Bedroom Light", true);
 
-    const [stateEvent, availabilityEvent] = await Promise.all([
-      statePromise,
-      availabilityPromise,
-    ]);
+    const [stateEvent, availabilityEvent] = await Promise.all([statePromise, availabilityPromise]);
 
     expect(stateEvent.deviceStateChanged).toBeDefined();
     expect(availabilityEvent.deviceAvailabilityChanged).toBeDefined();
@@ -252,11 +217,7 @@ describe("subscriptions", () => {
   it("should receive deviceAdded events", async () => {
     const { graphqlClient } = getContext();
 
-    const eventPromise = subscribeAndWait<DeviceAddedEvent>(
-      graphqlClient,
-      DEVICE_ADDED,
-      10_000,
-    );
+    const eventPromise = subscribeAndWait(graphqlClient, DEVICE_ADDED, 10_000, {});
 
     await new Promise((r) => setTimeout(r, 500));
 
@@ -304,17 +265,11 @@ describe("subscriptions", () => {
 
     const fixtures = getBridgeDevicesFixture() as BridgeDevice[];
 
-    const eventPromise = subscribeAndWait<DeviceRemovedEvent>(
-      graphqlClient,
-      DEVICE_REMOVED,
-      10_000,
-    );
+    const eventPromise = subscribeAndWait(graphqlClient, DEVICE_REMOVED, 10_000, {});
 
     await new Promise((r) => setTimeout(r, 500));
 
-    const reducedDevices = fixtures.filter(
-      (d) => d.friendly_name !== "Office Button",
-    );
+    const reducedDevices = fixtures.filter((d) => d.friendly_name !== "Office Button");
     await publishBridgeDevices(reducedDevices);
 
     const event = await eventPromise;
@@ -327,72 +282,32 @@ describe("subscriptions", () => {
   it.skip("should receive automationNodeActivated events", async () => {
     const { graphqlClient } = getContext();
 
-    const DEVICES_QUERY = gql`
-      query Devices {
-        devices {
-          id
-          name
-          type
-        }
-      }
-    `;
-    interface DevicesResult {
-      devices: Array<{ id: string; name: string; type: string }>;
-    }
-
-    const devicesResult = await graphqlClient
-      .query<DevicesResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
 
-    const sensor = devicesResult.data!.devices.find(
-      (d) => d.type === "sensor",
-    );
+    const sensor = devicesResult.data!.devices.find((d) => d.type === "sensor");
     expect(sensor).toBeDefined();
-    const light = devicesResult.data!.devices.find(
-      (d) => d.type === "light",
-    );
+    const light = devicesResult.data!.devices.find((d) => d.type === "light");
     expect(light).toBeDefined();
 
-    const CREATE_AUTOMATION = gql`
-      mutation CreateAutomation($input: CreateAutomationInput!) {
-        createAutomation(input: $input) {
-          id
-          name
-          nodes {
-            id
-            type
-          }
-        }
-      }
-    `;
-    interface CreateAutomationResult {
-      createAutomation: {
-        id: string;
-        name: string;
-        nodes: Array<{ id: string; type: string }>;
-      };
-    }
-
     const triggerConfig = JSON.stringify({
-      deviceId: sensor!.id,
-      field: "temperature",
-      operator: ">",
-      value: 20,
+      kind: "event",
+      event_type: "device.state_changed",
+      filter_expr: "true",
+      cooldown_ms: 5000,
     });
     const actionConfig = JSON.stringify({
-      type: "set_device_state",
-      targetType: "device",
-      targetId: light!.id,
-      payload: { on: true },
+      action_type: "set_device_state",
+      target_type: "device",
+      target_id: light!.id,
+      payload: JSON.stringify({ on: true }),
     });
 
     const automation = await graphqlClient
-      .mutation<CreateAutomationResult>(CREATE_AUTOMATION, {
+      .mutation(CREATE_AUTOMATION, {
         input: {
           name: "Node Activation Test",
           enabled: true,
-          cooldownSeconds: 5,
           nodes: [
             { id: "trigger-1", type: "trigger", config: triggerConfig },
             { id: "action-1", type: "action", config: actionConfig },
@@ -404,12 +319,9 @@ describe("subscriptions", () => {
     expect(automation.data).toBeDefined();
     const automationId = automation.data!.createAutomation.id;
 
-    const eventPromise = subscribeAndWait<AutomationNodeActivatedEvent>(
-      graphqlClient,
-      AUTOMATION_NODE_ACTIVATED,
-      10_000,
-      { automationId },
-    );
+    const eventPromise = subscribeAndWait(graphqlClient, AUTOMATION_NODE_ACTIVATED, 10_000, {
+      automationId,
+    });
 
     await new Promise((r) => setTimeout(r, 500));
 
@@ -422,57 +334,30 @@ describe("subscriptions", () => {
     expect(event.automationNodeActivated).toBeDefined();
     expect(event.automationNodeActivated.automationId).toBe(automationId);
 
-    const DELETE_AUTOMATION = gql`
-      mutation DeleteAutomation($id: ID!) {
-        deleteAutomation(id: $id)
-      }
-    `;
-    await graphqlClient
-      .mutation<{ deleteAutomation: boolean }>(DELETE_AUTOMATION, {
-        id: automationId,
-      })
-      .toPromise();
+    await graphqlClient.mutation(DELETE_AUTOMATION, { id: automationId }).toPromise();
   });
 
   it("should filter deviceStateChanged by deviceId", async () => {
     const { graphqlClient } = getContext();
 
-    const DEVICES_QUERY = gql`
-      query Devices {
-        devices {
-          id
-          name
-          type
-        }
-      }
-    `;
-    interface DevicesResult {
-      devices: Array<{ id: string; name: string; type: string }>;
-    }
-
-    const devicesResult = await graphqlClient
-      .query<DevicesResult>(DEVICES_QUERY, {})
-      .toPromise();
+    const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
     expect(devicesResult.data).toBeDefined();
 
-    const lights = devicesResult.data!.devices.filter(
-      (d) => d.type === "light",
-    );
+    const lights = devicesResult.data!.devices.filter((d) => d.type === "light");
     expect(lights.length).toBeGreaterThanOrEqual(2);
 
     const targetLight = lights.find((l) => l.name === "Living Room Light")!;
     const _otherLight = lights.find((l) => l.name === "Bedroom Light")!;
 
-    const received: DeviceStateChangedEvent[] = [];
+    const received: ResultOf<typeof DEVICE_STATE_CHANGED_FILTERED>[] = [];
 
     const eventPromise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => resolve(), 3000);
 
       const { unsubscribe } = pipe(
-        graphqlClient.subscription<DeviceStateChangedEvent>(
-          DEVICE_STATE_CHANGED_FILTERED,
-          { deviceId: targetLight.id },
-        ),
+        graphqlClient.subscription(DEVICE_STATE_CHANGED_FILTERED, {
+          deviceId: targetLight.id,
+        }),
         subscribe((result) => {
           if (result.data) {
             received.push(result.data);
