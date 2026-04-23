@@ -981,7 +981,6 @@
 						{#snippet table()}
 							<GroupTable
 								groups={filteredGroups}
-								orderedIds={filteredIds}
 								{selection}
 								onedit={startEditing}
 								ondelete={(g) => (deleteConfirmGroup = g)}

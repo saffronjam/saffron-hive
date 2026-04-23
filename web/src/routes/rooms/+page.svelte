@@ -776,7 +776,6 @@
 						{#snippet table()}
 							<RoomTable
 								rooms={filteredRooms}
-								orderedIds={filteredIds}
 								{selection}
 								onedit={startEditing}
 								ondelete={(r) => (deleteConfirmRoom = r)}

@@ -296,7 +296,6 @@
 	{:else}
 		<AlarmTable
 			alarms={filtered}
-			orderedIds={filteredIds}
 			{selection}
 			ondelete={(a) => (deleteTarget = a)}
 		/>
