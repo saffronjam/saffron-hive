@@ -5,20 +5,18 @@
 		b: number;
 		onchange: (color: { r: number; g: number; b: number }) => void;
 		disabled?: boolean;
+		showPreview?: boolean;
 	}
 
-	let { r, g, b, onchange, disabled = false }: Props = $props();
+	let { r, g, b, onchange, disabled = false, showPreview = true }: Props = $props();
 
 	let canvasEl: HTMLCanvasElement | null = $state(null);
-	let stripEl: HTMLCanvasElement | null = $state(null);
-	let draggingCanvas = $state(false);
-	let draggingStrip = $state(false);
+	let dragging = $state(false);
 
 	let hue = $state(0);
-	let saturation = $state(1);
-	let value = $state(1);
+	let saturation = $state(0);
 
-	function rgbToHsv(red: number, green: number, blue: number): { h: number; s: number; v: number } {
+	function rgbToHs(red: number, green: number, blue: number): { h: number; s: number } {
 		const rn = red / 255;
 		const gn = green / 255;
 		const bn = blue / 255;
@@ -36,21 +34,36 @@
 		}
 
 		const s = max === 0 ? 0 : d / max;
-		return { h, s, v: max };
+		return { h, s };
 	}
 
 	function hsvToRgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
 		const c = v * s;
 		const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
 		const m = v - c;
-		let rn = 0, gn = 0, bn = 0;
+		let rn = 0,
+			gn = 0,
+			bn = 0;
 
-		if (h < 60) { rn = c; gn = x; }
-		else if (h < 120) { rn = x; gn = c; }
-		else if (h < 180) { gn = c; bn = x; }
-		else if (h < 240) { gn = x; bn = c; }
-		else if (h < 300) { rn = x; bn = c; }
-		else { rn = c; bn = x; }
+		if (h < 60) {
+			rn = c;
+			gn = x;
+		} else if (h < 120) {
+			rn = x;
+			gn = c;
+		} else if (h < 180) {
+			gn = c;
+			bn = x;
+		} else if (h < 240) {
+			gn = x;
+			bn = c;
+		} else if (h < 300) {
+			rn = x;
+			bn = c;
+		} else {
+			rn = c;
+			bn = x;
+		}
 
 		return {
 			r: Math.round((rn + m) * 255),
@@ -60,23 +73,18 @@
 	}
 
 	$effect(() => {
-		const hsv = rgbToHsv(r, g, b);
-		if (!draggingCanvas && !draggingStrip) {
-			hue = hsv.h;
-			saturation = hsv.s;
-			value = hsv.v;
+		if (!dragging) {
+			const hs = rgbToHs(r, g, b);
+			hue = hs.h;
+			saturation = hs.s;
 		}
 	});
 
 	$effect(() => {
-		drawCanvas();
+		if (canvasEl) drawWheel();
 	});
 
-	$effect(() => {
-		drawStrip();
-	});
-
-	function drawCanvas() {
+	function drawWheel() {
 		const canvas = canvasEl;
 		if (!canvas) return;
 		const ctx = canvas.getContext("2d");
@@ -84,122 +92,95 @@
 
 		const w = canvas.width;
 		const h = canvas.height;
+		const cx = w / 2;
+		const cy = h / 2;
+		const radius = Math.min(cx, cy);
 
-		const hueColor = hsvToRgb(hue, 1, 1);
-		const baseColor = `rgb(${hueColor.r}, ${hueColor.g}, ${hueColor.b})`;
+		const image = ctx.createImageData(w, h);
+		const data = image.data;
 
-		ctx.fillStyle = baseColor;
-		ctx.fillRect(0, 0, w, h);
+		for (let py = 0; py < h; py++) {
+			for (let px = 0; px < w; px++) {
+				const dx = px - cx + 0.5;
+				const dy = py - cy + 0.5;
+				const dist = Math.sqrt(dx * dx + dy * dy);
+				const idx = (py * w + px) * 4;
 
-		const whiteGradient = ctx.createLinearGradient(0, 0, w, 0);
-		whiteGradient.addColorStop(0, "rgba(255,255,255,1)");
-		whiteGradient.addColorStop(1, "rgba(255,255,255,0)");
-		ctx.fillStyle = whiteGradient;
-		ctx.fillRect(0, 0, w, h);
+				if (dist > radius) {
+					data[idx + 3] = 0;
+					continue;
+				}
 
-		const blackGradient = ctx.createLinearGradient(0, 0, 0, h);
-		blackGradient.addColorStop(0, "rgba(0,0,0,0)");
-		blackGradient.addColorStop(1, "rgba(0,0,0,1)");
-		ctx.fillStyle = blackGradient;
-		ctx.fillRect(0, 0, w, h);
-	}
+				let ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+				if (ang < 0) ang += 360;
+				const sat = Math.min(1, dist / radius);
+				const rgb = hsvToRgb(ang, sat, 1);
 
-	function drawStrip() {
-		const canvas = stripEl;
-		if (!canvas) return;
-		const ctx = canvas.getContext("2d");
-		if (!ctx) return;
+				data[idx] = rgb.r;
+				data[idx + 1] = rgb.g;
+				data[idx + 2] = rgb.b;
 
-		const w = canvas.width;
-		const h = canvas.height;
+				const edge = radius - dist;
+				data[idx + 3] = edge < 1 ? Math.round(edge * 255) : 255;
+			}
+		}
 
-		const gradient = ctx.createLinearGradient(0, 0, w, 0);
-		gradient.addColorStop(0, "#ff0000");
-		gradient.addColorStop(1 / 6, "#ffff00");
-		gradient.addColorStop(2 / 6, "#00ff00");
-		gradient.addColorStop(3 / 6, "#00ffff");
-		gradient.addColorStop(4 / 6, "#0000ff");
-		gradient.addColorStop(5 / 6, "#ff00ff");
-		gradient.addColorStop(1, "#ff0000");
-
-		ctx.fillStyle = gradient;
-		ctx.fillRect(0, 0, w, h);
+		ctx.putImageData(image, 0, 0);
 	}
 
 	function emitColor() {
-		const rgb = hsvToRgb(hue, saturation, value);
+		const rgb = hsvToRgb(hue, saturation, 1);
 		onchange(rgb);
 	}
 
-	function handleCanvasInteraction(e: MouseEvent | TouchEvent) {
-		if (disabled) return;
+	function handlePoint(clientX: number, clientY: number) {
 		const canvas = canvasEl;
 		if (!canvas) return;
-
 		const rect = canvas.getBoundingClientRect();
-		let clientX: number, clientY: number;
+		const cx = rect.width / 2;
+		const cy = rect.height / 2;
+		const radius = Math.min(cx, cy);
 
-		if ("touches" in e) {
-			clientX = e.touches[0].clientX;
-			clientY = e.touches[0].clientY;
-		} else {
-			clientX = e.clientX;
-			clientY = e.clientY;
-		}
+		const dx = clientX - rect.left - cx;
+		const dy = clientY - rect.top - cy;
+		const dist = Math.sqrt(dx * dx + dy * dy);
+		const clamped = Math.min(dist, radius);
+		const sat = radius === 0 ? 0 : clamped / radius;
+		let ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+		if (ang < 0) ang += 360;
 
-		const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-		const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-
-		saturation = x;
-		value = 1 - y;
+		hue = ang;
+		saturation = sat;
 		emitColor();
 	}
 
-	function handleStripInteraction(e: MouseEvent | TouchEvent) {
-		if (disabled) return;
-		const canvas = stripEl;
-		if (!canvas) return;
-
-		const rect = canvas.getBoundingClientRect();
-		let clientX: number;
-
+	function pointerCoords(e: MouseEvent | TouchEvent): { x: number; y: number } {
 		if ("touches" in e) {
-			clientX = e.touches[0].clientX;
-		} else {
-			clientX = e.clientX;
+			return { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		}
-
-		const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-		hue = Math.round(x * 360);
-		emitColor();
+		return { x: e.clientX, y: e.clientY };
 	}
 
-	function handleCanvasDown(e: MouseEvent | TouchEvent) {
+	function handleDown(e: MouseEvent | TouchEvent) {
 		if (disabled) return;
-		draggingCanvas = true;
-		handleCanvasInteraction(e);
-	}
-
-	function handleStripDown(e: MouseEvent | TouchEvent) {
-		if (disabled) return;
-		draggingStrip = true;
-		handleStripInteraction(e);
+		dragging = true;
+		const p = pointerCoords(e);
+		handlePoint(p.x, p.y);
 	}
 
 	function handleWindowMove(e: MouseEvent | TouchEvent) {
-		if (draggingCanvas) handleCanvasInteraction(e);
-		if (draggingStrip) handleStripInteraction(e);
+		if (!dragging) return;
+		const p = pointerCoords(e);
+		handlePoint(p.x, p.y);
 	}
 
 	function handleWindowUp() {
-		draggingCanvas = false;
-		draggingStrip = false;
+		dragging = false;
 	}
 
+	const markerLeft = $derived(`${50 + Math.cos((hue * Math.PI) / 180) * saturation * 50}%`);
+	const markerTop = $derived(`${50 + Math.sin((hue * Math.PI) / 180) * saturation * 50}%`);
 	const previewColor = $derived(`rgb(${r}, ${g}, ${b})`);
-	const canvasMarkerLeft = $derived(`${saturation * 100}%`);
-	const canvasMarkerTop = $derived(`${(1 - value) * 100}%`);
-	const stripMarkerLeft = $derived(`${(hue / 360) * 100}%`);
 </script>
 
 <svelte:window
@@ -210,56 +191,40 @@
 />
 
 <div class="flex flex-col gap-3" class:opacity-50={disabled}>
-	<div class="relative aspect-square w-full cursor-crosshair overflow-hidden rounded-lg border border-border">
+	<div class="relative mx-auto aspect-square w-full max-w-xs">
 		<canvas
 			bind:this={canvasEl}
-			width={256}
-			height={256}
+			width={320}
+			height={320}
 			class="h-full w-full"
-			onmousedown={handleCanvasDown}
-			ontouchstart={handleCanvasDown}
+			onmousedown={handleDown}
+			ontouchstart={handleDown}
 			role="slider"
-			aria-label="Color saturation and brightness"
-			aria-valuemin={0}
-			aria-valuemax={100}
-			aria-valuenow={Math.round(saturation * 100)}
-			tabindex={disabled ? -1 : 0}
-		></canvas>
-		<div
-			class="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
-			style:left={canvasMarkerLeft}
-			style:top={canvasMarkerTop}
-		></div>
-	</div>
-
-	<div class="relative h-4 w-full cursor-pointer overflow-hidden rounded-full border border-border">
-		<canvas
-			bind:this={stripEl}
-			width={360}
-			height={16}
-			class="h-full w-full"
-			onmousedown={handleStripDown}
-			ontouchstart={handleStripDown}
-			role="slider"
-			aria-label="Color hue"
+			aria-label="Hue and saturation"
 			aria-valuemin={0}
 			aria-valuemax={360}
-			aria-valuenow={hue}
+			aria-valuenow={Math.round(hue)}
 			tabindex={disabled ? -1 : 0}
 		></canvas>
 		<div
-			class="pointer-events-none absolute top-0 h-full w-1 -translate-x-1/2 rounded-full bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
-			style:left={stripMarkerLeft}
+			class="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+			class:transition-[left,top]={!dragging}
+			class:duration-300={!dragging}
+			class:ease-out={!dragging}
+			style:left={markerLeft}
+			style:top={markerTop}
 		></div>
 	</div>
 
-	<div class="flex items-center gap-3">
-		<div
-			class="h-8 w-8 shrink-0 rounded-md border border-border"
-			style:background-color={previewColor}
-		></div>
-		<span class="text-xs font-mono text-muted-foreground">
-			rgb({r}, {g}, {b})
-		</span>
-	</div>
+	{#if showPreview}
+		<div class="flex items-center gap-3">
+			<div
+				class="h-8 w-8 shrink-0 rounded-md border border-border"
+				style:background-color={previewColor}
+			></div>
+			<span class="font-mono text-xs text-muted-foreground">
+				rgb({r}, {g}, {b})
+			</span>
+		</div>
+	{/if}
 </div>
