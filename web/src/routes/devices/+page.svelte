@@ -1,15 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
-	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { deviceStore, devicesHydrated, type Device } from "$lib/stores/devices";
 	import DeviceCard from "$lib/components/device-card.svelte";
 	import DeviceTable from "$lib/components/device-table.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
-	import DeviceBatchAddDialog from "$lib/components/device-batch-add-dialog.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
@@ -86,110 +84,10 @@
 	});
 
 	const selection = createTableSelection();
-	let batchAddOpen = $state(false);
 	const filteredIds = $derived(filteredDevices.map((d) => d.id));
 	$effect(() => {
 		selection.pruneTo(filteredIds);
 	});
-
-	const DEVICES_QUERY = graphql(`
-		query Devices {
-			devices {
-				id
-				name
-				source
-				type
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const DEVICE_STATE_CHANGED = graphql(`
-		subscription DeviceStateChanged {
-			deviceStateChanged {
-				deviceId
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const DEVICE_AVAILABILITY_CHANGED = graphql(`
-		subscription DeviceAvailabilityChanged {
-			deviceAvailabilityChanged {
-				deviceId
-				available
-			}
-		}
-	`);
-
-	const DEVICE_ADDED = graphql(`
-		subscription DeviceAdded {
-			deviceAdded {
-				id
-				name
-				source
-				type
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const DEVICE_REMOVED = graphql(`
-		subscription DeviceRemoved {
-			deviceRemoved
-		}
-	`);
 
 	const UPDATE_DEVICE = graphql(`
 		mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
@@ -242,51 +140,12 @@
 	type GroupInfo = { id: string; name: string; members: { memberType: string; memberId: string }[] };
 
 	const client = getContextClient();
-	let ready = $state(false);
 
 	let rooms = $state<RoomInfo[]>([]);
 	let groups = $state<GroupInfo[]>([]);
 
 	let addToPickerOpen = $state(false);
 	let pickerDevice = $state<Device | null>(null);
-
-	const devicesQuery = queryStore({ client, query: DEVICES_QUERY });
-	const stateChanged = subscriptionStore({ client, query: DEVICE_STATE_CHANGED });
-	const availabilityChanged = subscriptionStore({ client, query: DEVICE_AVAILABILITY_CHANGED });
-	const deviceAdded = subscriptionStore({ client, query: DEVICE_ADDED });
-	const deviceRemoved = subscriptionStore({ client, query: DEVICE_REMOVED });
-
-	$effect(() => {
-		if ($devicesQuery.data) {
-			deviceStore.hydrate($devicesQuery.data.devices);
-		}
-	});
-
-	$effect(() => {
-		if ($stateChanged.data) {
-			const { deviceId, state } = $stateChanged.data.deviceStateChanged;
-			deviceStore.updateState(deviceId, state);
-		}
-	});
-
-	$effect(() => {
-		if ($availabilityChanged.data) {
-			const { deviceId, available } = $availabilityChanged.data.deviceAvailabilityChanged;
-			deviceStore.updateAvailability(deviceId, available);
-		}
-	});
-
-	$effect(() => {
-		if ($deviceAdded.data) {
-			deviceStore.addDevice($deviceAdded.data.deviceAdded);
-		}
-	});
-
-	$effect(() => {
-		if ($deviceRemoved.data) {
-			deviceStore.removeDevice($deviceRemoved.data.deviceRemoved);
-		}
-	});
 
 	const chipsIndex = $derived(chipsByDevice(rooms, groups));
 
@@ -378,13 +237,9 @@
 	onMount(() => {
 		void refreshMemberships();
 	});
-
-	$effect(() => {
-		if (!$devicesQuery.fetching) ready = true;
-	});
 </script>
 
-{#if ready}
+{#if $devicesHydrated}
 	<div in:fly={{ y: -4, duration: 150 }}>
 
 		<div class="mb-6 flex items-stretch gap-2">
@@ -403,15 +258,7 @@
 				aria-hidden={!(view === "table" && selection.count > 0)}
 			>
 				<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
-					{#snippet actions()}
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => (batchAddOpen = true)}
-						>
-							Add to…
-						</Button>
-					{/snippet}
+					{#snippet actions()}{/snippet}
 				</TableSelectionToolbar>
 			</div>
 		</div>
@@ -449,7 +296,6 @@
 							const chips = chipsFor(device.id);
 							return { device, roomChips: chips.roomChips, groupChips: chips.groupChips };
 						})}
-						orderedIds={filteredIds}
 						{selection}
 						onrename={handleRename}
 						onAddTo={handleAddTo}
@@ -467,12 +313,5 @@
 			onselect={handlePickerSelect}
 		/>
 
-		<DeviceBatchAddDialog
-			bind:open={batchAddOpen}
-			deviceIds={selection.selectedIds()}
-			onadded={() => {
-				selection.clear();
-			}}
-		/>
 	</div>
 {/if}
