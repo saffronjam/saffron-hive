@@ -10,11 +10,6 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import {
-		Popover,
-		PopoverContent,
-		PopoverTrigger,
-	} from "$lib/components/ui/popover/index.js";
-	import {
 		Tabs,
 		TabsContent,
 		TabsList,
@@ -48,7 +43,6 @@
 		Rows3,
 		Copy,
 		ClipboardPaste,
-		Settings,
 	} from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
@@ -107,7 +101,6 @@
 		name: string;
 		icon?: string | null;
 		enabled: boolean;
-		cooldownSeconds: number;
 		nodes: AutomationNodeData[];
 		edges: AutomationEdgeData[];
 	}
@@ -167,7 +160,6 @@
 				name
 				icon
 				enabled
-				cooldownSeconds
 				nodes {
 					id
 					type
@@ -191,7 +183,6 @@
 				name
 				icon
 				enabled
-				cooldownSeconds
 				nodes {
 					id
 					type
@@ -342,15 +333,6 @@
 		];
 	});
 	let automationEnabled = $state(false);
-	let cooldownSeconds = $state(0.5);
-	const MIN_COOLDOWN_SECONDS = 0.001;
-	const cooldownError = $derived.by(() => {
-		if (cooldownSeconds < 0) return "Cooldown must not be negative";
-		if (cooldownSeconds > 0 && cooldownSeconds < MIN_COOLDOWN_SECONDS) {
-			return `Cooldown must be 0 or at least ${MIN_COOLDOWN_SECONDS} s`;
-		}
-		return null;
-	});
 	let flowNodes = $state<Node[]>([]);
 	let flowEdges = $state<Edge[]>([]);
 
@@ -399,7 +381,6 @@
 		name: string;
 		icon: string | null;
 		enabled: boolean;
-		cooldownSeconds: number;
 		nodes: Node[];
 		edges: Edge[];
 	}
@@ -412,7 +393,6 @@
 	const isDirty = $derived(history.cursor !== savedCursor);
 
 	const hasValidationErrors = $derived.by(() => {
-		if (cooldownError) return true;
 		for (const n of flowNodes) {
 			const nodeType = n.type ?? "";
 			const config = (n.data as Record<string, unknown>).config;
@@ -456,7 +436,6 @@
 			name: automationName,
 			icon: automationIcon,
 			enabled: automationEnabled,
-			cooldownSeconds: cooldownSeconds,
 			nodes: cloneNodes(flowNodes),
 			edges: cloneEdges(flowEdges),
 		});
@@ -467,7 +446,6 @@
 		automationName = snap.name;
 		automationIcon = snap.icon;
 		automationEnabled = snap.enabled;
-		cooldownSeconds = snap.cooldownSeconds;
 		flowNodes = snap.nodes.map((n) => {
 			const nodeType = n.type ?? "trigger";
 			const config = (n.data as Record<string, unknown>).config as NodeConfig;
@@ -806,7 +784,6 @@
 
 	interface AutomationJson {
 		name: string;
-		cooldownSeconds: number;
 		nodes: {
 			id: string;
 			type: string;
@@ -820,7 +797,6 @@
 	function flowStateToJson(): string {
 		const obj: AutomationJson = {
 			name: automationName,
-			cooldownSeconds,
 			nodes: flowNodes.map((n) => {
 				const nodeType = n.type ?? "trigger";
 				const config = (n.data as Record<string, unknown>).config;
@@ -854,7 +830,7 @@
 		return JSON.stringify(obj, null, 2);
 	}
 
-	function jsonToFlowState(jsonStr: string): { ok: true; name: string; cooldownSeconds: number; nodes: AutomationNodeData[]; edges: AutomationEdgeData[] } | { ok: false; error: string } {
+	function jsonToFlowState(jsonStr: string): { ok: true; name: string; nodes: AutomationNodeData[]; edges: AutomationEdgeData[] } | { ok: false; error: string } {
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(jsonStr);
@@ -870,9 +846,6 @@
 
 		if (typeof obj.name !== "string") {
 			return { ok: false, error: "\"name\" must be a string" };
-		}
-		if (typeof obj.cooldownSeconds !== "number") {
-			return { ok: false, error: "\"cooldownSeconds\" must be a number" };
 		}
 
 		if (!Array.isArray(obj.nodes)) {
@@ -930,7 +903,7 @@
 			toNodeId: e.to as string,
 		}));
 
-		return { ok: true, name: obj.name, cooldownSeconds: obj.cooldownSeconds as number, nodes, edges };
+		return { ok: true, name: obj.name, nodes, edges };
 	}
 
 	function syncJsonFromGraph() {
@@ -947,7 +920,6 @@
 		if (result.ok) {
 			jsonError = null;
 			automationName = result.name;
-			cooldownSeconds = result.cooldownSeconds;
 			flowNodes = automationNodesToFlowNodes(result.nodes, editMode, activatedNodes);
 			flowEdges = automationEdgesToFlowEdges(result.edges);
 			takeSnapshot();
@@ -1238,7 +1210,6 @@
 					name: automationName,
 					icon: automationIcon,
 					enabled: automationEnabled,
-					cooldownSeconds,
 					nodes: flowNodesToAutomationNodes(flowNodes),
 					edges: flowEdgesToAutomationEdges(flowEdges, flowNodes),
 				},
@@ -1301,7 +1272,6 @@
 					automationName = auto.name;
 					automationIcon = auto.icon ?? null;
 					automationEnabled = auto.enabled;
-					cooldownSeconds = auto.cooldownSeconds;
 					flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
 					flowEdges = automationEdgesToFlowEdges(auto.edges);
 
@@ -1368,13 +1338,21 @@
 					const existing = activatedNodes.get(nodeId);
 					if (existing) clearTimeout(existing);
 
+					const node = flowNodes.find((n) => n.id === nodeId);
+					const isTrigger = node?.type === "trigger";
+					const cfg = node ? ((node.data as Record<string, unknown>).config as { graceMs?: number } | undefined) : undefined;
+					// Triggers hold their activation for their grace window (floor 100 ms
+					// so blink-short fires are still visible). Other node types get a
+					// fixed short blink — they have no persistent "active" semantics.
+					const durationMs = isTrigger ? Math.max(100, cfg?.graceMs ?? 0) : 100;
+
 					const timeout = setTimeout(() => {
 						activatedNodes.delete(nodeId);
 						activatedNodes = new Map(activatedNodes);
 						flowNodes = flowNodes.map((n) =>
 							n.id === nodeId ? { ...n, data: { ...n.data, activated: false } } : n
 						);
-					}, 3000);
+					}, durationMs);
 
 					activatedNodes.set(nodeId, timeout);
 					activatedNodes = new Map(activatedNodes);
@@ -1488,43 +1466,6 @@
 					</Button>
 				</div>
 
-				<Popover>
-					<PopoverTrigger>
-						<Button variant="ghost" size="icon-sm" aria-label="Advanced settings">
-							<Settings class="size-4" />
-						</Button>
-					</PopoverTrigger>
-					<PopoverContent class="w-72 p-4" align="end">
-						<div class="grid gap-3">
-							<div class="text-sm font-semibold">Advanced</div>
-							<div class="grid gap-1.5">
-								<label for="cooldown" class="text-sm font-medium">Cooldown (s)</label>
-								<Input
-									id="cooldown"
-									type="number"
-									value={cooldownSeconds}
-									oninput={(e) => {
-										const raw = (e.currentTarget as HTMLInputElement).value;
-										const next = raw === "" ? 0 : Number(raw);
-										if (Number.isFinite(next) && next !== cooldownSeconds) {
-											cooldownSeconds = next;
-											takeSnapshot();
-										}
-									}}
-									min={0}
-									step={0.001}
-									disabled={!editMode}
-								/>
-								<p class="text-xs text-muted-foreground">
-									Minimum time between firings. <code>0</code> disables. Lower limit is 0.001 s.
-								</p>
-								{#if cooldownError}
-									<p class="text-xs text-destructive">{cooldownError}</p>
-								{/if}
-							</div>
-						</div>
-					</PopoverContent>
-				</Popover>
 			</div>
 		{/if}
 	</div>

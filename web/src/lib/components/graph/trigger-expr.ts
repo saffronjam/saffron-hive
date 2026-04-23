@@ -32,7 +32,22 @@ export interface TriggerConfig {
   scheduleWeekdays?: string[]; // ["MON","TUE",...]
   scheduleIntervalValue?: number;
   scheduleIntervalUnit?: ScheduleIntervalUnit;
+  // advanced timing (per-trigger), in milliseconds. 0 = immediate / no throttle.
+  graceMs?: number;
+  cooldownMs?: number;
 }
+
+// TIMING_PRESETS feeds the Grace/Cooldown selects in the trigger node. Values
+// are in milliseconds so the runtime and the UI agree without unit conversion.
+export const TIMING_PRESETS: { value: number; label: string }[] = [
+  { value: 0, label: "Immediate" },
+  { value: 500, label: "500 ms" },
+  { value: 1000, label: "1 s" },
+  { value: 5000, label: "5 s" },
+  { value: 10000, label: "10 s" },
+  { value: 30000, label: "30 s" },
+  { value: 60000, label: "1 min" },
+];
 
 const capToExprProperty: Record<string, string> = {
   on_off: "on",
@@ -220,6 +235,9 @@ export function defaultTriggerConfig(): TriggerConfig {
 }
 
 export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerConfig {
+  const graceMs = typeof raw.grace_ms === "number" ? raw.grace_ms : undefined;
+  const cooldownMs = typeof raw.cooldown_ms === "number" ? raw.cooldown_ms : undefined;
+
   // If the raw object already looks like our internal TS shape (has `mode`),
   // just coerce it.
   if (raw.mode && typeof raw.mode === "string") {
@@ -228,7 +246,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
 
   // Manual trigger (has no config beyond kind)
   if (raw.kind === "manual") {
-    return { mode: "manual" };
+    return { mode: "manual", graceMs, cooldownMs };
   }
 
   // Schedule trigger (new shape)
@@ -245,6 +263,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
         scheduleMinute: atParts.minute,
         scheduleSecond: atParts.second,
         scheduleWeekdays: atParts.weekdays,
+        graceMs,
+        cooldownMs,
       };
     }
     const every = parseEveryModeFromCron(cron);
@@ -255,12 +275,16 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
         cronExpr: cron,
         scheduleIntervalValue: every.value,
         scheduleIntervalUnit: every.unit,
+        graceMs,
+        cooldownMs,
       };
     }
     return {
       mode: "schedule",
       scheduleSubmode: "custom",
       cronExpr: cron,
+      graceMs,
+      cooldownMs,
     };
   }
 
@@ -280,7 +304,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
   if (eventType === "device.availability_changed") {
     const m = filter.match(/^trigger\.device_id == "([^"]+)"$/);
     if (m) {
-      return { mode: "availability", eventType, deviceId: m[1] };
+      return { mode: "availability", eventType, deviceId: m[1], graceMs, cooldownMs };
     }
   }
   if (eventType === "device.action_fired") {
@@ -293,6 +317,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
         eventType,
         deviceId: btnFull[1],
         actionValue: btnFull[2],
+        graceMs,
+        cooldownMs,
       };
     }
     const btnDevOnly = filter.match(/^trigger\.device_id == "([^"]+)"$/);
@@ -301,6 +327,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
         mode: "button_action",
         eventType,
         deviceId: btnDevOnly[1],
+        graceMs,
+        cooldownMs,
       };
     }
   }
@@ -318,6 +346,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
         property: ds[2],
         comparator: ds[3],
         value: val,
+        graceMs,
+        cooldownMs,
       };
     }
   }
@@ -326,23 +356,31 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     mode: "custom",
     eventType,
     customExpr: filter || "true",
+    graceMs,
+    cooldownMs,
   };
 }
 
 export function serializeTriggerConfig(config: TriggerConfig): string {
+  const timing: { grace_ms?: number; cooldown_ms?: number } = {};
+  if (config.graceMs && config.graceMs > 0) timing.grace_ms = config.graceMs;
+  if (config.cooldownMs && config.cooldownMs > 0) timing.cooldown_ms = config.cooldownMs;
+
   if (config.mode === "schedule") {
     return JSON.stringify({
       kind: "schedule",
       cron_expr: generateCronExpr(config),
+      ...timing,
     });
   }
   if (config.mode === "manual") {
-    return JSON.stringify({ kind: "manual" });
+    return JSON.stringify({ kind: "manual", ...timing });
   }
   return JSON.stringify({
     kind: "event",
     event_type: config.eventType ?? eventTypeForMode(config.mode),
     filter_expr: generateFilterExpr(config),
+    ...timing,
   });
 }
 

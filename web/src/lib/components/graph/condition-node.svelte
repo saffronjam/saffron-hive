@@ -8,7 +8,7 @@
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import { ShieldCheck } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
@@ -316,12 +316,12 @@
 				>
 					{#snippet renderSelected(d: Device)}
 						<span class="truncate">{d.name}</span>
-						<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0" />
+						<HiveChip type={d.type} class="text-[10px] py-0 shrink-0" />
 					{/snippet}
 					{#snippet item(d: Device)}
 						<span class="flex w-full items-center gap-1.5 overflow-hidden">
 							<span class="truncate">{d.name}</span>
-							<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
+							<HiveChip type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
 						</span>
 					{/snippet}
 				</HiveSelectAutocomplete>

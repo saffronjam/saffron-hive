@@ -9,7 +9,7 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import { Zap } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
@@ -25,7 +25,9 @@
 		eventTypeForMode,
 		capabilityToExprProperty,
 		validateTriggerConfig,
+		TIMING_PRESETS,
 	} from "./trigger-expr";
+	import { ChevronDown, ChevronRight } from "@lucide/svelte";
 
 	interface TriggerNodeData extends Record<string, unknown> {
 		config: TriggerConfig;
@@ -212,6 +214,26 @@
 		modes.find((m) => m.value === data.config.mode)?.label ?? "Custom"
 	);
 
+	let advancedOpen = $state(false);
+	const graceMs = $derived(data.config.graceMs ?? 0);
+	const cooldownMs = $derived(data.config.cooldownMs ?? 0);
+
+	function formatTimingValue(ms: number): string {
+		const preset = TIMING_PRESETS.find((p) => p.value === ms);
+		if (preset) return preset.label;
+		if (ms <= 0) return "Immediate";
+		if (ms < 1000) return `${ms} ms`;
+		return `${+(ms / 1000).toFixed(3)} s`;
+	}
+
+	function setGraceMs(next: number) {
+		update({ graceMs: next });
+	}
+
+	function setCooldownMs(next: number) {
+		update({ cooldownMs: next });
+	}
+
 	function readableSummary(): string {
 		switch (data.config.mode) {
 			case "device_state": {
@@ -295,12 +317,12 @@
 				>
 					{#snippet renderSelected(d: Device)}
 						<span class="truncate">{d.name}</span>
-						<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0" />
+						<HiveChip type={d.type} class="text-[10px] py-0 shrink-0" />
 					{/snippet}
 					{#snippet item(d: Device)}
 						<span class="flex w-full items-center gap-1.5 overflow-hidden">
 							<span class="truncate">{d.name}</span>
-							<DeviceTypeBadge type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
+							<HiveChip type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
 						</span>
 					{/snippet}
 				</HiveSelectAutocomplete>
@@ -626,6 +648,67 @@
 		{/if}
 		{#if validationError && data.editable}
 			<p class="text-[10px] text-destructive">{validationError.message}</p>
+		{/if}
+
+		{#if data.editable}
+			<div class="-mx-3 -mb-3 border-t border-blue-500/20">
+				<button
+					type="button"
+					class="flex w-full items-center gap-1 px-3 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+					onclick={() => (advancedOpen = !advancedOpen)}
+				>
+					{#if advancedOpen}
+						<ChevronDown class="size-3" />
+					{:else}
+						<ChevronRight class="size-3" />
+					{/if}
+					Advanced
+					{#if !advancedOpen && (graceMs > 0 || cooldownMs > 0)}
+						<span class="ml-auto text-[10px] text-muted-foreground">
+							{#if graceMs > 0}G:{formatTimingValue(graceMs)}{/if}{#if graceMs > 0 && cooldownMs > 0}&nbsp;·&nbsp;{/if}{#if cooldownMs > 0}C:{formatTimingValue(cooldownMs)}{/if}
+						</span>
+					{/if}
+				</button>
+				{#if advancedOpen}
+					<div class="space-y-2 px-3 pb-3 pt-1">
+						<div class="grid grid-cols-[auto_1fr] items-center gap-2">
+							<label for="trigger-{id}-grace" class="text-[10px] text-muted-foreground">Grace</label>
+							<Select
+								type="single"
+								value={String(graceMs)}
+								onValueChange={(v) => v !== undefined && setGraceMs(Number(v))}
+							>
+								<SelectTrigger id="trigger-{id}-grace" class="h-7 w-full text-xs">
+									{formatTimingValue(graceMs)}
+								</SelectTrigger>
+								<SelectContent>
+									{#each TIMING_PRESETS as p (p.value)}
+										<SelectItem value={String(p.value)}>{p.label}</SelectItem>
+									{/each}
+								</SelectContent>
+							</Select>
+							<label for="trigger-{id}-cooldown" class="text-[10px] text-muted-foreground">Cooldown</label>
+							<Select
+								type="single"
+								value={String(cooldownMs)}
+								onValueChange={(v) => v !== undefined && setCooldownMs(Number(v))}
+							>
+								<SelectTrigger id="trigger-{id}-cooldown" class="h-7 w-full text-xs">
+									{formatTimingValue(cooldownMs)}
+								</SelectTrigger>
+								<SelectContent>
+									{#each TIMING_PRESETS as p (p.value)}
+										<SelectItem value={String(p.value)}>{p.label}</SelectItem>
+									{/each}
+								</SelectContent>
+							</Select>
+						</div>
+						<p class="text-[10px] text-muted-foreground">
+							Grace keeps this trigger active after it fires so AND/OR can combine it with later events. Cooldown suppresses re-matches inside the window.
+						</p>
+					</div>
+				{/if}
+			</div>
 		{/if}
 	</div>
 
