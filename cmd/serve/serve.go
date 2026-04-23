@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -29,6 +28,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
+	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
@@ -38,9 +38,8 @@ import (
 var webDist embed.FS
 
 var (
-	serveLogger           = slog.Default().With("pkg", "serve")
-	sensorLogger          = slog.Default().With("pkg", "sensor_recorder")
-	devicePersisterLogger = slog.Default().With("pkg", "device_persister")
+	serveLogger           = logging.Named("serve")
+	devicePersisterLogger = logging.Named("device_persister")
 )
 
 // Run starts the Saffron Hive application. It blocks until ctx is cancelled,
@@ -87,6 +86,13 @@ func Run(ctx context.Context) error {
 			levelVar.Set(lvl)
 		}
 	}
+	if cfg.LogLevel != "" {
+		if lvl, ok := logging.ParseLevel(cfg.LogLevel); ok {
+			levelVar.Set(lvl)
+		} else {
+			serveLogger.Warn("ignoring invalid HIVE_LOG_LEVEL", "value", cfg.LogLevel)
+		}
+	}
 
 	bus := eventbus.NewChannelBus()
 
@@ -112,12 +118,11 @@ func Run(ctx context.Context) error {
 		memStore: memStore,
 	}
 
-	sensorCh := bus.Subscribe(eventbus.EventDeviceStateChanged)
 	deviceCh := bus.Subscribe(
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
 	)
-	go runSensorRecorder(ctx, bus, sensorCh, sqlStore)
+	go history.RunRecorder(ctx, bus, sqlStore)
 	go runDevicePersister(ctx, bus, deviceCh, sqlStore)
 
 	activityBuffer := activity.NewBuffer()
@@ -404,40 +409,6 @@ func (r *engineReloader) Reload() error {
 
 func (r *engineReloader) FireManualTrigger(ctx context.Context, automationID, nodeID string) error {
 	return r.engine.FireManualTrigger(ctx, automationID, automation.NodeID(nodeID))
-}
-
-func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {
-	defer bus.Unsubscribe(ch)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case evt, ok := <-ch:
-			if !ok {
-				return
-			}
-			ss, ok := evt.Payload.(device.DeviceState)
-			if !ok {
-				continue
-			}
-			if ss.Temperature == nil && ss.Humidity == nil && ss.Battery == nil && ss.Pressure == nil && ss.Illuminance == nil {
-				continue
-			}
-			_, err := s.InsertSensorReading(ctx, store.InsertSensorReadingParams{
-				DeviceID:    device.DeviceID(evt.DeviceID),
-				Temperature: ss.Temperature,
-				Humidity:    ss.Humidity,
-				Battery:     ss.Battery,
-				Pressure:    ss.Pressure,
-				Illuminance: ss.Illuminance,
-				RecordedAt:  time.Now(),
-			})
-			if err != nil {
-				sensorLogger.Error("failed to insert sensor reading", "device_id", evt.DeviceID, "error", err)
-			}
-		}
-	}
 }
 
 func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {

@@ -25,6 +25,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
+	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -55,13 +56,9 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	dbPath := tmpFile.Name()
 	_ = tmpFile.Close()
 
-	db, err := sql.Open("sqlite", dbPath+"?_txlock=immediate")
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
-	}
-	if _, err := db.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;"); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("set pragmas: %w", err)
 	}
 
 	if err := runMigrations(db); err != nil {
@@ -104,7 +101,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		}
 	}()
 
-	go runSensorRecorder(appCtx, bus, sqlStore)
+	go history.RunRecorder(appCtx, bus, sqlStore)
 
 	secret, err := auth.LoadOrInitSecret(appCtx, sqlStore)
 	if err != nil {
@@ -258,39 +255,4 @@ type reloader struct {
 
 func (r *reloader) Reload() error {
 	return r.engine.Reload(r.ctx)
-}
-
-func runSensorRecorder(ctx context.Context, bus eventbus.EventBus, s *store.DB) {
-	ch := bus.Subscribe(eventbus.EventDeviceStateChanged)
-	defer bus.Unsubscribe(ch)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case evt, ok := <-ch:
-			if !ok {
-				return
-			}
-			ss, ok := evt.Payload.(device.DeviceState)
-			if !ok {
-				continue
-			}
-			if ss.Temperature == nil && ss.Humidity == nil && ss.Battery == nil && ss.Pressure == nil && ss.Illuminance == nil {
-				continue
-			}
-			_, err := s.InsertSensorReading(ctx, store.InsertSensorReadingParams{
-				DeviceID:    device.DeviceID(evt.DeviceID),
-				Temperature: ss.Temperature,
-				Humidity:    ss.Humidity,
-				Battery:     ss.Battery,
-				Pressure:    ss.Pressure,
-				Illuminance: ss.Illuminance,
-				RecordedAt:  time.Now(),
-			})
-			if err != nil {
-				log.Printf("sensor recorder: failed to insert reading: %v", err)
-			}
-		}
-	}
 }
