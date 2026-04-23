@@ -111,15 +111,4 @@
 			</CardContent>
 		</Card>
 	{/if}
-
-	<Card>
-		<CardHeader>
-			<CardTitle>History</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<div class="flex items-center justify-center rounded-lg border border-dashed border-border py-12">
-				<p class="text-sm text-muted-foreground">Sensor history graphs coming soon</p>
-			</div>
-		</CardContent>
-	</Card>
 </div>

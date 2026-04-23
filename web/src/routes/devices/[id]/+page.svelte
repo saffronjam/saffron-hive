@@ -6,7 +6,7 @@
 	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
 		Tooltip,
@@ -18,6 +18,8 @@
 	import LightControls from "$lib/components/light-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
+	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
+	import DateRangePicker from "$lib/components/date-range-picker.svelte";
 	import PlugDisplay from "$lib/components/plug-display.svelte";
 	import MemberTable from "$lib/components/member-table.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
@@ -452,6 +454,9 @@
 			unsub();
 		}
 	});
+
+	let historyFrom = $state<Date>(new Date(Date.now() - 24 * 60 * 60 * 1000));
+	let historyTo = $state<Date>(new Date());
 </script>
 
 <div>
@@ -521,7 +526,7 @@
 							<div class="flex items-center justify-between">
 								<dt class="text-sm text-muted-foreground">Type</dt>
 								<dd>
-									<DeviceTypeBadge type={device.type} />
+									<HiveChip type={device.type} />
 								</dd>
 							</div>
 
@@ -568,7 +573,7 @@
 				</Card>
 			</div>
 
-			<div>
+			<div class="flex flex-col gap-4">
 				{#if light}
 					<LightControls lightState={light} oncommand={handleDeviceCommand} {sending} />
 				{:else if plug}
@@ -581,6 +586,24 @@
 					<Card>
 						<CardContent class="py-8 text-center">
 							<p class="text-muted-foreground">No state information available for this device.</p>
+						</CardContent>
+					</Card>
+				{/if}
+
+				{#if !isButton}
+					<Card>
+						<CardHeader>
+							<div class="flex items-center justify-between gap-2">
+								<CardTitle>History</CardTitle>
+								<DateRangePicker bind:from={historyFrom} bind:to={historyTo} compact />
+							</div>
+						</CardHeader>
+						<CardContent>
+							<StateHistoryChart
+								deviceIds={[device.id]}
+								from={historyFrom}
+								to={historyTo}
+							/>
 						</CardContent>
 					</Card>
 				{/if}
