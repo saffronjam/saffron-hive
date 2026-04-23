@@ -90,6 +90,7 @@
 	let username = $state("");
 	let password = $state("");
 	let useWss = $state(false);
+	let mqttLoaded = $state(false);
 
 	let origBroker = $state("");
 	let origUsername = $state("");
@@ -98,6 +99,9 @@
 
 	let logLevel = $state("INFO");
 	let origLogLevel = $state("");
+
+	let historyRetentionDays = $state("365");
+	let origHistoryRetentionDays = $state("365");
 
 	let saving = $state(false);
 	let testing = $state(false);
@@ -111,7 +115,9 @@
 			useWss !== origUseWss
 	);
 
-	const settingsDirty = $derived(logLevel !== origLogLevel);
+	const settingsDirty = $derived(
+		logLevel !== origLogLevel || historyRetentionDays !== origHistoryRetentionDays
+	);
 
 	const isDirty = $derived(mqttDirty || settingsDirty);
 
@@ -134,12 +140,15 @@
 			username = origUsername = cfg.username;
 			password = origPassword = cfg.password;
 			useWss = origUseWss = cfg.useWss;
+			mqttLoaded = true;
 		}
 
 		if (settingsResult.data?.settings) {
 			for (const s of settingsResult.data.settings) {
 				if (s.key === "log_level") {
 					logLevel = origLogLevel = s.value;
+				} else if (s.key === "history.retention_days") {
+					historyRetentionDays = origHistoryRetentionDays = s.value;
 				}
 			}
 		}
@@ -174,7 +183,7 @@
 				origUseWss = useWss;
 			}
 
-			if (settingsDirty) {
+			if (logLevel !== origLogLevel) {
 				const result = await client
 					.mutation(UPDATE_SETTING, {
 						key: "log_level",
@@ -186,6 +195,24 @@
 					return;
 				}
 				origLogLevel = logLevel;
+			}
+			if (historyRetentionDays !== origHistoryRetentionDays) {
+				const parsed = Number(historyRetentionDays);
+				if (!Number.isFinite(parsed) || parsed <= 0) {
+					console.error("Invalid retention value");
+					return;
+				}
+				const result = await client
+					.mutation(UPDATE_SETTING, {
+						key: "history.retention_days",
+						value: String(Math.floor(parsed)),
+					})
+					.toPromise();
+				if (result.error) {
+					console.error("Failed to update retention:", result.error);
+					return;
+				}
+				origHistoryRetentionDays = historyRetentionDays;
 			}
 		} finally {
 			saving = false;
@@ -255,9 +282,13 @@
 					placeholder="Optional"
 				/>
 			</div>
-			<div class="flex items-center gap-3">
-				<Switch id="use-wss" bind:checked={useWss} />
-				<label for="use-wss" class="text-sm font-medium">Use WebSocket Secure (WSS)</label>
+			<div class="flex items-center gap-3 min-h-[18.4px]">
+				{#if mqttLoaded}
+					<Switch id="use-wss" bind:checked={useWss} />
+					<label for="use-wss" class="text-sm font-medium"
+						>Use WebSocket Secure (WSS)</label
+					>
+				{/if}
 			</div>
 			<div class="flex items-center gap-3 pt-2">
 				<Button variant="outline" size="sm" onclick={testConnection} disabled={testing}>
@@ -278,6 +309,24 @@
 						</div>
 					{/if}
 				{/if}
+			</div>
+		</div>
+	</div>
+
+	<div class="rounded-lg shadow-card bg-card p-6">
+		<h2 class="text-lg font-semibold mb-4">History</h2>
+		<div class="grid gap-4 max-w-lg">
+			<div class="grid gap-1.5">
+				<label for="retention-days" class="text-sm font-medium">Retention (days)</label>
+				<Input
+					id="retention-days"
+					type="number"
+					min="1"
+					bind:value={historyRetentionDays}
+				/>
+				<p class="text-xs text-muted-foreground">
+					Device state samples older than this are pruned every 6 hours.
+				</p>
 			</div>
 		</div>
 	</div>
