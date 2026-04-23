@@ -55,25 +55,34 @@ sqlc:
 
 sqlc-check:
 	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION)). Install: brew install sqlc"; exit 1; }
-	@sqlc generate
-	@if ! git diff --quiet -- internal/store/sqlite/; then \
+	@tmpdir=$$(mktemp -d); \
+	cp -R internal/store/sqlite/. $$tmpdir/; \
+	sqlc generate; \
+	if ! diff -rq $$tmpdir internal/store/sqlite >/dev/null 2>&1; then \
 		echo "sqlc output drift detected under internal/store/sqlite/."; \
 		echo "Run 'make sqlc' and commit the regenerated files."; \
-		git diff --stat -- internal/store/sqlite/; \
+		diff -rq $$tmpdir internal/store/sqlite || true; \
+		rm -rf $$tmpdir; \
 		exit 1; \
-	fi
+	fi; \
+	rm -rf $$tmpdir
 
 codegen:
 	cd web && bun run codegen
 
 codegen-check:
-	@cd web && bun run codegen
-	@if ! git diff --quiet -- web/src/lib/gql/; then \
+	@tmpdir=$$(mktemp -d); \
+	cp -R web/src/lib/gql/. $$tmpdir/; \
+	cd web && bun run codegen; \
+	cd ..; \
+	if ! diff -rq $$tmpdir web/src/lib/gql >/dev/null 2>&1; then \
 		echo "graphql-codegen output drift detected under web/src/lib/gql/."; \
 		echo "Run 'make codegen' and commit the regenerated files."; \
-		git diff --stat -- web/src/lib/gql/; \
+		diff -rq $$tmpdir web/src/lib/gql || true; \
+		rm -rf $$tmpdir; \
 		exit 1; \
-	fi
+	fi; \
+	rm -rf $$tmpdir
 
 e2e: e2e-go e2e-ts
 
