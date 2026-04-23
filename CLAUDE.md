@@ -105,6 +105,12 @@ Domain types are the authoritative representation. Everything else maps to/from 
 
 ## Code style
 
+### Rewrite, don't wrap
+- When internal types, schemas, tables, queries, or APIs change, **delete the old path and update every caller.** Do not introduce wrappers, aliases, adapter shims, deprecated-but-kept types, or "compatibility" re-exports to preserve an old contract. `internal/` code has no external consumers — there is no contract to preserve.
+- Applies to: SQL tables/columns, sqlc query names, domain structs, GraphQL types/fields, Go package APIs, frontend component props.
+- The only exception is the persisted data at rest (user data, migrations). Write a proper migration; never keep a second table "just in case".
+- Corollary: if a rewrite leaves unused code anywhere in the tree, that code gets deleted in the same change.
+
 ### Type safety
 - Avoid `any` in domain and business logic. Use concrete types, generics, or union types. `any` is acceptable only at framework boundaries: the event bus payload (type-asserted by subscribers), gqlgen-generated code, and raw JSON envelopes at the HTTP / MQTT edges.
 - Prefer compile-time type checking over runtime assertions wherever possible.
