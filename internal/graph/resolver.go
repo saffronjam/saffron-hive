@@ -48,6 +48,8 @@ type GraphStore interface {
 	CreateSceneAction(ctx context.Context, params store.CreateSceneActionParams) (store.SceneAction, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
 	DeleteSceneAction(ctx context.Context, id string) error
+	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]store.SceneDevicePayload, error)
+	SaveSceneContent(ctx context.Context, params store.SaveSceneContentParams) error
 
 	// Automations
 	CreateAutomation(ctx context.Context, params store.CreateAutomationParams) (store.Automation, error)
@@ -91,8 +93,8 @@ type GraphStore interface {
 	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
 	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]store.Room, error)
 
-	// Sensor history, activity, settings, mqtt, users
-	QuerySensorHistory(ctx context.Context, query store.SensorHistoryQuery) ([]store.SensorReading, error)
+	// State history, activity, settings, mqtt, users
+	QueryStateHistory(ctx context.Context, query store.StateHistoryQuery) ([]store.StateHistoryPoint, error)
 	QueryActivityEvents(ctx context.Context, query store.ActivityQuery) ([]store.ActivityEvent, error)
 	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	GetMQTTConfig(ctx context.Context) (*store.MQTTConfig, error)

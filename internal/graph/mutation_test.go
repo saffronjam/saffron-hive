@@ -46,7 +46,7 @@ func TestMutationApplyScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["scene1"] = store.Scene{ID: "scene1", Name: "Evening"}
 	env.store.sceneActions["scene1"] = []store.SceneAction{
-		{ID: "a1", SceneID: "scene1", TargetType: "device", TargetID: "d1", Payload: `{"on":true}`},
+		{ID: "a1", SceneID: "scene1", TargetType: "device", TargetID: "d1"},
 	}
 
 	ch := env.bus.Subscribe(eventbus.EventSceneApplied)
@@ -83,13 +83,13 @@ func TestMutationApplyScene(t *testing.T) {
 func TestMutationCreateScene(t *testing.T) {
 	env := newTestEnv(t)
 
-	resp := env.query(t, `mutation($input: CreateSceneInput!) { createScene(input: $input) { id name actions { targetType targetId payload } } }`,
+	resp := env.query(t, `mutation($input: CreateSceneInput!) { createScene(input: $input) { id name actions { targetType targetId } } }`,
 		map[string]any{
 			"input": map[string]any{
 				"name": "Movie Night",
 				"actions": []map[string]any{
-					{"targetType": "device", "targetId": "d1", "payload": `{"brightness":50}`},
-					{"targetType": "device", "targetId": "d2", "payload": `{"on":false}`},
+					{"targetType": "device", "targetId": "d1"},
+					{"targetType": "device", "targetId": "d2"},
 				},
 			},
 		})
@@ -104,7 +104,6 @@ func TestMutationCreateScene(t *testing.T) {
 			Actions []struct {
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-				Payload    string `json:"payload"`
 			} `json:"actions"`
 		} `json:"createScene"`
 	}
@@ -126,15 +125,15 @@ func TestMutationUpdateScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Old Name"}
 	env.store.sceneActions["s1"] = []store.SceneAction{
-		{ID: "old-a1", SceneID: "s1", TargetType: "device", TargetID: "d1", Payload: `{"on":true}`},
+		{ID: "old-a1", SceneID: "s1", TargetType: "device", TargetID: "d1"},
 	}
 
-	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id actions { targetType targetId payload } } }`,
+	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id actions { targetType targetId } } }`,
 		map[string]any{
 			"id": "s1",
 			"input": map[string]any{
 				"actions": []map[string]any{
-					{"targetType": "device", "targetId": "d2", "payload": `{"brightness":100}`},
+					{"targetType": "device", "targetId": "d2"},
 				},
 			},
 		})
@@ -148,7 +147,6 @@ func TestMutationUpdateScene(t *testing.T) {
 			Actions []struct {
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-				Payload    string `json:"payload"`
 			} `json:"actions"`
 		} `json:"updateScene"`
 	}
@@ -180,12 +178,11 @@ func TestMutationDeleteScene(t *testing.T) {
 func TestMutationCreateAutomation(t *testing.T) {
 	env := newTestEnv(t)
 
-	resp := env.query(t, `mutation($input: CreateAutomationInput!) { createAutomation(input: $input) { id name enabled cooldownSeconds nodes { id type config } } }`,
+	resp := env.query(t, `mutation($input: CreateAutomationInput!) { createAutomation(input: $input) { id name enabled nodes { id type config } } }`,
 		map[string]any{
 			"input": map[string]any{
-				"name":            "Night Lights",
-				"enabled":         true,
-				"cooldownSeconds": 60,
+				"name":    "Night Lights",
+				"enabled": true,
 				"nodes": []map[string]any{
 					{"id": "t1", "type": "trigger", "config": `{"event_type":"device.state_changed","condition_expr":"true"}`},
 					{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":false}"}`},
@@ -201,11 +198,10 @@ func TestMutationCreateAutomation(t *testing.T) {
 
 	var data struct {
 		CreateAutomation struct {
-			ID              string `json:"id"`
-			Name            string `json:"name"`
-			Enabled         bool   `json:"enabled"`
-			CooldownSeconds int    `json:"cooldownSeconds"`
-			Nodes           []struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Enabled bool   `json:"enabled"`
+			Nodes   []struct {
 				ID     string `json:"id"`
 				Type   string `json:"type"`
 				Config string `json:"config"`

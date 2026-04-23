@@ -101,15 +101,14 @@ type AutomationEdgeInput struct {
 }
 
 type AutomationGraph struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Icon            *string           `json:"icon,omitempty"`
-	Enabled         bool              `json:"enabled"`
-	CooldownSeconds float64           `json:"cooldownSeconds"`
-	LastFiredAt     *time.Time        `json:"lastFiredAt,omitempty"`
-	Nodes           []*AutomationNode `json:"nodes"`
-	Edges           []*AutomationEdge `json:"edges"`
-	CreatedBy       *User             `json:"createdBy,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Icon        *string           `json:"icon,omitempty"`
+	Enabled     bool              `json:"enabled"`
+	LastFiredAt *time.Time        `json:"lastFiredAt,omitempty"`
+	Nodes       []*AutomationNode `json:"nodes"`
+	Edges       []*AutomationEdge `json:"edges"`
+	CreatedBy   *User             `json:"createdBy,omitempty"`
 }
 
 type AutomationNode struct {
@@ -171,11 +170,10 @@ type ConnectionTestResult struct {
 }
 
 type CreateAutomationInput struct {
-	Name            string                 `json:"name"`
-	Enabled         bool                   `json:"enabled"`
-	CooldownSeconds float64                `json:"cooldownSeconds"`
-	Nodes           []*AutomationNodeInput `json:"nodes"`
-	Edges           []*AutomationEdgeInput `json:"edges"`
+	Name    string                 `json:"name"`
+	Enabled bool                   `json:"enabled"`
+	Nodes   []*AutomationNodeInput `json:"nodes"`
+	Edges   []*AutomationEdgeInput `json:"edges"`
 }
 
 type CreateGroupInput struct {
@@ -193,8 +191,9 @@ type CreateRoomInput struct {
 }
 
 type CreateSceneInput struct {
-	Name    string              `json:"name"`
-	Actions []*SceneActionInput `json:"actions"`
+	Name           string                                        `json:"name"`
+	Actions        []*SceneActionInput                           `json:"actions"`
+	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
 }
 
 type CreateUserInput struct {
@@ -332,11 +331,12 @@ type Room struct {
 func (Room) IsSceneTarget() {}
 
 type Scene struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Icon      *string        `json:"icon,omitempty"`
-	Actions   []*SceneAction `json:"actions"`
-	CreatedBy *User          `json:"createdBy,omitempty"`
+	ID             string                `json:"id"`
+	Name           string                `json:"name"`
+	Icon           *string               `json:"icon,omitempty"`
+	Actions        []*SceneAction        `json:"actions"`
+	DevicePayloads []*SceneDevicePayload `json:"devicePayloads"`
+	CreatedBy      *User                 `json:"createdBy,omitempty"`
 }
 
 type SceneAction struct {
@@ -344,24 +344,21 @@ type SceneAction struct {
 	TargetType string      `json:"targetType"`
 	TargetID   string      `json:"targetId"`
 	Target     SceneTarget `json:"target"`
-	Payload    string      `json:"payload"`
 }
 
 type SceneActionInput struct {
 	TargetType string `json:"targetType"`
 	TargetID   string `json:"targetId"`
-	Payload    string `json:"payload"`
 }
 
-type SensorReading struct {
-	ID          string    `json:"id"`
-	DeviceID    string    `json:"deviceId"`
-	Temperature *float64  `json:"temperature,omitempty"`
-	Humidity    *float64  `json:"humidity,omitempty"`
-	Battery     *int      `json:"battery,omitempty"`
-	Pressure    *float64  `json:"pressure,omitempty"`
-	Illuminance *float64  `json:"illuminance,omitempty"`
-	RecordedAt  time.Time `json:"recordedAt"`
+type SceneDevicePayload struct {
+	DeviceID string `json:"deviceId"`
+	Payload  string `json:"payload"`
+}
+
+type SceneDevicePayloadInput struct {
+	DeviceID string `json:"deviceId"`
+	Payload  string `json:"payload"`
 }
 
 type Setting struct {
@@ -374,16 +371,34 @@ type SetupStatus struct {
 	MqttConfigured bool `json:"mqttConfigured"`
 }
 
+type StateHistoryFilter struct {
+	DeviceIds     []string                      `json:"deviceIds"`
+	Fields        graphql.Omittable[[]string]   `json:"fields,omitempty"`
+	From          graphql.Omittable[*time.Time] `json:"from,omitempty"`
+	To            graphql.Omittable[*time.Time] `json:"to,omitempty"`
+	BucketSeconds graphql.Omittable[*int]       `json:"bucketSeconds,omitempty"`
+}
+
+type StateSeries struct {
+	DeviceID string              `json:"deviceId"`
+	Field    string              `json:"field"`
+	Points   []*StateSeriesPoint `json:"points"`
+}
+
+type StateSeriesPoint struct {
+	At    time.Time `json:"at"`
+	Value float64   `json:"value"`
+}
+
 type Subscription struct {
 }
 
 type UpdateAutomationInput struct {
-	Name            graphql.Omittable[*string]                `json:"name,omitempty"`
-	Icon            graphql.Omittable[*string]                `json:"icon,omitempty"`
-	Enabled         graphql.Omittable[*bool]                  `json:"enabled,omitempty"`
-	CooldownSeconds graphql.Omittable[*float64]               `json:"cooldownSeconds,omitempty"`
-	Nodes           graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
-	Edges           graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
+	Name    graphql.Omittable[*string]                `json:"name,omitempty"`
+	Icon    graphql.Omittable[*string]                `json:"icon,omitempty"`
+	Enabled graphql.Omittable[*bool]                  `json:"enabled,omitempty"`
+	Nodes   graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
+	Edges   graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
 }
 
 type UpdateCurrentUserInput struct {
@@ -406,9 +421,10 @@ type UpdateRoomInput struct {
 }
 
 type UpdateSceneInput struct {
-	Name    graphql.Omittable[*string]             `json:"name,omitempty"`
-	Icon    graphql.Omittable[*string]             `json:"icon,omitempty"`
-	Actions graphql.Omittable[[]*SceneActionInput] `json:"actions,omitempty"`
+	Name           graphql.Omittable[*string]                    `json:"name,omitempty"`
+	Icon           graphql.Omittable[*string]                    `json:"icon,omitempty"`
+	Actions        graphql.Omittable[[]*SceneActionInput]        `json:"actions,omitempty"`
+	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
 }
 
 type User struct {

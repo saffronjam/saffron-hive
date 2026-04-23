@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
+	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
@@ -98,22 +98,19 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 	if err != nil {
 		return nil, err
 	}
+	payloads, err := r.Store.ListSceneDevicePayloads(ctx, s.ID)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, sa := range actions {
-		var desired map[string]interface{}
-		if err := json.Unmarshal([]byte(sa.Payload), &desired); err != nil {
-			continue
-		}
-		deviceIDs := resolveSceneActionTargetDevices(ctx, r.TargetResolver, sa.TargetType, sa.TargetID)
-		for _, did := range deviceIDs {
-			cmd := buildCommandFromMap(did, desired)
-			r.EventBus.Publish(eventbus.Event{
-				Type:      eventbus.EventCommandRequested,
-				DeviceID:  string(did),
-				Timestamp: time.Now(),
-				Payload:   cmd,
-			})
-		}
+	commands := buildSceneApplyCommands(ctx, r.StateReader, r.TargetResolver, actions, payloads)
+	for _, cmd := range commands {
+		r.EventBus.Publish(eventbus.Event{
+			Type:      eventbus.EventCommandRequested,
+			DeviceID:  string(cmd.DeviceID),
+			Timestamp: time.Now(),
+			Payload:   cmd,
+		})
 	}
 
 	r.EventBus.Publish(eventbus.Event{
@@ -122,13 +119,13 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		Payload:   sceneID,
 	})
 
-	return mapScene(ctx, r.StateReader, r.Store, s, actions), nil
+	return mapScene(ctx, r.StateReader, r.Store, s, actions, payloads), nil
 }
 
 // CreateScene is the resolver for the createScene field.
 func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error) {
 	sceneID := uuid.New().String()
-	s, err := r.Store.CreateScene(ctx, store.CreateSceneParams{
+	_, err := r.Store.CreateScene(ctx, store.CreateSceneParams{
 		ID:        sceneID,
 		Name:      input.Name,
 		CreatedBy: currentUserID(ctx),
@@ -137,23 +134,17 @@ func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSc
 		return nil, err
 	}
 
-	var storeActions []store.SceneAction
-	for _, a := range input.Actions {
-		actionID := uuid.New().String()
-		sa, err := r.Store.CreateSceneAction(ctx, store.CreateSceneActionParams{
-			ID:         actionID,
-			SceneID:    sceneID,
-			TargetType: a.TargetType,
-			TargetID:   a.TargetID,
-			Payload:    a.Payload,
-		})
-		if err != nil {
-			return nil, err
-		}
-		storeActions = append(storeActions, sa)
+	targets := toSceneTargetRefs(input.Actions)
+	payloads := toSceneDevicePayloads(sceneID, input.DevicePayloads.Value())
+	if err := r.Store.SaveSceneContent(ctx, store.SaveSceneContentParams{
+		SceneID:  sceneID,
+		Targets:  targets,
+		Payloads: payloads,
+	}); err != nil {
+		return nil, err
 	}
 
-	return mapScene(ctx, r.StateReader, r.Store, s, storeActions), nil
+	return loadAndMapScene(ctx, r, sceneID)
 }
 
 // UpdateScene is the resolver for the updateScene field.
@@ -180,40 +171,42 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 		}
 	}
 
-	if newActions, ok := input.Actions.ValueOK(); ok {
-		existingActions, err := r.Store.ListSceneActions(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		for _, ea := range existingActions {
-			if err := r.Store.DeleteSceneAction(ctx, ea.ID); err != nil {
-				return nil, err
-			}
-		}
-		for _, a := range newActions {
-			actionID := uuid.New().String()
-			_, err := r.Store.CreateSceneAction(ctx, store.CreateSceneActionParams{
-				ID:         actionID,
-				SceneID:    id,
-				TargetType: a.TargetType,
-				TargetID:   a.TargetID,
-				Payload:    a.Payload,
-			})
+	_, actionsGiven := input.Actions.ValueOK()
+	_, payloadsGiven := input.DevicePayloads.ValueOK()
+	if actionsGiven || payloadsGiven {
+		var targets []store.SceneTargetRef
+		var payloads []store.SceneDevicePayload
+		if actionsGiven {
+			targets = toSceneTargetRefs(input.Actions.Value())
+		} else {
+			existing, err := r.Store.ListSceneActions(ctx, id)
 			if err != nil {
 				return nil, err
 			}
+			targets = make([]store.SceneTargetRef, len(existing))
+			for i, a := range existing {
+				targets[i] = store.SceneTargetRef{TargetType: a.TargetType, TargetID: a.TargetID}
+			}
+		}
+		if payloadsGiven {
+			payloads = toSceneDevicePayloads(id, input.DevicePayloads.Value())
+		} else {
+			existing, err := r.Store.ListSceneDevicePayloads(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			payloads = existing
+		}
+		if err := r.Store.SaveSceneContent(ctx, store.SaveSceneContentParams{
+			SceneID:  id,
+			Targets:  targets,
+			Payloads: payloads,
+		}); err != nil {
+			return nil, err
 		}
 	}
 
-	s, err := r.Store.GetScene(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	actions, err := r.Store.ListSceneActions(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return mapScene(ctx, r.StateReader, r.Store, s, actions), nil
+	return loadAndMapScene(ctx, r, id)
 }
 
 // DeleteScene is the resolver for the deleteScene field.
@@ -230,17 +223,13 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 	if err := validateAutomationInput(input.Nodes, input.Edges); err != nil {
 		return nil, err
 	}
-	if err := automation.ValidateCooldown(input.CooldownSeconds); err != nil {
-		return nil, err
-	}
 
 	autoID := uuid.New().String()
 	_, err := r.Store.CreateAutomation(ctx, store.CreateAutomationParams{
-		ID:              autoID,
-		Name:            input.Name,
-		Enabled:         input.Enabled,
-		CooldownSeconds: input.CooldownSeconds,
-		CreatedBy:       currentUserID(ctx),
+		ID:        autoID,
+		Name:      input.Name,
+		Enabled:   input.Enabled,
+		CreatedBy: currentUserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -314,13 +303,6 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	}
 	if enabled, ok := input.Enabled.ValueOK(); ok {
 		aParams.Enabled = enabled
-		updateAutomation = true
-	}
-	if cooldown, ok := input.CooldownSeconds.ValueOK(); ok {
-		if err := automation.ValidateCooldown(*cooldown); err != nil {
-			return nil, err
-		}
-		aParams.CooldownSeconds = cooldown
 		updateAutomation = true
 	}
 	if updateAutomation {
@@ -987,7 +969,11 @@ func (r *queryResolver) Scenes(ctx context.Context) ([]*model.Scene, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapScene(ctx, r.StateReader, r.Store, s, actions)
+		payloads, err := r.Store.ListSceneDevicePayloads(ctx, s.ID)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = mapScene(ctx, r.StateReader, r.Store, s, actions, payloads)
 	}
 	return result, nil
 }
@@ -1002,7 +988,11 @@ func (r *queryResolver) Scene(ctx context.Context, id string) (*model.Scene, err
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(ctx, r.StateReader, r.Store, s, actions), nil
+	payloads, err := r.Store.ListSceneDevicePayloads(ctx, s.ID)
+	if err != nil {
+		return nil, err
+	}
+	return mapScene(ctx, r.StateReader, r.Store, s, actions, payloads), nil
 }
 
 // Automations is the resolver for the automations field.
@@ -1089,40 +1079,92 @@ func (r *queryResolver) Room(ctx context.Context, id string) (*model.Room, error
 	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
 }
 
-// SensorHistory is the resolver for the sensorHistory field.
-func (r *queryResolver) SensorHistory(ctx context.Context, deviceID string, from *time.Time, to *time.Time, limit *int) ([]*model.SensorReading, error) {
-	q := store.SensorHistoryQuery{
-		DeviceID: device.DeviceID(deviceID),
-		From:     time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-		To:       time.Now().Add(24 * time.Hour),
+// StateHistory is the resolver for the stateHistory field.
+func (r *queryResolver) StateHistory(ctx context.Context, filter model.StateHistoryFilter) ([]*model.StateSeries, error) {
+	if len(filter.DeviceIds) == 0 {
+		return []*model.StateSeries{}, nil
 	}
-	if from != nil {
-		q.From = *from
+
+	to := time.Now()
+	if toPtr := filter.To.Value(); toPtr != nil {
+		to = *toPtr
 	}
-	if to != nil {
-		q.To = *to
+	from := to.Add(-7 * 24 * time.Hour)
+	if fromPtr := filter.From.Value(); fromPtr != nil {
+		from = *fromPtr
 	}
-	if limit != nil {
-		q.Limit = *limit
+	if !from.Before(to) {
+		return []*model.StateSeries{}, nil
 	}
-	readings, err := r.Store.QuerySensorHistory(ctx, q)
+
+	bucket := 0
+	if bPtr := filter.BucketSeconds.Value(); bPtr != nil {
+		bucket = *bPtr
+	}
+	if bucket <= 0 {
+		bucket = autoBucketSeconds(to.Sub(from))
+	}
+
+	deviceIDs := make([]device.DeviceID, len(filter.DeviceIds))
+	for i, id := range filter.DeviceIds {
+		deviceIDs[i] = device.DeviceID(id)
+	}
+
+	var fields []string
+	if fv := filter.Fields.Value(); len(fv) > 0 {
+		fields = make([]string, 0, len(fv))
+		for _, f := range fv {
+			if history.IsKnownField(f) {
+				fields = append(fields, f)
+			}
+		}
+	}
+
+	points, err := r.Store.QueryStateHistory(ctx, store.StateHistoryQuery{
+		DeviceIDs:     deviceIDs,
+		Fields:        fields,
+		From:          from,
+		To:            to,
+		BucketSeconds: bucket,
+	})
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*model.SensorReading, len(readings))
-	for i, rd := range readings {
-		result[i] = &model.SensorReading{
-			ID:          strconv.FormatInt(rd.ID, 10),
-			DeviceID:    string(rd.DeviceID),
-			Temperature: rd.Temperature,
-			Humidity:    rd.Humidity,
-			Battery:     rd.Battery,
-			Pressure:    rd.Pressure,
-			Illuminance: rd.Illuminance,
-			RecordedAt:  rd.RecordedAt,
+
+	type seriesKey struct {
+		deviceID string
+		field    string
+	}
+	seriesMap := make(map[seriesKey]*model.StateSeries, 16)
+	order := make([]seriesKey, 0, 16)
+	for _, p := range points {
+		key := seriesKey{deviceID: string(p.DeviceID), field: p.Field}
+		series, ok := seriesMap[key]
+		if !ok {
+			series = &model.StateSeries{
+				DeviceID: key.deviceID,
+				Field:    key.field,
+			}
+			seriesMap[key] = series
+			order = append(order, key)
 		}
+		series.Points = append(series.Points, &model.StateSeriesPoint{
+			At:    p.At,
+			Value: p.Value,
+		})
+	}
+	result := make([]*model.StateSeries, 0, len(order))
+	for _, key := range order {
+		result = append(result, seriesMap[key])
 	}
 	return result, nil
+}
+
+// StateHistoryFields is the resolver for the stateHistoryFields field.
+func (r *queryResolver) StateHistoryFields(ctx context.Context) ([]string, error) {
+	out := make([]string, len(history.AllFields))
+	copy(out, history.AllFields)
+	return out, nil
 }
 
 // MqttConfig is the resolver for the mqttConfig field.

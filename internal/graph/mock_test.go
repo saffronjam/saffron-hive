@@ -74,12 +74,13 @@ type mockStore struct {
 	mu              sync.RWMutex
 	scenes          map[string]store.Scene
 	sceneActions    map[string][]store.SceneAction
+	scenePayloads   map[string][]store.SceneDevicePayload
 	automations     map[string]store.Automation
 	automationNodes map[string][]store.AutomationNode
 	automationEdges map[string][]store.AutomationEdge
 	groups          map[string]store.Group
 	groupMembers    map[string][]store.GroupMember
-	sensorReadings  []store.SensorReading
+	stateSamples    []store.StateHistoryPoint
 	activityEvents  []store.ActivityEvent
 	activityCounter int64
 	users           map[string]store.User // keyed by id
@@ -98,6 +99,7 @@ func newMockStore() *mockStore {
 	return &mockStore{
 		scenes:          make(map[string]store.Scene),
 		sceneActions:    make(map[string][]store.SceneAction),
+		scenePayloads:   make(map[string][]store.SceneDevicePayload),
 		automations:     make(map[string]store.Automation),
 		automationNodes: make(map[string][]store.AutomationNode),
 		automationEdges: make(map[string][]store.AutomationEdge),
@@ -189,7 +191,6 @@ func (m *mockStore) CreateSceneAction(_ context.Context, params store.CreateScen
 		SceneID:    params.SceneID,
 		TargetType: params.TargetType,
 		TargetID:   params.TargetID,
-		Payload:    params.Payload,
 	}
 	m.sceneActions[params.SceneID] = append(m.sceneActions[params.SceneID], sa)
 	return sa, nil
@@ -216,15 +217,37 @@ func (m *mockStore) DeleteSceneAction(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockStore) ListSceneDevicePayloads(_ context.Context, sceneID string) ([]store.SceneDevicePayload, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.scenePayloads[sceneID], nil
+}
+
+func (m *mockStore) SaveSceneContent(_ context.Context, params store.SaveSceneContentParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	actions := make([]store.SceneAction, len(params.Targets))
+	for i, t := range params.Targets {
+		actions[i] = store.SceneAction{
+			ID:         fmt.Sprintf("%s-%d", params.SceneID, i),
+			SceneID:    params.SceneID,
+			TargetType: t.TargetType,
+			TargetID:   t.TargetID,
+		}
+	}
+	m.sceneActions[params.SceneID] = actions
+	m.scenePayloads[params.SceneID] = append([]store.SceneDevicePayload(nil), params.Payloads...)
+	return nil
+}
+
 func (m *mockStore) CreateAutomation(_ context.Context, params store.CreateAutomationParams) (store.Automation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.createAutomationCalled = true
 	a := store.Automation{
-		ID:              params.ID,
-		Name:            params.Name,
-		Enabled:         params.Enabled,
-		CooldownSeconds: params.CooldownSeconds,
+		ID:      params.ID,
+		Name:    params.Name,
+		Enabled: params.Enabled,
 	}
 	m.automations[params.ID] = a
 	return a, nil
@@ -527,21 +550,34 @@ func (m *mockStore) ListGroupsContainingMember(_ context.Context, memberType dev
 	return out, nil
 }
 
-func (m *mockStore) QuerySensorHistory(_ context.Context, q store.SensorHistoryQuery) ([]store.SensorReading, error) {
+func (m *mockStore) QueryStateHistory(_ context.Context, q store.StateHistoryQuery) ([]store.StateHistoryPoint, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	var out []store.SensorReading
-	for _, r := range m.sensorReadings {
-		if r.DeviceID != q.DeviceID {
+	deviceSet := make(map[string]struct{}, len(q.DeviceIDs))
+	for _, id := range q.DeviceIDs {
+		deviceSet[string(id)] = struct{}{}
+	}
+	fieldSet := make(map[string]struct{}, len(q.Fields))
+	for _, f := range q.Fields {
+		fieldSet[f] = struct{}{}
+	}
+	var out []store.StateHistoryPoint
+	for _, p := range m.stateSamples {
+		if _, ok := deviceSet[string(p.DeviceID)]; !ok {
 			continue
 		}
-		if !q.From.IsZero() && r.RecordedAt.Before(q.From) {
+		if len(fieldSet) > 0 {
+			if _, ok := fieldSet[p.Field]; !ok {
+				continue
+			}
+		}
+		if !q.From.IsZero() && p.At.Before(q.From) {
 			continue
 		}
-		if !q.To.IsZero() && r.RecordedAt.After(q.To) {
+		if !q.To.IsZero() && p.At.After(q.To) {
 			continue
 		}
-		out = append(out, r)
+		out = append(out, p)
 		if q.Limit > 0 && len(out) >= q.Limit {
 			break
 		}

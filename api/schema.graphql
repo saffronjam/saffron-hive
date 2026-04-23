@@ -57,6 +57,7 @@ type Scene {
   name: String!
   icon: String
   actions: [SceneAction!]!
+  devicePayloads: [SceneDevicePayload!]!
   createdBy: User
 }
 
@@ -67,6 +68,10 @@ type SceneAction {
   targetType: String!
   targetId: ID!
   target: SceneTarget!
+}
+
+type SceneDevicePayload {
+  deviceId: ID!
   payload: String!
 }
 
@@ -75,7 +80,6 @@ type AutomationGraph {
   name: String!
   icon: String
   enabled: Boolean!
-  cooldownSeconds: Float!
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
@@ -122,15 +126,23 @@ type Room {
   createdBy: User
 }
 
-type SensorReading {
-  id: ID!
+type StateSeriesPoint {
+  at: DateTime!
+  value: Float!
+}
+
+type StateSeries {
   deviceId: ID!
-  temperature: Float
-  humidity: Float
-  battery: Int
-  pressure: Float
-  illuminance: Float
-  recordedAt: DateTime!
+  field: String!
+  points: [StateSeriesPoint!]!
+}
+
+input StateHistoryFilter {
+  deviceIds: [ID!]!
+  fields: [String!]
+  from: DateTime
+  to: DateTime
+  bucketSeconds: Int
 }
 
 type DeviceStateEvent {
@@ -357,11 +369,16 @@ input UpdateDeviceInput {
 input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
+  devicePayloads: [SceneDevicePayloadInput!]
 }
 
 input SceneActionInput {
   targetType: String!
   targetId: ID!
+}
+
+input SceneDevicePayloadInput {
+  deviceId: ID!
   payload: String!
 }
 
@@ -369,12 +386,12 @@ input UpdateSceneInput {
   name: String
   icon: String
   actions: [SceneActionInput!]
+  devicePayloads: [SceneDevicePayloadInput!]
 }
 
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
-  cooldownSeconds: Float!
   nodes: [AutomationNodeInput!]!
   edges: [AutomationEdgeInput!]!
 }
@@ -425,7 +442,6 @@ input UpdateAutomationInput {
   name: String
   icon: String
   enabled: Boolean
-  cooldownSeconds: Float
   nodes: [AutomationNodeInput!]
   edges: [AutomationEdgeInput!]
 }
@@ -441,7 +457,8 @@ type Query {
   group(id: ID!): Group
   rooms: [Room!]!
   room(id: ID!): Room
-  sensorHistory(deviceId: ID!, from: DateTime, to: DateTime, limit: Int): [SensorReading!]!
+  stateHistory(filter: StateHistoryFilter!): [StateSeries!]!
+  stateHistoryFields: [String!]!
   mqttConfig: MqttConfig
   settings: [Setting!]!
   logs(search: String, limit: Int): [LogEntry!]!

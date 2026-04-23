@@ -194,10 +194,10 @@ func TestQueryScenes(t *testing.T) {
 	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Evening"}
 	env.store.scenes["s2"] = store.Scene{ID: "s2", Name: "Movie"}
 	env.store.sceneActions["s1"] = []store.SceneAction{
-		{ID: "a1", SceneID: "s1", TargetType: "device", TargetID: "d1", Payload: `{"brightness":100}`},
+		{ID: "a1", SceneID: "s1", TargetType: "device", TargetID: "d1"},
 	}
 
-	resp := env.query(t, `{ scenes { id name actions { id targetType targetId payload } } }`, nil)
+	resp := env.query(t, `{ scenes { id name actions { id targetType targetId } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -210,7 +210,6 @@ func TestQueryScenes(t *testing.T) {
 				ID         string `json:"id"`
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-				Payload    string `json:"payload"`
 			} `json:"actions"`
 		} `json:"scenes"`
 	}
@@ -225,23 +224,21 @@ func TestQueryScenes(t *testing.T) {
 func TestQueryAutomations(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.automations["a1"] = store.Automation{
-		ID:              "a1",
-		Name:            "Night mode",
-		Enabled:         true,
-		CooldownSeconds: 60,
+		ID:      "a1",
+		Name:    "Night mode",
+		Enabled: true,
 	}
 
-	resp := env.query(t, `{ automations { id name enabled cooldownSeconds } }`, nil)
+	resp := env.query(t, `{ automations { id name enabled } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 
 	var data struct {
 		Automations []struct {
-			ID              string  `json:"id"`
-			Name            string  `json:"name"`
-			Enabled         bool    `json:"enabled"`
-			CooldownSeconds float64 `json:"cooldownSeconds"`
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Enabled bool   `json:"enabled"`
 		} `json:"automations"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -251,52 +248,66 @@ func TestQueryAutomations(t *testing.T) {
 		t.Fatalf("expected 1 automation, got %d", len(data.Automations))
 	}
 	a := data.Automations[0]
-	if a.CooldownSeconds != 60 {
-		t.Errorf("expected cooldownSeconds 60, got %g", a.CooldownSeconds)
+	if a.ID != "a1" || a.Name != "Night mode" || !a.Enabled {
+		t.Errorf("unexpected automation payload: %+v", a)
 	}
 }
 
-func TestQuerySensorHistory(t *testing.T) {
+func TestQueryStateHistory(t *testing.T) {
 	env := newTestEnv(t)
-	now := time.Now().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second)
 
 	for i := 0; i < 10; i++ {
-		temp := 20.0 + float64(i)
-		env.store.sensorReadings = append(env.store.sensorReadings, store.SensorReading{
-			ID:          int64(i + 1),
-			DeviceID:    "s1",
-			Temperature: &temp,
-			RecordedAt:  now.Add(time.Duration(i) * time.Minute),
+		env.store.stateSamples = append(env.store.stateSamples, store.StateHistoryPoint{
+			DeviceID: "s1",
+			Field:    "temperature",
+			At:       now.Add(time.Duration(i) * time.Minute),
+			Value:    20.0 + float64(i),
+		})
+		env.store.stateSamples = append(env.store.stateSamples, store.StateHistoryPoint{
+			DeviceID: "s1",
+			Field:    "humidity",
+			At:       now.Add(time.Duration(i) * time.Minute),
+			Value:    40.0 + float64(i),
 		})
 	}
 
-	from := now.Add(2 * time.Minute)
-	to := now.Add(7 * time.Minute)
-	resp := env.query(t, `query($deviceId: ID!, $from: DateTime, $to: DateTime, $limit: Int) { sensorHistory(deviceId: $deviceId, from: $from, to: $to, limit: $limit) { id deviceId temperature recordedAt } }`,
+	from := now
+	to := now.Add(9 * time.Minute)
+	resp := env.query(t, `query($filter: StateHistoryFilter!) { stateHistory(filter: $filter) { deviceId field points { at value } } }`,
 		map[string]any{
-			"deviceId": "s1",
-			"from":     from.Format(time.RFC3339),
-			"to":       to.Format(time.RFC3339),
-			"limit":    5,
+			"filter": map[string]any{
+				"deviceIds": []string{"s1"},
+				"fields":    []string{"temperature"},
+				"from":      from.Format(time.RFC3339),
+				"to":        to.Format(time.RFC3339),
+			},
 		})
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 
 	var data struct {
-		SensorHistory []struct {
-			ID          string   `json:"id"`
-			DeviceID    string   `json:"deviceId"`
-			Temperature *float64 `json:"temperature"`
-		} `json:"sensorHistory"`
+		StateHistory []struct {
+			DeviceID string `json:"deviceId"`
+			Field    string `json:"field"`
+			Points   []struct {
+				At    string  `json:"at"`
+				Value float64 `json:"value"`
+			} `json:"points"`
+		} `json:"stateHistory"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if len(data.SensorHistory) == 0 {
-		t.Fatal("expected sensor history results")
+	if len(data.StateHistory) != 1 {
+		t.Fatalf("expected 1 series (temperature only), got %d", len(data.StateHistory))
 	}
-	if len(data.SensorHistory) > 5 {
-		t.Fatalf("expected at most 5 results, got %d", len(data.SensorHistory))
+	series := data.StateHistory[0]
+	if series.DeviceID != "s1" || series.Field != "temperature" {
+		t.Errorf("unexpected series key: %+v", series)
+	}
+	if len(series.Points) != 10 {
+		t.Errorf("expected 10 points, got %d", len(series.Points))
 	}
 }

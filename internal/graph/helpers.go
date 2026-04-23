@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
@@ -18,7 +18,25 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-var graphLogger = slog.Default().With("pkg", "graph")
+var graphLogger = logging.Named("graph")
+
+// autoBucketSeconds picks a bucket size such that each state-history series
+// returns at most ~2k points for the requested span. 0 means "return raw
+// samples".
+func autoBucketSeconds(span time.Duration) int {
+	switch {
+	case span <= 6*time.Hour:
+		return 0
+	case span <= 2*24*time.Hour:
+		return 60
+	case span <= 14*24*time.Hour:
+		return 300
+	case span <= 90*24*time.Hour:
+		return 3600
+	default:
+		return 86400
+	}
+}
 
 // mapAlarm converts a grouped domain Alarm into its GraphQL model.
 func mapAlarm(a alarms.Alarm) *model.Alarm {
@@ -261,7 +279,7 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 	return out
 }
 
-func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store.Scene, actions []store.SceneAction) *model.Scene {
+func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store.Scene, actions []store.SceneAction, payloads []store.SceneDevicePayload) *model.Scene {
 	ms := &model.Scene{
 		ID:        sc.ID,
 		Name:      sc.Name,
@@ -275,7 +293,13 @@ func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store
 			TargetType: a.TargetType,
 			TargetID:   a.TargetID,
 			Target:     resolveSceneTarget(ctx, sr, s, a.TargetType, a.TargetID),
-			Payload:    a.Payload,
+		}
+	}
+	ms.DevicePayloads = make([]*model.SceneDevicePayload, len(payloads))
+	for i, p := range payloads {
+		ms.DevicePayloads[i] = &model.SceneDevicePayload{
+			DeviceID: string(p.DeviceID),
+			Payload:  p.Payload,
 		}
 	}
 	return ms
@@ -400,13 +424,12 @@ func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphSt
 
 func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 	mg := &model.AutomationGraph{
-		ID:              g.Automation.ID,
-		Name:            g.Automation.Name,
-		Icon:            g.Automation.Icon,
-		Enabled:         g.Automation.Enabled,
-		CooldownSeconds: g.Automation.CooldownSeconds,
-		LastFiredAt:     g.Automation.LastFiredAt,
-		CreatedBy:       mapUserRef(g.Automation.CreatedBy),
+		ID:          g.Automation.ID,
+		Name:        g.Automation.Name,
+		Icon:        g.Automation.Icon,
+		Enabled:     g.Automation.Enabled,
+		LastFiredAt: g.Automation.LastFiredAt,
+		CreatedBy:   mapUserRef(g.Automation.CreatedBy),
 	}
 	mg.Nodes = make([]*model.AutomationNode, len(g.Nodes))
 	for i, n := range g.Nodes {
@@ -518,7 +541,119 @@ func resolveSceneActionTargetDevices(ctx context.Context, tr device.TargetResolv
 	return tr.ResolveTargetDeviceIDs(ctx, device.TargetType(targetType), targetID)
 }
 
-func buildCommandFromMap(deviceID device.DeviceID, desired map[string]interface{}) device.Command {
+func toSceneTargetRefs(actions []*model.SceneActionInput) []store.SceneTargetRef {
+	out := make([]store.SceneTargetRef, len(actions))
+	for i, a := range actions {
+		out[i] = store.SceneTargetRef{TargetType: a.TargetType, TargetID: a.TargetID}
+	}
+	return out
+}
+
+func toSceneDevicePayloads(sceneID string, inputs []*model.SceneDevicePayloadInput) []store.SceneDevicePayload {
+	out := make([]store.SceneDevicePayload, len(inputs))
+	for i, p := range inputs {
+		out[i] = store.SceneDevicePayload{
+			SceneID:  sceneID,
+			DeviceID: device.DeviceID(p.DeviceID),
+			Payload:  p.Payload,
+		}
+	}
+	return out
+}
+
+func loadAndMapScene(ctx context.Context, r *mutationResolver, id string) (*model.Scene, error) {
+	s, err := r.Store.GetScene(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	actions, err := r.Store.ListSceneActions(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	payloads, err := r.Store.ListSceneDevicePayloads(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return mapScene(ctx, r.StateReader, r.Store, s, actions, payloads), nil
+}
+
+// buildSceneApplyCommands resolves a scene's target membership to a unique
+// device set and emits one command per device: the explicit per-device payload
+// if one exists, else a capability-filtered warm-white default.
+func buildSceneApplyCommands(
+	ctx context.Context,
+	sr device.StateReader,
+	tr device.TargetResolver,
+	actions []store.SceneAction,
+	payloads []store.SceneDevicePayload,
+) []device.Command {
+	payloadByDevice := make(map[device.DeviceID]string, len(payloads))
+	for _, p := range payloads {
+		payloadByDevice[p.DeviceID] = p.Payload
+	}
+
+	seen := make(map[device.DeviceID]struct{})
+	var order []device.DeviceID
+	for _, a := range actions {
+		for _, did := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
+			if _, ok := seen[did]; ok {
+				continue
+			}
+			seen[did] = struct{}{}
+			order = append(order, did)
+		}
+	}
+
+	cmds := make([]device.Command, 0, len(order))
+	for _, did := range order {
+		if raw, ok := payloadByDevice[did]; ok {
+			var desired map[string]interface{}
+			if err := json.Unmarshal([]byte(raw), &desired); err == nil {
+				cmds = append(cmds, buildCommandFromMap(sr, did, desired))
+				continue
+			}
+		}
+		cmds = append(cmds, buildDefaultScenePayload(sr, did))
+	}
+	return cmds
+}
+
+// defaultSceneTransitionSeconds is applied to scene-driven commands for lights
+// so on/off and brightness/color changes fade instead of snapping.
+const defaultSceneTransitionSeconds = 0.4
+
+func hasWritableCapability(d device.Device, name string) bool {
+	for _, c := range d.Capabilities {
+		if c.Name == name && c.Access&2 != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// buildDefaultScenePayload produces a warm-white "on" command gated by the
+// device's capabilities. Fields the device can't accept are simply omitted.
+func buildDefaultScenePayload(sr device.StateReader, deviceID device.DeviceID) device.Command {
+	cmd := device.Command{DeviceID: deviceID}
+	d, ok := sr.GetDevice(deviceID)
+	if !ok {
+		cmd.On = device.Ptr(true)
+		return cmd
+	}
+	if hasWritableCapability(d, device.CapOnOff) {
+		cmd.On = device.Ptr(true)
+	}
+	if hasWritableCapability(d, device.CapBrightness) {
+		cmd.Brightness = device.Ptr(200)
+		cmd.Transition = device.Ptr(defaultSceneTransitionSeconds)
+	}
+	if hasWritableCapability(d, device.CapColorTemp) {
+		cmd.ColorTemp = device.Ptr(370)
+	}
+	return cmd
+}
+
+func buildCommandFromMap(sr device.StateReader, deviceID device.DeviceID, desired map[string]interface{}) device.Command {
 	cmd := device.Command{DeviceID: deviceID}
 	if v, ok := desired["on"]; ok {
 		if b, ok := v.(bool); ok {
@@ -531,7 +666,50 @@ func buildCommandFromMap(deviceID device.DeviceID, desired map[string]interface{
 	if v, ok := desired["color_temp"]; ok {
 		cmd.ColorTemp = device.Ptr(toIntFromAny(v))
 	}
+	if v, ok := desired["color"]; ok {
+		if m, ok := v.(map[string]interface{}); ok {
+			c := &device.Color{}
+			if r, ok := m["r"]; ok {
+				c.R = toIntFromAny(r)
+			}
+			if g, ok := m["g"]; ok {
+				c.G = toIntFromAny(g)
+			}
+			if b, ok := m["b"]; ok {
+				c.B = toIntFromAny(b)
+			}
+			if x, ok := m["x"]; ok {
+				if f, ok := toFloatFromAny(x); ok {
+					c.X = f
+				}
+			}
+			if y, ok := m["y"]; ok {
+				if f, ok := toFloatFromAny(y); ok {
+					c.Y = f
+				}
+			}
+			cmd.Color = c
+		}
+	}
+	if v, ok := desired["transition"]; ok {
+		if f, ok := toFloatFromAny(v); ok {
+			cmd.Transition = device.Ptr(f)
+		}
+	} else if d, ok := sr.GetDevice(deviceID); ok && hasWritableCapability(d, device.CapBrightness) {
+		cmd.Transition = device.Ptr(defaultSceneTransitionSeconds)
+	}
 	return cmd
+}
+
+func toFloatFromAny(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	default:
+		return 0, false
+	}
 }
 
 func toIntFromAny(v interface{}) int {

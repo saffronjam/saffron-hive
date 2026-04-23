@@ -85,15 +85,14 @@ type ComplexityRoot struct {
 	}
 
 	AutomationGraph struct {
-		CooldownSeconds func(childComplexity int) int
-		CreatedBy       func(childComplexity int) int
-		Edges           func(childComplexity int) int
-		Enabled         func(childComplexity int) int
-		ID              func(childComplexity int) int
-		Icon            func(childComplexity int) int
-		LastFiredAt     func(childComplexity int) int
-		Name            func(childComplexity int) int
-		Nodes           func(childComplexity int) int
+		CreatedBy   func(childComplexity int) int
+		Edges       func(childComplexity int) int
+		Enabled     func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Icon        func(childComplexity int) int
+		LastFiredAt func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Nodes       func(childComplexity int) int
 	}
 
 	AutomationNode struct {
@@ -254,25 +253,26 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Activity      func(childComplexity int, filter *model.ActivityFilter) int
-		Alarms        func(childComplexity int, filter *model.AlarmFilter) int
-		Automation    func(childComplexity int, id string) int
-		Automations   func(childComplexity int) int
-		Device        func(childComplexity int, id string) int
-		Devices       func(childComplexity int) int
-		Group         func(childComplexity int, id string) int
-		Groups        func(childComplexity int) int
-		Logs          func(childComplexity int, search *string, limit *int) int
-		Me            func(childComplexity int) int
-		MqttConfig    func(childComplexity int) int
-		Room          func(childComplexity int, id string) int
-		Rooms         func(childComplexity int) int
-		Scene         func(childComplexity int, id string) int
-		Scenes        func(childComplexity int) int
-		SensorHistory func(childComplexity int, deviceID string, from *time.Time, to *time.Time, limit *int) int
-		Settings      func(childComplexity int) int
-		SetupStatus   func(childComplexity int) int
-		Users         func(childComplexity int) int
+		Activity           func(childComplexity int, filter *model.ActivityFilter) int
+		Alarms             func(childComplexity int, filter *model.AlarmFilter) int
+		Automation         func(childComplexity int, id string) int
+		Automations        func(childComplexity int) int
+		Device             func(childComplexity int, id string) int
+		Devices            func(childComplexity int) int
+		Group              func(childComplexity int, id string) int
+		Groups             func(childComplexity int) int
+		Logs               func(childComplexity int, search *string, limit *int) int
+		Me                 func(childComplexity int) int
+		MqttConfig         func(childComplexity int) int
+		Room               func(childComplexity int, id string) int
+		Rooms              func(childComplexity int) int
+		Scene              func(childComplexity int, id string) int
+		Scenes             func(childComplexity int) int
+		Settings           func(childComplexity int) int
+		SetupStatus        func(childComplexity int) int
+		StateHistory       func(childComplexity int, filter model.StateHistoryFilter) int
+		StateHistoryFields func(childComplexity int) int
+		Users              func(childComplexity int) int
 	}
 
 	Room struct {
@@ -284,30 +284,24 @@ type ComplexityRoot struct {
 	}
 
 	Scene struct {
-		Actions   func(childComplexity int) int
-		CreatedBy func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Icon      func(childComplexity int) int
-		Name      func(childComplexity int) int
+		Actions        func(childComplexity int) int
+		CreatedBy      func(childComplexity int) int
+		DevicePayloads func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Icon           func(childComplexity int) int
+		Name           func(childComplexity int) int
 	}
 
 	SceneAction struct {
 		ID         func(childComplexity int) int
-		Payload    func(childComplexity int) int
 		Target     func(childComplexity int) int
 		TargetID   func(childComplexity int) int
 		TargetType func(childComplexity int) int
 	}
 
-	SensorReading struct {
-		Battery     func(childComplexity int) int
-		DeviceID    func(childComplexity int) int
-		Humidity    func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Illuminance func(childComplexity int) int
-		Pressure    func(childComplexity int) int
-		RecordedAt  func(childComplexity int) int
-		Temperature func(childComplexity int) int
+	SceneDevicePayload struct {
+		DeviceID func(childComplexity int) int
+		Payload  func(childComplexity int) int
 	}
 
 	Setting struct {
@@ -318,6 +312,17 @@ type ComplexityRoot struct {
 	SetupStatus struct {
 		HasInitialUser func(childComplexity int) int
 		MqttConfigured func(childComplexity int) int
+	}
+
+	StateSeries struct {
+		DeviceID func(childComplexity int) int
+		Field    func(childComplexity int) int
+		Points   func(childComplexity int) int
+	}
+
+	StateSeriesPoint struct {
+		At    func(childComplexity int) int
+		Value func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -396,7 +401,8 @@ type QueryResolver interface {
 	Group(ctx context.Context, id string) (*model.Group, error)
 	Rooms(ctx context.Context) ([]*model.Room, error)
 	Room(ctx context.Context, id string) (*model.Room, error)
-	SensorHistory(ctx context.Context, deviceID string, from *time.Time, to *time.Time, limit *int) ([]*model.SensorReading, error)
+	StateHistory(ctx context.Context, filter model.StateHistoryFilter) ([]*model.StateSeries, error)
+	StateHistoryFields(ctx context.Context) ([]string, error)
 	MqttConfig(ctx context.Context) (*model.MqttConfig, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
@@ -612,12 +618,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AutomationEdge.ToNodeID(childComplexity), true
 
-	case "AutomationGraph.cooldownSeconds":
-		if e.ComplexityRoot.AutomationGraph.CooldownSeconds == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutomationGraph.CooldownSeconds(childComplexity), true
 	case "AutomationGraph.createdBy":
 		if e.ComplexityRoot.AutomationGraph.CreatedBy == nil {
 			break
@@ -1690,17 +1690,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Scenes(childComplexity), true
-	case "Query.sensorHistory":
-		if e.ComplexityRoot.Query.SensorHistory == nil {
-			break
-		}
-
-		args, err := ec.field_Query_sensorHistory_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.SensorHistory(childComplexity, args["deviceId"].(string), args["from"].(*time.Time), args["to"].(*time.Time), args["limit"].(*int)), true
 	case "Query.settings":
 		if e.ComplexityRoot.Query.Settings == nil {
 			break
@@ -1713,6 +1702,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.SetupStatus(childComplexity), true
+	case "Query.stateHistory":
+		if e.ComplexityRoot.Query.StateHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_stateHistory_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.StateHistory(childComplexity, args["filter"].(model.StateHistoryFilter)), true
+	case "Query.stateHistoryFields":
+		if e.ComplexityRoot.Query.StateHistoryFields == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.StateHistoryFields(childComplexity), true
 	case "Query.users":
 		if e.ComplexityRoot.Query.Users == nil {
 			break
@@ -1763,6 +1769,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.CreatedBy(childComplexity), true
+	case "Scene.devicePayloads":
+		if e.ComplexityRoot.Scene.DevicePayloads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.DevicePayloads(childComplexity), true
 	case "Scene.id":
 		if e.ComplexityRoot.Scene.ID == nil {
 			break
@@ -1788,12 +1800,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SceneAction.ID(childComplexity), true
-	case "SceneAction.payload":
-		if e.ComplexityRoot.SceneAction.Payload == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SceneAction.Payload(childComplexity), true
 	case "SceneAction.target":
 		if e.ComplexityRoot.SceneAction.Target == nil {
 			break
@@ -1813,54 +1819,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SceneAction.TargetType(childComplexity), true
 
-	case "SensorReading.battery":
-		if e.ComplexityRoot.SensorReading.Battery == nil {
+	case "SceneDevicePayload.deviceId":
+		if e.ComplexityRoot.SceneDevicePayload.DeviceID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.SensorReading.Battery(childComplexity), true
-	case "SensorReading.deviceId":
-		if e.ComplexityRoot.SensorReading.DeviceID == nil {
+		return e.ComplexityRoot.SceneDevicePayload.DeviceID(childComplexity), true
+	case "SceneDevicePayload.payload":
+		if e.ComplexityRoot.SceneDevicePayload.Payload == nil {
 			break
 		}
 
-		return e.ComplexityRoot.SensorReading.DeviceID(childComplexity), true
-	case "SensorReading.humidity":
-		if e.ComplexityRoot.SensorReading.Humidity == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SensorReading.Humidity(childComplexity), true
-	case "SensorReading.id":
-		if e.ComplexityRoot.SensorReading.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SensorReading.ID(childComplexity), true
-	case "SensorReading.illuminance":
-		if e.ComplexityRoot.SensorReading.Illuminance == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SensorReading.Illuminance(childComplexity), true
-	case "SensorReading.pressure":
-		if e.ComplexityRoot.SensorReading.Pressure == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SensorReading.Pressure(childComplexity), true
-	case "SensorReading.recordedAt":
-		if e.ComplexityRoot.SensorReading.RecordedAt == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SensorReading.RecordedAt(childComplexity), true
-	case "SensorReading.temperature":
-		if e.ComplexityRoot.SensorReading.Temperature == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SensorReading.Temperature(childComplexity), true
+		return e.ComplexityRoot.SceneDevicePayload.Payload(childComplexity), true
 
 	case "Setting.key":
 		if e.ComplexityRoot.Setting.Key == nil {
@@ -1887,6 +1857,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SetupStatus.MqttConfigured(childComplexity), true
+
+	case "StateSeries.deviceId":
+		if e.ComplexityRoot.StateSeries.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeries.DeviceID(childComplexity), true
+	case "StateSeries.field":
+		if e.ComplexityRoot.StateSeries.Field == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeries.Field(childComplexity), true
+	case "StateSeries.points":
+		if e.ComplexityRoot.StateSeries.Points == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeries.Points(childComplexity), true
+
+	case "StateSeriesPoint.at":
+		if e.ComplexityRoot.StateSeriesPoint.At == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeriesPoint.At(childComplexity), true
+	case "StateSeriesPoint.value":
+		if e.ComplexityRoot.StateSeriesPoint.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeriesPoint.Value(childComplexity), true
 
 	case "Subscription.activityStream":
 		if e.ComplexityRoot.Subscription.ActivityStream == nil {
@@ -2027,6 +2029,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputMqttConfigInput,
 		ec.unmarshalInputRaiseAlarmInput,
 		ec.unmarshalInputSceneActionInput,
+		ec.unmarshalInputSceneDevicePayloadInput,
+		ec.unmarshalInputStateHistoryFilter,
 		ec.unmarshalInputUpdateAutomationInput,
 		ec.unmarshalInputUpdateCurrentUserInput,
 		ec.unmarshalInputUpdateDeviceInput,
@@ -2184,6 +2188,7 @@ type Scene {
   name: String!
   icon: String
   actions: [SceneAction!]!
+  devicePayloads: [SceneDevicePayload!]!
   createdBy: User
 }
 
@@ -2194,6 +2199,10 @@ type SceneAction {
   targetType: String!
   targetId: ID!
   target: SceneTarget!
+}
+
+type SceneDevicePayload {
+  deviceId: ID!
   payload: String!
 }
 
@@ -2202,7 +2211,6 @@ type AutomationGraph {
   name: String!
   icon: String
   enabled: Boolean!
-  cooldownSeconds: Float!
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
@@ -2249,15 +2257,23 @@ type Room {
   createdBy: User
 }
 
-type SensorReading {
-  id: ID!
+type StateSeriesPoint {
+  at: DateTime!
+  value: Float!
+}
+
+type StateSeries {
   deviceId: ID!
-  temperature: Float
-  humidity: Float
-  battery: Int
-  pressure: Float
-  illuminance: Float
-  recordedAt: DateTime!
+  field: String!
+  points: [StateSeriesPoint!]!
+}
+
+input StateHistoryFilter {
+  deviceIds: [ID!]!
+  fields: [String!]
+  from: DateTime
+  to: DateTime
+  bucketSeconds: Int
 }
 
 type DeviceStateEvent {
@@ -2484,11 +2500,16 @@ input UpdateDeviceInput {
 input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
+  devicePayloads: [SceneDevicePayloadInput!]
 }
 
 input SceneActionInput {
   targetType: String!
   targetId: ID!
+}
+
+input SceneDevicePayloadInput {
+  deviceId: ID!
   payload: String!
 }
 
@@ -2496,12 +2517,12 @@ input UpdateSceneInput {
   name: String
   icon: String
   actions: [SceneActionInput!]
+  devicePayloads: [SceneDevicePayloadInput!]
 }
 
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
-  cooldownSeconds: Float!
   nodes: [AutomationNodeInput!]!
   edges: [AutomationEdgeInput!]!
 }
@@ -2552,7 +2573,6 @@ input UpdateAutomationInput {
   name: String
   icon: String
   enabled: Boolean
-  cooldownSeconds: Float
   nodes: [AutomationNodeInput!]
   edges: [AutomationEdgeInput!]
 }
@@ -2568,7 +2588,8 @@ type Query {
   group(id: ID!): Group
   rooms: [Room!]!
   room(id: ID!): Room
-  sensorHistory(deviceId: ID!, from: DateTime, to: DateTime, limit: Int): [SensorReading!]!
+  stateHistory(filter: StateHistoryFilter!): [StateSeries!]!
+  stateHistoryFields: [String!]!
   mqttConfig: MqttConfig
   settings: [Setting!]!
   logs(search: String, limit: Int): [LogEntry!]!
@@ -3273,29 +3294,14 @@ func (ec *executionContext) field_Query_scene_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_sensorHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Query_stateHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalNStateHistoryFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateHistoryFilter)
 	if err != nil {
 		return nil, err
 	}
-	args["deviceId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "from", ec.unmarshalODateTime2ᚖtimeᚐTime)
-	if err != nil {
-		return nil, err
-	}
-	args["from"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "to", ec.unmarshalODateTime2ᚖtimeᚐTime)
-	if err != nil {
-		return nil, err
-	}
-	args["to"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint)
-	if err != nil {
-		return nil, err
-	}
-	args["limit"] = arg3
+	args["filter"] = arg0
 	return args, nil
 }
 
@@ -4395,35 +4401,6 @@ func (ec *executionContext) fieldContext_AutomationGraph_enabled(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AutomationGraph_cooldownSeconds(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AutomationGraph_cooldownSeconds,
-		func(ctx context.Context) (any, error) {
-			return obj.CooldownSeconds, nil
-		},
-		nil,
-		ec.marshalNFloat2float64,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AutomationGraph_cooldownSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AutomationGraph",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6967,6 +6944,8 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "devicePayloads":
+				return ec.fieldContext_Scene_devicePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
@@ -7020,6 +6999,8 @@ func (ec *executionContext) fieldContext_Mutation_createScene(ctx context.Contex
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "devicePayloads":
+				return ec.fieldContext_Scene_devicePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
@@ -7073,6 +7054,8 @@ func (ec *executionContext) fieldContext_Mutation_updateScene(ctx context.Contex
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "devicePayloads":
+				return ec.fieldContext_Scene_devicePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
@@ -7167,8 +7150,6 @@ func (ec *executionContext) fieldContext_Mutation_createAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "cooldownSeconds":
-				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -7228,8 +7209,6 @@ func (ec *executionContext) fieldContext_Mutation_updateAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "cooldownSeconds":
-				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -7330,8 +7309,6 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "cooldownSeconds":
-				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -8965,6 +8942,8 @@ func (ec *executionContext) fieldContext_Query_scenes(_ context.Context, field g
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "devicePayloads":
+				return ec.fieldContext_Scene_devicePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
@@ -9007,6 +8986,8 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
+			case "devicePayloads":
+				return ec.fieldContext_Scene_devicePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			}
@@ -9059,8 +9040,6 @@ func (ec *executionContext) fieldContext_Query_automations(_ context.Context, fi
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "cooldownSeconds":
-				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -9109,8 +9088,6 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "cooldownSeconds":
-				return ec.fieldContext_AutomationGraph_cooldownSeconds(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -9329,24 +9306,24 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_sensorHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_stateHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Query_sensorHistory,
+		ec.fieldContext_Query_stateHistory,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().SensorHistory(ctx, fc.Args["deviceId"].(string), fc.Args["from"].(*time.Time), fc.Args["to"].(*time.Time), fc.Args["limit"].(*int))
+			return ec.Resolvers.Query().StateHistory(ctx, fc.Args["filter"].(model.StateHistoryFilter))
 		},
 		nil,
-		ec.marshalNSensorReading2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSensorReadingᚄ,
+		ec.marshalNStateSeries2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesᚄ,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Query_sensorHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_stateHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -9354,24 +9331,14 @@ func (ec *executionContext) fieldContext_Query_sensorHistory(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_SensorReading_id(ctx, field)
 			case "deviceId":
-				return ec.fieldContext_SensorReading_deviceId(ctx, field)
-			case "temperature":
-				return ec.fieldContext_SensorReading_temperature(ctx, field)
-			case "humidity":
-				return ec.fieldContext_SensorReading_humidity(ctx, field)
-			case "battery":
-				return ec.fieldContext_SensorReading_battery(ctx, field)
-			case "pressure":
-				return ec.fieldContext_SensorReading_pressure(ctx, field)
-			case "illuminance":
-				return ec.fieldContext_SensorReading_illuminance(ctx, field)
-			case "recordedAt":
-				return ec.fieldContext_SensorReading_recordedAt(ctx, field)
+				return ec.fieldContext_StateSeries_deviceId(ctx, field)
+			case "field":
+				return ec.fieldContext_StateSeries_field(ctx, field)
+			case "points":
+				return ec.fieldContext_StateSeries_points(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SensorReading", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type StateSeries", field.Name)
 		},
 	}
 	defer func() {
@@ -9381,9 +9348,38 @@ func (ec *executionContext) fieldContext_Query_sensorHistory(ctx context.Context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_sensorHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_stateHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_stateHistoryFields(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_stateHistoryFields,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().StateHistoryFields(ctx)
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_stateHistoryFields(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -10154,10 +10150,43 @@ func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field 
 				return ec.fieldContext_SceneAction_targetId(ctx, field)
 			case "target":
 				return ec.fieldContext_SceneAction_target(ctx, field)
-			case "payload":
-				return ec.fieldContext_SceneAction_payload(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SceneAction", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Scene_devicePayloads(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Scene_devicePayloads,
+		func(ctx context.Context) (any, error) {
+			return obj.DevicePayloads, nil
+		},
+		nil,
+		ec.marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Scene_devicePayloads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Scene",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_SceneDevicePayload_deviceId(ctx, field)
+			case "payload":
+				return ec.fieldContext_SceneDevicePayload_payload(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SceneDevicePayload", field.Name)
 		},
 	}
 	return fc, nil
@@ -10322,70 +10351,12 @@ func (ec *executionContext) fieldContext_SceneAction_target(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _SceneAction_payload(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _SceneDevicePayload_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SceneDevicePayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_SceneAction_payload,
-		func(ctx context.Context) (any, error) {
-			return obj.Payload, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SceneAction_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_id(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_id,
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SensorReading_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_deviceId,
+		ec.fieldContext_SceneDevicePayload_deviceId,
 		func(ctx context.Context) (any, error) {
 			return obj.DeviceID, nil
 		},
@@ -10396,9 +10367,9 @@ func (ec *executionContext) _SensorReading_deviceId(ctx context.Context, field g
 	)
 }
 
-func (ec *executionContext) fieldContext_SensorReading_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SceneDevicePayload_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
+		Object:     "SceneDevicePayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -10409,175 +10380,30 @@ func (ec *executionContext) fieldContext_SensorReading_deviceId(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _SensorReading_temperature(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
+func (ec *executionContext) _SceneDevicePayload_payload(ctx context.Context, field graphql.CollectedField, obj *model.SceneDevicePayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_SensorReading_temperature,
+		ec.fieldContext_SceneDevicePayload_payload,
 		func(ctx context.Context) (any, error) {
-			return obj.Temperature, nil
+			return obj.Payload, nil
 		},
 		nil,
-		ec.marshalOFloat2ᚖfloat64,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SensorReading_temperature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_humidity(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_humidity,
-		func(ctx context.Context) (any, error) {
-			return obj.Humidity, nil
-		},
-		nil,
-		ec.marshalOFloat2ᚖfloat64,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SensorReading_humidity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_battery(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_battery,
-		func(ctx context.Context) (any, error) {
-			return obj.Battery, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SensorReading_battery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_pressure(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_pressure,
-		func(ctx context.Context) (any, error) {
-			return obj.Pressure, nil
-		},
-		nil,
-		ec.marshalOFloat2ᚖfloat64,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SensorReading_pressure(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_illuminance(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_illuminance,
-		func(ctx context.Context) (any, error) {
-			return obj.Illuminance, nil
-		},
-		nil,
-		ec.marshalOFloat2ᚖfloat64,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SensorReading_illuminance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SensorReading_recordedAt(ctx context.Context, field graphql.CollectedField, obj *model.SensorReading) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SensorReading_recordedAt,
-		func(ctx context.Context) (any, error) {
-			return obj.RecordedAt, nil
-		},
-		nil,
-		ec.marshalNDateTime2timeᚐTime,
+		ec.marshalNString2string,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_SensorReading_recordedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SceneDevicePayload_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SensorReading",
+		Object:     "SceneDevicePayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type DateTime does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10694,6 +10520,157 @@ func (ec *executionContext) fieldContext_SetupStatus_mqttConfigured(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeries_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.StateSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeries_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeries_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeries_field(ctx context.Context, field graphql.CollectedField, obj *model.StateSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeries_field,
+		func(ctx context.Context) (any, error) {
+			return obj.Field, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeries_field(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.StateSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeries_points,
+		func(ctx context.Context) (any, error) {
+			return obj.Points, nil
+		},
+		nil,
+		ec.marshalNStateSeriesPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeries_points(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "at":
+				return ec.fieldContext_StateSeriesPoint_at(ctx, field)
+			case "value":
+				return ec.fieldContext_StateSeriesPoint_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StateSeriesPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeriesPoint_at(ctx context.Context, field graphql.CollectedField, obj *model.StateSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeriesPoint_at,
+		func(ctx context.Context) (any, error) {
+			return obj.At, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeriesPoint_at(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeriesPoint_value(ctx context.Context, field graphql.CollectedField, obj *model.StateSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeriesPoint_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeriesPoint_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -13118,7 +13095,7 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "enabled", "cooldownSeconds", "nodes", "edges"}
+	fieldsInOrder := [...]string{"name", "enabled", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13139,13 +13116,6 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Enabled = data
-		case "cooldownSeconds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cooldownSeconds"))
-			data, err := ec.unmarshalNFloat2float64(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CooldownSeconds = data
 		case "nodes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
 			data, err := ec.unmarshalNAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx, v)
@@ -13280,7 +13250,7 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "actions"}
+	fieldsInOrder := [...]string{"name", "actions", "devicePayloads"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13301,6 +13271,13 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.Actions = data
+		case "devicePayloads":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("devicePayloads"))
+			data, err := ec.unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DevicePayloads = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -13565,7 +13542,7 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"targetType", "targetId", "payload"}
+	fieldsInOrder := [...]string{"targetType", "targetId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13586,6 +13563,36 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 				return it, err
 			}
 			it.TargetID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSceneDevicePayloadInput(ctx context.Context, obj any) (model.SceneDevicePayloadInput, error) {
+	var it model.SceneDevicePayloadInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"deviceId", "payload"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
 		case "payload":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payload"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -13593,6 +13600,64 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 				return it, err
 			}
 			it.Payload = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputStateHistoryFilter(ctx context.Context, obj any) (model.StateHistoryFilter, error) {
+	var it model.StateHistoryFilter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"deviceIds", "fields", "from", "to", "bucketSeconds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "deviceIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceIds"))
+			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceIds = data
+		case "fields":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fields"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Fields = graphql.OmittableOf(data)
+		case "from":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.From = graphql.OmittableOf(data)
+		case "to":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
+			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.To = graphql.OmittableOf(data)
+		case "bucketSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bucketSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BucketSeconds = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -13609,7 +13674,7 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "enabled", "cooldownSeconds", "nodes", "edges"}
+	fieldsInOrder := [...]string{"name", "icon", "enabled", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13637,13 +13702,6 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Enabled = graphql.OmittableOf(data)
-		case "cooldownSeconds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cooldownSeconds"))
-			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CooldownSeconds = graphql.OmittableOf(data)
 		case "nodes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
 			data, err := ec.unmarshalOAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx, v)
@@ -13815,7 +13873,7 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "actions"}
+	fieldsInOrder := [...]string{"name", "icon", "actions", "devicePayloads"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13843,6 +13901,13 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.Actions = graphql.OmittableOf(data)
+		case "devicePayloads":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("devicePayloads"))
+			data, err := ec.unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DevicePayloads = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -14243,11 +14308,6 @@ func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._AutomationGraph_icon(ctx, field, obj)
 		case "enabled":
 			out.Values[i] = ec._AutomationGraph_enabled(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "cooldownSeconds":
-			out.Values[i] = ec._AutomationGraph_cooldownSeconds(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -15597,7 +15657,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "sensorHistory":
+		case "stateHistory":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -15606,7 +15666,29 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_sensorHistory(ctx, field)
+				res = ec._Query_stateHistory(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "stateHistoryFields":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_stateHistoryFields(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -15901,6 +15983,11 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "devicePayloads":
+			out.Values[i] = ec._Scene_devicePayloads(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createdBy":
 			out.Values[i] = ec._Scene_createdBy(ctx, field, obj)
 		default:
@@ -15957,11 +16044,6 @@ func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "payload":
-			out.Values[i] = ec._SceneAction_payload(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15985,39 +16067,24 @@ func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
-var sensorReadingImplementors = []string{"SensorReading"}
+var sceneDevicePayloadImplementors = []string{"SceneDevicePayload"}
 
-func (ec *executionContext) _SensorReading(ctx context.Context, sel ast.SelectionSet, obj *model.SensorReading) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, sensorReadingImplementors)
+func (ec *executionContext) _SceneDevicePayload(ctx context.Context, sel ast.SelectionSet, obj *model.SceneDevicePayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneDevicePayloadImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("SensorReading")
-		case "id":
-			out.Values[i] = ec._SensorReading_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+			out.Values[i] = graphql.MarshalString("SceneDevicePayload")
 		case "deviceId":
-			out.Values[i] = ec._SensorReading_deviceId(ctx, field, obj)
+			out.Values[i] = ec._SceneDevicePayload_deviceId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "temperature":
-			out.Values[i] = ec._SensorReading_temperature(ctx, field, obj)
-		case "humidity":
-			out.Values[i] = ec._SensorReading_humidity(ctx, field, obj)
-		case "battery":
-			out.Values[i] = ec._SensorReading_battery(ctx, field, obj)
-		case "pressure":
-			out.Values[i] = ec._SensorReading_pressure(ctx, field, obj)
-		case "illuminance":
-			out.Values[i] = ec._SensorReading_illuminance(ctx, field, obj)
-		case "recordedAt":
-			out.Values[i] = ec._SensorReading_recordedAt(ctx, field, obj)
+		case "payload":
+			out.Values[i] = ec._SceneDevicePayload_payload(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -16106,6 +16173,99 @@ func (ec *executionContext) _SetupStatus(ctx context.Context, sel ast.SelectionS
 			}
 		case "mqttConfigured":
 			out.Values[i] = ec._SetupStatus_mqttConfigured(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var stateSeriesImplementors = []string{"StateSeries"}
+
+func (ec *executionContext) _StateSeries(ctx context.Context, sel ast.SelectionSet, obj *model.StateSeries) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, stateSeriesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StateSeries")
+		case "deviceId":
+			out.Values[i] = ec._StateSeries_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "field":
+			out.Values[i] = ec._StateSeries_field(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "points":
+			out.Values[i] = ec._StateSeries_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var stateSeriesPointImplementors = []string{"StateSeriesPoint"}
+
+func (ec *executionContext) _StateSeriesPoint(ctx context.Context, sel ast.SelectionSet, obj *model.StateSeriesPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, stateSeriesPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StateSeriesPoint")
+		case "at":
+			out.Values[i] = ec._StateSeriesPoint_at(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._StateSeriesPoint_value(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -17329,21 +17489,11 @@ func (ec *executionContext) unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffron
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget(ctx context.Context, sel ast.SelectionSet, v model.SceneTarget) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._SceneTarget(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNSensorReading2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSensorReadingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SensorReading) graphql.Marshaler {
+func (ec *executionContext) marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneDevicePayload) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNSensorReading2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSensorReading(ctx, sel, v[i])
+		return ec.marshalNSceneDevicePayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayload(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -17355,14 +17505,29 @@ func (ec *executionContext) marshalNSensorReading2ᚕᚖgithubᚗcomᚋsaffronja
 	return ret
 }
 
-func (ec *executionContext) marshalNSensorReading2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSensorReading(ctx context.Context, sel ast.SelectionSet, v *model.SensorReading) graphql.Marshaler {
+func (ec *executionContext) marshalNSceneDevicePayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayload(ctx context.Context, sel ast.SelectionSet, v *model.SceneDevicePayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._SensorReading(ctx, sel, v)
+	return ec._SceneDevicePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSceneDevicePayloadInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInput(ctx context.Context, v any) (*model.SceneDevicePayloadInput, error) {
+	res, err := ec.unmarshalInputSceneDevicePayloadInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget(ctx context.Context, sel ast.SelectionSet, v model.SceneTarget) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneTarget(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNSetting2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetting(ctx context.Context, sel ast.SelectionSet, v model.Setting) graphql.Marshaler {
@@ -17409,6 +17574,63 @@ func (ec *executionContext) marshalNSetupStatus2ᚖgithubᚗcomᚋsaffronjamᚋs
 	return ec._SetupStatus(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNStateHistoryFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateHistoryFilter(ctx context.Context, v any) (model.StateHistoryFilter, error) {
+	res, err := ec.unmarshalInputStateHistoryFilter(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNStateSeries2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StateSeries) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNStateSeries2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeries(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNStateSeries2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeries(ctx context.Context, sel ast.SelectionSet, v *model.StateSeries) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StateSeries(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNStateSeriesPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StateSeriesPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNStateSeriesPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNStateSeriesPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesPoint(ctx context.Context, sel ast.SelectionSet, v *model.StateSeriesPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StateSeriesPoint(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17423,6 +17645,36 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput(ctx context.Context, v any) (model.UpdateAutomationInput, error) {
@@ -17935,6 +18187,24 @@ func (ec *executionContext) unmarshalOSceneActionInput2ᚕᚖgithubᚗcomᚋsaff
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
 		res[i], err = ec.unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInputᚄ(ctx context.Context, v any) ([]*model.SceneDevicePayloadInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.SceneDevicePayloadInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNSceneDevicePayloadInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
