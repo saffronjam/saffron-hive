@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parsePayload,
   buildTargetInfo,
-  sceneToEditable,
+  sceneToEditorState,
   type SceneAction,
   type SceneData,
 } from "$lib/scene-editable";
@@ -19,12 +19,12 @@ describe("parsePayload", () => {
     expect(parsePayload('{"colorTemp":350}')).toEqual({ colorTemp: 350 });
   });
 
-  it("falls back to default on invalid JSON", () => {
-    expect(parsePayload("not-json")).toEqual({ on: true, brightness: 127 });
+  it("falls back to empty on invalid JSON", () => {
+    expect(parsePayload("not-json")).toEqual({});
   });
 
-  it("falls back to default on empty string", () => {
-    expect(parsePayload("")).toEqual({ on: true, brightness: 127 });
+  it("falls back to empty on empty string", () => {
+    expect(parsePayload("")).toEqual({});
   });
 });
 
@@ -38,9 +38,26 @@ describe("buildTargetInfo", () => {
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
+      type: "group",
       id: "g1",
       name: "Living Room Lights",
-      type: "group",
+      icon: null,
+    });
+  });
+
+  it("maps a Room target to room type", () => {
+    const action: SceneAction = {
+      id: "a1",
+      targetType: "room",
+      targetId: "r1",
+      target: { __typename: "Room", id: "r1", name: "Kitchen", icon: "mdi:kitchen" },
+      payload: "{}",
+    };
+    expect(buildTargetInfo(action)).toEqual({
+      type: "room",
+      id: "r1",
+      name: "Kitchen",
+      icon: "mdi:kitchen",
     });
   });
 
@@ -53,32 +70,16 @@ describe("buildTargetInfo", () => {
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
+      type: "device",
       id: "d1",
       name: "Desk lamp",
-      type: "device",
       deviceType: "light",
-    });
-  });
-
-  it("treats non-Group __typename as a device even without a type", () => {
-    const action: SceneAction = {
-      id: "a1",
-      targetType: "device",
-      targetId: "d1",
-      target: { __typename: "Device", id: "d1", name: "Unknown" },
-      payload: "{}",
-    };
-    expect(buildTargetInfo(action)).toEqual({
-      id: "d1",
-      name: "Unknown",
-      type: "device",
-      deviceType: undefined,
     });
   });
 });
 
-describe("sceneToEditable", () => {
-  it("maps each action and preserves order", () => {
+describe("sceneToEditorState", () => {
+  it("produces both targets and payload map", () => {
     const scene: SceneData = {
       id: "s1",
       name: "Evening",
@@ -88,52 +89,29 @@ describe("sceneToEditable", () => {
           targetType: "device",
           targetId: "d1",
           target: { __typename: "Device", id: "d1", name: "Lamp", type: "light" },
-          payload: '{"on":true}',
+          payload: "{}",
         },
         {
           id: "a2",
           targetType: "group",
           targetId: "g1",
           target: { __typename: "Group", id: "g1", name: "Kitchen" },
-          payload: '{"brightness":64}',
+          payload: "{}",
         },
       ],
+      devicePayloads: [{ deviceId: "d1", payload: '{"on":true,"brightness":100}' }],
     };
-    const result = sceneToEditable(scene);
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
-      targetType: "device",
-      targetId: "d1",
-      target: { id: "d1", name: "Lamp", type: "device", deviceType: "light" },
-      payload: { on: true },
-    });
-    expect(result[1]).toEqual({
-      targetType: "group",
-      targetId: "g1",
-      target: { id: "g1", name: "Kitchen", type: "group" },
-      payload: { brightness: 64 },
-    });
+    const state = sceneToEditorState(scene);
+    expect(state.targets).toHaveLength(2);
+    expect(state.targets[0].type).toBe("device");
+    expect(state.targets[1].type).toBe("group");
+    expect(state.payloads.get("d1")).toEqual({ on: true, brightness: 100 });
   });
 
-  it("handles an empty action list", () => {
-    const scene: SceneData = { id: "s1", name: "Empty", actions: [] };
-    expect(sceneToEditable(scene)).toEqual([]);
-  });
-
-  it("applies the parsePayload fallback for malformed payloads", () => {
-    const scene: SceneData = {
-      id: "s1",
-      name: "Bad",
-      actions: [
-        {
-          id: "a1",
-          targetType: "device",
-          targetId: "d1",
-          target: { __typename: "Device", id: "d1", name: "Lamp", type: "light" },
-          payload: "not-json",
-        },
-      ],
-    };
-    expect(sceneToEditable(scene)[0].payload).toEqual({ on: true, brightness: 127 });
+  it("handles empty scenes", () => {
+    const scene: SceneData = { id: "s1", name: "Empty", actions: [], devicePayloads: [] };
+    const state = sceneToEditorState(scene);
+    expect(state.targets).toEqual([]);
+    expect(state.payloads.size).toBe(0);
   });
 });

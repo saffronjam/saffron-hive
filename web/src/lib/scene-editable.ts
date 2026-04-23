@@ -1,4 +1,4 @@
-import type { Device } from "$lib/stores/devices";
+import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
 
 export interface SceneAction {
   id: string;
@@ -12,9 +12,11 @@ export interface SceneTargetData {
   __typename: string;
   id: string;
   name: string;
+  icon?: string | null;
   type?: string;
   members?: GroupMemberData[];
   resolvedDevices?: Device[];
+  devices?: Device[];
 }
 
 export interface GroupMemberData {
@@ -23,11 +25,17 @@ export interface GroupMemberData {
   memberId: string;
 }
 
+export interface SceneDevicePayloadEntry {
+  deviceId: string;
+  payload: string;
+}
+
 export interface SceneData {
   id: string;
   name: string;
   icon?: string | null;
   actions: SceneAction[];
+  devicePayloads: SceneDevicePayloadEntry[];
 }
 
 export interface GroupData {
@@ -37,6 +45,13 @@ export interface GroupData {
   resolvedDevices: Device[];
 }
 
+export interface RoomData {
+  id: string;
+  name: string;
+  icon?: string | null;
+  devices: Device[];
+}
+
 export interface ActionPayload {
   on?: boolean;
   brightness?: number;
@@ -44,49 +59,57 @@ export interface ActionPayload {
   color?: { r: number; g: number; b: number; x: number; y: number };
 }
 
-export interface TargetInfo {
+export type TargetKind = "device" | "group" | "room";
+
+export interface EditableTarget {
+  type: TargetKind;
   id: string;
   name: string;
-  type: "device" | "group";
+  icon?: string | null;
   deviceType?: string;
 }
 
-export interface EditableAction {
-  targetType: string;
-  targetId: string;
-  target: TargetInfo;
-  payload: ActionPayload;
-}
+export type DevicePayloadMap = Map<string, ActionPayload>;
 
 export function parsePayload(raw: string): ActionPayload {
   try {
     return JSON.parse(raw) as ActionPayload;
   } catch {
-    return { on: true, brightness: 127 };
+    return {};
   }
 }
 
-export function buildTargetInfo(action: SceneAction): TargetInfo {
-  if (action.target.__typename === "Group") {
-    return {
-      id: action.target.id,
-      name: action.target.name,
-      type: "group",
-    };
+export function buildTargetInfo(action: SceneAction): EditableTarget {
+  const t = action.target;
+  if (t.__typename === "Group") {
+    return { type: "group", id: t.id, name: t.name, icon: t.icon ?? null };
   }
-  return {
-    id: action.target.id,
-    name: action.target.name,
-    type: "device",
-    deviceType: action.target.type,
-  };
+  if (t.__typename === "Room") {
+    return { type: "room", id: t.id, name: t.name, icon: t.icon ?? null };
+  }
+  return { type: "device", id: t.id, name: t.name, deviceType: t.type };
 }
 
-export function sceneToEditable(s: SceneData): EditableAction[] {
-  return s.actions.map((a) => ({
-    targetType: a.targetType,
-    targetId: a.targetId,
-    target: buildTargetInfo(a),
-    payload: parsePayload(a.payload),
-  }));
+export interface EditorState {
+  targets: EditableTarget[];
+  payloads: DevicePayloadMap;
+}
+
+export function sceneToEditorState(s: SceneData): EditorState {
+  const targets = s.actions.map(buildTargetInfo);
+  const payloads: DevicePayloadMap = new Map();
+  for (const p of s.devicePayloads) {
+    payloads.set(p.deviceId, parsePayload(p.payload));
+  }
+  return { targets, payloads };
+}
+
+export function defaultScenePayload(device: Device | undefined): ActionPayload {
+  if (!device) return { on: true };
+  const caps = deviceSceneCapabilities(device);
+  const payload: ActionPayload = {};
+  if (caps.hasOnOff) payload.on = true;
+  if (caps.hasBrightness) payload.brightness = 200;
+  if (caps.hasColorTemp) payload.colorTemp = 370;
+  return payload;
 }

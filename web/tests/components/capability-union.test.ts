@@ -6,10 +6,13 @@ import {
   resolveTargetDevices,
   type GroupLite,
   type RoomLite,
-} from "$lib/components/graph/capability-union";
+} from "$lib/target-resolve";
 import type { Device } from "$lib/gql/graphql";
 
-function cap(name: string, over: Partial<Device["capabilities"][0]> = {}): Device["capabilities"][0] {
+function cap(
+  name: string,
+  over: Partial<Device["capabilities"][0]> = {},
+): Device["capabilities"][0] {
   return {
     __typename: "Capability" as const,
     name,
@@ -37,9 +40,17 @@ function dev(id: string, caps: Device["capabilities"]): Device {
   };
 }
 
-const light = dev("light-1", [cap("on_off"), cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254 }), cap("color")]);
+const light = dev("light-1", [
+  cap("on_off"),
+  cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254 }),
+  cap("color"),
+]);
 const plug = dev("plug-1", [cap("on_off"), cap("power", { type: "numeric", access: 1 })]);
-const bulb = dev("light-2", [cap("on_off"), cap("brightness", { type: "numeric", valueMin: 1, valueMax: 100 }), cap("color_temp", { type: "numeric", valueMin: 153, valueMax: 500 })]);
+const bulb = dev("light-2", [
+  cap("on_off"),
+  cap("brightness", { type: "numeric", valueMin: 1, valueMax: 100 }),
+  cap("color_temp", { type: "numeric", valueMin: 153, valueMax: 500 }),
+]);
 
 describe("resolveTargetDevices", () => {
   it("device target: returns exactly that device", () => {
@@ -48,7 +59,13 @@ describe("resolveTargetDevices", () => {
   });
 
   it("group target: returns members", () => {
-    const grp: GroupLite = { id: "g1", members: [{ memberType: "device", memberId: "light-1" }, { memberType: "device", memberId: "plug-1" }] };
+    const grp: GroupLite = {
+      id: "g1",
+      members: [
+        { memberType: "device", memberId: "light-1" },
+        { memberType: "device", memberId: "plug-1" },
+      ],
+    };
     const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, plug], [grp], []);
     expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
   });
@@ -60,26 +77,49 @@ describe("resolveTargetDevices", () => {
   });
 
   it("nested group: recursive resolution with dedupe", () => {
-    const inner: GroupLite = { id: "inner", members: [{ memberType: "device", memberId: "light-1" }] };
-    const outer: GroupLite = { id: "outer", members: [
-      { memberType: "group", memberId: "inner" },
-      { memberType: "device", memberId: "plug-1" },
-      { memberType: "device", memberId: "light-1" }, // duplicate
-    ] };
-    const got = resolveTargetDevices({ type: "group", id: "outer" }, [light, plug], [inner, outer], []);
+    const inner: GroupLite = {
+      id: "inner",
+      members: [{ memberType: "device", memberId: "light-1" }],
+    };
+    const outer: GroupLite = {
+      id: "outer",
+      members: [
+        { memberType: "group", memberId: "inner" },
+        { memberType: "device", memberId: "plug-1" },
+        { memberType: "device", memberId: "light-1" }, // duplicate
+      ],
+    };
+    const got = resolveTargetDevices(
+      { type: "group", id: "outer" },
+      [light, plug],
+      [inner, outer],
+      [],
+    );
     expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
   });
 
   it("group cycle: bounded walk, no infinite loop", () => {
     const a: GroupLite = { id: "a", members: [{ memberType: "group", memberId: "b" }] };
-    const b: GroupLite = { id: "b", members: [{ memberType: "group", memberId: "a" }, { memberType: "device", memberId: "light-1" }] };
+    const b: GroupLite = {
+      id: "b",
+      members: [
+        { memberType: "group", memberId: "a" },
+        { memberType: "device", memberId: "light-1" },
+      ],
+    };
     const got = resolveTargetDevices({ type: "group", id: "a" }, [light], [a, b], []);
     expect(got.map((d) => d.id)).toEqual(["light-1"]);
   });
 
   it("room inside group: follows room membership", () => {
     const room: RoomLite = { id: "r1", devices: [{ id: "plug-1" }] };
-    const grp: GroupLite = { id: "g1", members: [{ memberType: "room", memberId: "r1" }, { memberType: "device", memberId: "light-1" }] };
+    const grp: GroupLite = {
+      id: "g1",
+      members: [
+        { memberType: "room", memberId: "r1" },
+        { memberType: "device", memberId: "light-1" },
+      ],
+    };
     const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, plug], [grp], [room]);
     expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
   });
@@ -114,10 +154,13 @@ describe("capabilityUnion", () => {
 
 describe("capabilityUnionForTarget + hasCapability", () => {
   it("group union enables brightness when any member supports it", () => {
-    const grp: GroupLite = { id: "g1", members: [
-      { memberType: "device", memberId: "light-1" },
-      { memberType: "device", memberId: "plug-1" },
-    ] };
+    const grp: GroupLite = {
+      id: "g1",
+      members: [
+        { memberType: "device", memberId: "light-1" },
+        { memberType: "device", memberId: "plug-1" },
+      ],
+    };
     const u = capabilityUnionForTarget({ type: "group", id: "g1" }, [light, plug], [grp], []);
     expect(hasCapability(u, "brightness")).toBe(true);
     expect(hasCapability(u, "color")).toBe(true);

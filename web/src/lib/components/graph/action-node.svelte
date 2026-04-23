@@ -12,9 +12,9 @@
 	import { validateActionConfig } from "./trigger-expr";
 	import DeviceStateEditor from "./device-state-editor.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
-	import DeviceTypeBadge from "$lib/components/device-type-badge.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import type { GroupLite, RoomLite, TargetKind } from "./capability-union";
+	import type { GroupLite, RoomLite, TargetKind } from "$lib/target-resolve";
 	import type { Device } from "$lib/gql/graphql";
 
 	interface ActionConfig {
@@ -293,7 +293,7 @@
 					{#snippet renderSelected(t: TargetItem)}
 						<span class="truncate">{t.name}</span>
 						{#if t.kind === "device" && t.deviceType}
-							<DeviceTypeBadge type={t.deviceType} class="text-[10px] py-0 shrink-0" />
+							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
 						{:else}
 							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">
 								{targetKindLabel[t.kind]}
@@ -304,7 +304,7 @@
 						<span class="flex w-full items-center gap-1.5 overflow-hidden">
 							<span class="truncate">{t.name}</span>
 							{#if t.kind === "device" && t.deviceType}
-								<DeviceTypeBadge type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
+								<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
 							{:else}
 								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">
 									{targetKindLabel[t.kind]}
