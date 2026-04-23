@@ -3,7 +3,8 @@
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import ColorPicker from "$lib/components/color-picker.svelte";
-	import { capabilityUnionForTarget, hasCapability, type GroupLite, type RoomLite, type TargetKind } from "./capability-union";
+	import TempWheel from "$lib/components/temp-wheel.svelte";
+	import { capabilityUnionForTarget, hasCapability, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
 	import type { Capability, Device } from "$lib/gql/graphql";
 	import { X } from "@lucide/svelte";
 
@@ -168,13 +169,11 @@
 					{/if}
 				</div>
 				{#if colorTempSet}
-					<Slider
-						type="single"
-						value={parsed.color_temp ?? colorTempMin}
+					<TempWheel
+						value={parsed.color_temp ?? null}
 						min={colorTempMin}
 						max={colorTempMax}
-						step={1}
-						onValueChange={setColorTempValue}
+						onchange={setColorTempValue}
 						{disabled}
 					/>
 				{/if}

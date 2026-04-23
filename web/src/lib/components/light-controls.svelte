@@ -4,7 +4,7 @@
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import ColorPicker from "$lib/components/color-picker.svelte";
+	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import type { DeviceState } from "$lib/stores/devices";
 
 	interface CommandInput {
@@ -28,14 +28,12 @@
 	let colorTimer: ReturnType<typeof setTimeout> | null = $state(null);
 
 	let localBrightness = $state(127);
-	let localColorTemp = $state(250);
 	let transitionValue = $state("");
 	let initialized = $state(false);
 
 	$effect(() => {
 		if (!initialized) {
 			localBrightness = lightState.brightness ?? 127;
-			localColorTemp = lightState.colorTemp ?? 250;
 			transitionValue = lightState.transition?.toString() ?? "";
 			initialized = true;
 		}
@@ -47,14 +45,12 @@
 		}
 	});
 
-	$effect(() => {
-		if (!colorTempTimer && lightState.colorTemp != null) {
-			localColorTemp = lightState.colorTemp;
-		}
-	});
-
 	function handleToggle(checked: boolean) {
 		oncommand({ on: checked });
+	}
+
+	function autoOn(): { on: true } | Record<string, never> {
+		return lightState.on ? {} : { on: true };
 	}
 
 	function handleBrightnessChange(val: number) {
@@ -64,6 +60,7 @@
 			brightnessTimer = null;
 			const t = parseFloat(transitionValue);
 			oncommand({
+				...autoOn(),
 				brightness: val,
 				...(Number.isFinite(t) && t > 0 ? { transition: t } : {}),
 			});
@@ -71,12 +68,12 @@
 	}
 
 	function handleColorTempChange(val: number) {
-		localColorTemp = val;
 		if (colorTempTimer) clearTimeout(colorTempTimer);
 		colorTempTimer = setTimeout(() => {
 			colorTempTimer = null;
 			const t = parseFloat(transitionValue);
 			oncommand({
+				...autoOn(),
 				colorTemp: val,
 				...(Number.isFinite(t) && t > 0 ? { transition: t } : {}),
 			});
@@ -111,6 +108,7 @@
 			const xy = rgbToXy(color.r, color.g, color.b);
 			const t = parseFloat(transitionValue);
 			oncommand({
+				...autoOn(),
 				color: { ...color, x: xy.x, y: xy.y },
 				...(Number.isFinite(t) && t > 0 ? { transition: t } : {}),
 			});
@@ -160,46 +158,26 @@
 					max={254}
 					step={1}
 					onValueChange={handleBrightnessChange}
-					disabled={!(lightState.on ?? false) || sending}
+					disabled={sending}
 				/>
 			</CardContent>
 		</Card>
 	{/if}
 
-	{#if hasColorTemp}
-		<Card>
-			<CardHeader>
-				<div class="flex items-center justify-between">
-					<CardTitle>Color Temperature</CardTitle>
-					<span class="text-sm tabular-nums text-muted-foreground">{localColorTemp} mireds</span>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<Slider
-					type="single"
-					value={localColorTemp}
-					min={150}
-					max={500}
-					step={1}
-					onValueChange={handleColorTempChange}
-					disabled={!(lightState.on ?? false) || sending}
-				/>
-			</CardContent>
-		</Card>
-	{/if}
-
-	{#if hasColor && lightState.color}
+	{#if hasColor || hasColorTemp}
 		<Card>
 			<CardHeader>
 				<CardTitle>Color</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<ColorPicker
-					r={lightState.color.r}
-					g={lightState.color.g}
-					b={lightState.color.b}
-					onchange={handleColorChange}
-					disabled={!(lightState.on ?? false) || sending}
+				<LightColorPicker
+					color={lightState.color ?? null}
+					colorTemp={lightState.colorTemp ?? null}
+					{hasColor}
+					{hasColorTemp}
+					oncolorchange={handleColorChange}
+					ontempchange={handleColorTempChange}
+					disabled={sending}
 				/>
 			</CardContent>
 		</Card>

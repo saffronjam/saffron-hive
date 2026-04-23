@@ -4,14 +4,13 @@
 	import type { Device } from "$lib/stores/devices";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import { Slider } from "$lib/components/ui/slider/index.js";
 	import {
 		Popover,
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
-	import ColorPicker from "$lib/components/color-picker.svelte";
+	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import { Palette } from "@lucide/svelte";
 
 	interface Props {
@@ -65,17 +64,10 @@
 	let colorTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let localBrightness = $state(127);
-	let localColorTemp = $state(250);
 
 	$effect(() => {
 		if (!brightnessTimer && device.state?.brightness != null) {
 			localBrightness = device.state.brightness;
-		}
-	});
-
-	$effect(() => {
-		if (!colorTempTimer && device.state?.colorTemp != null) {
-			localColorTemp = device.state.colorTemp;
 		}
 	});
 
@@ -93,7 +85,6 @@
 	}
 
 	function handleColorTempChange(val: number) {
-		localColorTemp = val;
 		if (colorTempTimer) clearTimeout(colorTempTimer);
 		colorTempTimer = setTimeout(() => {
 			colorTempTimer = null;
@@ -131,7 +122,6 @@
 		}, 200);
 	}
 
-	const brightnessPercent = $derived(Math.round((localBrightness / 254) * 100));
 	const isOn = $derived(device.state?.on ?? false);
 </script>
 
@@ -167,50 +157,18 @@
 			</Tooltip>
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-4" align="end">
-			{#if hasBrightness}
+			{#if hasBrightness || hasColor || hasColorTemp}
 				<div class="space-y-2">
-					<div class="flex items-center justify-between">
-						<span class="text-sm font-medium">Brightness</span>
-						<span class="text-sm tabular-nums text-muted-foreground">{brightnessPercent}%</span>
-					</div>
-					<Slider
-						type="single"
-						value={localBrightness}
-						min={0}
-						max={254}
-						step={1}
-						onValueChange={handleBrightnessChange}
-						disabled={sending}
-					/>
-				</div>
-			{/if}
-
-			{#if hasColorTemp}
-				<div class="space-y-2">
-					<div class="flex items-center justify-between">
-						<span class="text-sm font-medium">Color temperature</span>
-						<span class="text-sm tabular-nums text-muted-foreground">{localColorTemp}</span>
-					</div>
-					<Slider
-						type="single"
-						value={localColorTemp}
-						min={150}
-						max={500}
-						step={1}
-						onValueChange={handleColorTempChange}
-						disabled={sending}
-					/>
-				</div>
-			{/if}
-
-			{#if hasColor && device.state?.color}
-				<div class="space-y-2">
-					<span class="text-sm font-medium">Color</span>
-					<ColorPicker
-						r={device.state.color.r}
-						g={device.state.color.g}
-						b={device.state.color.b}
-						onchange={handleColorChange}
+					<LightColorPicker
+						color={device.state?.color ?? null}
+						colorTemp={device.state?.colorTemp ?? null}
+						brightness={localBrightness}
+						{hasColor}
+						{hasColorTemp}
+						{hasBrightness}
+						oncolorchange={handleColorChange}
+						ontempchange={handleColorTempChange}
+						onbrightnesschange={handleBrightnessChange}
 						disabled={sending}
 					/>
 				</div>
