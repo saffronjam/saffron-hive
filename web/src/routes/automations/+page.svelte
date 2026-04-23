@@ -53,7 +53,6 @@
 		name: string;
 		icon?: string | null;
 		enabled: boolean;
-		cooldownSeconds: number;
 		lastFiredAt?: string | null;
 		nodes: AutomationNode[];
 		edges: AutomationEdge[];
@@ -81,7 +80,6 @@
 				name
 				icon
 				enabled
-				cooldownSeconds
 				lastFiredAt
 				nodes {
 					id
@@ -108,7 +106,6 @@
 				id
 				name
 				enabled
-				cooldownSeconds
 				nodes {
 					id
 					type
@@ -403,7 +400,6 @@
 				input: {
 					name: newAutomationName.trim(),
 					enabled: false,
-					cooldownSeconds: 0.5,
 					nodes: [],
 					edges: [],
 				},
@@ -608,7 +604,6 @@
 						{#snippet table()}
 							<AutomationTable
 								automations={filteredAutomations}
-								orderedIds={filteredIds}
 								{selection}
 								ontoggle={handleToggle}
 								ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
