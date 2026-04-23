@@ -1,15 +1,21 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
+	import { onMount, onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile } from "$lib/stores/profile.svelte";
 	import { deviceStore } from "$lib/stores/devices";
-	import ActivityTable, { type ActivityEvent } from "$lib/components/activity-table.svelte";
+	import ActivityNavigationTable, {
+		type ActivityEvent,
+	} from "$lib/components/activity-navigation-table.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import { Switch } from "$lib/components/ui/switch/index.js";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
+	import { Copy } from "@lucide/svelte";
 
 	const ACTIVITY_QUERY = graphql(`
 		query Activity($filter: ActivityFilter) {
@@ -162,6 +168,32 @@
 		return new Date(Date.now() - n * multipliers[unit]);
 	}
 
+	const selection = createTableSelection();
+
+	function safeParsePayload(raw: string): unknown {
+		try {
+			return JSON.parse(raw);
+		} catch {
+			return raw;
+		}
+	}
+
+	async function copySelectedAsJson() {
+		const ids = new Set(selection.selectedIds());
+		if (ids.size === 0) return;
+		const items = events
+			.filter((e) => ids.has(e.id))
+			.map((e) => ({
+				id: e.id,
+				type: e.type,
+				timestamp: e.timestamp,
+				message: e.message,
+				source: e.source,
+				payload: safeParsePayload(e.payload),
+			}));
+		await navigator.clipboard.writeText(JSON.stringify(items, null, 2));
+	}
+
 	const filteredEvents = $derived.by(() => {
 		const typeChips = searchState.chips.filter((c) => c.keyword === "type").map((c) => c.value);
 		const deviceChips = searchState.chips.filter((c) => c.keyword === "device").map((c) => c.value);
@@ -180,6 +212,22 @@
 				if (!hay.includes(free)) return false;
 			}
 			return true;
+		});
+	});
+
+	const filterSignature = $derived(
+		JSON.stringify(
+			searchState.chips
+				.map((c) => `${c.keyword}:${c.value}`)
+				.sort()
+				.concat([`q:${searchState.freeText}`]),
+		),
+	);
+
+	$effect(() => {
+		void filterSignature;
+		untrack(() => {
+			selection.pruneTo(filteredEvents.map((e) => e.id));
 		});
 	});
 
@@ -280,7 +328,7 @@
 {#if ready}
 	<div class="flex h-[calc(100vh-8rem)] flex-col gap-4" in:fly={{ y: -4, duration: 150 }}>
 		<div class="flex items-center gap-4">
-			<div class="flex-1">
+			<div class="min-w-0 flex-1">
 				<HiveSearchbar
 					value={searchState}
 					onchange={(v) => (searchState = v)}
@@ -289,6 +337,28 @@
 					debounceMs={500}
 					commitOnBlur
 				/>
+			</div>
+			<div
+				class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+				style:max-width={selection.count > 0 ? "24rem" : "0px"}
+				style:opacity={selection.count > 0 ? "1" : "0"}
+				aria-hidden={selection.count === 0}
+			>
+				<TableSelectionToolbar
+					count={selection.count}
+					onclear={() => selection.clear()}
+				>
+					{#snippet actions()}
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={copySelectedAsJson}
+						>
+							<Copy class="mr-1 size-3.5" />
+							Copy
+						</Button>
+					{/snippet}
+				</TableSelectionToolbar>
 			</div>
 			<div class="flex items-center gap-2">
 				<Switch id="advanced-toggle" checked={advanced} onCheckedChange={toggleAdvanced} />
@@ -309,11 +379,12 @@
 			</div>
 		{:else}
 			<div class="flex-1 min-h-0">
-				<ActivityTable
+				<ActivityNavigationTable
 					events={filteredEvents}
 					{recentIds}
 					{hasMore}
 					{loadingMore}
+					{selection}
 					onLoadMore={loadMore}
 				/>
 			</div>
