@@ -13,6 +13,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
+	import { deviceStore } from "$lib/stores/devices";
 	import { onMount, onDestroy } from "svelte";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/stores";
@@ -91,12 +92,14 @@
 	$effect(() => {
 		if (ready && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) && auth.isAuthenticated()) {
 			alarmsStore.start(client);
+			void deviceStore.start(client);
 			if (!me.user) void me.refresh(client);
 		}
 	});
 
 	onDestroy(() => {
 		alarmsStore.stop();
+		deviceStore.stop();
 	});
 </script>
 

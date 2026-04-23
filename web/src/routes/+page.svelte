@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { deviceStore, type Device, type DeviceState } from "$lib/stores/devices";
+	import { deviceStore, devicesHydrated, type Device } from "$lib/stores/devices";
 	import DashboardDeviceCard from "$lib/components/dashboard-device-card.svelte";
 	import SceneQuickBar from "$lib/components/scene-quick-bar.svelte";
 	import ActivityFeed from "$lib/components/activity-feed.svelte";
@@ -46,10 +46,6 @@
 		transition?: number;
 	}
 
-	interface DevicesQueryResult {
-		devices: Device[];
-	}
-
 	interface ScenesQueryResult {
 		scenes: SceneData[];
 	}
@@ -70,28 +66,6 @@
 		setDeviceState: Device;
 	}
 
-	interface DeviceStateChangedResult {
-		deviceStateChanged: {
-			deviceId: string;
-			state: DeviceState;
-		};
-	}
-
-	interface DeviceAvailabilityChangedResult {
-		deviceAvailabilityChanged: {
-			deviceId: string;
-			available: boolean;
-		};
-	}
-
-	interface DeviceAddedResult {
-		deviceAdded: Device;
-	}
-
-	interface DeviceRemovedResult {
-		deviceRemoved: string;
-	}
-
 	interface AutomationNodeActivatedResult {
 		automationNodeActivated: {
 			automationId: string;
@@ -99,36 +73,6 @@
 			active: boolean;
 		};
 	}
-
-	const DEVICES_QUERY = graphql(`
-		query DashboardDevices {
-			devices {
-				id
-				name
-				source
-				type
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
 
 	const SCENES_QUERY = graphql(`
 		query DashboardScenes {
@@ -193,75 +137,6 @@
 		}
 	`);
 
-	const DEVICE_STATE_CHANGED = graphql(`
-		subscription DashboardDeviceStateChanged {
-			deviceStateChanged {
-				deviceId
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const DEVICE_AVAILABILITY_CHANGED = graphql(`
-		subscription DeviceAvailabilityChanged {
-			deviceAvailabilityChanged {
-				deviceId
-				available
-			}
-		}
-	`);
-
-	const DEVICE_ADDED = graphql(`
-		subscription DeviceAdded {
-			deviceAdded {
-				id
-				name
-				source
-				type
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const DEVICE_REMOVED = graphql(`
-		subscription DeviceRemoved {
-			deviceRemoved
-		}
-	`);
-
 	const AUTOMATION_NODE_ACTIVATED = graphql(`
 		subscription DashboardAutomationNodeActivated {
 			automationNodeActivated {
@@ -283,7 +158,6 @@
 	let activityEntries = $state<ActivityEntry[]>([]);
 	let applyingSceneId = $state<string | null>(null);
 	let sendingDeviceId = $state<string | null>(null);
-	let loading = $state(true);
 	let collapsedGroups = $state<Set<string>>(new Set());
 	let activityExpanded = $state(false);
 
@@ -408,16 +282,6 @@
 		const client = clientRef;
 
 		client
-			.query<DevicesQueryResult>(DEVICES_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				loading = false;
-				if (result.data) {
-					deviceStore.hydrate(result.data.devices);
-				}
-			});
-
-		client
 			.query<ScenesQueryResult>(SCENES_QUERY, {})
 			.toPromise()
 			.then((result) => {
@@ -443,44 +307,6 @@
 					automations = result.data.automations;
 				}
 			});
-
-		const { unsubscribe: unsubState } = client
-			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					const { deviceId, state } = result.data.deviceStateChanged;
-					deviceStore.updateState(deviceId, state);
-				}
-			});
-		unsubscribers.push(unsubState);
-
-		const { unsubscribe: unsubAvail } = client
-			.subscription<DeviceAvailabilityChangedResult>(DEVICE_AVAILABILITY_CHANGED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					const { deviceId, available } = result.data.deviceAvailabilityChanged;
-					deviceStore.updateAvailability(deviceId, available);
-				}
-			});
-		unsubscribers.push(unsubAvail);
-
-		const { unsubscribe: unsubAdded } = client
-			.subscription<DeviceAddedResult>(DEVICE_ADDED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					deviceStore.addDevice(result.data.deviceAdded);
-				}
-			});
-		unsubscribers.push(unsubAdded);
-
-		const { unsubscribe: unsubRemoved } = client
-			.subscription<DeviceRemovedResult>(DEVICE_REMOVED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					deviceStore.removeDevice(result.data.deviceRemoved);
-				}
-			});
-		unsubscribers.push(unsubRemoved);
 
 		const { unsubscribe: unsubActivity } = client
 			.subscription<AutomationNodeActivatedResult>(AUTOMATION_NODE_ACTIVATED, {})
@@ -538,14 +364,14 @@
 			/>
 		</div>
 
-		{#if !loading && devices.length === 0}
+		{#if $devicesHydrated && devices.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<p class="text-muted-foreground">No devices discovered yet.</p>
 				<p class="mt-2 text-sm text-muted-foreground">
 					Devices will appear here once the backend connects to your MQTT broker.
 				</p>
 			</div>
-		{:else if !loading}
+		{:else if $devicesHydrated}
 			<div class="space-y-6">
 				{#each groupedDevices as group (group.id)}
 					<div>
