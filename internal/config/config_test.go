@@ -16,6 +16,7 @@ func clearEnv(t *testing.T) {
 		"HIVE_INIT_PASSWORD",
 		"HIVE_DB_PATH",
 		"HIVE_LISTEN_ADDR",
+		"HIVE_LOG_LEVEL",
 	} {
 		t.Setenv(key, "")
 		_ = os.Unsetenv(key)

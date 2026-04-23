@@ -16,6 +16,7 @@ type Config struct {
 	DBPath       string
 	DataDir      string
 	ListenAddr   string
+	LogLevel     string
 }
 
 // Parse reads configuration from environment variables.
@@ -24,6 +25,8 @@ type Config struct {
 // user on first boot when the users table is empty.
 // HIVE_DATA_DIR is the base directory for persistent files (user avatars, etc.);
 // defaults to the current working directory.
+// HIVE_LOG_LEVEL is optional ("debug", "info", "warn", "error"); when set it
+// overrides the log_level database setting.
 func Parse() Config {
 	return Config{
 		MQTTAddress:  os.Getenv("HIVE_MQTT_ADDRESS"),
@@ -35,6 +38,7 @@ func Parse() Config {
 		DBPath:       envOrDefault("HIVE_DB_PATH", "saffron-hive.db"),
 		DataDir:      envOrDefault("HIVE_DATA_DIR", "."),
 		ListenAddr:   envOrDefault("HIVE_LISTEN_ADDR", ":8080"),
+		LogLevel:     os.Getenv("HIVE_LOG_LEVEL"),
 	}
 }
 
