@@ -28,6 +28,7 @@
 		Activity,
 		BellRing,
 		Users,
+		LineChart,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -67,6 +68,7 @@
 			items: [
 				{ href: "/activity", label: "Activity", icon: Activity },
 				{ href: "/alarms", label: "Alarms", icon: BellRing },
+				{ href: "/data-viewer", label: "Data viewer", icon: LineChart },
 			],
 		},
 	];
