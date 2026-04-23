@@ -61,6 +61,9 @@ type Querier interface {
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
 	DeleteSceneAction(ctx context.Context, id string) error
+	DeleteSceneActionsByScene(ctx context.Context, sceneID string) error
+	DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error
+	DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error)
 	DeleteUser(ctx context.Context, id string) error
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
@@ -93,8 +96,7 @@ type Querier interface {
 	// Deletion is by alarm_id, removing every row belonging to a logical alarm
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
-	// Returns the auto-generated id; other fields echo the input.
-	InsertSensorReading(ctx context.Context, arg InsertSensorReadingParams) (int64, error)
+	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
@@ -109,14 +111,22 @@ type Querier interface {
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
 	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]ListRoomsContainingDeviceRow, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]ListSceneActionsRow, error)
+	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error)
 	ListScenes(ctx context.Context) ([]ListScenesRow, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
+	PruneDeviceStateSamplesOlderThan(ctx context.Context, recordedAt time.Time) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
-	// Optional LIMIT collapsed into one query: SQLite treats LIMIT -1 as unbounded,
-	// and IIF(lim > 0, lim, -1) turns a 0 sentinel into "no limit".
-	QuerySensorHistory(ctx context.Context, arg QuerySensorHistoryParams) ([]SensorHistory, error)
+	// Groups samples into fixed-size time buckets. bucket_seconds must be > 0.
+	// Per bucket returns AVG(value) and the earliest recorded_at (bucket_start).
+	// The bucket key is computed once in the SELECT and grouped by alias so the
+	// sqlc.arg substitution happens in a position sqlc reliably parses.
+	QueryStateHistoryBucketed(ctx context.Context, arg QueryStateHistoryBucketedParams) ([]QueryStateHistoryBucketedRow, error)
+	// device_ids_json and fields_json are JSON-array strings. An empty array in
+	// fields_json matches every field. device_ids_json must be non-empty (callers
+	// always pick sources explicitly).
+	QueryStateHistoryRaw(ctx context.Context, arg QueryStateHistoryRawParams) ([]QueryStateHistoryRawRow, error)
 	RegisterZigbeeDevice(ctx context.Context, arg RegisterZigbeeDeviceParams) error
 	RemoveGroupMember(ctx context.Context, id string) error
 	RemoveRoomDevice(ctx context.Context, id string) error
@@ -147,6 +157,7 @@ type Querier interface {
 	// Clears the removed flag on conflict so re-discovered devices become active.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertMQTTConfig(ctx context.Context, arg UpsertMQTTConfigParams) error
+	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	UpsertZigbeeDevice(ctx context.Context, arg UpsertZigbeeDeviceParams) error
 }

@@ -74,7 +74,6 @@ type CreateSceneActionParams struct {
 	SceneID    string
 	TargetType string
 	TargetID   string
-	Payload    string
 }
 
 // SceneAction represents a scene action row.
@@ -83,39 +82,57 @@ type SceneAction struct {
 	SceneID    string
 	TargetType string
 	TargetID   string
-	Payload    string
+}
+
+// SceneTargetRef is a logical membership entry in a scene's target list.
+// TargetType is one of "device", "group", or "room".
+type SceneTargetRef struct {
+	TargetType string
+	TargetID   string
+}
+
+// SceneDevicePayload is the per-device payload associated with a scene.
+// Keyed by (SceneID, DeviceID).
+type SceneDevicePayload struct {
+	SceneID  string
+	DeviceID device.DeviceID
+	Payload  string
+}
+
+// SaveSceneContentParams holds the membership + per-device payload set for a scene.
+type SaveSceneContentParams struct {
+	SceneID  string
+	Targets  []SceneTargetRef
+	Payloads []SceneDevicePayload
 }
 
 // CreateAutomationParams holds the parameters for creating an automation.
 type CreateAutomationParams struct {
-	ID              string
-	Name            string
-	Enabled         bool
-	CooldownSeconds float64
-	CreatedBy       *string
+	ID        string
+	Name      string
+	Enabled   bool
+	CreatedBy *string
 }
 
 // UpdateAutomationParams holds optional fields for updating an automation.
 // SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 type UpdateAutomationParams struct {
-	Name            *string
-	SetIcon         bool
-	Icon            *string
-	Enabled         *bool
-	CooldownSeconds *float64
+	Name    *string
+	SetIcon bool
+	Icon    *string
+	Enabled *bool
 }
 
 // Automation represents an automation row.
 type Automation struct {
-	ID              string
-	Name            string
-	Icon            *string
-	Enabled         bool
-	CooldownSeconds float64
-	LastFiredAt     *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	CreatedBy       *UserRef
+	ID          string
+	Name        string
+	Icon        *string
+	Enabled     bool
+	LastFiredAt *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	CreatedBy   *UserRef
 }
 
 // CreateAutomationNodeParams holds the parameters for creating an automation node.
@@ -203,35 +220,41 @@ type GroupMember struct {
 	MemberID   string
 }
 
-// InsertSensorReadingParams holds the parameters for inserting a sensor reading.
-type InsertSensorReadingParams struct {
-	DeviceID    device.DeviceID
-	Temperature *float64
-	Humidity    *float64
-	Battery     *int
-	Pressure    *float64
-	Illuminance *float64
-	RecordedAt  time.Time
+// InsertStateSampleParams holds the parameters for inserting a single device state sample.
+type InsertStateSampleParams struct {
+	DeviceID   device.DeviceID
+	Field      string
+	Value      float64
+	RecordedAt time.Time
 }
 
-// SensorReading represents a sensor history row.
-type SensorReading struct {
-	ID          int64
-	DeviceID    device.DeviceID
-	Temperature *float64
-	Humidity    *float64
-	Battery     *int
-	Pressure    *float64
-	Illuminance *float64
-	RecordedAt  time.Time
+// StateSample represents a single recorded device state field value at a point in time.
+type StateSample struct {
+	ID         int64
+	DeviceID   device.DeviceID
+	Field      string
+	Value      float64
+	RecordedAt time.Time
 }
 
-// SensorHistoryQuery holds the parameters for querying sensor history.
-type SensorHistoryQuery struct {
+// StateHistoryQuery parameterises a device state history lookup. When
+// BucketSeconds is > 0 the result is averaged over fixed-size time buckets;
+// when it is 0 raw samples are returned. Fields empty means "every field".
+type StateHistoryQuery struct {
+	DeviceIDs     []device.DeviceID
+	Fields        []string
+	From          time.Time
+	To            time.Time
+	BucketSeconds int
+	Limit         int
+}
+
+// StateHistoryPoint is one point on a device-state time series.
+type StateHistoryPoint struct {
 	DeviceID device.DeviceID
-	From     time.Time
-	To       time.Time
-	Limit    int
+	Field    string
+	At       time.Time
+	Value    float64
 }
 
 // MQTTConfig represents the MQTT broker configuration stored in the database.

@@ -38,15 +38,14 @@ type Alarm struct {
 }
 
 type Automation struct {
-	ID              string
-	Name            string
-	Enabled         bool
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Icon            *string
-	CreatedBy       *string
-	CooldownSeconds float64
-	LastFiredAt     *time.Time
+	ID          string
+	Name        string
+	Enabled     bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Icon        *string
+	CreatedBy   *string
+	LastFiredAt *time.Time
 }
 
 type AutomationEdge struct {
@@ -74,6 +73,14 @@ type Device struct {
 	Removed      bool
 	LastSeen     *time.Time
 	Capabilities string
+}
+
+type DeviceStateSample struct {
+	ID         int64
+	DeviceID   device.DeviceID
+	Field      string
+	Value      float64
+	RecordedAt time.Time
 }
 
 type Group struct {
@@ -128,19 +135,13 @@ type SceneAction struct {
 	ID         string
 	SceneID    string
 	TargetID   string
-	Payload    string
 	TargetType device.TargetType
 }
 
-type SensorHistory struct {
-	ID          int64
-	DeviceID    device.DeviceID
-	Temperature *float64
-	Humidity    *float64
-	Battery     *int64
-	Pressure    *float64
-	Illuminance *float64
-	RecordedAt  time.Time
+type SceneDevicePayload struct {
+	SceneID  string
+	DeviceID device.DeviceID
+	Payload  string
 }
 
 type Setting struct {
