@@ -4,11 +4,34 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+)
+
+// dispatchBufferSize bounds the queue between paho's reader goroutine and the
+// adapter's dispatch loop. Sized for the retained-message burst that follows a
+// WSS reconnect on a busy broker, plus headroom for bursts of live traffic.
+const dispatchBufferSize = 1024
+
+type incomingMsg struct {
+	topic   string
+	payload []byte
+	kind    dispatchKind
+	ack     chan struct{} // only set for dispatchBarrier
+}
+
+type dispatchKind int
+
+const (
+	dispatchState dispatchKind = iota
+	dispatchAvailability
+	dispatchBridgeDevices
+	dispatchBridgeLog
+	dispatchBarrier
 )
 
 var logger = logging.Named("zigbee")
@@ -42,6 +65,18 @@ type ZigbeeAdapter struct {
 	idToName     map[device.DeviceID]string
 	knownDevices map[device.DeviceID]struct{}
 
+	// dispatchCh decouples paho's reader goroutine from the handlers that do
+	// the actual parsing, state writes, and event bus publishes. Paho's
+	// subscribe callbacks write to this channel and return immediately; a
+	// dedicated dispatch goroutine drains it and runs the handlers.
+	dispatchCh chan incomingMsg
+	// dispatchDone closes when the dispatch goroutine exits so Stop can wait
+	// for in-flight work.
+	dispatchDone chan struct{}
+	// droppedIn counts paho messages lost to a full dispatch channel, for
+	// visibility from logs. Read-only once Stop has returned.
+	droppedIn atomic.Int64
+
 	stopCh chan struct{}
 	cmdCh  <-chan eventbus.Event
 }
@@ -58,6 +93,8 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 		idToName:     make(map[device.DeviceID]string),
 		knownDevices: make(map[device.DeviceID]struct{}),
 		stopCh:       make(chan struct{}),
+		dispatchCh:   make(chan incomingMsg, dispatchBufferSize),
+		dispatchDone: make(chan struct{}),
 	}
 }
 
@@ -69,19 +106,19 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 // race on WSS transports.
 func (a *ZigbeeAdapter) Start() error {
 	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/devices", 0, func(msg Message) {
-		a.handleBridgeDevices(msg.Payload())
+		a.enqueue(incomingMsg{kind: dispatchBridgeDevices, payload: copyPayload(msg.Payload())})
 	}); err != nil {
 		return err
 	}
 
 	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/log", 0, func(msg Message) {
-		a.handleBridgeLog(msg.Payload())
+		a.enqueue(incomingMsg{kind: dispatchBridgeLog, payload: copyPayload(msg.Payload())})
 	}); err != nil {
 		return err
 	}
 
 	if err := a.mqtt.Subscribe("zigbee2mqtt/+/availability", 0, func(msg Message) {
-		a.handleAvailability(msg.Topic(), msg.Payload())
+		a.enqueue(incomingMsg{kind: dispatchAvailability, topic: msg.Topic(), payload: copyPayload(msg.Payload())})
 	}); err != nil {
 		return err
 	}
@@ -91,10 +128,12 @@ func (a *ZigbeeAdapter) Start() error {
 	// two path components) and triggers a large retained-message burst that
 	// can race the WSS transport and drop the connection mid-SUBACK.
 	if err := a.mqtt.Subscribe("zigbee2mqtt/+", 0, func(msg Message) {
-		a.handleStateMessage(msg.Topic(), msg.Payload())
+		a.enqueue(incomingMsg{kind: dispatchState, topic: msg.Topic(), payload: copyPayload(msg.Payload())})
 	}); err != nil {
 		return err
 	}
+
+	go a.dispatchLoop()
 
 	if err := a.mqtt.Connect(); err != nil {
 		return err
@@ -106,13 +145,73 @@ func (a *ZigbeeAdapter) Start() error {
 	return nil
 }
 
-// Stop disconnects from MQTT and stops the command loop.
+// enqueue hands an incoming paho message to the dispatch channel without
+// blocking the reader goroutine. If the queue is full the message is dropped
+// and a counter is bumped so the operator can see adapter overload in logs.
+func (a *ZigbeeAdapter) enqueue(msg incomingMsg) {
+	select {
+	case a.dispatchCh <- msg:
+	default:
+		n := a.droppedIn.Add(1)
+		logger.Warn("dropping zigbee message, dispatch queue full", "dropped_total", n, "topic", msg.topic)
+	}
+}
+
+// dispatchLoop drains the dispatch channel and routes each message to its
+// handler. Runs until dispatchCh is closed by Stop.
+func (a *ZigbeeAdapter) dispatchLoop() {
+	defer close(a.dispatchDone)
+	for msg := range a.dispatchCh {
+		switch msg.kind {
+		case dispatchState:
+			a.handleStateMessage(msg.topic, msg.payload)
+		case dispatchAvailability:
+			a.handleAvailability(msg.topic, msg.payload)
+		case dispatchBridgeDevices:
+			a.handleBridgeDevices(msg.payload)
+		case dispatchBridgeLog:
+			a.handleBridgeLog(msg.payload)
+		case dispatchBarrier:
+			close(msg.ack)
+		}
+	}
+}
+
+// WaitForDispatchIdle blocks until every message enqueued before the call has
+// been fully processed by the dispatch loop. Intended for tests that need
+// deterministic ordering against the async dispatch goroutine.
+func (a *ZigbeeAdapter) WaitForDispatchIdle() {
+	ack := make(chan struct{})
+	a.dispatchCh <- incomingMsg{kind: dispatchBarrier, ack: ack}
+	<-ack
+}
+
+// copyPayload takes a defensive copy of paho's payload slice. Paho reuses its
+// internal buffer after the callback returns, so any reference held beyond
+// the callback (e.g. once queued for dispatch) would otherwise alias reused
+// memory.
+func copyPayload(p []byte) []byte {
+	out := make([]byte, len(p))
+	copy(out, p)
+	return out
+}
+
+// Stop disconnects from MQTT and stops the command and dispatch loops.
+// Waits up to a short deadline for the dispatch goroutine to drain in-flight
+// messages so observers don't see a truncated event stream during shutdown.
 func (a *ZigbeeAdapter) Stop() {
 	close(a.stopCh)
 	if a.cmdCh != nil {
 		a.bus.Unsubscribe(a.cmdCh)
 	}
 	a.mqtt.Disconnect(250)
+
+	close(a.dispatchCh)
+	select {
+	case <-a.dispatchDone:
+	case <-time.After(2 * time.Second):
+		logger.Warn("dispatch loop did not drain within 2s of Stop")
+	}
 }
 
 func (a *ZigbeeAdapter) commandLoop() {

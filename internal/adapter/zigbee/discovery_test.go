@@ -13,7 +13,7 @@ func TestDiscoverDevices_Light(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
 		"ieee_address": "0x00158d0001a2b3c4",
 		"friendly_name": "living_room_light",
 		"type": "Router",
@@ -51,7 +51,7 @@ func TestDiscoverDevices_Sensor(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
 		"ieee_address": "0x00158d0001a2b3c5",
 		"friendly_name": "temp_sensor",
 		"type": "EndDevice",
@@ -84,7 +84,7 @@ func TestDiscoverDevices_Button(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
 		"ieee_address": "0x00158d0001a2b3c6",
 		"friendly_name": "button_1",
 		"type": "EndDevice",
@@ -116,7 +116,7 @@ func TestDiscoverDevices_Plug(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
 		"ieee_address": "0x00158d000328303e",
 		"friendly_name": "lava_lamp",
 		"type": "Router",
@@ -154,7 +154,7 @@ func TestDiscoverDevices_PlainPlug(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
 		"ieee_address": "0xplainplug",
 		"friendly_name": "bare_plug",
 		"type": "Router",
@@ -187,7 +187,7 @@ func TestDiscoverDevices_Unknown(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[{
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
 		"ieee_address": "0x00158d0001a2b3c7",
 		"friendly_name": "mystery_device",
 		"type": "Router",
@@ -219,7 +219,7 @@ func TestDiscoverDevices_Multiple(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[
 		{"ieee_address": "0x01", "friendly_name": "light1", "type": "Router", "supported": true, "definition": {"exposes": [{"type":"light","features":[{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}]}},
 		{"ieee_address": "0x02", "friendly_name": "light2", "type": "Router", "supported": true, "definition": {"exposes": [{"type":"light","features":[{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}]}},
 		{"ieee_address": "0x03", "friendly_name": "sensor1", "type": "EndDevice", "supported": true, "definition": {"exposes": [{"type":"numeric","name":"temperature","property":"temperature"}]}},
@@ -254,7 +254,7 @@ func TestDiscoverDevices_SkipCoordinator(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`[
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[
 		{"ieee_address": "0xcoord", "friendly_name": "Coordinator", "type": "Coordinator", "supported": true, "definition": {"exposes": []}},
 		{"ieee_address": "0x01", "friendly_name": "light1", "type": "Router", "supported": true, "definition": {"exposes": [{"type":"light","features":[{"type":"binary","name":"state","property":"state"},{"type":"numeric","name":"brightness","property":"brightness"}]}]}}
 	]`))
@@ -277,7 +277,7 @@ func TestDiscoverDevices_MalformedJSON(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/devices", []byte(`not json`))
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`not json`))
 
 	sw.mu.Lock()
 	defer sw.mu.Unlock()

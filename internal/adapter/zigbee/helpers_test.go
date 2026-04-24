@@ -140,3 +140,12 @@ func newTestAdapter() (*ZigbeeAdapter, *FakeMQTTClient, *mockEventBus, *mockStat
 	adapter := NewZigbeeAdapter(mqtt, bus, sw, sr)
 	return adapter, mqtt, bus, sw
 }
+
+// injectSync delivers an MQTT message and then blocks until the adapter's
+// dispatch loop has finished handling it. Tests that assert on state written
+// by the handler (the state writer, internal maps) use this; tests that only
+// assert on published events can rely on waitForEvents.
+func injectSync(adapter *ZigbeeAdapter, mqtt *FakeMQTTClient, topic string, payload []byte) {
+	mqtt.Inject(topic, payload)
+	adapter.WaitForDispatchIdle()
+}

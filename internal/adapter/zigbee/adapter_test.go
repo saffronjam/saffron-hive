@@ -31,7 +31,7 @@ func TestStateChangePublishesEvent(t *testing.T) {
 	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "living_room_light", "0xabc", device.Light)
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/living_room_light", []byte(`{"state":"ON","brightness":200}`))
+	injectSync(adapter, mqtt, "zigbee2mqtt/living_room_light", []byte(`{"state":"ON","brightness":200}`))
 
 	events := waitForEvents(bus, 1, 500*time.Millisecond)
 	if len(events) == 0 {
@@ -66,7 +66,7 @@ func TestAvailabilityPublishesEvent(t *testing.T) {
 	adapter, mqtt, bus, sw := setupAdapterWithDevice(t, "living_room_light", "0xabc", device.Light)
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/living_room_light/availability", []byte(`{"state":"offline"}`))
+	injectSync(adapter, mqtt, "zigbee2mqtt/living_room_light/availability", []byte(`{"state":"offline"}`))
 
 	events := waitForEvents(bus, 1, 500*time.Millisecond)
 	found := false
@@ -103,7 +103,7 @@ func TestDeviceJoinedPublishesEvent(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/log", []byte(`{"type":"device_joined","message":"0xnew"}`))
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/log", []byte(`{"type":"device_joined","message":"0xnew"}`))
 
 	events := waitForEvents(bus, 1, 500*time.Millisecond)
 	found := false
@@ -131,7 +131,7 @@ func TestDeviceRemovedPublishesEvent(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("zigbee2mqtt/bridge/log", []byte(`{"type":"device_removed","message":"0xold"}`))
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/log", []byte(`{"type":"device_removed","message":"0xold"}`))
 
 	events := waitForEvents(bus, 1, 500*time.Millisecond)
 	found := false
@@ -159,11 +159,49 @@ func TestIgnoresUnknownTopics(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	mqtt.Inject("some/random/topic", []byte(`{"data":"irrelevant"}`))
+	injectSync(adapter, mqtt, "some/random/topic", []byte(`{"data":"irrelevant"}`))
 
 	time.Sleep(50 * time.Millisecond)
 	events := bus.getEvents()
 	if len(events) != 0 {
 		t.Fatalf("expected no events, got %d", len(events))
+	}
+}
+
+type slowStateWriter struct {
+	*mockStateWriter
+	delay time.Duration
+}
+
+func (s *slowStateWriter) UpdateDeviceState(id device.DeviceID, state device.DeviceState) {
+	time.Sleep(s.delay)
+	s.mockStateWriter.UpdateDeviceState(id, state)
+}
+
+func TestPahoCallbackDoesNotBlockOnSlowHandler(t *testing.T) {
+	mqtt := NewFakeMQTTClient()
+	bus := newMockEventBus()
+	base := newMockStateWriter()
+	slow := &slowStateWriter{mockStateWriter: base, delay: 200 * time.Millisecond}
+	adapter := NewZigbeeAdapter(mqtt, bus, slow, &mockStateReader{})
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	adapter.mu.Lock()
+	adapter.nameToID["bulb"] = "0xbulb"
+	adapter.mu.Unlock()
+
+	start := time.Now()
+	for i := 0; i < 10; i++ {
+		mqtt.Inject("zigbee2mqtt/bulb", []byte(`{"state":"ON"}`))
+	}
+	elapsed := time.Since(start)
+
+	// 10 messages × 200ms delay = 2s if the reader goroutine were blocked.
+	// With the dispatch channel decoupling, Inject should return in under 50ms.
+	if elapsed > 50*time.Millisecond {
+		t.Fatalf("paho callbacks blocked on slow handler: 10 injects took %v", elapsed)
 	}
 }
