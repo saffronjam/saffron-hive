@@ -35,11 +35,11 @@ func TestReloadPicksUpNewAutomation(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "new", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -61,11 +61,11 @@ func TestReloadRemovesDeletedAutomation(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "deleteme", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 

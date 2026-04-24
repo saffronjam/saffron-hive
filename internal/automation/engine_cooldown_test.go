@@ -26,7 +26,7 @@ func TestTriggerCooldownBlocksRefire(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -99,8 +99,8 @@ func TestTriggerCooldownIndependentPerTrigger(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "a1"},
 		},
 	)
 
@@ -154,9 +154,9 @@ func TestTriggerGraceWindowCombinesWithLaterEvent(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-and", FromNodeID: "tA", ToNodeID: "op"},
-			{ID: "e2", AutomationID: "auto-and", FromNodeID: "tB", ToNodeID: "op"},
-			{ID: "e3", AutomationID: "auto-and", FromNodeID: "op", ToNodeID: "a1"},
+			{AutomationID: "auto-and", FromNodeID: "tA", ToNodeID: "op"},
+			{AutomationID: "auto-and", FromNodeID: "tB", ToNodeID: "op"},
+			{AutomationID: "auto-and", FromNodeID: "op", ToNodeID: "a1"},
 		},
 	)
 
@@ -222,9 +222,9 @@ func TestTriggerGraceExpiresDoesNotFire(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-and-expire", FromNodeID: "tA", ToNodeID: "op"},
-			{ID: "e2", AutomationID: "auto-and-expire", FromNodeID: "tB", ToNodeID: "op"},
-			{ID: "e3", AutomationID: "auto-and-expire", FromNodeID: "op", ToNodeID: "a1"},
+			{AutomationID: "auto-and-expire", FromNodeID: "tA", ToNodeID: "op"},
+			{AutomationID: "auto-and-expire", FromNodeID: "tB", ToNodeID: "op"},
+			{AutomationID: "auto-and-expire", FromNodeID: "op", ToNodeID: "a1"},
 		},
 	)
 

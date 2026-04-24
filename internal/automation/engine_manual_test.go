@@ -19,7 +19,7 @@ func TestFireManualTriggerFiresActions(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -61,7 +61,7 @@ func TestFireManualTriggerDisabledAutomation(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -83,7 +83,7 @@ func TestFireManualTriggerUnknownNode(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -101,11 +101,11 @@ func TestFireManualTriggerNotManualKind(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "event", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -129,7 +129,7 @@ func TestFireManualTriggerHonoursCooldown(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -175,10 +175,10 @@ func TestFireManualTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
 			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "tA", ToNodeID: "cA"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "cA", ToNodeID: "aA"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "tB", ToNodeID: "cB"},
-			{ID: "e4", AutomationID: "auto-1", FromNodeID: "cB", ToNodeID: "aB"},
+			{AutomationID: "auto-1", FromNodeID: "tA", ToNodeID: "cA"},
+			{AutomationID: "auto-1", FromNodeID: "cA", ToNodeID: "aA"},
+			{AutomationID: "auto-1", FromNodeID: "tB", ToNodeID: "cB"},
+			{AutomationID: "auto-1", FromNodeID: "cB", ToNodeID: "aB"},
 		},
 	)
 
@@ -238,9 +238,9 @@ func TestFireManualTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
 			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "tA", ToNodeID: "aA"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "tB", ToNodeID: "opB"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "opB", ToNodeID: "aB"},
+			{AutomationID: "auto-1", FromNodeID: "tA", ToNodeID: "aA"},
+			{AutomationID: "auto-1", FromNodeID: "tB", ToNodeID: "opB"},
+			{AutomationID: "auto-1", FromNodeID: "opB", ToNodeID: "aB"},
 		},
 	)
 
@@ -298,9 +298,9 @@ func TestFireManualTriggerSharedOperatorStillPublishes(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op"},
+			{AutomationID: "auto-1", FromNodeID: "op", ToNodeID: "a1"},
 		},
 	)
 
@@ -355,7 +355,7 @@ func TestManualTriggerNotFiredByEventBus(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 

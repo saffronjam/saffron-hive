@@ -32,11 +32,11 @@ func TestEngineTriggerToAction(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "test", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"device(\"light-1\").on == true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"device(\"light-1\").on == true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -65,11 +65,11 @@ func TestEngineTriggerNoMatch(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "test", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -101,11 +101,11 @@ func TestEngineTriggerConditionFalse(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "temp-check", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"device(\"sensor-1\").temperature > 25"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"device(\"sensor-1\").temperature > 25"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -137,15 +137,15 @@ func TestEngineANDOperator(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "and-test", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"device(\"sensor-1\").temperature > 25"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
+			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"device(\"sensor-1\").temperature > 25"}`},
 			{ID: "op1", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -177,15 +177,15 @@ func TestEngineANDOperatorPartialFail(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "and-partial", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"device(\"sensor-1\").temperature > 25"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
+			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"device(\"sensor-1\").temperature > 25"}`},
 			{ID: "op1", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -215,15 +215,15 @@ func TestEngineOROperator(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "or-test", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.availability_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
+			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.availability_changed","filter_expr":"true"}`},
 			{ID: "op1", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"or"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -261,9 +261,9 @@ func TestEngineNOTOperator(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "c1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "c1"},
+			{AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -293,13 +293,13 @@ func TestEngineNOTOperatorBlocksActiveInput(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "not-block", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "op1", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"not"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -329,19 +329,19 @@ func TestEngineChainedOperators(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "chain", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
-			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
+			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "op1", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
-			{ID: "t3", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t3", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "op2", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"or"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
-			{ID: "e4", AutomationID: "auto-1", FromNodeID: "t3", ToNodeID: "op2"},
-			{ID: "e5", AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
+			{AutomationID: "auto-1", FromNodeID: "t3", ToNodeID: "op2"},
+			{AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "a1"},
 		},
 	)
 
@@ -370,11 +370,11 @@ func TestEngineDisabledAutomation(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "disabled", Enabled: false},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -403,15 +403,15 @@ func TestEngineMultipleActions(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "multi-action", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 			{ID: "a2", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-2","payload":"{\"brightness\":150}"}`},
 			{ID: "a3", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-3","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a2"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a3"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a2"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a3"},
 		},
 	)
 
@@ -445,11 +445,11 @@ func TestEngineNodeActivationEventsPublished(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "activation", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -499,11 +499,11 @@ func TestEngineGroupTargetResolution(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "group-test", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"group","target_id":"group-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -550,9 +550,9 @@ func TestEngineConditionGatesAction(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -599,9 +599,9 @@ func TestEngineConditionBlocksWhenFalse(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	)
 
@@ -639,7 +639,7 @@ func TestEngineScheduleTriggerFires(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -700,7 +700,7 @@ func TestEngineButtonActionTrigger(t *testing.T) {
 					{ID: "a1", AutomationID: "auto-btn", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 				},
 				[]store.AutomationEdge{
-					{ID: "e1", AutomationID: "auto-btn", FromNodeID: "t1", ToNodeID: "a1"},
+					{AutomationID: "auto-btn", FromNodeID: "t1", ToNodeID: "a1"},
 				},
 			)
 
@@ -749,7 +749,7 @@ func TestEngineButtonActionTriggerDeviceIDFilter(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-btn-id", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-btn-id", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
@@ -815,10 +815,10 @@ func TestEngineTriggerFilterFalseSkipsGraph(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-toggle", FromNodeID: "t1", ToNodeID: "c1"},
-			{ID: "e2", AutomationID: "auto-toggle", FromNodeID: "c1", ToNodeID: "aOff"},
-			{ID: "e3", AutomationID: "auto-toggle", FromNodeID: "c1", ToNodeID: "op1"},
-			{ID: "e4", AutomationID: "auto-toggle", FromNodeID: "op1", ToNodeID: "aOn"},
+			{AutomationID: "auto-toggle", FromNodeID: "t1", ToNodeID: "c1"},
+			{AutomationID: "auto-toggle", FromNodeID: "c1", ToNodeID: "aOff"},
+			{AutomationID: "auto-toggle", FromNodeID: "c1", ToNodeID: "op1"},
+			{AutomationID: "auto-toggle", FromNodeID: "op1", ToNodeID: "aOn"},
 		},
 	)
 
@@ -872,10 +872,10 @@ func TestEngineDisjointSubgraphsIsolatedByReachability(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-disjoint", FromNodeID: "tOff", ToNodeID: "notOff"},
-			{ID: "e2", AutomationID: "auto-disjoint", FromNodeID: "notOff", ToNodeID: "aOff"},
-			{ID: "e3", AutomationID: "auto-disjoint", FromNodeID: "tOn", ToNodeID: "notOn"},
-			{ID: "e4", AutomationID: "auto-disjoint", FromNodeID: "notOn", ToNodeID: "aOn"},
+			{AutomationID: "auto-disjoint", FromNodeID: "tOff", ToNodeID: "notOff"},
+			{AutomationID: "auto-disjoint", FromNodeID: "notOff", ToNodeID: "aOff"},
+			{AutomationID: "auto-disjoint", FromNodeID: "tOn", ToNodeID: "notOn"},
+			{AutomationID: "auto-disjoint", FromNodeID: "notOn", ToNodeID: "aOn"},
 		},
 	)
 
@@ -935,10 +935,10 @@ func TestEngineActionIncomingOr(t *testing.T) {
 						Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 				},
 				[]store.AutomationEdge{
-					{ID: "e1", AutomationID: "auto-or", FromNodeID: "t1", ToNodeID: "cA"},
-					{ID: "e2", AutomationID: "auto-or", FromNodeID: "t1", ToNodeID: "cB"},
-					{ID: "e3", AutomationID: "auto-or", FromNodeID: "cA", ToNodeID: "a1"},
-					{ID: "e4", AutomationID: "auto-or", FromNodeID: "cB", ToNodeID: "a1"},
+					{AutomationID: "auto-or", FromNodeID: "t1", ToNodeID: "cA"},
+					{AutomationID: "auto-or", FromNodeID: "t1", ToNodeID: "cB"},
+					{AutomationID: "auto-or", FromNodeID: "cA", ToNodeID: "a1"},
+					{AutomationID: "auto-or", FromNodeID: "cB", ToNodeID: "a1"},
 				},
 			)
 
@@ -1010,12 +1010,12 @@ func TestEngineSetDeviceStateGroupFanoutFilters(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-fan", Name: "fan-out", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-fan", Type: "trigger", Config: `{"event_type":"device.state_changed","condition_expr":"true"}`},
+			{ID: "t1", AutomationID: "auto-fan", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-fan", Type: "action",
 				Config: `{"action_type":"set_device_state","target_type":"group","target_id":"grp-mixed","payload":"` + payload + `"}`},
 		},
 		[]store.AutomationEdge{
-			{ID: "e1", AutomationID: "auto-fan", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-fan", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
