@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+import { BannerError } from "$lib/stores/banner-error.svelte";
 
-describe("ErrorBanner", () => {
+describe("BannerError", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -11,18 +11,18 @@ describe("ErrorBanner", () => {
   });
 
   it("starts with a null message", () => {
-    const b = new ErrorBanner();
+    const b = new BannerError();
     expect(b.message).toBeNull();
   });
 
   it("setWithAutoDismiss sets the message immediately", () => {
-    const b = new ErrorBanner();
+    const b = new BannerError();
     b.setWithAutoDismiss("boom");
     expect(b.message).toBe("boom");
   });
 
   it("auto-dismisses after the default 5000 ms", () => {
-    const b = new ErrorBanner();
+    const b = new BannerError();
     b.setWithAutoDismiss("boom");
     vi.advanceTimersByTime(4999);
     expect(b.message).toBe("boom");
@@ -31,7 +31,7 @@ describe("ErrorBanner", () => {
   });
 
   it("honours a custom dismiss delay", () => {
-    const b = new ErrorBanner();
+    const b = new BannerError();
     b.setWithAutoDismiss("boom", 100);
     vi.advanceTimersByTime(99);
     expect(b.message).toBe("boom");
@@ -40,7 +40,7 @@ describe("ErrorBanner", () => {
   });
 
   it("does not clear a newer message when an older timer fires", () => {
-    const b = new ErrorBanner();
+    const b = new BannerError();
     b.setWithAutoDismiss("first", 1000);
     vi.advanceTimersByTime(500);
     b.setWithAutoDismiss("second", 1000);
@@ -51,7 +51,7 @@ describe("ErrorBanner", () => {
   });
 
   it("clear() nulls the message synchronously", () => {
-    const b = new ErrorBanner();
+    const b = new BannerError();
     b.setWithAutoDismiss("boom", 1000);
     b.clear();
     expect(b.message).toBeNull();
