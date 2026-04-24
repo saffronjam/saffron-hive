@@ -46,9 +46,9 @@ type UserLookup interface {
 //     name/username are attached to the request context via WithUser. A
 //     freshly signed token is returned in the X-Refreshed-Token response
 //     header.
-//  3. If the user row no longer exists (e.g. deleted by an admin while the
-//     session was live), the request gets a 401 UNAUTHENTICATED so the
-//     frontend redirects to /login.
+//  3. If the user lookup returns no row (e.g. an admin deleted the account
+//     while the session was live), the request gets a 401 UNAUTHENTICATED
+//     so the frontend redirects to /login.
 func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +111,7 @@ func authenticate(r *http.Request, svc *Service, lookup UserLookup) (CtxUser, er
 	}
 	u, err := lookup.GetUserByID(r.Context(), claims.UserID)
 	if err != nil {
-		return CtxUser{}, errStr("user no longer exists")
+		return CtxUser{}, errStr("user not found")
 	}
 	return CtxUser{ID: u.ID, Username: u.Username, Name: u.Name}, nil
 }
