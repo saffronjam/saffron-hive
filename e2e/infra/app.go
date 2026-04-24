@@ -26,6 +26,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
+	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -91,8 +92,19 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
 
 	activityBuffer := activity.NewBuffer()
-	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, activityBuffer)
+	roomCache := activity.NewRoomCache(sqlStore)
+	if err := roomCache.Refresh(appCtx); err != nil {
+		log.Printf("initial room-cache refresh failed: %v", err)
+	}
+	go roomCache.Run(appCtx, bus)
+	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	go activityRecorder.Run(appCtx)
+
+	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore)
+	if err := sceneWatcher.Hydrate(appCtx); err != nil {
+		log.Printf("scene watcher hydrate failed: %v", err)
+	}
+	go sceneWatcher.Run(appCtx)
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
 	go func() {
