@@ -15,6 +15,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
+	import { parseSince } from "$lib/time-format";
 	import { Copy } from "@lucide/svelte";
 
 	const ACTIVITY_QUERY = graphql(`
@@ -153,20 +154,6 @@
 			resolveLabel: (value) => SINCE_OPTIONS.find((o) => o.value === value)?.label ?? null,
 		},
 	]);
-
-	function parseSince(raw: string): Date | null {
-		const m = raw.match(/^(\d+)([smhd])$/);
-		if (!m) return null;
-		const n = parseInt(m[1], 10);
-		const unit = m[2];
-		const multipliers: Record<string, number> = {
-			s: 1000,
-			m: 60 * 1000,
-			h: 60 * 60 * 1000,
-			d: 24 * 60 * 60 * 1000,
-		};
-		return new Date(Date.now() - n * multipliers[unit]);
-	}
 
 	const selection = createTableSelection();
 
@@ -362,7 +349,7 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<Switch id="advanced-toggle" checked={advanced} onCheckedChange={toggleAdvanced} />
-				<label for="advanced-toggle" class="text-sm text-foreground cursor-pointer select-none">Advanced</label>
+				<label for="advanced-toggle" class="text-sm text-foreground select-none">Advanced</label>
 			</div>
 		</div>
 

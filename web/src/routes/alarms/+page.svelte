@@ -13,6 +13,7 @@
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
+	import { parseSince } from "$lib/time-format";
 	import type { AlarmSeverity } from "$lib/gql/graphql";
 
 	type SeverityKey = "HIGH" | "MEDIUM" | "LOW";
@@ -143,20 +144,6 @@
 		searchState = { ...searchState, chips: nextChips };
 	}
 
-	function parseSince(raw: string): Date | null {
-		const m = raw.match(/^(\d+)([smhd])$/);
-		if (!m) return null;
-		const n = parseInt(m[1], 10);
-		const unit = m[2];
-		const multipliers: Record<string, number> = {
-			s: 1000,
-			m: 60 * 1000,
-			h: 60 * 60 * 1000,
-			d: 24 * 60 * 60 * 1000,
-		};
-		return new Date(Date.now() - n * multipliers[unit]);
-	}
-
 	const filtered = $derived.by(() => {
 		const kindChips = searchState.chips
 			.filter((c) => c.keyword === "kind")
@@ -276,7 +263,7 @@
 					aria-label="{opt.label} severity"
 					aria-pressed={activeSeverities.has(opt.value)}
 				>
-					<AlarmSeverityBadge severity={opt.value as AlarmSeverity} class="border-0 bg-transparent p-0 h-auto" />
+					<AlarmSeverityBadge severity={opt.value as AlarmSeverity} class="border-0 bg-transparent p-0 h-auto" hideLabelOnMobile />
 				</Button>
 			{/each}
 		</div>
