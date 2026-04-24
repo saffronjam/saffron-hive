@@ -34,6 +34,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
+	import { version } from "$lib/version";
 
 	interface NavItem {
 		href?: string;
@@ -210,5 +211,9 @@
 				</SidebarMenuItem>
 			</SidebarMenu>
 		{/if}
+
+		<div class="text-muted-foreground px-2 pt-1 text-center text-xs tabular-nums">
+			{version}
+		</div>
 	</SidebarFooter>
 </Sidebar>

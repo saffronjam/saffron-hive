@@ -47,7 +47,9 @@ migrate-version:
 	go run . migrate version
 
 package:
-	docker build -t saffron-hive .
+	@version=$$(git describe --tags --always --dirty 2>/dev/null || echo localbuild); \
+	echo "Building saffron-hive:$$version"; \
+	docker build --build-arg HIVE_VERSION=$$version -t saffron-hive:$$version -t saffron-hive:latest .
 
 sqlc:
 	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION)). Install: brew install sqlc"; exit 1; }

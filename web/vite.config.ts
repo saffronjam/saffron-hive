@@ -4,6 +4,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
+  define: {
+    __HIVE_VERSION__: JSON.stringify(process.env.HIVE_VERSION || "localbuild"),
+  },
   server: {
     proxy: {
       "/graphql": {

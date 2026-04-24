@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -33,6 +34,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/version"
 	_ "modernc.org/sqlite"
 )
 
@@ -222,6 +224,10 @@ func Run(ctx context.Context) error {
 	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"version": version.Version})
 	})
 
 	staticFS, err := fs.Sub(webDist, "webdist")
