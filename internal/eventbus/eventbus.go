@@ -13,8 +13,14 @@ const (
 	EventDeviceRemoved             EventType = "device.removed"
 	EventCommandRequested          EventType = "command.requested"
 	EventSceneApplied              EventType = "scene.applied"
+	EventSceneActivated            EventType = "scene.activated"
+	EventSceneDeactivated          EventType = "scene.deactivated"
 	EventAutomationTriggered       EventType = "automation.triggered"
 	EventAutomationNodeActivated   EventType = "automation.node_activated"
+	// EventRoomMembershipChanged signals that some room/device membership
+	// changed (create/delete room, add/remove device). It carries no
+	// payload; subscribers should refresh their own view of memberships.
+	EventRoomMembershipChanged EventType = "room.membership_changed"
 )
 
 // Event is the generic envelope carried by the bus.
