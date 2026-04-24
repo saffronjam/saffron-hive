@@ -6,6 +6,12 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+// defaultTransitionSeconds is applied to every visual-state command that
+// doesn't specify one, so on/off/brightness/color changes fade smoothly on
+// the device rather than snapping. Callers that want a different duration
+// (or an instant change, 0) set Transition explicitly.
+const defaultTransitionSeconds = 0.6
+
 type z2mSetPayload struct {
 	State      string    `json:"state,omitempty"`
 	Brightness *int      `json:"brightness,omitempty"`
@@ -37,6 +43,11 @@ func translateCommand(cmd device.Command) z2mSetPayload {
 			X: cmd.Color.X,
 			Y: cmd.Color.Y,
 		}
+	}
+
+	if p.Transition == nil {
+		t := defaultTransitionSeconds
+		p.Transition = &t
 	}
 
 	return p
