@@ -46,7 +46,7 @@ func TestMutationApplyScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["scene1"] = store.Scene{ID: "scene1", Name: "Evening"}
 	env.store.sceneActions["scene1"] = []store.SceneAction{
-		{ID: "a1", SceneID: "scene1", TargetType: "device", TargetID: "d1"},
+		{SceneID: "scene1", TargetType: "device", TargetID: "d1"},
 	}
 
 	ch := env.bus.Subscribe(eventbus.EventSceneApplied)
@@ -125,7 +125,7 @@ func TestMutationUpdateScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Old Name"}
 	env.store.sceneActions["s1"] = []store.SceneAction{
-		{ID: "old-a1", SceneID: "s1", TargetType: "device", TargetID: "d1"},
+		{SceneID: "s1", TargetType: "device", TargetID: "d1"},
 	}
 
 	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id actions { targetType targetId } } }`,
@@ -184,7 +184,7 @@ func TestMutationCreateAutomation(t *testing.T) {
 				"name":    "Night Lights",
 				"enabled": true,
 				"nodes": []map[string]any{
-					{"id": "t1", "type": "trigger", "config": `{"event_type":"device.state_changed","condition_expr":"true"}`},
+					{"id": "t1", "type": "trigger", "config": `{"event_type":"device.state_changed","filter_expr":"true"}`},
 					{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":false}"}`},
 				},
 				"edges": []map[string]any{

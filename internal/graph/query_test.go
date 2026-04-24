@@ -194,10 +194,10 @@ func TestQueryScenes(t *testing.T) {
 	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Evening"}
 	env.store.scenes["s2"] = store.Scene{ID: "s2", Name: "Movie"}
 	env.store.sceneActions["s1"] = []store.SceneAction{
-		{ID: "a1", SceneID: "s1", TargetType: "device", TargetID: "d1"},
+		{SceneID: "s1", TargetType: "device", TargetID: "d1"},
 	}
 
-	resp := env.query(t, `{ scenes { id name actions { id targetType targetId } } }`, nil)
+	resp := env.query(t, `{ scenes { id name actions { targetType targetId } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -207,7 +207,6 @@ func TestQueryScenes(t *testing.T) {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
 			Actions []struct {
-				ID         string `json:"id"`
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
 			} `json:"actions"`
