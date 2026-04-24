@@ -6,11 +6,13 @@
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
+	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
 	import {
 		createTableState,
 		type ColumnDef,
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
+	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { formatRelative, formatFull } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { Trash2 } from "@lucide/svelte";
@@ -102,9 +104,6 @@
 	const displayRows = $derived(tableState.applySort(alarms));
 	const displayIds = $derived<readonly string[]>(displayRows.map((a) => a.id));
 
-	function rowAttrsFor(a: Alarm) {
-		return selection.isSelected(a.id) ? { "data-state": "selected" } : {};
-	}
 </script>
 
 {#snippet selectHead()}
@@ -155,9 +154,7 @@
 	</span>
 {/snippet}
 
-{#snippet actionsHead()}
-	<span class="block text-right">Actions</span>
-{/snippet}
+{#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(a: Alarm)}
 	<div class="flex items-center justify-end">
@@ -177,5 +174,5 @@
 	columns={COLUMNS}
 	rows={displayRows}
 	rowId={(a) => a.id}
-	rowAttrs={rowAttrsFor}
+	rowAttrs={(a) => rowAttrsForSelection(selection, a.id)}
 />

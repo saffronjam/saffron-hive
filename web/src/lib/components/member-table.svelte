@@ -16,18 +16,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
-	import {
-		Lightbulb,
-		Thermometer,
-		ToggleLeft,
-		Group,
-		DoorOpen,
-		Package,
-		Plus,
-		X,
-		Search,
-	} from "@lucide/svelte";
-	import type { Device } from "$lib/stores/devices";
+	import { Plus, X, Search } from "@lucide/svelte";
 
 	interface RelatedItem {
 		id: string;
@@ -38,7 +27,7 @@
 	interface MemberRow {
 		id: string;
 		name: string;
-		type: "light" | "sensor" | "switch" | "group" | "room" | string;
+		type: string;
 		related: RelatedItem[];
 		onclick?: () => void;
 	}
@@ -80,26 +69,6 @@
 		);
 	});
 
-	function deviceIcon(type: string): typeof Lightbulb {
-		switch (type) {
-			case "light":
-				return Lightbulb;
-			case "sensor":
-				return Thermometer;
-			case "switch":
-				return ToggleLeft;
-			case "group":
-				return Group;
-			case "room":
-				return DoorOpen;
-			default:
-				return Package;
-		}
-	}
-
-	function typeLabel(type: string): string {
-		return type.charAt(0).toUpperCase() + type.slice(1);
-	}
 </script>
 
 <div class="space-y-3">
@@ -140,30 +109,21 @@
 			</TableHeader>
 			<TableBody>
 				{#each filteredRows as row (row.id)}
-					{@const Icon = deviceIcon(row.type)}
 					<TableRow>
 						<TableCell>
-							{#if ["light", "sensor", "switch"].includes(row.type)}
-								<HiveChip type={row.type} />
-							{:else}
-								<Badge variant="outline">{typeLabel(row.type)}</Badge>
-							{/if}
+							<HiveChip type={row.type} />
 						</TableCell>
 						<TableCell>
 							{#if row.onclick}
 								<button
 									type="button"
-									class="flex items-center gap-2 text-left hover:underline"
+									class="text-left hover:underline"
 									onclick={row.onclick}
 								>
-									<Icon class="size-4 text-muted-foreground shrink-0" />
 									<span class="truncate">{row.name}</span>
 								</button>
 							{:else}
-								<div class="flex items-center gap-2">
-									<Icon class="size-4 text-muted-foreground shrink-0" />
-									<span class="truncate">{row.name}</span>
-								</div>
+								<span class="truncate">{row.name}</span>
 							{/if}
 						</TableCell>
 						{#if showRelated}
@@ -177,7 +137,7 @@
 												href={rel.href}
 												class="inline-flex"
 											>
-												<Badge variant="outline" class="cursor-pointer hover:bg-muted">
+												<Badge variant="outline" class="hover:bg-muted">
 													{rel.name}
 												</Badge>
 											</a>
@@ -186,7 +146,7 @@
 											{@const overflow = row.related.slice(MAX_CHIPS)}
 											<Popover>
 												<PopoverTrigger>
-													<Badge variant="outline" class="cursor-pointer hover:bg-muted">
+													<Badge variant="outline" class="hover:bg-muted">
 														+{overflow.length} more
 													</Badge>
 												</PopoverTrigger>

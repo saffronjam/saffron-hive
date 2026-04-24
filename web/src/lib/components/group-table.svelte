@@ -2,18 +2,21 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
-	import IconPicker from "$lib/components/icons/icon-picker.svelte";
-	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
+	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
+	import CreatedByCell from "$lib/components/table-cells/created-by-cell.svelte";
+	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
+	import RowActionsCell from "$lib/components/table-cells/row-actions-cell.svelte";
 	import {
 		createTableState,
 		type ColumnDef,
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
+	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { groupMemberBreakdown } from "$lib/list-helpers";
-	import { Group as GroupIcon, Pencil, Plus, Trash2 } from "@lucide/svelte";
+	import { Group as GroupIcon, Plus } from "@lucide/svelte";
 
 	interface Props {
 		groups: G[];
@@ -81,9 +84,6 @@
 	const displayRows = $derived(tableState.applySort(groups));
 	const displayIds = $derived<readonly string[]>(displayRows.map((g) => g.id));
 
-	function rowAttrsFor(g: G) {
-		return selection.isSelected(g.id) ? { "data-state": "selected" } : {};
-	}
 </script>
 
 {#snippet selectHead()}
@@ -100,18 +100,7 @@
 {/snippet}
 
 {#snippet iconCell(g: G)}
-	<IconPicker value={g.icon} onselect={(icon) => oniconchange(g, icon)}>
-		<button
-			type="button"
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
-		>
-			<DynamicIcon icon={g.icon} class="size-4.5 text-muted-foreground">
-				{#snippet fallback()}
-					<GroupIcon class="size-4.5 text-muted-foreground" />
-				{/snippet}
-			</DynamicIcon>
-		</button>
-	</IconPicker>
+	<IconCell value={g.icon} onselect={(icon) => oniconchange(g, icon)} fallback={GroupIcon} />
 {/snippet}
 
 {#snippet nameCell(g: G)}
@@ -135,58 +124,34 @@
 {/snippet}
 
 {#snippet createdByCell(g: G)}
-	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{g.createdBy?.name ?? "—"}
-	</span>
+	<CreatedByCell name={g.createdBy?.name} />
 {/snippet}
 
-{#snippet actionsHead()}
-	<span class="block text-right">Actions</span>
-{/snippet}
+{#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(g: G)}
-	<div class="flex items-center justify-end gap-1">
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={() => onAddTo(g)}
-					aria-label="Add to group"
-				>
-					<Plus class="size-4" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>Add…</TooltipContent>
-		</Tooltip>
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={() => onedit(g)}
-					aria-label="Edit group"
-				>
-					<Pencil class="size-4" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>Edit</TooltipContent>
-		</Tooltip>
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={() => ondelete(g)}
-					aria-label="Delete group"
-					class="text-destructive hover:text-destructive"
-				>
-					<Trash2 class="size-4" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>Delete</TooltipContent>
-		</Tooltip>
-	</div>
+	<RowActionsCell
+		onedit={() => onedit(g)}
+		ondelete={() => ondelete(g)}
+		editLabel="Edit group"
+		deleteLabel="Delete group"
+	>
+		{#snippet leading()}
+			<Tooltip>
+				<TooltipTrigger>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onclick={() => onAddTo(g)}
+						aria-label="Add to group"
+					>
+						<Plus class="size-4" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>Add…</TooltipContent>
+			</Tooltip>
+		{/snippet}
+	</RowActionsCell>
 {/snippet}
 
 <HiveDataTable
@@ -194,5 +159,5 @@
 	columns={COLUMNS}
 	rows={displayRows}
 	rowId={(g) => g.id}
-	rowAttrs={rowAttrsFor}
+	rowAttrs={(g) => rowAttrsForSelection(selection, g.id)}
 />

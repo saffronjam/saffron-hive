@@ -1,24 +1,26 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
-	import IconPicker from "$lib/components/icons/icon-picker.svelte";
-	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
+	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
+	import CreatedByCell from "$lib/components/table-cells/created-by-cell.svelte";
+	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
+	import RowActionsCell from "$lib/components/table-cells/row-actions-cell.svelte";
+	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import {
 		createTableState,
 		type ColumnDef,
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
+	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
-	import { Clapperboard, Pencil, Play, Trash2 } from "@lucide/svelte";
+	import { Clapperboard, Play } from "@lucide/svelte";
 	import { sceneTintFromPayloads } from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
 
 	interface SceneAction {
-		id: string;
 		targetType: string;
 		targetId: string;
 	}
@@ -34,7 +36,9 @@
 		icon?: string | null;
 		actions: SceneAction[];
 		devicePayloads: SceneDevicePayload[];
+		effectivePayloads: SceneDevicePayload[];
 		createdBy?: { id: string; username: string; name: string } | null;
+		activatedAt?: string | null;
 	}
 
 	interface Props {
@@ -121,9 +125,6 @@
 	const displayRows = $derived(tableState.applySort(scenes));
 	const displayIds = $derived<readonly string[]>(displayRows.map((s) => s.id));
 
-	function rowAttrsFor(s: SceneData) {
-		return selection.isSelected(s.id) ? { "data-state": "selected" } : {};
-	}
 </script>
 
 {#snippet selectHead()}
@@ -140,25 +141,14 @@
 {/snippet}
 
 {#snippet colorCell(s: SceneData)}
-	<span
-		class="inline-block h-3 w-3 shrink-0 rounded-full border border-border"
-		style="background: {sceneTintFromPayloads(s.devicePayloads.map((p) => parsePayload(p.payload)))}"
-	></span>
+	{@const active = s.activatedAt != null}
+	<div class="transition-opacity duration-300 ease-out" style="opacity: {active ? 1 : 0.35}">
+		<HiveColorSwatch color={sceneTintFromPayloads(s.effectivePayloads.map((p) => parsePayload(p.payload)))} />
+	</div>
 {/snippet}
 
 {#snippet iconCell(s: SceneData)}
-	<IconPicker value={s.icon} onselect={(icon) => oniconchange(s, icon)}>
-		<button
-			type="button"
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
-		>
-			<DynamicIcon icon={s.icon} class="size-4.5 text-muted-foreground">
-				{#snippet fallback()}
-					<Clapperboard class="size-4.5 text-muted-foreground" />
-				{/snippet}
-			</DynamicIcon>
-		</button>
-	</IconPicker>
+	<IconCell value={s.icon} onselect={(icon) => oniconchange(s, icon)} fallback={Clapperboard} />
 {/snippet}
 
 {#snippet nameCell(s: SceneData)}
@@ -178,69 +168,34 @@
 {/snippet}
 
 {#snippet createdByCell(s: SceneData)}
-	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{s.createdBy?.name ?? "—"}
-	</span>
+	<CreatedByCell name={s.createdBy?.name} />
 {/snippet}
 
-{#snippet actionsHead()}
-	<span class="block text-right">Actions</span>
-{/snippet}
+{#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(s: SceneData)}
 	{@const noTargets = s.actions.length === 0}
 	{@const applying = applyingId === s.id}
-	<div class="flex items-center justify-end gap-1">
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={() => onapply(s)}
-					disabled={applying || noTargets}
-					aria-label="Apply scene"
-				>
-					<Play class="size-4" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>
-				{#if noTargets}
-					Add a target to activate scene
-				{:else if applying}
-					Applying...
-				{:else}
-					Apply scene
-				{/if}
-			</TooltipContent>
-		</Tooltip>
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={() => onedit(s)}
-					aria-label="Edit scene"
-				>
-					<Pencil class="size-4" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>Edit</TooltipContent>
-		</Tooltip>
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={() => ondelete(s)}
-					aria-label="Delete scene"
-					class="text-destructive hover:text-destructive"
-				>
-					<Trash2 class="size-4" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>Delete</TooltipContent>
-		</Tooltip>
-	</div>
+	{@const active = s.activatedAt != null}
+	<RowActionsCell
+		onedit={() => onedit(s)}
+		ondelete={() => ondelete(s)}
+		editLabel="Edit scene"
+		deleteLabel="Delete scene"
+	>
+		{#snippet leading()}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={() => onapply(s)}
+				disabled={applying || noTargets || active}
+				class="transition-opacity duration-200"
+				aria-label="Apply scene"
+			>
+				<Play class="size-4" />
+			</Button>
+		{/snippet}
+	</RowActionsCell>
 {/snippet}
 
 <HiveDataTable
@@ -248,5 +203,5 @@
 	columns={COLUMNS}
 	rows={displayRows}
 	rowId={(s) => s.id}
-	rowAttrs={rowAttrsFor}
+	rowAttrs={(s) => rowAttrsForSelection(selection, s.id)}
 />
