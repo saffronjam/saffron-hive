@@ -4,7 +4,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Popover, PopoverContent, PopoverTrigger } from "$lib/components/ui/popover/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import HiveChip from "$lib/components/hive-chip.svelte";
+	import HiveIcon from "$lib/components/hive-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import { ChevronDown, ChevronRight, Eye, Palette, Pencil, Plus, Trash2 } from "@lucide/svelte";
 	import { deviceSceneCapabilities, isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
@@ -137,13 +137,18 @@
 		return a.r === b.r && a.g === b.g && a.b === b.b;
 	}
 
+	function mergePayload(base: ActionPayload, patch: Partial<ActionPayload>): ActionPayload {
+		const next: ActionPayload = { ...base, ...patch };
+		if (patch.color !== undefined) delete next.colorTemp;
+		if (patch.colorTemp !== undefined) delete next.color;
+		return next;
+	}
+
 	function applyChange(device: Device, patch: Partial<ActionPayload>) {
 		if (mode === "live") {
-			const base = liveValueFor(device);
-			onsendcommand(device.id, { ...base, ...patch });
+			onsendcommand(device.id, mergePayload(liveValueFor(device), patch));
 		} else {
-			const current = payloadFor(device);
-			onupdatedevicepayload(device.id, { ...current, ...patch });
+			onupdatedevicepayload(device.id, mergePayload(payloadFor(device), patch));
 		}
 	}
 
@@ -180,18 +185,54 @@
 		return `${Math.round((state.brightness / 254) * 100)}%`;
 	}
 
-	function colorPreview(state: DeviceState | null | undefined): string | null {
-		if (!state?.color) return null;
-		return `rgb(${state.color.r}, ${state.color.g}, ${state.color.b})`;
+	function colorCss(color: { r: number; g: number; b: number } | null | undefined): string | null {
+		if (!color) return null;
+		return `rgb(${color.r}, ${color.g}, ${color.b})`;
+	}
+
+	function miredToRgb(mireds: number): { r: number; g: number; b: number } {
+		const temp = 10000 / mireds;
+		let r: number;
+		let g: number;
+		let b: number;
+		if (temp <= 66) {
+			r = 255;
+			g = 99.4708025861 * Math.log(temp) - 161.1195681661;
+			b = temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
+		} else {
+			r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
+			g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
+			b = 255;
+		}
+		const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+		return { r: clamp(r), g: clamp(g), b: clamp(b) };
+	}
+
+	function previewColorCss(
+		payload: ActionPayload,
+		caps: { hasColor: boolean; hasColorTemp: boolean },
+	): string | null {
+		if (caps.hasColor && payload.color) return colorCss(payload.color);
+		if (caps.hasColorTemp && payload.colorTemp != null) return colorCss(miredToRgb(payload.colorTemp));
+		return null;
 	}
 </script>
 
-{#snippet paletteButton(device: Device, caps: { hasColor: boolean; hasColorTemp: boolean; hasBrightness: boolean })}
+{#snippet adjustTrigger(device: Device, caps: { hasColor: boolean; hasColorTemp: boolean; hasBrightness: boolean })}
 	{@const p = displayValueFor(device)}
+	{@const hasDot = caps.hasColor || caps.hasColorTemp}
+	{@const dotCss = hasDot ? previewColorCss(p, caps) : null}
 	<Popover>
 		<PopoverTrigger>
 			<Button variant="ghost" size="icon-sm" aria-label={`Adjust ${device.name}`}>
-				<Palette class="size-4" />
+				{#if hasDot}
+					<div
+						class="h-4 w-4 rounded-full border border-border transition-colors duration-200"
+						style:background-color={dotCss ?? "transparent"}
+					></div>
+				{:else}
+					<Palette class="size-4" />
+				{/if}
 			</Button>
 		</PopoverTrigger>
 		<PopoverContent class="w-72 space-y-4 p-3" align="end">
@@ -215,11 +256,10 @@
 
 {#snippet liveIndicators(device: Device)}
 	{@const state = device.state}
-	{@const color = colorPreview(state)}
 	{#if state?.on != null}
 		<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
 			<span
-				class="h-2 w-2 rounded-full {state.on ? 'bg-green-500' : 'bg-muted-foreground/50'}"
+				class="h-2 w-2 rounded-full {state.on ? 'bg-status-online' : 'bg-muted-foreground/50'}"
 			></span>
 			{state.on ? "On" : "Off"}
 		</span>
@@ -230,9 +270,6 @@
 	{/if}
 	{#if state?.brightness != null}
 		<Badge variant="secondary" class="text-xs">{brightnessPercent(state)}</Badge>
-	{/if}
-	{#if color}
-		<div class="h-4 w-4 rounded-full border border-border" style:background-color={color}></div>
 	{/if}
 {/snippet}
 
@@ -304,15 +341,20 @@
 								<span class="w-4 shrink-0"></span>
 							{/if}
 
-							<span class="truncate text-sm font-medium">{node.target.name}</span>
 							{#if isDeviceRow}
-								<HiveChip type={node.target.deviceType ?? "device"} class="shrink-0" />
+								<HiveIcon
+									type={node.target.deviceType ?? "device"}
+									class="size-4 shrink-0 text-muted-foreground"
+								/>
 							{:else}
-								<HiveChip
+								<HiveIcon
 									type={node.target.type}
 									iconOverride={node.target.icon}
-									class="shrink-0"
+									class="size-4 shrink-0 text-muted-foreground"
 								/>
+							{/if}
+							<span class="truncate text-sm font-medium">{node.target.name}</span>
+							{#if !isDeviceRow}
 								<span class="shrink-0 text-xs text-muted-foreground">
 									{node.devices.length}
 								</span>
@@ -329,7 +371,7 @@
 									{@render liveIndicators(deviceForRow)}
 								{/if}
 								{#if deviceForRow && rowHasRich && rowCaps}
-									{@render paletteButton(deviceForRow, rowCaps)}
+									{@render adjustTrigger(deviceForRow, rowCaps)}
 								{/if}
 								{#if deviceForRow}
 									<Switch
@@ -361,8 +403,8 @@
 									<div
 										class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60"
 									>
+										<HiveIcon type={device.type} class="size-4 shrink-0 text-muted-foreground" />
 										<span class="truncate text-sm">{device.name}</span>
-										<HiveChip type={device.type} class="shrink-0" />
 										<span class="flex-1"></span>
 										<div
 											class="flex items-center gap-2"
@@ -373,7 +415,7 @@
 												{@render liveIndicators(device)}
 											{/if}
 											{#if leafHasRich}
-												{@render paletteButton(device, leafCaps)}
+												{@render adjustTrigger(device, leafCaps)}
 											{/if}
 											<Switch
 												checked={displayValueFor(device).on ?? false}

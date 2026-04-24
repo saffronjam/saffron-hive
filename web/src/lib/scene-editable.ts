@@ -1,7 +1,6 @@
 import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
 
 export interface SceneAction {
-  id: string;
   targetType: string;
   targetId: string;
   target: SceneTargetData;
@@ -36,6 +35,7 @@ export interface SceneData {
   icon?: string | null;
   actions: SceneAction[];
   devicePayloads: SceneDevicePayloadEntry[];
+  activatedAt?: string | null;
 }
 
 export interface GroupData {
