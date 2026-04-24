@@ -18,6 +18,7 @@
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { Clapperboard, Workflow } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
@@ -33,7 +34,6 @@
 		ShieldCheck,
 		GitMerge,
 		Play,
-		X,
 		Eye,
 		Pencil,
 		Code,
@@ -43,9 +43,11 @@
 		Rows3,
 		Copy,
 		ClipboardPaste,
+		X,
 	} from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
 	import type { Device } from "$lib/stores/devices";
@@ -168,7 +170,6 @@
 					positionY
 				}
 				edges {
-					id
 					fromNodeId
 					toNodeId
 				}
@@ -191,7 +192,6 @@
 					positionY
 				}
 				edges {
-					id
 					fromNodeId
 					toNodeId
 				}
@@ -322,14 +322,15 @@
 
 	$effect(() => {
 		pageHeader.actions = [
-			{ label: "Cancel", variant: "outline" as const, onclick: handleCancel },
+			{ label: "Cancel", icon: X, variant: "outline" as const, onclick: handleCancel, hideLabelOnMobile: true },
 			{
 				label: "Save",
 				saving,
 				onclick: handleSave,
 				disabled: !editMode || saving || hasValidationErrors || !isDirty,
+				hideLabelOnMobile: true,
 			},
-			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode },
+			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode, hideLabelOnMobile: true },
 		];
 	});
 	let automationEnabled = $state(false);
@@ -343,7 +344,7 @@
 	let syncSource = $state<"visual" | "code" | null>(null);
 	let loading = $state(true);
 	let saving = $state(false);
-	const errors = new ErrorBanner();
+	const errors = new BannerError();
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
 
@@ -667,16 +668,16 @@
 	}
 
 	const EDGE_STYLE_IDLE = "stroke: var(--color-muted-foreground); stroke-width: 1px; opacity: 0.5;";
-	const EDGE_STYLE_SELECTED = "stroke: #ffffff; stroke-width: 2px; opacity: 1;";
+	const EDGE_STYLE_SELECTED = "stroke: var(--color-foreground); stroke-width: 2px; opacity: 1;";
 	// Active-edge color matches the source node's theme color so the user can
 	// tell at a glance what's driving a given line during Live mode.
 	const EDGE_STYLE_ACTIVE_BY_TYPE: Record<string, string> = {
-		trigger: "stroke: #60a5fa; stroke-width: 2px; opacity: 1;", // blue
-		condition: "stroke: #2dd4bf; stroke-width: 2px; opacity: 1;", // teal
-		operator: "stroke: #eab308; stroke-width: 2px; opacity: 1;", // yellow
-		action: "stroke: #22c55e; stroke-width: 2px; opacity: 1;", // green
+		trigger: "stroke: var(--color-automation-trigger); stroke-width: 2px; opacity: 1;",
+		condition: "stroke: var(--color-automation-condition); stroke-width: 2px; opacity: 1;",
+		operator: "stroke: var(--color-automation-operator); stroke-width: 2px; opacity: 1;",
+		action: "stroke: var(--color-automation-action); stroke-width: 2px; opacity: 1;",
 	};
-	const EDGE_STYLE_ACTIVE_FALLBACK = "stroke: #60a5fa; stroke-width: 2px; opacity: 1;";
+	const EDGE_STYLE_ACTIVE_FALLBACK = "stroke: var(--color-automation-trigger); stroke-width: 2px; opacity: 1;";
 
 	const COLUMN_ORDER = ["trigger", "condition", "operator", "action"] as const;
 	const COLUMN_WIDTH = 280;
@@ -1388,14 +1389,7 @@
 
 <div class="flex h-[calc(100vh-6rem)] flex-col">
 	{#if errors.message}
-		<div
-			class="mb-2 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			<span>{errors.message}</span>
-			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
-				<X class="size-4" />
-			</button>
-		</div>
+		<ErrorBanner class="mb-2" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
 	<div class="flex flex-wrap items-center gap-2 border-b border-border pb-3">
@@ -1410,16 +1404,11 @@
 					takeSnapshot();
 				}}
 			>
-				<button
-					type="button"
-					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted transition-colors {editMode ? 'cursor-pointer hover:bg-muted/80' : 'cursor-default opacity-70'}"
-					aria-label="Change icon"
-					disabled={!editMode}
-				>
+				<IconPickerTrigger size="sm" ariaLabel="Change icon" disabled={!editMode}>
 					<AnimatedIcon icon={automationIcon} class="size-4 text-muted-foreground">
 						{#snippet fallback()}<Workflow class="size-4 text-muted-foreground" />{/snippet}
 					</AnimatedIcon>
-				</button>
+				</IconPickerTrigger>
 			</IconPicker>
 			<Input
 				bind:value={automationName}
@@ -1517,19 +1506,19 @@
 				</Button>
 				<div class="mx-1 h-4 w-px bg-border"></div>
 				<Button variant="ghost" size="sm" onclick={() => addNode("trigger")} disabled={!editMode}>
-					<Zap class="size-3.5 text-blue-500" />
+					<Zap class="size-3.5 text-automation-trigger" />
 					<span class="hidden sm:inline">Trigger</span>
 				</Button>
 				<Button variant="ghost" size="sm" onclick={() => addNode("condition")} disabled={!editMode}>
-					<ShieldCheck class="size-3.5 text-teal-500" />
+					<ShieldCheck class="size-3.5 text-automation-condition" />
 					<span class="hidden sm:inline">Condition</span>
 				</Button>
 				<Button variant="ghost" size="sm" onclick={() => addNode("operator")} disabled={!editMode}>
-					<GitMerge class="size-3.5 text-yellow-500" />
+					<GitMerge class="size-3.5 text-automation-operator" />
 					<span class="hidden sm:inline">Operator</span>
 				</Button>
 				<Button variant="ghost" size="sm" onclick={() => addNode("action")} disabled={!editMode}>
-					<Play class="size-3.5 text-green-500" />
+					<Play class="size-3.5 text-automation-action" />
 					<span class="hidden sm:inline">Action</span>
 				</Button>
 				<div class="mx-1 h-4 w-px bg-border"></div>

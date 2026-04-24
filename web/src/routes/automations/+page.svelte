@@ -12,8 +12,14 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
-	import AutomationCard from "$lib/components/automation-card.svelte";
+	import EntityCard from "$lib/components/entity-card.svelte";
 	import AutomationTable from "$lib/components/automation-table.svelte";
+	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { Switch } from "$lib/components/ui/switch/index.js";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
+	import { automationNodeCounts } from "$lib/list-helpers";
+	import { formatFull, formatRelative } from "$lib/time-format";
+	import { nowStore } from "$lib/stores/now.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
@@ -27,12 +33,13 @@
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import { Plus, Workflow, X } from "@lucide/svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import { Plus, Workflow, Zap, GitMerge, Play } from "@lucide/svelte";
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
-	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
 
 	let view = $state<ListViewMode>(profile.get("view.automations", "card"));
 
@@ -87,7 +94,6 @@
 					config
 				}
 				edges {
-					id
 					fromNodeId
 					toNodeId
 				}
@@ -112,7 +118,6 @@
 					config
 				}
 				edges {
-					id
 					fromNodeId
 					toNodeId
 				}
@@ -381,7 +386,7 @@
 			},
 		};
 	});
-	const errors = new ErrorBanner();
+	const errors = new BannerError();
 	let deleteConfirmId = $state<string | null>(null);
 	let deleteConfirmName = $state("");
 	let deleteLoading = $state(false);
@@ -428,11 +433,11 @@
 		}
 	}
 
-	async function handleToggle(id: string, enabled: boolean) {
+	async function handleToggle(a: AutomationData, enabled: boolean) {
 		errors.clear();
 
 		const result = await client
-			.mutation<ToggleAutomationResult>(TOGGLE_AUTOMATION, { id, enabled })
+			.mutation<ToggleAutomationResult>(TOGGLE_AUTOMATION, { id: a.id, enabled })
 			.toPromise();
 
 		if (result.error) {
@@ -443,13 +448,13 @@
 		automationsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	function handleCardClick(id: string) {
-		goto(`/automations/${id}`);
+	function handleCardClick(a: AutomationData) {
+		goto(`/automations/${a.id}`);
 	}
 
-	function requestDelete(id: string, name: string) {
-		deleteConfirmId = id;
-		deleteConfirmName = name;
+	function requestDelete(a: AutomationData) {
+		deleteConfirmId = a.id;
+		deleteConfirmName = a.name;
 	}
 
 	async function handleConfirmDelete() {
@@ -491,11 +496,11 @@
 		automationsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	async function handleRename(id: string, newName: string) {
+	async function handleRename(a: AutomationData, newName: string) {
 		errors.clear();
 
 		const result = await client
-			.mutation(UPDATE_AUTOMATION_NAME, { id, input: { name: newName } })
+			.mutation(UPDATE_AUTOMATION_NAME, { id: a.id, input: { name: newName } })
 			.toPromise();
 
 		if (result.error) {
@@ -506,11 +511,11 @@
 		automationsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	async function handleIconChange(id: string, icon: string | null) {
+	async function handleIconChange(a: AutomationData, icon: string | null) {
 		errors.clear();
 
 		const result = await client
-			.mutation(UPDATE_AUTOMATION_NAME, { id, input: { icon } })
+			.mutation(UPDATE_AUTOMATION_NAME, { id: a.id, input: { icon } })
 			.toPromise();
 
 		if (result.error) {
@@ -524,14 +529,7 @@
 
 <div>
 	{#if errors.message}
-		<div
-			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			<span>{errors.message}</span>
-			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
-				<X class="size-4" />
-			</button>
-		</div>
+		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
 
@@ -590,14 +588,60 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredAutomations as automation (automation.id)}
-									<AutomationCard
-										{automation}
-										ontoggle={handleToggle}
-										onedit={handleCardClick}
-										ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
+									{@const counts = automationNodeCounts(automation.nodes)}
+									<EntityCard
+										entity={automation}
+										fallbackIcon={Workflow}
+										subtitle="{automation.nodes.length} node{automation.nodes.length === 1 ? '' : 's'}"
 										onrename={handleRename}
 										oniconchange={handleIconChange}
-									/>
+										onedit={handleCardClick}
+										ondelete={requestDelete}
+									>
+										{#snippet subtitleTrailing()}
+											{#if automation.lastFiredAt}
+												&middot;&nbsp;
+												<Tooltip>
+													<TooltipTrigger>
+														<span>fired {formatRelative(new Date(automation.lastFiredAt), nowStore.current)}</span>
+													</TooltipTrigger>
+													<TooltipContent>{formatFull(new Date(automation.lastFiredAt))}</TooltipContent>
+												</Tooltip>
+											{/if}
+										{/snippet}
+										{#snippet leadingActions()}
+											<Switch
+												checked={automation.enabled}
+												onCheckedChange={(checked) => handleToggle(automation, checked)}
+											/>
+										{/snippet}
+										{#snippet footer()}
+											<div class="mt-3 flex gap-2">
+												{#if counts.trigger === 0 && counts.operator === 0 && counts.action === 0}
+													<Badge variant="secondary" class="text-xs text-muted-foreground">Empty</Badge>
+												{:else}
+													{#if counts.trigger > 0}
+														<Badge variant="secondary" class="gap-1 text-xs">
+															<Zap class="size-3 text-automation-trigger" />
+															{counts.trigger} trigger{counts.trigger === 1 ? "" : "s"}
+														</Badge>
+													{/if}
+													{#if counts.operator > 0}
+														<Badge variant="secondary" class="gap-1 text-xs">
+															<GitMerge class="size-3 text-automation-operator" />
+															{counts.operator} operator{counts.operator === 1 ? "" : "s"}
+														</Badge>
+													{/if}
+													{#if counts.action > 0}
+														<Badge variant="secondary" class="gap-1 text-xs">
+															<Play class="size-3 text-automation-action" />
+															{counts.action} action{counts.action === 1 ? "" : "s"}
+														</Badge>
+													{/if}
+												{/if}
+											</div>
+										{/snippet}
+									</EntityCard>
 								{/each}
 							</AnimatedGrid>
 						{/snippet}
@@ -606,7 +650,7 @@
 								automations={filteredAutomations}
 								{selection}
 								ontoggle={handleToggle}
-								ondelete={(id) => requestDelete(id, automations.find((a) => a.id === id)?.name ?? "this automation")}
+								ondelete={requestDelete}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 							/>

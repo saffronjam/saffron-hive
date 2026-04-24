@@ -14,7 +14,7 @@
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import MemberTable from "$lib/components/member-table.svelte";
-	import RoomCard from "$lib/components/room-card.svelte";
+	import EntityCard from "$lib/components/entity-card.svelte";
 	import RoomTable from "$lib/components/room-table.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -25,12 +25,14 @@
 	import ListView from "$lib/components/list-view.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import {
 		Plus,
-		X,
 		DoorOpen,
+		X,
 	} from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
@@ -39,7 +41,7 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import type { Device } from "$lib/stores/devices";
 	import { deviceIcon } from "$lib/utils";
-	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
 
 	interface RoomData {
 		id: string;
@@ -362,7 +364,7 @@
 		}
 	}
 
-	const errors = new ErrorBanner();
+	const errors = new BannerError();
 
 	let view = $state<ListViewMode>(profile.get("view.rooms", "card"));
 
@@ -390,8 +392,8 @@
 		if (editingRoomFresh) {
 			pageHeader.breadcrumbs = [{ label: "Rooms", onclick: stopEditing }, { label: editingRoomFresh.name }];
 			pageHeader.actions = [
-				{ label: "Cancel", variant: "outline" as const, onclick: stopEditing },
-				{ label: "Save", saving: editLoading, onclick: handleSaveRoom, disabled: !hasPendingChanges || editLoading },
+				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
+				{ label: "Save", saving: editLoading, onclick: handleSaveRoom, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
@@ -647,14 +649,7 @@
 
 <div>
 	{#if errors.message}
-		<div
-			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			<span>{errors.message}</span>
-			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
-				<X class="size-4" />
-			</button>
-		</div>
+		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
 	{#if editingRoomFresh}
@@ -671,11 +666,11 @@
 							editIconDirty = true;
 						}}
 					>
-						<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors" aria-label="Change icon">
+						<IconPickerTrigger size="lg" ariaLabel="Change icon">
 							<AnimatedIcon icon={editIcon} class="size-5 text-muted-foreground">
 								{#snippet fallback()}<DoorOpen class="size-5 text-muted-foreground" />{/snippet}
 							</AnimatedIcon>
-						</button>
+						</IconPickerTrigger>
 					</IconPicker>
 					<Input
 						id="room-name"
@@ -762,13 +757,16 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredRooms as room (room.id)}
-									<RoomCard
-										{room}
+									<EntityCard
+										entity={room}
+										fallbackIcon={DoorOpen}
+										subtitle="{room.devices.length} device{room.devices.length === 1 ? '' : 's'}"
 										onedit={startEditing}
 										ondelete={(r) => (deleteConfirmRoom = r)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										onAddTo={handleAddToRoom}
+										addLabel="Add device"
 									/>
 								{/each}
 							</AnimatedGrid>

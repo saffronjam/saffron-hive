@@ -11,8 +11,10 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
-	import GroupCard from "$lib/components/group-card.svelte";
+	import EntityCard from "$lib/components/entity-card.svelte";
 	import GroupTable from "$lib/components/group-table.svelte";
+	import { groupMemberBreakdown } from "$lib/list-helpers";
+	import { groupTintColors } from "$lib/device-tint";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
@@ -25,13 +27,15 @@
 	import MemberTable from "$lib/components/member-table.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import {
 		Plus,
-		X,
 		Group as GroupIcon,
 		DoorOpen,
+		X,
 	} from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import { onDestroy } from "svelte";
@@ -39,7 +43,7 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import type { Device } from "$lib/stores/devices";
 
 	interface RoomData {
@@ -292,6 +296,40 @@
 	const devices = $derived($devicesQuery.data?.devices ?? []);
 	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
 
+	const deviceById = $derived(new Map(devices.map((d) => [d.id, d])));
+	const groupById = $derived(new Map(groups.map((g) => [g.id, g])));
+	const roomById = $derived(new Map(allRooms.map((r) => [r.id, r])));
+
+	function flattenGroupDevices(group: GroupData): Device[] {
+		const visited = new Set<string>();
+		const ids = new Set<string>();
+
+		function walk(g: GroupData) {
+			if (visited.has(g.id)) return;
+			visited.add(g.id);
+			for (const member of g.members) {
+				if (member.memberType === "device") {
+					ids.add(member.memberId);
+				} else if (member.memberType === "room") {
+					const room = roomById.get(member.memberId);
+					if (room) for (const d of room.devices) ids.add(d.id);
+				} else if (member.memberType === "group") {
+					const sub = groupById.get(member.memberId);
+					if (sub) walk(sub);
+				}
+			}
+		}
+
+		walk(group);
+
+		const out: Device[] = [];
+		for (const id of ids) {
+			const d = deviceById.get(id);
+			if (d) out.push(d);
+		}
+		return out;
+	}
+
 	let hasLoadedOnce = $state(false);
 	$effect(() => {
 		if (!$groupsQuery.fetching && !hasLoadedOnce) {
@@ -513,7 +551,7 @@
 		}
 	}
 
-	const errors = new ErrorBanner();
+	const errors = new BannerError();
 
 	const hasPendingChanges = $derived(
 		editNameDirty || editIconDirty || pendingAdds.length > 0 || pendingRemovals.size > 0
@@ -525,8 +563,8 @@
 		if (editingGroupFresh) {
 			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroupFresh.name }];
 			pageHeader.actions = [
-				{ label: "Cancel", variant: "outline" as const, onclick: stopEditing },
-				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading },
+				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
+				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
@@ -849,14 +887,7 @@
 
 <div>
 	{#if errors.message}
-		<div
-			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			<span>{errors.message}</span>
-			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
-				<X class="size-4" />
-			</button>
-		</div>
+		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
 	{#if editingGroupFresh}
@@ -875,11 +906,11 @@
 								editIconDirty = true;
 							}}
 						>
-							<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors" aria-label="Change icon">
+							<IconPickerTrigger size="lg" ariaLabel="Change icon">
 								<AnimatedIcon icon={editIcon} class="size-5 text-muted-foreground">
 									{#snippet fallback()}<GroupIcon class="size-5 text-muted-foreground" />{/snippet}
 								</AnimatedIcon>
-							</button>
+							</IconPickerTrigger>
 						</IconPicker>
 						<Input
 							id="group-name"
@@ -967,13 +998,18 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredGroups as group (group.id)}
-									<GroupCard
-										{group}
+									{@const tintColors = groupTintColors(flattenGroupDevices(group))}
+									<EntityCard
+										entity={group}
+										fallbackIcon={GroupIcon}
+										subtitle="{group.members.length} member{group.members.length === 1 ? '' : 's'}{group.members.length > 0 ? ' · ' + groupMemberBreakdown(group.members) : ''}"
+										tintColors={tintColors.length > 0 ? tintColors : null}
 										onedit={startEditing}
 										ondelete={(g) => (deleteConfirmGroup = g)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										onAddTo={handleAddToGroup}
+										addLabel="Add member"
 									/>
 								{/each}
 							</AnimatedGrid>
