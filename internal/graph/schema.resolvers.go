@@ -26,6 +26,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -88,6 +89,24 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 	return mapDeviceFromReader(r.StateReader, d), nil
 }
 
+// SimulateDeviceAction is the resolver for the simulateDeviceAction field.
+func (r *mutationResolver) SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error) {
+	id := device.DeviceID(deviceID)
+	if _, ok := r.StateReader.GetDevice(id); !ok {
+		return false, fmt.Errorf("device %q not found", deviceID)
+	}
+	if action == "" {
+		return false, fmt.Errorf("action must not be empty")
+	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  deviceID,
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: action},
+	})
+	return true, nil
+}
+
 // ApplyScene is the resolver for the applyScene field.
 func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error) {
 	s, err := r.Store.GetScene(ctx, sceneID)
@@ -103,7 +122,7 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		return nil, err
 	}
 
-	commands := buildSceneApplyCommands(ctx, r.StateReader, r.TargetResolver, actions, payloads)
+	commands := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, actions, payloads)
 	for _, cmd := range commands {
 		r.EventBus.Publish(eventbus.Event{
 			Type:      eventbus.EventCommandRequested,
@@ -119,7 +138,7 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		Payload:   sceneID,
 	})
 
-	return mapScene(ctx, r.StateReader, r.Store, s, actions, payloads), nil
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
 }
 
 // CreateScene is the resolver for the createScene field.
@@ -250,9 +269,7 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 	}
 
 	for _, e := range input.Edges {
-		edgeID := uuid.New().String()
 		_, err := r.Store.CreateAutomationEdge(ctx, store.CreateAutomationEdgeParams{
-			ID:           edgeID,
 			AutomationID: autoID,
 			FromNodeID:   e.FromNodeID,
 			ToNodeID:     e.ToNodeID,
@@ -312,49 +329,27 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	}
 
 	if nodesSet {
-		existingEdges, err := r.Store.ListAutomationEdges(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		for _, ee := range existingEdges {
-			if err := r.Store.DeleteAutomationEdge(ctx, ee.ID); err != nil {
-				return nil, err
-			}
-		}
-		existingNodes, err := r.Store.ListAutomationNodes(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		for _, en := range existingNodes {
-			if err := r.Store.DeleteAutomationNode(ctx, en.ID); err != nil {
-				return nil, err
-			}
-		}
-		for _, n := range nodes {
-			_, err := r.Store.CreateAutomationNode(ctx, store.CreateAutomationNodeParams{
+		nodeParams := make([]store.CreateAutomationNodeParams, len(nodes))
+		for i, n := range nodes {
+			nodeParams[i] = store.CreateAutomationNodeParams{
 				ID:           n.ID,
 				AutomationID: id,
 				Type:         n.Type,
 				Config:       n.Config,
 				PositionX:    n.PositionX,
 				PositionY:    n.PositionY,
-			})
-			if err != nil {
-				return nil, err
 			}
 		}
-
-		for _, e := range edges {
-			edgeID := uuid.New().String()
-			_, err := r.Store.CreateAutomationEdge(ctx, store.CreateAutomationEdgeParams{
-				ID:           edgeID,
+		edgeParams := make([]store.CreateAutomationEdgeParams, len(edges))
+		for i, e := range edges {
+			edgeParams[i] = store.CreateAutomationEdgeParams{
 				AutomationID: id,
 				FromNodeID:   e.FromNodeID,
 				ToNodeID:     e.ToNodeID,
-			})
-			if err != nil {
-				return nil, err
 			}
+		}
+		if err := r.Store.ReplaceAutomationGraph(ctx, id, nodeParams, edgeParams); err != nil {
+			return nil, err
 		}
 	}
 
@@ -514,6 +509,7 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 	if err != nil {
 		return nil, err
 	}
+	r.publishRoomMembershipChanged()
 	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
 }
 
@@ -547,20 +543,20 @@ func (r *mutationResolver) DeleteRoom(ctx context.Context, id string) (bool, err
 	if err := r.Store.DeleteRoom(ctx, id); err != nil {
 		return false, err
 	}
+	r.publishRoomMembershipChanged()
 	return true, nil
 }
 
 // AddRoomDevice is the resolver for the addRoomDevice field.
 func (r *mutationResolver) AddRoomDevice(ctx context.Context, input model.AddRoomDeviceInput) (*model.Room, error) {
-	memberID := uuid.New().String()
 	_, err := r.Store.AddRoomDevice(ctx, store.AddRoomDeviceParams{
-		ID:       memberID,
 		RoomID:   input.RoomID,
 		DeviceID: input.DeviceID,
 	})
 	if err != nil {
 		return nil, err
 	}
+	r.publishRoomMembershipChanged()
 	rm, err := r.Store.GetRoom(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -573,6 +569,7 @@ func (r *mutationResolver) RemoveRoomDevice(ctx context.Context, roomID string, 
 	if err := r.Store.RemoveRoomDeviceByRoomAndDevice(ctx, roomID, deviceID); err != nil {
 		return nil, err
 	}
+	r.publishRoomMembershipChanged()
 	rm, err := r.Store.GetRoom(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -715,7 +712,7 @@ func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.Up
 
 // ChangePassword replaces the authenticated user's password after verifying
 // their existing one. The current JWT continues to work until it expires;
-// server-side revocation of previously issued tokens is out of scope.
+// server-side revocation of live tokens is out of scope.
 func (r *mutationResolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error) {
 	cu, ok := auth.UserFromContext(ctx)
 	if !ok {
@@ -858,6 +855,9 @@ func (r *mutationResolver) BatchDeleteRooms(ctx context.Context, ids []string) (
 	if err != nil {
 		return 0, err
 	}
+	if n > 0 {
+		r.publishRoomMembershipChanged()
+	}
 	return int(n), nil
 }
 
@@ -913,6 +913,7 @@ func (r *mutationResolver) BatchAddRoomDevices(ctx context.Context, roomID strin
 	if _, err := r.Store.BatchAddRoomDevices(ctx, roomID, deviceIds); err != nil {
 		return nil, err
 	}
+	r.publishRoomMembershipChanged()
 	rm, err := r.Store.GetRoom(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -973,7 +974,7 @@ func (r *queryResolver) Scenes(ctx context.Context) ([]*model.Scene, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapScene(ctx, r.StateReader, r.Store, s, actions, payloads)
+		result[i] = mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads)
 	}
 	return result, nil
 }
@@ -992,7 +993,7 @@ func (r *queryResolver) Scene(ctx context.Context, id string) (*model.Scene, err
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(ctx, r.StateReader, r.Store, s, actions, payloads), nil
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
 }
 
 // Automations is the resolver for the automations field.
@@ -1580,6 +1581,42 @@ func (r *subscriptionResolver) AutomationNodeActivated(ctx context.Context, auto
 					AutomationID: na.AutomationID,
 					NodeID:       string(na.NodeID),
 					Active:       na.Active,
+				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// SceneActiveChanged is the resolver for the sceneActiveChanged field.
+func (r *subscriptionResolver) SceneActiveChanged(ctx context.Context) (<-chan *model.SceneActiveEvent, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventSceneActivated, eventbus.EventSceneDeactivated)
+	out := make(chan *model.SceneActiveEvent, 1)
+
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				a, ok := evt.Payload.(scene.ActivationEvent)
+				if !ok {
+					continue
+				}
+				select {
+				case out <- &model.SceneActiveEvent{
+					SceneID:     a.SceneID,
+					ActivatedAt: a.ActivatedAt,
 				}:
 				case <-ctx.Done():
 					return

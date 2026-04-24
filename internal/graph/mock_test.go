@@ -187,7 +187,6 @@ func (m *mockStore) CreateSceneAction(_ context.Context, params store.CreateScen
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	sa := store.SceneAction{
-		ID:         params.ID,
 		SceneID:    params.SceneID,
 		TargetType: params.TargetType,
 		TargetID:   params.TargetID,
@@ -202,21 +201,6 @@ func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store
 	return m.sceneActions[sceneID], nil
 }
 
-func (m *mockStore) DeleteSceneAction(_ context.Context, id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for sceneID, actions := range m.sceneActions {
-		var filtered []store.SceneAction
-		for _, a := range actions {
-			if a.ID != id {
-				filtered = append(filtered, a)
-			}
-		}
-		m.sceneActions[sceneID] = filtered
-	}
-	return nil
-}
-
 func (m *mockStore) ListSceneDevicePayloads(_ context.Context, sceneID string) ([]store.SceneDevicePayload, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -229,7 +213,6 @@ func (m *mockStore) SaveSceneContent(_ context.Context, params store.SaveSceneCo
 	actions := make([]store.SceneAction, len(params.Targets))
 	for i, t := range params.Targets {
 		actions[i] = store.SceneAction{
-			ID:         fmt.Sprintf("%s-%d", params.SceneID, i),
 			SceneID:    params.SceneID,
 			TargetType: t.TargetType,
 			TargetID:   t.TargetID,
@@ -346,26 +329,10 @@ func (m *mockStore) ListAutomationNodes(_ context.Context, automationID string) 
 	return m.automationNodes[automationID], nil
 }
 
-func (m *mockStore) DeleteAutomationNode(_ context.Context, id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for autoID, nodes := range m.automationNodes {
-		var filtered []store.AutomationNode
-		for _, n := range nodes {
-			if n.ID != id {
-				filtered = append(filtered, n)
-			}
-		}
-		m.automationNodes[autoID] = filtered
-	}
-	return nil
-}
-
 func (m *mockStore) CreateAutomationEdge(_ context.Context, params store.CreateAutomationEdgeParams) (store.AutomationEdge, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	e := store.AutomationEdge{
-		ID:           params.ID,
 		AutomationID: params.AutomationID,
 		FromNodeID:   params.FromNodeID,
 		ToNodeID:     params.ToNodeID,
@@ -380,18 +347,30 @@ func (m *mockStore) ListAutomationEdges(_ context.Context, automationID string) 
 	return m.automationEdges[automationID], nil
 }
 
-func (m *mockStore) DeleteAutomationEdge(_ context.Context, id string) error {
+func (m *mockStore) ReplaceAutomationGraph(_ context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for autoID, edges := range m.automationEdges {
-		var filtered []store.AutomationEdge
-		for _, e := range edges {
-			if e.ID != id {
-				filtered = append(filtered, e)
-			}
+	replacedNodes := make([]store.AutomationNode, len(nodes))
+	for i, n := range nodes {
+		replacedNodes[i] = store.AutomationNode{
+			ID:           n.ID,
+			AutomationID: automationID,
+			Type:         n.Type,
+			Config:       n.Config,
+			PositionX:    n.PositionX,
+			PositionY:    n.PositionY,
 		}
-		m.automationEdges[autoID] = filtered
 	}
+	replacedEdges := make([]store.AutomationEdge, len(edges))
+	for i, e := range edges {
+		replacedEdges[i] = store.AutomationEdge{
+			AutomationID: automationID,
+			FromNodeID:   e.FromNodeID,
+			ToNodeID:     e.ToNodeID,
+		}
+	}
+	m.automationNodes[automationID] = replacedNodes
+	m.automationEdges[automationID] = replacedEdges
 	return nil
 }
 

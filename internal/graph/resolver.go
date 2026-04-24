@@ -47,7 +47,6 @@ type GraphStore interface {
 	BatchDeleteScenes(ctx context.Context, ids []string) (int64, error)
 	CreateSceneAction(ctx context.Context, params store.CreateSceneActionParams) (store.SceneAction, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
-	DeleteSceneAction(ctx context.Context, id string) error
 	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]store.SceneDevicePayload, error)
 	SaveSceneContent(ctx context.Context, params store.SaveSceneContentParams) error
 
@@ -61,10 +60,9 @@ type GraphStore interface {
 	BatchDeleteAutomations(ctx context.Context, ids []string) (int64, error)
 	CreateAutomationNode(ctx context.Context, params store.CreateAutomationNodeParams) (store.AutomationNode, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]store.AutomationNode, error)
-	DeleteAutomationNode(ctx context.Context, id string) error
 	CreateAutomationEdge(ctx context.Context, params store.CreateAutomationEdgeParams) (store.AutomationEdge, error)
-	DeleteAutomationEdge(ctx context.Context, id string) error
 	ListAutomationEdges(ctx context.Context, automationID string) ([]store.AutomationEdge, error)
+	ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
 
 	// Groups

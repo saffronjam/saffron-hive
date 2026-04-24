@@ -13,8 +13,10 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -198,6 +200,18 @@ func signAuthPayload(svc *auth.Service, u store.User) (*model.AuthPayload, error
 	}, nil
 }
 
+// publishRoomMembershipChanged signals downstream caches (the activity
+// recorder's RoomCache) that they should re-read room membership.
+func (r *Resolver) publishRoomMembershipChanged() {
+	if r.EventBus == nil {
+		return
+	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventRoomMembershipChanged,
+		Timestamp: time.Now(),
+	})
+}
+
 func currentUserID(ctx context.Context) *string {
 	u, ok := auth.UserFromContext(ctx)
 	if !ok {
@@ -279,17 +293,17 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 	return out
 }
 
-func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store.Scene, actions []store.SceneAction, payloads []store.SceneDevicePayload) *model.Scene {
+func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s GraphStore, sc store.Scene, actions []store.SceneAction, payloads []store.SceneDevicePayload) *model.Scene {
 	ms := &model.Scene{
-		ID:        sc.ID,
-		Name:      sc.Name,
-		Icon:      sc.Icon,
-		CreatedBy: mapUserRef(sc.CreatedBy),
+		ID:          sc.ID,
+		Name:        sc.Name,
+		Icon:        sc.Icon,
+		CreatedBy:   mapUserRef(sc.CreatedBy),
+		ActivatedAt: sc.ActivatedAt,
 	}
 	ms.Actions = make([]*model.SceneAction, len(actions))
 	for i, a := range actions {
 		ms.Actions[i] = &model.SceneAction{
-			ID:         a.ID,
 			TargetType: a.TargetType,
 			TargetID:   a.TargetID,
 			Target:     resolveSceneTarget(ctx, sr, s, a.TargetType, a.TargetID),
@@ -302,7 +316,53 @@ func mapScene(ctx context.Context, sr device.StateReader, s GraphStore, sc store
 			Payload:  p.Payload,
 		}
 	}
+	effective := resolveEffectiveScenePayloads(ctx, sr, tr, actions, payloads)
+	ms.EffectivePayloads = make([]*model.SceneDevicePayload, len(effective))
+	for i, p := range effective {
+		ms.EffectivePayloads[i] = &model.SceneDevicePayload{
+			DeviceID: string(p.DeviceID),
+			Payload:  p.Payload,
+		}
+	}
 	return ms
+}
+
+// resolveEffectiveScenePayloads returns one entry per unique device reached by
+// the scene's action targets (rooms, groups, or direct devices). Devices with
+// an explicit per-device override carry that payload; other devices get the
+// capability-filtered warm-white default serialised as the same JSON shape.
+func resolveEffectiveScenePayloads(
+	ctx context.Context,
+	sr device.StateReader,
+	tr device.TargetResolver,
+	actions []store.SceneAction,
+	payloads []store.SceneDevicePayload,
+) []store.SceneDevicePayload {
+	payloadByDevice := make(map[device.DeviceID]string, len(payloads))
+	for _, p := range payloads {
+		payloadByDevice[p.DeviceID] = p.Payload
+	}
+	seen := make(map[device.DeviceID]struct{})
+	var out []store.SceneDevicePayload
+	for _, a := range actions {
+		for _, did := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
+			if _, ok := seen[did]; ok {
+				continue
+			}
+			seen[did] = struct{}{}
+			if raw, ok := payloadByDevice[did]; ok {
+				out = append(out, store.SceneDevicePayload{DeviceID: did, Payload: raw})
+				continue
+			}
+			cmd := scene.DefaultScenePayload(sr, did)
+			raw, err := store.MarshalCommand(cmd)
+			if err != nil {
+				continue
+			}
+			out = append(out, store.SceneDevicePayload{DeviceID: did, Payload: raw})
+		}
+	}
+	return out
 }
 
 // mapUserRef converts a store.UserRef into the GraphQL User type. Returns nil
@@ -444,7 +504,6 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 	mg.Edges = make([]*model.AutomationEdge, len(g.Edges))
 	for i, e := range g.Edges {
 		mg.Edges[i] = &model.AutomationEdge{
-			ID:         e.ID,
 			FromNodeID: e.FromNodeID,
 			ToNodeID:   e.ToNodeID,
 		}
@@ -574,153 +633,7 @@ func loadAndMapScene(ctx context.Context, r *mutationResolver, id string) (*mode
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(ctx, r.StateReader, r.Store, s, actions, payloads), nil
-}
-
-// buildSceneApplyCommands resolves a scene's target membership to a unique
-// device set and emits one command per device: the explicit per-device payload
-// if one exists, else a capability-filtered warm-white default.
-func buildSceneApplyCommands(
-	ctx context.Context,
-	sr device.StateReader,
-	tr device.TargetResolver,
-	actions []store.SceneAction,
-	payloads []store.SceneDevicePayload,
-) []device.Command {
-	payloadByDevice := make(map[device.DeviceID]string, len(payloads))
-	for _, p := range payloads {
-		payloadByDevice[p.DeviceID] = p.Payload
-	}
-
-	seen := make(map[device.DeviceID]struct{})
-	var order []device.DeviceID
-	for _, a := range actions {
-		for _, did := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
-			if _, ok := seen[did]; ok {
-				continue
-			}
-			seen[did] = struct{}{}
-			order = append(order, did)
-		}
-	}
-
-	cmds := make([]device.Command, 0, len(order))
-	for _, did := range order {
-		if raw, ok := payloadByDevice[did]; ok {
-			var desired map[string]interface{}
-			if err := json.Unmarshal([]byte(raw), &desired); err == nil {
-				cmds = append(cmds, buildCommandFromMap(sr, did, desired))
-				continue
-			}
-		}
-		cmds = append(cmds, buildDefaultScenePayload(sr, did))
-	}
-	return cmds
-}
-
-// defaultSceneTransitionSeconds is applied to scene-driven commands for lights
-// so on/off and brightness/color changes fade instead of snapping.
-const defaultSceneTransitionSeconds = 0.4
-
-func hasWritableCapability(d device.Device, name string) bool {
-	for _, c := range d.Capabilities {
-		if c.Name == name && c.Access&2 != 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// buildDefaultScenePayload produces a warm-white "on" command gated by the
-// device's capabilities. Fields the device can't accept are simply omitted.
-func buildDefaultScenePayload(sr device.StateReader, deviceID device.DeviceID) device.Command {
-	cmd := device.Command{DeviceID: deviceID}
-	d, ok := sr.GetDevice(deviceID)
-	if !ok {
-		cmd.On = device.Ptr(true)
-		return cmd
-	}
-	if hasWritableCapability(d, device.CapOnOff) {
-		cmd.On = device.Ptr(true)
-	}
-	if hasWritableCapability(d, device.CapBrightness) {
-		cmd.Brightness = device.Ptr(200)
-		cmd.Transition = device.Ptr(defaultSceneTransitionSeconds)
-	}
-	if hasWritableCapability(d, device.CapColorTemp) {
-		cmd.ColorTemp = device.Ptr(370)
-	}
-	return cmd
-}
-
-func buildCommandFromMap(sr device.StateReader, deviceID device.DeviceID, desired map[string]interface{}) device.Command {
-	cmd := device.Command{DeviceID: deviceID}
-	if v, ok := desired["on"]; ok {
-		if b, ok := v.(bool); ok {
-			cmd.On = device.Ptr(b)
-		}
-	}
-	if v, ok := desired["brightness"]; ok {
-		cmd.Brightness = device.Ptr(toIntFromAny(v))
-	}
-	if v, ok := desired["color_temp"]; ok {
-		cmd.ColorTemp = device.Ptr(toIntFromAny(v))
-	}
-	if v, ok := desired["color"]; ok {
-		if m, ok := v.(map[string]interface{}); ok {
-			c := &device.Color{}
-			if r, ok := m["r"]; ok {
-				c.R = toIntFromAny(r)
-			}
-			if g, ok := m["g"]; ok {
-				c.G = toIntFromAny(g)
-			}
-			if b, ok := m["b"]; ok {
-				c.B = toIntFromAny(b)
-			}
-			if x, ok := m["x"]; ok {
-				if f, ok := toFloatFromAny(x); ok {
-					c.X = f
-				}
-			}
-			if y, ok := m["y"]; ok {
-				if f, ok := toFloatFromAny(y); ok {
-					c.Y = f
-				}
-			}
-			cmd.Color = c
-		}
-	}
-	if v, ok := desired["transition"]; ok {
-		if f, ok := toFloatFromAny(v); ok {
-			cmd.Transition = device.Ptr(f)
-		}
-	} else if d, ok := sr.GetDevice(deviceID); ok && hasWritableCapability(d, device.CapBrightness) {
-		cmd.Transition = device.Ptr(defaultSceneTransitionSeconds)
-	}
-	return cmd
-}
-
-func toFloatFromAny(v interface{}) (float64, bool) {
-	switch n := v.(type) {
-	case float64:
-		return n, true
-	case int:
-		return float64(n), true
-	default:
-		return 0, false
-	}
-}
-
-func toIntFromAny(v interface{}) int {
-	switch n := v.(type) {
-	case float64:
-		return int(n)
-	case int:
-		return n
-	default:
-		return 0
-	}
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
 }
 
 func (r *mutationResolver) checkCircularDependency(ctx context.Context, parentID, childID string) error {
@@ -813,9 +726,8 @@ func validateAutomationInput(inputNodes []*model.AutomationNodeInput, inputEdges
 		})
 	}
 	domainEdges := make([]automation.Edge, 0, len(inputEdges))
-	for i, e := range inputEdges {
+	for _, e := range inputEdges {
 		domainEdges = append(domainEdges, automation.Edge{
-			ID:         fmt.Sprintf("edge-%d", i),
 			FromNodeID: automation.NodeID(e.FromNodeID),
 			ToNodeID:   automation.NodeID(e.ToNodeID),
 		})
@@ -896,11 +808,10 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 	switch nodeType {
 	case automation.NodeTrigger:
 		var raw struct {
-			Kind          string `json:"kind"`
-			EventType     string `json:"event_type"`
-			FilterExpr    string `json:"filter_expr"`
-			ConditionExpr string `json:"condition_expr"`
-			CronExpr      string `json:"cron_expr"`
+			Kind       string `json:"kind"`
+			EventType  string `json:"event_type"`
+			FilterExpr string `json:"filter_expr"`
+			CronExpr   string `json:"cron_expr"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			return automation.TriggerConfig{}
@@ -913,14 +824,10 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 				kind = automation.TriggerEvent
 			}
 		}
-		filter := raw.FilterExpr
-		if filter == "" {
-			filter = raw.ConditionExpr
-		}
 		return automation.TriggerConfig{
 			Kind:       kind,
 			EventType:  raw.EventType,
-			FilterExpr: filter,
+			FilterExpr: raw.FilterExpr,
 			CronExpr:   raw.CronExpr,
 		}
 	case automation.NodeCondition:
