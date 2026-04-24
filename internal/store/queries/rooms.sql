@@ -43,16 +43,13 @@ DELETE FROM rooms
 WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
 
 -- name: AddRoomDevice :exec
-INSERT INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?);
+INSERT INTO room_devices (room_id, device_id) VALUES (?, ?);
 
 -- name: AddRoomDeviceIfMissing :execrows
-INSERT OR IGNORE INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?);
+INSERT OR IGNORE INTO room_devices (room_id, device_id) VALUES (?, ?);
 
 -- name: ListRoomDevices :many
-SELECT id, room_id, device_id FROM room_devices WHERE room_id = ?;
-
--- name: RemoveRoomDevice :exec
-DELETE FROM room_devices WHERE id = ?;
+SELECT room_id, device_id FROM room_devices WHERE room_id = ?;
 
 -- name: RemoveRoomDeviceByRoomAndDevice :exec
 DELETE FROM room_devices WHERE room_id = ? AND device_id = ?;
@@ -66,3 +63,8 @@ FROM rooms r
 INNER JOIN room_devices rd ON r.id = rd.room_id
 LEFT JOIN users u ON u.id = r.created_by
 WHERE rd.device_id = ?;
+
+-- name: ListRoomDeviceMemberships :many
+SELECT rd.room_id, rd.device_id, r.name AS room_name
+FROM room_devices rd
+INNER JOIN rooms r ON r.id = rd.room_id;

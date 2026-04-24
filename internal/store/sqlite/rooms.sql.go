@@ -11,32 +11,30 @@ import (
 )
 
 const addRoomDevice = `-- name: AddRoomDevice :exec
-INSERT INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?)
+INSERT INTO room_devices (room_id, device_id) VALUES (?, ?)
 `
 
 type AddRoomDeviceParams struct {
-	ID       string
 	RoomID   string
 	DeviceID string
 }
 
 func (q *Queries) AddRoomDevice(ctx context.Context, arg AddRoomDeviceParams) error {
-	_, err := q.db.ExecContext(ctx, addRoomDevice, arg.ID, arg.RoomID, arg.DeviceID)
+	_, err := q.db.ExecContext(ctx, addRoomDevice, arg.RoomID, arg.DeviceID)
 	return err
 }
 
 const addRoomDeviceIfMissing = `-- name: AddRoomDeviceIfMissing :execrows
-INSERT OR IGNORE INTO room_devices (id, room_id, device_id) VALUES (?, ?, ?)
+INSERT OR IGNORE INTO room_devices (room_id, device_id) VALUES (?, ?)
 `
 
 type AddRoomDeviceIfMissingParams struct {
-	ID       string
 	RoomID   string
 	DeviceID string
 }
 
 func (q *Queries) AddRoomDeviceIfMissing(ctx context.Context, arg AddRoomDeviceIfMissingParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, addRoomDeviceIfMissing, arg.ID, arg.RoomID, arg.DeviceID)
+	result, err := q.db.ExecContext(ctx, addRoomDeviceIfMissing, arg.RoomID, arg.DeviceID)
 	if err != nil {
 		return 0, err
 	}
@@ -134,8 +132,43 @@ func (q *Queries) GetRoom(ctx context.Context, id string) (GetRoomRow, error) {
 	return i, err
 }
 
+const listRoomDeviceMemberships = `-- name: ListRoomDeviceMemberships :many
+SELECT rd.room_id, rd.device_id, r.name AS room_name
+FROM room_devices rd
+INNER JOIN rooms r ON r.id = rd.room_id
+`
+
+type ListRoomDeviceMembershipsRow struct {
+	RoomID   string
+	DeviceID string
+	RoomName string
+}
+
+func (q *Queries) ListRoomDeviceMemberships(ctx context.Context) ([]ListRoomDeviceMembershipsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRoomDeviceMemberships)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRoomDeviceMembershipsRow
+	for rows.Next() {
+		var i ListRoomDeviceMembershipsRow
+		if err := rows.Scan(&i.RoomID, &i.DeviceID, &i.RoomName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRoomDevices = `-- name: ListRoomDevices :many
-SELECT id, room_id, device_id FROM room_devices WHERE room_id = ?
+SELECT room_id, device_id FROM room_devices WHERE room_id = ?
 `
 
 func (q *Queries) ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error) {
@@ -147,7 +180,7 @@ func (q *Queries) ListRoomDevices(ctx context.Context, roomID string) ([]RoomDev
 	var items []RoomDevice
 	for rows.Next() {
 		var i RoomDevice
-		if err := rows.Scan(&i.ID, &i.RoomID, &i.DeviceID); err != nil {
+		if err := rows.Scan(&i.RoomID, &i.DeviceID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -265,15 +298,6 @@ func (q *Queries) ListRoomsContainingDevice(ctx context.Context, deviceID string
 		return nil, err
 	}
 	return items, nil
-}
-
-const removeRoomDevice = `-- name: RemoveRoomDevice :exec
-DELETE FROM room_devices WHERE id = ?
-`
-
-func (q *Queries) RemoveRoomDevice(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, removeRoomDevice, id)
-	return err
 }
 
 const removeRoomDeviceByRoomAndDevice = `-- name: RemoveRoomDeviceByRoomAndDevice :exec

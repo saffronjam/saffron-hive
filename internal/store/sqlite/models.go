@@ -49,7 +49,6 @@ type Automation struct {
 }
 
 type AutomationEdge struct {
-	ID           string
 	AutomationID string
 	FromNodeID   string
 	ToNodeID     string
@@ -117,31 +116,41 @@ type Room struct {
 }
 
 type RoomDevice struct {
-	ID       string
 	RoomID   string
 	DeviceID string
 }
 
 type Scene struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Icon      *string
-	CreatedBy *string
+	ID          string
+	Name        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Icon        *string
+	CreatedBy   *string
+	ActivatedAt *time.Time
 }
 
 type SceneAction struct {
-	ID         string
 	SceneID    string
-	TargetID   string
 	TargetType device.TargetType
+	TargetID   string
 }
 
 type SceneDevicePayload struct {
 	SceneID  string
 	DeviceID device.DeviceID
 	Payload  string
+}
+
+type SceneExpectedState struct {
+	SceneID    string
+	DeviceID   device.DeviceID
+	OnState    *int64
+	Brightness *int64
+	ColorTemp  *int64
+	ColorR     *int64
+	ColorG     *int64
+	ColorB     *int64
 }
 
 type Setting struct {

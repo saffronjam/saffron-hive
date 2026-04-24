@@ -26,3 +26,5 @@ sql:
             go_type: "github.com/saffronjam/saffron-hive/internal/device.TargetType"
           - column: "scene_device_payloads.device_id"
             go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"
+          - column: "scene_expected_states.device_id"
+            go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"

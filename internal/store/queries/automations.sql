@@ -72,17 +72,17 @@ SELECT id, automation_id, type, config, position_x, position_y
 FROM automation_nodes
 WHERE automation_id = ?;
 
--- name: DeleteAutomationNode :exec
-DELETE FROM automation_nodes WHERE id = ?;
+-- name: DeleteAutomationNodesByAutomation :exec
+DELETE FROM automation_nodes WHERE automation_id = ?;
 
 -- name: CreateAutomationEdge :exec
-INSERT INTO automation_edges (id, automation_id, from_node_id, to_node_id)
-VALUES (?, ?, ?, ?);
+INSERT INTO automation_edges (automation_id, from_node_id, to_node_id)
+VALUES (?, ?, ?);
 
 -- name: ListAutomationEdges :many
-SELECT id, automation_id, from_node_id, to_node_id
+SELECT automation_id, from_node_id, to_node_id
 FROM automation_edges
 WHERE automation_id = ?;
 
--- name: DeleteAutomationEdge :exec
-DELETE FROM automation_edges WHERE id = ?;
+-- name: DeleteAutomationEdgesByAutomation :exec
+DELETE FROM automation_edges WHERE automation_id = ?;

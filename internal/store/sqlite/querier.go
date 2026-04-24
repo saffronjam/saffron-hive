@@ -25,6 +25,7 @@ type Querier interface {
 	ClearAutomationIcon(ctx context.Context, id string) error
 	ClearGroupIcon(ctx context.Context, id string) error
 	ClearRoomIcon(ctx context.Context, id string) error
+	ClearSceneActivatedAt(ctx context.Context, id string) error
 	ClearSceneIcon(ctx context.Context, id string) error
 	ClearUserAvatar(ctx context.Context, id string) error
 	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
@@ -54,16 +55,16 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
-	DeleteAutomationEdge(ctx context.Context, id string) error
-	DeleteAutomationNode(ctx context.Context, id string) error
+	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
+	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
-	DeleteSceneAction(ctx context.Context, id string) error
 	DeleteSceneActionsByScene(ctx context.Context, sceneID string) error
 	DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error
 	DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error)
+	DeleteSceneExpectedStatesByScene(ctx context.Context, sceneID string) error
 	DeleteUser(ctx context.Context, id string) error
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
@@ -97,7 +98,9 @@ type Querier interface {
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
+	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
+	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
@@ -107,30 +110,34 @@ type Querier interface {
 	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
+	ListRoomDeviceMemberships(ctx context.Context) ([]ListRoomDeviceMembershipsRow, error)
 	ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error)
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
 	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]ListRoomsContainingDeviceRow, error)
-	ListSceneActions(ctx context.Context, sceneID string) ([]ListSceneActionsRow, error)
+	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
 	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error)
+	ListSceneExpectedStates(ctx context.Context, sceneID string) ([]SceneExpectedState, error)
 	ListScenes(ctx context.Context) ([]ListScenesRow, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
-	PruneDeviceStateSamplesOlderThan(ctx context.Context, recordedAt time.Time) (int64, error)
+	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
 	// Groups samples into fixed-size time buckets. bucket_seconds must be > 0.
-	// Per bucket returns AVG(value) and the earliest recorded_at (bucket_start).
-	// The bucket key is computed once in the SELECT and grouped by alias so the
-	// sqlc.arg substitution happens in a position sqlc reliably parses.
+	// Per bucket returns AVG(value) and the Unix epoch of the earliest recorded_at
+	// (bucket_start_unix). Returning an INTEGER epoch sidesteps the sqlite driver's
+	// re-serialisation of TIMESTAMP aggregates. The substr(..., 1, 19) keeps
+	// strftime happy across the stored RFC3339Nano form.
 	QueryStateHistoryBucketed(ctx context.Context, arg QueryStateHistoryBucketedParams) ([]QueryStateHistoryBucketedRow, error)
 	// device_ids_json and fields_json are JSON-array strings. An empty array in
 	// fields_json matches every field. device_ids_json must be non-empty (callers
-	// always pick sources explicitly).
+	// always pick sources explicitly). Time bounds are RFC3339Nano UTC strings so
+	// lexicographic comparison matches chronological order.
 	QueryStateHistoryRaw(ctx context.Context, arg QueryStateHistoryRawParams) ([]QueryStateHistoryRawRow, error)
 	RegisterZigbeeDevice(ctx context.Context, arg RegisterZigbeeDeviceParams) error
 	RemoveGroupMember(ctx context.Context, id string) error
-	RemoveRoomDevice(ctx context.Context, id string) error
 	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, arg RemoveRoomDeviceByRoomAndDeviceParams) error
+	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
 	// Partial update via COALESCE(narg, col) gate. Nil narg values leave their
 	// column untouched. The nullable icon column can't be cleared through this
@@ -158,6 +165,7 @@ type Querier interface {
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertMQTTConfig(ctx context.Context, arg UpsertMQTTConfigParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
+	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	UpsertZigbeeDevice(ctx context.Context, arg UpsertZigbeeDeviceParams) error
 }

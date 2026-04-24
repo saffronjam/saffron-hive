@@ -25,6 +25,15 @@ func (q *Queries) BatchDeleteScenes(ctx context.Context, idsJson string) (int64,
 	return result.RowsAffected()
 }
 
+const clearSceneActivatedAt = `-- name: ClearSceneActivatedAt :exec
+UPDATE scenes SET activated_at = NULL WHERE id = ?
+`
+
+func (q *Queries) ClearSceneActivatedAt(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearSceneActivatedAt, id)
+	return err
+}
+
 const clearSceneIcon = `-- name: ClearSceneIcon :exec
 UPDATE scenes SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -50,24 +59,18 @@ func (q *Queries) CreateScene(ctx context.Context, arg CreateSceneParams) error 
 }
 
 const createSceneAction = `-- name: CreateSceneAction :exec
-INSERT INTO scene_actions (id, scene_id, target_type, target_id)
-VALUES (?, ?, ?, ?)
+INSERT INTO scene_actions (scene_id, target_type, target_id)
+VALUES (?, ?, ?)
 `
 
 type CreateSceneActionParams struct {
-	ID         string
 	SceneID    string
 	TargetType device.TargetType
 	TargetID   string
 }
 
 func (q *Queries) CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error {
-	_, err := q.db.ExecContext(ctx, createSceneAction,
-		arg.ID,
-		arg.SceneID,
-		arg.TargetType,
-		arg.TargetID,
-	)
+	_, err := q.db.ExecContext(ctx, createSceneAction, arg.SceneID, arg.TargetType, arg.TargetID)
 	return err
 }
 
@@ -77,15 +80,6 @@ DELETE FROM scenes WHERE id = ?
 
 func (q *Queries) DeleteScene(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteScene, id)
-	return err
-}
-
-const deleteSceneAction = `-- name: DeleteSceneAction :exec
-DELETE FROM scene_actions WHERE id = ?
-`
-
-func (q *Queries) DeleteSceneAction(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteSceneAction, id)
 	return err
 }
 
@@ -127,7 +121,7 @@ func (q *Queries) DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg Delete
 }
 
 const getScene = `-- name: GetScene :one
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at,
+SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, s.activated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -142,6 +136,7 @@ type GetSceneRow struct {
 	Icon            *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	ActivatedAt     *time.Time
 	CreatorID       *string
 	CreatorUsername *string
 	CreatorName     *string
@@ -156,6 +151,7 @@ func (q *Queries) GetScene(ctx context.Context, id string) (GetSceneRow, error) 
 		&i.Icon,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ActivatedAt,
 		&i.CreatorID,
 		&i.CreatorUsername,
 		&i.CreatorName,
@@ -163,34 +159,54 @@ func (q *Queries) GetScene(ctx context.Context, id string) (GetSceneRow, error) 
 	return i, err
 }
 
+const listActiveScenes = `-- name: ListActiveScenes :many
+SELECT id, activated_at FROM scenes WHERE activated_at IS NOT NULL
+`
+
+type ListActiveScenesRow struct {
+	ID          string
+	ActivatedAt *time.Time
+}
+
+func (q *Queries) ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveScenes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListActiveScenesRow
+	for rows.Next() {
+		var i ListActiveScenesRow
+		if err := rows.Scan(&i.ID, &i.ActivatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSceneActions = `-- name: ListSceneActions :many
-SELECT id, scene_id, target_type, target_id
+SELECT scene_id, target_type, target_id
 FROM scene_actions
 WHERE scene_id = ?
 `
 
-type ListSceneActionsRow struct {
-	ID         string
-	SceneID    string
-	TargetType device.TargetType
-	TargetID   string
-}
-
-func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]ListSceneActionsRow, error) {
+func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error) {
 	rows, err := q.db.QueryContext(ctx, listSceneActions, sceneID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListSceneActionsRow
+	var items []SceneAction
 	for rows.Next() {
-		var i ListSceneActionsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.SceneID,
-			&i.TargetType,
-			&i.TargetID,
-		); err != nil {
+		var i SceneAction
+		if err := rows.Scan(&i.SceneID, &i.TargetType, &i.TargetID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -234,7 +250,7 @@ func (q *Queries) ListSceneDevicePayloads(ctx context.Context, sceneID string) (
 }
 
 const listScenes = `-- name: ListScenes :many
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at,
+SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, s.activated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -248,6 +264,7 @@ type ListScenesRow struct {
 	Icon            *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	ActivatedAt     *time.Time
 	CreatorID       *string
 	CreatorUsername *string
 	CreatorName     *string
@@ -268,6 +285,7 @@ func (q *Queries) ListScenes(ctx context.Context) ([]ListScenesRow, error) {
 			&i.Icon,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ActivatedAt,
 			&i.CreatorID,
 			&i.CreatorUsername,
 			&i.CreatorName,
@@ -283,6 +301,20 @@ func (q *Queries) ListScenes(ctx context.Context) ([]ListScenesRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setSceneActivatedAt = `-- name: SetSceneActivatedAt :exec
+UPDATE scenes SET activated_at = ? WHERE id = ?
+`
+
+type SetSceneActivatedAtParams struct {
+	ActivatedAt *time.Time
+	ID          string
+}
+
+func (q *Queries) SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error {
+	_, err := q.db.ExecContext(ctx, setSceneActivatedAt, arg.ActivatedAt, arg.ID)
+	return err
 }
 
 const updateSceneIcon = `-- name: UpdateSceneIcon :exec

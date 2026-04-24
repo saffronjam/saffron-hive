@@ -59,24 +59,18 @@ func (q *Queries) CreateAutomation(ctx context.Context, arg CreateAutomationPara
 }
 
 const createAutomationEdge = `-- name: CreateAutomationEdge :exec
-INSERT INTO automation_edges (id, automation_id, from_node_id, to_node_id)
-VALUES (?, ?, ?, ?)
+INSERT INTO automation_edges (automation_id, from_node_id, to_node_id)
+VALUES (?, ?, ?)
 `
 
 type CreateAutomationEdgeParams struct {
-	ID           string
 	AutomationID string
 	FromNodeID   string
 	ToNodeID     string
 }
 
 func (q *Queries) CreateAutomationEdge(ctx context.Context, arg CreateAutomationEdgeParams) error {
-	_, err := q.db.ExecContext(ctx, createAutomationEdge,
-		arg.ID,
-		arg.AutomationID,
-		arg.FromNodeID,
-		arg.ToNodeID,
-	)
+	_, err := q.db.ExecContext(ctx, createAutomationEdge, arg.AutomationID, arg.FromNodeID, arg.ToNodeID)
 	return err
 }
 
@@ -115,21 +109,21 @@ func (q *Queries) DeleteAutomation(ctx context.Context, id string) error {
 	return err
 }
 
-const deleteAutomationEdge = `-- name: DeleteAutomationEdge :exec
-DELETE FROM automation_edges WHERE id = ?
+const deleteAutomationEdgesByAutomation = `-- name: DeleteAutomationEdgesByAutomation :exec
+DELETE FROM automation_edges WHERE automation_id = ?
 `
 
-func (q *Queries) DeleteAutomationEdge(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteAutomationEdge, id)
+func (q *Queries) DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error {
+	_, err := q.db.ExecContext(ctx, deleteAutomationEdgesByAutomation, automationID)
 	return err
 }
 
-const deleteAutomationNode = `-- name: DeleteAutomationNode :exec
-DELETE FROM automation_nodes WHERE id = ?
+const deleteAutomationNodesByAutomation = `-- name: DeleteAutomationNodesByAutomation :exec
+DELETE FROM automation_nodes WHERE automation_id = ?
 `
 
-func (q *Queries) DeleteAutomationNode(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteAutomationNode, id)
+func (q *Queries) DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error {
+	_, err := q.db.ExecContext(ctx, deleteAutomationNodesByAutomation, automationID)
 	return err
 }
 
@@ -175,7 +169,7 @@ func (q *Queries) GetAutomation(ctx context.Context, id string) (GetAutomationRo
 }
 
 const listAutomationEdges = `-- name: ListAutomationEdges :many
-SELECT id, automation_id, from_node_id, to_node_id
+SELECT automation_id, from_node_id, to_node_id
 FROM automation_edges
 WHERE automation_id = ?
 `
@@ -189,12 +183,7 @@ func (q *Queries) ListAutomationEdges(ctx context.Context, automationID string) 
 	var items []AutomationEdge
 	for rows.Next() {
 		var i AutomationEdge
-		if err := rows.Scan(
-			&i.ID,
-			&i.AutomationID,
-			&i.FromNodeID,
-			&i.ToNodeID,
-		); err != nil {
+		if err := rows.Scan(&i.AutomationID, &i.FromNodeID, &i.ToNodeID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
