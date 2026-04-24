@@ -16,9 +16,9 @@ func TestActivateSceneExplicitPayloadsFanOut(t *testing.T) {
 	s := newMockStore()
 
 	s.setSceneActions("scene-1", []store.SceneAction{
-		{ID: "sa-1", SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
-		{ID: "sa-2", SceneID: "scene-1", TargetType: "device", TargetID: "light-2"},
-		{ID: "sa-3", SceneID: "scene-1", TargetType: "device", TargetID: "light-3"},
+		{SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
+		{SceneID: "scene-1", TargetType: "device", TargetID: "light-2"},
+		{SceneID: "scene-1", TargetType: "device", TargetID: "light-3"},
 	})
 	s.setSceneDevicePayloads("scene-1", []store.SceneDevicePayload{
 		{SceneID: "scene-1", DeviceID: "light-1", Payload: `{"brightness": 100}`},
@@ -102,8 +102,8 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(100)})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
-		{ID: "sa-1", SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
-		{ID: "sa-2", SceneID: "scene-1", TargetType: "device", TargetID: "light-2"},
+		{SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
+		{SceneID: "scene-1", TargetType: "device", TargetID: "light-2"},
 	})
 	s.setSceneDevicePayloads("scene-1", []store.SceneDevicePayload{
 		{SceneID: "scene-1", DeviceID: "light-1", Payload: `{"brightness": 100}`},
@@ -157,7 +157,7 @@ func TestActivateSceneDefaultFallbackCapabilityFiltered(t *testing.T) {
 	})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
-		{ID: "sa-1", SceneID: "scene-1", TargetType: "group", TargetID: "living"},
+		{SceneID: "scene-1", TargetType: "group", TargetID: "living"},
 	})
 	s.setGroupMembers("living", []store.GroupMember{
 		{ID: "m-1", GroupID: "living", MemberType: device.GroupMemberDevice, MemberID: "lamp-1"},

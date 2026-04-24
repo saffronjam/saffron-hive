@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -34,11 +36,34 @@ type ActionExecutor struct {
 	store    automationStore
 	resolver device.TargetResolver
 	alarms   AlarmRaiser
+
+	// baseCtx scopes every side-effect initiated by an action. Set by
+	// SetBaseContext at engine startup so shutdown cancels in-flight
+	// resolver lookups, scene expansions, and alarm service calls.
+	baseCtx context.Context
+
+	// stateMatchSkips counts how many commands were suppressed because the
+	// device already matched the desired state (loop-prevention mechanism
+	// #1). Exposed to operators via engine.Stats().
+	stateMatchSkips atomic.Int64
 }
 
 // NewActionExecutor creates an ActionExecutor.
 func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser) *ActionExecutor {
-	return &ActionExecutor{bus: bus, reader: reader, store: s, resolver: resolver, alarms: alarmSvc}
+	return &ActionExecutor{
+		bus:      bus,
+		reader:   reader,
+		store:    s,
+		resolver: resolver,
+		alarms:   alarmSvc,
+		baseCtx:  context.Background(),
+	}
+}
+
+// SetBaseContext attaches a context whose cancellation propagates into every
+// downstream lookup and service call the executor initiates.
+func (a *ActionExecutor) SetBaseContext(ctx context.Context) {
+	a.baseCtx = ctx
 }
 
 // ExecuteGraphAction processes a graph-based action config. For
@@ -69,6 +94,10 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 		}
 
 		if a.stateMatches(deviceID, desired) {
+			a.stateMatchSkips.Add(1)
+			logger.Debug("action skipped: device already matches desired state",
+				"device_id", deviceID,
+				"automation_id", cfg.AutomationID)
 			return
 		}
 
@@ -113,7 +142,7 @@ func (a *ActionExecutor) executeRaiseAlarm(cfg ActionConfig) {
 	if cfg.AutomationID != "" {
 		source = fmt.Sprintf("automation.%s", cfg.AutomationID)
 	}
-	_, err := a.alarms.Raise(context.Background(), alarms.RaiseParams{
+	_, err := a.alarms.Raise(a.baseCtx, alarms.RaiseParams{
 		AlarmID:  p.AlarmID,
 		Severity: store.AlarmSeverity(p.Severity),
 		Kind:     store.AlarmKind(p.Kind),
@@ -135,7 +164,7 @@ func (a *ActionExecutor) executeClearAlarm(cfg ActionConfig) {
 		logger.Error("invalid clear_alarm payload", "error", err)
 		return
 	}
-	if _, err := a.alarms.DeleteByAlarmID(context.Background(), p.AlarmID); err != nil {
+	if _, err := a.alarms.DeleteByAlarmID(a.baseCtx, p.AlarmID); err != nil {
 		logger.Error("clear_alarm failed", "alarm_id", p.AlarmID, "error", err)
 	}
 }
@@ -262,7 +291,7 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 }
 
 func (a *ActionExecutor) executeActivateScene(sceneID string) {
-	ctx := context.Background()
+	ctx := a.baseCtx
 	actions, err := a.store.ListSceneActions(ctx, sceneID)
 	if err != nil {
 		logger.Error("scene not found", "scene_id", sceneID, "error", err)
@@ -277,94 +306,19 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 		return
 	}
 
-	payloadByDevice := make(map[device.DeviceID]map[string]any, len(payloads))
-	for _, p := range payloads {
-		var desired map[string]any
-		if err := json.Unmarshal([]byte(p.Payload), &desired); err != nil {
-			logger.Error("invalid scene device payload", "device_id", p.DeviceID, "error", err)
+	commands := scene.BuildApplyCommands(ctx, a.resolver, a.reader, actions, payloads)
+	for _, cmd := range commands {
+		if a.stateMatches(cmd.DeviceID, scene.CommandToDesired(cmd)) {
+			a.stateMatchSkips.Add(1)
+			logger.Debug("scene action skipped: device already matches desired state",
+				"device_id", cmd.DeviceID, "scene_id", sceneID)
 			continue
 		}
-		payloadByDevice[p.DeviceID] = desired
+		a.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventCommandRequested,
+			DeviceID:  string(cmd.DeviceID),
+			Timestamp: time.Now(),
+			Payload:   cmd,
+		})
 	}
-
-	seen := make(map[device.DeviceID]struct{})
-	for _, sa := range actions {
-		for _, did := range a.resolveTargetDevices(sa.TargetType, sa.TargetID) {
-			if _, ok := seen[did]; ok {
-				continue
-			}
-			seen[did] = struct{}{}
-
-			desired, explicit := payloadByDevice[did]
-			var cmd device.Command
-			if explicit {
-				if a.stateMatches(did, desired) {
-					continue
-				}
-				cmd = buildCommand(did, desired)
-			} else {
-				cmd = a.defaultSceneCommand(did)
-				if a.stateMatches(did, commandToDesired(cmd)) {
-					continue
-				}
-			}
-
-			a.bus.Publish(eventbus.Event{
-				Type:      eventbus.EventCommandRequested,
-				DeviceID:  string(did),
-				Timestamp: time.Now(),
-				Payload:   cmd,
-			})
-		}
-	}
-}
-
-// defaultSceneCommand returns the warm-white "on" default for devices pulled
-// into a scene via a group/room target but never individually customized.
-// Fields the device's capabilities don't accept are omitted.
-func (a *ActionExecutor) defaultSceneCommand(deviceID device.DeviceID) device.Command {
-	cmd := device.Command{DeviceID: deviceID}
-	d, ok := a.reader.GetDevice(deviceID)
-	if !ok {
-		cmd.On = device.Ptr(true)
-		return cmd
-	}
-	has := func(name string) bool {
-		for _, c := range d.Capabilities {
-			if c.Name == name && c.Access&2 != 0 {
-				return true
-			}
-		}
-		return false
-	}
-	if has(device.CapOnOff) {
-		cmd.On = device.Ptr(true)
-	}
-	if has(device.CapBrightness) {
-		cmd.Brightness = device.Ptr(200)
-	}
-	if has(device.CapColorTemp) {
-		cmd.ColorTemp = device.Ptr(370)
-	}
-	return cmd
-}
-
-// commandToDesired reverses a command back into the desired map expected by
-// stateMatches (which keys by the field name the scene payload would use).
-func commandToDesired(cmd device.Command) map[string]any {
-	m := map[string]any{}
-	if cmd.On != nil {
-		m["on"] = *cmd.On
-	}
-	if cmd.Brightness != nil {
-		m["brightness"] = float64(*cmd.Brightness)
-	}
-	if cmd.ColorTemp != nil {
-		m["color_temp"] = float64(*cmd.ColorTemp)
-	}
-	return m
-}
-
-func (a *ActionExecutor) resolveTargetDevices(targetType string, targetID string) []device.DeviceID {
-	return a.resolver.ResolveTargetDeviceIDs(context.Background(), device.TargetType(targetType), targetID)
 }

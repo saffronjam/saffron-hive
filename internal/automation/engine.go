@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/expr-lang/expr/vm"
@@ -52,12 +53,40 @@ type Engine struct {
 	executor *ActionExecutor
 	now      func() time.Time
 
+	// baseCtx is set by Run to the caller's context and used by the background
+	// goroutines spawned from event-driven fires (resolving targets, stamping
+	// last-fired timestamps, raising alarms). Cancelling the Run context
+	// propagates to every side-effect initiated by the engine.
+	baseCtx context.Context
+
 	mu               sync.RWMutex
 	triggers         map[string][]compiledTrigger
 	graphs           map[string]compiledGraph
 	triggerLastFired map[string]map[NodeID]time.Time
 	cron             *cron.Cron
 	cronByNode       map[NodeID]cron.EntryID
+
+	// cooldownSkips counts how many trigger evaluations were suppressed by
+	// an active cooldown (loop-prevention mechanism #2). Read via Stats().
+	cooldownSkips atomic.Int64
+}
+
+// Stats is a snapshot of runtime counters exposed for observability.
+type Stats struct {
+	// CooldownSkips is the lifetime count of trigger evaluations skipped
+	// because the trigger was in its cooldown window.
+	CooldownSkips int64
+	// StateMatchSkips is the lifetime count of set_device_state actions
+	// suppressed because the device already matched the desired state.
+	StateMatchSkips int64
+}
+
+// Stats returns a live snapshot of engine counters.
+func (e *Engine) Stats() Stats {
+	return Stats{
+		CooldownSkips:   e.cooldownSkips.Load(),
+		StateMatchSkips: e.executor.stateMatchSkips.Load(),
+	}
 }
 
 // NewEngine creates a new automation Engine. alarmSvc may be nil in tests
@@ -70,6 +99,7 @@ func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationSto
 		resolver:         resolver,
 		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc),
 		now:              time.Now,
+		baseCtx:          context.Background(),
 		triggers:         make(map[string][]compiledTrigger),
 		graphs:           make(map[string]compiledGraph),
 		triggerLastFired: make(map[string]map[NodeID]time.Time),
@@ -167,6 +197,9 @@ func (e *Engine) Stop() {
 
 // Run starts the event loop. It blocks until ctx is cancelled.
 func (e *Engine) Run(ctx context.Context) error {
+	e.baseCtx = ctx
+	e.executor.SetBaseContext(ctx)
+
 	if err := e.Reload(ctx); err != nil {
 		return err
 	}
@@ -207,6 +240,9 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 		}
 
 		if e.triggerInCooldown(ct.graphID, ct.nodeID, now, ct.config.CooldownMs) {
+			e.cooldownSkips.Add(1)
+			logger.Debug("trigger skipped: in cooldown",
+				"automation_id", ct.graphID, "node_id", ct.nodeID, "cooldown_ms", ct.config.CooldownMs)
 			continue
 		}
 
@@ -482,7 +518,7 @@ func (e *Engine) executeAction(node Node, automationID string) {
 	}
 
 	deviceIDs := e.resolver.ResolveTargetDeviceIDs(
-		context.Background(),
+		e.baseCtx,
 		device.TargetType(actionCfg.TargetType),
 		actionCfg.TargetID,
 	)
@@ -534,7 +570,7 @@ func (e *Engine) recordTriggerFired(automationID string, nodeID NodeID, now time
 }
 
 func (e *Engine) recordAutomationFired(automationID string, now time.Time) {
-	if err := e.store.UpdateAutomationLastFired(context.Background(), automationID, now); err != nil {
+	if err := e.store.UpdateAutomationLastFired(e.baseCtx, automationID, now); err != nil {
 		logger.Warn("failed to persist last_fired_at", "automation_id", automationID, "error", err)
 	}
 }
@@ -672,7 +708,6 @@ func mapStoreToDomain(sg store.AutomationGraph) AutomationGraph {
 
 	for _, se := range sg.Edges {
 		g.Edges = append(g.Edges, Edge{
-			ID:           se.ID,
 			AutomationID: se.AutomationID,
 			FromNodeID:   NodeID(se.FromNodeID),
 			ToNodeID:     NodeID(se.ToNodeID),
@@ -686,13 +721,12 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 	switch nodeType {
 	case NodeTrigger:
 		var raw struct {
-			Kind          string `json:"kind"`
-			EventType     string `json:"event_type"`
-			FilterExpr    string `json:"filter_expr"`
-			ConditionExpr string `json:"condition_expr"` // legacy field for backward compat
-			CronExpr      string `json:"cron_expr"`
-			GraceMs       int64  `json:"grace_ms"`
-			CooldownMs    int64  `json:"cooldown_ms"`
+			Kind       string `json:"kind"`
+			EventType  string `json:"event_type"`
+			FilterExpr string `json:"filter_expr"`
+			CronExpr   string `json:"cron_expr"`
+			GraceMs    int64  `json:"grace_ms"`
+			CooldownMs int64  `json:"cooldown_ms"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			logger.Error("failed to parse trigger config", "error", err)
@@ -709,14 +743,10 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 		if kind == TriggerManual {
 			return TriggerConfig{Kind: TriggerManual, GraceMs: raw.GraceMs, CooldownMs: raw.CooldownMs}
 		}
-		filter := raw.FilterExpr
-		if filter == "" {
-			filter = raw.ConditionExpr
-		}
 		return TriggerConfig{
 			Kind:       kind,
 			EventType:  raw.EventType,
-			FilterExpr: filter,
+			FilterExpr: raw.FilterExpr,
 			CronExpr:   raw.CronExpr,
 			GraceMs:    raw.GraceMs,
 			CooldownMs: raw.CooldownMs,
