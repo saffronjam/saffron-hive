@@ -14,8 +14,8 @@ func TestValidGraph(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	}
 
@@ -36,9 +36,9 @@ func TestValidGraphMultipleTriggers(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	}
 
@@ -57,7 +57,7 @@ func TestValidGraphDirectTriggerToAction(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	}
 
@@ -89,9 +89,9 @@ func TestCycleDetection(t *testing.T) {
 			{ID: "op2", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorOr}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
+			{AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "op1"},
 		},
 	}
 
@@ -119,7 +119,7 @@ func TestSelfLoop(t *testing.T) {
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op1"},
 		},
 	}
 
@@ -139,8 +139,8 @@ func TestTriggerWithIncomingEdge(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "t1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "t1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	}
 
@@ -170,8 +170,8 @@ func TestActionWithOutgoingEdge(t *testing.T) {
 			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": false}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "a1", ToNodeID: "a2"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "a1", ToNodeID: "a2"},
 		},
 	}
 
@@ -200,7 +200,7 @@ func TestOperatorWithNoIncoming(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
 		},
 	}
 
@@ -229,7 +229,7 @@ func TestOperatorWithNoOutgoing(t *testing.T) {
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
 		},
 	}
 
@@ -257,7 +257,7 @@ func TestEdgeReferencesNonExistentNode(t *testing.T) {
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "nonexistent"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "nonexistent"},
 		},
 	}
 
@@ -275,7 +275,7 @@ func TestEdgeReferencesNonExistentSourceNode(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "nonexistent", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "nonexistent", ToNodeID: "a1"},
 		},
 	}
 
@@ -295,7 +295,7 @@ func TestOrphanNodeProducesWarning(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	}
 
@@ -328,7 +328,7 @@ func TestOrphanActionProducesWarning(t *testing.T) {
 			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: "scene-1"}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	}
 
@@ -375,10 +375,10 @@ func TestChainedOperators(t *testing.T) {
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
-			{ID: "e4", AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t2", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
+			{AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "a1"},
 		},
 	}
 
@@ -399,9 +399,9 @@ func TestMultipleActionsFromOperator(t *testing.T) {
 			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: "scene-1"}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a2"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a2"},
 		},
 	}
 
@@ -451,10 +451,10 @@ func TestLargerCycle(t *testing.T) {
 			{ID: "op3", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
 		},
 		Edges: []Edge{
-			{ID: "e1", AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
-			{ID: "e2", AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
-			{ID: "e3", AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "op3"},
-			{ID: "e4", AutomationID: "auto-1", FromNodeID: "op3", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
+			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "op2"},
+			{AutomationID: "auto-1", FromNodeID: "op2", ToNodeID: "op3"},
+			{AutomationID: "auto-1", FromNodeID: "op3", ToNodeID: "op1"},
 		},
 	}
 
@@ -471,5 +471,92 @@ func TestLargerCycle(t *testing.T) {
 	}
 	if !foundCycle {
 		t.Fatal("expected a cycle error for larger cycle")
+	}
+}
+
+func TestInvalidTriggerFilterExpressionIsRejected(t *testing.T) {
+	g := AutomationGraph{
+		ID:   "auto-1",
+		Name: "bad-filter",
+		Nodes: []Node{
+			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{
+				EventType:  "device.state_changed",
+				FilterExpr: "trigger.device_id == ", // syntax error
+			}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+		},
+		Edges: []Edge{
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+		},
+	}
+
+	result := ValidateGraph(g)
+	if result.Valid() {
+		t.Fatal("expected invalid filter_expr to fail validation")
+	}
+
+	found := false
+	for _, err := range result.Errors {
+		if err.NodeID == "t1" && err.Message != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a filter-expression error on node t1, got: %v", result.Errors)
+	}
+}
+
+func TestInvalidConditionExpressionIsRejected(t *testing.T) {
+	g := AutomationGraph{
+		ID:   "auto-1",
+		Name: "bad-condition",
+		Nodes: []Node{
+			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
+			{ID: "c1", AutomationID: "auto-1", Type: NodeCondition, Config: ConditionConfig{Expr: "1 +"}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+		},
+		Edges: []Edge{
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "a1"},
+		},
+	}
+
+	result := ValidateGraph(g)
+	if result.Valid() {
+		t.Fatal("expected invalid condition expr to fail validation")
+	}
+
+	found := false
+	for _, err := range result.Errors {
+		if err.NodeID == "c1" && err.Message != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a condition-expression error on node c1, got: %v", result.Errors)
+	}
+}
+
+func TestValidExpressionsAreAccepted(t *testing.T) {
+	g := AutomationGraph{
+		ID:   "auto-1",
+		Name: "ok-exprs",
+		Nodes: []Node{
+			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{
+				EventType:  "device.state_changed",
+				FilterExpr: `trigger.device_id == "sensor-1"`,
+			}},
+			{ID: "c1", AutomationID: "auto-1", Type: NodeCondition, Config: ConditionConfig{Expr: `time.hour >= 18`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+		},
+		Edges: []Edge{
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "a1"},
+		},
+	}
+
+	result := ValidateGraph(g)
+	if !result.Valid() {
+		t.Fatalf("expected valid expressions to pass, got errors: %v", result.Errors)
 	}
 }

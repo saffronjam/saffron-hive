@@ -141,7 +141,6 @@ type Node struct {
 
 // Edge is a directed connection between two nodes in an automation graph.
 type Edge struct {
-	ID           string
 	AutomationID string
 	FromNodeID   NodeID
 	ToNodeID     NodeID

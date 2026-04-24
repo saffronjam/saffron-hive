@@ -50,12 +50,12 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 	for _, e := range g.Edges {
 		if _, ok := nodeSet[e.FromNodeID]; !ok {
 			result.Errors = append(result.Errors, ValidationError{
-				Message: fmt.Sprintf("edge %s references non-existent source node %s", e.ID, e.FromNodeID),
+				Message: fmt.Sprintf("edge %s->%s references non-existent source node %s", e.FromNodeID, e.ToNodeID, e.FromNodeID),
 			})
 		}
 		if _, ok := nodeSet[e.ToNodeID]; !ok {
 			result.Errors = append(result.Errors, ValidationError{
-				Message: fmt.Sprintf("edge %s references non-existent target node %s", e.ID, e.ToNodeID),
+				Message: fmt.Sprintf("edge %s->%s references non-existent target node %s", e.FromNodeID, e.ToNodeID, e.ToNodeID),
 			})
 		}
 		incoming[e.ToNodeID]++
@@ -83,13 +83,23 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 					Message: "trigger node has no outgoing edges",
 				})
 			}
-			if tc, ok := n.Config.(TriggerConfig); ok && tc.Kind == TriggerSchedule {
-				parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
-				if _, err := parser.Parse(tc.CronExpr); err != nil {
-					result.Errors = append(result.Errors, ValidationError{
-						NodeID:  n.ID,
-						Message: fmt.Sprintf("invalid cron expression %q: %v", tc.CronExpr, err),
-					})
+			if tc, ok := n.Config.(TriggerConfig); ok {
+				if tc.Kind == TriggerSchedule {
+					parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+					if _, err := parser.Parse(tc.CronExpr); err != nil {
+						result.Errors = append(result.Errors, ValidationError{
+							NodeID:  n.ID,
+							Message: fmt.Sprintf("invalid cron expression %q: %v", tc.CronExpr, err),
+						})
+					}
+				}
+				if tc.FilterExpr != "" {
+					if err := ValidateExpression(tc.FilterExpr); err != nil {
+						result.Errors = append(result.Errors, ValidationError{
+							NodeID:  n.ID,
+							Message: fmt.Sprintf("invalid filter expression: %v", err),
+						})
+					}
 				}
 			}
 		case NodeCondition:
@@ -104,6 +114,14 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 					NodeID:  n.ID,
 					Message: "condition node has no outgoing edges",
 				})
+			}
+			if cc, ok := n.Config.(ConditionConfig); ok && cc.Expr != "" {
+				if err := ValidateExpression(cc.Expr); err != nil {
+					result.Errors = append(result.Errors, ValidationError{
+						NodeID:  n.ID,
+						Message: fmt.Sprintf("invalid condition expression: %v", err),
+					})
+				}
 			}
 		case NodeAction:
 			if out > 0 {
