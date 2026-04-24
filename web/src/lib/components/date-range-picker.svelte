@@ -91,7 +91,7 @@
 				variant="outline"
 				size={compact ? "sm" : "default"}
 				{...props}
-				class={(compact ? "w-[22rem]" : "w-[26rem]") + " justify-start gap-2 font-normal"}
+				class={"w-full max-w-full " + (compact ? "sm:w-[25rem]" : "sm:w-[26rem]") + " justify-start gap-2 font-normal"}
 			>
 				<CalendarIcon class="size-4 shrink-0 opacity-70" />
 				<span class="truncate">{label}</span>
