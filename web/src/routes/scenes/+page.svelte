@@ -14,8 +14,11 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
-	import SceneCard from "$lib/components/scene-card.svelte";
+	import EntityCard from "$lib/components/entity-card.svelte";
 	import SceneTable from "$lib/components/scene-table.svelte";
+	import { sceneTargetBreakdown } from "$lib/list-helpers";
+	import { sceneTintColors } from "$lib/device-tint";
+	import { parsePayload } from "$lib/scene-editable";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
@@ -23,13 +26,13 @@
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import { Plus, Clapperboard, X } from "@lucide/svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import { Plus, Clapperboard, Play } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
-	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
 
 	interface SceneAction {
-		id: string;
 		targetType: string;
 		targetId: string;
 	}
@@ -45,7 +48,9 @@
 		icon?: string | null;
 		actions: SceneAction[];
 		devicePayloads: SceneDevicePayload[];
+		effectivePayloads: SceneDevicePayload[];
 		createdBy?: { id: string; username: string; name: string } | null;
+		activatedAt?: string | null;
 	}
 
 	interface ScenesQueryResult {
@@ -71,11 +76,14 @@
 				name
 				icon
 				actions {
-					id
 					targetType
 					targetId
 				}
 				devicePayloads {
+					deviceId
+					payload
+				}
+				effectivePayloads {
 					deviceId
 					payload
 				}
@@ -84,6 +92,7 @@
 					username
 					name
 				}
+				activatedAt
 			}
 		}
 	`);
@@ -94,11 +103,14 @@
 				id
 				name
 				actions {
-					id
 					targetType
 					targetId
 				}
 				devicePayloads {
+					deviceId
+					payload
+				}
+				effectivePayloads {
 					deviceId
 					payload
 				}
@@ -107,6 +119,16 @@
 					username
 					name
 				}
+				activatedAt
+			}
+		}
+	`);
+
+	const SCENE_ACTIVE_SUB = graphql(`
+		subscription ScenesSceneActiveChanged {
+			sceneActiveChanged {
+				sceneId
+				activatedAt
 			}
 		}
 	`);
@@ -189,11 +211,30 @@
 	});
 	let deleteConfirmScene = $state<SceneData | null>(null);
 	let deleteLoading = $state(false);
-	const errors = new ErrorBanner();
+	const errors = new BannerError();
 
 	const selection = createTableSelection();
 	let batchDeleteConfirm = $state(false);
 	let batchDeleteLoading = $state(false);
+
+	// Process each subscription event in its own callback — using
+	// subscriptionStore + $effect can coalesce rapid events (activate one
+	// scene, deactivate another within a few ms) into a single effect run
+	// that only sees the latest event, silently losing the other.
+	let activeSubHandle: { unsubscribe: () => void } | null = null;
+	onMount(() => {
+		if (!clientRef) return;
+		activeSubHandle = clientRef.subscription(SCENE_ACTIVE_SUB, {}).subscribe((r) => {
+			const ev = r.data?.sceneActiveChanged;
+			if (!ev) return;
+			scenes = scenes.map((s) =>
+				s.id === ev.sceneId ? { ...s, activatedAt: ev.activatedAt ?? null } : s,
+			);
+		});
+	});
+	onDestroy(() => {
+		activeSubHandle?.unsubscribe();
+	});
 
 	async function fetchScenes() {
 		if (!clientRef) return;
@@ -284,14 +325,26 @@
 		applyingId = scene.id;
 		errors.clear();
 
-		const result = await clientRef
-			.mutation<ApplySceneResult>(APPLY_SCENE, { sceneId: scene.id })
-			.toPromise();
+		// Optimistic flip: the card transitions to active immediately instead of
+		// waiting for the sceneActiveChanged subscription event to round-trip.
+		// The subscription stays authoritative and will correct the local value
+		// on failure or if another client invalidates.
+		const previousActivatedAt = scene.activatedAt ?? null;
+		const optimisticAt = new Date().toISOString();
+		scenes = scenes.map((s) => (s.id === scene.id ? { ...s, activatedAt: optimisticAt } : s));
 
-		applyingId = null;
-
-		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+		try {
+			const result = await clientRef
+				.mutation<ApplySceneResult>(APPLY_SCENE, { sceneId: scene.id })
+				.toPromise();
+			if (result.error) {
+				scenes = scenes.map((s) =>
+					s.id === scene.id ? { ...s, activatedAt: previousActivatedAt } : s,
+				);
+				errors.setWithAutoDismiss(result.error.message);
+			}
+		} finally {
+			applyingId = null;
 		}
 	}
 
@@ -436,14 +489,7 @@
 
 <div>
 	{#if errors.message}
-		<div
-			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			<span>{errors.message}</span>
-			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
-				<X class="size-4" />
-			</button>
-		</div>
+		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
 
@@ -502,15 +548,34 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredScenes as scene (scene.id)}
-									<SceneCard
-										{scene}
-										applying={applyingId === scene.id}
-										onapply={handleApply}
-										onedit={handleEdit}
-										ondelete={(s) => (deleteConfirmScene = s)}
+									{@const noTargets = scene.actions.length === 0}
+									{@const applying = applyingId === scene.id}
+									{@const active = scene.activatedAt != null}
+									{@const tintColors = sceneTintColors(scene.effectivePayloads.map((p) => parsePayload(p.payload)))}
+									<EntityCard
+										entity={scene}
+										fallbackIcon={Clapperboard}
+										subtitle="{scene.actions.length} target{scene.actions.length === 1 ? '' : 's'}{scene.actions.length > 0 ? ' · ' + sceneTargetBreakdown(scene.actions) : ''}"
+										tintColors={tintColors.length > 0 ? tintColors : null}
+										tintInactive={tintColors.length > 0 ? !active : null}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
-									/>
+										onedit={handleEdit}
+										ondelete={(s) => (deleteConfirmScene = s)}
+									>
+										{#snippet leadingActions()}
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												onclick={() => handleApply(scene)}
+												disabled={applying || noTargets || active}
+												class="transition-opacity duration-200"
+												aria-label="Apply scene"
+											>
+												<Play class="size-4" />
+											</Button>
+										{/snippet}
+									</EntityCard>
 								{/each}
 							</AnimatedGrid>
 						{/snippet}

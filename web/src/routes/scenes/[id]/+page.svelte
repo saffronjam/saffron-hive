@@ -12,11 +12,13 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
+	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import { ArrowLeft, X, Group, DoorOpen, Clapperboard, Play } from "@lucide/svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import { ArrowLeft, Group, DoorOpen, Clapperboard, Play, X } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { ErrorBanner } from "$lib/stores/error-banner.svelte";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
 	import {
 		sceneToEditorState,
@@ -40,7 +42,6 @@
 				name
 				icon
 				actions {
-					id
 					targetType
 					targetId
 					target {
@@ -142,6 +143,16 @@
 					deviceId
 					payload
 				}
+				activatedAt
+			}
+		}
+	`);
+
+	const SCENE_ACTIVE_SUB = graphql(`
+		subscription SceneEditSceneActiveChanged {
+			sceneActiveChanged {
+				sceneId
+				activatedAt
 			}
 		}
 	`);
@@ -258,7 +269,6 @@
 				name
 				icon
 				actions {
-					id
 					targetType
 					targetId
 				}
@@ -349,10 +359,22 @@
 	const clientRef = getContextClient();
 	let scene = $state<SceneData | null>(null);
 
+	let activeSubHandle: { unsubscribe: () => void } | null = null;
+
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: "Scene" }];
+		if (clientRef) {
+			activeSubHandle = clientRef.subscription(SCENE_ACTIVE_SUB, {}).subscribe((r) => {
+				const ev = r.data?.sceneActiveChanged;
+				if (!ev || !scene || ev.sceneId !== scene.id) return;
+				scene = { ...scene, activatedAt: ev.activatedAt ?? null } as SceneData;
+			});
+		}
 	});
-	onDestroy(() => pageHeader.reset());
+	onDestroy(() => {
+		pageHeader.reset();
+		activeSubHandle?.unsubscribe();
+	});
 
 	$effect(() => {
 		if (scene) {
@@ -361,16 +383,18 @@
 	});
 
 	$effect(() => {
+		const sceneActive = scene?.activatedAt != null;
 		pageHeader.actions = [
 			{
 				label: "Activate",
 				icon: Play,
 				variant: "outline" as const,
 				onclick: handleActivate,
-				disabled: activating || !scene || isDirty,
+				disabled: activating || !scene || isDirty || sceneActive,
+				hideLabelOnMobile: true,
 			},
-			{ label: "Cancel", variant: "outline" as const, onclick: handleCancel },
-			{ label: "Save", saving, onclick: handleSave, disabled: saving || !sceneName.trim() || !isDirty },
+			{ label: "Cancel", icon: X, variant: "outline" as const, onclick: handleCancel, hideLabelOnMobile: true },
+			{ label: "Save", saving, onclick: handleSave, disabled: saving || !sceneName.trim() || !isDirty, hideLabelOnMobile: true },
 		];
 	});
 	let allDevices = $state<Device[]>([]);
@@ -378,7 +402,7 @@
 	let allRooms = $state<RoomData[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
-	const errors = new ErrorBanner();
+	const errors = new BannerError();
 	let unsubscribers: (() => void)[] = [];
 
 	let sceneName = $state("");
@@ -666,14 +690,7 @@
 <div>
 
 	{#if errors.message}
-		<div
-			class="mb-4 flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			<span>{errors.message}</span>
-			<button type="button" onclick={() => errors.clear()} class="ml-2 shrink-0">
-				<X class="size-4" />
-			</button>
-		</div>
+		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
 	{#if loading}
@@ -689,11 +706,11 @@
 				</label>
 				<div class="flex items-center gap-3">
 					<IconPicker value={sceneIcon} onselect={(icon) => (sceneIcon = icon)}>
-						<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted cursor-pointer hover:bg-muted/80 transition-colors" aria-label="Change icon">
+						<IconPickerTrigger size="lg" ariaLabel="Change icon">
 							<AnimatedIcon icon={sceneIcon} class="size-5 text-muted-foreground">
 								{#snippet fallback()}<Clapperboard class="size-5 text-muted-foreground" />{/snippet}
 							</AnimatedIcon>
-						</button>
+						</IconPickerTrigger>
 					</IconPicker>
 					<Input
 						id="scene-name"
