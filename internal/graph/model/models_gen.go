@@ -90,7 +90,6 @@ type AuthPayload struct {
 }
 
 type AutomationEdge struct {
-	ID         string `json:"id"`
 	FromNodeID string `json:"fromNodeId"`
 	ToNodeID   string `json:"toNodeId"`
 }
@@ -331,16 +330,30 @@ type Room struct {
 func (Room) IsSceneTarget() {}
 
 type Scene struct {
-	ID             string                `json:"id"`
-	Name           string                `json:"name"`
-	Icon           *string               `json:"icon,omitempty"`
-	Actions        []*SceneAction        `json:"actions"`
+	ID      string         `json:"id"`
+	Name    string         `json:"name"`
+	Icon    *string        `json:"icon,omitempty"`
+	Actions []*SceneAction `json:"actions"`
+	// Per-device payload overrides the user has saved explicitly. Devices that
+	// inherit their room/group default do NOT appear here. Use this for the
+	// scene editor's override rows; use effectivePayloads for display tint.
 	DevicePayloads []*SceneDevicePayload `json:"devicePayloads"`
-	CreatedBy      *User                 `json:"createdBy,omitempty"`
+	// One payload per unique device reached by the scene's action targets
+	// (rooms, groups, or direct devices), in the same order apply-scene would
+	// command them. Devices without an explicit override appear with a
+	// capability-filtered default (warm-white on), so consumers can tint cards,
+	// preview apply behaviour, etc. without re-implementing the resolution.
+	EffectivePayloads []*SceneDevicePayload `json:"effectivePayloads"`
+	CreatedBy         *User                 `json:"createdBy,omitempty"`
+	// Non-null while this scene is currently the state of its devices: every
+	// device the scene reached at apply time is still in the scene-relevant
+	// state the scene asked for. Any change to a scene-relevant field (on,
+	// brightness, colorTemp, color) on any of those devices clears this back
+	// to null. Use the presence of a value as "is this scene active right now".
+	ActivatedAt *time.Time `json:"activatedAt,omitempty"`
 }
 
 type SceneAction struct {
-	ID         string      `json:"id"`
 	TargetType string      `json:"targetType"`
 	TargetID   string      `json:"targetId"`
 	Target     SceneTarget `json:"target"`
@@ -349,6 +362,14 @@ type SceneAction struct {
 type SceneActionInput struct {
 	TargetType string `json:"targetType"`
 	TargetID   string `json:"targetId"`
+}
+
+// Emitted whenever a scene's activation state flips. activatedAt is non-null
+// when the scene just became active, null when it was deactivated by a
+// device-state change.
+type SceneActiveEvent struct {
+	SceneID     string     `json:"sceneId"`
+	ActivatedAt *time.Time `json:"activatedAt,omitempty"`
 }
 
 type SceneDevicePayload struct {

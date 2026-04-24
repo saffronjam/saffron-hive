@@ -57,14 +57,34 @@ type Scene {
   name: String!
   icon: String
   actions: [SceneAction!]!
+  """
+  Per-device payload overrides the user has saved explicitly. Devices that
+  inherit their room/group default do NOT appear here. Use this for the
+  scene editor's override rows; use effectivePayloads for display tint.
+  """
   devicePayloads: [SceneDevicePayload!]!
+  """
+  One payload per unique device reached by the scene's action targets
+  (rooms, groups, or direct devices), in the same order apply-scene would
+  command them. Devices without an explicit override appear with a
+  capability-filtered default (warm-white on), so consumers can tint cards,
+  preview apply behaviour, etc. without re-implementing the resolution.
+  """
+  effectivePayloads: [SceneDevicePayload!]!
   createdBy: User
+  """
+  Non-null while this scene is currently the state of its devices: every
+  device the scene reached at apply time is still in the scene-relevant
+  state the scene asked for. Any change to a scene-relevant field (on,
+  brightness, colorTemp, color) on any of those devices clears this back
+  to null. Use the presence of a value as "is this scene active right now".
+  """
+  activatedAt: DateTime
 }
 
 union SceneTarget = Device | Group | Room
 
 type SceneAction {
-  id: ID!
   targetType: String!
   targetId: ID!
   target: SceneTarget!
@@ -95,7 +115,6 @@ type AutomationNode {
 }
 
 type AutomationEdge {
-  id: ID!
   fromNodeId: ID!
   toNodeId: ID!
 }
@@ -165,6 +184,16 @@ type AutomationNodeActivationEvent {
   automationId: ID!
   nodeId: ID!
   active: Boolean!
+}
+
+"""
+Emitted whenever a scene's activation state flips. activatedAt is non-null
+when the scene just became active, null when it was deactivated by a
+device-state change.
+"""
+type SceneActiveEvent {
+  sceneId: ID!
+  activatedAt: DateTime
 }
 
 enum Theme {
@@ -472,6 +501,13 @@ type Query {
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
   setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device!
+  """
+  Simulate a device-fired action by publishing a synthetic
+  EventDeviceActionFired on the in-process event bus. Automations listening
+  for the action run as if the physical device emitted it; no command is
+  sent to the device itself. Useful for testing automations from the UI.
+  """
+  simulateDeviceAction(deviceId: ID!, action: String!): Boolean!
   applyScene(sceneId: ID!): Scene!
   createScene(input: CreateSceneInput!): Scene!
   updateScene(id: ID!, input: UpdateSceneInput!): Scene!
@@ -531,6 +567,7 @@ type Subscription {
   deviceAdded: Device!
   deviceRemoved: ID!
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
+  sceneActiveChanged: SceneActiveEvent!
   logStream: LogEntry!
   activityStream(advanced: Boolean): ActivityEvent!
   alarmEvent: AlarmEvent!

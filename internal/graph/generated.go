@@ -80,7 +80,6 @@ type ComplexityRoot struct {
 
 	AutomationEdge struct {
 		FromNodeID func(childComplexity int) int
-		ID         func(childComplexity int) int
 		ToNodeID   func(childComplexity int) int
 	}
 
@@ -240,6 +239,7 @@ type ComplexityRoot struct {
 		RemoveRoomDevice       func(childComplexity int, roomID string, deviceID string) int
 		ResetUserPassword      func(childComplexity int, id string, newPassword string) int
 		SetDeviceState         func(childComplexity int, deviceID string, state model.DeviceStateInput) int
+		SimulateDeviceAction   func(childComplexity int, deviceID string, action string) int
 		TestMqttConnection     func(childComplexity int, input model.MqttConfigInput) int
 		ToggleAutomation       func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation       func(childComplexity int, id string, input model.UpdateAutomationInput) int
@@ -284,19 +284,25 @@ type ComplexityRoot struct {
 	}
 
 	Scene struct {
-		Actions        func(childComplexity int) int
-		CreatedBy      func(childComplexity int) int
-		DevicePayloads func(childComplexity int) int
-		ID             func(childComplexity int) int
-		Icon           func(childComplexity int) int
-		Name           func(childComplexity int) int
+		Actions           func(childComplexity int) int
+		ActivatedAt       func(childComplexity int) int
+		CreatedBy         func(childComplexity int) int
+		DevicePayloads    func(childComplexity int) int
+		EffectivePayloads func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Icon              func(childComplexity int) int
+		Name              func(childComplexity int) int
 	}
 
 	SceneAction struct {
-		ID         func(childComplexity int) int
 		Target     func(childComplexity int) int
 		TargetID   func(childComplexity int) int
 		TargetType func(childComplexity int) int
+	}
+
+	SceneActiveEvent struct {
+		ActivatedAt func(childComplexity int) int
+		SceneID     func(childComplexity int) int
 	}
 
 	SceneDevicePayload struct {
@@ -335,6 +341,7 @@ type ComplexityRoot struct {
 		DeviceRemoved             func(childComplexity int) int
 		DeviceStateChanged        func(childComplexity int, deviceID *string) int
 		LogStream                 func(childComplexity int) int
+		SceneActiveChanged        func(childComplexity int) int
 	}
 
 	User struct {
@@ -350,6 +357,7 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error)
 	SetDeviceState(ctx context.Context, deviceID string, state model.DeviceStateInput) (*model.Device, error)
+	SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error)
 	ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error)
 	CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error)
 	UpdateScene(ctx context.Context, id string, input model.UpdateSceneInput) (*model.Scene, error)
@@ -419,6 +427,7 @@ type SubscriptionResolver interface {
 	DeviceAdded(ctx context.Context) (<-chan *model.Device, error)
 	DeviceRemoved(ctx context.Context) (<-chan string, error)
 	AutomationNodeActivated(ctx context.Context, automationID *string) (<-chan *model.AutomationNodeActivationEvent, error)
+	SceneActiveChanged(ctx context.Context) (<-chan *model.SceneActiveEvent, error)
 	LogStream(ctx context.Context) (<-chan *model.LogEntry, error)
 	ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error)
 	AlarmEvent(ctx context.Context) (<-chan *model.AlarmEvent, error)
@@ -605,12 +614,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationEdge.FromNodeID(childComplexity), true
-	case "AutomationEdge.id":
-		if e.ComplexityRoot.AutomationEdge.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutomationEdge.ID(childComplexity), true
 	case "AutomationEdge.toNodeId":
 		if e.ComplexityRoot.AutomationEdge.ToNodeID == nil {
 			break
@@ -1448,6 +1451,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetDeviceState(childComplexity, args["deviceId"].(string), args["state"].(model.DeviceStateInput)), true
+	case "Mutation.simulateDeviceAction":
+		if e.ComplexityRoot.Mutation.SimulateDeviceAction == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_simulateDeviceAction_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SimulateDeviceAction(childComplexity, args["deviceId"].(string), args["action"].(string)), true
 	case "Mutation.testMqttConnection":
 		if e.ComplexityRoot.Mutation.TestMqttConnection == nil {
 			break
@@ -1763,6 +1777,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.Actions(childComplexity), true
+	case "Scene.activatedAt":
+		if e.ComplexityRoot.Scene.ActivatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.ActivatedAt(childComplexity), true
 	case "Scene.createdBy":
 		if e.ComplexityRoot.Scene.CreatedBy == nil {
 			break
@@ -1775,6 +1795,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.DevicePayloads(childComplexity), true
+	case "Scene.effectivePayloads":
+		if e.ComplexityRoot.Scene.EffectivePayloads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.EffectivePayloads(childComplexity), true
 	case "Scene.id":
 		if e.ComplexityRoot.Scene.ID == nil {
 			break
@@ -1794,12 +1820,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Scene.Name(childComplexity), true
 
-	case "SceneAction.id":
-		if e.ComplexityRoot.SceneAction.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SceneAction.ID(childComplexity), true
 	case "SceneAction.target":
 		if e.ComplexityRoot.SceneAction.Target == nil {
 			break
@@ -1818,6 +1838,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SceneAction.TargetType(childComplexity), true
+
+	case "SceneActiveEvent.activatedAt":
+		if e.ComplexityRoot.SceneActiveEvent.ActivatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneActiveEvent.ActivatedAt(childComplexity), true
+	case "SceneActiveEvent.sceneId":
+		if e.ComplexityRoot.SceneActiveEvent.SceneID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneActiveEvent.SceneID(childComplexity), true
 
 	case "SceneDevicePayload.deviceId":
 		if e.ComplexityRoot.SceneDevicePayload.DeviceID == nil {
@@ -1964,6 +1997,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.LogStream(childComplexity), true
+	case "Subscription.sceneActiveChanged":
+		if e.ComplexityRoot.Subscription.SceneActiveChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Subscription.SceneActiveChanged(childComplexity), true
 
 	case "User.avatarPath":
 		if e.ComplexityRoot.User.AvatarPath == nil {
@@ -2188,14 +2227,34 @@ type Scene {
   name: String!
   icon: String
   actions: [SceneAction!]!
+  """
+  Per-device payload overrides the user has saved explicitly. Devices that
+  inherit their room/group default do NOT appear here. Use this for the
+  scene editor's override rows; use effectivePayloads for display tint.
+  """
   devicePayloads: [SceneDevicePayload!]!
+  """
+  One payload per unique device reached by the scene's action targets
+  (rooms, groups, or direct devices), in the same order apply-scene would
+  command them. Devices without an explicit override appear with a
+  capability-filtered default (warm-white on), so consumers can tint cards,
+  preview apply behaviour, etc. without re-implementing the resolution.
+  """
+  effectivePayloads: [SceneDevicePayload!]!
   createdBy: User
+  """
+  Non-null while this scene is currently the state of its devices: every
+  device the scene reached at apply time is still in the scene-relevant
+  state the scene asked for. Any change to a scene-relevant field (on,
+  brightness, colorTemp, color) on any of those devices clears this back
+  to null. Use the presence of a value as "is this scene active right now".
+  """
+  activatedAt: DateTime
 }
 
 union SceneTarget = Device | Group | Room
 
 type SceneAction {
-  id: ID!
   targetType: String!
   targetId: ID!
   target: SceneTarget!
@@ -2226,7 +2285,6 @@ type AutomationNode {
 }
 
 type AutomationEdge {
-  id: ID!
   fromNodeId: ID!
   toNodeId: ID!
 }
@@ -2296,6 +2354,16 @@ type AutomationNodeActivationEvent {
   automationId: ID!
   nodeId: ID!
   active: Boolean!
+}
+
+"""
+Emitted whenever a scene's activation state flips. activatedAt is non-null
+when the scene just became active, null when it was deactivated by a
+device-state change.
+"""
+type SceneActiveEvent {
+  sceneId: ID!
+  activatedAt: DateTime
 }
 
 enum Theme {
@@ -2603,6 +2671,13 @@ type Query {
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
   setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device!
+  """
+  Simulate a device-fired action by publishing a synthetic
+  EventDeviceActionFired on the in-process event bus. Automations listening
+  for the action run as if the physical device emitted it; no command is
+  sent to the device itself. Useful for testing automations from the UI.
+  """
+  simulateDeviceAction(deviceId: ID!, action: String!): Boolean!
   applyScene(sceneId: ID!): Scene!
   createScene(input: CreateSceneInput!): Scene!
   updateScene(id: ID!, input: UpdateSceneInput!): Scene!
@@ -2662,6 +2737,7 @@ type Subscription {
   deviceAdded: Device!
   deviceRemoved: ID!
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
+  sceneActiveChanged: SceneActiveEvent!
   logStream: LogEntry!
   activityStream(advanced: Boolean): ActivityEvent!
   alarmEvent: AlarmEvent!
@@ -3042,6 +3118,22 @@ func (ec *executionContext) field_Mutation_setDeviceState_args(ctx context.Conte
 		return nil, err
 	}
 	args["state"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_simulateDeviceAction_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "action", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["action"] = arg1
 	return args, nil
 }
 
@@ -4203,35 +4295,6 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _AutomationEdge_id(ctx context.Context, field graphql.CollectedField, obj *model.AutomationEdge) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_AutomationEdge_id,
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_AutomationEdge_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AutomationEdge",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _AutomationEdge_fromNodeId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationEdge) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4500,8 +4563,6 @@ func (ec *executionContext) fieldContext_AutomationGraph_edges(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_AutomationEdge_id(ctx, field)
 			case "fromNodeId":
 				return ec.fieldContext_AutomationEdge_fromNodeId(ctx, field)
 			case "toNodeId":
@@ -6911,6 +6972,47 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_simulateDeviceAction(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_simulateDeviceAction,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SimulateDeviceAction(ctx, fc.Args["deviceId"].(string), fc.Args["action"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_simulateDeviceAction(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_simulateDeviceAction_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_applyScene(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6946,8 +7048,12 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
 				return ec.fieldContext_Scene_devicePayloads(ctx, field)
+			case "effectivePayloads":
+				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_Scene_activatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -7001,8 +7107,12 @@ func (ec *executionContext) fieldContext_Mutation_createScene(ctx context.Contex
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
 				return ec.fieldContext_Scene_devicePayloads(ctx, field)
+			case "effectivePayloads":
+				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_Scene_activatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -7056,8 +7166,12 @@ func (ec *executionContext) fieldContext_Mutation_updateScene(ctx context.Contex
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
 				return ec.fieldContext_Scene_devicePayloads(ctx, field)
+			case "effectivePayloads":
+				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_Scene_activatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -8944,8 +9058,12 @@ func (ec *executionContext) fieldContext_Query_scenes(_ context.Context, field g
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
 				return ec.fieldContext_Scene_devicePayloads(ctx, field)
+			case "effectivePayloads":
+				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_Scene_activatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -8988,8 +9106,12 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
 				return ec.fieldContext_Scene_devicePayloads(ctx, field)
+			case "effectivePayloads":
+				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_Scene_activatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
 		},
@@ -10142,8 +10264,6 @@ func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_SceneAction_id(ctx, field)
 			case "targetType":
 				return ec.fieldContext_SceneAction_targetType(ctx, field)
 			case "targetId":
@@ -10174,6 +10294,41 @@ func (ec *executionContext) _Scene_devicePayloads(ctx context.Context, field gra
 }
 
 func (ec *executionContext) fieldContext_Scene_devicePayloads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Scene",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_SceneDevicePayload_deviceId(ctx, field)
+			case "payload":
+				return ec.fieldContext_SceneDevicePayload_payload(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SceneDevicePayload", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Scene_effectivePayloads(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Scene_effectivePayloads,
+		func(ctx context.Context) (any, error) {
+			return obj.EffectivePayloads, nil
+		},
+		nil,
+		ec.marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Scene_effectivePayloads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Scene",
 		Field:      field,
@@ -10235,30 +10390,30 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _SceneAction_id(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+func (ec *executionContext) _Scene_activatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_SceneAction_id,
+		ec.fieldContext_Scene_activatedAt,
 		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
+			return obj.ActivatedAt, nil
 		},
 		nil,
-		ec.marshalNID2string,
+		ec.marshalODateTime2ᚖtimeᚐTime,
 		true,
-		true,
+		false,
 	)
 }
 
-func (ec *executionContext) fieldContext_SceneAction_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Scene_activatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
+		Object:     "Scene",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type DateTime does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10346,6 +10501,64 @@ func (ec *executionContext) fieldContext_SceneAction_target(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type SceneTarget does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneActiveEvent_sceneId(ctx context.Context, field graphql.CollectedField, obj *model.SceneActiveEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneActiveEvent_sceneId,
+		func(ctx context.Context) (any, error) {
+			return obj.SceneID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneActiveEvent_sceneId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneActiveEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneActiveEvent_activatedAt(ctx context.Context, field graphql.CollectedField, obj *model.SceneActiveEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneActiveEvent_activatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ActivatedAt, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneActiveEvent_activatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneActiveEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10928,6 +11141,41 @@ func (ec *executionContext) fieldContext_Subscription_automationNodeActivated(ct
 	if fc.Args, err = ec.field_Subscription_automationNodeActivated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_sceneActiveChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_sceneActiveChanged,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Subscription().SceneActiveChanged(ctx)
+		},
+		nil,
+		ec.marshalNSceneActiveEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActiveEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_sceneActiveChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sceneId":
+				return ec.fieldContext_SceneActiveEvent_sceneId(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_SceneActiveEvent_activatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SceneActiveEvent", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -14245,11 +14493,6 @@ func (ec *executionContext) _AutomationEdge(ctx context.Context, sel ast.Selecti
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AutomationEdge")
-		case "id":
-			out.Values[i] = ec._AutomationEdge_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "fromNodeId":
 			out.Values[i] = ec._AutomationEdge_fromNodeId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -15137,6 +15380,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "simulateDeviceAction":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_simulateDeviceAction(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "applyScene":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_applyScene(ctx, field)
@@ -15988,8 +16238,15 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "effectivePayloads":
+			out.Values[i] = ec._Scene_effectivePayloads(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createdBy":
 			out.Values[i] = ec._Scene_createdBy(ctx, field, obj)
+		case "activatedAt":
+			out.Values[i] = ec._Scene_activatedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16024,11 +16281,6 @@ func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionS
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SceneAction")
-		case "id":
-			out.Values[i] = ec._SceneAction_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "targetType":
 			out.Values[i] = ec._SceneAction_targetType(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16044,6 +16296,47 @@ func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var sceneActiveEventImplementors = []string{"SceneActiveEvent"}
+
+func (ec *executionContext) _SceneActiveEvent(ctx context.Context, sel ast.SelectionSet, obj *model.SceneActiveEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneActiveEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SceneActiveEvent")
+		case "sceneId":
+			out.Values[i] = ec._SceneActiveEvent_sceneId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "activatedAt":
+			out.Values[i] = ec._SceneActiveEvent_activatedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16317,6 +16610,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_deviceRemoved(ctx, fields[0])
 	case "automationNodeActivated":
 		return ec._Subscription_automationNodeActivated(ctx, fields[0])
+	case "sceneActiveChanged":
+		return ec._Subscription_sceneActiveChanged(ctx, fields[0])
 	case "logStream":
 		return ec._Subscription_logStream(ctx, fields[0])
 	case "activityStream":
@@ -17487,6 +17782,20 @@ func (ec *executionContext) unmarshalNSceneActionInput2ᚕᚖgithubᚗcomᚋsaff
 func (ec *executionContext) unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInput(ctx context.Context, v any) (*model.SceneActionInput, error) {
 	res, err := ec.unmarshalInputSceneActionInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneActiveEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActiveEvent(ctx context.Context, sel ast.SelectionSet, v model.SceneActiveEvent) graphql.Marshaler {
+	return ec._SceneActiveEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSceneActiveEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActiveEvent(ctx context.Context, sel ast.SelectionSet, v *model.SceneActiveEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneActiveEvent(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneDevicePayload) graphql.Marshaler {
