@@ -162,4 +162,44 @@ describe("deviceStore", () => {
     deviceStore.updateAvailability("nonexistent", false);
     expect(get(deviceStore)["d1"].available).toBe(true);
   });
+
+  it("updateState does not notify when state is unchanged", () => {
+    deviceStore.hydrate([makeDevice("d1", "Light", lightState)]);
+    let notifications = 0;
+    const unsub = deviceStore.subscribe(() => notifications++);
+    notifications = 0;
+    deviceStore.updateState("d1", { ...lightState });
+    unsub();
+    expect(notifications).toBe(0);
+  });
+
+  it("updateAvailability does not notify when availability is unchanged", () => {
+    deviceStore.hydrate([makeDevice("d1", "A")]);
+    let notifications = 0;
+    const unsub = deviceStore.subscribe(() => notifications++);
+    notifications = 0;
+    deviceStore.updateAvailability("d1", true);
+    unsub();
+    expect(notifications).toBe(0);
+  });
+
+  it("updateName does not notify when name is unchanged", () => {
+    deviceStore.hydrate([makeDevice("d1", "Same")]);
+    let notifications = 0;
+    const unsub = deviceStore.subscribe(() => notifications++);
+    notifications = 0;
+    deviceStore.updateName("d1", "Same");
+    unsub();
+    expect(notifications).toBe(0);
+  });
+
+  it("updateState notifies when a single field changes", () => {
+    deviceStore.hydrate([makeDevice("d1", "Light", lightState)]);
+    let notifications = 0;
+    const unsub = deviceStore.subscribe(() => notifications++);
+    notifications = 0;
+    deviceStore.updateState("d1", { ...lightState, brightness: 99 });
+    unsub();
+    expect(notifications).toBe(1);
+  });
 });

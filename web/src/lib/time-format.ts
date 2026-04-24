@@ -26,3 +26,32 @@ export function formatTime(date: Date): string {
 export function formatFull(date: Date): string {
   return date.toISOString();
 }
+
+/** Short readable timestamp like "Apr 24, 9:47:04 AM" for chart tooltips. */
+export function formatTooltip(date: Date): string {
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+/**
+ * Parse a relative duration like "30s", "15m", "2h", "7d" as a Date that far
+ * in the past from now. Returns null if the string doesn't match.
+ */
+export function parseSince(raw: string): Date | null {
+  const m = raw.match(/^(\d+)([smhd])$/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  const unit = m[2];
+  const multipliers: Record<string, number> = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+  return new Date(Date.now() - n * multipliers[unit]);
+}

@@ -1,9 +1,39 @@
 import { writable } from "svelte/store";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
-import type { Capability, Device, DeviceState } from "$lib/gql/graphql";
+import type { Capability, Color, Device, DeviceState } from "$lib/gql/graphql";
 
 export type { Capability, Device, DeviceState };
+
+function colorsEqual(a: Color | null | undefined, b: Color | null | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.r === b.r && a.g === b.g && a.b === b.b && a.x === b.x && a.y === b.y;
+}
+
+function statesEqual(
+  a: DeviceState | null | undefined,
+  b: DeviceState | null | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.on === b.on &&
+    a.brightness === b.brightness &&
+    a.colorTemp === b.colorTemp &&
+    a.transition === b.transition &&
+    a.temperature === b.temperature &&
+    a.humidity === b.humidity &&
+    a.pressure === b.pressure &&
+    a.illuminance === b.illuminance &&
+    a.battery === b.battery &&
+    a.power === b.power &&
+    a.voltage === b.voltage &&
+    a.current === b.current &&
+    a.energy === b.energy &&
+    colorsEqual(a.color, b.color)
+  );
+}
 
 interface DeviceMap {
   [id: string]: Device;
@@ -145,7 +175,11 @@ const DEVICE_REMOVED = graphql(`
 export const devicesHydrated = writable(false);
 
 function createDeviceStore() {
-  const { subscribe, set, update } = writable<DeviceMap>({});
+  const { subscribe, set } = writable<DeviceMap>({});
+  let current: DeviceMap = {};
+  subscribe((v) => {
+    current = v;
+  });
   let started = false;
   let unsubFns: Array<() => void> = [];
 
@@ -158,38 +192,34 @@ function createDeviceStore() {
   }
 
   function updateState(deviceId: string, state: DeviceState) {
-    update((devices) => {
-      const device = devices[deviceId];
-      if (!device) return devices;
-      return { ...devices, [deviceId]: { ...device, state } };
-    });
+    const device = current[deviceId];
+    if (!device) return;
+    if (statesEqual(device.state, state)) return;
+    set({ ...current, [deviceId]: { ...device, state } });
   }
 
   function updateAvailability(deviceId: string, available: boolean) {
-    update((devices) => {
-      const device = devices[deviceId];
-      if (!device) return devices;
-      return { ...devices, [deviceId]: { ...device, available } };
-    });
+    const device = current[deviceId];
+    if (!device) return;
+    if (device.available === available) return;
+    set({ ...current, [deviceId]: { ...device, available } });
   }
 
   function addDevice(device: Device) {
-    update((devices) => ({ ...devices, [device.id]: device }));
+    set({ ...current, [device.id]: device });
   }
 
   function updateName(deviceId: string, name: string) {
-    update((devices) => {
-      const device = devices[deviceId];
-      if (!device) return devices;
-      return { ...devices, [deviceId]: { ...device, name } };
-    });
+    const device = current[deviceId];
+    if (!device) return;
+    if (device.name === name) return;
+    set({ ...current, [deviceId]: { ...device, name } });
   }
 
   function removeDevice(deviceId: string) {
-    update((devices) => {
-      const { [deviceId]: _, ...rest } = devices;
-      return rest;
-    });
+    if (!(deviceId in current)) return;
+    const { [deviceId]: _, ...rest } = current;
+    set(rest);
   }
 
   return {
