@@ -17,12 +17,17 @@ var logger = logging.Named("activity")
 // activityStore is the narrow subset of store methods the activity recorder
 // and retention loop need. *store.DB satisfies it implicitly.
 type activityStore interface {
-	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]store.Room, error)
 	GetScene(ctx context.Context, id string) (store.Scene, error)
 	GetAutomation(ctx context.Context, id string) (store.Automation, error)
 	InsertActivityEvent(ctx context.Context, params store.InsertActivityEventParams) (store.ActivityEvent, error)
 	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	GetSetting(ctx context.Context, key string) (store.Setting, error)
+}
+
+// roomLookup is the narrow surface the recorder needs from a RoomCache.
+// *RoomCache satisfies it; tests substitute a fake.
+type roomLookup interface {
+	Room(deviceID string) (id, name string, ok bool)
 }
 
 // Recorder subscribes to every event type on the bus, enriches each event with
@@ -32,12 +37,16 @@ type Recorder struct {
 	bus         eventbus.Subscriber
 	store       activityStore
 	stateReader device.StateReader
+	rooms       roomLookup
 	buffer      *Buffer
 }
 
-// NewRecorder wires a recorder to its dependencies. Call Run in a goroutine to start it.
-func NewRecorder(bus eventbus.Subscriber, s activityStore, stateReader device.StateReader, buffer *Buffer) *Recorder {
-	return &Recorder{bus: bus, store: s, stateReader: stateReader, buffer: buffer}
+// NewRecorder wires a recorder to its dependencies. Call Run in a goroutine
+// to start it. The roomLookup is consulted on every device-scoped event in
+// place of a per-event three-table JOIN; pass a *RoomCache populated via
+// its own Run/Refresh path.
+func NewRecorder(bus eventbus.Subscriber, s activityStore, stateReader device.StateReader, rooms roomLookup, buffer *Buffer) *Recorder {
+	return &Recorder{bus: bus, store: s, stateReader: stateReader, rooms: rooms, buffer: buffer}
 }
 
 // Run blocks until ctx is done, consuming events and writing them to the store.
@@ -78,16 +87,18 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 	// store (no DB round-trip on the hot path) with a DB fallback for rooms.
 	var deviceName string
 	if evt.DeviceID != "" {
-		params.DeviceID = strPtr(evt.DeviceID)
+		params.DeviceID = device.Ptr(evt.DeviceID)
 		if d, ok := r.stateReader.GetDevice(device.DeviceID(evt.DeviceID)); ok {
 			deviceName = d.Name
-			params.DeviceName = strPtr(d.Name)
+			params.DeviceName = device.Ptr(d.Name)
 			dt := string(d.Type)
-			params.DeviceType = strPtr(dt)
+			params.DeviceType = device.Ptr(dt)
 		}
-		if rooms, err := r.store.ListRoomsContainingDevice(ctx, evt.DeviceID); err == nil && len(rooms) > 0 {
-			params.RoomID = strPtr(rooms[0].ID)
-			params.RoomName = strPtr(rooms[0].Name)
+		if r.rooms != nil {
+			if rid, rname, ok := r.rooms.Room(evt.DeviceID); ok {
+				params.RoomID = device.Ptr(rid)
+				params.RoomName = device.Ptr(rname)
+			}
 		}
 	}
 
@@ -96,11 +107,11 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 		if d, ok := evt.Payload.(device.Device); ok {
 			if d.Name != "" {
 				deviceName = d.Name
-				params.DeviceName = strPtr(d.Name)
+				params.DeviceName = device.Ptr(d.Name)
 			}
 			if d.Type != "" {
 				dt := string(d.Type)
-				params.DeviceType = strPtr(dt)
+				params.DeviceType = device.Ptr(dt)
 			}
 			if params.DeviceID == nil && d.ID != "" {
 				id := string(d.ID)
@@ -112,10 +123,10 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 	var sceneName string
 	if evt.Type == eventbus.EventSceneApplied {
 		if id, ok := evt.Payload.(string); ok && id != "" {
-			params.SceneID = strPtr(id)
+			params.SceneID = device.Ptr(id)
 			if sc, err := r.store.GetScene(ctx, id); err == nil {
 				sceneName = sc.Name
-				params.SceneName = strPtr(sc.Name)
+				params.SceneName = device.Ptr(sc.Name)
 			}
 		}
 	}
@@ -123,10 +134,10 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 	var automationName string
 	if evt.Type == eventbus.EventAutomationNodeActivated {
 		if na, ok := evt.Payload.(automation.NodeActivation); ok && na.AutomationID != "" {
-			params.AutomationID = strPtr(na.AutomationID)
+			params.AutomationID = device.Ptr(na.AutomationID)
 			if a, err := r.store.GetAutomation(ctx, na.AutomationID); err == nil {
 				automationName = a.Name
-				params.AutomationName = strPtr(a.Name)
+				params.AutomationName = device.Ptr(a.Name)
 			}
 		}
 	}
@@ -159,5 +170,3 @@ func marshalPayload(p any) string {
 	}
 	return string(b)
 }
-
-func strPtr(s string) *string { return &s }

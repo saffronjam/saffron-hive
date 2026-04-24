@@ -71,7 +71,7 @@ func TestRecorderEnrichesAndPersists(t *testing.T) {
 	}}
 	buf := NewBuffer()
 
-	rec := NewRecorder(bus, s, reader, buf)
+	rec := NewRecorder(bus, s, reader, nil, buf)
 	go rec.Run(ctx)
 
 	subCh, unsub := buf.Subscribe()
