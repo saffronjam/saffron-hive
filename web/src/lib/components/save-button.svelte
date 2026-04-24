@@ -6,9 +6,10 @@
 		saving: boolean;
 		disabled?: boolean;
 		onclick: () => void;
+		hideLabelOnMobile?: boolean;
 	}
 
-	let { saving, disabled = false, onclick }: Props = $props();
+	let { saving, disabled = false, onclick, hideLabelOnMobile = false }: Props = $props();
 </script>
 
 <SmoothButton
@@ -17,4 +18,5 @@
 	iconClass={saving ? "animate-spin" : ""}
 	{disabled}
 	{onclick}
+	{hideLabelOnMobile}
 />

@@ -11,6 +11,7 @@
 		disabled?: boolean;
 		onclick: () => void;
 		minDisplayMs?: number;
+		hideLabelOnMobile?: boolean;
 	}
 
 	let {
@@ -22,6 +23,7 @@
 		disabled = false,
 		onclick,
 		minDisplayMs = 600,
+		hideLabelOnMobile = false,
 	}: Props = $props();
 
 	let displayedLabel = $state(untrack(() => label));
@@ -85,11 +87,11 @@
 	});
 </script>
 
-<Button {variant} {size} {disabled} {onclick}>
+<Button {variant} {size} {disabled} {onclick} aria-label={label}>
 	{#if Icon}
 		<Icon class="size-4 {iconClass}" />
 	{/if}
-	<span class="relative inline-flex overflow-hidden">
+	<span class="relative overflow-hidden {hideLabelOnMobile ? 'hidden sm:inline-flex' : 'inline-flex'}">
 		<span
 			bind:this={measurer}
 			class="invisible absolute whitespace-nowrap"

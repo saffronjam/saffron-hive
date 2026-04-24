@@ -143,6 +143,7 @@
 									saving={action.saving}
 									disabled={action.disabled ?? false}
 									onclick={action.onclick}
+									hideLabelOnMobile={action.hideLabelOnMobile ?? false}
 								/>
 							{:else}
 								<SmoothButton
@@ -152,6 +153,7 @@
 									variant={action.variant ?? "default"}
 									disabled={action.disabled ?? false}
 									onclick={action.onclick}
+									hideLabelOnMobile={action.hideLabelOnMobile ?? false}
 								/>
 							{/if}
 						{/each}

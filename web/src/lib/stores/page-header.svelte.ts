@@ -9,6 +9,7 @@ interface HeaderAction {
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   disabled?: boolean;
   saving?: boolean;
+  hideLabelOnMobile?: boolean;
 }
 
 interface Breadcrumb {

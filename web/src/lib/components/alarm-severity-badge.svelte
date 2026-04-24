@@ -6,9 +6,10 @@
 	interface Props {
 		severity: AlarmSeverity;
 		class?: string;
+		hideLabelOnMobile?: boolean;
 	}
 
-	let { severity, class: className = "" }: Props = $props();
+	let { severity, class: className = "", hideLabelOnMobile = false }: Props = $props();
 
 	function severityClass(s: AlarmSeverity): string {
 		switch (s) {
@@ -51,5 +52,5 @@
 
 <Badge variant="outline" class="gap-1 {severityClass(severity)} {className}">
 	<Icon class="size-3" />
-	{severityLabel(severity)}
+	<span class={hideLabelOnMobile ? "hidden sm:inline" : ""}>{severityLabel(severity)}</span>
 </Badge>
