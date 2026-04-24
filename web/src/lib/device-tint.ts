@@ -90,6 +90,76 @@ export function tintCardBg(color: string, mixPct = 12): string {
   return `color-mix(in srgb, ${color} ${mixPct}%, var(--card))`;
 }
 
+/**
+ * Returns a single `rgb(...)` string for the device's base tint hue, suitable
+ * for driving a `--tint-color` custom property so CSS can interpolate between
+ * values. Null when the device has no active tint (off / no state).
+ */
+export function deviceTintColor(device: Device): string | null {
+  const state: DeviceState | null | undefined = device.state;
+  if (!state?.on) return null;
+  return toCss(
+    resolveTintRgb({
+      type: device.type,
+      on: true,
+      color: state.color,
+      colorTemp: state.colorTemp,
+      brightness: state.brightness,
+    }),
+  );
+}
+
+/**
+ * Returns up to three `rgb(...)` strings representing the scene's desired
+ * hues, for driving `--tint-color`, `--tint-color-2`, `--tint-color-3` custom
+ * properties so CSS can interpolate between values. Empty when no payload is
+ * switched on.
+ */
+export function sceneTintColors(payloads: ActionPayload[]): string[] {
+  const nonSwitchColors: RGB[] = [];
+  const switchColors: RGB[] = [];
+  for (const payload of payloads) {
+    if (!payload.on) continue;
+    const rgb = resolveTintRgb({
+      on: true,
+      color: payload.color,
+      colorTemp: payload.colorTemp,
+      brightness: payload.brightness,
+    });
+    const isSwitchOnly = !payload.color && payload.colorTemp == null && payload.brightness == null;
+    if (isSwitchOnly) switchColors.push(rgb);
+    else nonSwitchColors.push(rgb);
+  }
+  const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
+  return dedupe(picked).slice(0, 3).map(toCss);
+}
+
+/**
+ * Returns up to three `rgb(...)` strings aggregated from the current state of
+ * a group's effective device list, mirroring {@link sceneTintColors} for live
+ * device readings. Empty when no device is switched on.
+ */
+export function groupTintColors(devices: Device[]): string[] {
+  const nonSwitchColors: RGB[] = [];
+  const switchColors: RGB[] = [];
+  for (const device of devices) {
+    const state = device.state;
+    if (!state?.on) continue;
+    const rgb = resolveTintRgb({
+      type: device.type,
+      on: true,
+      color: state.color,
+      colorTemp: state.colorTemp,
+      brightness: state.brightness,
+    });
+    const isSwitchOnly = !state.color && state.colorTemp == null && state.brightness == null;
+    if (isSwitchOnly) switchColors.push(rgb);
+    else nonSwitchColors.push(rgb);
+  }
+  const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
+  return dedupe(picked).slice(0, 3).map(toCss);
+}
+
 function payloadTintRgb(
   payload: ActionPayload,
   device: Device | undefined,

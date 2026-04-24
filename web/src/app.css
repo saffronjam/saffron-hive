@@ -157,6 +157,56 @@
   }
 }
 
+@property --tint-color {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+@property --tint-color-2 {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+@property --tint-color-3 {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+.tint-1 {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, color-mix(in srgb, var(--tint-color) 70%, white) 50%, var(--card)),
+    color-mix(in srgb, var(--tint-color) 50%, var(--card)),
+    color-mix(in srgb, color-mix(in srgb, var(--tint-color) 65%, black) 50%, var(--card))
+  );
+  transition: --tint-color 300ms ease;
+}
+
+.tint-2 {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tint-color) 50%, var(--card)),
+    color-mix(in srgb, var(--tint-color-2) 50%, var(--card))
+  );
+  transition:
+    --tint-color 300ms ease,
+    --tint-color-2 300ms ease;
+}
+
+.tint-3 {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tint-color) 50%, var(--card)),
+    color-mix(in srgb, var(--tint-color-2) 50%, var(--card)),
+    color-mix(in srgb, var(--tint-color-3) 50%, var(--card))
+  );
+  transition:
+    --tint-color 300ms ease,
+    --tint-color-2 300ms ease,
+    --tint-color-3 300ms ease;
+}
+
 @keyframes activity-row-flash {
   0% {
     background-color: color-mix(in oklch, var(--primary) 22%, transparent);
