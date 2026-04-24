@@ -31,7 +31,6 @@ describe("parsePayload", () => {
 describe("buildTargetInfo", () => {
   it("maps a Group target to group type", () => {
     const action: SceneAction = {
-      id: "a1",
       targetType: "group",
       targetId: "g1",
       target: { __typename: "Group", id: "g1", name: "Living Room Lights" },
@@ -47,7 +46,6 @@ describe("buildTargetInfo", () => {
 
   it("maps a Room target to room type", () => {
     const action: SceneAction = {
-      id: "a1",
       targetType: "room",
       targetId: "r1",
       target: { __typename: "Room", id: "r1", name: "Kitchen", icon: "mdi:kitchen" },
@@ -63,7 +61,6 @@ describe("buildTargetInfo", () => {
 
   it("maps a Device target to device type and preserves deviceType", () => {
     const action: SceneAction = {
-      id: "a1",
       targetType: "device",
       targetId: "d1",
       target: { __typename: "Device", id: "d1", name: "Desk lamp", type: "light" },
@@ -85,14 +82,12 @@ describe("sceneToEditorState", () => {
       name: "Evening",
       actions: [
         {
-          id: "a1",
           targetType: "device",
           targetId: "d1",
           target: { __typename: "Device", id: "d1", name: "Lamp", type: "light" },
           payload: "{}",
         },
         {
-          id: "a2",
           targetType: "group",
           targetId: "g1",
           target: { __typename: "Group", id: "g1", name: "Kitchen" },

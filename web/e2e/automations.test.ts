@@ -24,7 +24,6 @@ const CREATE_AUTOMATION = graphql(`
         config
       }
       edges {
-        id
         fromNodeId
         toNodeId
       }
@@ -44,7 +43,6 @@ const AUTOMATION_QUERY = graphql(`
         config
       }
       edges {
-        id
         fromNodeId
         toNodeId
       }
@@ -74,7 +72,6 @@ const UPDATE_AUTOMATION = graphql(`
         config
       }
       edges {
-        id
         fromNodeId
         toNodeId
       }

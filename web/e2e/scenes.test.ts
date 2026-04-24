@@ -18,7 +18,6 @@ const CREATE_SCENE = graphql(`
       id
       name
       actions {
-        id
         targetType
         targetId
       }
@@ -45,7 +44,6 @@ const SCENE_QUERY = graphql(`
       id
       name
       actions {
-        id
         targetType
         targetId
       }
@@ -69,7 +67,6 @@ const SCENES_QUERY = graphql(`
       id
       name
       actions {
-        id
         targetType
         targetId
       }
@@ -87,7 +84,6 @@ const UPDATE_SCENE = graphql(`
       id
       name
       actions {
-        id
         targetType
         targetId
       }
