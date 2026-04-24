@@ -1,11 +1,17 @@
 package logging
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/saffronjam/saffron-hive/internal/pubsub"
+)
 
 const defaultCapacity = 10_000
 
 // Buffer is a thread-safe ring buffer that stores log entries and supports
-// live subscribers.
+// live subscribers. The ring holds the most recent defaultCapacity entries
+// for queries (`Entries`); the embedded fan-out pushes every new entry to
+// active subscribers.
 type Buffer struct {
 	mu      sync.RWMutex
 	entries []Entry
@@ -13,20 +19,15 @@ type Buffer struct {
 	count   int
 	cap     int
 
-	subMu       sync.Mutex
-	subscribers map[*subscriber]struct{}
-}
-
-type subscriber struct {
-	ch chan Entry
+	fanout *pubsub.Fanout[Entry]
 }
 
 // NewBuffer creates a ring buffer with the default capacity (10,000).
 func NewBuffer() *Buffer {
 	return &Buffer{
-		entries:     make([]Entry, defaultCapacity),
-		cap:         defaultCapacity,
-		subscribers: make(map[*subscriber]struct{}),
+		entries: make([]Entry, defaultCapacity),
+		cap:     defaultCapacity,
+		fanout:  pubsub.NewFanout[Entry](),
 	}
 }
 
@@ -42,14 +43,7 @@ func (b *Buffer) Write(e Entry) {
 	b.entries[idx] = e
 	b.mu.Unlock()
 
-	b.subMu.Lock()
-	for sub := range b.subscribers {
-		select {
-		case sub.ch <- e:
-		default:
-		}
-	}
-	b.subMu.Unlock()
+	b.fanout.Publish(e)
 }
 
 // Entries returns a snapshot of all buffered entries, oldest first.
@@ -67,17 +61,5 @@ func (b *Buffer) Entries() []Entry {
 // Subscribe returns a channel that receives new log entries as they are
 // written, and an unsubscribe function to clean up.
 func (b *Buffer) Subscribe() (<-chan Entry, func()) {
-	sub := &subscriber{ch: make(chan Entry, 64)}
-
-	b.subMu.Lock()
-	b.subscribers[sub] = struct{}{}
-	b.subMu.Unlock()
-
-	unsub := func() {
-		b.subMu.Lock()
-		delete(b.subscribers, sub)
-		b.subMu.Unlock()
-	}
-
-	return sub.ch, unsub
+	return b.fanout.Subscribe()
 }
