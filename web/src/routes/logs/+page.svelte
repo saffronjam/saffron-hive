@@ -172,7 +172,7 @@
 
 	<div
 		bind:this={logContainer}
-		class="flex-1 overflow-auto rounded-lg border bg-card font-mono text-xs"
+		class="flex-1 overflow-auto rounded-lg shadow-card bg-card font-mono text-xs"
 	>
 		<table class="w-full">
 			<tbody>

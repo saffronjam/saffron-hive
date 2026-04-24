@@ -19,12 +19,15 @@
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
 	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
+	import BucketResolutionSelect from "$lib/components/bucket-resolution-select.svelte";
 	import DateRangePicker from "$lib/components/date-range-picker.svelte";
 	import PlugDisplay from "$lib/components/plug-display.svelte";
 	import MemberTable from "$lib/components/member-table.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { membershipRowsForDevice } from "$lib/memberships";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import { sentenceCase } from "$lib/utils";
 	import { ArrowLeft, Copy, Check, DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -457,16 +460,13 @@
 
 	let historyFrom = $state<Date>(new Date(Date.now() - 24 * 60 * 60 * 1000));
 	let historyTo = $state<Date>(new Date());
+	let historyBucketSeconds = $state<number>(0);
 </script>
 
 <div>
 
 	{#if error}
-		<div
-			class="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-		>
-			{error}
-		</div>
+		<ErrorBanner class="mb-4" message={error} />
 	{/if}
 
 	{#if loading}
@@ -482,9 +482,9 @@
 						<div class="flex items-center justify-between">
 							<CardTitle>Device Info</CardTitle>
 							<span
-								class="inline-flex items-center gap-1.5 text-sm {device.available ? 'text-green-500' : 'text-destructive'}"
+								class="inline-flex items-center gap-1.5 text-sm {device.available ? 'text-status-online' : 'text-status-offline'}"
 							>
-								<span class="h-2 w-2 rounded-full {device.available ? 'bg-green-500' : 'bg-destructive'}"></span>
+								<span class="h-2 w-2 rounded-full {device.available ? 'bg-status-online' : 'bg-status-offline'}"></span>
 								{device.available ? "Online" : "Offline"}
 							</span>
 						</div>
@@ -533,7 +533,7 @@
 							<div class="flex items-center justify-between">
 								<dt class="text-sm text-muted-foreground">Source</dt>
 								<dd>
-									<Badge variant="outline">{device.source.charAt(0).toUpperCase() + device.source.slice(1)}</Badge>
+									<Badge variant="outline">{sentenceCase(device.source)}</Badge>
 								</dd>
 							</div>
 
@@ -593,9 +593,12 @@
 				{#if !isButton}
 					<Card>
 						<CardHeader>
-							<div class="flex items-center justify-between gap-2">
+							<div class="flex flex-wrap items-center justify-between gap-2">
 								<CardTitle>History</CardTitle>
-								<DateRangePicker bind:from={historyFrom} bind:to={historyTo} compact />
+								<div class="flex items-center gap-2">
+									<BucketResolutionSelect bind:value={historyBucketSeconds} />
+									<DateRangePicker bind:from={historyFrom} bind:to={historyTo} compact />
+								</div>
 							</div>
 						</CardHeader>
 						<CardContent>
@@ -603,6 +606,7 @@
 								deviceIds={[device.id]}
 								from={historyFrom}
 								to={historyTo}
+								bucketSeconds={historyBucketSeconds > 0 ? historyBucketSeconds : undefined}
 							/>
 						</CardContent>
 					</Card>

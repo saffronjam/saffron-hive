@@ -2,21 +2,25 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Card, CardContent } from "$lib/components/ui/card/index.js";
 	import {
-		Select,
-		SelectContent,
-		SelectItem,
-		SelectTrigger,
-	} from "$lib/components/ui/select/index.js";
+		Popover,
+		PopoverContent,
+		PopoverTrigger,
+	} from "$lib/components/ui/popover/index.js";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import DateRangePicker from "$lib/components/date-range-picker.svelte";
-	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
+	import StateHistoryChart, {
+		type SeriesInfo,
+	} from "$lib/components/state-history-chart.svelte";
+	import BucketResolutionSelect from "$lib/components/bucket-resolution-select.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { deviceStore } from "$lib/stores/devices";
-	import { deviceIcon } from "$lib/utils";
-	import { Plus, X } from "@lucide/svelte";
+	import { deviceIcon, sentenceCase } from "$lib/utils";
+	import { Layers, Plus, X } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { onMount, onDestroy } from "svelte";
 	import { page } from "$app/state";
+	import { SvelteSet } from "svelte/reactivity";
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Data viewer" }];
@@ -41,11 +45,10 @@
 	let sourceIds = $state<string[]>(initialSources);
 	let drawerOpen = $state(false);
 
-	const devices = $derived(Object.values($deviceStore));
+	const disabledKeys = new SvelteSet<string>();
+	let allSeries = $state<SeriesInfo[]>([]);
 
-	const sourceDevices = $derived(
-		sourceIds.map((id) => $deviceStore[id]).filter((d) => d != null)
-	);
+	const devices = $derived(Object.values($deviceStore));
 
 	const GROUP_ORDER = ["sensor", "light", "plug", "speaker", "button"];
 
@@ -64,7 +67,7 @@
 			seen.add(type);
 			const list = byType.get(type)!.slice().sort((a, b) => a.name.localeCompare(b.name));
 			groups.push({
-				heading: `${type.charAt(0).toUpperCase()}${type.slice(1)}s`,
+				heading: `${sentenceCase(type)}s`,
 				items: list.map((d) => ({
 					type: "device" as const,
 					id: d.id,
@@ -77,6 +80,33 @@
 		return groups;
 	});
 
+	interface SourceGroup {
+		deviceId: string;
+		name: string;
+		type: string;
+		series: SeriesInfo[];
+	}
+
+	const sourceGroups = $derived.by<SourceGroup[]>(() => {
+		const byDevice = new Map<string, SeriesInfo[]>();
+		for (const s of allSeries) {
+			const list = byDevice.get(s.deviceId) ?? [];
+			list.push(s);
+			byDevice.set(s.deviceId, list);
+		}
+		return sourceIds
+			.map((id) => {
+				const dev = $deviceStore[id];
+				return {
+					deviceId: id,
+					name: dev?.name ?? id,
+					type: dev?.type ?? "device",
+					series: byDevice.get(id) ?? [],
+				};
+			})
+			.sort((a, b) => a.name.localeCompare(b.name));
+	});
+
 	function handleAdd(_: "device", id: string) {
 		if (!sourceIds.includes(id)) {
 			sourceIds = [...sourceIds, id];
@@ -85,15 +115,29 @@
 
 	function removeSource(id: string) {
 		sourceIds = sourceIds.filter((x) => x !== id);
+		for (const key of disabledKeys) {
+			if (key.startsWith(`${id}__`)) disabledKeys.delete(key);
+		}
 	}
 
-	const resolutionLabels: Record<string, string> = {
-		"0": "Auto",
-		"60": "1 minute",
-		"300": "5 minutes",
-		"3600": "1 hour",
-		"86400": "1 day",
-	};
+	function toggleFieldKey(key: string) {
+		if (disabledKeys.has(key)) disabledKeys.delete(key);
+		else disabledKeys.add(key);
+	}
+
+	function toggleGroup(group: SourceGroup) {
+		const allActive = group.series.every((s) => !disabledKeys.has(s.key));
+		if (allActive) {
+			for (const s of group.series) disabledKeys.add(s.key);
+		} else {
+			for (const s of group.series) disabledKeys.delete(s.key);
+		}
+	}
+
+	function groupActive(group: SourceGroup): boolean {
+		return group.series.length > 0 && group.series.some((s) => !disabledKeys.has(s.key));
+	}
+
 </script>
 
 <div class="flex flex-col gap-4">
@@ -102,65 +146,95 @@
 	>
 		<DateRangePicker bind:from bind:to compact />
 
-		<Select
-			type="single"
-			value={String(bucketSeconds)}
-			onValueChange={(v) => { if (v) bucketSeconds = Number(v); }}
-		>
-			<SelectTrigger class="h-8 w-[120px]">
-				{resolutionLabels[String(bucketSeconds)] ?? "Resolution"}
-			</SelectTrigger>
-			<SelectContent>
-				<SelectItem value="0">Auto</SelectItem>
-				<SelectItem value="60">1 minute</SelectItem>
-				<SelectItem value="300">5 minutes</SelectItem>
-				<SelectItem value="3600">1 hour</SelectItem>
-				<SelectItem value="86400">1 day</SelectItem>
-			</SelectContent>
-		</Select>
+		<BucketResolutionSelect bind:value={bucketSeconds} />
 
-		<div class="flex flex-wrap items-center gap-1">
-			{#each sourceDevices as d (d.id)}
-				{@const Icon = deviceIcon(d.type)}
-				<span
-					class="flex items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 py-0.5 text-xs"
-				>
-					<Icon class="size-3 text-muted-foreground" />
-					<span class="max-w-[140px] truncate">{d.name}</span>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						class="size-4"
-						aria-label={`Remove ${d.name}`}
-						onclick={() => removeSource(d.id)}
-					>
-						<X class="size-3" />
-					</Button>
-				</span>
-			{/each}
+		<div class="ml-auto flex items-center gap-2">
+			<Popover>
+				<PopoverTrigger>
+					{#snippet child({ props })}
+						<Button size="sm" variant="outline" class="gap-1" {...props} disabled={sourceIds.length === 0}>
+							<Layers class="size-4" />
+							Sources
+							{#if sourceIds.length > 0}
+								<span class="ml-1 text-muted-foreground">({sourceIds.length})</span>
+							{/if}
+						</Button>
+					{/snippet}
+				</PopoverTrigger>
+				<PopoverContent class="w-80 p-0" align="end">
+					<div class="max-h-96 overflow-y-auto">
+						{#each sourceGroups as g (g.deviceId)}
+							{@const active = groupActive(g)}
+							{@const GroupIcon = deviceIcon(g.type)}
+							<div class="px-3 py-2 border-b border-border/40 last:border-b-0">
+								<div class="flex items-center justify-between gap-2">
+									<button
+										type="button"
+										onclick={() => toggleGroup(g)}
+										class="flex items-center gap-1.5 text-sm font-medium transition-opacity"
+										class:opacity-60={!active}
+										aria-pressed={active}
+									>
+										<GroupIcon class="size-4 text-muted-foreground" />
+										<span class="truncate">{g.name}</span>
+									</button>
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										class="size-6"
+										aria-label={`Remove ${g.name}`}
+										onclick={() => removeSource(g.deviceId)}
+									>
+										<X class="size-3.5" />
+									</Button>
+								</div>
+								{#if g.series.length > 0}
+									<div class="mt-1.5 flex flex-wrap gap-1">
+										{#each g.series as s (s.key)}
+											<HiveChip
+												type={s.field}
+												label={s.label}
+												active={!disabledKeys.has(s.key)}
+												onclick={() => toggleFieldKey(s.key)}
+											/>
+										{/each}
+									</div>
+								{:else}
+									<div class="mt-1 text-xs text-muted-foreground">No samples recorded.</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</PopoverContent>
+			</Popover>
+
+			<Button size="sm" variant="outline" class="gap-1" onclick={() => (drawerOpen = true)}>
+				<Plus class="size-4" />
+				Add
+			</Button>
 		</div>
-
-		<Button size="sm" variant="outline" class="ml-auto gap-1" onclick={() => (drawerOpen = true)}>
-			<Plus class="size-4" />
-			Add
-		</Button>
 	</div>
 
-	<Card>
+	<Card class="overflow-visible">
 		<CardContent class="p-4">
-			{#if sourceIds.length === 0}
-				<div class="flex h-64 items-center justify-center text-sm text-muted-foreground">
-					Add a source to get started.
-				</div>
-			{:else}
-				<StateHistoryChart
-					deviceIds={sourceIds}
-					{from}
-					{to}
-					bucketSeconds={bucketSeconds > 0 ? bucketSeconds : undefined}
-					height="h-[60vh]"
-				/>
-			{/if}
+			<div class="h-[60vh]">
+				{#if sourceIds.length === 0}
+					<div class="flex h-full items-center justify-center text-sm text-muted-foreground">
+						Add a source to get started.
+					</div>
+				{:else}
+					<StateHistoryChart
+						deviceIds={sourceIds}
+						{from}
+						{to}
+						bucketSeconds={bucketSeconds > 0 ? bucketSeconds : undefined}
+						height="h-full"
+						showChips={false}
+						{disabledKeys}
+						onSeriesChange={(s) => (allSeries = s)}
+					/>
+				{/if}
+			</div>
 		</CardContent>
 	</Card>
 </div>

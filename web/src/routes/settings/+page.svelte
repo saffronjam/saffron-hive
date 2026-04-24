@@ -247,6 +247,7 @@
 				icon: Save,
 				onclick: handleSave,
 				disabled: !isDirty || saving,
+				hideLabelOnMobile: true,
 			},
 		];
 	});
