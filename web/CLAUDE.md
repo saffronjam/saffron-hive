@@ -107,3 +107,14 @@ Do not set `cursor-*` utilities on interactive elements. Rely on visual cues —
 - The only acceptable cursor is the browser default on `<input type="text">`, `<textarea>`, and `contenteditable` surfaces.
 
 If an element looks clickable but lacks a hover state, add the hover state — don't swap in `cursor-pointer`.
+
+## Transitions
+
+Visual state changes should animate, not snap. Color, background, border, opacity, height, width, and transform should all ease between states so the UI feels continuous. A property that flips instantly on click, hover, or data update reads as broken.
+
+- **Default for state-driven properties:** `transition-colors duration-200` for color/background/border swaps; `transition-all duration-200` when several properties change together (e.g. a chip toggling between filled and outlined). 200ms is the baseline — snappy, not sluggish.
+- **Height / width changes from content swaps:** prefer holding the container's dimension constant so the swap doesn't resize the layout. If the dimension must change, either animate it (CSS `transition` + explicit height, or Svelte `transition:slide`) or fade the swapped subtree so it doesn't pop.
+- **Larger motions** (modals opening, drawers sliding in) can use `duration-300`–`duration-500`. Reserve anything longer for deliberate, user-triggered choreography.
+- **Exception:** layout changes that must be instant for correctness (focus scroll, keyboard navigation) are fine. Everything else gets a transition.
+
+When you write a class that changes appearance on a state change, ask whether it should transition. Default answer: yes.
