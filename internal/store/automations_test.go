@@ -45,7 +45,7 @@ func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 
 	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "n1", AutomationID: "auto-1", Type: "trigger",
-		Config: `{"event_type":"device.state_changed","condition_expr":"true"}`,
+		Config: `{"event_type":"device.state_changed","filter_expr":"true"}`,
 	})
 	if err != nil {
 		t.Fatalf("create node: %v", err)
@@ -60,7 +60,7 @@ func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 	}
 
 	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
-		ID: "e1", AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
+		AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
 	})
 	if err != nil {
 		t.Fatalf("create edge: %v", err)
@@ -113,7 +113,7 @@ func TestDeleteAutomationCascadesNodesAndEdges(t *testing.T) {
 	}
 
 	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
-		ID: "e1", AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
+		AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
 	})
 	if err != nil {
 		t.Fatalf("create edge: %v", err)
@@ -193,81 +193,73 @@ func TestToggleAutomation(t *testing.T) {
 	}
 }
 
-func TestDeleteAutomationNode(t *testing.T) {
+func TestReplaceAutomationGraph(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
+	if _, err := s.CreateAutomation(ctx, CreateAutomationParams{
 		ID: "auto-1", Name: "Test", Enabled: true,
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("create automation: %v", err)
 	}
 
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
-		ID: "n1", AutomationID: "auto-1", Type: "trigger",
+	if _, err := s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "old-n1", AutomationID: "auto-1", Type: "trigger",
 		Config: `{"event_type":"device.state_changed"}`,
-	})
-	if err != nil {
-		t.Fatalf("create node: %v", err)
+	}); err != nil {
+		t.Fatalf("seed node: %v", err)
+	}
+	if _, err := s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+		ID: "old-n2", AutomationID: "auto-1", Type: "action",
+		Config: `{"action_type":"set_device_state","payload":"{}"}`,
+	}); err != nil {
+		t.Fatalf("seed node: %v", err)
+	}
+	if _, err := s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+		AutomationID: "auto-1", FromNodeID: "old-n1", ToNodeID: "old-n2",
+	}); err != nil {
+		t.Fatalf("seed edge: %v", err)
 	}
 
-	if err := s.DeleteAutomationNode(ctx, "n1"); err != nil {
-		t.Fatalf("delete node: %v", err)
+	nodes := []CreateAutomationNodeParams{
+		{ID: "n1", Type: "trigger", Config: `{"event_type":"device.state_changed"}`},
+		{ID: "n2", Type: "action", Config: `{"action_type":"set_device_state","payload":"{}"}`},
+	}
+	edges := []CreateAutomationEdgeParams{
+		{FromNodeID: "n1", ToNodeID: "n2"},
+	}
+	if err := s.ReplaceAutomationGraph(ctx, "auto-1", nodes, edges); err != nil {
+		t.Fatalf("replace graph: %v", err)
 	}
 
-	nodes, err := s.ListAutomationNodes(ctx, "auto-1")
+	gotNodes, err := s.ListAutomationNodes(ctx, "auto-1")
 	if err != nil {
 		t.Fatalf("list nodes: %v", err)
 	}
-	if len(nodes) != 0 {
-		t.Errorf("got %d nodes, want 0", len(nodes))
+	if len(gotNodes) != 2 {
+		t.Errorf("got %d nodes, want 2", len(gotNodes))
 	}
-}
-
-func TestDeleteAutomationEdge(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	_, err := s.CreateAutomation(ctx, CreateAutomationParams{
-		ID: "auto-1", Name: "Test", Enabled: true,
-	})
-	if err != nil {
-		t.Fatalf("create automation: %v", err)
+	for _, n := range gotNodes {
+		if n.ID == "old-n1" || n.ID == "old-n2" {
+			t.Errorf("old node %q survived replace", n.ID)
+		}
 	}
 
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
-		ID: "n1", AutomationID: "auto-1", Type: "trigger",
-		Config: `{"event_type":"device.state_changed"}`,
-	})
-	if err != nil {
-		t.Fatalf("create node n1: %v", err)
-	}
-
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
-		ID: "n2", AutomationID: "auto-1", Type: "action",
-		Config: `{"action_type":"set_device_state","payload":"{}"}`,
-	})
-	if err != nil {
-		t.Fatalf("create node n2: %v", err)
-	}
-
-	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
-		ID: "e1", AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
-	})
-	if err != nil {
-		t.Fatalf("create edge: %v", err)
-	}
-
-	if err := s.DeleteAutomationEdge(ctx, "e1"); err != nil {
-		t.Fatalf("delete edge: %v", err)
-	}
-
-	edges, err := s.ListAutomationEdges(ctx, "auto-1")
+	gotEdges, err := s.ListAutomationEdges(ctx, "auto-1")
 	if err != nil {
 		t.Fatalf("list edges: %v", err)
 	}
-	if len(edges) != 0 {
-		t.Errorf("got %d edges, want 0", len(edges))
+	if len(gotEdges) != 1 || gotEdges[0].FromNodeID != "n1" || gotEdges[0].ToNodeID != "n2" {
+		t.Errorf("got edges %+v, want single n1->n2", gotEdges)
+	}
+
+	if err := s.ReplaceAutomationGraph(ctx, "auto-1", nil, nil); err != nil {
+		t.Fatalf("replace with empty: %v", err)
+	}
+	if nodes, _ := s.ListAutomationNodes(ctx, "auto-1"); len(nodes) != 0 {
+		t.Errorf("after empty replace got %d nodes, want 0", len(nodes))
+	}
+	if edges, _ := s.ListAutomationEdges(ctx, "auto-1"); len(edges) != 0 {
+		t.Errorf("after empty replace got %d edges, want 0", len(edges))
 	}
 }

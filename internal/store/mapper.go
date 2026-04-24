@@ -77,3 +77,38 @@ func UnmarshalCommand(data string) (device.Command, error) {
 	}
 	return cmd, nil
 }
+
+func boolToNullInt64(b *bool) *int64 {
+	if b == nil {
+		return nil
+	}
+	var v int64
+	if *b {
+		v = 1
+	}
+	return &v
+}
+
+func nullInt64ToBool(v *int64) *bool {
+	if v == nil {
+		return nil
+	}
+	b := *v != 0
+	return &b
+}
+
+func intPtrToNullInt64(v *int) *int64 {
+	if v == nil {
+		return nil
+	}
+	x := int64(*v)
+	return &x
+}
+
+func nullInt64ToIntPtr(v *int64) *int {
+	if v == nil {
+		return nil
+	}
+	x := int(*v)
+	return &x
+}

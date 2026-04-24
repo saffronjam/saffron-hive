@@ -198,18 +198,9 @@ func (s *DB) ListAutomationNodes(ctx context.Context, automationID string) ([]Au
 	return nodes, nil
 }
 
-// DeleteAutomationNode deletes an automation node by its ID.
-func (s *DB) DeleteAutomationNode(ctx context.Context, id string) error {
-	if err := s.q.DeleteAutomationNode(ctx, id); err != nil {
-		return fmt.Errorf("delete automation node: %w", err)
-	}
-	return nil
-}
-
 // CreateAutomationEdge inserts a new automation edge.
 func (s *DB) CreateAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error) {
 	if err := s.q.CreateAutomationEdge(ctx, sqlite.CreateAutomationEdgeParams{
-		ID:           params.ID,
 		AutomationID: params.AutomationID,
 		FromNodeID:   params.FromNodeID,
 		ToNodeID:     params.ToNodeID,
@@ -217,7 +208,6 @@ func (s *DB) CreateAutomationEdge(ctx context.Context, params CreateAutomationEd
 		return AutomationEdge{}, fmt.Errorf("create automation edge: %w", err)
 	}
 	return AutomationEdge{
-		ID:           params.ID,
 		AutomationID: params.AutomationID,
 		FromNodeID:   params.FromNodeID,
 		ToNodeID:     params.ToNodeID,
@@ -233,7 +223,6 @@ func (s *DB) ListAutomationEdges(ctx context.Context, automationID string) ([]Au
 	var edges []AutomationEdge
 	for _, r := range rows {
 		edges = append(edges, AutomationEdge{
-			ID:           r.ID,
 			AutomationID: r.AutomationID,
 			FromNodeID:   r.FromNodeID,
 			ToNodeID:     r.ToNodeID,
@@ -242,12 +231,40 @@ func (s *DB) ListAutomationEdges(ctx context.Context, automationID string) ([]Au
 	return edges, nil
 }
 
-// DeleteAutomationEdge deletes an automation edge by its ID.
-func (s *DB) DeleteAutomationEdge(ctx context.Context, id string) error {
-	if err := s.q.DeleteAutomationEdge(ctx, id); err != nil {
-		return fmt.Errorf("delete automation edge: %w", err)
-	}
-	return nil
+// ReplaceAutomationGraph atomically replaces an automation's nodes and edges
+// with the given sets. Existing rows are deleted in a single transaction along
+// with the inserts so concurrent readers never observe a half-written graph.
+func (s *DB) ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []CreateAutomationNodeParams, edges []CreateAutomationEdgeParams) error {
+	return s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.DeleteAutomationEdgesByAutomation(ctx, automationID); err != nil {
+			return fmt.Errorf("delete automation edges: %w", err)
+		}
+		if err := q.DeleteAutomationNodesByAutomation(ctx, automationID); err != nil {
+			return fmt.Errorf("delete automation nodes: %w", err)
+		}
+		for _, n := range nodes {
+			if err := q.CreateAutomationNode(ctx, sqlite.CreateAutomationNodeParams{
+				ID:           n.ID,
+				AutomationID: automationID,
+				Type:         n.Type,
+				Config:       n.Config,
+				PositionX:    n.PositionX,
+				PositionY:    n.PositionY,
+			}); err != nil {
+				return fmt.Errorf("create automation node: %w", err)
+			}
+		}
+		for _, e := range edges {
+			if err := q.CreateAutomationEdge(ctx, sqlite.CreateAutomationEdgeParams{
+				AutomationID: automationID,
+				FromNodeID:   e.FromNodeID,
+				ToNodeID:     e.ToNodeID,
+			}); err != nil {
+				return fmt.Errorf("create automation edge: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 // GetAutomationGraph loads a full automation graph (automation + nodes + edges).

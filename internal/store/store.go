@@ -58,19 +58,46 @@ type UpdateSceneParams struct {
 	Icon    *string
 }
 
-// Scene represents a scene row.
+// Scene represents a scene row. ActivatedAt is non-nil while the scene is
+// currently active — every device it reached at apply time is still in the
+// scene's desired state. Any scene-relevant state change on any of those
+// devices clears ActivatedAt back to nil.
 type Scene struct {
-	ID        string
-	Name      string
-	Icon      *string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	CreatedBy *UserRef
+	ID          string
+	Name        string
+	Icon        *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	CreatedBy   *UserRef
+	ActivatedAt *time.Time
+}
+
+// SceneExpectedState is the scene-relevant state snapshot taken when a scene
+// was applied to a device. The watcher compares incoming device state events
+// against this snapshot to decide whether the scene is still active.
+// Nil fields mean "unknown at apply time" — any later non-nil value invalidates.
+type SceneExpectedState struct {
+	SceneID    string
+	DeviceID   device.DeviceID
+	On         *bool
+	Brightness *int
+	ColorTemp  *int
+	ColorR     *int
+	ColorG     *int
+	ColorB     *int
+}
+
+// ActiveSceneSnapshot pairs an active scene's ID and activation timestamp
+// with the expected device states captured at apply time. Returned by
+// ListActiveScenesWithExpectedStates for watcher hydration on startup.
+type ActiveSceneSnapshot struct {
+	SceneID     string
+	ActivatedAt time.Time
+	Expected    []SceneExpectedState
 }
 
 // CreateSceneActionParams holds the parameters for adding a scene action.
 type CreateSceneActionParams struct {
-	ID         string
 	SceneID    string
 	TargetType string
 	TargetID   string
@@ -78,7 +105,6 @@ type CreateSceneActionParams struct {
 
 // SceneAction represents a scene action row.
 type SceneAction struct {
-	ID         string
 	SceneID    string
 	TargetType string
 	TargetID   string
@@ -157,7 +183,6 @@ type AutomationNode struct {
 
 // CreateAutomationEdgeParams holds the parameters for creating an automation edge.
 type CreateAutomationEdgeParams struct {
-	ID           string
 	AutomationID string
 	FromNodeID   string
 	ToNodeID     string
@@ -165,7 +190,6 @@ type CreateAutomationEdgeParams struct {
 
 // AutomationEdge represents an automation edge row.
 type AutomationEdge struct {
-	ID           string
 	AutomationID string
 	FromNodeID   string
 	ToNodeID     string
@@ -299,14 +323,12 @@ type UpdateRoomParams struct {
 
 // AddRoomDeviceParams holds the parameters for adding a device to a room.
 type AddRoomDeviceParams struct {
-	ID       string
 	RoomID   string
 	DeviceID string
 }
 
 // RoomDevice represents a room-device membership row.
 type RoomDevice struct {
-	ID       string
 	RoomID   string
 	DeviceID string
 }
