@@ -268,19 +268,19 @@
 
 <div
 	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
-		? 'border-blue-400 shadow-blue-400/50 shadow-lg'
+		? 'border-automation-trigger shadow-automation-trigger/50 shadow-lg'
 		: selected
-			? 'border-blue-400 ring-2 ring-blue-400/30'
-			: 'border-blue-500/40'}"
+			? 'border-automation-trigger ring-2 ring-automation-trigger/30'
+			: 'border-automation-trigger/40'}"
 	data-nodeid={id}
 >
-	<div class="flex items-center gap-2 rounded-t-md bg-blue-500/15 px-3 py-2">
-		<Zap class="size-4 text-blue-500" />
-		<span class="text-sm font-medium text-blue-600 dark:text-blue-400">Trigger</span>
+	<div class="flex items-center gap-2 rounded-t-md bg-automation-trigger/15 px-3 py-2">
+		<Zap class="size-4 text-automation-trigger" />
+		<span class="text-sm font-medium text-automation-trigger">Trigger</span>
 		{#if !data.editable}
 			<Badge
 				variant="outline"
-				class="ml-auto text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+				class="ml-auto text-[10px] border-automation-trigger/30 bg-automation-trigger/10 text-automation-trigger"
 			>{modeLabel}</Badge>
 		{/if}
 	</div>
@@ -526,7 +526,7 @@
 							<button
 								type="button"
 								class="flex-1 rounded px-0 py-0.5 text-[10px] font-medium transition-colors {(data.config.scheduleWeekdays ?? []).includes(code)
-									? 'bg-blue-500 text-white'
+									? 'bg-automation-trigger text-primary-foreground'
 									: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
 								onclick={() => toggleScheduleWeekday(code)}
 							>
@@ -651,7 +651,7 @@
 		{/if}
 
 		{#if data.editable}
-			<div class="-mx-3 -mb-3 border-t border-blue-500/20">
+			<div class="-mx-3 -mb-3 border-t border-automation-trigger/20">
 				<button
 					type="button"
 					class="flex w-full items-center gap-1 px-3 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -712,5 +712,5 @@
 		{/if}
 	</div>
 
-	<Handle type="source" position={Position.Right} class="!bg-blue-500 !border-blue-300 !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
+	<Handle type="source" position={Position.Right} class="!bg-automation-trigger !border-automation-trigger !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>

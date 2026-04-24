@@ -196,21 +196,21 @@
 
 <div
 	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
-		? 'border-teal-400 shadow-teal-400/50 shadow-lg'
+		? 'border-automation-condition shadow-automation-condition/50 shadow-lg'
 		: selected
-			? 'border-teal-400 ring-2 ring-teal-400/30'
-			: 'border-teal-500/40'}"
+			? 'border-automation-condition ring-2 ring-automation-condition/30'
+			: 'border-automation-condition/40'}"
 	data-nodeid={id}
 >
-	<Handle type="target" position={Position.Left} class="!bg-teal-500 !border-teal-300 !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
+	<Handle type="target" position={Position.Left} class="!bg-automation-condition !border-automation-condition !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 
-	<div class="flex items-center gap-2 rounded-t-md bg-teal-500/15 px-3 py-2">
-		<ShieldCheck class="size-4 text-teal-500" />
-		<span class="text-sm font-medium text-teal-600 dark:text-teal-400">Condition</span>
+	<div class="flex items-center gap-2 rounded-t-md bg-automation-condition/15 px-3 py-2">
+		<ShieldCheck class="size-4 text-automation-condition" />
+		<span class="text-sm font-medium text-automation-condition">Condition</span>
 		{#if !data.editable}
 			<Badge
 				variant="outline"
-				class="ml-auto text-[10px] border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400"
+				class="ml-auto text-[10px] border-automation-condition/30 bg-automation-condition/10 text-automation-condition"
 			>{modeLabel}</Badge>
 		{/if}
 	</div>
@@ -293,7 +293,7 @@
 						<button
 							type="button"
 							class="flex-1 rounded px-0 py-0.5 text-[10px] font-medium transition-colors {(data.config.weekdays ?? []).includes(day)
-								? 'bg-teal-500 text-white'
+								? 'bg-automation-condition text-primary-foreground'
 								: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
 							onclick={() => toggleWeekday(day)}
 						>
@@ -458,5 +458,5 @@
 		{/if}
 	</div>
 
-	<Handle type="source" position={Position.Right} class="!bg-teal-500 !border-teal-300 !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
+	<Handle type="source" position={Position.Right} class="!bg-automation-condition !border-automation-condition !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>

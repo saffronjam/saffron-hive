@@ -204,15 +204,15 @@
 
 <div
 	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
-		? 'border-green-400 shadow-green-400/50 shadow-lg'
+		? 'border-automation-action shadow-automation-action/50 shadow-lg'
 		: selected
-			? 'border-green-400 ring-2 ring-green-400/30'
-			: 'border-green-500/40'}"
+			? 'border-automation-action ring-2 ring-automation-action/30'
+			: 'border-automation-action/40'}"
 	data-nodeid={id}
 >
-	<div class="flex items-center gap-2 rounded-t-md bg-green-500/15 px-3 py-2">
-		<Play class="size-4 text-green-600 dark:text-green-400" />
-		<span class="text-sm font-medium text-green-600 dark:text-green-400">Action</span>
+	<div class="flex items-center gap-2 rounded-t-md bg-automation-action/15 px-3 py-2">
+		<Play class="size-4 text-automation-action" />
+		<span class="text-sm font-medium text-automation-action">Action</span>
 	</div>
 
 	<div class="space-y-2 p-3 nodrag">
@@ -361,5 +361,5 @@
 		{/if}
 	</div>
 
-	<Handle type="target" position={Position.Left} class="!bg-green-500 !border-green-300 !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
+	<Handle type="target" position={Position.Left} class="!bg-automation-action !border-automation-action !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>
