@@ -14,7 +14,12 @@ import (
 
 const insertStateSample = `-- name: InsertStateSample :one
 INSERT INTO device_state_samples (device_id, field, value, recorded_at)
-VALUES (?, ?, ?, ?)
+VALUES (
+    ?1,
+    ?2,
+    ?3,
+    CAST(?4 AS TEXT)
+)
 RETURNING id
 `
 
@@ -22,7 +27,7 @@ type InsertStateSampleParams struct {
 	DeviceID   device.DeviceID
 	Field      string
 	Value      float64
-	RecordedAt time.Time
+	RecordedAt string
 }
 
 func (q *Queries) InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error) {
@@ -38,11 +43,11 @@ func (q *Queries) InsertStateSample(ctx context.Context, arg InsertStateSamplePa
 }
 
 const pruneDeviceStateSamplesOlderThan = `-- name: PruneDeviceStateSamplesOlderThan :execrows
-DELETE FROM device_state_samples WHERE recorded_at < ?
+DELETE FROM device_state_samples WHERE recorded_at < CAST(?1 AS TEXT)
 `
 
-func (q *Queries) PruneDeviceStateSamplesOlderThan(ctx context.Context, recordedAt time.Time) (int64, error) {
-	result, err := q.db.ExecContext(ctx, pruneDeviceStateSamplesOlderThan, recordedAt)
+func (q *Queries) PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneDeviceStateSamplesOlderThan, cutoff)
 	if err != nil {
 		return 0, err
 	}
@@ -54,38 +59,39 @@ SELECT
     device_id,
     field,
     CAST(strftime('%s', substr(recorded_at, 1, 19)) AS INTEGER) / CAST(?1 AS INTEGER) AS bucket_key,
-    CAST(AVG(value) AS REAL)       AS bucket_value,
-    CAST(MIN(recorded_at) AS TEXT) AS bucket_start
+    CAST(AVG(value) AS REAL) AS bucket_value,
+    CAST(strftime('%s', substr(MIN(recorded_at), 1, 19)) AS INTEGER) AS bucket_start_unix
 FROM device_state_samples
 WHERE device_id IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
   AND (json_array_length(CAST(?3 AS TEXT)) = 0
        OR field IN (SELECT value FROM json_each(CAST(?3 AS TEXT))))
-  AND recorded_at >= ?4
-  AND recorded_at <= ?5
+  AND recorded_at >= CAST(?4 AS TEXT)
+  AND recorded_at <= CAST(?5 AS TEXT)
 GROUP BY device_id, field, bucket_key
-ORDER BY device_id ASC, field ASC, bucket_start ASC
+ORDER BY device_id ASC, field ASC, bucket_start_unix ASC
 `
 
 type QueryStateHistoryBucketedParams struct {
 	BucketSeconds int64
 	DeviceIdsJson string
 	FieldsJson    string
-	FromTime      time.Time
-	ToTime        time.Time
+	FromTime      string
+	ToTime        string
 }
 
 type QueryStateHistoryBucketedRow struct {
-	DeviceID    device.DeviceID
-	Field       string
-	BucketKey   int64
-	BucketValue float64
-	BucketStart string
+	DeviceID        device.DeviceID
+	Field           string
+	BucketKey       int64
+	BucketValue     float64
+	BucketStartUnix int64
 }
 
 // Groups samples into fixed-size time buckets. bucket_seconds must be > 0.
-// Per bucket returns AVG(value) and the earliest recorded_at (bucket_start).
-// The bucket key is computed once in the SELECT and grouped by alias so the
-// sqlc.arg substitution happens in a position sqlc reliably parses.
+// Per bucket returns AVG(value) and the Unix epoch of the earliest recorded_at
+// (bucket_start_unix). Returning an INTEGER epoch sidesteps the sqlite driver's
+// re-serialisation of TIMESTAMP aggregates. The substr(..., 1, 19) keeps
+// strftime happy across the stored RFC3339Nano form.
 func (q *Queries) QueryStateHistoryBucketed(ctx context.Context, arg QueryStateHistoryBucketedParams) ([]QueryStateHistoryBucketedRow, error) {
 	rows, err := q.db.QueryContext(ctx, queryStateHistoryBucketed,
 		arg.BucketSeconds,
@@ -106,7 +112,7 @@ func (q *Queries) QueryStateHistoryBucketed(ctx context.Context, arg QueryStateH
 			&i.Field,
 			&i.BucketKey,
 			&i.BucketValue,
-			&i.BucketStart,
+			&i.BucketStartUnix,
 		); err != nil {
 			return nil, err
 		}
@@ -127,8 +133,8 @@ FROM device_state_samples
 WHERE device_id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
   AND (json_array_length(CAST(?2 AS TEXT)) = 0
        OR field IN (SELECT value FROM json_each(CAST(?2 AS TEXT))))
-  AND recorded_at >= ?3
-  AND recorded_at <= ?4
+  AND recorded_at >= CAST(?3 AS TEXT)
+  AND recorded_at <= CAST(?4 AS TEXT)
 ORDER BY device_id ASC, field ASC, recorded_at ASC
 LIMIT IIF(CAST(?5 AS INTEGER) > 0, CAST(?5 AS INTEGER), -1)
 `
@@ -136,8 +142,8 @@ LIMIT IIF(CAST(?5 AS INTEGER) > 0, CAST(?5 AS INTEGER), -1)
 type QueryStateHistoryRawParams struct {
 	DeviceIdsJson string
 	FieldsJson    string
-	FromTime      time.Time
-	ToTime        time.Time
+	FromTime      string
+	ToTime        string
 	Lim           int64
 }
 
@@ -150,7 +156,8 @@ type QueryStateHistoryRawRow struct {
 
 // device_ids_json and fields_json are JSON-array strings. An empty array in
 // fields_json matches every field. device_ids_json must be non-empty (callers
-// always pick sources explicitly).
+// always pick sources explicitly). Time bounds are RFC3339Nano UTC strings so
+// lexicographic comparison matches chronological order.
 func (q *Queries) QueryStateHistoryRaw(ctx context.Context, arg QueryStateHistoryRawParams) ([]QueryStateHistoryRawRow, error) {
 	rows, err := q.db.QueryContext(ctx, queryStateHistoryRaw,
 		arg.DeviceIdsJson,
