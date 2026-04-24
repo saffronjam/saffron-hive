@@ -28,7 +28,7 @@ func TestRetentionPrunesOlderSamplesFromSetting(t *testing.T) {
 		t.Fatalf("upsert setting: %v", err)
 	}
 
-	pruneOnce(ctx, s)
+	PruneOnce(ctx, s)
 
 	points, err := s.QueryStateHistory(ctx, store.StateHistoryQuery{
 		DeviceIDs: []device.DeviceID{"sensor-1"},
@@ -40,24 +40,5 @@ func TestRetentionPrunesOlderSamplesFromSetting(t *testing.T) {
 	}
 	if len(points) != 1 {
 		t.Fatalf("expected only the 1-hour-old sample to survive, got %d", len(points))
-	}
-}
-
-func TestRetentionFallsBackToDefaultDays(t *testing.T) {
-	s := newTestStore(t)
-
-	if got := retentionDays(context.Background(), s); got != DefaultRetentionDays {
-		t.Errorf("retentionDays with no setting = %d, want %d", got, DefaultRetentionDays)
-	}
-}
-
-func TestRetentionRespectsInvalidSettingValue(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-	if err := s.UpsertSetting(ctx, RetentionSettingKey, "not-a-number"); err != nil {
-		t.Fatalf("upsert: %v", err)
-	}
-	if got := retentionDays(ctx, s); got != DefaultRetentionDays {
-		t.Errorf("retentionDays with invalid setting = %d, want %d", got, DefaultRetentionDays)
 	}
 }

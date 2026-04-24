@@ -2,76 +2,46 @@ package activity
 
 import (
 	"context"
-	"strconv"
 	"time"
+
+	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 const (
-	// RetentionSettingKey is the settings-table key that controls how many days
-	// of activity history to keep. Missing or unparseable values fall back to
-	// DefaultRetentionDays.
-	RetentionSettingKey   = "activity.retention_days"
-	DefaultRetentionDays  = 30
-	defaultPruneInterval  = 6 * time.Hour
-	defaultStartupSettleS = 30 * time.Second
+	// RetentionSettingKey is the settings-table key that controls how many
+	// days of activity history to keep. Missing or unparseable values fall
+	// back to DefaultRetentionDays.
+	RetentionSettingKey = "activity.retention_days"
+	// DefaultRetentionDays is the retention window used when the setting is
+	// absent or malformed.
+	DefaultRetentionDays = 30
 )
 
 // RunRetention prunes old activity events on a fixed interval. Blocks until
-// ctx is cancelled. The retention window is read from the settings table on
-// every tick so the user can change it without a restart.
+// ctx is cancelled.
 func RunRetention(ctx context.Context, s activityStore) {
-	runRetentionWithInterval(ctx, s, defaultPruneInterval, defaultStartupSettleS)
+	store.RunRetention(ctx, logger, activityPruner{s}, retentionConfig())
 }
 
-func runRetentionWithInterval(ctx context.Context, s activityStore, interval, initialDelay time.Duration) {
-	// Give the app time to finish startup before the first prune so we don't
-	// contend with hydration queries.
-	timer := time.NewTimer(initialDelay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return
-	case <-timer.C:
-	}
+// PruneOnce runs a single retention pass. Intended for tests.
+func PruneOnce(ctx context.Context, s activityStore) {
+	store.PruneOnce(ctx, logger, activityPruner{s}, retentionConfig())
+}
 
-	pruneOnce(ctx, s)
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			pruneOnce(ctx, s)
-		}
+func retentionConfig() store.RetentionConfig {
+	return store.RetentionConfig{
+		SettingKey:  RetentionSettingKey,
+		DefaultDays: DefaultRetentionDays,
+		Label:       "activity events",
 	}
 }
 
-func pruneOnce(ctx context.Context, s activityStore) {
-	days := retentionDays(ctx, s)
-	if days <= 0 {
-		return
-	}
-	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
-	n, err := s.PruneActivityEventsOlderThan(ctx, cutoff)
-	if err != nil {
-		logger.Error("prune activity events failed", "error", err)
-		return
-	}
-	if n > 0 {
-		logger.Info("pruned activity events", "count", n, "cutoff", cutoff, "retention_days", days)
-	}
+type activityPruner struct{ s activityStore }
+
+func (a activityPruner) GetSetting(ctx context.Context, key string) (store.Setting, error) {
+	return a.s.GetSetting(ctx, key)
 }
 
-func retentionDays(ctx context.Context, s activityStore) int {
-	setting, err := s.GetSetting(ctx, RetentionSettingKey)
-	if err != nil {
-		return DefaultRetentionDays
-	}
-	n, err := strconv.Atoi(setting.Value)
-	if err != nil || n <= 0 {
-		return DefaultRetentionDays
-	}
-	return n
+func (a activityPruner) Prune(ctx context.Context, cutoff time.Time) (int64, error) {
+	return a.s.PruneActivityEventsOlderThan(ctx, cutoff)
 }
