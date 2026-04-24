@@ -32,7 +32,7 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 		createAutomation(input: $input) {
 			id name enabled
 			nodes { id type config }
-			edges { id fromNodeId toNodeId }
+			edges { fromNodeId toNodeId }
 		}
 	}`, map[string]any{
 		"input": map[string]any{
@@ -62,7 +62,6 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 				Config string `json:"config"`
 			} `json:"nodes"`
 			Edges []struct {
-				ID         string `json:"id"`
 				FromNodeID string `json:"fromNodeId"`
 				ToNodeID   string `json:"toNodeId"`
 			} `json:"edges"`

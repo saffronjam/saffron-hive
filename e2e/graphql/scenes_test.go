@@ -18,7 +18,7 @@ func TestScenes_CreateWithDeviceTarget(t *testing.T) {
 		createScene(input: $input) {
 			id
 			name
-			actions { id targetType targetId }
+			actions { targetType targetId }
 			devicePayloads { deviceId payload }
 		}
 	}`, map[string]any{
@@ -41,7 +41,6 @@ func TestScenes_CreateWithDeviceTarget(t *testing.T) {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
 			Actions []struct {
-				ID         string `json:"id"`
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
 			} `json:"actions"`
@@ -424,6 +423,262 @@ func TestScenes_ApplySceneWithGroupTarget(t *testing.T) {
 	})
 	if !ok {
 		t.Fatal("timed out waiting for MQTT command to Living Room Light — group target resolution failed (Bug #1/#2)")
+	}
+}
+
+// TestScenes_ActivatedAtSetOnApply verifies that applying a scene sets its
+// activatedAt field when the target device's current state matches the scene's
+// desired state.
+func TestScenes_ActivatedAtSetOnApply(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Bedroom Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	// Seed the device into the exact state the scene will command so the
+	// watcher's expected-vs-current check matches after apply.
+	if err := publisher.PublishDeviceState("Bedroom Light",
+		[]byte(`{"state":"ON","brightness":255,"color_temp":370}`)); err != nil {
+		t.Fatalf("publish seed state: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Active Test Scene",
+			"actions": []map[string]any{
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":255,"color_temp":370}`},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create scene: %v", err)
+	}
+	var sr struct {
+		CreateScene struct{ ID string } `json:"createScene"`
+	}
+	_ = json.Unmarshal(data, &sr)
+	sceneID := sr.CreateScene.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
+	})
+
+	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`,
+		map[string]any{"id": sceneID}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+
+	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		data, err := graphqlQuery(`query($id: ID!) { scene(id: $id) { id activatedAt } }`,
+			map[string]any{"id": sceneID})
+		if err != nil {
+			return false
+		}
+		var sc struct {
+			Scene struct {
+				ID          string  `json:"id"`
+				ActivatedAt *string `json:"activatedAt"`
+			} `json:"scene"`
+		}
+		if json.Unmarshal(data, &sc) != nil {
+			return false
+		}
+		return sc.Scene.ActivatedAt != nil
+	})
+	if !ok {
+		t.Fatal("activatedAt never became non-null after apply")
+	}
+}
+
+// TestScenes_DeactivatesOnDivergingState verifies the strict invalidation
+// rule: any scene-relevant state change on any device the scene reached
+// clears activatedAt back to null.
+func TestScenes_DeactivatesOnDivergingState(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+	if err := publisher.PublishDeviceState("Kitchen Light",
+		[]byte(`{"state":"ON","brightness":100,"color_temp":370}`)); err != nil {
+		t.Fatalf("publish seed: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Drift Test Scene",
+			"actions": []map[string]any{
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":100,"color_temp":370}`},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	var sr struct {
+		CreateScene struct{ ID string } `json:"createScene"`
+	}
+	_ = json.Unmarshal(data, &sr)
+	sceneID := sr.CreateScene.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
+	})
+
+	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`,
+		map[string]any{"id": sceneID}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+
+	activated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		data, _ := graphqlQuery(`query($id: ID!) { scene(id: $id) { activatedAt } }`,
+			map[string]any{"id": sceneID})
+		var sc struct {
+			Scene struct {
+				ActivatedAt *string `json:"activatedAt"`
+			} `json:"scene"`
+		}
+		if json.Unmarshal(data, &sc) != nil {
+			return false
+		}
+		return sc.Scene.ActivatedAt != nil
+	})
+	if !activated {
+		t.Fatal("scene never became active")
+	}
+
+	// Drift: change the device's brightness. Strict rule says this invalidates.
+	if err := publisher.PublishDeviceState("Kitchen Light",
+		[]byte(`{"state":"ON","brightness":50,"color_temp":370}`)); err != nil {
+		t.Fatalf("publish drift: %v", err)
+	}
+
+	deactivated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		data, _ := graphqlQuery(`query($id: ID!) { scene(id: $id) { activatedAt } }`,
+			map[string]any{"id": sceneID})
+		var sc struct {
+			Scene struct {
+				ActivatedAt *string `json:"activatedAt"`
+			} `json:"scene"`
+		}
+		if json.Unmarshal(data, &sc) != nil {
+			return false
+		}
+		return sc.Scene.ActivatedAt == nil
+	})
+	if !deactivated {
+		t.Fatal("activatedAt never cleared after divergent state change")
+	}
+}
+
+// TestScenes_ActiveChangedSubscription verifies the sceneActiveChanged
+// subscription fires with activatedAt set on activation and null on
+// deactivation.
+func TestScenes_ActiveChangedSubscription(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Living Room Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+	if err := publisher.PublishDeviceState("Living Room Light",
+		[]byte(`{"state":"ON","brightness":120,"color_temp":370}`)); err != nil {
+		t.Fatalf("publish seed: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Subscription Active Test",
+			"actions": []map[string]any{
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":120,"color_temp":370}`},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	var sr struct {
+		CreateScene struct{ ID string } `json:"createScene"`
+	}
+	_ = json.Unmarshal(data, &sr)
+	sceneID := sr.CreateScene.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
+	})
+
+	ch, cleanup, err := wsSubscribe(
+		`subscription { sceneActiveChanged { sceneId activatedAt } }`,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	defer cleanup()
+	time.Sleep(200 * time.Millisecond)
+
+	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`,
+		map[string]any{"id": sceneID}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+
+	sawActivated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case data := <-ch:
+			var ev struct {
+				SceneActiveChanged struct {
+					SceneID     string  `json:"sceneId"`
+					ActivatedAt *string `json:"activatedAt"`
+				} `json:"sceneActiveChanged"`
+			}
+			if json.Unmarshal(data, &ev) != nil {
+				return false
+			}
+			return ev.SceneActiveChanged.SceneID == sceneID && ev.SceneActiveChanged.ActivatedAt != nil
+		default:
+			return false
+		}
+	})
+	if !sawActivated {
+		t.Fatal("timed out waiting for activated subscription event")
+	}
+
+	if err := publisher.PublishDeviceState("Living Room Light",
+		[]byte(`{"state":"OFF","brightness":120,"color_temp":370}`)); err != nil {
+		t.Fatalf("publish drift: %v", err)
+	}
+
+	sawDeactivated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case data := <-ch:
+			var ev struct {
+				SceneActiveChanged struct {
+					SceneID     string  `json:"sceneId"`
+					ActivatedAt *string `json:"activatedAt"`
+				} `json:"sceneActiveChanged"`
+			}
+			if json.Unmarshal(data, &ev) != nil {
+				return false
+			}
+			return ev.SceneActiveChanged.SceneID == sceneID && ev.SceneActiveChanged.ActivatedAt == nil
+		default:
+			return false
+		}
+	})
+	if !sawDeactivated {
+		t.Fatal("timed out waiting for deactivated subscription event")
 	}
 }
 
