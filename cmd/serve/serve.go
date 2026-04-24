@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -30,6 +31,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
 )
@@ -118,21 +120,46 @@ func Run(ctx context.Context) error {
 		memStore: memStore,
 	}
 
+	// bgWG tracks every long-running background goroutine so shutdown waits
+	// for them to drain before the process exits. Without it, HTTP shutdown
+	// cancels ctx and returns, and the recorder/engine/monitor goroutines
+	// can be killed mid-write.
+	var bgWG sync.WaitGroup
+	spawn := func(name string, fn func()) {
+		bgWG.Add(1)
+		go func() {
+			defer bgWG.Done()
+			fn()
+			serveLogger.Info("background goroutine exited", "name", name)
+		}()
+	}
+
 	deviceCh := bus.Subscribe(
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
 	)
-	go history.RunRecorder(ctx, bus, sqlStore)
-	go runDevicePersister(ctx, bus, deviceCh, sqlStore)
+	spawn("history.recorder", func() { history.RunRecorder(ctx, bus, sqlStore) })
+	spawn("device.persister", func() { runDevicePersister(ctx, bus, deviceCh, sqlStore) })
 
 	activityBuffer := activity.NewBuffer()
-	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, activityBuffer)
-	go activityRecorder.Run(ctx)
-	go activity.RunRetention(ctx, sqlStore)
+	roomCache := activity.NewRoomCache(sqlStore)
+	if err := roomCache.Refresh(ctx); err != nil {
+		serveLogger.Warn("initial room-cache refresh failed", "error", err)
+	}
+	spawn("activity.roomcache", func() { roomCache.Run(ctx, bus) })
+	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
+	spawn("activity.recorder", func() { activityRecorder.Run(ctx) })
+	spawn("activity.retention", func() { activity.RunRetention(ctx, sqlStore) })
+
+	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore)
+	if err := sceneWatcher.Hydrate(ctx); err != nil {
+		serveLogger.Warn("scene watcher hydrate failed", "error", err)
+	}
+	spawn("scene.watcher", func() { sceneWatcher.Run(ctx) })
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
-	go alarms.RunMonitor(ctx, alarmSvc, memStore, mgr)
+	spawn("alarms.monitor", func() { alarms.RunMonitor(ctx, alarmSvc, memStore, mgr) })
 
 	if mqttCfg != nil && mqttCfg.Broker != "" {
 		mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
@@ -149,14 +176,13 @@ func Run(ctx context.Context) error {
 	} else {
 		serveLogger.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
 	}
-	defer mgr.Stop()
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
-	go func() {
+	spawn("automation.engine", func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			serveLogger.Error("automation engine error", "error", err)
 		}
-	}()
+	})
 
 	avatarDir := avatars.Dir(cfg.DataDir)
 	if err := os.MkdirAll(avatarDir, 0o755); err != nil {
@@ -214,14 +240,36 @@ func Run(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		_ = srv.Shutdown(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			serveLogger.Warn("http server shutdown error", "error", err)
+		}
 	}()
 
 	serveLogger.Info("listening", "addr", cfg.ListenAddr)
-	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		return err
+	listenErr := srv.ListenAndServe()
+	if listenErr == http.ErrServerClosed {
+		listenErr = nil
 	}
-	return nil
+
+	// Stop the MQTT adapter before waiting for goroutines so its command
+	// loop (which selects on the event bus) can drain.
+	mgr.Stop()
+
+	drained := make(chan struct{})
+	go func() {
+		bgWG.Wait()
+		close(drained)
+	}()
+	select {
+	case <-drained:
+		serveLogger.Info("all background goroutines drained")
+	case <-time.After(15 * time.Second):
+		serveLogger.Warn("background goroutines did not drain within 15s; exiting anyway")
+	}
+
+	return listenErr
 }
 
 // spaFallbackHandler serves static frontend assets and falls back to index.html
