@@ -93,7 +93,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="rounded-lg shadow-card bg-card transition-colors {light || plug ? 'cursor-pointer hover:bg-accent/50' : ''}"
+	class="rounded-lg shadow-card bg-card transition-colors {light || plug ? 'hover:bg-accent/50' : ''}"
 	onclick={handleCardClick}
 	role={light || plug ? "button" : undefined}
 	tabindex={light || plug ? 0 : undefined}
@@ -109,7 +109,7 @@
 			<div class="flex items-center gap-2">
 				<h3 class="truncate text-sm font-medium text-card-foreground">{device.name}</h3>
 				<span
-					class="h-2 w-2 shrink-0 rounded-full {device.available ? 'bg-green-500' : 'bg-destructive'}"
+					class="h-2 w-2 shrink-0 rounded-full {device.available ? 'bg-status-online' : 'bg-status-offline'}"
 				></span>
 			</div>
 

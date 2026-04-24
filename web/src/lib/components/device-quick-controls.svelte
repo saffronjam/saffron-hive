@@ -59,14 +59,39 @@
 		void send({ on: checked });
 	}
 
-	let brightnessTimer: ReturnType<typeof setTimeout> | null = null;
-	let colorTempTimer: ReturnType<typeof setTimeout> | null = null;
-	let colorTimer: ReturnType<typeof setTimeout> | null = null;
+	const THROTTLE_MS = 250;
+
+	interface Throttle {
+		lastSent: number;
+		trailing: ReturnType<typeof setTimeout> | null;
+	}
+	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
+	const colorTempThrottle: Throttle = { lastSent: 0, trailing: null };
+	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
+
+	function throttle(t: Throttle, fire: () => void) {
+		const now = Date.now();
+		const elapsed = now - t.lastSent;
+		if (t.trailing) {
+			clearTimeout(t.trailing);
+			t.trailing = null;
+		}
+		if (elapsed >= THROTTLE_MS) {
+			t.lastSent = now;
+			fire();
+		} else {
+			t.trailing = setTimeout(() => {
+				t.trailing = null;
+				t.lastSent = Date.now();
+				fire();
+			}, THROTTLE_MS - elapsed);
+		}
+	}
 
 	let localBrightness = $state(127);
 
 	$effect(() => {
-		if (!brightnessTimer && device.state?.brightness != null) {
+		if (!brightnessThrottle.trailing && device.state?.brightness != null) {
 			localBrightness = device.state.brightness;
 		}
 	});
@@ -77,19 +102,11 @@
 
 	function handleBrightnessChange(val: number) {
 		localBrightness = val;
-		if (brightnessTimer) clearTimeout(brightnessTimer);
-		brightnessTimer = setTimeout(() => {
-			brightnessTimer = null;
-			void send({ ...autoOn(), brightness: val });
-		}, 200);
+		throttle(brightnessThrottle, () => void send({ ...autoOn(), brightness: val }));
 	}
 
 	function handleColorTempChange(val: number) {
-		if (colorTempTimer) clearTimeout(colorTempTimer);
-		colorTempTimer = setTimeout(() => {
-			colorTempTimer = null;
-			void send({ ...autoOn(), colorTemp: val });
-		}, 200);
+		throttle(colorTempThrottle, () => void send({ ...autoOn(), colorTemp: val }));
 	}
 
 	function rgbToXy(r: number, g: number, b: number): { x: number; y: number } {
@@ -114,12 +131,10 @@
 	}
 
 	function handleColorChange(color: { r: number; g: number; b: number }) {
-		if (colorTimer) clearTimeout(colorTimer);
-		colorTimer = setTimeout(() => {
-			colorTimer = null;
+		throttle(colorThrottle, () => {
 			const xy = rgbToXy(color.r, color.g, color.b);
 			void send({ ...autoOn(), color: { ...color, x: xy.x, y: xy.y } });
-		}, 200);
+		});
 	}
 
 	const isOn = $derived(device.state?.on ?? false);
@@ -127,7 +142,7 @@
 
 {#if hasOnOff}
 	<Tooltip>
-		<TooltipTrigger>
+		<TooltipTrigger class="inline-flex h-8 items-center">
 			<Switch
 				checked={isOn}
 				onCheckedChange={handleToggle}
@@ -141,9 +156,9 @@
 
 {#if hasPopover}
 	<Popover>
-		<PopoverTrigger>
+		<PopoverTrigger class="inline-flex h-8 items-center">
 			<Tooltip>
-				<TooltipTrigger>
+				<TooltipTrigger class="inline-flex h-8 items-center">
 					<Button
 						variant="ghost"
 						size="icon-sm"

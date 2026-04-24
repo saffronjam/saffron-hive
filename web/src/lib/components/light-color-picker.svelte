@@ -63,9 +63,8 @@
 
 	let brightnessEl: HTMLDivElement | null = $state(null);
 	let brightnessDragging = $state(false);
-	let brightnessHovered = $state(false);
 	let brightnessFocused = $state(false);
-	const brightnessExpanded = $derived(brightnessDragging || brightnessHovered || brightnessFocused);
+	const brightnessExpanded = $derived(brightnessDragging || brightnessFocused);
 
 	function brightnessFromClientX(clientX: number): number {
 		const el = brightnessEl;
@@ -202,8 +201,6 @@
 					tabindex={disabled ? -1 : 0}
 					onmousedown={handleBrightnessDown}
 					ontouchstart={handleBrightnessDown}
-					onmouseenter={() => (brightnessHovered = true)}
-					onmouseleave={() => (brightnessHovered = false)}
 					onfocus={() => (brightnessFocused = true)}
 					onblur={() => (brightnessFocused = false)}
 					onkeydown={handleBrightnessKey}
