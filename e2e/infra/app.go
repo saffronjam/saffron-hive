@@ -23,6 +23,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
@@ -106,6 +107,12 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	}
 	go sceneWatcher.Run(appCtx)
 
+	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, e2eTerminator{})
+	if err := effectRunner.Hydrate(appCtx); err != nil {
+		log.Printf("effect runner hydrate failed: %v", err)
+	}
+	go effectRunner.Run(appCtx)
+
 	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
@@ -157,6 +164,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		EventBus:           bus,
 		TargetResolver:     sqlStore,
 		AutomationReloader: &reloader{engine: engine, ctx: appCtx},
+		EffectRunner:       effectRunner,
 		Alarms:             alarmSvc,
 		AlarmBuffer:        alarmBuffer,
 		ActivityBuffer:     activityBuffer,
@@ -267,4 +275,10 @@ type reloader struct {
 
 func (r *reloader) Reload() error {
 	return r.engine.Reload(r.ctx)
+}
+
+type e2eTerminator struct{}
+
+func (e2eTerminator) TerminatorFor(dev device.Device) string {
+	return zigbee.TerminatorFor(dev)
 }
