@@ -1,9 +1,20 @@
 package scene
 
 import (
+	"math"
+
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// colorMatchDeltaE is the perceptual-distance threshold (CIE76) below which
+// a device's reported colour is considered "the same" as the scene's expected
+// colour. Hue-style bulbs store colour in CIE xy and recompute RGB on read;
+// that round-trip can drift by ±1–2 per channel even though the bulb is
+// honouring the commanded colour exactly. A ΔE of 3 is the standard
+// "perceptible but acceptable" line — well above bulb round-trip noise and
+// far below any deliberate user colour change.
+const colorMatchDeltaE = 3.0
 
 // BuildExpected snapshots the scene-relevant state of a device at the moment a
 // scene is applied. Each field is either:
@@ -107,9 +118,59 @@ func colorFieldMatches(exp store.SceneExpectedState, current *device.DeviceState
 	if current == nil || current.Color == nil {
 		return false
 	}
-	return derefInt(exp.ColorR) == current.Color.R &&
-		derefInt(exp.ColorG) == current.Color.G &&
-		derefInt(exp.ColorB) == current.Color.B
+	return rgbDeltaE76(
+		derefInt(exp.ColorR), derefInt(exp.ColorG), derefInt(exp.ColorB),
+		current.Color.R, current.Color.G, current.Color.B,
+	) <= colorMatchDeltaE
+}
+
+// rgbDeltaE76 returns the CIE76 ΔE between two sRGB triples. The pipeline is
+// sRGB(0–255) → gamma-decoded linear RGB → CIE XYZ (D65) → CIE L*a*b* (D65)
+// → Euclidean distance. Cheaper than ΔE2000 and accurate enough at the
+// scene-active threshold we care about.
+func rgbDeltaE76(r1, g1, b1, r2, g2, b2 int) float64 {
+	l1, a1, lb1 := rgbToLab(r1, g1, b1)
+	l2, a2, lb2 := rgbToLab(r2, g2, b2)
+	dL := l1 - l2
+	da := a1 - a2
+	db := lb1 - lb2
+	return math.Sqrt(dL*dL + da*da + db*db)
+}
+
+func rgbToLab(r, g, b int) (l, a, lb float64) {
+	rl := srgbToLinear(float64(r) / 255)
+	gl := srgbToLinear(float64(g) / 255)
+	bl := srgbToLinear(float64(b) / 255)
+
+	x := rl*0.4124564 + gl*0.3575761 + bl*0.1804375
+	y := rl*0.2126729 + gl*0.7151522 + bl*0.0721750
+	z := rl*0.0193339 + gl*0.1191920 + bl*0.9503041
+
+	const xn, yn, zn = 0.95047, 1.0, 1.08883
+	fx := labF(x / xn)
+	fy := labF(y / yn)
+	fz := labF(z / zn)
+
+	l = 116*fy - 16
+	a = 500 * (fx - fy)
+	lb = 200 * (fy - fz)
+	return
+}
+
+func srgbToLinear(c float64) float64 {
+	if c <= 0.04045 {
+		return c / 12.92
+	}
+	return math.Pow((c+0.055)/1.055, 2.4)
+}
+
+func labF(t float64) float64 {
+	const epsilon = 216.0 / 24389.0
+	const kappa = 24389.0 / 27.0
+	if t > epsilon {
+		return math.Cbrt(t)
+	}
+	return (kappa*t + 16) / 116
 }
 
 func currentOn(s *device.DeviceState) *bool {

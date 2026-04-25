@@ -160,6 +160,46 @@ func TestExpectedMatchesCurrent_AnyFieldDiffers(t *testing.T) {
 	})
 }
 
+// TestExpectedMatchesCurrent_TolerateBulbRoundtripDrift covers the regression
+// behind the "Living room Flower" scene immediately deactivating: a Hue bulb
+// commanded with color {243,0,255} reports back {243,1,255} due to the
+// xy → RGB roundtrip rounding by ±1. The watcher must treat that as a match
+// or every colour-only scene flips inactive on the first state echo.
+func TestExpectedMatchesCurrent_TolerateBulbRoundtripDrift(t *testing.T) {
+	exp := store.SceneExpectedState{
+		On:     device.Ptr(true),
+		ColorR: device.Ptr(243),
+		ColorG: device.Ptr(0),
+		ColorB: device.Ptr(255),
+	}
+	current := &device.DeviceState{
+		On:    device.Ptr(true),
+		Color: &device.Color{R: 243, G: 1, B: 255},
+	}
+	if !ExpectedMatchesCurrent(exp, current) {
+		t.Fatal("1-unit RGB drift should still match (bulb roundtrip noise)")
+	}
+}
+
+// TestExpectedMatchesCurrent_DeliberateColourChange ensures the tolerance
+// doesn't swallow real changes — a hue shift from purple to red is well above
+// the ΔE threshold and must invalidate.
+func TestExpectedMatchesCurrent_DeliberateColourChange(t *testing.T) {
+	exp := store.SceneExpectedState{
+		On:     device.Ptr(true),
+		ColorR: device.Ptr(243),
+		ColorG: device.Ptr(0),
+		ColorB: device.Ptr(255),
+	}
+	current := &device.DeviceState{
+		On:    device.Ptr(true),
+		Color: &device.Color{R: 255, G: 0, B: 0},
+	}
+	if ExpectedMatchesCurrent(exp, current) {
+		t.Fatal("a deliberate hue change must fail the match")
+	}
+}
+
 func TestExpectedMatchesCurrent_NilExpectedIsDontCare(t *testing.T) {
 	exp := store.SceneExpectedState{On: device.Ptr(true)}
 
