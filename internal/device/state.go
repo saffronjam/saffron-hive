@@ -9,6 +9,16 @@ type Color struct {
 	Y float64 `json:"y"`
 }
 
+// DeviceStateChange is the payload carried by eventbus.EventDeviceStateChanged.
+// State holds the (partial) reported snapshot from the device; Origin propagates
+// the upstream command's origin onto the resulting echo so consumers can match
+// echoes to the source that produced them. Origin is zero for unsolicited
+// state changes (drift, foreign apps, manual toggles at the device).
+type DeviceStateChange struct {
+	State  DeviceState   `json:"state"`
+	Origin CommandOrigin `json:"origin,omitzero"`
+}
+
 // DeviceState is the current snapshot of a device across every capability it
 // reports. Each field is a pointer; nil means the device does not report (or
 // has not yet reported) that value. Partial updates arrive on the event bus
