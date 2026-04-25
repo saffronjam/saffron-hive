@@ -33,6 +33,7 @@
 		Plus,
 		DoorOpen,
 		X,
+		Group as GroupIcon,
 	} from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
@@ -43,11 +44,35 @@
 	import { deviceIcon } from "$lib/utils";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 
+	interface RoomMemberDevice {
+		id: string;
+		name: string;
+		type: string;
+		source: string;
+		available: boolean;
+	}
+
+	interface RoomMemberGroup {
+		id: string;
+		name: string;
+		icon?: string | null;
+		resolvedDevices: { id: string }[];
+	}
+
+	interface RoomMemberData {
+		id: string;
+		memberType: string;
+		memberId: string;
+		device?: RoomMemberDevice | null;
+		group?: RoomMemberGroup | null;
+	}
+
 	interface RoomData {
 		id: string;
 		name: string;
 		icon?: string | null;
-		devices: Device[];
+		members: RoomMemberData[];
+		resolvedDevices: { id: string }[];
 		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
@@ -59,31 +84,25 @@
 				id
 				name
 				icon
-				devices {
+				members {
 					id
-					name
-					type
-					source
-					available
-					lastSeen
-					capabilities { name type values valueMin valueMax unit access }
-					state {
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-						temperature
-						humidity
-						pressure
-						illuminance
-						battery
-						power
-						voltage
-						current
-						energy
+					memberType
+					memberId
+					device {
+						id
+						name
+						type
+						source
+						available
+					}
+					group {
+						id
+						name
+						icon
+						resolvedDevices { id }
 					}
 				}
+				resolvedDevices { id }
 				createdBy {
 					id
 					username
@@ -108,7 +127,7 @@
 	interface SimpleGroup {
 		id: string;
 		name: string;
-		members: { memberId: string }[];
+		members: { memberType: string; memberId: string }[];
 	}
 
 	const GROUPS_QUERY = graphql(`
@@ -116,7 +135,7 @@
 			groups {
 				id
 				name
-				members { memberId }
+				members { memberType memberId }
 			}
 		}
 	`);
@@ -126,31 +145,26 @@
 			createRoom(input: $input) {
 				id
 				name
-				devices {
+				icon
+				members {
 					id
-					name
-					type
-					source
-					available
-					lastSeen
-					capabilities { name type values valueMin valueMax unit access }
-					state {
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-						temperature
-						humidity
-						pressure
-						illuminance
-						battery
-						power
-						voltage
-						current
-						energy
+					memberType
+					memberId
+					device {
+						id
+						name
+						type
+						source
+						available
+					}
+					group {
+						id
+						name
+						icon
+						resolvedDevices { id }
 					}
 				}
+				resolvedDevices { id }
 				createdBy {
 					id
 					username
@@ -182,23 +196,19 @@
 		}
 	`);
 
-	const ADD_ROOM_DEVICE = graphql(`
-		mutation AddRoomDevice($input: AddRoomDeviceInput!) {
-			addRoomDevice(input: $input) {
+	const ADD_ROOM_MEMBER = graphql(`
+		mutation AddRoomMember($input: AddRoomMemberInput!) {
+			addRoomMember(input: $input) {
 				id
-				name
-				devices { id name type source available }
+				memberType
+				memberId
 			}
 		}
 	`);
 
-	const REMOVE_ROOM_DEVICE = graphql(`
-		mutation RemoveRoomDevice($roomId: ID!, $deviceId: ID!) {
-			removeRoomDevice(roomId: $roomId, deviceId: $deviceId) {
-				id
-				name
-				devices { id name type source available }
-			}
+	const REMOVE_ROOM_MEMBER = graphql(`
+		mutation RemoveRoomMember($id: ID!) {
+			removeRoomMember(id: $id)
 		}
 	`);
 
@@ -271,15 +281,22 @@
 		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
 		const query = searchState.freeText.toLowerCase();
 
+		const deviceById = new Map(devices.map((d) => [d.id, d]));
+
 		return rooms.filter((r) => {
-			if (typeValues.length > 0 && !r.devices.some((d) => typeValues.includes(d.type))) return false;
+			const roomDevices = r.resolvedDevices
+				.map((rd) => deviceById.get(rd.id))
+				.filter((d): d is Device => !!d);
+			if (typeValues.length > 0 && !roomDevices.some((d) => typeValues.includes(d.type))) {
+				return false;
+			}
 			if (
 				deviceValues.length > 0 &&
-				!deviceValues.some((v) => r.devices.some((d) => d.name.toLowerCase().includes(v)))
+				!deviceValues.some((v) => roomDevices.some((d) => d.name.toLowerCase().includes(v)))
 			)
 				return false;
 			if (emptyValues.length > 0) {
-				const isEmpty = r.devices.length === 0;
+				const isEmpty = r.resolvedDevices.length === 0;
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
@@ -305,8 +322,14 @@
 	let editIconDirty = $state(false);
 	let editLoading = $state(false);
 
-	let pendingDeviceAdds = $state<Device[]>([]);
-	let pendingDeviceRemovals = $state<Set<string>>(new Set());
+	type PendingMember =
+		| { kind: "device"; device: Device }
+		| { kind: "group"; group: { id: string; name: string; icon?: string | null } };
+
+	let pendingMemberAdds = $state<PendingMember[]>([]);
+	// Set of membership IDs (server-side `RoomMember.id`) marked for removal
+	// during the current edit session.
+	let pendingMemberRemovals = $state<Set<string>>(new Set());
 
 	let deleteConfirmRoom = $state<RoomData | null>(null);
 	let deleteLoading = $state(false);
@@ -321,23 +344,37 @@
 	let quickAddOpen = $state(false);
 	let quickAddPending = 0;
 
-	const quickAddDrawerGroups = $derived.by((): DrawerGroup<"device">[] => {
+	const quickAddDrawerGroups = $derived.by((): DrawerGroup<"device" | "group">[] => {
 		if (!quickAddRoom) return [];
-		const roomDeviceIds = new Set(quickAddRoom.devices.map((d) => d.id));
-		const available = devices.filter((d) => !roomDeviceIds.has(d.id));
-		if (available.length === 0) return [];
-		return [
-			{
+		const memberIds = new Set(quickAddRoom.members.map((m) => m.memberId));
+		const devAvail = devices.filter((d) => !memberIds.has(d.id));
+		const grpAvail = allGroups.filter((g) => !memberIds.has(g.id));
+		const result: DrawerGroup<"device" | "group">[] = [];
+		if (devAvail.length > 0) {
+			result.push({
 				heading: "Devices",
-				items: available.map((d) => ({
+				items: devAvail.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: d.name,
 					icon: deviceIcon(d.type),
 					searchValue: `${d.name} ${d.type}`,
 				})),
-			},
-		];
+			});
+		}
+		if (grpAvail.length > 0) {
+			result.push({
+				heading: "Groups",
+				items: grpAvail.map((g) => ({
+					type: "group" as const,
+					id: g.id,
+					name: g.name,
+					icon: GroupIcon,
+					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+				})),
+			});
+		}
+		return result;
 	});
 
 	function handleAddToRoom(room: RoomData) {
@@ -345,13 +382,13 @@
 		quickAddOpen = true;
 	}
 
-	async function handleQuickAddSelect(_type: "device", deviceId: string) {
+	async function handleQuickAddSelect(memberType: "device" | "group", memberId: string) {
 		if (!quickAddRoom) return;
 		const roomId = quickAddRoom.id;
 		quickAddPending++;
 		try {
 			const result = await client
-				.mutation(ADD_ROOM_DEVICE, { input: { roomId, deviceId } })
+				.mutation(ADD_ROOM_MEMBER, { input: { roomId, memberType, memberId } })
 				.toPromise();
 			if (result.error) {
 				errors.setWithAutoDismiss(result.error.message);
@@ -374,16 +411,56 @@
 		editingRoom ? rooms.find((r) => r.id === editingRoom?.id) ?? editingRoom : null
 	);
 
-	const effectiveDevices = $derived.by((): Device[] => {
+	type EffectiveMember =
+		| { rowKey: string; kind: "device"; deviceId: string; pending: boolean; memberId?: string }
+		| { rowKey: string; kind: "group"; groupId: string; pending: boolean; memberId?: string };
+
+	const effectiveMembers = $derived.by((): EffectiveMember[] => {
 		if (!editingRoomFresh) return [];
-		const serverDevices = editingRoomFresh.devices.filter(
-			(d) => !pendingDeviceRemovals.has(d.id)
-		);
-		return [...serverDevices, ...pendingDeviceAdds];
+		const out: EffectiveMember[] = [];
+		for (const m of editingRoomFresh.members) {
+			if (pendingMemberRemovals.has(m.id)) continue;
+			if (m.memberType === "device") {
+				out.push({
+					rowKey: `member:${m.id}`,
+					kind: "device",
+					deviceId: m.memberId,
+					memberId: m.id,
+					pending: false,
+				});
+			} else if (m.memberType === "group") {
+				out.push({
+					rowKey: `member:${m.id}`,
+					kind: "group",
+					groupId: m.memberId,
+					memberId: m.id,
+					pending: false,
+				});
+			}
+		}
+		for (let i = 0; i < pendingMemberAdds.length; i++) {
+			const a = pendingMemberAdds[i];
+			if (a.kind === "device") {
+				out.push({
+					rowKey: `pending:${i}:${a.device.id}`,
+					kind: "device",
+					deviceId: a.device.id,
+					pending: true,
+				});
+			} else {
+				out.push({
+					rowKey: `pending:${i}:${a.group.id}`,
+					kind: "group",
+					groupId: a.group.id,
+					pending: true,
+				});
+			}
+		}
+		return out;
 	});
 
 	const hasPendingChanges = $derived(
-		editNameDirty || editIconDirty || pendingDeviceAdds.length > 0 || pendingDeviceRemovals.size > 0
+		editNameDirty || editIconDirty || pendingMemberAdds.length > 0 || pendingMemberRemovals.size > 0
 	);
 
 	const urlEditId = $derived(page.url.searchParams.get("edit"));
@@ -414,32 +491,80 @@
 	});
 
 	const effectiveDeviceIds = $derived(
-		new Set(effectiveDevices.map((d) => d.id))
+		new Set(
+			effectiveMembers
+				.filter((m): m is Extract<EffectiveMember, { kind: "device" }> => m.kind === "device")
+				.map((m) => m.deviceId),
+		),
+	);
+	const effectiveGroupIds = $derived(
+		new Set(
+			effectiveMembers
+				.filter((m): m is Extract<EffectiveMember, { kind: "group" }> => m.kind === "group")
+				.map((m) => m.groupId),
+		),
 	);
 
 	const availableDevices = $derived(devices.filter((d) => !effectiveDeviceIds.has(d.id)));
+	const availableGroups = $derived(allGroups.filter((g) => !effectiveGroupIds.has(g.id)));
 
-	const pickerDrawerGroups = $derived.by((): DrawerGroup<"device">[] => {
-		if (availableDevices.length === 0) return [];
-		return [{ heading: "Devices", items: availableDevices.map((d) => ({
-			type: "device" as const, id: d.id, name: d.name,
-			icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}`,
-		}))}];
+	const pickerDrawerGroups = $derived.by((): DrawerGroup<"device" | "group">[] => {
+		const result: DrawerGroup<"device" | "group">[] = [];
+		if (availableDevices.length > 0) {
+			result.push({
+				heading: "Devices",
+				items: availableDevices.map((d) => ({
+					type: "device" as const,
+					id: d.id,
+					name: d.name,
+					icon: deviceIcon(d.type),
+					searchValue: `${d.name} ${d.type}`,
+				})),
+			});
+		}
+		if (availableGroups.length > 0) {
+			result.push({
+				heading: "Groups",
+				items: availableGroups.map((g) => ({
+					type: "group" as const,
+					id: g.id,
+					name: g.name,
+					icon: GroupIcon,
+					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+				})),
+			});
+		}
+		return result;
 	});
 
-	const deviceRows = $derived(
-		effectiveDevices.map((d) => {
-			const related = allGroups
-				.filter((g) => g.members.some((m) => m.memberId === d.id))
-				.map((g) => ({ id: g.id, name: g.name, href: `/groups?edit=${g.id}` }));
+	const memberRows = $derived(
+		effectiveMembers.map((m) => {
+			if (m.kind === "device") {
+				const dev = devices.find((d) => d.id === m.deviceId);
+				const related = allGroups
+					.filter((g) =>
+						g.members.some(
+							(gm) => gm.memberType === "device" && gm.memberId === m.deviceId,
+						),
+					)
+					.map((g) => ({ id: g.id, name: g.name, href: `/groups?edit=${g.id}` }));
+				return {
+					id: m.rowKey,
+					name: dev?.name ?? m.deviceId,
+					type: dev?.type ?? "device",
+					related,
+					onclick: () => goto(`/devices/${m.deviceId}`),
+				};
+			}
+			const grp = allGroups.find((g) => g.id === m.groupId);
 			return {
-				id: d.id,
-				name: d.name,
-				type: d.type,
-				related,
-				onclick: () => goto(`/devices/${d.id}`),
+				id: m.rowKey,
+				name: grp?.name ?? m.groupId,
+				type: "group",
+				related: [],
+				onclick: () => goto(`/groups?edit=${m.groupId}`),
 			};
-		})
+		}),
 	);
 
 	async function handleCreateRoom(options: { keepOpen?: boolean } = {}) {
@@ -490,8 +615,8 @@
 				editingRoom = null;
 				editNameDirty = false;
 				editIconDirty = false;
-				pendingDeviceAdds = [];
-				pendingDeviceRemovals = new Set();
+				pendingMemberAdds = [];
+				pendingMemberRemovals = new Set();
 			}
 			return;
 		}
@@ -503,8 +628,8 @@
 			editIcon = match.icon ?? null;
 			editNameDirty = false;
 			editIconDirty = false;
-			pendingDeviceAdds = [];
-			pendingDeviceRemovals = new Set();
+			pendingMemberAdds = [];
+			pendingMemberRemovals = new Set();
 		}
 	});
 
@@ -528,9 +653,9 @@
 			}
 		}
 
-		for (const deviceId of pendingDeviceRemovals) {
+		for (const memberId of pendingMemberRemovals) {
 			const result = await client
-				.mutation(REMOVE_ROOM_DEVICE, { roomId: editingRoom.id, deviceId })
+				.mutation(REMOVE_ROOM_MEMBER, { id: memberId })
 				.toPromise();
 			if (result.error) {
 				editLoading = false;
@@ -539,9 +664,13 @@
 			}
 		}
 
-		for (const dev of pendingDeviceAdds) {
+		for (const add of pendingMemberAdds) {
+			const memberType = add.kind;
+			const memberId = add.kind === "device" ? add.device.id : add.group.id;
 			const result = await client
-				.mutation(ADD_ROOM_DEVICE, { input: { roomId: editingRoom.id, deviceId: dev.id } })
+				.mutation(ADD_ROOM_MEMBER, {
+					input: { roomId: editingRoom.id, memberType, memberId },
+				})
 				.toPromise();
 			if (result.error) {
 				editLoading = false;
@@ -553,8 +682,8 @@
 		editLoading = false;
 		editNameDirty = false;
 		editIconDirty = false;
-		pendingDeviceAdds = [];
-		pendingDeviceRemovals = new Set();
+		pendingMemberAdds = [];
+		pendingMemberRemovals = new Set();
 		roomsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
@@ -600,19 +729,34 @@
 		roomsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	function handleAddDevice(deviceId: string) {
-		const dev = devices.find((d) => d.id === deviceId);
-		if (!dev) return;
-		pendingDeviceAdds = [...pendingDeviceAdds, dev];
+	function handlePickerSelect(memberType: "device" | "group", memberId: string) {
+		if (memberType === "device") {
+			const dev = devices.find((d) => d.id === memberId);
+			if (!dev) return;
+			pendingMemberAdds = [...pendingMemberAdds, { kind: "device", device: dev }];
+		} else {
+			const grp = allGroups.find((g) => g.id === memberId);
+			if (!grp) return;
+			pendingMemberAdds = [
+				...pendingMemberAdds,
+				{ kind: "group", group: { id: grp.id, name: grp.name } },
+			];
+		}
 		pickerOpen = false;
 	}
 
-	function handleRemoveDevice(deviceId: string) {
-		const pendingIdx = pendingDeviceAdds.findIndex((d) => d.id === deviceId);
-		if (pendingIdx >= 0) {
-			pendingDeviceAdds = pendingDeviceAdds.filter((_, i) => i !== pendingIdx);
-		} else {
-			pendingDeviceRemovals = new Set([...pendingDeviceRemovals, deviceId]);
+	function handleRemoveMember(rowKey: string) {
+		const target = effectiveMembers.find((m) => m.rowKey === rowKey);
+		if (!target) return;
+		if (target.pending) {
+			// rowKey looks like `pending:<index>:<id>` — drop by deriving the
+			// index from the prefix to remove this exact pending entry.
+			const idx = Number(rowKey.split(":")[1]);
+			if (Number.isFinite(idx)) {
+				pendingMemberAdds = pendingMemberAdds.filter((_, i) => i !== idx);
+			}
+		} else if (target.memberId) {
+			pendingMemberRemovals = new Set([...pendingMemberRemovals, target.memberId]);
 		}
 	}
 
@@ -683,12 +827,12 @@
 
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<MemberTable
-					rows={deviceRows}
+					rows={memberRows}
 					relatedLabel="Groups"
-					emptyMessage="No devices yet. Add devices to this room."
-					addLabel="Add device"
+					emptyMessage="No members yet. Add devices or groups to this room."
+					addLabel="Add device or group"
 					onadd={() => (pickerOpen = true)}
-					onremove={handleRemoveDevice}
+					onremove={handleRemoveMember}
 					disabled={editLoading}
 				/>
 			</div>
@@ -696,11 +840,11 @@
 
 		<HiveDrawer
 			bind:open={pickerOpen}
-			title="Add Device"
-			description="Search for devices to add to this room."
+			title="Add to room"
+			description="Search for devices or groups to add to this room."
 			multiple
 			groups={pickerDrawerGroups}
-			onselect={(_type, id) => handleAddDevice(id)}
+			onselect={handlePickerSelect}
 		/>
 	{:else if hasLoadedOnce}
 		<div in:fly={{ y: -4, duration: 150 }}>
@@ -760,13 +904,13 @@
 									<EntityCard
 										entity={room}
 										fallbackIcon={DoorOpen}
-										subtitle="{room.devices.length} device{room.devices.length === 1 ? '' : 's'}"
+										subtitle="{room.resolvedDevices.length} device{room.resolvedDevices.length === 1 ? '' : 's'}"
 										onedit={startEditing}
 										ondelete={(r) => (deleteConfirmRoom = r)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										onAddTo={handleAddToRoom}
-										addLabel="Add device"
+										addLabel="Add to room"
 									/>
 								{/each}
 							</AnimatedGrid>
