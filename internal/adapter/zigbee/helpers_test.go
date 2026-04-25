@@ -47,17 +47,41 @@ func (m *mockStateWriter) SetAvailability(id device.DeviceID, available bool) {
 	m.avail[id] = available
 }
 
-type mockStateReader struct{}
+type mockStateReader struct {
+	mu      sync.Mutex
+	devices map[device.DeviceID]device.Device
+}
 
-func (m *mockStateReader) GetDevice(_ device.DeviceID) (device.Device, bool) {
-	return device.Device{}, false
+func newMockStateReader() *mockStateReader {
+	return &mockStateReader{devices: make(map[device.DeviceID]device.Device)}
+}
+
+func (m *mockStateReader) Set(dev device.Device) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.devices[dev.ID] = dev
+}
+
+func (m *mockStateReader) GetDevice(id device.DeviceID) (device.Device, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[id]
+	return d, ok
 }
 
 func (m *mockStateReader) GetDeviceState(_ device.DeviceID) (*device.DeviceState, bool) {
 	return nil, false
 }
 
-func (m *mockStateReader) ListDevices() []device.Device { return nil }
+func (m *mockStateReader) ListDevices() []device.Device {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]device.Device, 0, len(m.devices))
+	for _, d := range m.devices {
+		out = append(out, d)
+	}
+	return out
+}
 
 type mockEventBus struct {
 	mu     sync.Mutex
@@ -136,9 +160,18 @@ func newTestAdapter() (*ZigbeeAdapter, *FakeMQTTClient, *mockEventBus, *mockStat
 	mqtt := NewFakeMQTTClient()
 	bus := newMockEventBus()
 	sw := newMockStateWriter()
-	sr := &mockStateReader{}
+	sr := newMockStateReader()
 	adapter := NewZigbeeAdapter(mqtt, bus, sw, sr)
 	return adapter, mqtt, bus, sw
+}
+
+func newTestAdapterWithReader() (*ZigbeeAdapter, *FakeMQTTClient, *mockEventBus, *mockStateWriter, *mockStateReader) {
+	mqtt := NewFakeMQTTClient()
+	bus := newMockEventBus()
+	sw := newMockStateWriter()
+	sr := newMockStateReader()
+	adapter := NewZigbeeAdapter(mqtt, bus, sw, sr)
+	return adapter, mqtt, bus, sw, sr
 }
 
 // injectSync delivers an MQTT message and then blocks until the adapter's
