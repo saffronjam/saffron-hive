@@ -16,6 +16,18 @@ type SceneTarget interface {
 	IsSceneTarget()
 }
 
+// One row marking that an effect is currently running on a target. volatile
+// mirrors the persistence flag — non-loop timeline runs and native runs are
+// volatile (wiped at process startup); loop timeline runs survive a restart.
+type ActiveEffect struct {
+	ID         string    `json:"id"`
+	Effect     *Effect   `json:"effect"`
+	TargetType string    `json:"targetType"`
+	TargetID   string    `json:"targetId"`
+	StartedAt  time.Time `json:"startedAt"`
+	Volatile   bool      `json:"volatile"`
+}
+
 type ActivityEvent struct {
 	ID        string          `json:"id"`
 	Type      string          `json:"type"`
@@ -176,6 +188,15 @@ type CreateAutomationInput struct {
 	Edges   []*AutomationEdgeInput `json:"edges"`
 }
 
+type CreateEffectInput struct {
+	Name       string                     `json:"name"`
+	Icon       graphql.Omittable[*string] `json:"icon,omitempty"`
+	Kind       EffectKind                 `json:"kind"`
+	NativeName graphql.Omittable[*string] `json:"nativeName,omitempty"`
+	Loop       bool                       `json:"loop"`
+	Steps      []*EffectStepInput         `json:"steps"`
+}
+
 type CreateGroupInput struct {
 	Name string `json:"name"`
 }
@@ -260,6 +281,48 @@ type DeviceStateInput struct {
 	Transition graphql.Omittable[*float64]    `json:"transition,omitempty"`
 }
 
+type Effect struct {
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	Icon       *string       `json:"icon,omitempty"`
+	Kind       EffectKind    `json:"kind"`
+	NativeName *string       `json:"nativeName,omitempty"`
+	Loop       bool          `json:"loop"`
+	Steps      []*EffectStep `json:"steps"`
+	// Capabilities every target device must support for this effect to apply
+	// cleanly. Derived from the effect's step kinds for timeline effects;
+	// empty for native effects (the per-device native option list owns that
+	// filtering).
+	RequiredCapabilities []string  `json:"requiredCapabilities"`
+	CreatedBy            *User     `json:"createdBy,omitempty"`
+	CreatedAt            time.Time `json:"createdAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
+}
+
+// A single step inside a timeline effect. config is a JSON document whose
+// shape is determined by kind — the disk shape directly, not wrapped, e.g.
+// {"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
+type EffectStep struct {
+	ID     string         `json:"id"`
+	Index  int            `json:"index"`
+	Kind   EffectStepKind `json:"kind"`
+	Config string         `json:"config"`
+}
+
+// Step boundary marker emitted by the runner. active=true on enter,
+// active=false on exit. runId identifies the in-flight run instance.
+type EffectStepEvent struct {
+	RunID     string `json:"runId"`
+	EffectID  string `json:"effectId"`
+	StepIndex int    `json:"stepIndex"`
+	Active    bool   `json:"active"`
+}
+
+type EffectStepInput struct {
+	Kind   EffectStepKind `json:"kind"`
+	Config string         `json:"config"`
+}
+
 type Group struct {
 	ID              string         `json:"id"`
 	Name            string         `json:"name"`
@@ -307,6 +370,15 @@ type MqttConfigInput struct {
 }
 
 type Mutation struct {
+}
+
+// A native effect option as offered by the editor. supportedDeviceCount is
+// the number of currently-known devices whose effect capability advertises
+// this value.
+type NativeEffectOption struct {
+	Name                 string `json:"name"`
+	DisplayName          string `json:"displayName"`
+	SupportedDeviceCount int    `json:"supportedDeviceCount"`
 }
 
 type Query struct {
@@ -444,6 +516,15 @@ type UpdateCurrentUserInput struct {
 
 type UpdateDeviceInput struct {
 	Name graphql.Omittable[*string] `json:"name,omitempty"`
+}
+
+type UpdateEffectInput struct {
+	ID         string                                `json:"id"`
+	Name       graphql.Omittable[*string]            `json:"name,omitempty"`
+	Icon       graphql.Omittable[*string]            `json:"icon,omitempty"`
+	Loop       graphql.Omittable[*bool]              `json:"loop,omitempty"`
+	NativeName graphql.Omittable[*string]            `json:"nativeName,omitempty"`
+	Steps      graphql.Omittable[[]*EffectStepInput] `json:"steps,omitempty"`
 }
 
 type UpdateGroupInput struct {
@@ -642,6 +723,122 @@ func (e *AlarmSeverity) UnmarshalJSON(b []byte) error {
 }
 
 func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type EffectKind string
+
+const (
+	EffectKindTimeline EffectKind = "TIMELINE"
+	EffectKindNative   EffectKind = "NATIVE"
+)
+
+var AllEffectKind = []EffectKind{
+	EffectKindTimeline,
+	EffectKindNative,
+}
+
+func (e EffectKind) IsValid() bool {
+	switch e {
+	case EffectKindTimeline, EffectKindNative:
+		return true
+	}
+	return false
+}
+
+func (e EffectKind) String() string {
+	return string(e)
+}
+
+func (e *EffectKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = EffectKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid EffectKind", str)
+	}
+	return nil
+}
+
+func (e EffectKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *EffectKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e EffectKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type EffectStepKind string
+
+const (
+	EffectStepKindWait          EffectStepKind = "WAIT"
+	EffectStepKindSetOnOff      EffectStepKind = "SET_ON_OFF"
+	EffectStepKindSetBrightness EffectStepKind = "SET_BRIGHTNESS"
+	EffectStepKindSetColorRgb   EffectStepKind = "SET_COLOR_RGB"
+	EffectStepKindSetColorTemp  EffectStepKind = "SET_COLOR_TEMP"
+)
+
+var AllEffectStepKind = []EffectStepKind{
+	EffectStepKindWait,
+	EffectStepKindSetOnOff,
+	EffectStepKindSetBrightness,
+	EffectStepKindSetColorRgb,
+	EffectStepKindSetColorTemp,
+}
+
+func (e EffectStepKind) IsValid() bool {
+	switch e {
+	case EffectStepKindWait, EffectStepKindSetOnOff, EffectStepKindSetBrightness, EffectStepKindSetColorRgb, EffectStepKindSetColorTemp:
+		return true
+	}
+	return false
+}
+
+func (e EffectStepKind) String() string {
+	return string(e)
+}
+
+func (e *EffectStepKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = EffectStepKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid EffectStepKind", str)
+	}
+	return nil
+}
+
+func (e EffectStepKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *EffectStepKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e EffectStepKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

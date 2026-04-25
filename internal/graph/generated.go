@@ -37,6 +37,15 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	ActiveEffect struct {
+		Effect     func(childComplexity int) int
+		ID         func(childComplexity int) int
+		StartedAt  func(childComplexity int) int
+		TargetID   func(childComplexity int) int
+		TargetType func(childComplexity int) int
+		Volatile   func(childComplexity int) int
+	}
+
 	ActivityEvent struct {
 		ID        func(childComplexity int) int
 		Message   func(childComplexity int) int
@@ -175,6 +184,34 @@ type ComplexityRoot struct {
 		State    func(childComplexity int) int
 	}
 
+	Effect struct {
+		CreatedAt            func(childComplexity int) int
+		CreatedBy            func(childComplexity int) int
+		ID                   func(childComplexity int) int
+		Icon                 func(childComplexity int) int
+		Kind                 func(childComplexity int) int
+		Loop                 func(childComplexity int) int
+		Name                 func(childComplexity int) int
+		NativeName           func(childComplexity int) int
+		RequiredCapabilities func(childComplexity int) int
+		Steps                func(childComplexity int) int
+		UpdatedAt            func(childComplexity int) int
+	}
+
+	EffectStep struct {
+		Config func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Index  func(childComplexity int) int
+		Kind   func(childComplexity int) int
+	}
+
+	EffectStepEvent struct {
+		Active    func(childComplexity int) int
+		EffectID  func(childComplexity int) int
+		RunID     func(childComplexity int) int
+		StepIndex func(childComplexity int) int
+	}
+
 	Group struct {
 		CreatedBy       func(childComplexity int) int
 		ID              func(childComplexity int) int
@@ -221,6 +258,7 @@ type ComplexityRoot struct {
 		BatchDeleteUsers       func(childComplexity int, ids []string) int
 		ChangePassword         func(childComplexity int, input model.ChangePasswordInput) int
 		CreateAutomation       func(childComplexity int, input model.CreateAutomationInput) int
+		CreateEffect           func(childComplexity int, input model.CreateEffectInput) int
 		CreateGroup            func(childComplexity int, input model.CreateGroupInput) int
 		CreateInitialUser      func(childComplexity int, input model.CreateInitialUserInput) int
 		CreateRoom             func(childComplexity int, input model.CreateRoomInput) int
@@ -228,6 +266,7 @@ type ComplexityRoot struct {
 		CreateUser             func(childComplexity int, input model.CreateUserInput) int
 		DeleteAlarm            func(childComplexity int, alarmID string) int
 		DeleteAutomation       func(childComplexity int, id string) int
+		DeleteEffect           func(childComplexity int, id string) int
 		DeleteGroup            func(childComplexity int, id string) int
 		DeleteRoom             func(childComplexity int, id string) int
 		DeleteScene            func(childComplexity int, id string) int
@@ -238,13 +277,16 @@ type ComplexityRoot struct {
 		RemoveGroupMember      func(childComplexity int, id string) int
 		RemoveRoomMember       func(childComplexity int, id string) int
 		ResetUserPassword      func(childComplexity int, id string, newPassword string) int
+		RunEffect              func(childComplexity int, effectID string, targetType string, targetID string) int
 		SetDeviceState         func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		SimulateDeviceAction   func(childComplexity int, deviceID string, action string) int
+		StopEffect             func(childComplexity int, targetType string, targetID string) int
 		TestMqttConnection     func(childComplexity int, input model.MqttConfigInput) int
 		ToggleAutomation       func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation       func(childComplexity int, id string, input model.UpdateAutomationInput) int
 		UpdateCurrentUser      func(childComplexity int, input model.UpdateCurrentUserInput) int
 		UpdateDevice           func(childComplexity int, id string, input model.UpdateDeviceInput) int
+		UpdateEffect           func(childComplexity int, input model.UpdateEffectInput) int
 		UpdateGroup            func(childComplexity int, id string, input model.UpdateGroupInput) int
 		UpdateMqttConfig       func(childComplexity int, input model.MqttConfigInput) int
 		UpdateRoom             func(childComplexity int, id string, input model.UpdateRoomInput) int
@@ -252,27 +294,37 @@ type ComplexityRoot struct {
 		UpdateSetting          func(childComplexity int, key string, value string) int
 	}
 
+	NativeEffectOption struct {
+		DisplayName          func(childComplexity int) int
+		Name                 func(childComplexity int) int
+		SupportedDeviceCount func(childComplexity int) int
+	}
+
 	Query struct {
-		Activity           func(childComplexity int, filter *model.ActivityFilter) int
-		Alarms             func(childComplexity int, filter *model.AlarmFilter) int
-		Automation         func(childComplexity int, id string) int
-		Automations        func(childComplexity int) int
-		Device             func(childComplexity int, id string) int
-		Devices            func(childComplexity int) int
-		Group              func(childComplexity int, id string) int
-		Groups             func(childComplexity int) int
-		Logs               func(childComplexity int, search *string, limit *int) int
-		Me                 func(childComplexity int) int
-		MqttConfig         func(childComplexity int) int
-		Room               func(childComplexity int, id string) int
-		Rooms              func(childComplexity int) int
-		Scene              func(childComplexity int, id string) int
-		Scenes             func(childComplexity int) int
-		Settings           func(childComplexity int) int
-		SetupStatus        func(childComplexity int) int
-		StateHistory       func(childComplexity int, filter model.StateHistoryFilter) int
-		StateHistoryFields func(childComplexity int) int
-		Users              func(childComplexity int) int
+		ActiveEffects       func(childComplexity int) int
+		Activity            func(childComplexity int, filter *model.ActivityFilter) int
+		Alarms              func(childComplexity int, filter *model.AlarmFilter) int
+		Automation          func(childComplexity int, id string) int
+		Automations         func(childComplexity int) int
+		Device              func(childComplexity int, id string) int
+		Devices             func(childComplexity int) int
+		Effect              func(childComplexity int, id string) int
+		Effects             func(childComplexity int) int
+		Group               func(childComplexity int, id string) int
+		Groups              func(childComplexity int) int
+		Logs                func(childComplexity int, search *string, limit *int) int
+		Me                  func(childComplexity int) int
+		MqttConfig          func(childComplexity int) int
+		NativeEffectOptions func(childComplexity int) int
+		Room                func(childComplexity int, id string) int
+		Rooms               func(childComplexity int) int
+		Scene               func(childComplexity int, id string) int
+		Scenes              func(childComplexity int) int
+		Settings            func(childComplexity int) int
+		SetupStatus         func(childComplexity int) int
+		StateHistory        func(childComplexity int, filter model.StateHistoryFilter) int
+		StateHistoryFields  func(childComplexity int) int
+		Users               func(childComplexity int) int
 	}
 
 	Room struct {
@@ -349,6 +401,7 @@ type ComplexityRoot struct {
 		DeviceAvailabilityChanged func(childComplexity int) int
 		DeviceRemoved             func(childComplexity int) int
 		DeviceStateChanged        func(childComplexity int, deviceID *string) int
+		EffectStepActivated       func(childComplexity int, runID *string) int
 		LogStream                 func(childComplexity int) int
 		SceneActiveChanged        func(childComplexity int) int
 	}
@@ -406,6 +459,11 @@ type MutationResolver interface {
 	BatchDeleteUsers(ctx context.Context, ids []string) (int, error)
 	BatchAddRoomMembers(ctx context.Context, roomID string, members []*model.RoomMemberInput) (*model.Room, error)
 	BatchAddGroupDevices(ctx context.Context, groupID string, deviceIds []string) (*model.Group, error)
+	CreateEffect(ctx context.Context, input model.CreateEffectInput) (*model.Effect, error)
+	UpdateEffect(ctx context.Context, input model.UpdateEffectInput) (*model.Effect, error)
+	DeleteEffect(ctx context.Context, id string) (bool, error)
+	RunEffect(ctx context.Context, effectID string, targetType string, targetID string) (*model.ActiveEffect, error)
+	StopEffect(ctx context.Context, targetType string, targetID string) (bool, error)
 }
 type QueryResolver interface {
 	Devices(ctx context.Context) ([]*model.Device, error)
@@ -428,6 +486,10 @@ type QueryResolver interface {
 	SetupStatus(ctx context.Context) (*model.SetupStatus, error)
 	Me(ctx context.Context) (*model.User, error)
 	Users(ctx context.Context) ([]*model.User, error)
+	Effects(ctx context.Context) ([]*model.Effect, error)
+	Effect(ctx context.Context, id string) (*model.Effect, error)
+	ActiveEffects(ctx context.Context) ([]*model.ActiveEffect, error)
+	NativeEffectOptions(ctx context.Context) ([]*model.NativeEffectOption, error)
 }
 type SubscriptionResolver interface {
 	DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error)
@@ -440,6 +502,7 @@ type SubscriptionResolver interface {
 	LogStream(ctx context.Context) (<-chan *model.LogEntry, error)
 	ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error)
 	AlarmEvent(ctx context.Context) (<-chan *model.AlarmEvent, error)
+	EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -455,6 +518,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "ActiveEffect.effect":
+		if e.ComplexityRoot.ActiveEffect.Effect == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActiveEffect.Effect(childComplexity), true
+	case "ActiveEffect.id":
+		if e.ComplexityRoot.ActiveEffect.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActiveEffect.ID(childComplexity), true
+	case "ActiveEffect.startedAt":
+		if e.ComplexityRoot.ActiveEffect.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActiveEffect.StartedAt(childComplexity), true
+	case "ActiveEffect.targetId":
+		if e.ComplexityRoot.ActiveEffect.TargetID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActiveEffect.TargetID(childComplexity), true
+	case "ActiveEffect.targetType":
+		if e.ComplexityRoot.ActiveEffect.TargetType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActiveEffect.TargetType(childComplexity), true
+	case "ActiveEffect.volatile":
+		if e.ComplexityRoot.ActiveEffect.Volatile == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActiveEffect.Volatile(childComplexity), true
 
 	case "ActivityEvent.id":
 		if e.ComplexityRoot.ActivityEvent.ID == nil {
@@ -995,6 +1095,123 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DeviceStateEvent.State(childComplexity), true
 
+	case "Effect.createdAt":
+		if e.ComplexityRoot.Effect.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.CreatedAt(childComplexity), true
+	case "Effect.createdBy":
+		if e.ComplexityRoot.Effect.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.CreatedBy(childComplexity), true
+	case "Effect.id":
+		if e.ComplexityRoot.Effect.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.ID(childComplexity), true
+	case "Effect.icon":
+		if e.ComplexityRoot.Effect.Icon == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.Icon(childComplexity), true
+	case "Effect.kind":
+		if e.ComplexityRoot.Effect.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.Kind(childComplexity), true
+	case "Effect.loop":
+		if e.ComplexityRoot.Effect.Loop == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.Loop(childComplexity), true
+	case "Effect.name":
+		if e.ComplexityRoot.Effect.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.Name(childComplexity), true
+	case "Effect.nativeName":
+		if e.ComplexityRoot.Effect.NativeName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.NativeName(childComplexity), true
+	case "Effect.requiredCapabilities":
+		if e.ComplexityRoot.Effect.RequiredCapabilities == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.RequiredCapabilities(childComplexity), true
+	case "Effect.steps":
+		if e.ComplexityRoot.Effect.Steps == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.Steps(childComplexity), true
+	case "Effect.updatedAt":
+		if e.ComplexityRoot.Effect.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.UpdatedAt(childComplexity), true
+
+	case "EffectStep.config":
+		if e.ComplexityRoot.EffectStep.Config == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStep.Config(childComplexity), true
+	case "EffectStep.id":
+		if e.ComplexityRoot.EffectStep.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStep.ID(childComplexity), true
+	case "EffectStep.index":
+		if e.ComplexityRoot.EffectStep.Index == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStep.Index(childComplexity), true
+	case "EffectStep.kind":
+		if e.ComplexityRoot.EffectStep.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStep.Kind(childComplexity), true
+
+	case "EffectStepEvent.active":
+		if e.ComplexityRoot.EffectStepEvent.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStepEvent.Active(childComplexity), true
+	case "EffectStepEvent.effectId":
+		if e.ComplexityRoot.EffectStepEvent.EffectID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStepEvent.EffectID(childComplexity), true
+	case "EffectStepEvent.runId":
+		if e.ComplexityRoot.EffectStepEvent.RunID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStepEvent.RunID(childComplexity), true
+	case "EffectStepEvent.stepIndex":
+		if e.ComplexityRoot.EffectStepEvent.StepIndex == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectStepEvent.StepIndex(childComplexity), true
+
 	case "Group.createdBy":
 		if e.ComplexityRoot.Group.CreatedBy == nil {
 			break
@@ -1262,6 +1479,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateAutomation(childComplexity, args["input"].(model.CreateAutomationInput)), true
+	case "Mutation.createEffect":
+		if e.ComplexityRoot.Mutation.CreateEffect == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createEffect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateEffect(childComplexity, args["input"].(model.CreateEffectInput)), true
 	case "Mutation.createGroup":
 		if e.ComplexityRoot.Mutation.CreateGroup == nil {
 			break
@@ -1339,6 +1567,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteAutomation(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteEffect":
+		if e.ComplexityRoot.Mutation.DeleteEffect == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteEffect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteEffect(childComplexity, args["id"].(string)), true
 	case "Mutation.deleteGroup":
 		if e.ComplexityRoot.Mutation.DeleteGroup == nil {
 			break
@@ -1449,6 +1688,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ResetUserPassword(childComplexity, args["id"].(string), args["newPassword"].(string)), true
+	case "Mutation.runEffect":
+		if e.ComplexityRoot.Mutation.RunEffect == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_runEffect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RunEffect(childComplexity, args["effectId"].(string), args["targetType"].(string), args["targetId"].(string)), true
 	case "Mutation.setDeviceState":
 		if e.ComplexityRoot.Mutation.SetDeviceState == nil {
 			break
@@ -1471,6 +1721,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SimulateDeviceAction(childComplexity, args["deviceId"].(string), args["action"].(string)), true
+	case "Mutation.stopEffect":
+		if e.ComplexityRoot.Mutation.StopEffect == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_stopEffect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.StopEffect(childComplexity, args["targetType"].(string), args["targetId"].(string)), true
 	case "Mutation.testMqttConnection":
 		if e.ComplexityRoot.Mutation.TestMqttConnection == nil {
 			break
@@ -1526,6 +1787,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateDevice(childComplexity, args["id"].(string), args["input"].(model.UpdateDeviceInput)), true
+	case "Mutation.updateEffect":
+		if e.ComplexityRoot.Mutation.UpdateEffect == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateEffect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateEffect(childComplexity, args["input"].(model.UpdateEffectInput)), true
 	case "Mutation.updateGroup":
 		if e.ComplexityRoot.Mutation.UpdateGroup == nil {
 			break
@@ -1582,6 +1854,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.UpdateSetting(childComplexity, args["key"].(string), args["value"].(string)), true
 
+	case "NativeEffectOption.displayName":
+		if e.ComplexityRoot.NativeEffectOption.DisplayName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectOption.DisplayName(childComplexity), true
+	case "NativeEffectOption.name":
+		if e.ComplexityRoot.NativeEffectOption.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectOption.Name(childComplexity), true
+	case "NativeEffectOption.supportedDeviceCount":
+		if e.ComplexityRoot.NativeEffectOption.SupportedDeviceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectOption.SupportedDeviceCount(childComplexity), true
+
+	case "Query.activeEffects":
+		if e.ComplexityRoot.Query.ActiveEffects == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ActiveEffects(childComplexity), true
 	case "Query.activity":
 		if e.ComplexityRoot.Query.Activity == nil {
 			break
@@ -1638,6 +1935,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Devices(childComplexity), true
+	case "Query.effect":
+		if e.ComplexityRoot.Query.Effect == nil {
+			break
+		}
+
+		args, err := ec.field_Query_effect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Effect(childComplexity, args["id"].(string)), true
+	case "Query.effects":
+		if e.ComplexityRoot.Query.Effects == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Effects(childComplexity), true
 	case "Query.group":
 		if e.ComplexityRoot.Query.Group == nil {
 			break
@@ -1679,6 +1993,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MqttConfig(childComplexity), true
+	case "Query.nativeEffectOptions":
+		if e.ComplexityRoot.Query.NativeEffectOptions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.NativeEffectOptions(childComplexity), true
 	case "Query.room":
 		if e.ComplexityRoot.Query.Room == nil {
 			break
@@ -2037,6 +2357,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.DeviceStateChanged(childComplexity, args["deviceId"].(*string)), true
+	case "Subscription.effectStepActivated":
+		if e.ComplexityRoot.Subscription.EffectStepActivated == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_effectStepActivated_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.EffectStepActivated(childComplexity, args["runId"].(*string)), true
 	case "Subscription.logStream":
 		if e.ComplexityRoot.Subscription.LogStream == nil {
 			break
@@ -2104,12 +2435,14 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChangePasswordInput,
 		ec.unmarshalInputColorInput,
 		ec.unmarshalInputCreateAutomationInput,
+		ec.unmarshalInputCreateEffectInput,
 		ec.unmarshalInputCreateGroupInput,
 		ec.unmarshalInputCreateInitialUserInput,
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputCreateSceneInput,
 		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputDeviceStateInput,
+		ec.unmarshalInputEffectStepInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputMqttConfigInput,
 		ec.unmarshalInputRaiseAlarmInput,
@@ -2120,6 +2453,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateAutomationInput,
 		ec.unmarshalInputUpdateCurrentUserInput,
 		ec.unmarshalInputUpdateDeviceInput,
+		ec.unmarshalInputUpdateEffectInput,
 		ec.unmarshalInputUpdateGroupInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateSceneInput,
@@ -2321,6 +2655,110 @@ type AutomationGraph {
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
   createdBy: User
+}
+
+enum EffectKind {
+  TIMELINE
+  NATIVE
+}
+
+enum EffectStepKind {
+  WAIT
+  SET_ON_OFF
+  SET_BRIGHTNESS
+  SET_COLOR_RGB
+  SET_COLOR_TEMP
+}
+
+type Effect {
+  id: ID!
+  name: String!
+  icon: String
+  kind: EffectKind!
+  nativeName: String
+  loop: Boolean!
+  steps: [EffectStep!]!
+  """
+  Capabilities every target device must support for this effect to apply
+  cleanly. Derived from the effect's step kinds for timeline effects;
+  empty for native effects (the per-device native option list owns that
+  filtering).
+  """
+  requiredCapabilities: [String!]!
+  createdBy: User
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+A single step inside a timeline effect. config is a JSON document whose
+shape is determined by kind — the disk shape directly, not wrapped, e.g.
+{"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
+"""
+type EffectStep {
+  id: ID!
+  index: Int!
+  kind: EffectStepKind!
+  config: String!
+}
+
+input EffectStepInput {
+  kind: EffectStepKind!
+  config: String!
+}
+
+input CreateEffectInput {
+  name: String!
+  icon: String
+  kind: EffectKind!
+  nativeName: String
+  loop: Boolean!
+  steps: [EffectStepInput!]!
+}
+
+input UpdateEffectInput {
+  id: ID!
+  name: String
+  icon: String
+  loop: Boolean
+  nativeName: String
+  steps: [EffectStepInput!]
+}
+
+"""
+One row marking that an effect is currently running on a target. volatile
+mirrors the persistence flag — non-loop timeline runs and native runs are
+volatile (wiped at process startup); loop timeline runs survive a restart.
+"""
+type ActiveEffect {
+  id: ID!
+  effect: Effect!
+  targetType: String!
+  targetId: ID!
+  startedAt: DateTime!
+  volatile: Boolean!
+}
+
+"""
+A native effect option as offered by the editor. supportedDeviceCount is
+the number of currently-known devices whose effect capability advertises
+this value.
+"""
+type NativeEffectOption {
+  name: String!
+  displayName: String!
+  supportedDeviceCount: Int!
+}
+
+"""
+Step boundary marker emitted by the runner. active=true on enter,
+active=false on exit. runId identifies the in-flight run instance.
+"""
+type EffectStepEvent {
+  runId: ID!
+  effectId: ID!
+  stepIndex: Int!
+  active: Boolean!
 }
 
 type AutomationNode {
@@ -2728,6 +3166,10 @@ type Query {
   setupStatus: SetupStatus!
   me: User
   users: [User!]!
+  effects: [Effect!]!
+  effect(id: ID!): Effect
+  activeEffects: [ActiveEffect!]!
+  nativeEffectOptions: [NativeEffectOption!]!
 }
 
 type Mutation {
@@ -2790,6 +3232,20 @@ type Mutation {
 
   batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room!
   batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
+
+  createEffect(input: CreateEffectInput!): Effect!
+  updateEffect(input: UpdateEffectInput!): Effect!
+  deleteEffect(id: ID!): Boolean!
+  """
+  Starts effectId on the given target. Preempts any effect already
+  running on the target. Returns the resulting active-run row.
+  """
+  runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect!
+  """
+  Stops any effect currently running on the target. Returns true when a
+  run was active, false otherwise.
+  """
+  stopEffect(targetType: String!, targetId: ID!): Boolean!
 }
 
 type Subscription {
@@ -2803,6 +3259,12 @@ type Subscription {
   logStream: LogEntry!
   activityStream(advanced: Boolean): ActivityEvent!
   alarmEvent: AlarmEvent!
+  """
+  Step-boundary events from the effect runner. When runId is provided,
+  only events for that run are delivered; otherwise every effect run's
+  step boundaries are broadcast.
+  """
+  effectStepActivated(runId: ID): EffectStepEvent!
 }
 `, BuiltIn: false},
 }
@@ -2965,6 +3427,17 @@ func (ec *executionContext) field_Mutation_createAutomation_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateEffectInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateEffectInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createGroup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3032,6 +3505,17 @@ func (ec *executionContext) field_Mutation_deleteAlarm_args(ctx context.Context,
 }
 
 func (ec *executionContext) field_Mutation_deleteAutomation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
@@ -3162,6 +3646,27 @@ func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Co
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_runEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "effectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["effectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetType", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["targetType"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "targetId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["targetId"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setDeviceState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3191,6 +3696,22 @@ func (ec *executionContext) field_Mutation_simulateDeviceAction_args(ctx context
 		return nil, err
 	}
 	args["action"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_stopEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "targetType", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["targetType"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["targetId"] = arg1
 	return args, nil
 }
 
@@ -3261,6 +3782,17 @@ func (ec *executionContext) field_Mutation_updateDevice_args(ctx context.Context
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateEffectInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateEffectInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -3394,6 +3926,17 @@ func (ec *executionContext) field_Query_device_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_effect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_group_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3498,6 +4041,17 @@ func (ec *executionContext) field_Subscription_deviceStateChanged_args(ctx conte
 	return args, nil
 }
 
+func (ec *executionContext) field_Subscription_effectStepActivated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "runId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["runId"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3549,6 +4103,204 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ActiveEffect_id(ctx context.Context, field graphql.CollectedField, obj *model.ActiveEffect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActiveEffect_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActiveEffect_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActiveEffect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActiveEffect_effect(ctx context.Context, field graphql.CollectedField, obj *model.ActiveEffect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActiveEffect_effect,
+		func(ctx context.Context) (any, error) {
+			return obj.Effect, nil
+		},
+		nil,
+		ec.marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActiveEffect_effect(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActiveEffect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Effect_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Effect_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Effect_icon(ctx, field)
+			case "kind":
+				return ec.fieldContext_Effect_kind(ctx, field)
+			case "nativeName":
+				return ec.fieldContext_Effect_nativeName(ctx, field)
+			case "loop":
+				return ec.fieldContext_Effect_loop(ctx, field)
+			case "steps":
+				return ec.fieldContext_Effect_steps(ctx, field)
+			case "requiredCapabilities":
+				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Effect_createdBy(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Effect_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Effect_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Effect", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActiveEffect_targetType(ctx context.Context, field graphql.CollectedField, obj *model.ActiveEffect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActiveEffect_targetType,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActiveEffect_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActiveEffect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActiveEffect_targetId(ctx context.Context, field graphql.CollectedField, obj *model.ActiveEffect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActiveEffect_targetId,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActiveEffect_targetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActiveEffect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActiveEffect_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.ActiveEffect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActiveEffect_startedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActiveEffect_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActiveEffect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ActiveEffect_volatile(ctx context.Context, field graphql.CollectedField, obj *model.ActiveEffect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ActiveEffect_volatile,
+		func(ctx context.Context) (any, error) {
+			return obj.Volatile, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ActiveEffect_volatile(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActiveEffect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _ActivityEvent_id(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -6236,6 +6988,581 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 				return ec.fieldContext_DeviceState_energy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeviceState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_id(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_name(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_icon(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_icon,
+		func(ctx context.Context) (any, error) {
+			return obj.Icon, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_icon(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_kind(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type EffectKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_nativeName(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_nativeName,
+		func(ctx context.Context) (any, error) {
+			return obj.NativeName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_nativeName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_loop(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_loop,
+		func(ctx context.Context) (any, error) {
+			return obj.Loop, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_loop(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_steps(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_steps,
+		func(ctx context.Context) (any, error) {
+			return obj.Steps, nil
+		},
+		nil,
+		ec.marshalNEffectStep2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_steps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_EffectStep_id(ctx, field)
+			case "index":
+				return ec.fieldContext_EffectStep_index(ctx, field)
+			case "kind":
+				return ec.fieldContext_EffectStep_kind(ctx, field)
+			case "config":
+				return ec.fieldContext_EffectStep_config(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectStep", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_requiredCapabilities(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_requiredCapabilities,
+		func(ctx context.Context) (any, error) {
+			return obj.RequiredCapabilities, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_requiredCapabilities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_createdBy,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStep_id(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStep_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStep_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStep",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStep_index(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStep_index,
+		func(ctx context.Context) (any, error) {
+			return obj.Index, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStep_index(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStep",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStep_kind(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStep_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStep_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStep",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type EffectStepKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStep_config(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStep_config,
+		func(ctx context.Context) (any, error) {
+			return obj.Config, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStep_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStep",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStepEvent_runId(ctx context.Context, field graphql.CollectedField, obj *model.EffectStepEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStepEvent_runId,
+		func(ctx context.Context) (any, error) {
+			return obj.RunID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStepEvent_runId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStepEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStepEvent_effectId(ctx context.Context, field graphql.CollectedField, obj *model.EffectStepEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStepEvent_effectId,
+		func(ctx context.Context) (any, error) {
+			return obj.EffectID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStepEvent_effectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStepEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStepEvent_stepIndex(ctx context.Context, field graphql.CollectedField, obj *model.EffectStepEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStepEvent_stepIndex,
+		func(ctx context.Context) (any, error) {
+			return obj.StepIndex, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStepEvent_stepIndex(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStepEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectStepEvent_active(ctx context.Context, field graphql.CollectedField, obj *model.EffectStepEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectStepEvent_active,
+		func(ctx context.Context) (any, error) {
+			return obj.Active, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectStepEvent_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectStepEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8971,6 +10298,360 @@ func (ec *executionContext) fieldContext_Mutation_batchAddGroupDevices(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createEffect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createEffect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateEffect(ctx, fc.Args["input"].(model.CreateEffectInput))
+		},
+		nil,
+		ec.marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createEffect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Effect_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Effect_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Effect_icon(ctx, field)
+			case "kind":
+				return ec.fieldContext_Effect_kind(ctx, field)
+			case "nativeName":
+				return ec.fieldContext_Effect_nativeName(ctx, field)
+			case "loop":
+				return ec.fieldContext_Effect_loop(ctx, field)
+			case "steps":
+				return ec.fieldContext_Effect_steps(ctx, field)
+			case "requiredCapabilities":
+				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Effect_createdBy(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Effect_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Effect_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Effect", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateEffect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateEffect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateEffect(ctx, fc.Args["input"].(model.UpdateEffectInput))
+		},
+		nil,
+		ec.marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateEffect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Effect_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Effect_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Effect_icon(ctx, field)
+			case "kind":
+				return ec.fieldContext_Effect_kind(ctx, field)
+			case "nativeName":
+				return ec.fieldContext_Effect_nativeName(ctx, field)
+			case "loop":
+				return ec.fieldContext_Effect_loop(ctx, field)
+			case "steps":
+				return ec.fieldContext_Effect_steps(ctx, field)
+			case "requiredCapabilities":
+				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Effect_createdBy(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Effect_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Effect_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Effect", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteEffect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteEffect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteEffect(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteEffect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_runEffect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_runEffect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RunEffect(ctx, fc.Args["effectId"].(string), fc.Args["targetType"].(string), fc.Args["targetId"].(string))
+		},
+		nil,
+		ec.marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_runEffect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ActiveEffect_id(ctx, field)
+			case "effect":
+				return ec.fieldContext_ActiveEffect_effect(ctx, field)
+			case "targetType":
+				return ec.fieldContext_ActiveEffect_targetType(ctx, field)
+			case "targetId":
+				return ec.fieldContext_ActiveEffect_targetId(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_ActiveEffect_startedAt(ctx, field)
+			case "volatile":
+				return ec.fieldContext_ActiveEffect_volatile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ActiveEffect", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_runEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_stopEffect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_stopEffect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().StopEffect(ctx, fc.Args["targetType"].(string), fc.Args["targetId"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_stopEffect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_stopEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectOption_name(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectOption_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectOption_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectOption_displayName(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectOption_displayName,
+		func(ctx context.Context) (any, error) {
+			return obj.DisplayName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectOption_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectOption_supportedDeviceCount(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectOption_supportedDeviceCount,
+		func(ctx context.Context) (any, error) {
+			return obj.SupportedDeviceCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectOption_supportedDeviceCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9920,6 +11601,204 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_effects(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_effects,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Effects(ctx)
+		},
+		nil,
+		ec.marshalNEffect2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_effects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Effect_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Effect_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Effect_icon(ctx, field)
+			case "kind":
+				return ec.fieldContext_Effect_kind(ctx, field)
+			case "nativeName":
+				return ec.fieldContext_Effect_nativeName(ctx, field)
+			case "loop":
+				return ec.fieldContext_Effect_loop(ctx, field)
+			case "steps":
+				return ec.fieldContext_Effect_steps(ctx, field)
+			case "requiredCapabilities":
+				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Effect_createdBy(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Effect_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Effect_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Effect", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_effect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_effect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Effect(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_effect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Effect_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Effect_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Effect_icon(ctx, field)
+			case "kind":
+				return ec.fieldContext_Effect_kind(ctx, field)
+			case "nativeName":
+				return ec.fieldContext_Effect_nativeName(ctx, field)
+			case "loop":
+				return ec.fieldContext_Effect_loop(ctx, field)
+			case "steps":
+				return ec.fieldContext_Effect_steps(ctx, field)
+			case "requiredCapabilities":
+				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Effect_createdBy(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Effect_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Effect_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Effect", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_effect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_activeEffects(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_activeEffects,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ActiveEffects(ctx)
+		},
+		nil,
+		ec.marshalNActiveEffect2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffectᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_activeEffects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ActiveEffect_id(ctx, field)
+			case "effect":
+				return ec.fieldContext_ActiveEffect_effect(ctx, field)
+			case "targetType":
+				return ec.fieldContext_ActiveEffect_targetType(ctx, field)
+			case "targetId":
+				return ec.fieldContext_ActiveEffect_targetId(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_ActiveEffect_startedAt(ctx, field)
+			case "volatile":
+				return ec.fieldContext_ActiveEffect_volatile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ActiveEffect", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_nativeEffectOptions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_nativeEffectOptions,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().NativeEffectOptions(ctx)
+		},
+		nil,
+		ec.marshalNNativeEffectOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOptionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_nativeEffectOptions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_NativeEffectOption_name(ctx, field)
+			case "displayName":
+				return ec.fieldContext_NativeEffectOption_displayName(ctx, field)
+			case "supportedDeviceCount":
+				return ec.fieldContext_NativeEffectOption_supportedDeviceCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type NativeEffectOption", field.Name)
 		},
 	}
 	return fc, nil
@@ -11582,6 +13461,57 @@ func (ec *executionContext) fieldContext_Subscription_alarmEvent(_ context.Conte
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AlarmEvent", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_effectStepActivated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_effectStepActivated,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().EffectStepActivated(ctx, fc.Args["runId"].(*string))
+		},
+		nil,
+		ec.marshalNEffectStepEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_effectStepActivated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "runId":
+				return ec.fieldContext_EffectStepEvent_runId(ctx, field)
+			case "effectId":
+				return ec.fieldContext_EffectStepEvent_effectId(ctx, field)
+			case "stepIndex":
+				return ec.fieldContext_EffectStepEvent_stepIndex(ctx, field)
+			case "active":
+				return ec.fieldContext_EffectStepEvent_active(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectStepEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_effectStepActivated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -13665,6 +15595,71 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateEffectInput(ctx context.Context, obj any) (model.CreateEffectInput, error) {
+	var it model.CreateEffectInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "icon", "kind", "nativeName", "loop", "steps"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "icon":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("icon"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Icon = graphql.OmittableOf(data)
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "nativeName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nativeName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NativeName = graphql.OmittableOf(data)
+		case "loop":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loop"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Loop = data
+		case "steps":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("steps"))
+			data, err := ec.unmarshalNEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Steps = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateGroupInput(ctx context.Context, obj any) (model.CreateGroupInput, error) {
 	var it model.CreateGroupInput
 	if obj == nil {
@@ -13910,6 +15905,43 @@ func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, 
 				return it, err
 			}
 			it.Transition = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectStepInput(ctx context.Context, obj any) (model.EffectStepInput, error) {
+	var it model.EffectStepInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"kind", "config"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "config":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Config = data
 		}
 	}
 	return it, nil
@@ -14355,6 +16387,71 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateEffectInput(ctx context.Context, obj any) (model.UpdateEffectInput, error) {
+	var it model.UpdateEffectInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"id", "name", "icon", "loop", "nativeName", "steps"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = graphql.OmittableOf(data)
+		case "icon":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("icon"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Icon = graphql.OmittableOf(data)
+		case "loop":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loop"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Loop = graphql.OmittableOf(data)
+		case "nativeName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nativeName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NativeName = graphql.OmittableOf(data)
+		case "steps":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("steps"))
+			data, err := ec.unmarshalOEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Steps = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateGroupInput(ctx context.Context, obj any) (model.UpdateGroupInput, error) {
 	var it model.UpdateGroupInput
 	if obj == nil {
@@ -14521,6 +16618,70 @@ func (ec *executionContext) _SceneTarget(ctx context.Context, sel ast.SelectionS
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var activeEffectImplementors = []string{"ActiveEffect"}
+
+func (ec *executionContext) _ActiveEffect(ctx context.Context, sel ast.SelectionSet, obj *model.ActiveEffect) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, activeEffectImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActiveEffect")
+		case "id":
+			out.Values[i] = ec._ActiveEffect_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "effect":
+			out.Values[i] = ec._ActiveEffect_effect(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetType":
+			out.Values[i] = ec._ActiveEffect_targetType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetId":
+			out.Values[i] = ec._ActiveEffect_targetId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startedAt":
+			out.Values[i] = ec._ActiveEffect_startedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "volatile":
+			out.Values[i] = ec._ActiveEffect_volatile(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var activityEventImplementors = []string{"ActivityEvent"}
 
@@ -15445,6 +17606,194 @@ func (ec *executionContext) _DeviceStateEvent(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var effectImplementors = []string{"Effect"}
+
+func (ec *executionContext) _Effect(ctx context.Context, sel ast.SelectionSet, obj *model.Effect) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Effect")
+		case "id":
+			out.Values[i] = ec._Effect_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Effect_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "icon":
+			out.Values[i] = ec._Effect_icon(ctx, field, obj)
+		case "kind":
+			out.Values[i] = ec._Effect_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nativeName":
+			out.Values[i] = ec._Effect_nativeName(ctx, field, obj)
+		case "loop":
+			out.Values[i] = ec._Effect_loop(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "steps":
+			out.Values[i] = ec._Effect_steps(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requiredCapabilities":
+			out.Values[i] = ec._Effect_requiredCapabilities(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdBy":
+			out.Values[i] = ec._Effect_createdBy(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Effect_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Effect_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectStepImplementors = []string{"EffectStep"}
+
+func (ec *executionContext) _EffectStep(ctx context.Context, sel ast.SelectionSet, obj *model.EffectStep) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectStepImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectStep")
+		case "id":
+			out.Values[i] = ec._EffectStep_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "index":
+			out.Values[i] = ec._EffectStep_index(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._EffectStep_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "config":
+			out.Values[i] = ec._EffectStep_config(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectStepEventImplementors = []string{"EffectStepEvent"}
+
+func (ec *executionContext) _EffectStepEvent(ctx context.Context, sel ast.SelectionSet, obj *model.EffectStepEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectStepEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectStepEvent")
+		case "runId":
+			out.Values[i] = ec._EffectStepEvent_runId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "effectId":
+			out.Values[i] = ec._EffectStepEvent_effectId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stepIndex":
+			out.Values[i] = ec._EffectStepEvent_stepIndex(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "active":
+			out.Values[i] = ec._EffectStepEvent_active(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var groupImplementors = []string{"Group", "SceneTarget"}
 
 func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, obj *model.Group) graphql.Marshaler {
@@ -15979,6 +18328,90 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createEffect":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createEffect(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateEffect":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateEffect(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteEffect":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteEffect(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runEffect":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_runEffect(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stopEffect":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_stopEffect(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var nativeEffectOptionImplementors = []string{"NativeEffectOption"}
+
+func (ec *executionContext) _NativeEffectOption(ctx context.Context, sel ast.SelectionSet, obj *model.NativeEffectOption) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, nativeEffectOptionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NativeEffectOption")
+		case "name":
+			out.Values[i] = ec._NativeEffectOption_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "displayName":
+			out.Values[i] = ec._NativeEffectOption_displayName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "supportedDeviceCount":
+			out.Values[i] = ec._NativeEffectOption_supportedDeviceCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16428,6 +18861,91 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_users(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "effects":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_effects(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "effect":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_effect(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "activeEffects":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_activeEffects(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "nativeEffectOptions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_nativeEffectOptions(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -16995,6 +19513,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_activityStream(ctx, fields[0])
 	case "alarmEvent":
 		return ec._Subscription_alarmEvent(ctx, fields[0])
+	case "effectStepActivated":
+		return ec._Subscription_effectStepActivated(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -17390,6 +19910,36 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNActiveEffect2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect(ctx context.Context, sel ast.SelectionSet, v model.ActiveEffect) graphql.Marshaler {
+	return ec._ActiveEffect(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNActiveEffect2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffectᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ActiveEffect) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect(ctx context.Context, sel ast.SelectionSet, v *model.ActiveEffect) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ActiveEffect(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNActivityEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEvent(ctx context.Context, sel ast.SelectionSet, v model.ActivityEvent) graphql.Marshaler {
 	return ec._ActivityEvent(ctx, sel, &v)
 }
@@ -17730,6 +20280,11 @@ func (ec *executionContext) unmarshalNCreateAutomationInput2githubᚗcomᚋsaffr
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreateEffectInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateEffectInput(ctx context.Context, v any) (model.CreateEffectInput, error) {
+	res, err := ec.unmarshalInputCreateEffectInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCreateGroupInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateGroupInput(ctx context.Context, v any) (model.CreateGroupInput, error) {
 	res, err := ec.unmarshalInputCreateGroupInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17856,6 +20411,116 @@ func (ec *executionContext) marshalNDeviceStateEvent2ᚖgithubᚗcomᚋsaffronja
 func (ec *executionContext) unmarshalNDeviceStateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceStateInput(ctx context.Context, v any) (model.DeviceStateInput, error) {
 	res, err := ec.unmarshalInputDeviceStateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffect2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v model.Effect) graphql.Marshaler {
+	return ec._Effect(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNEffect2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Effect) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v *model.Effect) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Effect(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, v any) (model.EffectKind, error) {
+	var res model.EffectKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, sel ast.SelectionSet, v model.EffectKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNEffectStep2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EffectStep) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNEffectStep2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStep(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNEffectStep2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStep(ctx context.Context, sel ast.SelectionSet, v *model.EffectStep) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EffectStep(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNEffectStepEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepEvent(ctx context.Context, sel ast.SelectionSet, v model.EffectStepEvent) graphql.Marshaler {
+	return ec._EffectStepEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNEffectStepEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepEvent(ctx context.Context, sel ast.SelectionSet, v *model.EffectStepEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EffectStepEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx context.Context, v any) ([]*model.EffectStepInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.EffectStepInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNEffectStepInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNEffectStepInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInput(ctx context.Context, v any) (*model.EffectStepInput, error) {
+	res, err := ec.unmarshalInputEffectStepInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind(ctx context.Context, v any) (model.EffectStepKind, error) {
+	var res model.EffectStepKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind(ctx context.Context, sel ast.SelectionSet, v model.EffectStepKind) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
@@ -18048,6 +20713,32 @@ func (ec *executionContext) marshalNMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsa
 func (ec *executionContext) unmarshalNMqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfigInput(ctx context.Context, v any) (model.MqttConfigInput, error) {
 	res, err := ec.unmarshalInputMqttConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNNativeEffectOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NativeEffectOption) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNativeEffectOption2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOption(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNativeEffectOption2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOption(ctx context.Context, sel ast.SelectionSet, v *model.NativeEffectOption) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NativeEffectOption(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNRaiseAlarmInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRaiseAlarmInput(ctx context.Context, v any) (model.RaiseAlarmInput, error) {
@@ -18425,6 +21116,11 @@ func (ec *executionContext) unmarshalNUpdateCurrentUserInput2githubᚗcomᚋsaff
 
 func (ec *executionContext) unmarshalNUpdateDeviceInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateDeviceInput(ctx context.Context, v any) (model.UpdateDeviceInput, error) {
 	res, err := ec.unmarshalInputUpdateDeviceInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateEffectInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateEffectInput(ctx context.Context, v any) (model.UpdateEffectInput, error) {
+	res, err := ec.unmarshalInputUpdateEffectInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -18829,6 +21525,31 @@ func (ec *executionContext) marshalODeviceState2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._DeviceState(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v *model.Effect) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Effect(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx context.Context, v any) ([]*model.EffectStepInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.EffectStepInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNEffectStepInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
