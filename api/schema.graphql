@@ -141,8 +141,17 @@ type Room {
   id: ID!
   name: String!
   icon: String
-  devices: [Device!]!
+  members: [RoomMember!]!
+  resolvedDevices: [Device!]!
   createdBy: User
+}
+
+type RoomMember {
+  id: ID!
+  memberType: String!
+  memberId: ID!
+  device: Device
+  group: Group
 }
 
 type StateSeriesPoint {
@@ -462,9 +471,15 @@ input UpdateRoomInput {
   icon: String
 }
 
-input AddRoomDeviceInput {
+input AddRoomMemberInput {
   roomId: ID!
-  deviceId: ID!
+  memberType: String!
+  memberId: ID!
+}
+
+input RoomMemberInput {
+  memberType: String!
+  memberId: ID!
 }
 
 input UpdateAutomationInput {
@@ -530,8 +545,8 @@ type Mutation {
   createRoom(input: CreateRoomInput!): Room!
   updateRoom(id: ID!, input: UpdateRoomInput!): Room!
   deleteRoom(id: ID!): Boolean!
-  addRoomDevice(input: AddRoomDeviceInput!): Room!
-  removeRoomDevice(roomId: ID!, deviceId: ID!): Room!
+  addRoomMember(input: AddRoomMemberInput!): RoomMember!
+  removeRoomMember(id: ID!): Boolean!
   updateMqttConfig(input: MqttConfigInput!): MqttConfig!
   testMqttConnection(input: MqttConfigInput!): ConnectionTestResult!
   updateSetting(key: String!, value: String!): Setting!
@@ -556,7 +571,7 @@ type Mutation {
   """
   batchDeleteUsers(ids: [ID!]!): Int!
 
-  batchAddRoomDevices(roomId: ID!, deviceIds: [ID!]!): Room!
+  batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room!
   batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
 }
 

@@ -660,23 +660,28 @@ func (m *mockStore) BatchDeleteRooms(_ context.Context, _ []string) (int64, erro
 	return 0, nil
 }
 
-func (m *mockStore) AddRoomDevice(_ context.Context, _ store.AddRoomDeviceParams) (store.RoomDevice, error) {
-	return store.RoomDevice{}, nil
+func (m *mockStore) AddRoomMember(_ context.Context, params store.AddRoomMemberParams) (store.RoomMember, error) {
+	return store.RoomMember{
+		ID:         params.ID,
+		RoomID:     params.RoomID,
+		MemberType: params.MemberType,
+		MemberID:   params.MemberID,
+	}, nil
 }
 
-func (m *mockStore) BatchAddRoomDevices(_ context.Context, _ string, deviceIDs []string) (int64, error) {
-	return int64(len(deviceIDs)), nil
+func (m *mockStore) BatchAddRoomMembers(_ context.Context, _ string, members []store.RoomMemberInput) (int64, error) {
+	return int64(len(members)), nil
 }
 
-func (m *mockStore) ListRoomDevices(_ context.Context, _ string) ([]store.RoomDevice, error) {
+func (m *mockStore) ListRoomMembers(_ context.Context, _ string) ([]store.RoomMember, error) {
 	return nil, nil
 }
 
-func (m *mockStore) RemoveRoomDeviceByRoomAndDevice(_ context.Context, _, _ string) error {
+func (m *mockStore) RemoveRoomMember(_ context.Context, _ string) error {
 	return nil
 }
 
-func (m *mockStore) ListRoomsContainingDevice(_ context.Context, _ string) ([]store.Room, error) {
+func (m *mockStore) ListRoomsContainingMember(_ context.Context, _ device.RoomMemberType, _ string) ([]store.Room, error) {
 	return nil, nil
 }
 

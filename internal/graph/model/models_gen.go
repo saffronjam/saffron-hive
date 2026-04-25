@@ -50,9 +50,10 @@ type AddGroupMemberInput struct {
 	MemberID   string `json:"memberId"`
 }
 
-type AddRoomDeviceInput struct {
-	RoomID   string `json:"roomId"`
-	DeviceID string `json:"deviceId"`
+type AddRoomMemberInput struct {
+	RoomID     string `json:"roomId"`
+	MemberType string `json:"memberType"`
+	MemberID   string `json:"memberId"`
 }
 
 // An alarm is an actionable severity-tagged signal. Rows are persisted 1:1 per
@@ -320,14 +321,28 @@ type RaiseAlarmInput struct {
 }
 
 type Room struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Icon      *string   `json:"icon,omitempty"`
-	Devices   []*Device `json:"devices"`
-	CreatedBy *User     `json:"createdBy,omitempty"`
+	ID              string        `json:"id"`
+	Name            string        `json:"name"`
+	Icon            *string       `json:"icon,omitempty"`
+	Members         []*RoomMember `json:"members"`
+	ResolvedDevices []*Device     `json:"resolvedDevices"`
+	CreatedBy       *User         `json:"createdBy,omitempty"`
 }
 
 func (Room) IsSceneTarget() {}
+
+type RoomMember struct {
+	ID         string  `json:"id"`
+	MemberType string  `json:"memberType"`
+	MemberID   string  `json:"memberId"`
+	Device     *Device `json:"device,omitempty"`
+	Group      *Group  `json:"group,omitempty"`
+}
+
+type RoomMemberInput struct {
+	MemberType string `json:"memberType"`
+	MemberID   string `json:"memberId"`
+}
 
 type Scene struct {
 	ID      string         `json:"id"`

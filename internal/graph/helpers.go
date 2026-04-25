@@ -212,6 +212,19 @@ func (r *Resolver) publishRoomMembershipChanged() {
 	})
 }
 
+// publishGroupMembershipChanged signals downstream caches that group
+// membership shifted. The room cache subscribes because group reshuffles can
+// move devices in and out of a room transitively.
+func (r *Resolver) publishGroupMembershipChanged() {
+	if r.EventBus == nil {
+		return
+	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventGroupMembershipChanged,
+		Timestamp: time.Now(),
+	})
+}
+
 func currentUserID(ctx context.Context) *string {
 	u, ok := auth.UserFromContext(ctx)
 	if !ok {
@@ -478,7 +491,7 @@ func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphSt
 		mg.Members[i] = gm
 	}
 	seen := make(map[string]bool)
-	mg.ResolvedDevices = collectDevicesFromMembers(ctx, sr, s, members, seen)
+	mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
 	return mg
 }
 
@@ -525,42 +538,77 @@ func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.
 	}
 
 	seen := make(map[string]bool)
-	mg.ResolvedDevices = collectDevicesFromMembers(ctx, sr, s, members, seen)
+	mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
 
 	return mg
 }
 
-func collectDevicesFromMembers(ctx context.Context, sr device.StateReader, s GraphStore, members []store.GroupMember, seen map[string]bool) []*model.Device {
+// collectDevicesFromGroupMembers walks the given group members and returns the
+// flat list of devices reachable from them, recursing through nested groups and
+// rooms. The shared `seen` map is keyed by composite "kind:id" strings so a
+// single map covers both group and room cycle prevention.
+func collectDevicesFromGroupMembers(ctx context.Context, sr device.StateReader, s GraphStore, members []store.GroupMember, seen map[string]bool) []*model.Device {
 	var result []*model.Device
 	for _, m := range members {
-		if seen[m.MemberID] {
-			continue
-		}
-		seen[m.MemberID] = true
 		switch m.MemberType {
 		case device.GroupMemberDevice:
+			key := "device:" + m.MemberID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
 			d, ok := sr.GetDevice(device.DeviceID(m.MemberID))
 			if ok {
 				result = append(result, mapDeviceFromReader(sr, d))
 			}
 		case device.GroupMemberGroup:
+			key := "group:" + m.MemberID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
 			subMembers, err := s.ListGroupMembers(ctx, m.MemberID)
 			if err == nil {
-				result = append(result, collectDevicesFromMembers(ctx, sr, s, subMembers, seen)...)
+				result = append(result, collectDevicesFromGroupMembers(ctx, sr, s, subMembers, seen)...)
 			}
 		case device.GroupMemberRoom:
-			roomDevices, err := s.ListRoomDevices(ctx, m.MemberID)
+			key := "room:" + m.MemberID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			roomMembers, err := s.ListRoomMembers(ctx, m.MemberID)
 			if err == nil {
-				for _, rd := range roomDevices {
-					if seen[rd.DeviceID] {
-						continue
-					}
-					seen[rd.DeviceID] = true
-					d, ok := sr.GetDevice(device.DeviceID(rd.DeviceID))
-					if ok {
-						result = append(result, mapDeviceFromReader(sr, d))
-					}
-				}
+				result = append(result, collectDevicesFromRoomMembers(ctx, sr, s, roomMembers, seen)...)
+			}
+		}
+	}
+	return result
+}
+
+func collectDevicesFromRoomMembers(ctx context.Context, sr device.StateReader, s GraphStore, members []store.RoomMember, seen map[string]bool) []*model.Device {
+	var result []*model.Device
+	for _, m := range members {
+		switch m.MemberType {
+		case device.RoomMemberDevice:
+			key := "device:" + m.MemberID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			d, ok := sr.GetDevice(device.DeviceID(m.MemberID))
+			if ok {
+				result = append(result, mapDeviceFromReader(sr, d))
+			}
+		case device.RoomMemberGroup:
+			key := "group:" + m.MemberID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			subMembers, err := s.ListGroupMembers(ctx, m.MemberID)
+			if err == nil {
+				result = append(result, collectDevicesFromGroupMembers(ctx, sr, s, subMembers, seen)...)
 			}
 		}
 	}
@@ -636,32 +684,71 @@ func loadAndMapScene(ctx context.Context, r *mutationResolver, id string) (*mode
 	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
 }
 
-func (r *mutationResolver) checkCircularDependency(ctx context.Context, parentID, childID string) error {
-	if parentID == childID {
-		return device.ErrCircularDependency
-	}
-	return r.walkDescendants(ctx, childID, parentID, make(map[string]struct{}))
+// entityRef identifies a container in the membership graph for cycle detection.
+// kind is "group" or "room"; devices are leaves and never appear here.
+type entityRef struct {
+	kind string
+	id   string
 }
 
-func (r *mutationResolver) walkDescendants(ctx context.Context, current, target string, visited map[string]struct{}) error {
+// checkCircularDependency reports an error when adding `child` as a member of
+// `parent` would form a cycle. Walks the descendants of `child` (through both
+// group and room membership edges) to see whether `parent` is reachable.
+//
+// `parent` and `child` are both container kinds (group or room). Adding a
+// device to anything is always safe and should not call this function.
+func (r *mutationResolver) checkCircularDependency(ctx context.Context, parent, child entityRef) error {
+	if parent == child {
+		return device.ErrCircularDependency
+	}
+	return r.walkDescendants(ctx, child, parent, map[entityRef]struct{}{})
+}
+
+func (r *mutationResolver) walkDescendants(ctx context.Context, current, target entityRef, visited map[entityRef]struct{}) error {
 	if _, ok := visited[current]; ok {
 		return nil
 	}
 	visited[current] = struct{}{}
 
-	members, err := r.Store.ListGroupMembers(ctx, current)
-	if err != nil {
-		return err
-	}
-	for _, m := range members {
-		if m.MemberType != device.GroupMemberGroup {
-			continue
-		}
-		if m.MemberID == target {
-			return device.ErrCircularDependency
-		}
-		if err := r.walkDescendants(ctx, m.MemberID, target, visited); err != nil {
+	switch current.kind {
+	case "group":
+		members, err := r.Store.ListGroupMembers(ctx, current.id)
+		if err != nil {
 			return err
+		}
+		for _, m := range members {
+			var next entityRef
+			switch m.MemberType {
+			case device.GroupMemberGroup:
+				next = entityRef{kind: "group", id: m.MemberID}
+			case device.GroupMemberRoom:
+				next = entityRef{kind: "room", id: m.MemberID}
+			default:
+				continue
+			}
+			if next == target {
+				return device.ErrCircularDependency
+			}
+			if err := r.walkDescendants(ctx, next, target, visited); err != nil {
+				return err
+			}
+		}
+	case "room":
+		members, err := r.Store.ListRoomMembers(ctx, current.id)
+		if err != nil {
+			return err
+		}
+		for _, m := range members {
+			if m.MemberType != device.RoomMemberGroup {
+				continue
+			}
+			next := entityRef{kind: "group", id: m.MemberID}
+			if next == target {
+				return device.ErrCircularDependency
+			}
+			if err := r.walkDescendants(ctx, next, target, visited); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -674,19 +761,43 @@ func mapRoom(ctx context.Context, sr device.StateReader, s GraphStore, r store.R
 		Icon:      r.Icon,
 		CreatedBy: mapUserRef(r.CreatedBy),
 	}
-	devices, err := s.ListRoomDevices(ctx, r.ID)
+	members, err := s.ListRoomMembers(ctx, r.ID)
 	if err != nil {
-		mr.Devices = []*model.Device{}
+		mr.Members = []*model.RoomMember{}
+		mr.ResolvedDevices = []*model.Device{}
 		return mr
 	}
-	mr.Devices = make([]*model.Device, 0, len(devices))
-	for _, rd := range devices {
-		d, ok := sr.GetDevice(device.DeviceID(rd.DeviceID))
+	mr.Members = make([]*model.RoomMember, len(members))
+	for i, m := range members {
+		mr.Members[i] = mapRoomMember(ctx, sr, s, m)
+	}
+	seen := make(map[string]bool)
+	mr.ResolvedDevices = collectDevicesFromRoomMembers(ctx, sr, s, members, seen)
+	return mr
+}
+
+func mapRoomMember(ctx context.Context, sr device.StateReader, s GraphStore, m store.RoomMember) *model.RoomMember {
+	rm := &model.RoomMember{
+		ID:         m.ID,
+		MemberType: string(m.MemberType),
+		MemberID:   m.MemberID,
+	}
+	switch m.MemberType {
+	case device.RoomMemberDevice:
+		d, ok := sr.GetDevice(device.DeviceID(m.MemberID))
 		if ok {
-			mr.Devices = append(mr.Devices, mapDeviceFromReader(sr, d))
+			rm.Device = mapDeviceFromReader(sr, d)
+		}
+	case device.RoomMemberGroup:
+		g, err := s.GetGroup(ctx, m.MemberID)
+		if err == nil {
+			members, err := s.ListGroupMembers(ctx, m.MemberID)
+			if err == nil {
+				rm.Group = mapGroup(ctx, sr, s, g, members)
+			}
 		}
 	}
-	return mr
+	return rm
 }
 
 func mapLogEntry(e logging.Entry) *model.LogEntry {

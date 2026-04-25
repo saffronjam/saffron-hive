@@ -460,6 +460,8 @@ func (r *mutationResolver) DeleteGroup(ctx context.Context, id string) (bool, er
 	if err != nil {
 		return false, err
 	}
+	r.publishGroupMembershipChanged()
+	r.publishRoomMembershipChanged()
 	return true, nil
 }
 
@@ -470,8 +472,14 @@ func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGr
 		return nil, fmt.Errorf("invalid member type %q: must be %q, %q, or %q", input.MemberType, device.GroupMemberDevice, device.GroupMemberGroup, device.GroupMemberRoom)
 	}
 
-	if memberType == device.GroupMemberGroup {
-		if err := r.checkCircularDependency(ctx, input.GroupID, input.MemberID); err != nil {
+	parent := entityRef{kind: "group", id: input.GroupID}
+	switch memberType {
+	case device.GroupMemberGroup:
+		if err := r.checkCircularDependency(ctx, parent, entityRef{kind: "group", id: input.MemberID}); err != nil {
+			return nil, err
+		}
+	case device.GroupMemberRoom:
+		if err := r.checkCircularDependency(ctx, parent, entityRef{kind: "room", id: input.MemberID}); err != nil {
 			return nil, err
 		}
 	}
@@ -486,6 +494,7 @@ func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGr
 	if err != nil {
 		return nil, err
 	}
+	r.publishGroupMembershipChanged()
 	return mapGroupMember(ctx, r.StateReader, r.Store, m), nil
 }
 
@@ -495,6 +504,7 @@ func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (bo
 	if err != nil {
 		return false, err
 	}
+	r.publishGroupMembershipChanged()
 	return true, nil
 }
 
@@ -547,34 +557,42 @@ func (r *mutationResolver) DeleteRoom(ctx context.Context, id string) (bool, err
 	return true, nil
 }
 
-// AddRoomDevice is the resolver for the addRoomDevice field.
-func (r *mutationResolver) AddRoomDevice(ctx context.Context, input model.AddRoomDeviceInput) (*model.Room, error) {
-	_, err := r.Store.AddRoomDevice(ctx, store.AddRoomDeviceParams{
-		RoomID:   input.RoomID,
-		DeviceID: input.DeviceID,
+// AddRoomMember is the resolver for the addRoomMember field.
+func (r *mutationResolver) AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.RoomMember, error) {
+	memberType := device.RoomMemberType(input.MemberType)
+	if memberType != device.RoomMemberDevice && memberType != device.RoomMemberGroup {
+		return nil, fmt.Errorf("%w %q: must be %q or %q", device.ErrInvalidRoomMemberType, input.MemberType, device.RoomMemberDevice, device.RoomMemberGroup)
+	}
+
+	if memberType == device.RoomMemberGroup {
+		parent := entityRef{kind: "room", id: input.RoomID}
+		child := entityRef{kind: "group", id: input.MemberID}
+		if err := r.checkCircularDependency(ctx, parent, child); err != nil {
+			return nil, err
+		}
+	}
+
+	memberID := uuid.New().String()
+	m, err := r.Store.AddRoomMember(ctx, store.AddRoomMemberParams{
+		ID:         memberID,
+		RoomID:     input.RoomID,
+		MemberType: memberType,
+		MemberID:   input.MemberID,
 	})
 	if err != nil {
 		return nil, err
 	}
 	r.publishRoomMembershipChanged()
-	rm, err := r.Store.GetRoom(ctx, input.RoomID)
-	if err != nil {
-		return nil, err
-	}
-	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+	return mapRoomMember(ctx, r.StateReader, r.Store, m), nil
 }
 
-// RemoveRoomDevice is the resolver for the removeRoomDevice field.
-func (r *mutationResolver) RemoveRoomDevice(ctx context.Context, roomID string, deviceID string) (*model.Room, error) {
-	if err := r.Store.RemoveRoomDeviceByRoomAndDevice(ctx, roomID, deviceID); err != nil {
-		return nil, err
+// RemoveRoomMember is the resolver for the removeRoomMember field.
+func (r *mutationResolver) RemoveRoomMember(ctx context.Context, id string) (bool, error) {
+	if err := r.Store.RemoveRoomMember(ctx, id); err != nil {
+		return false, err
 	}
 	r.publishRoomMembershipChanged()
-	rm, err := r.Store.GetRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+	return true, nil
 }
 
 // UpdateMqttConfig is the resolver for the updateMqttConfig field.
@@ -846,6 +864,10 @@ func (r *mutationResolver) BatchDeleteGroups(ctx context.Context, ids []string) 
 	if err != nil {
 		return 0, err
 	}
+	if n > 0 {
+		r.publishGroupMembershipChanged()
+		r.publishRoomMembershipChanged()
+	}
 	return int(n), nil
 }
 
@@ -907,10 +929,27 @@ func (r *mutationResolver) BatchDeleteUsers(ctx context.Context, ids []string) (
 	return int(n), nil
 }
 
-// BatchAddRoomDevices is the resolver for the batchAddRoomDevices field.
-// Devices already in the room are silently skipped. Returns the updated room.
-func (r *mutationResolver) BatchAddRoomDevices(ctx context.Context, roomID string, deviceIds []string) (*model.Room, error) {
-	if _, err := r.Store.BatchAddRoomDevices(ctx, roomID, deviceIds); err != nil {
+// BatchAddRoomMembers is the resolver for the batchAddRoomMembers field.
+func (r *mutationResolver) BatchAddRoomMembers(ctx context.Context, roomID string, members []*model.RoomMemberInput) (*model.Room, error) {
+	inputs := make([]store.RoomMemberInput, 0, len(members))
+	for _, m := range members {
+		memberType := device.RoomMemberType(m.MemberType)
+		if memberType != device.RoomMemberDevice && memberType != device.RoomMemberGroup {
+			return nil, fmt.Errorf("%w %q: must be %q or %q", device.ErrInvalidRoomMemberType, m.MemberType, device.RoomMemberDevice, device.RoomMemberGroup)
+		}
+		if memberType == device.RoomMemberGroup {
+			parent := entityRef{kind: "room", id: roomID}
+			child := entityRef{kind: "group", id: m.MemberID}
+			if err := r.checkCircularDependency(ctx, parent, child); err != nil {
+				return nil, err
+			}
+		}
+		inputs = append(inputs, store.RoomMemberInput{
+			MemberType: memberType,
+			MemberID:   m.MemberID,
+		})
+	}
+	if _, err := r.Store.BatchAddRoomMembers(ctx, roomID, inputs); err != nil {
 		return nil, err
 	}
 	r.publishRoomMembershipChanged()

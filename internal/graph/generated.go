@@ -209,10 +209,10 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddGroupMember         func(childComplexity int, input model.AddGroupMemberInput) int
-		AddRoomDevice          func(childComplexity int, input model.AddRoomDeviceInput) int
+		AddRoomMember          func(childComplexity int, input model.AddRoomMemberInput) int
 		ApplyScene             func(childComplexity int, sceneID string) int
 		BatchAddGroupDevices   func(childComplexity int, groupID string, deviceIds []string) int
-		BatchAddRoomDevices    func(childComplexity int, roomID string, deviceIds []string) int
+		BatchAddRoomMembers    func(childComplexity int, roomID string, members []*model.RoomMemberInput) int
 		BatchDeleteAlarms      func(childComplexity int, alarmIds []string) int
 		BatchDeleteAutomations func(childComplexity int, ids []string) int
 		BatchDeleteGroups      func(childComplexity int, ids []string) int
@@ -236,7 +236,7 @@ type ComplexityRoot struct {
 		Login                  func(childComplexity int, input model.LoginInput) int
 		RaiseAlarm             func(childComplexity int, input model.RaiseAlarmInput) int
 		RemoveGroupMember      func(childComplexity int, id string) int
-		RemoveRoomDevice       func(childComplexity int, roomID string, deviceID string) int
+		RemoveRoomMember       func(childComplexity int, id string) int
 		ResetUserPassword      func(childComplexity int, id string, newPassword string) int
 		SetDeviceState         func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		SimulateDeviceAction   func(childComplexity int, deviceID string, action string) int
@@ -276,11 +276,20 @@ type ComplexityRoot struct {
 	}
 
 	Room struct {
-		CreatedBy func(childComplexity int) int
-		Devices   func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Icon      func(childComplexity int) int
-		Name      func(childComplexity int) int
+		CreatedBy       func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Icon            func(childComplexity int) int
+		Members         func(childComplexity int) int
+		Name            func(childComplexity int) int
+		ResolvedDevices func(childComplexity int) int
+	}
+
+	RoomMember struct {
+		Device     func(childComplexity int) int
+		Group      func(childComplexity int) int
+		ID         func(childComplexity int) int
+		MemberID   func(childComplexity int) int
+		MemberType func(childComplexity int) int
 	}
 
 	Scene struct {
@@ -375,8 +384,8 @@ type MutationResolver interface {
 	CreateRoom(ctx context.Context, input model.CreateRoomInput) (*model.Room, error)
 	UpdateRoom(ctx context.Context, id string, input model.UpdateRoomInput) (*model.Room, error)
 	DeleteRoom(ctx context.Context, id string) (bool, error)
-	AddRoomDevice(ctx context.Context, input model.AddRoomDeviceInput) (*model.Room, error)
-	RemoveRoomDevice(ctx context.Context, roomID string, deviceID string) (*model.Room, error)
+	AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.RoomMember, error)
+	RemoveRoomMember(ctx context.Context, id string) (bool, error)
 	UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error)
 	TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error)
 	UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error)
@@ -395,7 +404,7 @@ type MutationResolver interface {
 	BatchDeleteRooms(ctx context.Context, ids []string) (int, error)
 	BatchDeleteAlarms(ctx context.Context, alarmIds []string) (int, error)
 	BatchDeleteUsers(ctx context.Context, ids []string) (int, error)
-	BatchAddRoomDevices(ctx context.Context, roomID string, deviceIds []string) (*model.Room, error)
+	BatchAddRoomMembers(ctx context.Context, roomID string, members []*model.RoomMemberInput) (*model.Room, error)
 	BatchAddGroupDevices(ctx context.Context, groupID string, deviceIds []string) (*model.Group, error)
 }
 type QueryResolver interface {
@@ -1121,17 +1130,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AddGroupMember(childComplexity, args["input"].(model.AddGroupMemberInput)), true
-	case "Mutation.addRoomDevice":
-		if e.ComplexityRoot.Mutation.AddRoomDevice == nil {
+	case "Mutation.addRoomMember":
+		if e.ComplexityRoot.Mutation.AddRoomMember == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_addRoomDevice_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_addRoomMember_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.AddRoomDevice(childComplexity, args["input"].(model.AddRoomDeviceInput)), true
+		return e.ComplexityRoot.Mutation.AddRoomMember(childComplexity, args["input"].(model.AddRoomMemberInput)), true
 	case "Mutation.applyScene":
 		if e.ComplexityRoot.Mutation.ApplyScene == nil {
 			break
@@ -1154,17 +1163,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BatchAddGroupDevices(childComplexity, args["groupId"].(string), args["deviceIds"].([]string)), true
-	case "Mutation.batchAddRoomDevices":
-		if e.ComplexityRoot.Mutation.BatchAddRoomDevices == nil {
+	case "Mutation.batchAddRoomMembers":
+		if e.ComplexityRoot.Mutation.BatchAddRoomMembers == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_batchAddRoomDevices_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_batchAddRoomMembers_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.BatchAddRoomDevices(childComplexity, args["roomId"].(string), args["deviceIds"].([]string)), true
+		return e.ComplexityRoot.Mutation.BatchAddRoomMembers(childComplexity, args["roomId"].(string), args["members"].([]*model.RoomMemberInput)), true
 	case "Mutation.batchDeleteAlarms":
 		if e.ComplexityRoot.Mutation.BatchDeleteAlarms == nil {
 			break
@@ -1418,17 +1427,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RemoveGroupMember(childComplexity, args["id"].(string)), true
-	case "Mutation.removeRoomDevice":
-		if e.ComplexityRoot.Mutation.RemoveRoomDevice == nil {
+	case "Mutation.removeRoomMember":
+		if e.ComplexityRoot.Mutation.RemoveRoomMember == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_removeRoomDevice_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_removeRoomMember_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.RemoveRoomDevice(childComplexity, args["roomId"].(string), args["deviceId"].(string)), true
+		return e.ComplexityRoot.Mutation.RemoveRoomMember(childComplexity, args["id"].(string)), true
 	case "Mutation.resetUserPassword":
 		if e.ComplexityRoot.Mutation.ResetUserPassword == nil {
 			break
@@ -1746,12 +1755,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.CreatedBy(childComplexity), true
-	case "Room.devices":
-		if e.ComplexityRoot.Room.Devices == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Room.Devices(childComplexity), true
 	case "Room.id":
 		if e.ComplexityRoot.Room.ID == nil {
 			break
@@ -1764,12 +1767,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.Icon(childComplexity), true
+	case "Room.members":
+		if e.ComplexityRoot.Room.Members == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.Members(childComplexity), true
 	case "Room.name":
 		if e.ComplexityRoot.Room.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Room.Name(childComplexity), true
+	case "Room.resolvedDevices":
+		if e.ComplexityRoot.Room.ResolvedDevices == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.ResolvedDevices(childComplexity), true
+
+	case "RoomMember.device":
+		if e.ComplexityRoot.RoomMember.Device == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMember.Device(childComplexity), true
+	case "RoomMember.group":
+		if e.ComplexityRoot.RoomMember.Group == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMember.Group(childComplexity), true
+	case "RoomMember.id":
+		if e.ComplexityRoot.RoomMember.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMember.ID(childComplexity), true
+	case "RoomMember.memberId":
+		if e.ComplexityRoot.RoomMember.MemberID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMember.MemberID(childComplexity), true
+	case "RoomMember.memberType":
+		if e.ComplexityRoot.RoomMember.MemberType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RoomMember.MemberType(childComplexity), true
 
 	case "Scene.actions":
 		if e.ComplexityRoot.Scene.Actions == nil {
@@ -2051,7 +2097,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputActivityFilter,
 		ec.unmarshalInputAddGroupMemberInput,
-		ec.unmarshalInputAddRoomDeviceInput,
+		ec.unmarshalInputAddRoomMemberInput,
 		ec.unmarshalInputAlarmFilter,
 		ec.unmarshalInputAutomationEdgeInput,
 		ec.unmarshalInputAutomationNodeInput,
@@ -2067,6 +2113,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputMqttConfigInput,
 		ec.unmarshalInputRaiseAlarmInput,
+		ec.unmarshalInputRoomMemberInput,
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputSceneDevicePayloadInput,
 		ec.unmarshalInputStateHistoryFilter,
@@ -2311,8 +2358,17 @@ type Room {
   id: ID!
   name: String!
   icon: String
-  devices: [Device!]!
+  members: [RoomMember!]!
+  resolvedDevices: [Device!]!
   createdBy: User
+}
+
+type RoomMember {
+  id: ID!
+  memberType: String!
+  memberId: ID!
+  device: Device
+  group: Group
 }
 
 type StateSeriesPoint {
@@ -2632,9 +2688,15 @@ input UpdateRoomInput {
   icon: String
 }
 
-input AddRoomDeviceInput {
+input AddRoomMemberInput {
   roomId: ID!
-  deviceId: ID!
+  memberType: String!
+  memberId: ID!
+}
+
+input RoomMemberInput {
+  memberType: String!
+  memberId: ID!
 }
 
 input UpdateAutomationInput {
@@ -2700,8 +2762,8 @@ type Mutation {
   createRoom(input: CreateRoomInput!): Room!
   updateRoom(id: ID!, input: UpdateRoomInput!): Room!
   deleteRoom(id: ID!): Boolean!
-  addRoomDevice(input: AddRoomDeviceInput!): Room!
-  removeRoomDevice(roomId: ID!, deviceId: ID!): Room!
+  addRoomMember(input: AddRoomMemberInput!): RoomMember!
+  removeRoomMember(id: ID!): Boolean!
   updateMqttConfig(input: MqttConfigInput!): MqttConfig!
   testMqttConnection(input: MqttConfigInput!): ConnectionTestResult!
   updateSetting(key: String!, value: String!): Setting!
@@ -2726,7 +2788,7 @@ type Mutation {
   """
   batchDeleteUsers(ids: [ID!]!): Int!
 
-  batchAddRoomDevices(roomId: ID!, deviceIds: [ID!]!): Room!
+  batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room!
   batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
 }
 
@@ -2761,10 +2823,10 @@ func (ec *executionContext) field_Mutation_addGroupMember_args(ctx context.Conte
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_addRoomDevice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_addRoomMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAddRoomDeviceInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddRoomDeviceInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAddRoomMemberInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddRoomMemberInput)
 	if err != nil {
 		return nil, err
 	}
@@ -2799,7 +2861,7 @@ func (ec *executionContext) field_Mutation_batchAddGroupDevices_args(ctx context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_batchAddRoomDevices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_batchAddRoomMembers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "roomId", ec.unmarshalNID2string)
@@ -2807,11 +2869,11 @@ func (ec *executionContext) field_Mutation_batchAddRoomDevices_args(ctx context.
 		return nil, err
 	}
 	args["roomId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "deviceIds", ec.unmarshalNID2ᚕstringᚄ)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "members", ec.unmarshalNRoomMemberInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInputᚄ)
 	if err != nil {
 		return nil, err
 	}
-	args["deviceIds"] = arg1
+	args["members"] = arg1
 	return args, nil
 }
 
@@ -3073,19 +3135,14 @@ func (ec *executionContext) field_Mutation_removeGroupMember_args(ctx context.Co
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_removeRoomDevice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_removeRoomMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "roomId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["roomId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["deviceId"] = arg1
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -6611,8 +6668,10 @@ func (ec *executionContext) fieldContext_GroupMember_room(_ context.Context, fie
 				return ec.fieldContext_Room_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
@@ -7768,8 +7827,10 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 				return ec.fieldContext_Room_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
@@ -7821,8 +7882,10 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 				return ec.fieldContext_Room_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
@@ -7884,24 +7947,24 @@ func (ec *executionContext) fieldContext_Mutation_deleteRoom(ctx context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_addRoomDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_addRoomMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_addRoomDevice,
+		ec.fieldContext_Mutation_addRoomMember,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().AddRoomDevice(ctx, fc.Args["input"].(model.AddRoomDeviceInput))
+			return ec.Resolvers.Mutation().AddRoomMember(ctx, fc.Args["input"].(model.AddRoomMemberInput))
 		},
 		nil,
-		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
+		ec.marshalNRoomMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_addRoomDevice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_addRoomMember(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -7910,17 +7973,17 @@ func (ec *executionContext) fieldContext_Mutation_addRoomDevice(ctx context.Cont
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Room_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Room_name(ctx, field)
-			case "icon":
-				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
-			case "createdBy":
-				return ec.fieldContext_Room_createdBy(ctx, field)
+				return ec.fieldContext_RoomMember_id(ctx, field)
+			case "memberType":
+				return ec.fieldContext_RoomMember_memberType(ctx, field)
+			case "memberId":
+				return ec.fieldContext_RoomMember_memberId(ctx, field)
+			case "device":
+				return ec.fieldContext_RoomMember_device(ctx, field)
+			case "group":
+				return ec.fieldContext_RoomMember_group(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type RoomMember", field.Name)
 		},
 	}
 	defer func() {
@@ -7930,50 +7993,38 @@ func (ec *executionContext) fieldContext_Mutation_addRoomDevice(ctx context.Cont
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_addRoomDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_addRoomMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_removeRoomDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_removeRoomMember(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_removeRoomDevice,
+		ec.fieldContext_Mutation_removeRoomMember,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().RemoveRoomDevice(ctx, fc.Args["roomId"].(string), fc.Args["deviceId"].(string))
+			return ec.Resolvers.Mutation().RemoveRoomMember(ctx, fc.Args["id"].(string))
 		},
 		nil,
-		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
+		ec.marshalNBoolean2bool,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_removeRoomDevice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_removeRoomMember(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Room_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Room_name(ctx, field)
-			case "icon":
-				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
-			case "createdBy":
-				return ec.fieldContext_Room_createdBy(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	defer func() {
@@ -7983,7 +8034,7 @@ func (ec *executionContext) fieldContext_Mutation_removeRoomDevice(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_removeRoomDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_removeRoomMember_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8810,15 +8861,15 @@ func (ec *executionContext) fieldContext_Mutation_batchDeleteUsers(ctx context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_batchAddRoomDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_batchAddRoomMembers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_batchAddRoomDevices,
+		ec.fieldContext_Mutation_batchAddRoomMembers,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().BatchAddRoomDevices(ctx, fc.Args["roomId"].(string), fc.Args["deviceIds"].([]string))
+			return ec.Resolvers.Mutation().BatchAddRoomMembers(ctx, fc.Args["roomId"].(string), fc.Args["members"].([]*model.RoomMemberInput))
 		},
 		nil,
 		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
@@ -8827,7 +8878,7 @@ func (ec *executionContext) _Mutation_batchAddRoomDevices(ctx context.Context, f
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_batchAddRoomDevices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_batchAddRoomMembers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -8841,8 +8892,10 @@ func (ec *executionContext) fieldContext_Mutation_batchAddRoomDevices(ctx contex
 				return ec.fieldContext_Room_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
@@ -8856,7 +8909,7 @@ func (ec *executionContext) fieldContext_Mutation_batchAddRoomDevices(ctx contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_batchAddRoomDevices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_batchAddRoomMembers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9364,8 +9417,10 @@ func (ec *executionContext) fieldContext_Query_rooms(_ context.Context, field gr
 				return ec.fieldContext_Room_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
@@ -9406,8 +9461,10 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 				return ec.fieldContext_Room_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Room_icon(ctx, field)
-			case "devices":
-				return ec.fieldContext_Room_devices(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
@@ -10063,14 +10120,55 @@ func (ec *executionContext) fieldContext_Room_icon(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _Room_devices(ctx context.Context, field graphql.CollectedField, obj *model.Room) (ret graphql.Marshaler) {
+func (ec *executionContext) _Room_members(ctx context.Context, field graphql.CollectedField, obj *model.Room) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Room_devices,
+		ec.fieldContext_Room_members,
 		func(ctx context.Context) (any, error) {
-			return obj.Devices, nil
+			return obj.Members, nil
+		},
+		nil,
+		ec.marshalNRoomMember2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_members(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_RoomMember_id(ctx, field)
+			case "memberType":
+				return ec.fieldContext_RoomMember_memberType(ctx, field)
+			case "memberId":
+				return ec.fieldContext_RoomMember_memberId(ctx, field)
+			case "device":
+				return ec.fieldContext_RoomMember_device(ctx, field)
+			case "group":
+				return ec.fieldContext_RoomMember_group(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type RoomMember", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Room_resolvedDevices(ctx context.Context, field graphql.CollectedField, obj *model.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_resolvedDevices,
+		func(ctx context.Context) (any, error) {
+			return obj.ResolvedDevices, nil
 		},
 		nil,
 		ec.marshalNDevice2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceᚄ,
@@ -10079,7 +10177,7 @@ func (ec *executionContext) _Room_devices(ctx context.Context, field graphql.Col
 	)
 }
 
-func (ec *executionContext) fieldContext_Room_devices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Room",
 		Field:      field,
@@ -10148,6 +10246,183 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomMember_id(ctx context.Context, field graphql.CollectedField, obj *model.RoomMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomMember_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomMember_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomMember_memberType(ctx context.Context, field graphql.CollectedField, obj *model.RoomMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomMember_memberType,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomMember_memberType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomMember_memberId(ctx context.Context, field graphql.CollectedField, obj *model.RoomMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomMember_memberId,
+		func(ctx context.Context) (any, error) {
+			return obj.MemberID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomMember_memberId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomMember_device(ctx context.Context, field graphql.CollectedField, obj *model.RoomMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomMember_device,
+		func(ctx context.Context) (any, error) {
+			return obj.Device, nil
+		},
+		nil,
+		ec.marshalODevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "capabilities":
+				return ec.fieldContext_Device_capabilities(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RoomMember_group(ctx context.Context, field graphql.CollectedField, obj *model.RoomMember) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_RoomMember_group,
+		func(ctx context.Context) (any, error) {
+			return obj.Group, nil
+		},
+		nil,
+		ec.marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_RoomMember_group(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RoomMember",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Group_icon(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
 	}
 	return fc, nil
@@ -13047,8 +13322,8 @@ func (ec *executionContext) unmarshalInputAddGroupMemberInput(ctx context.Contex
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputAddRoomDeviceInput(ctx context.Context, obj any) (model.AddRoomDeviceInput, error) {
-	var it model.AddRoomDeviceInput
+func (ec *executionContext) unmarshalInputAddRoomMemberInput(ctx context.Context, obj any) (model.AddRoomMemberInput, error) {
+	var it model.AddRoomMemberInput
 	if obj == nil {
 		return it, nil
 	}
@@ -13058,7 +13333,7 @@ func (ec *executionContext) unmarshalInputAddRoomDeviceInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"roomId", "deviceId"}
+	fieldsInOrder := [...]string{"roomId", "memberType", "memberId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13072,13 +13347,20 @@ func (ec *executionContext) unmarshalInputAddRoomDeviceInput(ctx context.Context
 				return it, err
 			}
 			it.RoomID = data
-		case "deviceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+		case "memberType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberType = data
+		case "memberId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
 			data, err := ec.unmarshalNID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.DeviceID = data
+			it.MemberID = data
 		}
 	}
 	return it, nil
@@ -13774,6 +14056,43 @@ func (ec *executionContext) unmarshalInputRaiseAlarmInput(ctx context.Context, o
 				return it, err
 			}
 			it.Source = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputRoomMemberInput(ctx context.Context, obj any) (model.RoomMemberInput, error) {
+	var it model.RoomMemberInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"memberType", "memberId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "memberType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberType = data
+		case "memberId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
 		}
 	}
 	return it, nil
@@ -15506,16 +15825,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "addRoomDevice":
+		case "addRoomMember":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_addRoomDevice(ctx, field)
+				return ec._Mutation_addRoomMember(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "removeRoomDevice":
+		case "removeRoomMember":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_removeRoomDevice(ctx, field)
+				return ec._Mutation_removeRoomMember(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -15646,9 +15965,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "batchAddRoomDevices":
+		case "batchAddRoomMembers":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_batchAddRoomDevices(ctx, field)
+				return ec._Mutation_batchAddRoomMembers(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -16175,13 +16494,71 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "icon":
 			out.Values[i] = ec._Room_icon(ctx, field, obj)
-		case "devices":
-			out.Values[i] = ec._Room_devices(ctx, field, obj)
+		case "members":
+			out.Values[i] = ec._Room_members(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedDevices":
+			out.Values[i] = ec._Room_resolvedDevices(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "createdBy":
 			out.Values[i] = ec._Room_createdBy(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var roomMemberImplementors = []string{"RoomMember"}
+
+func (ec *executionContext) _RoomMember(ctx context.Context, sel ast.SelectionSet, obj *model.RoomMember) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, roomMemberImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RoomMember")
+		case "id":
+			out.Values[i] = ec._RoomMember_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memberType":
+			out.Values[i] = ec._RoomMember_memberType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memberId":
+			out.Values[i] = ec._RoomMember_memberId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "device":
+			out.Values[i] = ec._RoomMember_device(ctx, field, obj)
+		case "group":
+			out.Values[i] = ec._RoomMember_group(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17058,8 +17435,8 @@ func (ec *executionContext) unmarshalNAddGroupMemberInput2githubᚗcomᚋsaffron
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNAddRoomDeviceInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddRoomDeviceInput(ctx context.Context, v any) (model.AddRoomDeviceInput, error) {
-	res, err := ec.unmarshalInputAddRoomDeviceInput(ctx, v)
+func (ec *executionContext) unmarshalNAddRoomMemberInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddRoomMemberInput(ctx context.Context, v any) (model.AddRoomMemberInput, error) {
+	res, err := ec.unmarshalInputAddRoomMemberInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -17706,6 +18083,56 @@ func (ec *executionContext) marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._Room(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNRoomMember2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember(ctx context.Context, sel ast.SelectionSet, v model.RoomMember) graphql.Marshaler {
+	return ec._RoomMember(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRoomMember2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RoomMember) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNRoomMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRoomMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember(ctx context.Context, sel ast.SelectionSet, v *model.RoomMember) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RoomMember(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNRoomMemberInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInputᚄ(ctx context.Context, v any) ([]*model.RoomMemberInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.RoomMemberInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNRoomMemberInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNRoomMemberInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInput(ctx context.Context, v any) (*model.RoomMemberInput, error) {
+	res, err := ec.unmarshalInputRoomMemberInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNScene2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene(ctx context.Context, sel ast.SelectionSet, v model.Scene) graphql.Marshaler {

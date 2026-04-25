@@ -85,11 +85,11 @@ type GraphStore interface {
 	UpdateRoom(ctx context.Context, params store.UpdateRoomParams) (store.Room, error)
 	DeleteRoom(ctx context.Context, id string) error
 	BatchDeleteRooms(ctx context.Context, ids []string) (int64, error)
-	AddRoomDevice(ctx context.Context, params store.AddRoomDeviceParams) (store.RoomDevice, error)
-	BatchAddRoomDevices(ctx context.Context, roomID string, deviceIDs []string) (int64, error)
-	ListRoomDevices(ctx context.Context, roomID string) ([]store.RoomDevice, error)
-	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error
-	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]store.Room, error)
+	AddRoomMember(ctx context.Context, params store.AddRoomMemberParams) (store.RoomMember, error)
+	BatchAddRoomMembers(ctx context.Context, roomID string, members []store.RoomMemberInput) (int64, error)
+	ListRoomMembers(ctx context.Context, roomID string) ([]store.RoomMember, error)
+	RemoveRoomMember(ctx context.Context, id string) error
+	ListRoomsContainingMember(ctx context.Context, memberType device.RoomMemberType, memberID string) ([]store.Room, error)
 
 	// State history, activity, settings, mqtt, users
 	QueryStateHistory(ctx context.Context, query store.StateHistoryQuery) ([]store.StateHistoryPoint, error)
