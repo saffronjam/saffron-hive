@@ -641,10 +641,15 @@
 			targetType: t.type,
 			targetId: t.id,
 		}));
-		const devicePayloads = Array.from(payloadsByDevice.entries()).map(([deviceId, payload]) => ({
-			deviceId,
-			payload: JSON.stringify(payload),
-		}));
+		const devicePayloads = Array.from(payloadsByDevice.entries())
+			.filter(([deviceId]) => {
+				const d = devicesById.get(deviceId);
+				return d != null && isSceneTarget(d);
+			})
+			.map(([deviceId, payload]) => ({
+				deviceId,
+				payload: JSON.stringify(payload),
+			}));
 
 		const result = await clientRef
 			.mutation<UpdateSceneResult>(UPDATE_SCENE, {
@@ -664,6 +669,13 @@
 			errors.setWithAutoDismiss(result.error.message);
 			return;
 		}
+
+		const prunedPayloads = new Map<string, ActionPayload>();
+		for (const [did, p] of payloadsByDevice) {
+			const d = devicesById.get(did);
+			if (d != null && isSceneTarget(d)) prunedPayloads.set(did, p);
+		}
+		payloadsByDevice = prunedPayloads;
 
 		savedSceneName = sceneName;
 		savedSceneIcon = sceneIcon;
