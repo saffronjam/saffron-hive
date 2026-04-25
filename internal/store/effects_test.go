@@ -284,7 +284,7 @@ func TestUpsertActiveEffectReplacesByTarget(t *testing.T) {
 	}
 
 	now := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
-	if err := s.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+	if err := s.UpsertActiveEffect(ctx, effect.UpsertActiveEffectParams{
 		ID:         "active-1",
 		EffectID:   "eff-a",
 		TargetType: "device",
@@ -295,7 +295,7 @@ func TestUpsertActiveEffectReplacesByTarget(t *testing.T) {
 		t.Fatalf("upsert 1: %v", err)
 	}
 
-	if err := s.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+	if err := s.UpsertActiveEffect(ctx, effect.UpsertActiveEffectParams{
 		ID:         "active-2",
 		EffectID:   "eff-b",
 		TargetType: "device",
@@ -306,10 +306,14 @@ func TestUpsertActiveEffectReplacesByTarget(t *testing.T) {
 		t.Fatalf("upsert 2: %v", err)
 	}
 
-	got, err := s.GetActiveEffectByTarget(ctx, "device", "dev-1")
+	all, err := s.ListActiveEffects(ctx)
 	if err != nil {
-		t.Fatalf("get: %v", err)
+		t.Fatalf("list: %v", err)
 	}
+	if len(all) != 1 {
+		t.Fatalf("active rows = %d, want 1 (target uniqueness)", len(all))
+	}
+	got := all[0]
 	if got.EffectID != "eff-b" {
 		t.Errorf("effect_id = %q, want eff-b", got.EffectID)
 	}
@@ -318,14 +322,6 @@ func TestUpsertActiveEffectReplacesByTarget(t *testing.T) {
 	}
 	if !got.StartedAt.Equal(now.Add(time.Second)) {
 		t.Errorf("started_at = %v, want %v", got.StartedAt, now.Add(time.Second))
-	}
-
-	all, err := s.ListActiveEffects(ctx)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(all) != 1 {
-		t.Errorf("active rows = %d, want 1 (target uniqueness)", len(all))
 	}
 }
 
@@ -336,7 +332,7 @@ func TestDeleteActiveEffect(t *testing.T) {
 	if _, err := s.CreateEffect(ctx, CreateEffectParams{ID: "eff-1", Name: "x", Kind: effect.KindTimeline}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := s.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+	if err := s.UpsertActiveEffect(ctx, effect.UpsertActiveEffectParams{
 		ID:         "active-1",
 		EffectID:   "eff-1",
 		TargetType: "device",
@@ -346,7 +342,7 @@ func TestDeleteActiveEffect(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("upsert: %v", err)
 	}
-	if err := s.DeleteActiveEffect(ctx, "active-1"); err != nil {
+	if err := s.DeleteActiveEffect(ctx, "device", "dev-1"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	all, _ := s.ListActiveEffects(ctx)
@@ -364,13 +360,13 @@ func TestDeleteVolatileActiveEffects(t *testing.T) {
 	}
 
 	now := time.Now()
-	if err := s.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+	if err := s.UpsertActiveEffect(ctx, effect.UpsertActiveEffectParams{
 		ID: "v-1", EffectID: "eff-1", TargetType: "device", TargetID: "dev-1",
 		StartedAt: now, Volatile: true,
 	}); err != nil {
 		t.Fatalf("upsert volatile: %v", err)
 	}
-	if err := s.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+	if err := s.UpsertActiveEffect(ctx, effect.UpsertActiveEffectParams{
 		ID: "p-1", EffectID: "eff-1", TargetType: "device", TargetID: "dev-2",
 		StartedAt: now, Volatile: false,
 	}); err != nil {
@@ -398,7 +394,7 @@ func TestActiveEffectCascadesOnEffectDelete(t *testing.T) {
 	if _, err := s.CreateEffect(ctx, CreateEffectParams{ID: "eff-1", Name: "x", Kind: effect.KindTimeline}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := s.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+	if err := s.UpsertActiveEffect(ctx, effect.UpsertActiveEffectParams{
 		ID:         "active-1",
 		EffectID:   "eff-1",
 		TargetType: "device",

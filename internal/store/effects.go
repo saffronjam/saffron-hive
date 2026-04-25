@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
@@ -241,7 +240,7 @@ func (s *DB) listEffectSteps(ctx context.Context, effectID string) ([]EffectStep
 // UpsertActiveEffect marks (target_type, target_id) as currently running an
 // effect. An existing row for the target is overwritten so a target can only
 // have one effect active at a time.
-func (s *DB) UpsertActiveEffect(ctx context.Context, params UpsertActiveEffectParams) error {
+func (s *DB) UpsertActiveEffect(ctx context.Context, params effect.UpsertActiveEffectParams) error {
 	if err := s.q.UpsertActiveEffect(ctx, sqlite.UpsertActiveEffectParams{
 		ID:         params.ID,
 		EffectID:   params.EffectID,
@@ -255,36 +254,35 @@ func (s *DB) UpsertActiveEffect(ctx context.Context, params UpsertActiveEffectPa
 	return nil
 }
 
-// DeleteActiveEffect removes a single active-effect row by its ID.
-func (s *DB) DeleteActiveEffect(ctx context.Context, id string) error {
-	if err := s.q.DeleteActiveEffect(ctx, id); err != nil {
+// DeleteActiveEffect removes the active-effect row for a target tuple. The
+// unique constraint on (target_type, target_id) makes this deterministic;
+// callers do not need to know the row's surrogate ID.
+func (s *DB) DeleteActiveEffect(ctx context.Context, targetType, targetID string) error {
+	if err := s.q.DeleteActiveEffectByTarget(ctx, sqlite.DeleteActiveEffectByTargetParams{
+		TargetType: targetType,
+		TargetID:   targetID,
+	}); err != nil {
 		return fmt.Errorf("delete active effect: %w", err)
 	}
 	return nil
 }
 
-// GetActiveEffectByTarget returns the active-effect row for a target, if any.
-// Returns sql.ErrNoRows wrapped in an error when no row exists.
-func (s *DB) GetActiveEffectByTarget(ctx context.Context, targetType, targetID string) (ActiveEffect, error) {
-	row, err := s.q.GetActiveEffectByTarget(ctx, sqlite.GetActiveEffectByTargetParams{
-		TargetType: targetType,
-		TargetID:   targetID,
-	})
-	if err != nil {
-		return ActiveEffect{}, fmt.Errorf("get active effect by target: %w", err)
-	}
-	return activeEffectFromRow(row.ID, row.EffectID, row.TargetType, row.TargetID, row.StartedAt, row.Volatile), nil
-}
-
 // ListActiveEffects returns every active-effect row.
-func (s *DB) ListActiveEffects(ctx context.Context) ([]ActiveEffect, error) {
+func (s *DB) ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord, error) {
 	rows, err := s.q.ListActiveEffects(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list active effects: %w", err)
 	}
-	out := make([]ActiveEffect, 0, len(rows))
+	out := make([]effect.ActiveEffectRecord, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, activeEffectFromRow(r.ID, r.EffectID, r.TargetType, r.TargetID, r.StartedAt, r.Volatile))
+		out = append(out, effect.ActiveEffectRecord{
+			ID:         r.ID,
+			EffectID:   r.EffectID,
+			TargetType: r.TargetType,
+			TargetID:   r.TargetID,
+			StartedAt:  r.StartedAt,
+			Volatile:   r.Volatile != 0,
+		})
 	}
 	return out, nil
 }
@@ -298,17 +296,6 @@ func (s *DB) DeleteVolatileActiveEffects(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("delete volatile active effects: %w", err)
 	}
 	return n, nil
-}
-
-func activeEffectFromRow(id, effectID, targetType, targetID string, startedAt time.Time, volatile int64) ActiveEffect {
-	return ActiveEffect{
-		ID:         id,
-		EffectID:   effectID,
-		TargetType: targetType,
-		TargetID:   targetID,
-		StartedAt:  startedAt,
-		Volatile:   volatile != 0,
-	}
 }
 
 func boolToInt64(b bool) int64 {

@@ -553,28 +553,3 @@ type Effect struct {
 	CreatedBy  *UserRef
 	Steps      []EffectStep
 }
-
-// UpsertActiveEffectParams holds the parameters for marking a target as having
-// an active effect. (target_type, target_id) is unique; an existing row for
-// the target is updated rather than duplicated.
-type UpsertActiveEffectParams struct {
-	ID         string
-	EffectID   string
-	TargetType string
-	TargetID   string
-	StartedAt  time.Time
-	Volatile   bool
-}
-
-// ActiveEffect is one (target, effect) row marking that an effect is currently
-// running on the target. Volatile rows are wiped at process startup
-// (DeleteVolatileActiveEffects); non-volatile rows survive a restart so the
-// runner can resume them.
-type ActiveEffect struct {
-	ID         string
-	EffectID   string
-	TargetType string
-	TargetID   string
-	StartedAt  time.Time
-	Volatile   bool
-}
