@@ -17,6 +17,21 @@ export type Scalars = {
   DateTime: { input: any; output: any; }
 };
 
+/**
+ * One row marking that an effect is currently running on a target. volatile
+ * mirrors the persistence flag — non-loop timeline runs and native runs are
+ * volatile (wiped at process startup); loop timeline runs survive a restart.
+ */
+export type ActiveEffect = {
+  __typename?: 'ActiveEffect';
+  effect: Effect;
+  id: Scalars['ID']['output'];
+  startedAt: Scalars['DateTime']['output'];
+  targetId: Scalars['ID']['output'];
+  targetType: Scalars['String']['output'];
+  volatile: Scalars['Boolean']['output'];
+};
+
 export type ActivityEvent = {
   __typename?: 'ActivityEvent';
   id: Scalars['ID']['output'];
@@ -207,6 +222,15 @@ export type CreateAutomationInput = {
   nodes: Array<AutomationNodeInput>;
 };
 
+export type CreateEffectInput = {
+  icon?: InputMaybe<Scalars['String']['input']>;
+  kind: EffectKind;
+  loop: Scalars['Boolean']['input'];
+  name: Scalars['String']['input'];
+  nativeName?: InputMaybe<Scalars['String']['input']>;
+  steps: Array<EffectStepInput>;
+};
+
 export type CreateGroupInput = {
   name: Scalars['String']['input'];
 };
@@ -296,6 +320,70 @@ export type DeviceStateInput = {
   transition?: InputMaybe<Scalars['Float']['input']>;
 };
 
+export type Effect = {
+  __typename?: 'Effect';
+  createdAt: Scalars['DateTime']['output'];
+  createdBy?: Maybe<User>;
+  icon?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  kind: EffectKind;
+  loop: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  nativeName?: Maybe<Scalars['String']['output']>;
+  /**
+   * Capabilities every target device must support for this effect to apply
+   * cleanly. Derived from the effect's step kinds for timeline effects;
+   * empty for native effects (the per-device native option list owns that
+   * filtering).
+   */
+  requiredCapabilities: Array<Scalars['String']['output']>;
+  steps: Array<EffectStep>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export enum EffectKind {
+  Native = 'NATIVE',
+  Timeline = 'TIMELINE'
+}
+
+/**
+ * A single step inside a timeline effect. config is a JSON document whose
+ * shape is determined by kind — the disk shape directly, not wrapped, e.g.
+ * {"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
+ */
+export type EffectStep = {
+  __typename?: 'EffectStep';
+  config: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  index: Scalars['Int']['output'];
+  kind: EffectStepKind;
+};
+
+/**
+ * Step boundary marker emitted by the runner. active=true on enter,
+ * active=false on exit. runId identifies the in-flight run instance.
+ */
+export type EffectStepEvent = {
+  __typename?: 'EffectStepEvent';
+  active: Scalars['Boolean']['output'];
+  effectId: Scalars['ID']['output'];
+  runId: Scalars['ID']['output'];
+  stepIndex: Scalars['Int']['output'];
+};
+
+export type EffectStepInput = {
+  config: Scalars['String']['input'];
+  kind: EffectStepKind;
+};
+
+export enum EffectStepKind {
+  SetBrightness = 'SET_BRIGHTNESS',
+  SetColorRgb = 'SET_COLOR_RGB',
+  SetColorTemp = 'SET_COLOR_TEMP',
+  SetOnOff = 'SET_ON_OFF',
+  Wait = 'WAIT'
+}
+
 export type Group = {
   __typename?: 'Group';
   createdBy?: Maybe<User>;
@@ -363,6 +451,7 @@ export type Mutation = {
   batchDeleteUsers: Scalars['Int']['output'];
   changePassword: Scalars['Boolean']['output'];
   createAutomation: AutomationGraph;
+  createEffect: Effect;
   createGroup: Group;
   createInitialUser: AuthPayload;
   createRoom: Room;
@@ -370,6 +459,7 @@ export type Mutation = {
   createUser: User;
   deleteAlarm: Scalars['Boolean']['output'];
   deleteAutomation: Scalars['Boolean']['output'];
+  deleteEffect: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
   deleteRoom: Scalars['Boolean']['output'];
   deleteScene: Scalars['Boolean']['output'];
@@ -385,6 +475,11 @@ export type Mutation = {
   removeGroupMember: Scalars['Boolean']['output'];
   removeRoomMember: Scalars['Boolean']['output'];
   resetUserPassword: Scalars['Boolean']['output'];
+  /**
+   * Starts effectId on the given target. Preempts any effect already
+   * running on the target. Returns the resulting active-run row.
+   */
+  runEffect: ActiveEffect;
   setDeviceState: Device;
   /**
    * Simulate a device-fired action by publishing a synthetic
@@ -393,11 +488,17 @@ export type Mutation = {
    * sent to the device itself. Useful for testing automations from the UI.
    */
   simulateDeviceAction: Scalars['Boolean']['output'];
+  /**
+   * Stops any effect currently running on the target. Returns true when a
+   * run was active, false otherwise.
+   */
+  stopEffect: Scalars['Boolean']['output'];
   testMqttConnection: ConnectionTestResult;
   toggleAutomation: AutomationGraph;
   updateAutomation: AutomationGraph;
   updateCurrentUser: User;
   updateDevice: Device;
+  updateEffect: Effect;
   updateGroup: Group;
   updateMqttConfig: MqttConfig;
   updateRoom: Room;
@@ -473,6 +574,11 @@ export type MutationCreateAutomationArgs = {
 };
 
 
+export type MutationCreateEffectArgs = {
+  input: CreateEffectInput;
+};
+
+
 export type MutationCreateGroupArgs = {
   input: CreateGroupInput;
 };
@@ -504,6 +610,11 @@ export type MutationDeleteAlarmArgs = {
 
 
 export type MutationDeleteAutomationArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteEffectArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -560,6 +671,13 @@ export type MutationResetUserPasswordArgs = {
 };
 
 
+export type MutationRunEffectArgs = {
+  effectId: Scalars['ID']['input'];
+  targetId: Scalars['ID']['input'];
+  targetType: Scalars['String']['input'];
+};
+
+
 export type MutationSetDeviceStateArgs = {
   deviceId: Scalars['ID']['input'];
   state: DeviceStateInput;
@@ -569,6 +687,12 @@ export type MutationSetDeviceStateArgs = {
 export type MutationSimulateDeviceActionArgs = {
   action: Scalars['String']['input'];
   deviceId: Scalars['ID']['input'];
+};
+
+
+export type MutationStopEffectArgs = {
+  targetId: Scalars['ID']['input'];
+  targetType: Scalars['String']['input'];
 };
 
 
@@ -600,6 +724,11 @@ export type MutationUpdateDeviceArgs = {
 };
 
 
+export type MutationUpdateEffectArgs = {
+  input: UpdateEffectInput;
+};
+
+
 export type MutationUpdateGroupArgs = {
   id: Scalars['ID']['input'];
   input: UpdateGroupInput;
@@ -628,19 +757,35 @@ export type MutationUpdateSettingArgs = {
   value: Scalars['String']['input'];
 };
 
+/**
+ * A native effect option as offered by the editor. supportedDeviceCount is
+ * the number of currently-known devices whose effect capability advertises
+ * this value.
+ */
+export type NativeEffectOption = {
+  __typename?: 'NativeEffectOption';
+  displayName: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  supportedDeviceCount: Scalars['Int']['output'];
+};
+
 export type Query = {
   __typename?: 'Query';
+  activeEffects: Array<ActiveEffect>;
   activity: Array<ActivityEvent>;
   alarms: Array<Alarm>;
   automation?: Maybe<AutomationGraph>;
   automations: Array<AutomationGraph>;
   device?: Maybe<Device>;
   devices: Array<Device>;
+  effect?: Maybe<Effect>;
+  effects: Array<Effect>;
   group?: Maybe<Group>;
   groups: Array<Group>;
   logs: Array<LogEntry>;
   me?: Maybe<User>;
   mqttConfig?: Maybe<MqttConfig>;
+  nativeEffectOptions: Array<NativeEffectOption>;
   room?: Maybe<Room>;
   rooms: Array<Room>;
   scene?: Maybe<Scene>;
@@ -669,6 +814,11 @@ export type QueryAutomationArgs = {
 
 
 export type QueryDeviceArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryEffectArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -840,6 +990,12 @@ export type Subscription = {
   deviceAvailabilityChanged: DeviceAvailabilityEvent;
   deviceRemoved: Scalars['ID']['output'];
   deviceStateChanged: DeviceStateEvent;
+  /**
+   * Step-boundary events from the effect runner. When runId is provided,
+   * only events for that run are delivered; otherwise every effect run's
+   * step boundaries are broadcast.
+   */
+  effectStepActivated: EffectStepEvent;
   logStream: LogEntry;
   sceneActiveChanged: SceneActiveEvent;
 };
@@ -864,6 +1020,11 @@ export type SubscriptionDeviceStateChangedArgs = {
   deviceId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+
+export type SubscriptionEffectStepActivatedArgs = {
+  runId?: InputMaybe<Scalars['ID']['input']>;
+};
+
 export enum Theme {
   Dark = 'DARK',
   Light = 'LIGHT'
@@ -884,6 +1045,15 @@ export type UpdateCurrentUserInput = {
 
 export type UpdateDeviceInput = {
   name?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateEffectInput = {
+  icon?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['ID']['input'];
+  loop?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nativeName?: InputMaybe<Scalars['String']['input']>;
+  steps?: InputMaybe<Array<EffectStepInput>>;
 };
 
 export type UpdateGroupInput = {
