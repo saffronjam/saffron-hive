@@ -9,9 +9,10 @@ import (
 )
 
 // roomStore is the subset of store methods the cache needs. *store.DB
-// satisfies it implicitly.
+// satisfies it implicitly. The transitive variant follows nested groups inside
+// rooms so a device buried under a group still attributes events to the room.
 type roomStore interface {
-	ListRoomDeviceMemberships(ctx context.Context) ([]store.RoomDeviceMembership, error)
+	ListTransitiveRoomDeviceMemberships(ctx context.Context) ([]store.RoomDeviceMembership, error)
 }
 
 // RoomCache holds an in-memory map from device ID to one of the rooms the
@@ -59,7 +60,7 @@ func (c *RoomCache) Room(deviceID string) (id, name string, ok bool) {
 // Refresh reloads the whole cache from the store. Safe to call concurrently
 // with Room lookups; readers see either the old or the new map.
 func (c *RoomCache) Refresh(ctx context.Context) error {
-	memberships, err := c.store.ListRoomDeviceMemberships(ctx)
+	memberships, err := c.store.ListTransitiveRoomDeviceMemberships(ctx)
 	if err != nil {
 		return err
 	}
@@ -82,6 +83,7 @@ func (c *RoomCache) Refresh(ctx context.Context) error {
 func (c *RoomCache) Run(ctx context.Context, bus eventbus.Subscriber) {
 	ch := bus.Subscribe(
 		eventbus.EventRoomMembershipChanged,
+		eventbus.EventGroupMembershipChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
 	)

@@ -14,7 +14,7 @@ type fakeRoomStore struct {
 	err         error
 }
 
-func (f *fakeRoomStore) ListRoomDeviceMemberships(_ context.Context) ([]store.RoomDeviceMembership, error) {
+func (f *fakeRoomStore) ListTransitiveRoomDeviceMemberships(_ context.Context) ([]store.RoomDeviceMembership, error) {
 	f.calls++
 	if f.err != nil {
 		return nil, f.err
