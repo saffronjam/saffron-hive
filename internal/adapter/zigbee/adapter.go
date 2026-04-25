@@ -86,8 +86,9 @@ type ZigbeeAdapter struct {
 	// visibility from logs. Read-only once Stop has returned.
 	droppedIn atomic.Int64
 
-	stopCh chan struct{}
-	cmdCh  <-chan eventbus.Event
+	stopCh         chan struct{}
+	cmdCh          <-chan eventbus.Event
+	nativeEffectCh <-chan eventbus.Event
 }
 
 // NewZigbeeAdapter creates a new adapter with the given dependencies.
@@ -152,6 +153,9 @@ func (a *ZigbeeAdapter) Start() error {
 	a.cmdCh = a.bus.Subscribe(eventbus.EventCommandRequested)
 	go a.commandLoop()
 
+	a.nativeEffectCh = a.bus.Subscribe(eventbus.EventNativeEffectRequested)
+	go a.nativeEffectLoop()
+
 	return nil
 }
 
@@ -214,6 +218,9 @@ func (a *ZigbeeAdapter) Stop() {
 	if a.cmdCh != nil {
 		a.bus.Unsubscribe(a.cmdCh)
 	}
+	if a.nativeEffectCh != nil {
+		a.bus.Unsubscribe(a.nativeEffectCh)
+	}
 	a.mqtt.Disconnect(250)
 
 	close(a.dispatchCh)
@@ -238,6 +245,24 @@ func (a *ZigbeeAdapter) commandLoop() {
 				continue
 			}
 			a.handleCommand(cmd)
+		}
+	}
+}
+
+func (a *ZigbeeAdapter) nativeEffectLoop() {
+	for {
+		select {
+		case <-a.stopCh:
+			return
+		case evt, ok := <-a.nativeEffectCh:
+			if !ok {
+				return
+			}
+			req, ok := evt.Payload.(device.NativeEffectRequest)
+			if !ok {
+				continue
+			}
+			a.handleNativeEffect(req)
 		}
 	}
 }
