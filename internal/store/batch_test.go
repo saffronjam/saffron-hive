@@ -153,7 +153,7 @@ func TestGetUserAvatarPathsByIDs(t *testing.T) {
 	}
 }
 
-func TestBatchAddRoomDevicesIgnoresDuplicates(t *testing.T) {
+func TestBatchAddRoomMembersIgnoresDuplicates(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
@@ -161,7 +161,15 @@ func TestBatchAddRoomDevicesIgnoresDuplicates(t *testing.T) {
 		t.Fatalf("create room: %v", err)
 	}
 
-	n, err := s.BatchAddRoomDevices(ctx, "r-1", []string{"d-1", "d-2", "d-3"})
+	makeDevices := func(ids ...string) []RoomMemberInput {
+		out := make([]RoomMemberInput, len(ids))
+		for i, id := range ids {
+			out[i] = RoomMemberInput{MemberType: device.RoomMemberDevice, MemberID: id}
+		}
+		return out
+	}
+
+	n, err := s.BatchAddRoomMembers(ctx, "r-1", makeDevices("d-1", "d-2", "d-3"))
 	if err != nil {
 		t.Fatalf("batch add: %v", err)
 	}
@@ -169,8 +177,7 @@ func TestBatchAddRoomDevicesIgnoresDuplicates(t *testing.T) {
 		t.Errorf("inserted = %d, want 3", n)
 	}
 
-	// Re-adding same + one new -> only the new one inserts.
-	n2, err := s.BatchAddRoomDevices(ctx, "r-1", []string{"d-1", "d-2", "d-4"})
+	n2, err := s.BatchAddRoomMembers(ctx, "r-1", makeDevices("d-1", "d-2", "d-4"))
 	if err != nil {
 		t.Fatalf("batch add (dup): %v", err)
 	}
@@ -178,7 +185,7 @@ func TestBatchAddRoomDevicesIgnoresDuplicates(t *testing.T) {
 		t.Errorf("inserted = %d, want 1 (only d-4 is new)", n2)
 	}
 
-	members, err := s.ListRoomDevices(ctx, "r-1")
+	members, err := s.ListRoomMembers(ctx, "r-1")
 	if err != nil {
 		t.Fatalf("list members: %v", err)
 	}
