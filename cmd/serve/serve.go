@@ -28,6 +28,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/avatars"
 	"github.com/saffronjam/saffron-hive/internal/config"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
@@ -159,6 +160,12 @@ func Run(ctx context.Context) error {
 	}
 	spawn("scene.watcher", func() { sceneWatcher.Run(ctx) })
 
+	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, zigbeeTerminator{})
+	if err := effectRunner.Hydrate(ctx); err != nil {
+		serveLogger.Warn("effect runner hydrate failed", "error", err)
+	}
+	spawn("effect.runner", func() { effectRunner.Run(ctx) })
+
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
 	spawn("alarms.monitor", func() { alarms.RunMonitor(ctx, alarmSvc, memStore, mgr) })
@@ -205,6 +212,7 @@ func Run(ctx context.Context) error {
 		AlarmBuffer:         alarmBuffer,
 		LevelVar:            levelVar,
 		Reconnector:         mgr,
+		EffectRunner:        effectRunner,
 		Auth:                authSvc,
 		AvatarDir:           avatarDir,
 	}
@@ -450,6 +458,15 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 
 	serveLogger.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
 	return nil
+}
+
+// zigbeeTerminator wraps the package-level zigbee.TerminatorFor lookup so it
+// can satisfy effect.NativeEffectStopper without the effect package importing
+// the zigbee adapter.
+type zigbeeTerminator struct{}
+
+func (zigbeeTerminator) TerminatorFor(dev device.Device) string {
+	return zigbee.TerminatorFor(dev)
 }
 
 type engineReloader struct {
