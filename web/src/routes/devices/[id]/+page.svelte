@@ -67,7 +67,7 @@
 	interface RoomInfo {
 		id: string;
 		name: string;
-		devices: { id: string }[];
+		members: { id: string; memberType: string; memberId: string }[];
 	}
 
 	let groups = $state<GroupInfo[]>([]);
@@ -123,20 +123,24 @@
 			rooms {
 				id
 				name
-				devices { id }
+				members {
+					id
+					memberType
+					memberId
+				}
 			}
 		}
 	`);
 
-	const ADD_ROOM_DEVICE = graphql(`
-		mutation DeviceDetailAddRoomDevice($input: AddRoomDeviceInput!) {
-			addRoomDevice(input: $input) { id }
+	const ADD_ROOM_MEMBER = graphql(`
+		mutation DeviceDetailAddRoomMember($input: AddRoomMemberInput!) {
+			addRoomMember(input: $input) { id }
 		}
 	`);
 
-	const REMOVE_ROOM_DEVICE = graphql(`
-		mutation DeviceDetailRemoveRoomDevice($roomId: ID!, $deviceId: ID!) {
-			removeRoomDevice(roomId: $roomId, deviceId: $deviceId) { id }
+	const REMOVE_ROOM_MEMBER = graphql(`
+		mutation DeviceDetailRemoveRoomMember($id: ID!) {
+			removeRoomMember(id: $id)
 		}
 	`);
 
@@ -263,7 +267,10 @@
 	);
 
 	const pickerDrawerGroups = $derived.by((): DrawerGroup<"room" | "group">[] => {
-		const availableRooms = rooms.filter((r) => !r.devices.some((d) => d.id === deviceId));
+		const availableRooms = rooms.filter(
+			(r) =>
+				!r.members.some((m) => m.memberType === "device" && m.memberId === deviceId),
+		);
 		const availableGroups = groups.filter(
 			(g) => !g.members.some((m) => m.memberType === "device" && m.memberId === deviceId)
 		);
@@ -311,7 +318,9 @@
 		try {
 			if (type === "room") {
 				await clientRef
-					.mutation(ADD_ROOM_DEVICE, { input: { roomId: id, deviceId } })
+					.mutation(ADD_ROOM_MEMBER, {
+						input: { roomId: id, memberType: "device", memberId: deviceId },
+					})
 					.toPromise();
 			} else {
 				await clientRef
@@ -334,7 +343,7 @@
 		if (!row) return;
 		if (row.kind === "room") {
 			await clientRef
-				.mutation(REMOVE_ROOM_DEVICE, { roomId: row.roomId, deviceId })
+				.mutation(REMOVE_ROOM_MEMBER, { id: row.roomMemberId })
 				.toPromise();
 		} else {
 			await clientRef

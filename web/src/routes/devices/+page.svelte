@@ -104,7 +104,7 @@
 				id
 				name
 				icon
-				devices { id }
+				members { memberType memberId }
 			}
 		}
 	`);
@@ -120,9 +120,9 @@
 		}
 	`);
 
-	const ADD_ROOM_DEVICE = graphql(`
-		mutation DeviceListAddRoomDevice($input: AddRoomDeviceInput!) {
-			addRoomDevice(input: $input) {
+	const ADD_ROOM_MEMBER = graphql(`
+		mutation DeviceListAddRoomMember($input: AddRoomMemberInput!) {
+			addRoomMember(input: $input) {
 				id
 			}
 		}
@@ -136,7 +136,12 @@
 		}
 	`);
 
-	type RoomInfo = { id: string; name: string; devices: { id: string }[] };
+	type RoomInfo = {
+		id: string;
+		name: string;
+		icon?: string | null;
+		members: { memberType: string; memberId: string }[];
+	};
 	type GroupInfo = { id: string; name: string; members: { memberType: string; memberId: string }[] };
 
 	const client = getContextClient();
@@ -155,7 +160,12 @@
 
 	const pickerDrawerGroups = $derived.by((): DrawerGroup<"room" | "group">[] => {
 		if (!pickerDevice) return [];
-		const availableRooms = rooms.filter((r) => !r.devices.some((d) => d.id === pickerDevice!.id));
+		const availableRooms = rooms.filter(
+			(r) =>
+				!r.members.some(
+					(m) => m.memberType === "device" && m.memberId === pickerDevice!.id,
+				),
+		);
 		const availableGroups = groups.filter(
 			(g) => !g.members.some((m) => m.memberType === "device" && m.memberId === pickerDevice!.id)
 		);
@@ -208,7 +218,9 @@
 		try {
 			if (type === "room") {
 				await client
-					.mutation(ADD_ROOM_DEVICE, { input: { roomId: id, deviceId } })
+					.mutation(ADD_ROOM_MEMBER, {
+						input: { roomId: id, memberType: "device", memberId: deviceId },
+					})
 					.toPromise();
 			} else {
 				await client
