@@ -321,16 +321,36 @@ type UpdateRoomParams struct {
 	Icon    *string
 }
 
-// AddRoomDeviceParams holds the parameters for adding a device to a room.
-type AddRoomDeviceParams struct {
-	RoomID   string
-	DeviceID string
+// AddRoomMemberParams holds the parameters for adding a member to a room.
+type AddRoomMemberParams struct {
+	ID         string
+	RoomID     string
+	MemberType device.RoomMemberType
+	MemberID   string
 }
 
-// RoomDevice represents a room-device membership row.
-type RoomDevice struct {
-	RoomID   string
-	DeviceID string
+// RoomMember represents a room-member row (a device or group attached to a room).
+type RoomMember struct {
+	ID         string
+	RoomID     string
+	MemberType device.RoomMemberType
+	MemberID   string
+}
+
+// RoomMemberInput is one entry in a batch-add call.
+type RoomMemberInput struct {
+	MemberType device.RoomMemberType
+	MemberID   string
+}
+
+// RoomMembership pairs a member with one room it currently belongs to. A member
+// can appear more than once in the slice if it is a member of multiple rooms.
+type RoomMembership struct {
+	ID         string
+	RoomID     string
+	RoomName   string
+	MemberType device.RoomMemberType
+	MemberID   string
 }
 
 // CreateUserParams holds the parameters for creating a new user.

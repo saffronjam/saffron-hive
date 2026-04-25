@@ -83,16 +83,25 @@ func (s *DB) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, 
 	return s.GetGroup(ctx, params.ID)
 }
 
-// DeleteGroup deletes a group by its ID. Cascading deletes remove associated members.
+// DeleteGroup deletes a group and any room_members rows that pointed to it.
+// group_members owns its members via FK cascade; the polymorphic reverse
+// reference from room_members has no FK and is cleaned up explicitly here.
 func (s *DB) DeleteGroup(ctx context.Context, id string) error {
-	if err := s.q.DeleteGroup(ctx, id); err != nil {
-		return fmt.Errorf("delete group: %w", err)
-	}
-	return nil
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.RemoveRoomMembersByGroup(ctx, id); err != nil {
+			return fmt.Errorf("clean room members for group: %w", err)
+		}
+		if err := q.DeleteGroup(ctx, id); err != nil {
+			return fmt.Errorf("delete group: %w", err)
+		}
+		return nil
+	})
+	return err
 }
 
 // BatchDeleteGroups deletes the groups with the given IDs. Returns the number
-// of rows actually deleted; missing IDs are silently ignored.
+// of rows actually deleted; missing IDs are silently ignored. Also clears any
+// room_members rows that referenced these groups.
 func (s *DB) BatchDeleteGroups(ctx context.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -101,11 +110,24 @@ func (s *DB) BatchDeleteGroups(ctx context.Context, ids []string) (int64, error)
 	if err != nil {
 		return 0, fmt.Errorf("batch delete groups: %w", err)
 	}
-	n, err := s.q.BatchDeleteGroups(ctx, js)
+	var deleted int64
+	err = s.execTx(ctx, func(q *sqlite.Queries) error {
+		for _, id := range ids {
+			if err := q.RemoveRoomMembersByGroup(ctx, id); err != nil {
+				return fmt.Errorf("clean room members for group %s: %w", id, err)
+			}
+		}
+		n, err := q.BatchDeleteGroups(ctx, js)
+		if err != nil {
+			return fmt.Errorf("batch delete groups: %w", err)
+		}
+		deleted = n
+		return nil
+	})
 	if err != nil {
-		return 0, fmt.Errorf("batch delete groups: %w", err)
+		return 0, err
 	}
-	return n, nil
+	return deleted, nil
 }
 
 // AddGroupMember inserts a new group member. Returns the created member.

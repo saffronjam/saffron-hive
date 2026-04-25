@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
@@ -81,16 +83,26 @@ func (s *DB) UpdateRoom(ctx context.Context, params UpdateRoomParams) (Room, err
 	return s.GetRoom(ctx, params.ID)
 }
 
-// DeleteRoom deletes a room by its ID. Cascading deletes remove associated device memberships.
+// DeleteRoom deletes a room and any group_members rows that pointed to it.
+// room_members.room_id has an FK ON DELETE CASCADE so direct memberships are
+// removed automatically; the polymorphic reverse reference from group_members
+// has no FK and is cleaned up explicitly here.
 func (s *DB) DeleteRoom(ctx context.Context, id string) error {
-	if err := s.q.DeleteRoom(ctx, id); err != nil {
-		return fmt.Errorf("delete room: %w", err)
-	}
-	return nil
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.RemoveGroupMembersByRoom(ctx, id); err != nil {
+			return fmt.Errorf("clean group members for room: %w", err)
+		}
+		if err := q.DeleteRoom(ctx, id); err != nil {
+			return fmt.Errorf("delete room: %w", err)
+		}
+		return nil
+	})
+	return err
 }
 
 // BatchDeleteRooms deletes the rooms with the given IDs. Returns the number of
-// rows actually deleted; missing IDs are silently ignored.
+// rows actually deleted; missing IDs are silently ignored. Also clears any
+// group_members rows that referenced these rooms.
 func (s *DB) BatchDeleteRooms(ctx context.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -99,43 +111,63 @@ func (s *DB) BatchDeleteRooms(ctx context.Context, ids []string) (int64, error) 
 	if err != nil {
 		return 0, fmt.Errorf("batch delete rooms: %w", err)
 	}
-	n, err := s.q.BatchDeleteRooms(ctx, js)
+	var deleted int64
+	err = s.execTx(ctx, func(q *sqlite.Queries) error {
+		for _, id := range ids {
+			if err := q.RemoveGroupMembersByRoom(ctx, id); err != nil {
+				return fmt.Errorf("clean group members for room %s: %w", id, err)
+			}
+		}
+		n, err := q.BatchDeleteRooms(ctx, js)
+		if err != nil {
+			return fmt.Errorf("batch delete rooms: %w", err)
+		}
+		deleted = n
+		return nil
+	})
 	if err != nil {
-		return 0, fmt.Errorf("batch delete rooms: %w", err)
+		return 0, err
 	}
-	return n, nil
+	return deleted, nil
 }
 
-// AddRoomDevice adds a device to a room and returns the created membership.
-func (s *DB) AddRoomDevice(ctx context.Context, params AddRoomDeviceParams) (RoomDevice, error) {
-	if err := s.q.AddRoomDevice(ctx, sqlite.AddRoomDeviceParams{
-		RoomID:   params.RoomID,
-		DeviceID: params.DeviceID,
+// AddRoomMember inserts a new room member. Returns the created membership.
+// The caller is responsible for circular dependency checking before calling this method.
+func (s *DB) AddRoomMember(ctx context.Context, params AddRoomMemberParams) (RoomMember, error) {
+	if err := s.q.AddRoomMember(ctx, sqlite.AddRoomMemberParams{
+		ID:         params.ID,
+		RoomID:     params.RoomID,
+		MemberType: params.MemberType,
+		MemberID:   params.MemberID,
 	}); err != nil {
-		return RoomDevice{}, fmt.Errorf("add room device: %w", err)
+		return RoomMember{}, fmt.Errorf("add room member: %w", err)
 	}
-	return RoomDevice{
-		RoomID:   params.RoomID,
-		DeviceID: params.DeviceID,
+	return RoomMember{
+		ID:         params.ID,
+		RoomID:     params.RoomID,
+		MemberType: params.MemberType,
+		MemberID:   params.MemberID,
 	}, nil
 }
 
-// BatchAddRoomDevices adds the listed devices to a room. Devices already
-// associated with the room are silently skipped (primary key on (room_id,
-// device_id) deduplicates). Returns the number of newly added rows.
-func (s *DB) BatchAddRoomDevices(ctx context.Context, roomID string, deviceIDs []string) (int64, error) {
-	if len(deviceIDs) == 0 {
+// BatchAddRoomMembers adds the listed members to a room. Members already
+// associated with the room are silently skipped (UNIQUE(room_id, member_type,
+// member_id) deduplicates). Returns the number of newly added rows.
+func (s *DB) BatchAddRoomMembers(ctx context.Context, roomID string, members []RoomMemberInput) (int64, error) {
+	if len(members) == 0 {
 		return 0, nil
 	}
 	var added int64
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
-		for _, did := range deviceIDs {
-			n, err := q.AddRoomDeviceIfMissing(ctx, sqlite.AddRoomDeviceIfMissingParams{
-				RoomID:   roomID,
-				DeviceID: did,
+		for _, m := range members {
+			n, err := q.AddRoomMemberIfMissing(ctx, sqlite.AddRoomMemberIfMissingParams{
+				ID:         uuid.New().String(),
+				RoomID:     roomID,
+				MemberType: m.MemberType,
+				MemberID:   m.MemberID,
 			})
 			if err != nil {
-				return fmt.Errorf("add room device %s: %w", did, err)
+				return fmt.Errorf("add room member %s: %w", m.MemberID, err)
 			}
 			added += n
 		}
@@ -147,38 +179,42 @@ func (s *DB) BatchAddRoomDevices(ctx context.Context, roomID string, deviceIDs [
 	return added, nil
 }
 
-// ListRoomDevices returns all device memberships for a room.
-func (s *DB) ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error) {
-	rows, err := s.q.ListRoomDevices(ctx, roomID)
+// ListRoomMembers returns all members belonging to a room.
+func (s *DB) ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, error) {
+	rows, err := s.q.ListRoomMembers(ctx, roomID)
 	if err != nil {
-		return nil, fmt.Errorf("list room devices: %w", err)
+		return nil, fmt.Errorf("list room members: %w", err)
 	}
-	var devices []RoomDevice
+	var members []RoomMember
 	for _, r := range rows {
-		devices = append(devices, RoomDevice{
-			RoomID:   r.RoomID,
-			DeviceID: r.DeviceID,
+		members = append(members, RoomMember{
+			ID:         r.ID,
+			RoomID:     r.RoomID,
+			MemberType: r.MemberType,
+			MemberID:   r.MemberID,
 		})
 	}
-	return devices, nil
+	return members, nil
 }
 
-// RemoveRoomDeviceByRoomAndDevice removes a device from a room by room ID and device ID.
-func (s *DB) RemoveRoomDeviceByRoomAndDevice(ctx context.Context, roomID, deviceID string) error {
-	if err := s.q.RemoveRoomDeviceByRoomAndDevice(ctx, sqlite.RemoveRoomDeviceByRoomAndDeviceParams{
-		RoomID:   roomID,
-		DeviceID: deviceID,
-	}); err != nil {
-		return fmt.Errorf("remove room device: %w", err)
+// RemoveRoomMember deletes a room membership by its ID.
+func (s *DB) RemoveRoomMember(ctx context.Context, id string) error {
+	if err := s.q.RemoveRoomMember(ctx, id); err != nil {
+		return fmt.Errorf("remove room member: %w", err)
 	}
 	return nil
 }
 
-// ListRoomsContainingDevice returns all rooms that contain a specific device.
-func (s *DB) ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]Room, error) {
-	rows, err := s.q.ListRoomsContainingDevice(ctx, deviceID)
+// ListRoomsContainingMember returns all rooms that directly contain a specific member.
+// "Directly" means the membership row exists in room_members; transitive
+// membership via groups is not reflected.
+func (s *DB) ListRoomsContainingMember(ctx context.Context, memberType device.RoomMemberType, memberID string) ([]Room, error) {
+	rows, err := s.q.ListRoomsContainingMember(ctx, sqlite.ListRoomsContainingMemberParams{
+		MemberType: memberType,
+		MemberID:   memberID,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("list rooms containing device: %w", err)
+		return nil, fmt.Errorf("list rooms containing member: %w", err)
 	}
 	var rooms []Room
 	for _, r := range rows {
@@ -194,30 +230,130 @@ func (s *DB) ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]
 	return rooms, nil
 }
 
+// ListRoomMemberships returns every room-member row joined with the room name
+// in one scan. Activity-hot paths use this together with ListAllGroupMemberships
+// to compute transitive device→room attribution without a per-event JOIN.
+func (s *DB) ListRoomMemberships(ctx context.Context) ([]RoomMembership, error) {
+	rows, err := s.q.ListRoomMemberships(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list room memberships: %w", err)
+	}
+	out := make([]RoomMembership, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, RoomMembership{
+			ID:         r.ID,
+			RoomID:     r.RoomID,
+			RoomName:   r.RoomName,
+			MemberType: r.MemberType,
+			MemberID:   r.MemberID,
+		})
+	}
+	return out, nil
+}
+
 // RoomDeviceMembership pairs a device with one room it currently belongs to.
-// A device can appear more than once in the slice if it's a member of
-// multiple rooms.
+// A device can appear more than once in the slice if it is reachable from
+// multiple rooms (via direct membership and/or nested groups). Used by the
+// activity recorder to enrich events with room names.
 type RoomDeviceMembership struct {
 	RoomID   string
 	RoomName string
 	DeviceID string
 }
 
-// ListRoomDeviceMemberships returns every room/device membership in one
-// scan. Activity-hot paths use this to build an in-memory lookup instead of
-// running a per-event three-table JOIN.
-func (s *DB) ListRoomDeviceMemberships(ctx context.Context) ([]RoomDeviceMembership, error) {
-	rows, err := s.q.ListRoomDeviceMemberships(ctx)
+// ListTransitiveRoomDeviceMemberships expands every room's reachable device set
+// — including devices nested through group members — and returns one row per
+// (room, device) pair. Cycle-safe via a per-room seen set.
+//
+// This is the counterpart to ResolveTargetDeviceIDs but in bulk: it answers the
+// question "for every room, which devices end up in it?" with one round trip.
+func (s *DB) ListTransitiveRoomDeviceMemberships(ctx context.Context) ([]RoomDeviceMembership, error) {
+	roomMs, err := s.ListRoomMemberships(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list room device memberships: %w", err)
+		return nil, err
 	}
-	out := make([]RoomDeviceMembership, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, RoomDeviceMembership{
-			RoomID:   r.RoomID,
-			RoomName: r.RoomName,
-			DeviceID: r.DeviceID,
+	groupMs, err := s.q.ListAllGroupMemberships(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all group memberships: %w", err)
+	}
+
+	roomChildren := map[string][]RoomMember{}
+	roomNames := map[string]string{}
+	for _, m := range roomMs {
+		roomNames[m.RoomID] = m.RoomName
+		roomChildren[m.RoomID] = append(roomChildren[m.RoomID], RoomMember{
+			ID:         m.ID,
+			RoomID:     m.RoomID,
+			MemberType: m.MemberType,
+			MemberID:   m.MemberID,
 		})
+	}
+
+	type groupChild struct {
+		memberType device.GroupMemberType
+		memberID   string
+	}
+	groupChildren := map[string][]groupChild{}
+	for _, m := range groupMs {
+		groupChildren[m.GroupID] = append(groupChildren[m.GroupID], groupChild{
+			memberType: m.MemberType,
+			memberID:   m.MemberID,
+		})
+	}
+
+	var out []RoomDeviceMembership
+	for roomID, name := range roomNames {
+		seen := map[string]bool{}
+		devSeen := map[string]bool{}
+		var walkRoom func(id string)
+		var walkGroup func(id string)
+		walkRoom = func(id string) {
+			key := "room:" + id
+			if seen[key] {
+				return
+			}
+			seen[key] = true
+			for _, m := range roomChildren[id] {
+				switch m.MemberType {
+				case device.RoomMemberDevice:
+					if !devSeen[m.MemberID] {
+						devSeen[m.MemberID] = true
+						out = append(out, RoomDeviceMembership{
+							RoomID:   roomID,
+							RoomName: name,
+							DeviceID: m.MemberID,
+						})
+					}
+				case device.RoomMemberGroup:
+					walkGroup(m.MemberID)
+				}
+			}
+		}
+		walkGroup = func(id string) {
+			key := "group:" + id
+			if seen[key] {
+				return
+			}
+			seen[key] = true
+			for _, m := range groupChildren[id] {
+				switch m.memberType {
+				case device.GroupMemberDevice:
+					if !devSeen[m.memberID] {
+						devSeen[m.memberID] = true
+						out = append(out, RoomDeviceMembership{
+							RoomID:   roomID,
+							RoomName: name,
+							DeviceID: m.memberID,
+						})
+					}
+				case device.GroupMemberGroup:
+					walkGroup(m.memberID)
+				case device.GroupMemberRoom:
+					walkRoom(m.memberID)
+				}
+			}
+		}
+		walkRoom(roomID)
 	}
 	return out, nil
 }
