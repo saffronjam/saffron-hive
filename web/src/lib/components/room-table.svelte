@@ -16,13 +16,13 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { DoorOpen, Plus } from "@lucide/svelte";
-	import type { Device } from "$lib/stores/devices";
 
 	interface RoomData {
 		id: string;
 		name: string;
 		icon?: string | null;
-		devices: Device[];
+		resolvedDevices: { id: string }[];
+		members: { id: string; memberType: string; memberId: string }[];
 		createdBy?: { id: string; username: string; name: string } | null;
 	}
 
@@ -71,7 +71,7 @@
 		{
 			key: "devices",
 			label: "Devices",
-			sortValue: (r) => r.devices.length,
+			sortValue: (r) => r.resolvedDevices.length,
 			cell: devicesCell,
 		},
 		{
@@ -120,7 +120,7 @@
 
 {#snippet devicesCell(r: RoomData)}
 	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{r.devices.length} device{r.devices.length === 1 ? "" : "s"}
+		{r.resolvedDevices.length} device{r.resolvedDevices.length === 1 ? "" : "s"}
 	</span>
 {/snippet}
 

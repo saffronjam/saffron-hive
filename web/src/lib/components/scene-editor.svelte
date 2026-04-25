@@ -15,6 +15,7 @@
 		type EditableTarget,
 	} from "$lib/scene-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
+	import { buildTargetTree, type TargetTreeNode } from "$lib/target-tree";
 
 	interface Props {
 		targets: EditableTarget[];
@@ -45,24 +46,26 @@
 
 	const allDevices = $derived(Array.from(devicesById.values()));
 
-	interface TreeNode {
+	interface TopTreeNode {
 		key: string;
 		target: EditableTarget;
 		targetIndex: number;
 		devices: Device[];
-		expandable: boolean;
+		root: TargetTreeNode;
 	}
 
-	const tree = $derived.by<TreeNode[]>(() => {
+	const tree = $derived.by<TopTreeNode[]>(() => {
 		return targets.map((t, index) => {
+			const rootKey = `${t.type}:${t.id}:${index}`;
 			const resolved = resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
 			const devices = resolved.filter(isSceneTarget);
+			const root = buildTargetTree(rootKey, { type: t.type, id: t.id }, devicesById, groupsLite, roomsLite);
 			return {
-				key: `${t.type}:${t.id}:${index}`,
+				key: rootKey,
 				target: t,
 				targetIndex: index,
 				devices,
-				expandable: t.type !== "device",
+				root,
 			};
 		});
 	});
@@ -254,6 +257,171 @@
 	</Popover>
 {/snippet}
 
+{#snippet topLevelRow(node: TopTreeNode)}
+	{@const isDeviceRow = node.target.type === "device"}
+	{@const deviceForRow = isDeviceRow ? devicesById.get(node.target.id) : null}
+	{@const rowCaps = deviceForRow ? deviceSceneCapabilities(deviceForRow) : null}
+	{@const rowHasRich = rowCaps
+		? rowCaps.hasBrightness || rowCaps.hasColor || rowCaps.hasColorTemp
+		: false}
+	<div
+		class="flex items-center gap-1 rounded-md p-2 transition-colors hover:bg-muted/60"
+		role="button"
+		tabindex={0}
+		onclick={() => (isDeviceRow ? undefined : toggleExpanded(node.key))}
+		onkeydown={(e) => {
+			if ((e.key === "Enter" || e.key === " ") && !isDeviceRow) {
+				e.preventDefault();
+				toggleExpanded(node.key);
+			}
+		}}
+	>
+		{#if !isDeviceRow}
+			{#if isExpanded(node.key)}
+				<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
+			{:else}
+				<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+			{/if}
+		{:else}
+			<span class="w-4 shrink-0"></span>
+		{/if}
+
+		{#if isDeviceRow}
+			<HiveIcon
+				type={node.target.deviceType ?? "device"}
+				class="size-4 shrink-0 text-muted-foreground"
+			/>
+		{:else}
+			<HiveIcon
+				type={node.target.type}
+				iconOverride={node.target.icon}
+				class="size-4 shrink-0 text-muted-foreground"
+			/>
+		{/if}
+		<span class="truncate text-sm font-medium">{node.target.name}</span>
+		{#if !isDeviceRow}
+			<span class="shrink-0 text-xs text-muted-foreground">{node.devices.length}</span>
+		{/if}
+
+		<span class="flex-1"></span>
+
+		<div
+			class="flex items-center gap-2"
+			onclick={(e) => e.stopPropagation()}
+			role="presentation"
+		>
+			{#if mode === "live" && deviceForRow}
+				{@render liveIndicators(deviceForRow)}
+			{/if}
+			{#if deviceForRow && rowHasRich && rowCaps}
+				{@render adjustTrigger(deviceForRow, rowCaps)}
+			{/if}
+			{#if deviceForRow}
+				<Switch
+					checked={displayValueFor(deviceForRow).on ?? false}
+					onCheckedChange={(c) => setDeviceOn(deviceForRow, c)}
+					aria-label={`Toggle ${deviceForRow.name}`}
+				/>
+			{/if}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={(e) => {
+					e.stopPropagation();
+					onremovetarget(node.targetIndex);
+				}}
+				aria-label="Remove target"
+			>
+				<Trash2 class="size-4" />
+			</Button>
+		</div>
+	</div>
+{/snippet}
+
+{#snippet folderChildren(parent: TargetTreeNode)}
+	{#if parent.kind === "device"}
+		{@render deviceLeaf(parent.device)}
+	{:else}
+		{#each parent.children as child (child.key)}
+			{#if child.kind === "device"}
+				{@render deviceLeaf(child.device)}
+			{:else}
+				{@render folderRow(child)}
+			{/if}
+		{/each}
+		{#if parent.children.length === 0}
+			<p class="px-2 py-1 text-xs text-muted-foreground">
+				{parent.truncated ? "Nesting limit reached." : "Empty."}
+			</p>
+		{/if}
+	{/if}
+{/snippet}
+
+{#snippet folderRow(node: TargetTreeNode)}
+	{#if node.kind !== "device"}
+		<div class="flex flex-col" transition:slide={{ duration: 200 }}>
+			<div
+				class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60"
+				role="button"
+				tabindex={0}
+				onclick={() => toggleExpanded(node.key)}
+				onkeydown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						toggleExpanded(node.key);
+					}
+				}}
+			>
+				{#if isExpanded(node.key)}
+					<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
+				{:else}
+					<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+				{/if}
+				<HiveIcon
+					type={node.kind}
+					iconOverride={node.icon ?? undefined}
+					class="size-4 shrink-0 text-muted-foreground"
+				/>
+				<span class="truncate text-sm">{node.name}</span>
+				<span class="shrink-0 text-xs text-muted-foreground">{node.reachableCount}</span>
+			</div>
+			{#if isExpanded(node.key)}
+				<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
+					{@render folderChildren(node)}
+				</div>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet deviceLeaf(device: Device)}
+	{@const leafCaps = deviceSceneCapabilities(device)}
+	{@const leafHasRich =
+		leafCaps.hasBrightness || leafCaps.hasColor || leafCaps.hasColorTemp}
+	<div class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60">
+		<HiveIcon type={device.type} class="size-4 shrink-0 text-muted-foreground" />
+		<span class="truncate text-sm">{device.name}</span>
+		<span class="flex-1"></span>
+		<div
+			class="flex items-center gap-2"
+			onclick={(e) => e.stopPropagation()}
+			role="presentation"
+		>
+			{#if mode === "live"}
+				{@render liveIndicators(device)}
+			{/if}
+			{#if leafHasRich}
+				{@render adjustTrigger(device, leafCaps)}
+			{/if}
+			<Switch
+				checked={displayValueFor(device).on ?? false}
+				onCheckedChange={(c) => setDeviceOn(device, c)}
+				aria-label={`Toggle ${device.name}`}
+			/>
+		</div>
+	</div>
+{/snippet}
+
 {#snippet liveIndicators(device: Device)}
 	{@const state = device.state}
 	{#if state?.on != null}
@@ -312,124 +480,11 @@
 		{:else}
 			<div class="flex flex-col gap-1">
 				{#each tree as node (node.key)}
-					{@const isDeviceRow = node.target.type === "device"}
-					{@const deviceForRow = isDeviceRow ? devicesById.get(node.target.id) : null}
-					{@const rowCaps = deviceForRow ? deviceSceneCapabilities(deviceForRow) : null}
-					{@const rowHasRich = rowCaps
-						? rowCaps.hasBrightness || rowCaps.hasColor || rowCaps.hasColorTemp
-						: false}
 					<div class="flex flex-col" transition:slide={{ duration: 200 }}>
-						<div
-							class="flex items-center gap-1 rounded-md p-2 transition-colors hover:bg-muted/60"
-							role="button"
-							tabindex={0}
-							onclick={() => (isDeviceRow ? undefined : toggleExpanded(node.key))}
-							onkeydown={(e) => {
-								if ((e.key === "Enter" || e.key === " ") && !isDeviceRow) {
-									e.preventDefault();
-									toggleExpanded(node.key);
-								}
-							}}
-						>
-							{#if node.expandable}
-								{#if isExpanded(node.key)}
-									<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
-								{:else}
-									<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
-								{/if}
-							{:else}
-								<span class="w-4 shrink-0"></span>
-							{/if}
-
-							{#if isDeviceRow}
-								<HiveIcon
-									type={node.target.deviceType ?? "device"}
-									class="size-4 shrink-0 text-muted-foreground"
-								/>
-							{:else}
-								<HiveIcon
-									type={node.target.type}
-									iconOverride={node.target.icon}
-									class="size-4 shrink-0 text-muted-foreground"
-								/>
-							{/if}
-							<span class="truncate text-sm font-medium">{node.target.name}</span>
-							{#if !isDeviceRow}
-								<span class="shrink-0 text-xs text-muted-foreground">
-									{node.devices.length}
-								</span>
-							{/if}
-
-							<span class="flex-1"></span>
-
-							<div
-								class="flex items-center gap-2"
-								onclick={(e) => e.stopPropagation()}
-								role="presentation"
-							>
-								{#if mode === "live" && deviceForRow}
-									{@render liveIndicators(deviceForRow)}
-								{/if}
-								{#if deviceForRow && rowHasRich && rowCaps}
-									{@render adjustTrigger(deviceForRow, rowCaps)}
-								{/if}
-								{#if deviceForRow}
-									<Switch
-										checked={displayValueFor(deviceForRow).on ?? false}
-										onCheckedChange={(c) => setDeviceOn(deviceForRow, c)}
-										aria-label={`Toggle ${deviceForRow.name}`}
-									/>
-								{/if}
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									onclick={(e) => {
-										e.stopPropagation();
-										onremovetarget(node.targetIndex);
-									}}
-									aria-label="Remove target"
-								>
-									<Trash2 class="size-4" />
-								</Button>
-							</div>
-						</div>
-
-						{#if node.expandable && isExpanded(node.key)}
+						{@render topLevelRow(node)}
+						{#if node.root.kind !== "device" && isExpanded(node.key)}
 							<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
-								{#each node.devices as device (device.id)}
-									{@const leafCaps = deviceSceneCapabilities(device)}
-									{@const leafHasRich =
-										leafCaps.hasBrightness || leafCaps.hasColor || leafCaps.hasColorTemp}
-									<div
-										class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60"
-									>
-										<HiveIcon type={device.type} class="size-4 shrink-0 text-muted-foreground" />
-										<span class="truncate text-sm">{device.name}</span>
-										<span class="flex-1"></span>
-										<div
-											class="flex items-center gap-2"
-											onclick={(e) => e.stopPropagation()}
-											role="presentation"
-										>
-											{#if mode === "live"}
-												{@render liveIndicators(device)}
-											{/if}
-											{#if leafHasRich}
-												{@render adjustTrigger(device, leafCaps)}
-											{/if}
-											<Switch
-												checked={displayValueFor(device).on ?? false}
-												onCheckedChange={(c) => setDeviceOn(device, c)}
-												aria-label={`Toggle ${device.name}`}
-											/>
-										</div>
-									</div>
-								{/each}
-								{#if node.devices.length === 0}
-									<p class="px-2 py-1 text-xs text-muted-foreground">
-										No devices in this target.
-									</p>
-								{/if}
+								{@render folderChildren(node.root)}
 							</div>
 						{/if}
 					</div>
