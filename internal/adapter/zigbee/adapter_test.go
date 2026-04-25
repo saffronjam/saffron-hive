@@ -183,7 +183,7 @@ func TestPahoCallbackDoesNotBlockOnSlowHandler(t *testing.T) {
 	bus := newMockEventBus()
 	base := newMockStateWriter()
 	slow := &slowStateWriter{mockStateWriter: base, delay: 200 * time.Millisecond}
-	adapter := NewZigbeeAdapter(mqtt, bus, slow, &mockStateReader{})
+	adapter := NewZigbeeAdapter(mqtt, bus, slow, newMockStateReader())
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
