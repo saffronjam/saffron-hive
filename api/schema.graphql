@@ -106,6 +106,110 @@ type AutomationGraph {
   createdBy: User
 }
 
+enum EffectKind {
+  TIMELINE
+  NATIVE
+}
+
+enum EffectStepKind {
+  WAIT
+  SET_ON_OFF
+  SET_BRIGHTNESS
+  SET_COLOR_RGB
+  SET_COLOR_TEMP
+}
+
+type Effect {
+  id: ID!
+  name: String!
+  icon: String
+  kind: EffectKind!
+  nativeName: String
+  loop: Boolean!
+  steps: [EffectStep!]!
+  """
+  Capabilities every target device must support for this effect to apply
+  cleanly. Derived from the effect's step kinds for timeline effects;
+  empty for native effects (the per-device native option list owns that
+  filtering).
+  """
+  requiredCapabilities: [String!]!
+  createdBy: User
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+A single step inside a timeline effect. config is a JSON document whose
+shape is determined by kind — the disk shape directly, not wrapped, e.g.
+{"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
+"""
+type EffectStep {
+  id: ID!
+  index: Int!
+  kind: EffectStepKind!
+  config: String!
+}
+
+input EffectStepInput {
+  kind: EffectStepKind!
+  config: String!
+}
+
+input CreateEffectInput {
+  name: String!
+  icon: String
+  kind: EffectKind!
+  nativeName: String
+  loop: Boolean!
+  steps: [EffectStepInput!]!
+}
+
+input UpdateEffectInput {
+  id: ID!
+  name: String
+  icon: String
+  loop: Boolean
+  nativeName: String
+  steps: [EffectStepInput!]
+}
+
+"""
+One row marking that an effect is currently running on a target. volatile
+mirrors the persistence flag — non-loop timeline runs and native runs are
+volatile (wiped at process startup); loop timeline runs survive a restart.
+"""
+type ActiveEffect {
+  id: ID!
+  effect: Effect!
+  targetType: String!
+  targetId: ID!
+  startedAt: DateTime!
+  volatile: Boolean!
+}
+
+"""
+A native effect option as offered by the editor. supportedDeviceCount is
+the number of currently-known devices whose effect capability advertises
+this value.
+"""
+type NativeEffectOption {
+  name: String!
+  displayName: String!
+  supportedDeviceCount: Int!
+}
+
+"""
+Step boundary marker emitted by the runner. active=true on enter,
+active=false on exit. runId identifies the in-flight run instance.
+"""
+type EffectStepEvent {
+  runId: ID!
+  effectId: ID!
+  stepIndex: Int!
+  active: Boolean!
+}
+
 type AutomationNode {
   id: ID!
   type: String!
@@ -511,6 +615,10 @@ type Query {
   setupStatus: SetupStatus!
   me: User
   users: [User!]!
+  effects: [Effect!]!
+  effect(id: ID!): Effect
+  activeEffects: [ActiveEffect!]!
+  nativeEffectOptions: [NativeEffectOption!]!
 }
 
 type Mutation {
@@ -573,6 +681,20 @@ type Mutation {
 
   batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room!
   batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
+
+  createEffect(input: CreateEffectInput!): Effect!
+  updateEffect(input: UpdateEffectInput!): Effect!
+  deleteEffect(id: ID!): Boolean!
+  """
+  Starts effectId on the given target. Preempts any effect already
+  running on the target. Returns the resulting active-run row.
+  """
+  runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect!
+  """
+  Stops any effect currently running on the target. Returns true when a
+  run was active, false otherwise.
+  """
+  stopEffect(targetType: String!, targetId: ID!): Boolean!
 }
 
 type Subscription {
@@ -586,4 +708,10 @@ type Subscription {
   logStream: LogEntry!
   activityStream(advanced: Boolean): ActivityEvent!
   alarmEvent: AlarmEvent!
+  """
+  Step-boundary events from the effect runner. When runId is provided,
+  only events for that run are delivered; otherwise every effect run's
+  step boundaries are broadcast.
+  """
+  effectStepActivated(runId: ID): EffectStepEvent!
 }
