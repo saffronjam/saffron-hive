@@ -1,8 +1,24 @@
+export interface MembershipRoomMemberRef {
+  memberType: string;
+  memberId: string;
+}
+
+export interface MembershipRoomMember extends MembershipRoomMemberRef {
+  id: string;
+}
+
+export interface MembershipRoomRef {
+  id: string;
+  name: string;
+  icon?: string | null;
+  members: MembershipRoomMemberRef[];
+}
+
 export interface MembershipRoom {
   id: string;
   name: string;
   icon?: string | null;
-  devices: { id: string }[];
+  members: MembershipRoomMember[];
 }
 
 export interface MembershipGroupMemberRef {
@@ -40,21 +56,23 @@ export interface DeviceChips {
 }
 
 /**
- * Build a Map of device id → room/group chips by reverse-indexing Room.devices and
- * Group.members. Only direct device membership counts: nested groups and rooms that
- * happen to contain a device are not reflected here (that's a separate concept —
- * resolved devices — and not what we show on the device card).
+ * Build a Map of device id → room/group chips by reverse-indexing room and group
+ * member lists. Only direct device membership counts: nested groups inside a room
+ * (or nested rooms inside a group) that happen to contain a device are not
+ * reflected here. Transitive membership is a separate concept — resolved devices —
+ * and is not what we show on the device card.
  */
 export function chipsByDevice(
-  rooms: readonly MembershipRoom[],
+  rooms: readonly MembershipRoomRef[],
   groups: readonly MembershipGroupRef[],
 ): Map<string, DeviceChips> {
   const map = new Map<string, DeviceChips>();
   for (const room of rooms) {
-    for (const d of room.devices) {
-      const entry = map.get(d.id) ?? { roomChips: [], groupChips: [] };
+    for (const m of room.members) {
+      if (m.memberType !== "device") continue;
+      const entry = map.get(m.memberId) ?? { roomChips: [], groupChips: [] };
       entry.roomChips.push({ id: room.id, name: room.name, icon: room.icon ?? null });
-      map.set(d.id, entry);
+      map.set(m.memberId, entry);
     }
   }
   for (const group of groups) {
@@ -73,6 +91,7 @@ export interface RoomMembershipRow {
   name: string;
   kind: "room";
   roomId: string;
+  roomMemberId: string;
 }
 
 export interface GroupMembershipRow {
@@ -87,9 +106,9 @@ export type MembershipRowData = RoomMembershipRow | GroupMembershipRow;
 
 /**
  * Compute the "what does this device belong to" row list for the device edit page.
- * Row `id` is prefixed so rooms and groups stay distinct even if a GroupMember id
- * happens to collide with a Room id. `groupMemberId` is the payload for
- * removeGroupMember; `roomId` + the known device id is the payload for removeRoomDevice.
+ * Row `id` is prefixed so rooms and groups stay distinct even if a RoomMember id
+ * happens to collide with a GroupMember id. `roomMemberId` and `groupMemberId`
+ * are the payloads for removeRoomMember / removeGroupMember respectively.
  */
 export function membershipRowsForDevice(
   deviceId: string | undefined,
@@ -97,14 +116,18 @@ export function membershipRowsForDevice(
   groups: readonly MembershipGroup[],
 ): MembershipRowData[] {
   if (!deviceId) return [];
-  const roomRows: MembershipRowData[] = rooms
-    .filter((r) => r.devices.some((d) => d.id === deviceId))
-    .map((r) => ({
+  const roomRows: MembershipRowData[] = [];
+  for (const r of rooms) {
+    const member = r.members.find((m) => m.memberType === "device" && m.memberId === deviceId);
+    if (!member) continue;
+    roomRows.push({
       id: `room:${r.id}`,
       name: r.name,
       kind: "room",
       roomId: r.id,
-    }));
+      roomMemberId: member.id,
+    });
+  }
 
   const groupRows: MembershipRowData[] = [];
   for (const g of groups) {
