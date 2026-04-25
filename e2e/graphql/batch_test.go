@@ -62,7 +62,7 @@ func TestBatch_DeleteScenes(t *testing.T) {
 	}
 }
 
-func TestBatch_AddRoomDevices(t *testing.T) {
+func TestBatch_AddRoomMembers(t *testing.T) {
 	roomData, err := graphqlMutation(`mutation($input: CreateRoomInput!) {
 		createRoom(input: $input) { id }
 	}`, map[string]any{"input": map[string]any{"name": "Batch Room"}})
@@ -85,57 +85,61 @@ func TestBatch_AddRoomDevices(t *testing.T) {
 		t.Fatalf("find device: %v", err)
 	}
 
-	data, err := graphqlMutation(`mutation($roomId: ID!, $deviceIds: [ID!]!) {
-		batchAddRoomDevices(roomId: $roomId, deviceIds: $deviceIds) {
+	members := []map[string]any{
+		{"memberType": "device", "memberId": d1},
+		{"memberType": "device", "memberId": d2},
+	}
+
+	data, err := graphqlMutation(`mutation($roomId: ID!, $members: [RoomMemberInput!]!) {
+		batchAddRoomMembers(roomId: $roomId, members: $members) {
 			id
-			devices { id }
+			resolvedDevices { id }
 		}
 	}`, map[string]any{
-		"roomId":    rr.CreateRoom.ID,
-		"deviceIds": []string{d1, d2},
+		"roomId":  rr.CreateRoom.ID,
+		"members": members,
 	})
 	if err != nil {
 		t.Fatalf("batch add: %v", err)
 	}
 	var result struct {
-		BatchAddRoomDevices struct {
-			ID      string
-			Devices []struct{ ID string } `json:"devices"`
-		} `json:"batchAddRoomDevices"`
+		BatchAddRoomMembers struct {
+			ID              string
+			ResolvedDevices []struct{ ID string } `json:"resolvedDevices"`
+		} `json:"batchAddRoomMembers"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if len(result.BatchAddRoomDevices.Devices) != 2 {
-		t.Errorf("device count = %d, want 2", len(result.BatchAddRoomDevices.Devices))
+	if len(result.BatchAddRoomMembers.ResolvedDevices) != 2 {
+		t.Errorf("device count = %d, want 2", len(result.BatchAddRoomMembers.ResolvedDevices))
 	}
 
-	// Re-adding the same devices is a no-op.
-	_, err = graphqlMutation(`mutation($roomId: ID!, $deviceIds: [ID!]!) {
-		batchAddRoomDevices(roomId: $roomId, deviceIds: $deviceIds) { id }
+	_, err = graphqlMutation(`mutation($roomId: ID!, $members: [RoomMemberInput!]!) {
+		batchAddRoomMembers(roomId: $roomId, members: $members) { id }
 	}`, map[string]any{
-		"roomId":    rr.CreateRoom.ID,
-		"deviceIds": []string{d1, d2},
+		"roomId":  rr.CreateRoom.ID,
+		"members": members,
 	})
 	if err != nil {
 		t.Fatalf("batch add re-run: %v", err)
 	}
 
 	roomState, err := graphqlMutation(`query($id: ID!) {
-		room(id: $id) { id devices { id } }
+		room(id: $id) { id resolvedDevices { id } }
 	}`, map[string]any{"id": rr.CreateRoom.ID})
 	if err != nil {
 		t.Fatalf("query room: %v", err)
 	}
 	var qr struct {
 		Room struct {
-			Devices []struct{ ID string } `json:"devices"`
+			ResolvedDevices []struct{ ID string } `json:"resolvedDevices"`
 		} `json:"room"`
 	}
 	if err := json.Unmarshal(roomState, &qr); err != nil {
 		t.Fatalf("unmarshal room: %v", err)
 	}
-	if len(qr.Room.Devices) != 2 {
-		t.Errorf("room device count = %d, want 2 (duplicates should be ignored)", len(qr.Room.Devices))
+	if len(qr.Room.ResolvedDevices) != 2 {
+		t.Errorf("room device count = %d, want 2 (duplicates should be ignored)", len(qr.Room.ResolvedDevices))
 	}
 }
