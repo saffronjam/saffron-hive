@@ -51,7 +51,13 @@ func TestMutationApplyScene(t *testing.T) {
 	env.store.sceneActions["scene1"] = []store.SceneAction{
 		{SceneID: "scene1", TargetType: "device", TargetID: "d1"},
 	}
-	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1"})
+	env.stateReader.addDevice(device.Device{
+		ID:   "d1",
+		Name: "Light 1",
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Access: 7},
+		},
+	})
 
 	cmdCh := env.bus.Subscribe(eventbus.EventCommandRequested)
 	defer env.bus.Unsubscribe(cmdCh)

@@ -15,6 +15,14 @@ func TestActivateSceneExplicitPayloadsFanOut(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
+	caps := []device.Capability{
+		{Name: device.CapOnOff, Access: 7},
+		{Name: device.CapBrightness, Access: 7},
+	}
+	reader.addDevice(device.Device{ID: "light-1", Name: "light-1", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-2", Name: "light-2", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-3", Name: "light-3", Capabilities: caps})
+
 	s.setSceneActions("scene-1", []store.SceneAction{
 		{SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
 		{SceneID: "scene-1", TargetType: "device", TargetID: "light-2"},
@@ -98,7 +106,12 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	caps := []device.Capability{
+		{Name: device.CapOnOff, Access: 7},
+		{Name: device.CapBrightness, Access: 7},
+	}
+	reader.addDevice(device.Device{ID: "light-1", Name: "light-1", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-2", Name: "light-2", Capabilities: caps})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(100)})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
@@ -197,6 +210,14 @@ func TestActivateSceneStampsSceneOrigin(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
+	reader.addDevice(device.Device{
+		ID:   "light-1",
+		Name: "light-1",
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Access: 7},
+			{Name: device.CapBrightness, Access: 7},
+		},
+	})
 	s.setSceneActions("scene-7", []store.SceneAction{
 		{SceneID: "scene-7", TargetType: "device", TargetID: "light-1"},
 	})
