@@ -140,7 +140,7 @@
 	interface RoomData {
 		id: string;
 		name: string;
-		devices: { id: string }[];
+		resolvedDevices: { id: string }[];
 	}
 
 	interface RoomsQueryResult {
@@ -269,7 +269,7 @@
 			rooms {
 				id
 				name
-				devices { id }
+				resolvedDevices { id }
 			}
 		}
 	`);

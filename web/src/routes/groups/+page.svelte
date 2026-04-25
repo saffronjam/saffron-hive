@@ -49,7 +49,8 @@
 	interface RoomData {
 		id: string;
 		name: string;
-		devices: { id: string; name: string }[];
+		resolvedDevices: { id: string; name: string }[];
+		members: { memberType: string; memberId: string }[];
 	}
 
 	interface GroupMember {
@@ -179,7 +180,7 @@
 					room {
 						id
 						name
-						devices { id name }
+						resolvedDevices { id name }
 					}
 				}
 				createdBy {
@@ -226,7 +227,8 @@
 			rooms {
 				id
 				name
-				devices { id name }
+				resolvedDevices { id name }
+				members { memberType memberId }
 			}
 		}
 	`);
@@ -312,7 +314,7 @@
 					ids.add(member.memberId);
 				} else if (member.memberType === "room") {
 					const room = roomById.get(member.memberId);
-					if (room) for (const d of room.devices) ids.add(d.id);
+					if (room) for (const d of room.resolvedDevices) ids.add(d.id);
 				} else if (member.memberType === "group") {
 					const sub = groupById.get(member.memberId);
 					if (sub) walk(sub);
@@ -518,7 +520,7 @@
 					id: r.id,
 					name: r.name,
 					icon: DoorOpen,
-					badge: `${r.devices.length} device${r.devices.length === 1 ? "" : "s"}`,
+					badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
 				})),
 			});
 		}
@@ -851,7 +853,7 @@
 		if (availableRooms.length > 0) {
 			result.push({ heading: "Rooms", items: availableRooms.map((r) => ({
 				type: "room" as const, id: r.id, name: r.name, icon: DoorOpen,
-				badge: `${r.devices.length} device${r.devices.length === 1 ? "" : "s"}`,
+				badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
 			}))});
 		}
 		return result;
@@ -862,7 +864,9 @@
 			const name = m.device?.name ?? m.group?.name ?? m.room?.name ?? m.memberId;
 			const type = m.device?.type ?? m.memberType;
 			const related = allRooms
-				.filter((r) => r.devices.some((d) => d.id === m.memberId))
+				.filter((r) =>
+					r.members.some((rm) => rm.memberType === "device" && rm.memberId === m.memberId),
+				)
 				.map((r) => ({ id: r.id, name: r.name, href: `/rooms?edit=${r.id}` }));
 			const onclick = (() => {
 				switch (m.memberType) {
