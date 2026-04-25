@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/effect"
 )
+
+var _ effect.EffectStore = (*DB)(nil)
 
 func TestCreateEffectTimeline(t *testing.T) {
 	s := newTestStore(t)
@@ -411,5 +414,98 @@ func TestActiveEffectCascadesOnEffectDelete(t *testing.T) {
 	all, _ := s.ListActiveEffects(ctx)
 	if len(all) != 0 {
 		t.Errorf("len = %d, want 0 after parent effect deleted", len(all))
+	}
+}
+
+func TestLoadEffectRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	icon := "sparkles"
+	if _, err := s.CreateEffect(ctx, CreateEffectParams{
+		ID:   "eff-load",
+		Name: "Sunrise",
+		Icon: &icon,
+		Kind: effect.KindTimeline,
+		Loop: false,
+		Steps: []EffectStepInput{
+			{ID: "step-1", Index: 0, Kind: effect.StepSetOnOff, ConfigJSON: `{"value":true,"transition_ms":0}`},
+			{ID: "step-2", Index: 1, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":500}`},
+			{ID: "step-3", Index: 2, Kind: effect.StepSetColorRGB, ConfigJSON: `{"r":244,"g":42,"b":23,"transition_ms":200}`},
+		},
+	}); err != nil {
+		t.Fatalf("create effect: %v", err)
+	}
+
+	got, err := s.LoadEffect(ctx, "eff-load")
+	if err != nil {
+		t.Fatalf("load effect: %v", err)
+	}
+	if got.ID != "eff-load" || got.Name != "Sunrise" || got.Icon != "sparkles" {
+		t.Fatalf("unexpected scalar fields: %+v", got)
+	}
+	if got.Kind != effect.KindTimeline {
+		t.Fatalf("kind = %q, want timeline", got.Kind)
+	}
+	if got.Loop {
+		t.Fatal("loop = true, want false")
+	}
+	if len(got.Steps) != 3 {
+		t.Fatalf("steps len = %d, want 3", len(got.Steps))
+	}
+
+	wantSteps := []effect.Step{
+		{ID: "step-1", Index: 0, Kind: effect.StepSetOnOff, Config: effect.StepConfig{SetOnOff: &effect.SetOnOffConfig{Value: true}}},
+		{ID: "step-2", Index: 1, Kind: effect.StepWait, Config: effect.StepConfig{Wait: &effect.WaitConfig{DurationMS: 500}}},
+		{ID: "step-3", Index: 2, Kind: effect.StepSetColorRGB, Config: effect.StepConfig{SetColorRGB: &effect.SetColorRGBConfig{R: 244, G: 42, B: 23, TransitionMS: 200}}},
+	}
+	if !reflect.DeepEqual(got.Steps, wantSteps) {
+		t.Fatalf("steps mismatch:\n got %+v\nwant %+v", got.Steps, wantSteps)
+	}
+}
+
+func TestLoadEffectNative(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	native := "candle"
+	if _, err := s.CreateEffect(ctx, CreateEffectParams{
+		ID:         "eff-native",
+		Name:       "Candle",
+		Kind:       effect.KindNative,
+		NativeName: &native,
+		Loop:       true,
+	}); err != nil {
+		t.Fatalf("create native effect: %v", err)
+	}
+
+	got, err := s.LoadEffect(ctx, "eff-native")
+	if err != nil {
+		t.Fatalf("load native effect: %v", err)
+	}
+	if got.Kind != effect.KindNative {
+		t.Fatalf("kind = %q, want native", got.Kind)
+	}
+	if got.NativeName != "candle" {
+		t.Fatalf("native_name = %q, want candle", got.NativeName)
+	}
+	if !got.Loop {
+		t.Fatal("loop = false, want true")
+	}
+	if len(got.Steps) != 0 {
+		t.Fatalf("steps len = %d, want 0", len(got.Steps))
+	}
+}
+
+func TestLoadEffectNotFound(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	_, err := s.LoadEffect(ctx, "missing")
+	if err == nil {
+		t.Fatal("expected error for missing effect")
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("expected sql.ErrNoRows, got %v", err)
 	}
 }
