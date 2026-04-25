@@ -66,10 +66,24 @@ func BuildApplyCommands(
 		} else {
 			cmd = DefaultScenePayload(sr, did)
 		}
+		if isEmptyCommand(cmd) {
+			continue
+		}
 		cmd.Origin = origin
 		cmds = append(cmds, cmd)
 	}
 	return cmds
+}
+
+// isEmptyCommand returns true when capability gating has stripped every
+// state-changing field from a command. Scenes targeting a room or group can
+// reach devices that aren't controllable (buttons, sensors); the apply path
+// silently drops their commands so the watcher doesn't track an expected
+// state the device can never report. Transition is excluded from the check —
+// a transition-only command isn't useful on its own and doesn't make a device
+// "controllable" by itself.
+func isEmptyCommand(c device.Command) bool {
+	return c.On == nil && c.Brightness == nil && c.ColorTemp == nil && c.Color == nil
 }
 
 // DefaultScenePayload produces the warm-white "on" command a scene sends to a
@@ -128,18 +142,21 @@ func CommandToDesired(cmd device.Command) map[string]any {
 
 func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired map[string]any) device.Command {
 	cmd := device.Command{DeviceID: deviceID}
-	if v, ok := desired["on"]; ok {
+	d, hasDevice := sr.GetDevice(deviceID)
+	allow := func(cap string) bool { return hasDevice && hasWritableCapability(d, cap) }
+
+	if v, ok := desired["on"]; ok && allow(device.CapOnOff) {
 		if b, ok := v.(bool); ok {
 			cmd.On = device.Ptr(b)
 		}
 	}
-	if v, ok := desired["brightness"]; ok {
+	if v, ok := desired["brightness"]; ok && allow(device.CapBrightness) {
 		cmd.Brightness = device.Ptr(toInt(v))
 	}
-	if v, ok := desired["color_temp"]; ok {
+	if v, ok := desired["color_temp"]; ok && allow(device.CapColorTemp) {
 		cmd.ColorTemp = device.Ptr(toInt(v))
 	}
-	if v, ok := desired["color"]; ok {
+	if v, ok := desired["color"]; ok && allow(device.CapColor) {
 		if m, ok := v.(map[string]any); ok {
 			c := &device.Color{
 				R: toInt(m["r"]),
@@ -155,11 +172,11 @@ func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired
 			cmd.Color = c
 		}
 	}
-	if v, ok := desired["transition"]; ok {
+	if v, ok := desired["transition"]; ok && allow(device.CapBrightness) {
 		if f, ok := toFloat(v); ok {
 			cmd.Transition = device.Ptr(f)
 		}
-	} else if d, ok := sr.GetDevice(deviceID); ok && hasWritableCapability(d, device.CapBrightness) {
+	} else if allow(device.CapBrightness) {
 		cmd.Transition = device.Ptr(DefaultTransitionSeconds)
 	}
 	return cmd
