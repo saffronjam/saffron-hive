@@ -70,6 +70,8 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 		return
 	}
 
+	a.recordPendingOrigin(cmd.DeviceID, cmd.Origin)
+
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
 	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
 		logger.Error("failed to publish command", "topic", topic, "error", err)

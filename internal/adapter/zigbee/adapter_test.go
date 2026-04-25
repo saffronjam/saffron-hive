@@ -45,15 +45,15 @@ func TestStateChangePublishesEvent(t *testing.T) {
 			if e.DeviceID != "0xabc" {
 				t.Fatalf("expected device ID 0xabc, got %s", e.DeviceID)
 			}
-			state, ok := e.Payload.(device.DeviceState)
+			change, ok := e.Payload.(device.DeviceStateChange)
 			if !ok {
-				t.Fatal("expected DeviceState payload")
+				t.Fatal("expected DeviceStateChange payload")
 			}
-			if state.On == nil || !*state.On {
+			if change.State.On == nil || !*change.State.On {
 				t.Fatal("expected On=true")
 			}
-			if state.Brightness == nil || *state.Brightness != 200 {
-				t.Fatalf("expected Brightness=200, got %v", state.Brightness)
+			if change.State.Brightness == nil || *change.State.Brightness != 200 {
+				t.Fatalf("expected Brightness=200, got %v", change.State.Brightness)
 			}
 		}
 	}

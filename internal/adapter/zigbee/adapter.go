@@ -65,6 +65,15 @@ type ZigbeeAdapter struct {
 	idToName     map[device.DeviceID]string
 	knownDevices map[device.DeviceID]struct{}
 
+	// pendingOrigin holds the origin of the most recent outgoing command per
+	// device. The next inbound state echo claims (and clears) the entry so the
+	// resulting EventDeviceStateChanged carries the source that produced it.
+	// Best-effort: state arriving without a pending origin is treated as drift
+	// (zero origin); subsequent foreign updates after a tagged echo are also
+	// untagged because the entry is cleared on first read.
+	pendingOriginMu sync.Mutex
+	pendingOrigin   map[device.DeviceID]device.CommandOrigin
+
 	// dispatchCh decouples paho's reader goroutine from the handlers that do
 	// the actual parsing, state writes, and event bus publishes. Paho's
 	// subscribe callbacks write to this channel and return immediately; a
@@ -84,17 +93,18 @@ type ZigbeeAdapter struct {
 // NewZigbeeAdapter creates a new adapter with the given dependencies.
 func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr StateReader) *ZigbeeAdapter {
 	return &ZigbeeAdapter{
-		mqtt:         mqtt,
-		bus:          bus,
-		stateWriter:  sw,
-		stateReader:  sr,
-		ieeeToID:     make(map[string]device.DeviceID),
-		nameToID:     make(map[string]device.DeviceID),
-		idToName:     make(map[device.DeviceID]string),
-		knownDevices: make(map[device.DeviceID]struct{}),
-		stopCh:       make(chan struct{}),
-		dispatchCh:   make(chan incomingMsg, dispatchBufferSize),
-		dispatchDone: make(chan struct{}),
+		mqtt:          mqtt,
+		bus:           bus,
+		stateWriter:   sw,
+		stateReader:   sr,
+		ieeeToID:      make(map[string]device.DeviceID),
+		nameToID:      make(map[string]device.DeviceID),
+		idToName:      make(map[device.DeviceID]string),
+		knownDevices:  make(map[device.DeviceID]struct{}),
+		pendingOrigin: make(map[device.DeviceID]device.CommandOrigin),
+		stopCh:        make(chan struct{}),
+		dispatchCh:    make(chan incomingMsg, dispatchBufferSize),
+		dispatchDone:  make(chan struct{}),
 	}
 }
 
@@ -330,12 +340,33 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		return
 	}
 	a.stateWriter.UpdateDeviceState(id, state)
+	origin := a.consumePendingOrigin(id)
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  string(id),
 		Timestamp: now,
-		Payload:   state,
+		Payload:   device.DeviceStateChange{State: state, Origin: origin},
 	})
+}
+
+func (a *ZigbeeAdapter) recordPendingOrigin(id device.DeviceID, origin device.CommandOrigin) {
+	if origin.IsZero() {
+		return
+	}
+	a.pendingOriginMu.Lock()
+	a.pendingOrigin[id] = origin
+	a.pendingOriginMu.Unlock()
+}
+
+func (a *ZigbeeAdapter) consumePendingOrigin(id device.DeviceID) device.CommandOrigin {
+	a.pendingOriginMu.Lock()
+	defer a.pendingOriginMu.Unlock()
+	origin, ok := a.pendingOrigin[id]
+	if !ok {
+		return device.CommandOrigin{}
+	}
+	delete(a.pendingOrigin, id)
+	return origin
 }
 
 // hasAnyField reports whether any DeviceState pointer field is non-nil. Used
