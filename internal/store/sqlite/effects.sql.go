@@ -80,12 +80,17 @@ func (q *Queries) CreateEffectStep(ctx context.Context, arg CreateEffectStepPara
 	return err
 }
 
-const deleteActiveEffect = `-- name: DeleteActiveEffect :exec
-DELETE FROM active_effects WHERE id = ?
+const deleteActiveEffectByTarget = `-- name: DeleteActiveEffectByTarget :exec
+DELETE FROM active_effects WHERE target_type = ? AND target_id = ?
 `
 
-func (q *Queries) DeleteActiveEffect(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteActiveEffect, id)
+type DeleteActiveEffectByTargetParams struct {
+	TargetType string
+	TargetID   string
+}
+
+func (q *Queries) DeleteActiveEffectByTarget(ctx context.Context, arg DeleteActiveEffectByTargetParams) error {
+	_, err := q.db.ExecContext(ctx, deleteActiveEffectByTarget, arg.TargetType, arg.TargetID)
 	return err
 }
 
@@ -117,31 +122,6 @@ func (q *Queries) DeleteVolatileActiveEffects(ctx context.Context) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected()
-}
-
-const getActiveEffectByTarget = `-- name: GetActiveEffectByTarget :one
-SELECT id, effect_id, target_type, target_id, started_at, volatile
-FROM active_effects
-WHERE target_type = ? AND target_id = ?
-`
-
-type GetActiveEffectByTargetParams struct {
-	TargetType string
-	TargetID   string
-}
-
-func (q *Queries) GetActiveEffectByTarget(ctx context.Context, arg GetActiveEffectByTargetParams) (ActiveEffect, error) {
-	row := q.db.QueryRowContext(ctx, getActiveEffectByTarget, arg.TargetType, arg.TargetID)
-	var i ActiveEffect
-	err := row.Scan(
-		&i.ID,
-		&i.EffectID,
-		&i.TargetType,
-		&i.TargetID,
-		&i.StartedAt,
-		&i.Volatile,
-	)
-	return i, err
 }
 
 const getEffect = `-- name: GetEffect :one

@@ -61,13 +61,8 @@ ON CONFLICT(target_type, target_id) DO UPDATE SET
     started_at = excluded.started_at,
     volatile   = excluded.volatile;
 
--- name: DeleteActiveEffect :exec
-DELETE FROM active_effects WHERE id = ?;
-
--- name: GetActiveEffectByTarget :one
-SELECT id, effect_id, target_type, target_id, started_at, volatile
-FROM active_effects
-WHERE target_type = ? AND target_id = ?;
+-- name: DeleteActiveEffectByTarget :exec
+DELETE FROM active_effects WHERE target_type = ? AND target_id = ?;
 
 -- name: ListActiveEffects :many
 SELECT id, effect_id, target_type, target_id, started_at, volatile

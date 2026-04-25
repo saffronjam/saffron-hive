@@ -57,7 +57,7 @@ type Querier interface {
 	CreateScene(ctx context.Context, arg CreateSceneParams) error
 	CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
-	DeleteActiveEffect(ctx context.Context, id string) error
+	DeleteActiveEffectByTarget(ctx context.Context, arg DeleteActiveEffectByTargetParams) error
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
@@ -74,7 +74,6 @@ type Querier interface {
 	DeleteSceneExpectedStatesByScene(ctx context.Context, sceneID string) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
-	GetActiveEffectByTarget(ctx context.Context, arg GetActiveEffectByTargetParams) (ActiveEffect, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
