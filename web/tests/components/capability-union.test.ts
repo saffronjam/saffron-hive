@@ -71,7 +71,13 @@ describe("resolveTargetDevices", () => {
   });
 
   it("room target: returns devices", () => {
-    const room: RoomLite = { id: "r1", devices: [{ id: "light-1" }, { id: "plug-1" }] };
+    const room: RoomLite = {
+      id: "r1",
+      members: [
+        { memberType: "device", memberId: "light-1" },
+        { memberType: "device", memberId: "plug-1" },
+      ],
+    };
     const got = resolveTargetDevices({ type: "room", id: "r1" }, [light, plug], [], [room]);
     expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
   });
@@ -112,7 +118,10 @@ describe("resolveTargetDevices", () => {
   });
 
   it("room inside group: follows room membership", () => {
-    const room: RoomLite = { id: "r1", devices: [{ id: "plug-1" }] };
+    const room: RoomLite = {
+      id: "r1",
+      members: [{ memberType: "device", memberId: "plug-1" }],
+    };
     const grp: GroupLite = {
       id: "g1",
       members: [

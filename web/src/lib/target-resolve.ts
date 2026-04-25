@@ -2,12 +2,16 @@ import type { Capability, Device } from "$lib/gql/graphql";
 
 export interface GroupLite {
   id: string;
+  name?: string;
+  icon?: string | null;
   members: { memberType: string; memberId: string }[];
 }
 
 export interface RoomLite {
   id: string;
-  devices: { id: string }[];
+  name?: string;
+  icon?: string | null;
+  members: { memberType: string; memberId: string }[];
 }
 
 export type TargetKind = "device" | "group" | "room";
@@ -54,7 +58,10 @@ export function resolveTargetDevices(
       seenRooms.add(id);
       const r = roomByID.get(id);
       if (!r) return;
-      for (const d of r.devices) walk("device", d.id);
+      for (const m of r.members) {
+        if (m.memberType === "device") walk("device", m.memberId);
+        else if (m.memberType === "group") walk("group", m.memberId);
+      }
     }
   }
 
