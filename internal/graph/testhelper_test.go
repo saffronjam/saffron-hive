@@ -16,11 +16,12 @@ import (
 )
 
 type testEnv struct {
-	server      *httptest.Server
-	stateReader *mockStateReader
-	store       *mockStore
-	bus         *eventbus.ChannelBus
-	reloader    *mockReloader
+	server       *httptest.Server
+	stateReader  *mockStateReader
+	store        *mockStore
+	bus          *eventbus.ChannelBus
+	reloader     *mockReloader
+	effectRunner *mockEffectRunner
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -29,6 +30,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	st := newMockStore()
 	bus := eventbus.NewChannelBus()
 	rl := &mockReloader{}
+	er := newMockEffectRunner(st)
 
 	levelVar := &slog.LevelVar{}
 	levelVar.Set(slog.LevelInfo)
@@ -39,6 +41,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		TargetResolver:     st,
 		EventBus:           bus,
 		AutomationReloader: rl,
+		EffectRunner:       er,
 		LogBuffer:          logging.NewBuffer(),
 		LevelVar:           levelVar,
 	}
@@ -52,11 +55,12 @@ func newTestEnv(t *testing.T) *testEnv {
 	t.Cleanup(ts.Close)
 
 	return &testEnv{
-		server:      ts,
-		stateReader: sr,
-		store:       st,
-		bus:         bus,
-		reloader:    rl,
+		server:       ts,
+		stateReader:  sr,
+		store:        st,
+		bus:          bus,
+		reloader:     rl,
+		effectRunner: er,
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -85,6 +86,8 @@ type mockStore struct {
 	activityCounter int64
 	users           map[string]store.User // keyed by id
 	mqttConfig      *store.MQTTConfig
+	effects         map[string]store.Effect
+	activeEffects   map[string]effect.ActiveEffectRecord
 
 	createSceneCalled      bool
 	deleteSceneCalled      bool
@@ -106,6 +109,8 @@ func newMockStore() *mockStore {
 		groups:          make(map[string]store.Group),
 		groupMembers:    make(map[string][]store.GroupMember),
 		users:           make(map[string]store.User),
+		effects:         make(map[string]store.Effect),
+		activeEffects:   make(map[string]effect.ActiveEffectRecord),
 	}
 }
 
@@ -837,6 +842,172 @@ func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetTyp
 	return []device.DeviceID{device.DeviceID(targetID)}
 }
 
+func (m *mockStore) CreateEffect(_ context.Context, params store.CreateEffectParams) (store.Effect, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	steps := make([]store.EffectStep, len(params.Steps))
+	for i, s := range params.Steps {
+		steps[i] = store.EffectStep{
+			ID:         s.ID,
+			EffectID:   params.ID,
+			Index:      s.Index,
+			Kind:       s.Kind,
+			ConfigJSON: s.ConfigJSON,
+		}
+	}
+	now := time.Now()
+	e := store.Effect{
+		ID:         params.ID,
+		Name:       params.Name,
+		Icon:       params.Icon,
+		Kind:       params.Kind,
+		NativeName: params.NativeName,
+		Loop:       params.Loop,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+		Steps:      steps,
+	}
+	m.effects[params.ID] = e
+	return e, nil
+}
+
+func (m *mockStore) GetEffect(_ context.Context, id string) (store.Effect, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	e, ok := m.effects[id]
+	if !ok {
+		return store.Effect{}, fmt.Errorf("effect %q not found", id)
+	}
+	return e, nil
+}
+
+func (m *mockStore) ListEffects(_ context.Context) ([]store.Effect, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]store.Effect, 0, len(m.effects))
+	for _, e := range m.effects {
+		out = append(out, e)
+	}
+	return out, nil
+}
+
+func (m *mockStore) UpdateEffect(_ context.Context, id string, params store.UpdateEffectParams) (store.Effect, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e, ok := m.effects[id]
+	if !ok {
+		return store.Effect{}, fmt.Errorf("effect %q not found", id)
+	}
+	if params.Name != nil {
+		e.Name = *params.Name
+	}
+	if params.SetIcon {
+		e.Icon = params.Icon
+	}
+	if params.Kind != nil {
+		e.Kind = *params.Kind
+	}
+	if params.SetNativeName {
+		e.NativeName = params.NativeName
+	}
+	if params.Loop != nil {
+		e.Loop = *params.Loop
+	}
+	e.UpdatedAt = time.Now()
+	m.effects[id] = e
+	return e, nil
+}
+
+func (m *mockStore) DeleteEffect(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.effects[id]; !ok {
+		return fmt.Errorf("effect %q not found", id)
+	}
+	delete(m.effects, id)
+	for k, ae := range m.activeEffects {
+		if ae.EffectID == id {
+			delete(m.activeEffects, k)
+		}
+	}
+	return nil
+}
+
+func (m *mockStore) SaveEffectSteps(_ context.Context, effectID string, steps []store.EffectStepInput) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	e, ok := m.effects[effectID]
+	if !ok {
+		return fmt.Errorf("effect %q not found", effectID)
+	}
+	out := make([]store.EffectStep, len(steps))
+	for i, s := range steps {
+		out[i] = store.EffectStep{
+			ID:         s.ID,
+			EffectID:   effectID,
+			Index:      s.Index,
+			Kind:       s.Kind,
+			ConfigJSON: s.ConfigJSON,
+		}
+	}
+	e.Steps = out
+	e.UpdatedAt = time.Now()
+	m.effects[effectID] = e
+	return nil
+}
+
+func (m *mockStore) LoadEffect(ctx context.Context, id string) (effect.Effect, error) {
+	row, err := m.GetEffect(ctx, id)
+	if err != nil {
+		return effect.Effect{}, err
+	}
+	steps := make([]effect.Step, 0, len(row.Steps))
+	for _, st := range row.Steps {
+		cfg, err := effect.UnmarshalConfig(st.Kind, []byte(st.ConfigJSON))
+		if err != nil {
+			return effect.Effect{}, err
+		}
+		steps = append(steps, effect.Step{ID: st.ID, Index: st.Index, Kind: st.Kind, Config: cfg})
+	}
+	out := effect.Effect{
+		ID:        row.ID,
+		Name:      row.Name,
+		Kind:      row.Kind,
+		Loop:      row.Loop,
+		Steps:     steps,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+	}
+	if row.Icon != nil {
+		out.Icon = *row.Icon
+	}
+	if row.NativeName != nil {
+		out.NativeName = *row.NativeName
+	}
+	return out, nil
+}
+
+func (m *mockStore) ListActiveEffects(_ context.Context) ([]effect.ActiveEffectRecord, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]effect.ActiveEffectRecord, 0, len(m.activeEffects))
+	for _, ae := range m.activeEffects {
+		out = append(out, ae)
+	}
+	return out, nil
+}
+
+func (m *mockStore) upsertActiveEffectRecord(rec effect.ActiveEffectRecord) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for k, ae := range m.activeEffects {
+		if ae.TargetType == rec.TargetType && ae.TargetID == rec.TargetID {
+			delete(m.activeEffects, k)
+		}
+	}
+	m.activeEffects[rec.ID] = rec
+}
+
 type mockReloader struct {
 	mu         sync.Mutex
 	called     bool
@@ -870,4 +1041,59 @@ func (m *mockReloader) FireManualTrigger(_ context.Context, automationID, nodeID
 	}
 	m.firedCalls = append(m.firedCalls, firedTrigger{automationID: automationID, nodeID: nodeID})
 	return nil
+}
+
+type mockEffectRunner struct {
+	mu         sync.Mutex
+	store      *mockStore
+	startCalls []effectStartCall
+	stopCalls  []effect.Target
+	runIDSeq   int
+	startErr   error
+}
+
+type effectStartCall struct {
+	effectID string
+	target   effect.Target
+}
+
+func newMockEffectRunner(st *mockStore) *mockEffectRunner {
+	return &mockEffectRunner{store: st}
+}
+
+func (m *mockEffectRunner) Start(_ context.Context, effectID string, target effect.Target) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.startErr != nil {
+		return "", m.startErr
+	}
+	m.runIDSeq++
+	runID := fmt.Sprintf("run-%d", m.runIDSeq)
+	m.startCalls = append(m.startCalls, effectStartCall{effectID: effectID, target: target})
+	if m.store != nil {
+		m.store.upsertActiveEffectRecord(effect.ActiveEffectRecord{
+			ID:         runID,
+			EffectID:   effectID,
+			TargetType: string(target.Type),
+			TargetID:   target.ID,
+			StartedAt:  time.Now(),
+		})
+	}
+	return runID, nil
+}
+
+func (m *mockEffectRunner) Stop(target effect.Target) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stopCalls = append(m.stopCalls, target)
+	if m.store != nil {
+		m.store.mu.Lock()
+		for k, ae := range m.store.activeEffects {
+			if ae.TargetType == string(target.Type) && ae.TargetID == target.ID {
+				delete(m.store.activeEffects, k)
+			}
+		}
+		m.store.mu.Unlock()
+	}
+	return true
 }
