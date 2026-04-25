@@ -40,6 +40,7 @@ const (
 	CapIlluminance = "illuminance"
 	CapBattery     = "battery"
 	CapAction      = "action"
+	CapEffect      = "effect"
 	CapPower       = "power"
 	CapVoltage     = "voltage"
 	CapCurrent     = "current"

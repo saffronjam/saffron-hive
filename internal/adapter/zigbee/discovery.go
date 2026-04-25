@@ -56,6 +56,7 @@ var knownCapabilities = map[string]string{
 	"illuminance": device.CapIlluminance,
 	"battery":     device.CapBattery,
 	"action":      device.CapAction,
+	"effect":      device.CapEffect,
 	"power":       device.CapPower,
 	"voltage":     device.CapVoltage,
 	"current":     device.CapCurrent,

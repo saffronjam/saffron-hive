@@ -440,6 +440,138 @@ func TestExtractCapabilities_RichMetadata(t *testing.T) {
 	}
 }
 
+func TestDiscoverDevices_HueBulbEffectCapability(t *testing.T) {
+	adapter, mqtt, _, sw := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
+		"ieee_address": "0xhuebulb",
+		"friendly_name": "hue_bulb",
+		"type": "Router",
+		"supported": true,
+		"definition": {
+			"model": "9290022166", "vendor": "Philips", "description": "Hue white and color ambiance",
+			"exposes": [
+				{"type": "light", "features": [
+					{"type": "binary", "name": "state", "property": "state", "access": 7},
+					{"type": "numeric", "name": "brightness", "property": "brightness", "access": 7}
+				]},
+				{"type": "enum", "name": "effect", "property": "effect", "access": 2,
+					"values": ["blink","breathe","okay","channel_change","candle","fireplace","colorloop","finish_effect","stop_effect","stop_hue_effect"]}
+			]
+		}
+	}]`))
+
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	dev, ok := sw.devices[device.DeviceID("0xhuebulb")]
+	if !ok {
+		t.Fatal("device not registered")
+	}
+
+	effect := findCap(t, dev.Capabilities, device.CapEffect)
+	if effect.Type != "enum" {
+		t.Fatalf("expected effect type enum, got %s", effect.Type)
+	}
+	want := []string{"blink", "breathe", "okay", "channel_change", "candle", "fireplace", "colorloop", "finish_effect", "stop_effect", "stop_hue_effect"}
+	if len(effect.Values) != len(want) {
+		t.Fatalf("expected %d effect values %v, got %d %v", len(want), want, len(effect.Values), effect.Values)
+	}
+	for i, v := range want {
+		if effect.Values[i] != v {
+			t.Fatalf("effect values[%d]: expected %q, got %q (full: %v)", i, v, effect.Values[i], effect.Values)
+		}
+	}
+}
+
+func TestDiscoverDevices_IdentifyOnlyEffectCapability(t *testing.T) {
+	adapter, mqtt, _, sw := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
+		"ieee_address": "0xgenericbulb",
+		"friendly_name": "generic_bulb",
+		"type": "Router",
+		"supported": true,
+		"definition": {
+			"model": "GENERIC", "vendor": "Generic", "description": "Generic bulb with Identify cluster",
+			"exposes": [
+				{"type": "light", "features": [
+					{"type": "binary", "name": "state", "property": "state", "access": 7},
+					{"type": "numeric", "name": "brightness", "property": "brightness", "access": 7}
+				]},
+				{"type": "enum", "name": "effect", "property": "effect", "access": 2,
+					"values": ["blink","breathe","okay","channel_change","finish_effect","stop_effect"]}
+			]
+		}
+	}]`))
+
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	dev, ok := sw.devices[device.DeviceID("0xgenericbulb")]
+	if !ok {
+		t.Fatal("device not registered")
+	}
+
+	effect := findCap(t, dev.Capabilities, device.CapEffect)
+	if effect.Type != "enum" {
+		t.Fatalf("expected effect type enum, got %s", effect.Type)
+	}
+	want := []string{"blink", "breathe", "okay", "channel_change", "finish_effect", "stop_effect"}
+	if len(effect.Values) != len(want) {
+		t.Fatalf("expected %d effect values %v, got %d %v", len(want), want, len(effect.Values), effect.Values)
+	}
+	for i, v := range want {
+		if effect.Values[i] != v {
+			t.Fatalf("effect values[%d]: expected %q, got %q (full: %v)", i, v, effect.Values[i], effect.Values)
+		}
+	}
+}
+
+func TestDiscoverDevices_NonLightHasNoEffectCapability(t *testing.T) {
+	adapter, mqtt, _, sw := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
+		"ieee_address": "0xbutton_no_effect",
+		"friendly_name": "wall_switch",
+		"type": "EndDevice",
+		"supported": true,
+		"definition": {
+			"model": "WXKG01LM", "vendor": "Aqara", "description": "Button",
+			"exposes": [
+				{"type": "enum", "name": "action", "property": "action", "access": 1,
+					"values": ["single","double","hold"]},
+				{"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%"}
+			]
+		}
+	}]`))
+
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	dev, ok := sw.devices[device.DeviceID("0xbutton_no_effect")]
+	if !ok {
+		t.Fatal("device not registered")
+	}
+	for _, c := range dev.Capabilities {
+		if c.Name == device.CapEffect {
+			t.Fatalf("expected no effect capability on non-light device, got %v", capNames(dev.Capabilities))
+		}
+	}
+}
+
 func assertCapNames(t *testing.T, got []device.Capability, wantNames []string) {
 	t.Helper()
 	gotNames := capNames(got)
