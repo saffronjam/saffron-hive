@@ -42,29 +42,39 @@ DELETE FROM rooms WHERE id = ?;
 DELETE FROM rooms
 WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
 
--- name: AddRoomDevice :exec
-INSERT INTO room_devices (room_id, device_id) VALUES (?, ?);
+-- name: AddRoomMember :exec
+INSERT INTO room_members (id, room_id, member_type, member_id)
+VALUES (?, ?, ?, ?);
 
--- name: AddRoomDeviceIfMissing :execrows
-INSERT OR IGNORE INTO room_devices (room_id, device_id) VALUES (?, ?);
+-- name: AddRoomMemberIfMissing :execrows
+INSERT OR IGNORE INTO room_members (id, room_id, member_type, member_id)
+VALUES (?, ?, ?, ?);
 
--- name: ListRoomDevices :many
-SELECT room_id, device_id FROM room_devices WHERE room_id = ?;
+-- name: ListRoomMembers :many
+SELECT id, room_id, member_type, member_id
+FROM room_members
+WHERE room_id = ?;
 
--- name: RemoveRoomDeviceByRoomAndDevice :exec
-DELETE FROM room_devices WHERE room_id = ? AND device_id = ?;
+-- name: RemoveRoomMember :exec
+DELETE FROM room_members WHERE id = ?;
 
--- name: ListRoomsContainingDevice :many
+-- name: ListRoomsContainingMember :many
 SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
 FROM rooms r
-INNER JOIN room_devices rd ON r.id = rd.room_id
+INNER JOIN room_members rm ON r.id = rm.room_id
 LEFT JOIN users u ON u.id = r.created_by
-WHERE rd.device_id = ?;
+WHERE rm.member_type = ? AND rm.member_id = ?;
 
--- name: ListRoomDeviceMemberships :many
-SELECT rd.room_id, rd.device_id, r.name AS room_name
-FROM room_devices rd
-INNER JOIN rooms r ON r.id = rd.room_id;
+-- name: ListRoomMemberships :many
+SELECT rm.id, rm.room_id, rm.member_type, rm.member_id, r.name AS room_name
+FROM room_members rm
+INNER JOIN rooms r ON r.id = rm.room_id;
+
+-- Cleanup of dangling polymorphic group references when a group is deleted.
+-- Mirrors group_members FK cascade for room-as-group-member; no FK because
+-- member_id is polymorphic.
+-- name: RemoveRoomMembersByGroup :exec
+DELETE FROM room_members WHERE member_type = 'group' AND member_id = ?;

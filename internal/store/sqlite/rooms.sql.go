@@ -8,33 +8,51 @@ package sqlite
 import (
 	"context"
 	"time"
+
+	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
-const addRoomDevice = `-- name: AddRoomDevice :exec
-INSERT INTO room_devices (room_id, device_id) VALUES (?, ?)
+const addRoomMember = `-- name: AddRoomMember :exec
+INSERT INTO room_members (id, room_id, member_type, member_id)
+VALUES (?, ?, ?, ?)
 `
 
-type AddRoomDeviceParams struct {
-	RoomID   string
-	DeviceID string
+type AddRoomMemberParams struct {
+	ID         string
+	RoomID     string
+	MemberType device.RoomMemberType
+	MemberID   string
 }
 
-func (q *Queries) AddRoomDevice(ctx context.Context, arg AddRoomDeviceParams) error {
-	_, err := q.db.ExecContext(ctx, addRoomDevice, arg.RoomID, arg.DeviceID)
+func (q *Queries) AddRoomMember(ctx context.Context, arg AddRoomMemberParams) error {
+	_, err := q.db.ExecContext(ctx, addRoomMember,
+		arg.ID,
+		arg.RoomID,
+		arg.MemberType,
+		arg.MemberID,
+	)
 	return err
 }
 
-const addRoomDeviceIfMissing = `-- name: AddRoomDeviceIfMissing :execrows
-INSERT OR IGNORE INTO room_devices (room_id, device_id) VALUES (?, ?)
+const addRoomMemberIfMissing = `-- name: AddRoomMemberIfMissing :execrows
+INSERT OR IGNORE INTO room_members (id, room_id, member_type, member_id)
+VALUES (?, ?, ?, ?)
 `
 
-type AddRoomDeviceIfMissingParams struct {
-	RoomID   string
-	DeviceID string
+type AddRoomMemberIfMissingParams struct {
+	ID         string
+	RoomID     string
+	MemberType device.RoomMemberType
+	MemberID   string
 }
 
-func (q *Queries) AddRoomDeviceIfMissing(ctx context.Context, arg AddRoomDeviceIfMissingParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, addRoomDeviceIfMissing, arg.RoomID, arg.DeviceID)
+func (q *Queries) AddRoomMemberIfMissing(ctx context.Context, arg AddRoomMemberIfMissingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, addRoomMemberIfMissing,
+		arg.ID,
+		arg.RoomID,
+		arg.MemberType,
+		arg.MemberID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -132,28 +150,27 @@ func (q *Queries) GetRoom(ctx context.Context, id string) (GetRoomRow, error) {
 	return i, err
 }
 
-const listRoomDeviceMemberships = `-- name: ListRoomDeviceMemberships :many
-SELECT rd.room_id, rd.device_id, r.name AS room_name
-FROM room_devices rd
-INNER JOIN rooms r ON r.id = rd.room_id
+const listRoomMembers = `-- name: ListRoomMembers :many
+SELECT id, room_id, member_type, member_id
+FROM room_members
+WHERE room_id = ?
 `
 
-type ListRoomDeviceMembershipsRow struct {
-	RoomID   string
-	DeviceID string
-	RoomName string
-}
-
-func (q *Queries) ListRoomDeviceMemberships(ctx context.Context) ([]ListRoomDeviceMembershipsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRoomDeviceMemberships)
+func (q *Queries) ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, error) {
+	rows, err := q.db.QueryContext(ctx, listRoomMembers, roomID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListRoomDeviceMembershipsRow
+	var items []RoomMember
 	for rows.Next() {
-		var i ListRoomDeviceMembershipsRow
-		if err := rows.Scan(&i.RoomID, &i.DeviceID, &i.RoomName); err != nil {
+		var i RoomMember
+		if err := rows.Scan(
+			&i.ID,
+			&i.RoomID,
+			&i.MemberType,
+			&i.MemberID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -167,20 +184,36 @@ func (q *Queries) ListRoomDeviceMemberships(ctx context.Context) ([]ListRoomDevi
 	return items, nil
 }
 
-const listRoomDevices = `-- name: ListRoomDevices :many
-SELECT room_id, device_id FROM room_devices WHERE room_id = ?
+const listRoomMemberships = `-- name: ListRoomMemberships :many
+SELECT rm.id, rm.room_id, rm.member_type, rm.member_id, r.name AS room_name
+FROM room_members rm
+INNER JOIN rooms r ON r.id = rm.room_id
 `
 
-func (q *Queries) ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error) {
-	rows, err := q.db.QueryContext(ctx, listRoomDevices, roomID)
+type ListRoomMembershipsRow struct {
+	ID         string
+	RoomID     string
+	MemberType device.RoomMemberType
+	MemberID   string
+	RoomName   string
+}
+
+func (q *Queries) ListRoomMemberships(ctx context.Context) ([]ListRoomMembershipsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRoomMemberships)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RoomDevice
+	var items []ListRoomMembershipsRow
 	for rows.Next() {
-		var i RoomDevice
-		if err := rows.Scan(&i.RoomID, &i.DeviceID); err != nil {
+		var i ListRoomMembershipsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RoomID,
+			&i.MemberType,
+			&i.MemberID,
+			&i.RoomName,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -246,18 +279,23 @@ func (q *Queries) ListRooms(ctx context.Context) ([]ListRoomsRow, error) {
 	return items, nil
 }
 
-const listRoomsContainingDevice = `-- name: ListRoomsContainingDevice :many
+const listRoomsContainingMember = `-- name: ListRoomsContainingMember :many
 SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
 FROM rooms r
-INNER JOIN room_devices rd ON r.id = rd.room_id
+INNER JOIN room_members rm ON r.id = rm.room_id
 LEFT JOIN users u ON u.id = r.created_by
-WHERE rd.device_id = ?
+WHERE rm.member_type = ? AND rm.member_id = ?
 `
 
-type ListRoomsContainingDeviceRow struct {
+type ListRoomsContainingMemberParams struct {
+	MemberType device.RoomMemberType
+	MemberID   string
+}
+
+type ListRoomsContainingMemberRow struct {
 	ID              string
 	Name            string
 	Icon            *string
@@ -268,15 +306,15 @@ type ListRoomsContainingDeviceRow struct {
 	CreatorName     *string
 }
 
-func (q *Queries) ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]ListRoomsContainingDeviceRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRoomsContainingDevice, deviceID)
+func (q *Queries) ListRoomsContainingMember(ctx context.Context, arg ListRoomsContainingMemberParams) ([]ListRoomsContainingMemberRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRoomsContainingMember, arg.MemberType, arg.MemberID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListRoomsContainingDeviceRow
+	var items []ListRoomsContainingMemberRow
 	for rows.Next() {
-		var i ListRoomsContainingDeviceRow
+		var i ListRoomsContainingMemberRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -300,17 +338,24 @@ func (q *Queries) ListRoomsContainingDevice(ctx context.Context, deviceID string
 	return items, nil
 }
 
-const removeRoomDeviceByRoomAndDevice = `-- name: RemoveRoomDeviceByRoomAndDevice :exec
-DELETE FROM room_devices WHERE room_id = ? AND device_id = ?
+const removeRoomMember = `-- name: RemoveRoomMember :exec
+DELETE FROM room_members WHERE id = ?
 `
 
-type RemoveRoomDeviceByRoomAndDeviceParams struct {
-	RoomID   string
-	DeviceID string
+func (q *Queries) RemoveRoomMember(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, removeRoomMember, id)
+	return err
 }
 
-func (q *Queries) RemoveRoomDeviceByRoomAndDevice(ctx context.Context, arg RemoveRoomDeviceByRoomAndDeviceParams) error {
-	_, err := q.db.ExecContext(ctx, removeRoomDeviceByRoomAndDevice, arg.RoomID, arg.DeviceID)
+const removeRoomMembersByGroup = `-- name: RemoveRoomMembersByGroup :exec
+DELETE FROM room_members WHERE member_type = 'group' AND member_id = ?
+`
+
+// Cleanup of dangling polymorphic group references when a group is deleted.
+// Mirrors group_members FK cascade for room-as-group-member; no FK because
+// member_id is polymorphic.
+func (q *Queries) RemoveRoomMembersByGroup(ctx context.Context, memberID string) error {
+	_, err := q.db.ExecContext(ctx, removeRoomMembersByGroup, memberID)
 	return err
 }
 

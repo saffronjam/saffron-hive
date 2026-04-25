@@ -115,9 +115,11 @@ type Room struct {
 	CreatedBy *string
 }
 
-type RoomDevice struct {
-	RoomID   string
-	DeviceID string
+type RoomMember struct {
+	ID         string
+	RoomID     string
+	MemberType device.RoomMemberType
+	MemberID   string
 }
 
 type Scene struct {

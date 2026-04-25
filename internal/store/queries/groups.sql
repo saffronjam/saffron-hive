@@ -61,3 +61,11 @@ FROM groups g
 INNER JOIN group_members gm ON g.id = gm.group_id
 LEFT JOIN users u ON u.id = g.created_by
 WHERE gm.member_type = ? AND gm.member_id = ?;
+
+-- name: ListAllGroupMemberships :many
+SELECT id, group_id, member_type, member_id FROM group_members;
+
+-- Cleanup of dangling polymorphic room references when a room is deleted.
+-- group_members.member_id is polymorphic so no FK; mirror the same intent.
+-- name: RemoveGroupMembersByRoom :exec
+DELETE FROM group_members WHERE member_type = 'room' AND member_id = ?;

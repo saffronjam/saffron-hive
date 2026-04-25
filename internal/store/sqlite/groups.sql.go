@@ -144,6 +144,38 @@ func (q *Queries) GetGroup(ctx context.Context, id string) (GetGroupRow, error) 
 	return i, err
 }
 
+const listAllGroupMemberships = `-- name: ListAllGroupMemberships :many
+SELECT id, group_id, member_type, member_id FROM group_members
+`
+
+func (q *Queries) ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error) {
+	rows, err := q.db.QueryContext(ctx, listAllGroupMemberships)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GroupMember
+	for rows.Next() {
+		var i GroupMember
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.MemberType,
+			&i.MemberID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroupMembers = `-- name: ListGroupMembers :many
 SELECT id, group_id, member_type, member_id
 FROM group_members
@@ -295,6 +327,17 @@ DELETE FROM group_members WHERE id = ?
 
 func (q *Queries) RemoveGroupMember(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, removeGroupMember, id)
+	return err
+}
+
+const removeGroupMembersByRoom = `-- name: RemoveGroupMembersByRoom :exec
+DELETE FROM group_members WHERE member_type = 'room' AND member_id = ?
+`
+
+// Cleanup of dangling polymorphic room references when a room is deleted.
+// group_members.member_id is polymorphic so no FK; mirror the same intent.
+func (q *Queries) RemoveGroupMembersByRoom(ctx context.Context, memberID string) error {
+	_, err := q.db.ExecContext(ctx, removeGroupMembersByRoom, memberID)
 	return err
 }
 

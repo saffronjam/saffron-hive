@@ -14,8 +14,8 @@ import (
 type Querier interface {
 	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
 	AddGroupMemberIfMissing(ctx context.Context, arg AddGroupMemberIfMissingParams) (int64, error)
-	AddRoomDevice(ctx context.Context, arg AddRoomDeviceParams) error
-	AddRoomDeviceIfMissing(ctx context.Context, arg AddRoomDeviceIfMissingParams) (int64, error)
+	AddRoomMember(ctx context.Context, arg AddRoomMemberParams) error
+	AddRoomMemberIfMissing(ctx context.Context, arg AddRoomMemberIfMissingParams) (int64, error)
 	BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIdsJson string) (int64, error)
 	BatchDeleteAutomations(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteGroups(ctx context.Context, idsJson string) (int64, error)
@@ -100,6 +100,7 @@ type Querier interface {
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
+	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
 	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
@@ -110,10 +111,10 @@ type Querier interface {
 	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
-	ListRoomDeviceMemberships(ctx context.Context) ([]ListRoomDeviceMembershipsRow, error)
-	ListRoomDevices(ctx context.Context, roomID string) ([]RoomDevice, error)
+	ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, error)
+	ListRoomMemberships(ctx context.Context) ([]ListRoomMembershipsRow, error)
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
-	ListRoomsContainingDevice(ctx context.Context, deviceID string) ([]ListRoomsContainingDeviceRow, error)
+	ListRoomsContainingMember(ctx context.Context, arg ListRoomsContainingMemberParams) ([]ListRoomsContainingMemberRow, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
 	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error)
 	ListSceneExpectedStates(ctx context.Context, sceneID string) ([]SceneExpectedState, error)
@@ -136,7 +137,14 @@ type Querier interface {
 	QueryStateHistoryRaw(ctx context.Context, arg QueryStateHistoryRawParams) ([]QueryStateHistoryRawRow, error)
 	RegisterZigbeeDevice(ctx context.Context, arg RegisterZigbeeDeviceParams) error
 	RemoveGroupMember(ctx context.Context, id string) error
-	RemoveRoomDeviceByRoomAndDevice(ctx context.Context, arg RemoveRoomDeviceByRoomAndDeviceParams) error
+	// Cleanup of dangling polymorphic room references when a room is deleted.
+	// group_members.member_id is polymorphic so no FK; mirror the same intent.
+	RemoveGroupMembersByRoom(ctx context.Context, memberID string) error
+	RemoveRoomMember(ctx context.Context, id string) error
+	// Cleanup of dangling polymorphic group references when a group is deleted.
+	// Mirrors group_members FK cascade for room-as-group-member; no FK because
+	// member_id is polymorphic.
+	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
 	// Partial update via COALESCE(narg, col) gate. Nil narg values leave their
