@@ -26,6 +26,14 @@ export interface BuildTargetTreeOptions {
    * unrolls.
    */
   maxDepth?: number;
+  /**
+   * Predicate deciding whether a device should appear as a leaf. Devices that
+   * fail the filter are dropped from the tree and excluded from reachableCount
+   * — folders that contain only filtered-out devices end up empty. The scene
+   * editor passes `isSceneTarget` so buttons / non-controllable devices don't
+   * surface in the target picker.
+   */
+  deviceFilter?: (device: Device) => boolean;
 }
 
 /**
@@ -43,6 +51,7 @@ export function buildTargetTree(
   options: BuildTargetTreeOptions = {},
 ): TargetTreeNode {
   const maxDepth = options.maxDepth ?? 5;
+  const deviceFilter = options.deviceFilter ?? (() => true);
   const groupByID = new Map(groupsLite.map((g) => [g.id, g]));
   const roomByID = new Map(roomsLite.map((r) => [r.id, r]));
 
@@ -54,7 +63,8 @@ export function buildTargetTree(
       if (seen.has(sk)) return;
       seen.add(sk);
       if (t === "device") {
-        if (devicesById.has(i)) out.add(i);
+        const d = devicesById.get(i);
+        if (d && deviceFilter(d)) out.add(i);
         return;
       }
       if (t === "group") {
@@ -77,13 +87,14 @@ export function buildTargetTree(
     id: string,
     depth: number,
     seen: Set<string>,
-  ): TargetTreeNode {
+  ): TargetTreeNode | null {
     if (type === "device") {
       const device = devicesById.get(id);
+      if (!device || !deviceFilter(device)) return null;
       return {
         kind: "device",
         key: `${keyPrefix}:device:${id}`,
-        device: device ?? ({ id, name: id, type: "device", capabilities: [] } as unknown as Device),
+        device,
       };
     }
 
@@ -114,9 +125,11 @@ export function buildTargetTree(
       const nextSeen = new Set(seen);
       nextSeen.add(sk);
       if (g) {
-        folder.children = g.members.map((m, i) =>
-          build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
-        );
+        folder.children = g.members
+          .map((m, i) =>
+            build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
+          )
+          .filter((c): c is TargetTreeNode => c !== null);
       }
       return folder;
     }
@@ -143,12 +156,27 @@ export function buildTargetTree(
     const nextSeen = new Set(seen);
     nextSeen.add(sk);
     if (r) {
-      folder.children = r.members.map((m, i) =>
-        build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
-      );
+      folder.children = r.members
+        .map((m, i) =>
+          build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
+        )
+        .filter((c): c is TargetTreeNode => c !== null);
     }
     return folder;
   }
 
-  return build(rootKey, target.type, target.id, 0, new Set());
+  // Top-level call: device targets that fail the filter still need a tree
+  // node for the existing top row to render — the editor decides separately
+  // whether to drop them. Fall back to a synthetic device node when the
+  // filter excludes a directly-targeted device so the caller can see it.
+  const result = build(rootKey, target.type, target.id, 0, new Set());
+  if (result) return result;
+  const fallback = devicesById.get(target.id);
+  return {
+    kind: "device",
+    key: `${rootKey}:device:${target.id}`,
+    device:
+      fallback ??
+      ({ id: target.id, name: target.id, type: "device", capabilities: [] } as unknown as Device),
+  };
 }
