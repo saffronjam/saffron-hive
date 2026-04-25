@@ -14,10 +14,13 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	ch := bus.Subscribe(eventbus.EventDeviceStateChanged, eventbus.EventDeviceActionFired)
 
-	light := device.DeviceState{
-		On:         ptr(true),
-		Brightness: ptr(80),
-		Color:      &device.Color{R: 255, G: 128, B: 0, X: 0.5, Y: 0.4},
+	light := device.DeviceStateChange{
+		State: device.DeviceState{
+			On:         ptr(true),
+			Brightness: ptr(80),
+			Color:      &device.Color{R: 255, G: 128, B: 0, X: 0.5, Y: 0.4},
+		},
+		Origin: device.OriginUser(),
 	}
 	bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
@@ -27,21 +30,26 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 	})
 
 	got := <-ch
-	ls, ok := got.Payload.(device.DeviceState)
+	ls, ok := got.Payload.(device.DeviceStateChange)
 	if !ok {
-		t.Fatal("payload type assertion to DeviceState failed")
+		t.Fatal("payload type assertion to DeviceStateChange failed")
 	}
-	if *ls.Brightness != 80 {
-		t.Fatalf("expected brightness 80, got %d", *ls.Brightness)
+	if *ls.State.Brightness != 80 {
+		t.Fatalf("expected brightness 80, got %d", *ls.State.Brightness)
 	}
-	if ls.Color.R != 255 {
-		t.Fatalf("expected color R 255, got %d", ls.Color.R)
+	if ls.State.Color.R != 255 {
+		t.Fatalf("expected color R 255, got %d", ls.State.Color.R)
+	}
+	if ls.Origin.Kind != device.OriginKindUser {
+		t.Fatalf("expected origin user, got %q", ls.Origin.Kind)
 	}
 
-	sensor := device.DeviceState{
-		Temperature: ptr(21.5),
-		Humidity:    ptr(55.0),
-		Battery:     ptr(87),
+	sensor := device.DeviceStateChange{
+		State: device.DeviceState{
+			Temperature: ptr(21.5),
+			Humidity:    ptr(55.0),
+			Battery:     ptr(87),
+		},
 	}
 	bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
@@ -51,15 +59,18 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 	})
 
 	got = <-ch
-	ss, ok := got.Payload.(device.DeviceState)
+	ss, ok := got.Payload.(device.DeviceStateChange)
 	if !ok {
-		t.Fatal("payload type assertion to DeviceState failed")
+		t.Fatal("payload type assertion to DeviceStateChange failed")
 	}
-	if *ss.Temperature != 21.5 {
-		t.Fatalf("expected temperature 21.5, got %f", *ss.Temperature)
+	if *ss.State.Temperature != 21.5 {
+		t.Fatalf("expected temperature 21.5, got %f", *ss.State.Temperature)
 	}
-	if *ss.Battery != 87 {
-		t.Fatalf("expected battery 87, got %d", *ss.Battery)
+	if *ss.State.Battery != 87 {
+		t.Fatalf("expected battery 87, got %d", *ss.State.Battery)
+	}
+	if !ss.Origin.IsZero() {
+		t.Fatalf("expected zero origin, got %+v", ss.Origin)
 	}
 
 	action := device.Action{Action: "toggle"}
