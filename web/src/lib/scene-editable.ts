@@ -41,15 +41,30 @@ export interface SceneData {
 export interface GroupData {
   id: string;
   name: string;
+  icon?: string | null;
   members: GroupMemberData[];
   resolvedDevices: Device[];
+}
+
+export interface RoomMemberData {
+  id: string;
+  memberType: string;
+  memberId: string;
+  device?: Device | null;
+  group?: {
+    id: string;
+    name: string;
+    icon?: string | null;
+    resolvedDevices?: { id: string }[];
+  } | null;
 }
 
 export interface RoomData {
   id: string;
   name: string;
   icon?: string | null;
-  devices: Device[];
+  members: RoomMemberData[];
+  resolvedDevices: Device[];
 }
 
 export interface ActionPayload {

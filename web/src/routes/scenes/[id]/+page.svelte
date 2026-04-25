@@ -111,7 +111,7 @@
 							id
 							name
 							icon
-							devices {
+							resolvedDevices {
 								id
 								name
 								type
@@ -233,7 +233,81 @@
 				id
 				name
 				icon
-				devices {
+				members {
+					id
+					memberType
+					memberId
+					device {
+						id
+						name
+						type
+						source
+						available
+						lastSeen
+						capabilities { name type values valueMin valueMax unit access }
+						state {
+							on
+							brightness
+							colorTemp
+							color { r g b x y }
+							transition
+							temperature
+							humidity
+							pressure
+							illuminance
+							battery
+							power
+							voltage
+							current
+							energy
+						}
+					}
+					group {
+						id
+						name
+						icon
+						members {
+							id
+							memberType
+							memberId
+							device {
+								id
+								name
+								type
+								source
+								available
+							}
+							group { id name icon }
+							room { id name icon }
+						}
+						resolvedDevices {
+							id
+							name
+							type
+							source
+							available
+							lastSeen
+							capabilities { name type values valueMin valueMax unit access }
+							state {
+								on
+								brightness
+								colorTemp
+								color { r g b x y }
+								transition
+								temperature
+								humidity
+								pressure
+								illuminance
+								battery
+								power
+								voltage
+								current
+								energy
+							}
+						}
+					}
+				}
+				resolvedDevices {
 					id
 					name
 					type
@@ -436,11 +510,18 @@
 	const groupsLite = $derived<GroupLite[]>(
 		allGroups.map((g) => ({
 			id: g.id,
+			name: g.name,
+			icon: g.icon,
 			members: g.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
 		})),
 	);
 	const roomsLite = $derived<RoomLite[]>(
-		allRooms.map((r) => ({ id: r.id, devices: r.devices.map((d) => ({ id: d.id })) })),
+		allRooms.map((r) => ({
+			id: r.id,
+			name: r.name,
+			icon: r.icon,
+			members: r.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
+		})),
 	);
 
 	const existingTargetKeys = $derived(new Set(targets.map((t) => `${t.type}:${t.id}`)));
@@ -484,7 +565,7 @@
 					id: r.id,
 					name: r.name,
 					icon: DoorOpen,
-					badge: `${r.devices.length} device${r.devices.length === 1 ? "" : "s"}`,
+					badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
 				})),
 			});
 		}
