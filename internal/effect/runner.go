@@ -13,6 +13,14 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 )
 
+// Persistence and reboot recovery: Loop timeline runs are persisted to
+// active_effects with Volatile=false so they survive a restart; Hydrate
+// re-launches them from step 0. There is no mid-step resume — loops are
+// intended to be ambient and idempotent, so a hydrate-from-the-top is
+// indistinguishable from continuing the cycle. Native runs and non-loop
+// timeline runs are persisted with Volatile=true and wiped at the next
+// process startup before Hydrate runs.
+
 var logger = logging.Named("effect")
 
 // EffectStore is the narrow store contract the runner consumes. It returns
@@ -22,6 +30,10 @@ var logger = logging.Named("effect")
 // *store.DB satisfies this interface implicitly.
 type EffectStore interface {
 	LoadEffect(ctx context.Context, id string) (Effect, error)
+	UpsertActiveEffect(ctx context.Context, params UpsertActiveEffectParams) error
+	DeleteActiveEffect(ctx context.Context, targetType, targetID string) error
+	ListActiveEffects(ctx context.Context) ([]ActiveEffectRecord, error)
+	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
 }
 
 // NativeEffectStopper looks up the terminator name a device understands when
@@ -171,6 +183,28 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 
 	go r.run(runCtx, run, eff)
 
+	// Persistence runs after the worker is dispatched so a slow disk does
+	// not delay the run starting. A persistence error is logged and ignored:
+	// missing the active_effects row only costs reboot recovery for this run,
+	// and degrading correctness of the live run by failing the call would be
+	// worse.
+	volatile := !(eff.Loop && eff.Kind == KindTimeline)
+	if err := r.store.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+		ID:         runID,
+		EffectID:   eff.ID,
+		TargetType: string(target.Type),
+		TargetID:   target.ID,
+		StartedAt:  time.Now(),
+		Volatile:   volatile,
+	}); err != nil {
+		logger.Error("persist active effect failed",
+			"run_id", runID,
+			"effect_id", eff.ID,
+			"target_type", target.Type,
+			"target_id", target.ID,
+			"error", err)
+	}
+
 	return runID, nil
 }
 
@@ -192,7 +226,49 @@ func (r *Runner) Stop(target Target) bool {
 		return false
 	}
 	r.preempt(run)
+	r.deleteActive(run.target)
 	return true
+}
+
+// Hydrate reconciles persisted active_effects rows after a restart. Volatile
+// rows from any previous lifetime are wiped first; surviving rows are
+// re-launched from step 0. Per-row launch failures (effect deleted, target
+// invalid) are logged and skipped — one bad row never bails the whole
+// hydrate.
+func (r *Runner) Hydrate(ctx context.Context) error {
+	if _, err := r.store.DeleteVolatileActiveEffects(ctx); err != nil {
+		return fmt.Errorf("effect runner: purge volatile active effects: %w", err)
+	}
+
+	rows, err := r.store.ListActiveEffects(ctx)
+	if err != nil {
+		return fmt.Errorf("effect runner: list active effects: %w", err)
+	}
+
+	for _, row := range rows {
+		target := Target{Type: device.TargetType(row.TargetType), ID: row.TargetID}
+		if _, err := r.Start(ctx, row.EffectID, target); err != nil {
+			logger.Error("hydrate active effect failed",
+				"row_id", row.ID,
+				"effect_id", row.EffectID,
+				"target_type", row.TargetType,
+				"target_id", row.TargetID,
+				"error", err)
+		}
+	}
+	return nil
+}
+
+// deleteActive removes the persisted active_effects row for target. Errors
+// are logged and ignored: a stale row only degrades reboot recovery, never
+// the live run.
+func (r *Runner) deleteActive(target Target) {
+	if err := r.store.DeleteActiveEffect(context.Background(), string(target.Type), target.ID); err != nil {
+		logger.Error("delete active effect failed",
+			"target_type", target.Type,
+			"target_id", target.ID,
+			"error", err)
+	}
 }
 
 // preempt cancels run's worker context, blocks until the worker has
@@ -251,13 +327,20 @@ func (r *Runner) run(ctx context.Context, run *activeRun, eff Effect) {
 
 // unregister removes run from the active registry only if it is still the
 // owner of its target slot. A preempting Start call has already swapped the
-// slot to the new run; clearing it here would race with the new run.
+// slot to the new run; clearing it here would race with the new run. The
+// persisted row is also deleted on natural completion so a non-loop run that
+// finishes does not leave an orphaned row for the next reboot.
 func (r *Runner) unregister(run *activeRun) {
 	key := keyFor(run.target)
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	if cur, ok := r.active[key]; ok && cur == run {
+	cur, ok := r.active[key]
+	stillOwner := ok && cur == run
+	if stillOwner {
 		delete(r.active, key)
+	}
+	r.mu.Unlock()
+	if stillOwner {
+		r.deleteActive(run.target)
 	}
 }
 

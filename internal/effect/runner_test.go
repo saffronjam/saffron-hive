@@ -12,13 +12,18 @@ import (
 )
 
 type fakeStore struct {
-	mu      sync.Mutex
-	effects map[string]Effect
-	err     error
+	mu        sync.Mutex
+	effects   map[string]Effect
+	active    map[string]ActiveEffectRecord
+	err       error
+	upsertErr error
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{effects: make(map[string]Effect)}
+	return &fakeStore{
+		effects: make(map[string]Effect),
+		active:  make(map[string]ActiveEffectRecord),
+	}
 }
 
 func (f *fakeStore) put(eff Effect) {
@@ -38,6 +43,73 @@ func (f *fakeStore) LoadEffect(_ context.Context, id string) (Effect, error) {
 		return Effect{}, errors.New("not found")
 	}
 	return eff, nil
+}
+
+func activeKey(targetType, targetID string) string {
+	return targetType + "\x00" + targetID
+}
+
+func (f *fakeStore) UpsertActiveEffect(_ context.Context, params UpsertActiveEffectParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.upsertErr != nil {
+		return f.upsertErr
+	}
+	f.active[activeKey(params.TargetType, params.TargetID)] = ActiveEffectRecord{
+		ID:         params.ID,
+		EffectID:   params.EffectID,
+		TargetType: params.TargetType,
+		TargetID:   params.TargetID,
+		StartedAt:  params.StartedAt,
+		Volatile:   params.Volatile,
+	}
+	return nil
+}
+
+func (f *fakeStore) DeleteActiveEffect(_ context.Context, targetType, targetID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.active, activeKey(targetType, targetID))
+	return nil
+}
+
+func (f *fakeStore) ListActiveEffects(_ context.Context) ([]ActiveEffectRecord, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]ActiveEffectRecord, 0, len(f.active))
+	for _, r := range f.active {
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+func (f *fakeStore) DeleteVolatileActiveEffects(_ context.Context) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var n int64
+	for k, r := range f.active {
+		if r.Volatile {
+			delete(f.active, k)
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (f *fakeStore) activeSnapshot() []ActiveEffectRecord {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]ActiveEffectRecord, 0, len(f.active))
+	for _, r := range f.active {
+		out = append(out, r)
+	}
+	return out
+}
+
+func (f *fakeStore) setUpsertErr(err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.upsertErr = err
 }
 
 type fakeReader struct {
