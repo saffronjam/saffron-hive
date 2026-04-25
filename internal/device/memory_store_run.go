@@ -65,8 +65,8 @@ func (s *MemoryStore) handleEvent(evt eventbus.Event) {
 			s.SetAvailability(id, avail)
 		}
 	case eventbus.EventDeviceStateChanged:
-		if state, ok := evt.Payload.(DeviceState); ok {
-			s.UpdateDeviceState(id, state)
+		if change, ok := evt.Payload.(DeviceStateChange); ok {
+			s.UpdateDeviceState(id, change.State)
 		}
 	}
 }
