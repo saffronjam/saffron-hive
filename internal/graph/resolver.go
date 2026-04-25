@@ -9,6 +9,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -28,6 +29,13 @@ type AutomationTriggerer interface {
 // MQTTReconnector reconnects the MQTT adapter with the latest DB config.
 type MQTTReconnector interface {
 	Reconnect(ctx context.Context) error
+}
+
+// EffectRunner is the narrow interface the GraphQL layer uses to start and
+// stop effect runs. *effect.Runner satisfies it implicitly.
+type EffectRunner interface {
+	Start(ctx context.Context, effectID string, target effect.Target) (string, error)
+	Stop(target effect.Target) bool
 }
 
 // GraphStore is the store surface the GraphQL layer touches. Every method is
@@ -91,6 +99,16 @@ type GraphStore interface {
 	RemoveRoomMember(ctx context.Context, id string) error
 	ListRoomsContainingMember(ctx context.Context, memberType device.RoomMemberType, memberID string) ([]store.Room, error)
 
+	// Effects
+	CreateEffect(ctx context.Context, params store.CreateEffectParams) (store.Effect, error)
+	GetEffect(ctx context.Context, id string) (store.Effect, error)
+	ListEffects(ctx context.Context) ([]store.Effect, error)
+	UpdateEffect(ctx context.Context, id string, params store.UpdateEffectParams) (store.Effect, error)
+	DeleteEffect(ctx context.Context, id string) error
+	SaveEffectSteps(ctx context.Context, effectID string, steps []store.EffectStepInput) error
+	LoadEffect(ctx context.Context, id string) (effect.Effect, error)
+	ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord, error)
+
 	// State history, activity, settings, mqtt, users
 	QueryStateHistory(ctx context.Context, query store.StateHistoryQuery) ([]store.StateHistoryPoint, error)
 	QueryActivityEvents(ctx context.Context, query store.ActivityQuery) ([]store.ActivityEvent, error)
@@ -128,6 +146,7 @@ type Resolver struct {
 	AlarmBuffer         *alarms.Buffer
 	LevelVar            *slog.LevelVar
 	Reconnector         MQTTReconnector
+	EffectRunner        EffectRunner
 	Auth                *auth.Service
 	// AvatarDir is the filesystem directory where per-user avatar files live.
 	// Used by deleteUser to remove the file alongside the row.
