@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 )
 
 // CreateDeviceParams holds the parameters for creating a new device.
@@ -487,4 +488,93 @@ type InsertAlarmParams struct {
 	Message  string
 	Source   string
 	RaisedAt time.Time
+}
+
+// CreateEffectParams holds the parameters for creating a new effect. Steps is
+// optional at create time; callers can populate steps later via SaveEffectSteps.
+type CreateEffectParams struct {
+	ID         string
+	Name       string
+	Icon       *string
+	Kind       effect.Kind
+	NativeName *string
+	Loop       bool
+	CreatedBy  *string
+	Steps      []EffectStepInput
+}
+
+// UpdateEffectParams holds optional fields for updating an effect. Nil pointers
+// leave the corresponding column untouched. SetIcon / SetNativeName distinguish
+// "leave alone" from "set / clear" so the nullable columns can be cleared
+// explicitly without conflating with "no-op".
+type UpdateEffectParams struct {
+	Name          *string
+	SetIcon       bool
+	Icon          *string
+	Kind          *effect.Kind
+	SetNativeName bool
+	NativeName    *string
+	Loop          *bool
+}
+
+// EffectStepInput is one step in a save-effect-steps batch. The caller picks
+// the ID; Index is the step's position in the timeline (must be unique within
+// the effect). ConfigJSON is the marshalled step config.
+type EffectStepInput struct {
+	ID         string
+	Index      int
+	Kind       effect.StepKind
+	ConfigJSON string
+}
+
+// EffectStep is the persistence-layer representation of a single effect step,
+// returned alongside the parent Effect. ConfigJSON is the raw on-disk JSON;
+// callers parse it with effect.UnmarshalConfig.
+type EffectStep struct {
+	ID         string
+	EffectID   string
+	Index      int
+	Kind       effect.StepKind
+	ConfigJSON string
+}
+
+// Effect is the persistence-layer representation of an effect row paired with
+// its step list. Frontend / runtime code maps this to the domain effect.Effect
+// (with parsed StepConfig payloads).
+type Effect struct {
+	ID         string
+	Name       string
+	Icon       *string
+	Kind       effect.Kind
+	NativeName *string
+	Loop       bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	CreatedBy  *UserRef
+	Steps      []EffectStep
+}
+
+// UpsertActiveEffectParams holds the parameters for marking a target as having
+// an active effect. (target_type, target_id) is unique; an existing row for
+// the target is updated rather than duplicated.
+type UpsertActiveEffectParams struct {
+	ID         string
+	EffectID   string
+	TargetType string
+	TargetID   string
+	StartedAt  time.Time
+	Volatile   bool
+}
+
+// ActiveEffect is one (target, effect) row marking that an effect is currently
+// running on the target. Volatile rows are wiped at process startup
+// (DeleteVolatileActiveEffects); non-volatile rows survive a restart so the
+// runner can resume them.
+type ActiveEffect struct {
+	ID         string
+	EffectID   string
+	TargetType string
+	TargetID   string
+	StartedAt  time.Time
+	Volatile   bool
 }
