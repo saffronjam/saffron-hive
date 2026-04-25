@@ -37,6 +37,9 @@ func TestMutationSetDeviceState(t *testing.T) {
 		if cmd.Brightness == nil || *cmd.Brightness != 200 {
 			t.Errorf("expected brightness 200, got %v", cmd.Brightness)
 		}
+		if cmd.Origin.Kind != device.OriginKindUser {
+			t.Errorf("expected user origin, got %+v", cmd.Origin)
+		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for event")
 	}
@@ -48,7 +51,10 @@ func TestMutationApplyScene(t *testing.T) {
 	env.store.sceneActions["scene1"] = []store.SceneAction{
 		{SceneID: "scene1", TargetType: "device", TargetID: "d1"},
 	}
+	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1"})
 
+	cmdCh := env.bus.Subscribe(eventbus.EventCommandRequested)
+	defer env.bus.Unsubscribe(cmdCh)
 	ch := env.bus.Subscribe(eventbus.EventSceneApplied)
 	defer env.bus.Unsubscribe(ch)
 
@@ -68,6 +74,19 @@ func TestMutationApplyScene(t *testing.T) {
 	}
 	if data.ApplyScene.Name != "Evening" {
 		t.Errorf("expected name Evening, got %s", data.ApplyScene.Name)
+	}
+
+	select {
+	case evt := <-cmdCh:
+		cmd, ok := evt.Payload.(device.Command)
+		if !ok {
+			t.Fatalf("payload is not Command: %T", evt.Payload)
+		}
+		if cmd.Origin.Kind != device.OriginKindScene || cmd.Origin.ID != "scene1" {
+			t.Fatalf("expected scene origin scene1, got %+v", cmd.Origin)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for command")
 	}
 
 	select {

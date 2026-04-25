@@ -68,6 +68,7 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 		Brightness: state.Brightness.Value(),
 		ColorTemp:  state.ColorTemp.Value(),
 		Transition: state.Transition.Value(),
+		Origin:     device.OriginUser(),
 	}
 	if color := state.Color.Value(); color != nil {
 		cmd.Color = &device.Color{
@@ -122,7 +123,7 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		return nil, err
 	}
 
-	commands := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, actions, payloads)
+	commands := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, sceneID, actions, payloads)
 	for _, cmd := range commands {
 		r.EventBus.Publish(eventbus.Event{
 			Type:      eventbus.EventCommandRequested,
