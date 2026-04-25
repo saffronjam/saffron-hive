@@ -281,9 +281,11 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 				return false
 			}
 		case "transition":
-			// transition is a command modifier, not a state field — never
-			// a no-op match on its own, so force the command through.
-			return false
+			// transition is a command modifier, not a state field — skip
+			// it during the comparison. A command that only differs by
+			// transition is still a no-op when the device is already at
+			// the commanded state.
+			continue
 		default:
 			return false
 		}
