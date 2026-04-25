@@ -126,7 +126,11 @@ func (w *Watcher) Run(ctx context.Context) {
 				if evt.DeviceID == "" {
 					continue
 				}
-				w.handleDeviceStateChanged(ctx, device.DeviceID(evt.DeviceID))
+				var origin device.CommandOrigin
+				if change, ok := evt.Payload.(device.DeviceStateChange); ok {
+					origin = change.Origin
+				}
+				w.handleDeviceStateChanged(ctx, device.DeviceID(evt.DeviceID), origin)
 			}
 		}
 	}
@@ -147,7 +151,7 @@ func (w *Watcher) handleSceneApplied(ctx context.Context, sceneID string, applie
 		return
 	}
 
-	commands := BuildApplyCommands(ctx, w.resolver, w.reader, actions, payloads)
+	commands := BuildApplyCommands(ctx, w.resolver, w.reader, sceneID, actions, payloads)
 	if len(commands) == 0 {
 		return
 	}
@@ -177,7 +181,7 @@ func (w *Watcher) handleSceneApplied(ctx context.Context, sceneID string, applie
 	})
 }
 
-func (w *Watcher) handleDeviceStateChanged(ctx context.Context, deviceID device.DeviceID) {
+func (w *Watcher) handleDeviceStateChanged(ctx context.Context, deviceID device.DeviceID, _ device.CommandOrigin) {
 	w.mu.RLock()
 	sceneIDs := make([]string, 0, len(w.deviceIndex[deviceID]))
 	for id := range w.deviceIndex[deviceID] {

@@ -24,11 +24,14 @@ const DefaultTransitionSeconds = 0.4
 // BuildApplyCommands resolves a scene's target membership to a unique device
 // set (preserving action order, deduplicating across overlapping groups/rooms)
 // and produces one command per device: the explicit per-device payload if one
-// exists, else the capability-filtered warm-white default.
+// exists, else the capability-filtered warm-white default. Each command is
+// stamped with OriginScene(sceneID) so downstream consumers can attribute the
+// resulting state echo back to the originating scene.
 func BuildApplyCommands(
 	ctx context.Context,
 	tr device.TargetResolver,
 	sr device.StateReader,
+	sceneID string,
 	actions []store.SceneAction,
 	payloads []store.SceneDevicePayload,
 ) []device.Command {
@@ -49,16 +52,22 @@ func BuildApplyCommands(
 		}
 	}
 
+	origin := device.OriginScene(sceneID)
 	cmds := make([]device.Command, 0, len(order))
 	for _, did := range order {
+		var cmd device.Command
 		if raw, ok := payloadByDevice[did]; ok {
 			var desired map[string]any
 			if err := json.Unmarshal([]byte(raw), &desired); err == nil {
-				cmds = append(cmds, commandFromDesired(sr, did, desired))
-				continue
+				cmd = commandFromDesired(sr, did, desired)
+			} else {
+				cmd = DefaultScenePayload(sr, did)
 			}
+		} else {
+			cmd = DefaultScenePayload(sr, did)
 		}
-		cmds = append(cmds, DefaultScenePayload(sr, did))
+		cmd.Origin = origin
+		cmds = append(cmds, cmd)
 	}
 	return cmds
 }

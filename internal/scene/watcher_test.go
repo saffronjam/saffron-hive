@@ -209,7 +209,7 @@ func (f *watcherFixture) setDeviceState(id device.DeviceID, s device.DeviceState
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  string(id),
 		Timestamp: time.Now(),
-		Payload:   s,
+		Payload:   device.DeviceStateChange{State: s},
 	})
 }
 
@@ -464,7 +464,7 @@ func TestWatcher_Hydrate_PreservesMatchingScene(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "dev-1",
 		Timestamp: time.Now(),
-		Payload:   device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(200)},
+		Payload:   device.DeviceStateChange{State: device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(200)}},
 	})
 
 	select {
@@ -478,7 +478,7 @@ func TestWatcher_Hydrate_PreservesMatchingScene(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "dev-1",
 		Timestamp: time.Now(),
-		Payload:   device.DeviceState{On: device.Ptr(false)},
+		Payload:   device.DeviceStateChange{State: device.DeviceState{On: device.Ptr(false)}},
 	})
 	select {
 	case ev := <-deact:
