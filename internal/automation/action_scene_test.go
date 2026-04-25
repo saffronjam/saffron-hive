@@ -192,6 +192,35 @@ func TestActivateSceneDefaultFallbackCapabilityFiltered(t *testing.T) {
 	}
 }
 
+func TestActivateSceneStampsSceneOrigin(t *testing.T) {
+	bus := eventbus.NewChannelBus()
+	reader := newMockStateReader()
+	s := newMockStore()
+
+	s.setSceneActions("scene-7", []store.SceneAction{
+		{SceneID: "scene-7", TargetType: "device", TargetID: "light-1"},
+	})
+	s.setSceneDevicePayloads("scene-7", []store.SceneDevicePayload{
+		{SceneID: "scene-7", DeviceID: "light-1", Payload: `{"brightness": 100}`},
+	})
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor.ExecuteGraphAction(ActionConfig{ActionType: ActionActivateScene, Payload: "scene-7"})
+
+	select {
+	case evt := <-ch:
+		cmd := evt.Payload.(device.Command)
+		if cmd.Origin.Kind != device.OriginKindScene || cmd.Origin.ID != "scene-7" {
+			t.Fatalf("expected scene origin scene-7, got %+v", cmd.Origin)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected command to be published")
+	}
+}
+
 func drainCommands(t *testing.T, ch <-chan eventbus.Event, want int) []device.Command {
 	t.Helper()
 	out := make([]device.Command, 0, want)

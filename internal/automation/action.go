@@ -102,6 +102,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 		}
 
 		cmd := buildCommand(deviceID, desired)
+		cmd.Origin = device.OriginAutomation(cfg.AutomationID)
 		a.bus.Publish(eventbus.Event{
 			Type:      eventbus.EventCommandRequested,
 			DeviceID:  string(deviceID),
@@ -306,7 +307,7 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 		return
 	}
 
-	commands := scene.BuildApplyCommands(ctx, a.resolver, a.reader, actions, payloads)
+	commands := scene.BuildApplyCommands(ctx, a.resolver, a.reader, sceneID, actions, payloads)
 	for _, cmd := range commands {
 		if a.stateMatches(cmd.DeviceID, scene.CommandToDesired(cmd)) {
 			a.stateMatchSkips.Add(1)
