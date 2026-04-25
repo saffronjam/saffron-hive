@@ -18,9 +18,14 @@ const (
 	EventAutomationTriggered       EventType = "automation.triggered"
 	EventAutomationNodeActivated   EventType = "automation.node_activated"
 	// EventRoomMembershipChanged signals that some room/device membership
-	// changed (create/delete room, add/remove device). It carries no
+	// changed (create/delete room, add/remove member). It carries no
 	// payload; subscribers should refresh their own view of memberships.
 	EventRoomMembershipChanged EventType = "room.membership_changed"
+	// EventGroupMembershipChanged signals that some group membership changed
+	// (create/delete group, add/remove member). It carries no payload.
+	// The activity room cache subscribes to it because group reshuffles can
+	// change which room a device transitively belongs to.
+	EventGroupMembershipChanged EventType = "group.membership_changed"
 )
 
 // Event is the generic envelope carried by the bus.
