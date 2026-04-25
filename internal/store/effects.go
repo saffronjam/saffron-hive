@@ -175,6 +175,51 @@ func (s *DB) ListEffectSteps(ctx context.Context, effectID string) ([]EffectStep
 	return s.listEffectSteps(ctx, effectID)
 }
 
+// LoadEffect retrieves an effect by ID and returns it as a domain effect.Effect
+// with each step's StepConfig parsed from its on-disk JSON. The runner uses
+// this to fetch a ready-to-walk effect without ever depending on the
+// persistence-layer Effect / EffectStep shapes (which would create an import
+// cycle, since this package already imports internal/effect for Kind /
+// StepKind in the param/result structs).
+func (s *DB) LoadEffect(ctx context.Context, id string) (effect.Effect, error) {
+	row, err := s.GetEffect(ctx, id)
+	if err != nil {
+		return effect.Effect{}, err
+	}
+	steps := make([]effect.Step, 0, len(row.Steps))
+	for _, st := range row.Steps {
+		cfg, err := effect.UnmarshalConfig(st.Kind, []byte(st.ConfigJSON))
+		if err != nil {
+			return effect.Effect{}, fmt.Errorf("load effect %q step %d: %w", id, st.Index, err)
+		}
+		steps = append(steps, effect.Step{
+			ID:     st.ID,
+			Index:  st.Index,
+			Kind:   st.Kind,
+			Config: cfg,
+		})
+	}
+	out := effect.Effect{
+		ID:        row.ID,
+		Name:      row.Name,
+		Kind:      row.Kind,
+		Loop:      row.Loop,
+		Steps:     steps,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+	}
+	if row.Icon != nil {
+		out.Icon = *row.Icon
+	}
+	if row.NativeName != nil {
+		out.NativeName = *row.NativeName
+	}
+	if row.CreatedBy != nil {
+		out.CreatedBy = row.CreatedBy.ID
+	}
+	return out, nil
+}
+
 func (s *DB) listEffectSteps(ctx context.Context, effectID string) ([]EffectStep, error) {
 	rows, err := s.q.ListEffectSteps(ctx, effectID)
 	if err != nil {
