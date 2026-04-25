@@ -23,6 +23,8 @@ type Querier interface {
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
 	ClearAutomationIcon(ctx context.Context, id string) error
+	ClearEffectIcon(ctx context.Context, id string) error
+	ClearEffectNativeName(ctx context.Context, id string) error
 	ClearGroupIcon(ctx context.Context, id string) error
 	ClearRoomIcon(ctx context.Context, id string) error
 	ClearSceneActivatedAt(ctx context.Context, id string) error
@@ -40,6 +42,8 @@ type Querier interface {
 	// before hitting these queries and unmarshals on read (with a legacy format
 	// fallback preserved in mapper.go).
 	CreateDevice(ctx context.Context, arg CreateDeviceParams) error
+	CreateEffect(ctx context.Context, arg CreateEffectParams) error
+	CreateEffectStep(ctx context.Context, arg CreateEffectStepParams) error
 	// Same join shape as rooms; member table is group_members with typed member_type.
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	// Rooms share the same read-shape with scenes/groups/automations: the row is
@@ -53,11 +57,14 @@ type Querier interface {
 	CreateScene(ctx context.Context, arg CreateSceneParams) error
 	CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	DeleteActiveEffect(ctx context.Context, id string) error
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
+	DeleteEffect(ctx context.Context, id string) error
+	DeleteEffectStepsByEffect(ctx context.Context, effectID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
@@ -66,8 +73,11 @@ type Querier interface {
 	DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error)
 	DeleteSceneExpectedStatesByScene(ctx context.Context, sceneID string) error
 	DeleteUser(ctx context.Context, id string) error
+	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
+	GetActiveEffectByTarget(ctx context.Context, arg GetActiveEffectByTargetParams) (ActiveEffect, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
+	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetMQTTConfig(ctx context.Context) (GetMQTTConfigRow, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
@@ -98,6 +108,7 @@ type Querier interface {
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
+	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
@@ -107,6 +118,8 @@ type Querier interface {
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
+	ListEffectSteps(ctx context.Context, effectID string) ([]EffectStep, error)
+	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
 	ListEnabledAutomations(ctx context.Context) ([]ListEnabledAutomationsRow, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
@@ -157,6 +170,7 @@ type Querier interface {
 	// NOT touched so the "last edited" semantics stay distinct from "last fired".
 	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
+	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error
 	UpdateRoomIcon(ctx context.Context, arg UpdateRoomIconParams) error
@@ -169,6 +183,7 @@ type Querier interface {
 	// NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
 	// from "set to NULL"). theme is constrained by a CHECK in the migration.
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
+	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
 	// Clears the removed flag on conflict so re-discovered devices become active.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertMQTTConfig(ctx context.Context, arg UpsertMQTTConfigParams) error

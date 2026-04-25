@@ -10,6 +10,15 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+type ActiveEffect struct {
+	ID         string
+	EffectID   string
+	TargetType string
+	TargetID   string
+	StartedAt  time.Time
+	Volatile   int64
+}
+
 type ActivityEvent struct {
 	ID             int64
 	Type           string
@@ -80,6 +89,26 @@ type DeviceStateSample struct {
 	Field      string
 	Value      float64
 	RecordedAt time.Time
+}
+
+type Effect struct {
+	ID         string
+	Name       string
+	Icon       *string
+	Kind       string
+	NativeName *string
+	Loop       int64
+	CreatedBy  *string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type EffectStep struct {
+	ID        string
+	EffectID  string
+	StepIndex int64
+	Kind      string
+	Config    string
 }
 
 type Group struct {
