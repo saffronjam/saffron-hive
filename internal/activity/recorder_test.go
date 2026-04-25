@@ -85,7 +85,7 @@ func TestRecorderEnrichesAndPersists(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "d1",
 		Timestamp: time.Now(),
-		Payload:   device.DeviceState{On: &on},
+		Payload:   device.DeviceStateChange{State: device.DeviceState{On: &on}},
 	})
 
 	select {

@@ -21,8 +21,8 @@ func formatMessage(evt eventbus.Event, deviceName, sceneName, automationName str
 
 	switch evt.Type {
 	case eventbus.EventDeviceStateChanged:
-		if s, ok := evt.Payload.(device.DeviceState); ok {
-			return formatDeviceState(source, s)
+		if change, ok := evt.Payload.(device.DeviceStateChange); ok {
+			return formatDeviceState(source, change.State)
 		}
 		return fmt.Sprintf("%s state changed", source)
 

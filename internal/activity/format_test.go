@@ -26,37 +26,37 @@ func TestFormatMessage(t *testing.T) {
 	}{
 		{
 			name:      "light turned on",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceState{On: boolPtr(true)}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{On: boolPtr(true)}}},
 			devName:   "Kitchen light",
 			wantExact: "Kitchen light turned on",
 		},
 		{
 			name:      "light turned off",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceState{On: boolPtr(false)}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{On: boolPtr(false)}}},
 			devName:   "Kitchen light",
 			wantExact: "Kitchen light turned off",
 		},
 		{
 			name:      "light dimmed with brightness",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceState{On: boolPtr(true), Brightness: intPtr(127)}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{On: boolPtr(true), Brightness: intPtr(127)}}},
 			devName:   "Lamp",
 			wantExact: "Lamp set to on, 50%",
 		},
 		{
 			name:      "sensor temperature",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceState{Temperature: f64Ptr(21.3)}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{Temperature: f64Ptr(21.3)}}},
 			devName:   "Hallway sensor",
 			wantExact: "Hallway sensor: 21.3°C",
 		},
 		{
 			name:      "plug metering not pressed",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceState{On: boolPtr(true), Power: f64Ptr(42), Voltage: f64Ptr(230)}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{On: boolPtr(true), Power: f64Ptr(42), Voltage: f64Ptr(230)}}},
 			devName:   "Lava lamp",
 			wantExact: "Lava lamp on: 42 W, 230 V",
 		},
 		{
 			name:      "plug metering off",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceState{On: boolPtr(false), Power: f64Ptr(0), Voltage: f64Ptr(230)}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{On: boolPtr(false), Power: f64Ptr(0), Voltage: f64Ptr(230)}}},
 			devName:   "Lava lamp",
 			wantExact: "Lava lamp off: 0 W, 230 V",
 		},
@@ -128,13 +128,13 @@ func TestFormatMessage(t *testing.T) {
 // A plug reporting metering must never render as a button press. Plugs don't
 // fire "pressed" events at all; any such string in the output is a bug.
 func TestFormatDeviceState_PlugMetering_NotPressed(t *testing.T) {
-	payload := device.DeviceState{
+	payload := device.DeviceStateChange{State: device.DeviceState{
 		On:      boolPtr(true),
 		Power:   f64Ptr(12.5),
 		Voltage: f64Ptr(230.1),
 		Current: f64Ptr(0.05),
 		Energy:  f64Ptr(1.234),
-	}
+	}}
 	evt := eventbus.Event{Type: eventbus.EventDeviceStateChanged, Payload: payload}
 	got := formatMessage(evt, "Lava lamp", "", "")
 	if got == "Lava lamp pressed" {
