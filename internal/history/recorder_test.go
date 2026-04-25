@@ -69,11 +69,11 @@ func TestRecorderFansOutPerField(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "sensor-1",
 		Timestamp: time.Now(),
-		Payload: device.DeviceState{
+		Payload: device.DeviceStateChange{State: device.DeviceState{
 			On:          &on,
 			Temperature: &temp,
 			Humidity:    &hum,
-		},
+		}},
 	})
 
 	var points []store.StateHistoryPoint
@@ -133,7 +133,7 @@ func TestRecorderSkipsEventsWithoutDeviceID(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "",
 		Timestamp: time.Now(),
-		Payload:   device.DeviceState{Temperature: &temp},
+		Payload:   device.DeviceStateChange{State: device.DeviceState{Temperature: &temp}},
 	})
 
 	time.Sleep(100 * time.Millisecond)

@@ -41,13 +41,14 @@ func RunRecorder(ctx context.Context, bus eventbus.Subscriber, s historyStore) {
 }
 
 func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
-	ds, ok := evt.Payload.(device.DeviceState)
+	change, ok := evt.Payload.(device.DeviceStateChange)
 	if !ok {
 		return
 	}
 	if evt.DeviceID == "" {
 		return
 	}
+	ds := change.State
 
 	recordedAt := time.Now()
 	deviceID := device.DeviceID(evt.DeviceID)
