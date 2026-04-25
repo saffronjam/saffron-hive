@@ -59,7 +59,14 @@
 			const rootKey = `${t.type}:${t.id}:${index}`;
 			const resolved = resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
 			const devices = resolved.filter(isSceneTarget);
-			const root = buildTargetTree(rootKey, { type: t.type, id: t.id }, devicesById, groupsLite, roomsLite);
+			const root = buildTargetTree(
+				rootKey,
+				{ type: t.type, id: t.id },
+				devicesById,
+				groupsLite,
+				roomsLite,
+				{ deviceFilter: isSceneTarget },
+			);
 			return {
 				key: rootKey,
 				target: t,
