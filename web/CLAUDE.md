@@ -118,3 +118,26 @@ Visual state changes should animate, not snap. Color, background, border, opacit
 - **Exception:** layout changes that must be instant for correctness (focus scroll, keyboard navigation) are fine. Everything else gets a transition.
 
 When you write a class that changes appearance on a state change, ask whether it should transition. Default answer: yes.
+
+## Number inputs
+
+Numeric input fields use a string-buffered pattern, NOT
+`<input type="number">`. The native number input blocks the user from
+clearing or partially typing values, which makes editing painful (e.g.
+"go from 0 to 1000": users naturally erase the 0, then type 1-0-0-0,
+but `type="number"` rejects "" and clamps each keystroke).
+
+Use `web/src/lib/components/number-input.svelte` for any integer field.
+It buffers the typed string, allows invalid intermediate states
+(empty, below `min`), and only clamps + emits a clean number on blur.
+
+```svelte
+<NumberInput bind:value={durationMs} min={50} ariaLabel="Duration" />
+```
+
+Page-level save validation (e.g. `validateTimelineEffect`) is still
+responsible for rejecting out-of-range values at submit time.
+NumberInput's job is to unblock typing, not to be the gatekeeper.
+
+For decimal inputs: not supported in v1. Extend NumberInput with an
+`allowDecimal` prop when the first real use case lands.

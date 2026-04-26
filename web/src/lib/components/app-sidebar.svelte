@@ -29,6 +29,7 @@
 		BellRing,
 		Users,
 		LineChart,
+		Sparkles,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -62,6 +63,7 @@
 			items: [
 				{ href: "/scenes", label: "Scenes", icon: Clapperboard },
 				{ href: "/automations", label: "Automations", icon: Workflow },
+				{ href: "/effects", label: "Effects", icon: Sparkles },
 			],
 		},
 		{

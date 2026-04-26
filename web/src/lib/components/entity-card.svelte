@@ -19,10 +19,10 @@
 		fallbackIcon: Component;
 		subtitle?: string;
 		subtitleTrailing?: Snippet;
-		onrename: (entity: T, newName: string) => void;
-		oniconchange: (entity: T, icon: string | null) => void;
-		onedit: (entity: T) => void;
-		ondelete: (entity: T) => void;
+		onrename?: (entity: T, newName: string) => void;
+		oniconchange?: (entity: T, icon: string | null) => void;
+		onedit?: (entity: T) => void;
+		ondelete?: (entity: T) => void;
 		onAddTo?: (entity: T) => void;
 		editLabel?: string;
 		deleteLabel?: string;
@@ -39,6 +39,13 @@
 		 */
 		tintInactive?: boolean | null;
 		footer?: Snippet;
+		/**
+		 * Read-only mode. The dropdown menu (edit / add / delete) is hidden,
+		 * the icon picker is replaced with a static icon, and the name renders
+		 * as plain text without inline rename. `leadingActions` and `footer`
+		 * snippets still render so a Play button or badge remains visible.
+		 */
+		readOnly?: boolean;
 	}
 
 	let {
@@ -58,6 +65,7 @@
 		tintColors = null,
 		tintInactive = null,
 		footer,
+		readOnly = false,
 	}: Props = $props();
 
 	const tintClass = $derived.by(() => {
@@ -117,11 +125,11 @@
 >
 	<div class="relative flex items-center justify-between">
 		<div class="flex flex-1 min-w-0 items-center gap-3">
-			<IconPicker value={entity.icon} onselect={(icon) => oniconchange(entity, icon)}>
-				<IconPickerTrigger size="lg">
+			{#if readOnly}
+				<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
 					{#if hasTint}
 						<div
-							class="pointer-events-none absolute inset-0 transition-opacity duration-300 ease-out"
+							class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
 							style="background: {iconGradient}; opacity: {tintInactive === true ? 1 : 0}"
 							aria-hidden="true"
 						></div>
@@ -129,10 +137,29 @@
 					<AnimatedIcon icon={entity.icon} class="relative size-5 {iconTextClass}">
 						{#snippet fallback()}<Fallback class="relative size-5 {iconTextClass}" />{/snippet}
 					</AnimatedIcon>
-				</IconPickerTrigger>
-			</IconPicker>
+				</div>
+			{:else}
+				<IconPicker value={entity.icon} onselect={(icon) => oniconchange?.(entity, icon)}>
+					<IconPickerTrigger size="lg">
+						{#if hasTint}
+							<div
+								class="pointer-events-none absolute inset-0 transition-opacity duration-300 ease-out"
+								style="background: {iconGradient}; opacity: {tintInactive === true ? 1 : 0}"
+								aria-hidden="true"
+							></div>
+						{/if}
+						<AnimatedIcon icon={entity.icon} class="relative size-5 {iconTextClass}">
+							{#snippet fallback()}<Fallback class="relative size-5 {iconTextClass}" />{/snippet}
+						</AnimatedIcon>
+					</IconPickerTrigger>
+				</IconPicker>
+			{/if}
 			<div class="min-w-0 flex-1">
-				<InlineEditName name={entity.name} onsave={(newName) => onrename(entity, newName)} />
+				{#if readOnly}
+					<h3 class="truncate font-medium text-card-foreground">{entity.name}</h3>
+				{:else}
+					<InlineEditName name={entity.name} onsave={(newName) => onrename?.(entity, newName)} />
+				{/if}
 				{#if subtitle || subtitleTrailing}
 					<p class="text-xs {bodyTextClass}">
 						{#if subtitle}{subtitle}{/if}
@@ -144,30 +171,32 @@
 
 		<div class="flex items-center gap-1">
 			{@render leadingActions?.()}
-			<DropdownMenu>
-				<DropdownMenuTrigger>
-					<Button variant="ghost" size="icon-sm" aria-label="{entity.name} actions">
-						<EllipsisVertical class="size-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuItem onclick={() => onedit(entity)}>
-						<Pencil class="size-4" />
-						{editLabel}
-					</DropdownMenuItem>
-					{#if onAddTo}
-						<DropdownMenuItem onclick={() => onAddTo?.(entity)}>
-							<Plus class="size-4" />
-							{addLabel}
+			{#if !readOnly}
+				<DropdownMenu>
+					<DropdownMenuTrigger>
+						<Button variant="ghost" size="icon-sm" aria-label="{entity.name} actions">
+							<EllipsisVertical class="size-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem onclick={() => onedit?.(entity)}>
+							<Pencil class="size-4" />
+							{editLabel}
 						</DropdownMenuItem>
-					{/if}
-					<DropdownMenuSeparator />
-					<DropdownMenuItem variant="destructive" onclick={() => ondelete(entity)}>
-						<Trash2 class="size-4" />
-						{deleteLabel}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+						{#if onAddTo}
+							<DropdownMenuItem onclick={() => onAddTo?.(entity)}>
+								<Plus class="size-4" />
+								{addLabel}
+							</DropdownMenuItem>
+						{/if}
+						<DropdownMenuSeparator />
+						<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(entity)}>
+							<Trash2 class="size-4" />
+							{deleteLabel}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			{/if}
 		</div>
 	</div>
 
