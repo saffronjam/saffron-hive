@@ -2,12 +2,58 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
+
+// ParseScenePayload decodes a per-device payload's raw JSON into the tagged
+// union form. The on-disk shape carries a top-level "kind" field selecting
+// between {kind:"static", on/brightness/...}, {kind:"effect", effect_id} and
+// {kind:"native_effect", native_name}. A missing kind is treated as "static"
+// for safety even though migration 032 backfills every existing row; this
+// guards against ad-hoc inserts during development.
+func ParseScenePayload(raw string) (ScenePayload, error) {
+	if raw == "" {
+		return ScenePayload{}, fmt.Errorf("parse scene payload: empty")
+	}
+	var head struct {
+		Kind       string `json:"kind"`
+		EffectID   string `json:"effect_id"`
+		NativeName string `json:"native_name"`
+	}
+	if err := json.Unmarshal([]byte(raw), &head); err != nil {
+		return ScenePayload{}, fmt.Errorf("parse scene payload: %w", err)
+	}
+	kind := ScenePayloadKind(head.Kind)
+	switch kind {
+	case "":
+		kind = ScenePayloadStatic
+		fallthrough
+	case ScenePayloadStatic:
+		var fields map[string]any
+		if err := json.Unmarshal([]byte(raw), &fields); err != nil {
+			return ScenePayload{}, fmt.Errorf("parse scene payload static: %w", err)
+		}
+		delete(fields, "kind")
+		return ScenePayload{Kind: ScenePayloadStatic, Static: fields}, nil
+	case ScenePayloadEffect:
+		if head.EffectID == "" {
+			return ScenePayload{}, fmt.Errorf("parse scene payload: effect kind missing effect_id")
+		}
+		return ScenePayload{Kind: ScenePayloadEffect, EffectID: head.EffectID}, nil
+	case ScenePayloadNativeEffect:
+		if head.NativeName == "" {
+			return ScenePayload{}, fmt.Errorf("parse scene payload: native_effect kind missing native_name")
+		}
+		return ScenePayload{Kind: ScenePayloadNativeEffect, NativeName: head.NativeName}, nil
+	default:
+		return ScenePayload{}, fmt.Errorf("parse scene payload: unknown kind %q", head.Kind)
+	}
+}
 
 // CreateScene inserts a new scene and returns it.
 func (s *DB) CreateScene(ctx context.Context, params CreateSceneParams) (Scene, error) {

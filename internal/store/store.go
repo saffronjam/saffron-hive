@@ -119,11 +119,39 @@ type SceneTargetRef struct {
 }
 
 // SceneDevicePayload is the per-device payload associated with a scene.
-// Keyed by (SceneID, DeviceID).
+// Keyed by (SceneID, DeviceID). Payload is the raw on-disk JSON; callers
+// parse it with ParseScenePayload to inspect the tagged-union shape.
 type SceneDevicePayload struct {
 	SceneID  string
 	DeviceID device.DeviceID
 	Payload  string
+}
+
+// ScenePayloadKind tags the polymorphic shape of a scene's per-device payload.
+type ScenePayloadKind string
+
+const (
+	// ScenePayloadStatic is a desired-state command (on/brightness/color/...).
+	ScenePayloadStatic ScenePayloadKind = "static"
+	// ScenePayloadEffect references a stored timeline/native effect by ID
+	// to start on the device when the scene is applied.
+	ScenePayloadEffect ScenePayloadKind = "effect"
+	// ScenePayloadNativeEffect references an auto-discovered native effect by
+	// name (no stored Effect row) to start on the device when the scene is
+	// applied.
+	ScenePayloadNativeEffect ScenePayloadKind = "native_effect"
+)
+
+// ScenePayload is the parsed tagged-union form of a scene's per-device payload.
+// Exactly one of Static / EffectID / NativeName is meaningful, selected by
+// Kind. Static is the raw desired-state field map
+// (on/brightness/color_temp/color/transition); the apply path applies
+// capability gating against it.
+type ScenePayload struct {
+	Kind       ScenePayloadKind
+	Static     map[string]any
+	EffectID   string
+	NativeName string
 }
 
 // SaveSceneContentParams holds the membership + per-device payload set for a scene.
