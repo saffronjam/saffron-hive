@@ -8,8 +8,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
-// CreateEffect inserts a new effect (and its initial steps, if any) atomically
-// and returns the resulting row.
+// CreateEffect inserts a new effect (and its initial tracks + clips, if any)
+// atomically and returns the resulting row.
 func (s *DB) CreateEffect(ctx context.Context, params CreateEffectParams) (Effect, error) {
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.CreateEffect(ctx, sqlite.CreateEffectParams{
@@ -19,19 +19,32 @@ func (s *DB) CreateEffect(ctx context.Context, params CreateEffectParams) (Effec
 			Kind:       string(params.Kind),
 			NativeName: params.NativeName,
 			Loop:       boolToInt64(params.Loop),
+			DurationMs: int64(params.DurationMs),
 			CreatedBy:  params.CreatedBy,
 		}); err != nil {
 			return fmt.Errorf("insert effect: %w", err)
 		}
-		for _, st := range params.Steps {
-			if err := q.CreateEffectStep(ctx, sqlite.CreateEffectStepParams{
-				ID:        st.ID,
-				EffectID:  params.ID,
-				StepIndex: int64(st.Index),
-				Kind:      string(st.Kind),
-				Config:    st.ConfigJSON,
+		for _, tr := range params.Tracks {
+			if err := q.CreateEffectTrack(ctx, sqlite.CreateEffectTrackParams{
+				ID:         tr.ID,
+				EffectID:   params.ID,
+				TrackIndex: int64(tr.Index),
+				Name:       tr.Name,
 			}); err != nil {
-				return fmt.Errorf("insert effect step: %w", err)
+				return fmt.Errorf("insert effect track: %w", err)
+			}
+			for _, cl := range tr.Clips {
+				if err := q.CreateEffectClip(ctx, sqlite.CreateEffectClipParams{
+					ID:              cl.ID,
+					TrackID:         tr.ID,
+					StartMs:         int64(cl.StartMs),
+					TransitionMinMs: int64(cl.TransitionMinMs),
+					TransitionMaxMs: int64(cl.TransitionMaxMs),
+					Kind:            string(cl.Kind),
+					Config:          cl.ConfigJSON,
+				}); err != nil {
+					return fmt.Errorf("insert effect clip: %w", err)
+				}
 			}
 		}
 		return nil
@@ -42,13 +55,14 @@ func (s *DB) CreateEffect(ctx context.Context, params CreateEffectParams) (Effec
 	return s.GetEffect(ctx, params.ID)
 }
 
-// GetEffect retrieves an effect by its ID, including its ordered step list.
+// GetEffect retrieves an effect by its ID, including its ordered track + clip
+// list.
 func (s *DB) GetEffect(ctx context.Context, id string) (Effect, error) {
 	row, err := s.q.GetEffect(ctx, id)
 	if err != nil {
 		return Effect{}, fmt.Errorf("get effect: %w", err)
 	}
-	steps, err := s.listEffectSteps(ctx, id)
+	tracks, err := s.listEffectTracks(ctx, id)
 	if err != nil {
 		return Effect{}, err
 	}
@@ -59,14 +73,15 @@ func (s *DB) GetEffect(ctx context.Context, id string) (Effect, error) {
 		Kind:       effect.Kind(row.Kind),
 		NativeName: row.NativeName,
 		Loop:       row.Loop != 0,
+		DurationMs: int(row.DurationMs),
 		CreatedAt:  row.CreatedAt,
 		UpdatedAt:  row.UpdatedAt,
 		CreatedBy:  userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
-		Steps:      steps,
+		Tracks:     tracks,
 	}, nil
 }
 
-// ListEffects returns all effects with their ordered step lists.
+// ListEffects returns all effects with their ordered track + clip lists.
 func (s *DB) ListEffects(ctx context.Context) ([]Effect, error) {
 	rows, err := s.q.ListEffects(ctx)
 	if err != nil {
@@ -77,7 +92,7 @@ func (s *DB) ListEffects(ctx context.Context) ([]Effect, error) {
 	}
 	out := make([]Effect, 0, len(rows))
 	for _, r := range rows {
-		steps, err := s.listEffectSteps(ctx, r.ID)
+		tracks, err := s.listEffectTracks(ctx, r.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -88,17 +103,18 @@ func (s *DB) ListEffects(ctx context.Context) ([]Effect, error) {
 			Kind:       effect.Kind(r.Kind),
 			NativeName: r.NativeName,
 			Loop:       r.Loop != 0,
+			DurationMs: int(r.DurationMs),
 			CreatedAt:  r.CreatedAt,
 			UpdatedAt:  r.UpdatedAt,
 			CreatedBy:  userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
-			Steps:      steps,
+			Tracks:     tracks,
 		})
 	}
 	return out, nil
 }
 
-// UpdateEffect updates an effect's mutable fields. Steps are not touched here;
-// use SaveEffectSteps to atomically replace the step list.
+// UpdateEffect updates an effect's mutable fields. Tracks are not touched
+// here; use SaveEffectTracks to atomically replace the timeline.
 func (s *DB) UpdateEffect(ctx context.Context, id string, params UpdateEffectParams) (Effect, error) {
 	clearIcon := params.SetIcon && params.Icon == nil
 	clearNativeName := params.SetNativeName && params.NativeName == nil
@@ -121,6 +137,10 @@ func (s *DB) UpdateEffect(ctx context.Context, id string, params UpdateEffectPar
 		v := boolToInt64(*params.Loop)
 		args.Loop = &v
 	}
+	if params.DurationMs != nil {
+		v := int64(*params.DurationMs)
+		args.DurationMs = &v
+	}
 	if err := s.q.UpdateEffect(ctx, args); err != nil {
 		return Effect{}, fmt.Errorf("update effect: %w", err)
 	}
@@ -138,7 +158,7 @@ func (s *DB) UpdateEffect(ctx context.Context, id string, params UpdateEffectPar
 }
 
 // DeleteEffect deletes an effect by its ID. Cascading deletes remove the
-// associated steps and any active_effects rows pointing at the effect.
+// associated tracks + clips and any active_effects rows pointing at the effect.
 func (s *DB) DeleteEffect(ctx context.Context, id string) error {
 	if err := s.q.DeleteEffect(ctx, id); err != nil {
 		return fmt.Errorf("delete effect: %w", err)
@@ -146,66 +166,96 @@ func (s *DB) DeleteEffect(ctx context.Context, id string) error {
 	return nil
 }
 
-// SaveEffectSteps atomically replaces the step list of an effect with the
-// given input set. Existing steps are deleted in the same transaction so
-// concurrent readers never observe a half-written timeline.
-func (s *DB) SaveEffectSteps(ctx context.Context, effectID string, steps []EffectStepInput) error {
+// SaveEffectTracks atomically replaces the timeline of an effect with the
+// given track + clip set. Existing tracks are deleted in the same transaction
+// (cascading their clips) so concurrent readers never observe a half-written
+// timeline.
+func (s *DB) SaveEffectTracks(ctx context.Context, effectID string, tracks []EffectTrackInput) error {
 	return s.execTx(ctx, func(q *sqlite.Queries) error {
-		if err := q.DeleteEffectStepsByEffect(ctx, effectID); err != nil {
-			return fmt.Errorf("delete effect steps: %w", err)
+		if err := q.DeleteEffectTracksByEffect(ctx, effectID); err != nil {
+			return fmt.Errorf("delete effect tracks: %w", err)
 		}
-		for _, st := range steps {
-			if err := q.CreateEffectStep(ctx, sqlite.CreateEffectStepParams{
-				ID:        st.ID,
-				EffectID:  effectID,
-				StepIndex: int64(st.Index),
-				Kind:      string(st.Kind),
-				Config:    st.ConfigJSON,
+		for _, tr := range tracks {
+			if err := q.CreateEffectTrack(ctx, sqlite.CreateEffectTrackParams{
+				ID:         tr.ID,
+				EffectID:   effectID,
+				TrackIndex: int64(tr.Index),
+				Name:       tr.Name,
 			}); err != nil {
-				return fmt.Errorf("create effect step: %w", err)
+				return fmt.Errorf("create effect track: %w", err)
+			}
+			for _, cl := range tr.Clips {
+				if err := q.CreateEffectClip(ctx, sqlite.CreateEffectClipParams{
+					ID:              cl.ID,
+					TrackID:         tr.ID,
+					StartMs:         int64(cl.StartMs),
+					TransitionMinMs: int64(cl.TransitionMinMs),
+					TransitionMaxMs: int64(cl.TransitionMaxMs),
+					Kind:            string(cl.Kind),
+					Config:          cl.ConfigJSON,
+				}); err != nil {
+					return fmt.Errorf("create effect clip: %w", err)
+				}
 			}
 		}
 		return nil
 	})
 }
 
-// ListEffectSteps returns the ordered step list for a single effect.
-func (s *DB) ListEffectSteps(ctx context.Context, effectID string) ([]EffectStep, error) {
-	return s.listEffectSteps(ctx, effectID)
+// UpdateEffectDuration sets the effect's duration_ms column. Used by the
+// editor when the End line is dragged.
+func (s *DB) UpdateEffectDuration(ctx context.Context, effectID string, durationMs int) error {
+	if err := s.q.UpdateEffectDuration(ctx, sqlite.UpdateEffectDurationParams{
+		DurationMs: int64(durationMs),
+		ID:         effectID,
+	}); err != nil {
+		return fmt.Errorf("update effect duration: %w", err)
+	}
+	return nil
 }
 
 // LoadEffect retrieves an effect by ID and returns it as a domain effect.Effect
-// with each step's StepConfig parsed from its on-disk JSON. The runner uses
-// this to fetch a ready-to-walk effect without ever depending on the
-// persistence-layer Effect / EffectStep shapes (which would create an import
-// cycle, since this package already imports internal/effect for Kind /
-// StepKind in the param/result structs).
+// with each clip's ClipConfig parsed from its on-disk JSON. The runner uses
+// this to fetch a ready-to-walk effect without depending on the
+// persistence-layer Effect / EffectClip shapes.
 func (s *DB) LoadEffect(ctx context.Context, id string) (effect.Effect, error) {
 	row, err := s.GetEffect(ctx, id)
 	if err != nil {
 		return effect.Effect{}, err
 	}
-	steps := make([]effect.Step, 0, len(row.Steps))
-	for _, st := range row.Steps {
-		cfg, err := effect.UnmarshalConfig(st.Kind, []byte(st.ConfigJSON))
-		if err != nil {
-			return effect.Effect{}, fmt.Errorf("load effect %q step %d: %w", id, st.Index, err)
+	tracks := make([]effect.Track, 0, len(row.Tracks))
+	for _, tr := range row.Tracks {
+		clips := make([]effect.Clip, 0, len(tr.Clips))
+		for _, cl := range tr.Clips {
+			cfg, err := effect.UnmarshalClipConfig(cl.Kind, []byte(cl.ConfigJSON))
+			if err != nil {
+				return effect.Effect{}, fmt.Errorf("load effect %q clip %q: %w", id, cl.ID, err)
+			}
+			clips = append(clips, effect.Clip{
+				ID:              cl.ID,
+				StartMs:         cl.StartMs,
+				TransitionMinMs: cl.TransitionMinMs,
+				TransitionMaxMs: cl.TransitionMaxMs,
+				Kind:            cl.Kind,
+				Config:          cfg,
+			})
 		}
-		steps = append(steps, effect.Step{
-			ID:     st.ID,
-			Index:  st.Index,
-			Kind:   st.Kind,
-			Config: cfg,
+		tracks = append(tracks, effect.Track{
+			ID:    tr.ID,
+			Index: tr.Index,
+			Name:  tr.Name,
+			Clips: clips,
 		})
 	}
 	out := effect.Effect{
-		ID:        row.ID,
-		Name:      row.Name,
-		Kind:      row.Kind,
-		Loop:      row.Loop,
-		Steps:     steps,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		ID:         row.ID,
+		Name:       row.Name,
+		Kind:       row.Kind,
+		Loop:       row.Loop,
+		DurationMs: row.DurationMs,
+		Tracks:     tracks,
+		CreatedAt:  row.CreatedAt,
+		UpdatedAt:  row.UpdatedAt,
 	}
 	if row.Icon != nil {
 		out.Icon = *row.Icon
@@ -219,19 +269,43 @@ func (s *DB) LoadEffect(ctx context.Context, id string) (effect.Effect, error) {
 	return out, nil
 }
 
-func (s *DB) listEffectSteps(ctx context.Context, effectID string) ([]EffectStep, error) {
-	rows, err := s.q.ListEffectSteps(ctx, effectID)
+func (s *DB) listEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error) {
+	rows, err := s.q.ListEffectTracks(ctx, effectID)
 	if err != nil {
-		return nil, fmt.Errorf("list effect steps: %w", err)
+		return nil, fmt.Errorf("list effect tracks: %w", err)
 	}
-	out := make([]EffectStep, 0, len(rows))
+	out := make([]EffectTrack, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, EffectStep{
-			ID:         r.ID,
-			EffectID:   r.EffectID,
-			Index:      int(r.StepIndex),
-			Kind:       effect.StepKind(r.Kind),
-			ConfigJSON: r.Config,
+		clips, err := s.listEffectClips(ctx, r.ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, EffectTrack{
+			ID:       r.ID,
+			EffectID: r.EffectID,
+			Index:    int(r.TrackIndex),
+			Name:     r.Name,
+			Clips:    clips,
+		})
+	}
+	return out, nil
+}
+
+func (s *DB) listEffectClips(ctx context.Context, trackID string) ([]EffectClip, error) {
+	rows, err := s.q.ListEffectClips(ctx, trackID)
+	if err != nil {
+		return nil, fmt.Errorf("list effect clips: %w", err)
+	}
+	out := make([]EffectClip, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, EffectClip{
+			ID:              r.ID,
+			TrackID:         r.TrackID,
+			StartMs:         int(r.StartMs),
+			TransitionMinMs: int(r.TransitionMinMs),
+			TransitionMaxMs: int(r.TransitionMaxMs),
+			Kind:            effect.ClipKind(r.Kind),
+			ConfigJSON:      r.Config,
 		})
 	}
 	return out, nil
