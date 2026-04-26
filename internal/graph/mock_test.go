@@ -1044,17 +1044,23 @@ func (m *mockReloader) FireManualTrigger(_ context.Context, automationID, nodeID
 }
 
 type mockEffectRunner struct {
-	mu         sync.Mutex
-	store      *mockStore
-	startCalls []effectStartCall
-	stopCalls  []effect.Target
-	runIDSeq   int
-	startErr   error
+	mu               sync.Mutex
+	store            *mockStore
+	startCalls       []effectStartCall
+	startNativeCalls []effectStartNativeCall
+	stopCalls        []effect.Target
+	runIDSeq         int
+	startErr         error
 }
 
 type effectStartCall struct {
 	effectID string
 	target   effect.Target
+}
+
+type effectStartNativeCall struct {
+	nativeName string
+	target     effect.Target
 }
 
 func newMockEffectRunner(st *mockStore) *mockEffectRunner {
@@ -1079,6 +1085,18 @@ func (m *mockEffectRunner) Start(_ context.Context, effectID string, target effe
 			StartedAt:  time.Now(),
 		})
 	}
+	return runID, nil
+}
+
+func (m *mockEffectRunner) StartNative(_ context.Context, nativeName string, target effect.Target) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.startErr != nil {
+		return "", m.startErr
+	}
+	m.runIDSeq++
+	runID := fmt.Sprintf("run-%d", m.runIDSeq)
+	m.startNativeCalls = append(m.startNativeCalls, effectStartNativeCall{nativeName: nativeName, target: target})
 	return runID, nil
 }
 

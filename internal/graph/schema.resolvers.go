@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/history"
@@ -123,8 +125,8 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 		return nil, err
 	}
 
-	commands := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, sceneID, actions, payloads)
-	for _, cmd := range commands {
+	plan := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, sceneID, actions, payloads)
+	for _, cmd := range plan.Commands {
 		r.EventBus.Publish(eventbus.Event{
 			Type:      eventbus.EventCommandRequested,
 			DeviceID:  string(cmd.DeviceID),
@@ -240,7 +242,7 @@ func (r *mutationResolver) DeleteScene(ctx context.Context, id string) (bool, er
 
 // CreateAutomation is the resolver for the createAutomation field.
 func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.AutomationGraph, error) {
-	if err := validateAutomationInput(input.Nodes, input.Edges); err != nil {
+	if err := validateAutomationInput(ctx, r.Store, input.Nodes, input.Edges); err != nil {
 		return nil, err
 	}
 
@@ -303,7 +305,7 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	nodes, nodesSet := input.Nodes.ValueOK()
 	edges, _ := input.Edges.ValueOK()
 	if nodesSet {
-		if err := validateAutomationInput(nodes, edges); err != nil {
+		if err := validateAutomationInput(ctx, r.Store, nodes, edges); err != nil {
 			return nil, err
 		}
 	}
@@ -979,6 +981,187 @@ func (r *mutationResolver) BatchAddGroupDevices(ctx context.Context, groupID str
 	return mapGroup(ctx, r.StateReader, r.Store, g, members), nil
 }
 
+// CreateEffect is the resolver for the createEffect field.
+func (r *mutationResolver) CreateEffect(ctx context.Context, input model.CreateEffectInput) (*model.Effect, error) {
+	nativeName := input.NativeName.Value()
+	if err := validateEffectInput(input.Kind, nativeName, input.Steps); err != nil {
+		return nil, err
+	}
+
+	steps, err := buildEffectStepInputs(input.Steps)
+	if err != nil {
+		return nil, err
+	}
+
+	effectID := uuid.New().String()
+	if _, err := r.Store.CreateEffect(ctx, store.CreateEffectParams{
+		ID:         effectID,
+		Name:       input.Name,
+		Icon:       input.Icon.Value(),
+		Kind:       effectKindFromModel(input.Kind),
+		NativeName: nativeName,
+		Loop:       input.Loop,
+		CreatedBy:  currentUserID(ctx),
+		Steps:      steps,
+	}); err != nil {
+		return nil, err
+	}
+
+	row, err := r.Store.GetEffect(ctx, effectID)
+	if err != nil {
+		return nil, err
+	}
+	return mapEffect(row), nil
+}
+
+// UpdateEffect is the resolver for the updateEffect field.
+func (r *mutationResolver) UpdateEffect(ctx context.Context, input model.UpdateEffectInput) (*model.Effect, error) {
+	existing, err := r.Store.GetEffect(ctx, input.ID)
+	if err != nil {
+		return nil, fmt.Errorf("effect %q not found: %w", input.ID, err)
+	}
+
+	stepsValue, stepsGiven := input.Steps.ValueOK()
+	if stepsGiven {
+		nativeName := input.NativeName.Value()
+		if err := validateEffectInput(modelKindFromStore(existing.Kind), nativeName, stepsValue); err != nil {
+			return nil, err
+		}
+	}
+
+	params := store.UpdateEffectParams{}
+	if name, ok := input.Name.ValueOK(); ok && name != nil {
+		params.Name = name
+	}
+	if icon, ok := input.Icon.ValueOK(); ok {
+		params.SetIcon = true
+		params.Icon = icon
+	}
+	if loop, ok := input.Loop.ValueOK(); ok && loop != nil {
+		params.Loop = loop
+	}
+	if nativeName, ok := input.NativeName.ValueOK(); ok {
+		params.SetNativeName = true
+		params.NativeName = nativeName
+	}
+	if _, err := r.Store.UpdateEffect(ctx, input.ID, params); err != nil {
+		return nil, err
+	}
+
+	if stepsGiven {
+		newSteps, err := buildEffectStepInputs(stepsValue)
+		if err != nil {
+			return nil, err
+		}
+		if err := r.Store.SaveEffectSteps(ctx, input.ID, newSteps); err != nil {
+			return nil, err
+		}
+	}
+
+	row, err := r.Store.GetEffect(ctx, input.ID)
+	if err != nil {
+		return nil, err
+	}
+	return mapEffect(row), nil
+}
+
+// DeleteEffect is the resolver for the deleteEffect field.
+func (r *mutationResolver) DeleteEffect(ctx context.Context, id string) (bool, error) {
+	if err := r.Store.DeleteEffect(ctx, id); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// RunEffect is the resolver for the runEffect field.
+func (r *mutationResolver) RunEffect(ctx context.Context, effectID string, targetType string, targetID string) (*model.ActiveEffect, error) {
+	if r.EffectRunner == nil {
+		return nil, errors.New("effect runner is not configured")
+	}
+	tt := device.TargetType(targetType)
+	if tt != device.TargetDevice && tt != device.TargetGroup && tt != device.TargetRoom {
+		return nil, fmt.Errorf("invalid target type %q: must be %q, %q, or %q",
+			targetType, device.TargetDevice, device.TargetGroup, device.TargetRoom)
+	}
+
+	target := effect.Target{Type: tt, ID: targetID}
+	if _, err := r.EffectRunner.Start(ctx, effectID, target); err != nil {
+		return nil, err
+	}
+
+	rows, err := r.Store.ListActiveEffects(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active effects after start: %w", err)
+	}
+	for _, row := range rows {
+		if row.TargetType == string(tt) && row.TargetID == targetID {
+			eff, err := r.Store.GetEffect(ctx, row.EffectID)
+			if err != nil {
+				return nil, fmt.Errorf("load effect %q: %w", row.EffectID, err)
+			}
+			return mapActiveEffect(row, eff), nil
+		}
+	}
+	return nil, fmt.Errorf("effect run started but no active row found for target %s/%s", targetType, targetID)
+}
+
+// RunNativeEffect is the resolver for the runNativeEffect field.
+func (r *mutationResolver) RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.ActiveEffect, error) {
+	if r.EffectRunner == nil {
+		return nil, errors.New("effect runner is not configured")
+	}
+	if strings.TrimSpace(nativeName) == "" {
+		return nil, errors.New("nativeName must not be empty")
+	}
+	tt := device.TargetType(targetType)
+	if tt != device.TargetDevice && tt != device.TargetGroup && tt != device.TargetRoom {
+		return nil, fmt.Errorf("invalid target type %q: must be %q, %q, or %q",
+			targetType, device.TargetDevice, device.TargetGroup, device.TargetRoom)
+	}
+
+	target := effect.Target{Type: tt, ID: targetID}
+	runID, err := r.EffectRunner.StartNative(ctx, nativeName, target)
+	if err != nil {
+		return nil, err
+	}
+
+	displayName := sentenceCase(nativeName)
+	nameCopy := nativeName
+	return &model.ActiveEffect{
+		ID: runID,
+		Effect: &model.Effect{
+			ID:                   "",
+			Name:                 displayName,
+			Kind:                 model.EffectKindNative,
+			NativeName:           &nameCopy,
+			Loop:                 false,
+			Steps:                []*model.EffectStep{},
+			RequiredCapabilities: []string{},
+			CreatedAt:            time.Now(),
+			UpdatedAt:            time.Now(),
+		},
+		TargetType: string(tt),
+		TargetID:   targetID,
+		StartedAt:  time.Now(),
+		Volatile:   true,
+	}, nil
+}
+
+// StopEffect is the resolver for the stopEffect field.
+func (r *mutationResolver) StopEffect(ctx context.Context, targetType string, targetID string) (bool, error) {
+	_ = ctx
+	if r.EffectRunner == nil {
+		return false, errors.New("effect runner is not configured")
+	}
+	tt := device.TargetType(targetType)
+	if tt != device.TargetDevice && tt != device.TargetGroup && tt != device.TargetRoom {
+		return false, fmt.Errorf("invalid target type %q: must be %q, %q, or %q",
+			targetType, device.TargetDevice, device.TargetGroup, device.TargetRoom)
+	}
+	r.EffectRunner.Stop(effect.Target{Type: tt, ID: targetID})
+	return true, nil
+}
+
 // Devices is the resolver for the devices field.
 func (r *queryResolver) Devices(ctx context.Context) ([]*model.Device, error) {
 	devices := r.StateReader.ListDevices()
@@ -1414,6 +1597,93 @@ func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 	return result, nil
 }
 
+// Effects is the resolver for the effects field. Native rows are filtered
+// out: built-in firmware effects surface through Query.nativeEffectOptions
+// instead, so the user-facing Effects list only carries timeline effects.
+func (r *queryResolver) Effects(ctx context.Context) ([]*model.Effect, error) {
+	rows, err := r.Store.ListEffects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.Effect, 0, len(rows))
+	for _, row := range rows {
+		if row.Kind == effect.KindNative {
+			continue
+		}
+		out = append(out, mapEffect(row))
+	}
+	return out, nil
+}
+
+// Effect is the resolver for the effect field.
+func (r *queryResolver) Effect(ctx context.Context, id string) (*model.Effect, error) {
+	row, err := r.Store.GetEffect(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return mapEffect(row), nil
+}
+
+// ActiveEffects is the resolver for the activeEffects field.
+func (r *queryResolver) ActiveEffects(ctx context.Context) ([]*model.ActiveEffect, error) {
+	rows, err := r.Store.ListActiveEffects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.ActiveEffect, 0, len(rows))
+	for _, row := range rows {
+		eff, err := r.Store.GetEffect(ctx, row.EffectID)
+		if err != nil {
+			graphLogger.Warn("active effect references missing effect, skipping",
+				"run_id", row.ID, "effect_id", row.EffectID, "error", err)
+			continue
+		}
+		out = append(out, mapActiveEffect(row, eff))
+	}
+	return out, nil
+}
+
+// NativeEffectOptions is the resolver for the nativeEffectOptions field.
+func (r *queryResolver) NativeEffectOptions(ctx context.Context) ([]*model.NativeEffectOption, error) {
+	terminators := make(map[string]struct{}, len(nativeEffectTerminators))
+	for _, t := range nativeEffectTerminators {
+		terminators[t] = struct{}{}
+	}
+
+	counts := make(map[string]int)
+	for _, d := range r.StateReader.ListDevices() {
+		for _, c := range d.Capabilities {
+			if c.Name != device.CapEffect {
+				continue
+			}
+			seenInDevice := make(map[string]struct{}, len(c.Values))
+			for _, v := range c.Values {
+				if _, ok := terminators[v]; ok {
+					continue
+				}
+				if _, dup := seenInDevice[v]; dup {
+					continue
+				}
+				seenInDevice[v] = struct{}{}
+				counts[v]++
+			}
+		}
+	}
+
+	out := make([]*model.NativeEffectOption, 0, len(counts))
+	for name, count := range counts {
+		out = append(out, &model.NativeEffectOption{
+			Name:                 name,
+			DisplayName:          sentenceCase(name),
+			SupportedDeviceCount: count,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
 // DeviceStateChanged is the resolver for the deviceStateChanged field.
 func (r *subscriptionResolver) DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error) {
 	ch := r.EventBus.Subscribe(eventbus.EventDeviceStateChanged)
@@ -1750,6 +2020,47 @@ func (r *subscriptionResolver) AlarmEvent(ctx context.Context) (<-chan *model.Al
 				}
 				select {
 				case out <- mapAlarmEvent(evt):
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// EffectStepActivated is the resolver for the effectStepActivated field.
+func (r *subscriptionResolver) EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventEffectStepActivated)
+	out := make(chan *model.EffectStepEvent, 16)
+
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				payload, ok := evt.Payload.(eventbus.EffectStepActivatedEvent)
+				if !ok {
+					continue
+				}
+				if runID != nil && payload.RunID != *runID {
+					continue
+				}
+				select {
+				case out <- &model.EffectStepEvent{
+					RunID:     payload.RunID,
+					EffectID:  payload.EffectID,
+					StepIndex: payload.StepIndex,
+					Active:    payload.Active,
+				}:
 				case <-ctx.Done():
 					return
 				}

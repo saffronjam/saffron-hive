@@ -35,6 +35,7 @@ type MQTTReconnector interface {
 // stop effect runs. *effect.Runner satisfies it implicitly.
 type EffectRunner interface {
 	Start(ctx context.Context, effectID string, target effect.Target) (string, error)
+	StartNative(ctx context.Context, nativeName string, target effect.Target) (string, error)
 	Stop(target effect.Target) bool
 }
 
