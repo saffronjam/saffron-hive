@@ -187,6 +187,7 @@ type ComplexityRoot struct {
 	Effect struct {
 		CreatedAt            func(childComplexity int) int
 		CreatedBy            func(childComplexity int) int
+		DurationMs           func(childComplexity int) int
 		ID                   func(childComplexity int) int
 		Icon                 func(childComplexity int) int
 		Kind                 func(childComplexity int) int
@@ -194,15 +195,17 @@ type ComplexityRoot struct {
 		Name                 func(childComplexity int) int
 		NativeName           func(childComplexity int) int
 		RequiredCapabilities func(childComplexity int) int
-		Steps                func(childComplexity int) int
+		Tracks               func(childComplexity int) int
 		UpdatedAt            func(childComplexity int) int
 	}
 
-	EffectStep struct {
-		Config func(childComplexity int) int
-		ID     func(childComplexity int) int
-		Index  func(childComplexity int) int
-		Kind   func(childComplexity int) int
+	EffectClip struct {
+		Config          func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Kind            func(childComplexity int) int
+		StartMs         func(childComplexity int) int
+		TransitionMaxMs func(childComplexity int) int
+		TransitionMinMs func(childComplexity int) int
 	}
 
 	EffectStepEvent struct {
@@ -210,6 +213,13 @@ type ComplexityRoot struct {
 		EffectID  func(childComplexity int) int
 		RunID     func(childComplexity int) int
 		StepIndex func(childComplexity int) int
+	}
+
+	EffectTrack struct {
+		Clips func(childComplexity int) int
+		ID    func(childComplexity int) int
+		Index func(childComplexity int) int
+		Name  func(childComplexity int) int
 	}
 
 	Group struct {
@@ -1109,6 +1119,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Effect.CreatedBy(childComplexity), true
+	case "Effect.durationMs":
+		if e.ComplexityRoot.Effect.DurationMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.DurationMs(childComplexity), true
 	case "Effect.id":
 		if e.ComplexityRoot.Effect.ID == nil {
 			break
@@ -1151,12 +1167,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Effect.RequiredCapabilities(childComplexity), true
-	case "Effect.steps":
-		if e.ComplexityRoot.Effect.Steps == nil {
+	case "Effect.tracks":
+		if e.ComplexityRoot.Effect.Tracks == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Effect.Steps(childComplexity), true
+		return e.ComplexityRoot.Effect.Tracks(childComplexity), true
 	case "Effect.updatedAt":
 		if e.ComplexityRoot.Effect.UpdatedAt == nil {
 			break
@@ -1164,30 +1180,42 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Effect.UpdatedAt(childComplexity), true
 
-	case "EffectStep.config":
-		if e.ComplexityRoot.EffectStep.Config == nil {
+	case "EffectClip.config":
+		if e.ComplexityRoot.EffectClip.Config == nil {
 			break
 		}
 
-		return e.ComplexityRoot.EffectStep.Config(childComplexity), true
-	case "EffectStep.id":
-		if e.ComplexityRoot.EffectStep.ID == nil {
+		return e.ComplexityRoot.EffectClip.Config(childComplexity), true
+	case "EffectClip.id":
+		if e.ComplexityRoot.EffectClip.ID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.EffectStep.ID(childComplexity), true
-	case "EffectStep.index":
-		if e.ComplexityRoot.EffectStep.Index == nil {
+		return e.ComplexityRoot.EffectClip.ID(childComplexity), true
+	case "EffectClip.kind":
+		if e.ComplexityRoot.EffectClip.Kind == nil {
 			break
 		}
 
-		return e.ComplexityRoot.EffectStep.Index(childComplexity), true
-	case "EffectStep.kind":
-		if e.ComplexityRoot.EffectStep.Kind == nil {
+		return e.ComplexityRoot.EffectClip.Kind(childComplexity), true
+	case "EffectClip.startMs":
+		if e.ComplexityRoot.EffectClip.StartMs == nil {
 			break
 		}
 
-		return e.ComplexityRoot.EffectStep.Kind(childComplexity), true
+		return e.ComplexityRoot.EffectClip.StartMs(childComplexity), true
+	case "EffectClip.transitionMaxMs":
+		if e.ComplexityRoot.EffectClip.TransitionMaxMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectClip.TransitionMaxMs(childComplexity), true
+	case "EffectClip.transitionMinMs":
+		if e.ComplexityRoot.EffectClip.TransitionMinMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectClip.TransitionMinMs(childComplexity), true
 
 	case "EffectStepEvent.active":
 		if e.ComplexityRoot.EffectStepEvent.Active == nil {
@@ -1213,6 +1241,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.EffectStepEvent.StepIndex(childComplexity), true
+
+	case "EffectTrack.clips":
+		if e.ComplexityRoot.EffectTrack.Clips == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectTrack.Clips(childComplexity), true
+	case "EffectTrack.id":
+		if e.ComplexityRoot.EffectTrack.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectTrack.ID(childComplexity), true
+	case "EffectTrack.index":
+		if e.ComplexityRoot.EffectTrack.Index == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectTrack.Index(childComplexity), true
+	case "EffectTrack.name":
+		if e.ComplexityRoot.EffectTrack.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectTrack.Name(childComplexity), true
 
 	case "Group.createdBy":
 		if e.ComplexityRoot.Group.CreatedBy == nil {
@@ -2455,7 +2508,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateSceneInput,
 		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputDeviceStateInput,
-		ec.unmarshalInputEffectStepInput,
+		ec.unmarshalInputEffectClipInput,
+		ec.unmarshalInputEffectTrackInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputMqttConfigInput,
 		ec.unmarshalInputRaiseAlarmInput,
@@ -2675,12 +2729,12 @@ enum EffectKind {
   NATIVE
 }
 
-enum EffectStepKind {
-  WAIT
+enum EffectClipKind {
   SET_ON_OFF
   SET_BRIGHTNESS
   SET_COLOR_RGB
   SET_COLOR_TEMP
+  NATIVE_EFFECT
 }
 
 type Effect {
@@ -2690,12 +2744,22 @@ type Effect {
   kind: EffectKind!
   nativeName: String
   loop: Boolean!
-  steps: [EffectStep!]!
+  """
+  For loop=true timeline effects, the loop length in milliseconds (the
+  position of the End line on the editor timeline). Inter-loop delay equals
+  durationMs minus the rightmost clip's end. For loop=false effects, this is
+  informational and reflects the rightmost clip end captured at save time.
+  Always 0 for native effects.
+  """
+  durationMs: Int!
+  tracks: [EffectTrack!]!
   """
   Capabilities every target device must support for this effect to apply
-  cleanly. Derived from the effect's step kinds for timeline effects;
-  empty for native effects (the per-device native option list owns that
-  filtering).
+  cleanly. Derived from the union of clip kinds across all tracks for
+  timeline effects; empty for native effects (the per-device native option
+  list owns that filtering). native_effect clips inside a timeline
+  contribute no capability either; their support is gated by the device's
+  effect cap value list.
   """
   requiredCapabilities: [String!]!
   createdBy: User
@@ -2704,19 +2768,44 @@ type Effect {
 }
 
 """
-A single step inside a timeline effect. config is a JSON document whose
-shape is determined by kind — the disk shape directly, not wrapped, e.g.
-{"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
+A single track inside a timeline effect. Tracks fire in parallel; clips
+within a track are mutually exclusive in time. name is a user-supplied
+label shown in the editor; empty string is valid and rendered as a
+placeholder ("Track {n}").
 """
-type EffectStep {
+type EffectTrack {
   id: ID!
   index: Int!
-  kind: EffectStepKind!
+  name: String!
+  clips: [EffectClip!]!
+}
+
+"""
+A single clip on a track. config is a JSON document whose shape is
+determined by kind — the inner config struct directly, e.g.
+{"r":244,"g":42,"b":23} for SET_COLOR_RGB. transitionMinMs and
+transitionMaxMs bound a uniform random pick of the actual transition
+sampled per clip-execution; equal bounds collapse to a deterministic value.
+"""
+type EffectClip {
+  id: ID!
+  startMs: Int!
+  transitionMinMs: Int!
+  transitionMaxMs: Int!
+  kind: EffectClipKind!
   config: String!
 }
 
-input EffectStepInput {
-  kind: EffectStepKind!
+input EffectTrackInput {
+  name: String!
+  clips: [EffectClipInput!]!
+}
+
+input EffectClipInput {
+  startMs: Int!
+  transitionMinMs: Int!
+  transitionMaxMs: Int!
+  kind: EffectClipKind!
   config: String!
 }
 
@@ -2726,7 +2815,8 @@ input CreateEffectInput {
   kind: EffectKind!
   nativeName: String
   loop: Boolean!
-  steps: [EffectStepInput!]!
+  durationMs: Int!
+  tracks: [EffectTrackInput!]!
 }
 
 input UpdateEffectInput {
@@ -2734,8 +2824,9 @@ input UpdateEffectInput {
   name: String
   icon: String
   loop: Boolean
+  durationMs: Int
   nativeName: String
-  steps: [EffectStepInput!]
+  tracks: [EffectTrackInput!]
 }
 
 """
@@ -2764,8 +2855,10 @@ type NativeEffectOption {
 }
 
 """
-Step boundary marker emitted by the runner. active=true on enter,
+Clip boundary marker emitted by the runner. active=true on enter,
 active=false on exit. runId identifies the in-flight run instance.
+stepIndex is the clip's ordinal in the iteration's flat sorted-by-startMs
+event list.
 """
 type EffectStepEvent {
   runId: ID!
@@ -4228,8 +4321,10 @@ func (ec *executionContext) fieldContext_ActiveEffect_effect(_ context.Context, 
 				return ec.fieldContext_Effect_nativeName(ctx, field)
 			case "loop":
 				return ec.fieldContext_Effect_loop(ctx, field)
-			case "steps":
-				return ec.fieldContext_Effect_steps(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_Effect_durationMs(ctx, field)
+			case "tracks":
+				return ec.fieldContext_Effect_tracks(ctx, field)
 			case "requiredCapabilities":
 				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
 			case "createdBy":
@@ -7226,23 +7321,52 @@ func (ec *executionContext) fieldContext_Effect_loop(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Effect_steps(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+func (ec *executionContext) _Effect_durationMs(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Effect_steps,
+		ec.fieldContext_Effect_durationMs,
 		func(ctx context.Context) (any, error) {
-			return obj.Steps, nil
+			return obj.DurationMs, nil
 		},
 		nil,
-		ec.marshalNEffectStep2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepᚄ,
+		ec.marshalNInt2int,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Effect_steps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Effect_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Effect_tracks(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_tracks,
+		func(ctx context.Context) (any, error) {
+			return obj.Tracks, nil
+		},
+		nil,
+		ec.marshalNEffectTrack2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_tracks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Effect",
 		Field:      field,
@@ -7251,15 +7375,15 @@ func (ec *executionContext) fieldContext_Effect_steps(_ context.Context, field g
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_EffectStep_id(ctx, field)
+				return ec.fieldContext_EffectTrack_id(ctx, field)
 			case "index":
-				return ec.fieldContext_EffectStep_index(ctx, field)
-			case "kind":
-				return ec.fieldContext_EffectStep_kind(ctx, field)
-			case "config":
-				return ec.fieldContext_EffectStep_config(ctx, field)
+				return ec.fieldContext_EffectTrack_index(ctx, field)
+			case "name":
+				return ec.fieldContext_EffectTrack_name(ctx, field)
+			case "clips":
+				return ec.fieldContext_EffectTrack_clips(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type EffectStep", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type EffectTrack", field.Name)
 		},
 	}
 	return fc, nil
@@ -7395,12 +7519,12 @@ func (ec *executionContext) fieldContext_Effect_updatedAt(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _EffectStep_id(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+func (ec *executionContext) _EffectClip_id(ctx context.Context, field graphql.CollectedField, obj *model.EffectClip) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_EffectStep_id,
+		ec.fieldContext_EffectClip_id,
 		func(ctx context.Context) (any, error) {
 			return obj.ID, nil
 		},
@@ -7411,9 +7535,9 @@ func (ec *executionContext) _EffectStep_id(ctx context.Context, field graphql.Co
 	)
 }
 
-func (ec *executionContext) fieldContext_EffectStep_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_EffectClip_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "EffectStep",
+		Object:     "EffectClip",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -7424,14 +7548,14 @@ func (ec *executionContext) fieldContext_EffectStep_id(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _EffectStep_index(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+func (ec *executionContext) _EffectClip_startMs(ctx context.Context, field graphql.CollectedField, obj *model.EffectClip) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_EffectStep_index,
+		ec.fieldContext_EffectClip_startMs,
 		func(ctx context.Context) (any, error) {
-			return obj.Index, nil
+			return obj.StartMs, nil
 		},
 		nil,
 		ec.marshalNInt2int,
@@ -7440,9 +7564,9 @@ func (ec *executionContext) _EffectStep_index(ctx context.Context, field graphql
 	)
 }
 
-func (ec *executionContext) fieldContext_EffectStep_index(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_EffectClip_startMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "EffectStep",
+		Object:     "EffectClip",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -7453,41 +7577,99 @@ func (ec *executionContext) fieldContext_EffectStep_index(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _EffectStep_kind(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+func (ec *executionContext) _EffectClip_transitionMinMs(ctx context.Context, field graphql.CollectedField, obj *model.EffectClip) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_EffectStep_kind,
+		ec.fieldContext_EffectClip_transitionMinMs,
 		func(ctx context.Context) (any, error) {
-			return obj.Kind, nil
+			return obj.TransitionMinMs, nil
 		},
 		nil,
-		ec.marshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind,
+		ec.marshalNInt2int,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_EffectStep_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_EffectClip_transitionMinMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "EffectStep",
+		Object:     "EffectClip",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type EffectStepKind does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _EffectStep_config(ctx context.Context, field graphql.CollectedField, obj *model.EffectStep) (ret graphql.Marshaler) {
+func (ec *executionContext) _EffectClip_transitionMaxMs(ctx context.Context, field graphql.CollectedField, obj *model.EffectClip) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_EffectStep_config,
+		ec.fieldContext_EffectClip_transitionMaxMs,
+		func(ctx context.Context) (any, error) {
+			return obj.TransitionMaxMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectClip_transitionMaxMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectClip",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectClip_kind(ctx context.Context, field graphql.CollectedField, obj *model.EffectClip) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectClip_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNEffectClipKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectClip_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectClip",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type EffectClipKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectClip_config(ctx context.Context, field graphql.CollectedField, obj *model.EffectClip) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectClip_config,
 		func(ctx context.Context) (any, error) {
 			return obj.Config, nil
 		},
@@ -7498,9 +7680,9 @@ func (ec *executionContext) _EffectStep_config(ctx context.Context, field graphq
 	)
 }
 
-func (ec *executionContext) fieldContext_EffectStep_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_EffectClip_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "EffectStep",
+		Object:     "EffectClip",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -7622,6 +7804,136 @@ func (ec *executionContext) fieldContext_EffectStepEvent_active(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectTrack_id(ctx context.Context, field graphql.CollectedField, obj *model.EffectTrack) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectTrack_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectTrack_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectTrack",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectTrack_index(ctx context.Context, field graphql.CollectedField, obj *model.EffectTrack) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectTrack_index,
+		func(ctx context.Context) (any, error) {
+			return obj.Index, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectTrack_index(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectTrack",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectTrack_name(ctx context.Context, field graphql.CollectedField, obj *model.EffectTrack) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectTrack_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectTrack_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectTrack",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectTrack_clips(ctx context.Context, field graphql.CollectedField, obj *model.EffectTrack) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectTrack_clips,
+		func(ctx context.Context) (any, error) {
+			return obj.Clips, nil
+		},
+		nil,
+		ec.marshalNEffectClip2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectTrack_clips(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectTrack",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_EffectClip_id(ctx, field)
+			case "startMs":
+				return ec.fieldContext_EffectClip_startMs(ctx, field)
+			case "transitionMinMs":
+				return ec.fieldContext_EffectClip_transitionMinMs(ctx, field)
+			case "transitionMaxMs":
+				return ec.fieldContext_EffectClip_transitionMaxMs(ctx, field)
+			case "kind":
+				return ec.fieldContext_EffectClip_kind(ctx, field)
+			case "config":
+				return ec.fieldContext_EffectClip_config(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectClip", field.Name)
 		},
 	}
 	return fc, nil
@@ -10394,8 +10706,10 @@ func (ec *executionContext) fieldContext_Mutation_createEffect(ctx context.Conte
 				return ec.fieldContext_Effect_nativeName(ctx, field)
 			case "loop":
 				return ec.fieldContext_Effect_loop(ctx, field)
-			case "steps":
-				return ec.fieldContext_Effect_steps(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_Effect_durationMs(ctx, field)
+			case "tracks":
+				return ec.fieldContext_Effect_tracks(ctx, field)
 			case "requiredCapabilities":
 				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
 			case "createdBy":
@@ -10459,8 +10773,10 @@ func (ec *executionContext) fieldContext_Mutation_updateEffect(ctx context.Conte
 				return ec.fieldContext_Effect_nativeName(ctx, field)
 			case "loop":
 				return ec.fieldContext_Effect_loop(ctx, field)
-			case "steps":
-				return ec.fieldContext_Effect_steps(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_Effect_durationMs(ctx, field)
+			case "tracks":
+				return ec.fieldContext_Effect_tracks(ctx, field)
 			case "requiredCapabilities":
 				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
 			case "createdBy":
@@ -11756,8 +12072,10 @@ func (ec *executionContext) fieldContext_Query_effects(_ context.Context, field 
 				return ec.fieldContext_Effect_nativeName(ctx, field)
 			case "loop":
 				return ec.fieldContext_Effect_loop(ctx, field)
-			case "steps":
-				return ec.fieldContext_Effect_steps(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_Effect_durationMs(ctx, field)
+			case "tracks":
+				return ec.fieldContext_Effect_tracks(ctx, field)
 			case "requiredCapabilities":
 				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
 			case "createdBy":
@@ -11810,8 +12128,10 @@ func (ec *executionContext) fieldContext_Query_effect(ctx context.Context, field
 				return ec.fieldContext_Effect_nativeName(ctx, field)
 			case "loop":
 				return ec.fieldContext_Effect_loop(ctx, field)
-			case "steps":
-				return ec.fieldContext_Effect_steps(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_Effect_durationMs(ctx, field)
+			case "tracks":
+				return ec.fieldContext_Effect_tracks(ctx, field)
 			case "requiredCapabilities":
 				return ec.fieldContext_Effect_requiredCapabilities(ctx, field)
 			case "createdBy":
@@ -15720,7 +16040,7 @@ func (ec *executionContext) unmarshalInputCreateEffectInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "kind", "nativeName", "loop", "steps"}
+	fieldsInOrder := [...]string{"name", "icon", "kind", "nativeName", "loop", "durationMs", "tracks"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15762,13 +16082,20 @@ func (ec *executionContext) unmarshalInputCreateEffectInput(ctx context.Context,
 				return it, err
 			}
 			it.Loop = data
-		case "steps":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("steps"))
-			data, err := ec.unmarshalNEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx, v)
+		case "durationMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Steps = data
+			it.DurationMs = data
+		case "tracks":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tracks"))
+			data, err := ec.unmarshalNEffectTrackInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tracks = data
 		}
 	}
 	return it, nil
@@ -16024,8 +16351,8 @@ func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputEffectStepInput(ctx context.Context, obj any) (model.EffectStepInput, error) {
-	var it model.EffectStepInput
+func (ec *executionContext) unmarshalInputEffectClipInput(ctx context.Context, obj any) (model.EffectClipInput, error) {
+	var it model.EffectClipInput
 	if obj == nil {
 		return it, nil
 	}
@@ -16035,16 +16362,37 @@ func (ec *executionContext) unmarshalInputEffectStepInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"kind", "config"}
+	fieldsInOrder := [...]string{"startMs", "transitionMinMs", "transitionMaxMs", "kind", "config"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "startMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartMs = data
+		case "transitionMinMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transitionMinMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TransitionMinMs = data
+		case "transitionMaxMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transitionMaxMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TransitionMaxMs = data
 		case "kind":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
-			data, err := ec.unmarshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind(ctx, v)
+			data, err := ec.unmarshalNEffectClipKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipKind(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -16056,6 +16404,43 @@ func (ec *executionContext) unmarshalInputEffectStepInput(ctx context.Context, o
 				return it, err
 			}
 			it.Config = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectTrackInput(ctx context.Context, obj any) (model.EffectTrackInput, error) {
+	var it model.EffectTrackInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "clips"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "clips":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clips"))
+			data, err := ec.unmarshalNEffectClipInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Clips = data
 		}
 	}
 	return it, nil
@@ -16512,7 +16897,7 @@ func (ec *executionContext) unmarshalInputUpdateEffectInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "icon", "loop", "nativeName", "steps"}
+	fieldsInOrder := [...]string{"id", "name", "icon", "loop", "durationMs", "nativeName", "tracks"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16547,6 +16932,13 @@ func (ec *executionContext) unmarshalInputUpdateEffectInput(ctx context.Context,
 				return it, err
 			}
 			it.Loop = graphql.OmittableOf(data)
+		case "durationMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMs"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DurationMs = graphql.OmittableOf(data)
 		case "nativeName":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nativeName"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -16554,13 +16946,13 @@ func (ec *executionContext) unmarshalInputUpdateEffectInput(ctx context.Context,
 				return it, err
 			}
 			it.NativeName = graphql.OmittableOf(data)
-		case "steps":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("steps"))
-			data, err := ec.unmarshalOEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx, v)
+		case "tracks":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tracks"))
+			data, err := ec.unmarshalOEffectTrackInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Steps = graphql.OmittableOf(data)
+			it.Tracks = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -17755,8 +18147,13 @@ func (ec *executionContext) _Effect(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "steps":
-			out.Values[i] = ec._Effect_steps(ctx, field, obj)
+		case "durationMs":
+			out.Values[i] = ec._Effect_durationMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tracks":
+			out.Values[i] = ec._Effect_tracks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -17800,34 +18197,44 @@ func (ec *executionContext) _Effect(ctx context.Context, sel ast.SelectionSet, o
 	return out
 }
 
-var effectStepImplementors = []string{"EffectStep"}
+var effectClipImplementors = []string{"EffectClip"}
 
-func (ec *executionContext) _EffectStep(ctx context.Context, sel ast.SelectionSet, obj *model.EffectStep) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, effectStepImplementors)
+func (ec *executionContext) _EffectClip(ctx context.Context, sel ast.SelectionSet, obj *model.EffectClip) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectClipImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("EffectStep")
+			out.Values[i] = graphql.MarshalString("EffectClip")
 		case "id":
-			out.Values[i] = ec._EffectStep_id(ctx, field, obj)
+			out.Values[i] = ec._EffectClip_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "index":
-			out.Values[i] = ec._EffectStep_index(ctx, field, obj)
+		case "startMs":
+			out.Values[i] = ec._EffectClip_startMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "transitionMinMs":
+			out.Values[i] = ec._EffectClip_transitionMinMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "transitionMaxMs":
+			out.Values[i] = ec._EffectClip_transitionMaxMs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "kind":
-			out.Values[i] = ec._EffectStep_kind(ctx, field, obj)
+			out.Values[i] = ec._EffectClip_kind(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "config":
-			out.Values[i] = ec._EffectStep_config(ctx, field, obj)
+			out.Values[i] = ec._EffectClip_config(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -17882,6 +18289,60 @@ func (ec *executionContext) _EffectStepEvent(ctx context.Context, sel ast.Select
 			}
 		case "active":
 			out.Values[i] = ec._EffectStepEvent_active(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectTrackImplementors = []string{"EffectTrack"}
+
+func (ec *executionContext) _EffectTrack(ctx context.Context, sel ast.SelectionSet, obj *model.EffectTrack) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectTrackImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectTrack")
+		case "id":
+			out.Values[i] = ec._EffectTrack_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "index":
+			out.Values[i] = ec._EffectTrack_index(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._EffectTrack_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "clips":
+			out.Values[i] = ec._EffectTrack_clips(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -20564,21 +21025,11 @@ func (ec *executionContext) marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffro
 	return ec._Effect(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, v any) (model.EffectKind, error) {
-	var res model.EffectKind
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, sel ast.SelectionSet, v model.EffectKind) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) marshalNEffectStep2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EffectStep) graphql.Marshaler {
+func (ec *executionContext) marshalNEffectClip2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EffectClip) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNEffectStep2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStep(ctx, sel, v[i])
+		return ec.marshalNEffectClip2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClip(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -20590,14 +21041,54 @@ func (ec *executionContext) marshalNEffectStep2ᚕᚖgithubᚗcomᚋsaffronjam�
 	return ret
 }
 
-func (ec *executionContext) marshalNEffectStep2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStep(ctx context.Context, sel ast.SelectionSet, v *model.EffectStep) graphql.Marshaler {
+func (ec *executionContext) marshalNEffectClip2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClip(ctx context.Context, sel ast.SelectionSet, v *model.EffectClip) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._EffectStep(ctx, sel, v)
+	return ec._EffectClip(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNEffectClipInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipInputᚄ(ctx context.Context, v any) ([]*model.EffectClipInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.EffectClipInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNEffectClipInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNEffectClipInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipInput(ctx context.Context, v any) (*model.EffectClipInput, error) {
+	res, err := ec.unmarshalInputEffectClipInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNEffectClipKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipKind(ctx context.Context, v any) (model.EffectClipKind, error) {
+	var res model.EffectClipKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffectClipKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipKind(ctx context.Context, sel ast.SelectionSet, v model.EffectClipKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, v any) (model.EffectKind, error) {
+	var res model.EffectKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, sel ast.SelectionSet, v model.EffectKind) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNEffectStepEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepEvent(ctx context.Context, sel ast.SelectionSet, v model.EffectStepEvent) graphql.Marshaler {
@@ -20614,14 +21105,40 @@ func (ec *executionContext) marshalNEffectStepEvent2ᚖgithubᚗcomᚋsaffronjam
 	return ec._EffectStepEvent(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx context.Context, v any) ([]*model.EffectStepInput, error) {
+func (ec *executionContext) marshalNEffectTrack2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EffectTrack) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNEffectTrack2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrack(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNEffectTrack2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrack(ctx context.Context, sel ast.SelectionSet, v *model.EffectTrack) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EffectTrack(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNEffectTrackInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInputᚄ(ctx context.Context, v any) ([]*model.EffectTrackInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]*model.EffectStepInput, len(vSlice))
+	res := make([]*model.EffectTrackInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNEffectStepInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNEffectTrackInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -20629,19 +21146,9 @@ func (ec *executionContext) unmarshalNEffectStepInput2ᚕᚖgithubᚗcomᚋsaffr
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNEffectStepInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInput(ctx context.Context, v any) (*model.EffectStepInput, error) {
-	res, err := ec.unmarshalInputEffectStepInput(ctx, v)
+func (ec *executionContext) unmarshalNEffectTrackInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInput(ctx context.Context, v any) (*model.EffectTrackInput, error) {
+	res, err := ec.unmarshalInputEffectTrackInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind(ctx context.Context, v any) (model.EffectStepKind, error) {
-	var res model.EffectStepKind
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNEffectStepKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepKind(ctx context.Context, sel ast.SelectionSet, v model.EffectStepKind) graphql.Marshaler {
-	return v
 }
 
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
@@ -21655,17 +22162,17 @@ func (ec *executionContext) marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffro
 	return ec._Effect(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOEffectStepInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInputᚄ(ctx context.Context, v any) ([]*model.EffectStepInput, error) {
+func (ec *executionContext) unmarshalOEffectTrackInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInputᚄ(ctx context.Context, v any) ([]*model.EffectTrackInput, error) {
 	if v == nil {
 		return nil, nil
 	}
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]*model.EffectStepInput, len(vSlice))
+	res := make([]*model.EffectTrackInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNEffectStepInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNEffectTrackInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}

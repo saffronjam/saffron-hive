@@ -194,7 +194,8 @@ type CreateEffectInput struct {
 	Kind       EffectKind                 `json:"kind"`
 	NativeName graphql.Omittable[*string] `json:"nativeName,omitempty"`
 	Loop       bool                       `json:"loop"`
-	Steps      []*EffectStepInput         `json:"steps"`
+	DurationMs int                        `json:"durationMs"`
+	Tracks     []*EffectTrackInput        `json:"tracks"`
 }
 
 type CreateGroupInput struct {
@@ -282,35 +283,57 @@ type DeviceStateInput struct {
 }
 
 type Effect struct {
-	ID         string        `json:"id"`
-	Name       string        `json:"name"`
-	Icon       *string       `json:"icon,omitempty"`
-	Kind       EffectKind    `json:"kind"`
-	NativeName *string       `json:"nativeName,omitempty"`
-	Loop       bool          `json:"loop"`
-	Steps      []*EffectStep `json:"steps"`
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	Icon       *string    `json:"icon,omitempty"`
+	Kind       EffectKind `json:"kind"`
+	NativeName *string    `json:"nativeName,omitempty"`
+	Loop       bool       `json:"loop"`
+	// For loop=true timeline effects, the loop length in milliseconds (the
+	// position of the End line on the editor timeline). Inter-loop delay equals
+	// durationMs minus the rightmost clip's end. For loop=false effects, this is
+	// informational and reflects the rightmost clip end captured at save time.
+	// Always 0 for native effects.
+	DurationMs int            `json:"durationMs"`
+	Tracks     []*EffectTrack `json:"tracks"`
 	// Capabilities every target device must support for this effect to apply
-	// cleanly. Derived from the effect's step kinds for timeline effects;
-	// empty for native effects (the per-device native option list owns that
-	// filtering).
+	// cleanly. Derived from the union of clip kinds across all tracks for
+	// timeline effects; empty for native effects (the per-device native option
+	// list owns that filtering). native_effect clips inside a timeline
+	// contribute no capability either; their support is gated by the device's
+	// effect cap value list.
 	RequiredCapabilities []string  `json:"requiredCapabilities"`
 	CreatedBy            *User     `json:"createdBy,omitempty"`
 	CreatedAt            time.Time `json:"createdAt"`
 	UpdatedAt            time.Time `json:"updatedAt"`
 }
 
-// A single step inside a timeline effect. config is a JSON document whose
-// shape is determined by kind — the disk shape directly, not wrapped, e.g.
-// {"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
-type EffectStep struct {
-	ID     string         `json:"id"`
-	Index  int            `json:"index"`
-	Kind   EffectStepKind `json:"kind"`
-	Config string         `json:"config"`
+// A single clip on a track. config is a JSON document whose shape is
+// determined by kind — the inner config struct directly, e.g.
+// {"r":244,"g":42,"b":23} for SET_COLOR_RGB. transitionMinMs and
+// transitionMaxMs bound a uniform random pick of the actual transition
+// sampled per clip-execution; equal bounds collapse to a deterministic value.
+type EffectClip struct {
+	ID              string         `json:"id"`
+	StartMs         int            `json:"startMs"`
+	TransitionMinMs int            `json:"transitionMinMs"`
+	TransitionMaxMs int            `json:"transitionMaxMs"`
+	Kind            EffectClipKind `json:"kind"`
+	Config          string         `json:"config"`
 }
 
-// Step boundary marker emitted by the runner. active=true on enter,
+type EffectClipInput struct {
+	StartMs         int            `json:"startMs"`
+	TransitionMinMs int            `json:"transitionMinMs"`
+	TransitionMaxMs int            `json:"transitionMaxMs"`
+	Kind            EffectClipKind `json:"kind"`
+	Config          string         `json:"config"`
+}
+
+// Clip boundary marker emitted by the runner. active=true on enter,
 // active=false on exit. runId identifies the in-flight run instance.
+// stepIndex is the clip's ordinal in the iteration's flat sorted-by-startMs
+// event list.
 type EffectStepEvent struct {
 	RunID     string `json:"runId"`
 	EffectID  string `json:"effectId"`
@@ -318,9 +341,20 @@ type EffectStepEvent struct {
 	Active    bool   `json:"active"`
 }
 
-type EffectStepInput struct {
-	Kind   EffectStepKind `json:"kind"`
-	Config string         `json:"config"`
+// A single track inside a timeline effect. Tracks fire in parallel; clips
+// within a track are mutually exclusive in time. name is a user-supplied
+// label shown in the editor; empty string is valid and rendered as a
+// placeholder ("Track {n}").
+type EffectTrack struct {
+	ID    string        `json:"id"`
+	Index int           `json:"index"`
+	Name  string        `json:"name"`
+	Clips []*EffectClip `json:"clips"`
+}
+
+type EffectTrackInput struct {
+	Name  string             `json:"name"`
+	Clips []*EffectClipInput `json:"clips"`
 }
 
 type Group struct {
@@ -534,12 +568,13 @@ type UpdateDeviceInput struct {
 }
 
 type UpdateEffectInput struct {
-	ID         string                                `json:"id"`
-	Name       graphql.Omittable[*string]            `json:"name,omitempty"`
-	Icon       graphql.Omittable[*string]            `json:"icon,omitempty"`
-	Loop       graphql.Omittable[*bool]              `json:"loop,omitempty"`
-	NativeName graphql.Omittable[*string]            `json:"nativeName,omitempty"`
-	Steps      graphql.Omittable[[]*EffectStepInput] `json:"steps,omitempty"`
+	ID         string                                 `json:"id"`
+	Name       graphql.Omittable[*string]             `json:"name,omitempty"`
+	Icon       graphql.Omittable[*string]             `json:"icon,omitempty"`
+	Loop       graphql.Omittable[*bool]               `json:"loop,omitempty"`
+	DurationMs graphql.Omittable[*int]                `json:"durationMs,omitempty"`
+	NativeName graphql.Omittable[*string]             `json:"nativeName,omitempty"`
+	Tracks     graphql.Omittable[[]*EffectTrackInput] `json:"tracks,omitempty"`
 }
 
 type UpdateGroupInput struct {
@@ -743,6 +778,67 @@ func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type EffectClipKind string
+
+const (
+	EffectClipKindSetOnOff      EffectClipKind = "SET_ON_OFF"
+	EffectClipKindSetBrightness EffectClipKind = "SET_BRIGHTNESS"
+	EffectClipKindSetColorRgb   EffectClipKind = "SET_COLOR_RGB"
+	EffectClipKindSetColorTemp  EffectClipKind = "SET_COLOR_TEMP"
+	EffectClipKindNativeEffect  EffectClipKind = "NATIVE_EFFECT"
+)
+
+var AllEffectClipKind = []EffectClipKind{
+	EffectClipKindSetOnOff,
+	EffectClipKindSetBrightness,
+	EffectClipKindSetColorRgb,
+	EffectClipKindSetColorTemp,
+	EffectClipKindNativeEffect,
+}
+
+func (e EffectClipKind) IsValid() bool {
+	switch e {
+	case EffectClipKindSetOnOff, EffectClipKindSetBrightness, EffectClipKindSetColorRgb, EffectClipKindSetColorTemp, EffectClipKindNativeEffect:
+		return true
+	}
+	return false
+}
+
+func (e EffectClipKind) String() string {
+	return string(e)
+}
+
+func (e *EffectClipKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = EffectClipKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid EffectClipKind", str)
+	}
+	return nil
+}
+
+func (e EffectClipKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *EffectClipKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e EffectClipKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type EffectKind string
 
 const (
@@ -793,67 +889,6 @@ func (e *EffectKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e EffectKind) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-type EffectStepKind string
-
-const (
-	EffectStepKindWait          EffectStepKind = "WAIT"
-	EffectStepKindSetOnOff      EffectStepKind = "SET_ON_OFF"
-	EffectStepKindSetBrightness EffectStepKind = "SET_BRIGHTNESS"
-	EffectStepKindSetColorRgb   EffectStepKind = "SET_COLOR_RGB"
-	EffectStepKindSetColorTemp  EffectStepKind = "SET_COLOR_TEMP"
-)
-
-var AllEffectStepKind = []EffectStepKind{
-	EffectStepKindWait,
-	EffectStepKindSetOnOff,
-	EffectStepKindSetBrightness,
-	EffectStepKindSetColorRgb,
-	EffectStepKindSetColorTemp,
-}
-
-func (e EffectStepKind) IsValid() bool {
-	switch e {
-	case EffectStepKindWait, EffectStepKindSetOnOff, EffectStepKindSetBrightness, EffectStepKindSetColorRgb, EffectStepKindSetColorTemp:
-		return true
-	}
-	return false
-}
-
-func (e EffectStepKind) String() string {
-	return string(e)
-}
-
-func (e *EffectStepKind) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = EffectStepKind(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid EffectStepKind", str)
-	}
-	return nil
-}
-
-func (e EffectStepKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *EffectStepKind) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e EffectStepKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
