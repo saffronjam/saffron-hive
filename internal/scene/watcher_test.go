@@ -130,7 +130,7 @@ func newWatcherFixture(t *testing.T) *watcherFixture {
 	st := newFakeStore()
 	res := &fakeResolver{groups: map[string][]device.DeviceID{}}
 	state := device.NewMemoryStore()
-	w := NewWatcher(bus, st, res, state)
+	w := NewWatcher(bus, st, res, state, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -421,7 +421,7 @@ func TestWatcher_Hydrate_ClearsDriftedScene(t *testing.T) {
 	}
 	st.mu.Unlock()
 
-	w := NewWatcher(bus, st, &fakeResolver{}, state)
+	w := NewWatcher(bus, st, &fakeResolver{}, state, nil)
 	if err := w.Hydrate(context.Background()); err != nil {
 		t.Fatalf("hydrate: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestWatcher_Hydrate_PreservesMatchingScene(t *testing.T) {
 	}
 	st.mu.Unlock()
 
-	w := NewWatcher(bus, st, &fakeResolver{}, state)
+	w := NewWatcher(bus, st, &fakeResolver{}, state, nil)
 	if err := w.Hydrate(context.Background()); err != nil {
 		t.Fatalf("hydrate: %v", err)
 	}
