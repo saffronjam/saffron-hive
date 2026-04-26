@@ -30,6 +30,10 @@
 		name: string;
 	}
 
+	type EffectRef =
+		| { kind: "timeline"; id: string; name: string }
+		| { kind: "native"; nativeName: string; name: string };
+
 	interface ActionNodeData extends Record<string, unknown> {
 		config: ActionConfig;
 		editable: boolean;
@@ -38,7 +42,12 @@
 		groups?: (GroupLite & { name: string })[];
 		rooms?: (RoomLite & { name: string })[];
 		scenes?: SceneRef[];
+		effects?: EffectRef[];
 		onConfigChange?: (config: ActionConfig) => void;
+	}
+
+	function effectRefKey(ref: EffectRef): string {
+		return ref.kind === "timeline" ? `timeline:${ref.id}` : `native:${ref.nativeName}`;
 	}
 
 	interface TargetItem {
@@ -70,6 +79,7 @@
 	const actionTypes = [
 		{ value: "set_device_state", label: "Set Device State" },
 		{ value: "activate_scene", label: "Activate Scene" },
+		{ value: "run_effect", label: "Run Effect" },
 		{ value: "raise_alarm", label: "Raise Alarm" },
 		{ value: "clear_alarm", label: "Clear Alarm" },
 	];
@@ -94,6 +104,8 @@
 			payload = JSON.stringify({ alarm_id: "", severity: "medium", kind: "auto", message: "" });
 		} else if (value === "clear_alarm" && !isClearAlarmPayload(payload)) {
 			payload = JSON.stringify({ alarm_id: "" });
+		} else if (value === "run_effect" && !isRunEffectPayload(payload)) {
+			payload = JSON.stringify({});
 		}
 		data.onConfigChange({
 			...data.config,
@@ -134,6 +146,22 @@
 		return typeof p.alarm_id === "string";
 	}
 
+	function isRunEffectPayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return typeof p.effect_id === "string" || typeof p.native_name === "string";
+	}
+
+	function updateEffectSelection(key: string) {
+		if (!data.onConfigChange) return;
+		const ref = effectsList.find((e) => effectRefKey(e) === key);
+		if (!ref) return;
+		const payload =
+			ref.kind === "native"
+				? JSON.stringify({ native_name: ref.nativeName })
+				: JSON.stringify({ effect_id: ref.id });
+		data.onConfigChange({ ...data.config, payload });
+	}
+
 	const parsedPayload = $derived(safeParse(data.config.payload));
 
 	function updateRaiseField(field: "alarm_id" | "severity" | "kind" | "message", value: string) {
@@ -152,7 +180,8 @@
 	);
 
 	// Inline target picker. activate_scene only picks scenes; set_device_state
-	// picks across devices + groups + rooms (best-effort fan-out downstream).
+	// and run_effect pick across devices + groups + rooms (best-effort fan-out
+	// downstream).
 	const targetItemsList = $derived.by<TargetItem[]>(() => {
 		if (data.config.actionType === "activate_scene") {
 			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name }));
@@ -168,6 +197,19 @@
 			items.push({ kind: "room", id: r.id, name: r.name });
 		}
 		return items;
+	});
+
+	const effectsList = $derived(data.effects ?? []);
+	const selectedEffectKey = $derived.by(() => {
+		const eid = parsedPayload.effect_id;
+		if (typeof eid === "string" && eid !== "") return `timeline:${eid}`;
+		const nname = parsedPayload.native_name;
+		if (typeof nname === "string" && nname !== "") return `native:${nname}`;
+		return "";
+	});
+	const selectedEffectName = $derived.by(() => {
+		const ref = effectsList.find((e) => effectRefKey(e) === selectedEffectKey);
+		return ref?.name ?? "";
 	});
 
 	const selectedTargetKey = $derived(
@@ -329,6 +371,21 @@
 					{:else}
 						<p class="text-[11px] text-muted-foreground">Pick a target to configure state.</p>
 					{/if}
+				{:else if data.config.actionType === "run_effect"}
+					<Select
+						type="single"
+						value={selectedEffectKey}
+						onValueChange={(v) => v && updateEffectSelection(v)}
+					>
+						<SelectTrigger class="w-full text-xs">
+							{selectedEffectName || "Select effect"}
+						</SelectTrigger>
+						<SelectContent>
+							{#each effectsList as eff (effectRefKey(eff))}
+								<SelectItem value={effectRefKey(eff)}>{eff.name}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
 				{:else if data.config.actionType !== "activate_scene"}
 					<Textarea
 						value={data.config.payload}
@@ -349,6 +406,11 @@
 				<p class="truncate text-xs text-muted-foreground">{(parsedPayload.message as string) ?? ""}</p>
 			{:else if data.config.actionType === "clear_alarm"}
 				<p class="truncate text-xs text-muted-foreground">{(parsedPayload.alarm_id as string) ?? ""}</p>
+			{:else if data.config.actionType === "run_effect"}
+				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
+				<p class="truncate text-xs text-muted-foreground">
+					{selectedEffectName || "No effect"}
+				</p>
 			{:else}
 				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
 				{#if data.config.actionType !== "activate_scene" && data.config.payload}

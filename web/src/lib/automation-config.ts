@@ -71,3 +71,35 @@ export function referencedSceneIds(node: AutomationNodeLike): string[] {
   const id = raw.payload;
   return typeof id === "string" && id !== "" ? [id] : [];
 }
+
+/**
+ * Effect IDs referenced by an action node. Only `run_effect` actions with a
+ * stored timeline/native effect (`effect_id`) contribute; native-effect
+ * references via `native_name` are reported by `referencedNativeEffectNames`
+ * instead.
+ */
+export function referencedEffectIds(node: AutomationNodeLike): string[] {
+  if (node.type !== "action") return [];
+  const raw = safeParseJSON(node.config);
+  if (!isRecord(raw)) return [];
+  if (raw.action_type !== "run_effect") return [];
+  const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
+  if (!isRecord(payload)) return [];
+  const id = payload.effect_id;
+  return typeof id === "string" && id !== "" ? [id] : [];
+}
+
+/**
+ * Native effect names referenced by an action node. Only `run_effect`
+ * actions with a `native_name` payload field contribute.
+ */
+export function referencedNativeEffectNames(node: AutomationNodeLike): string[] {
+  if (node.type !== "action") return [];
+  const raw = safeParseJSON(node.config);
+  if (!isRecord(raw)) return [];
+  if (raw.action_type !== "run_effect") return [];
+  const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
+  if (!isRecord(payload)) return [];
+  const name = payload.native_name;
+  return typeof name === "string" && name !== "" ? [name] : [];
+}

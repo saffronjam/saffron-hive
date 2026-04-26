@@ -490,6 +490,24 @@ export function validateActionConfig(
     }
     return null;
   }
+  if (config.actionType === "run_effect") {
+    try {
+      const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;
+      if (
+        !parsed.effect_id ||
+        typeof parsed.effect_id !== "string" ||
+        parsed.effect_id.trim() === ""
+      ) {
+        return { field: "payload", message: "Pick an effect" };
+      }
+    } catch {
+      return { field: "payload", message: "Payload must be valid JSON" };
+    }
+    if (!config.targetType || !config.targetId) {
+      return { field: "target", message: "Pick a target" };
+    }
+    return null;
+  }
   if (!config.targetType || !config.targetId) {
     return { field: "target", message: "Pick a target" };
   }

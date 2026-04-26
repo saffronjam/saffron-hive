@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   actionKind,
   referencedDeviceIds,
+  referencedEffectIds,
+  referencedNativeEffectNames,
   referencedSceneIds,
   triggerKind,
 } from "$lib/automation-config";
@@ -202,5 +204,74 @@ describe("referencedSceneIds", () => {
 
   it("returns no IDs for malformed configs", () => {
     expect(referencedSceneIds({ type: "action", config: "}{" })).toEqual([]);
+  });
+});
+
+describe("referencedEffectIds", () => {
+  it("extracts effect_id from a run_effect action", () => {
+    expect(
+      referencedEffectIds({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "run_effect",
+          target_type: "device",
+          target_id: "light-1",
+          payload: JSON.stringify({ effect_id: "fireplace" }),
+        }),
+      }),
+    ).toEqual(["fireplace"]);
+  });
+
+  it("returns no IDs when run_effect references a native effect", () => {
+    expect(
+      referencedEffectIds({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "run_effect",
+          target_type: "device",
+          target_id: "light-1",
+          payload: JSON.stringify({ native_name: "fireplace" }),
+        }),
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("referencedNativeEffectNames", () => {
+  it("extracts native_name from a run_effect action", () => {
+    expect(
+      referencedNativeEffectNames({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "run_effect",
+          target_type: "device",
+          target_id: "light-1",
+          payload: JSON.stringify({ native_name: "fireplace" }),
+        }),
+      }),
+    ).toEqual(["fireplace"]);
+  });
+
+  it("returns no names when run_effect references a stored effect_id", () => {
+    expect(
+      referencedNativeEffectNames({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "run_effect",
+          target_type: "device",
+          target_id: "light-1",
+          payload: JSON.stringify({ effect_id: "fireplace" }),
+        }),
+      }),
+    ).toEqual([]);
+  });
+
+  it("returns no names for non-run_effect actions", () => {
+    expect(
+      referencedNativeEffectNames({
+        type: "action",
+        config: JSON.stringify({ action_type: "activate_scene", payload: "scene-1" }),
+      }),
+    ).toEqual([]);
   });
 });

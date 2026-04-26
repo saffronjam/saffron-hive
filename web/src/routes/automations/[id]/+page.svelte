@@ -283,9 +283,31 @@
 		}
 	`);
 
+	const EFFECTS_QUERY = graphql(`
+		query AutomationEditEffects {
+			effects {
+				id
+				name
+			}
+			nativeEffectOptions {
+				name
+				displayName
+			}
+		}
+	`);
+
 	interface ScenesQueryResult {
 		scenes: { id: string; name: string }[];
 	}
+
+	interface EffectsQueryResult {
+		effects: { id: string; name: string }[];
+		nativeEffectOptions: { name: string; displayName: string }[];
+	}
+
+	type EffectOption =
+		| { kind: "timeline"; id: string; name: string }
+		| { kind: "native"; nativeName: string; name: string };
 
 	const NODE_ACTIVATED_SUBSCRIPTION = graphql(`
 		subscription AutomationEditNodeActivated($automationId: ID) {
@@ -355,6 +377,7 @@
 	let groups = $state<GroupData[]>([]);
 	let rooms = $state<RoomData[]>([]);
 	let scenes = $state<{ id: string; name: string }[]>([]);
+	let effects = $state<EffectOption[]>([]);
 
 	const pickerGroups = $derived.by((): DrawerGroup<"device" | "group" | "room" | "scene">[] => {
 		if (pickerActionType === "activate_scene") {
@@ -661,6 +684,7 @@
 				groups,
 				rooms,
 				scenes,
+				effects,
 			};
 		}
 
@@ -1052,6 +1076,7 @@
 		groupList: GroupData[],
 		roomList: RoomData[],
 		sceneList: { id: string; name: string }[],
+		effectList: EffectOption[],
 	) {
 		flowNodes = flowNodes.map((n) => {
 			const data = n.data as Record<string, unknown>;
@@ -1082,6 +1107,7 @@
 						groups: groupList,
 						rooms: roomList,
 						scenes: sceneList,
+						effects: effectList,
 						config: nextCfg,
 					},
 				};
@@ -1095,6 +1121,7 @@
 		const groupList = groups;
 		const roomList = rooms;
 		const sceneList = scenes;
+		const effectList = effects;
 		// Trigger whenever ANY lookup changes. Don't gate on .length>0; an
 		// automation editor opened on an instance with zero groups/rooms still
 		// needs the hydration pass to resolve targetName from devices.
@@ -1102,7 +1129,8 @@
 		void groupList.length;
 		void roomList.length;
 		void sceneList.length;
-		untrack(() => hydrateNodesWithLookups(deviceList, groupList, roomList, sceneList));
+		void effectList.length;
+		untrack(() => hydrateNodesWithLookups(deviceList, groupList, roomList, sceneList, effectList));
 	});
 
 	function updateTriggerNodeEnabledState(enabled: boolean) {
@@ -1324,6 +1352,24 @@
 				if (result.data) {
 					scenes = result.data.scenes;
 				}
+			});
+
+		client
+			.query<EffectsQueryResult>(EFFECTS_QUERY, {})
+			.toPromise()
+			.then((result) => {
+				if (!result.data) return;
+				const timeline: EffectOption[] = result.data.effects.map((e) => ({
+					kind: "timeline",
+					id: e.id,
+					name: e.name,
+				}));
+				const native: EffectOption[] = result.data.nativeEffectOptions.map((opt) => ({
+					kind: "native",
+					nativeName: opt.name,
+					name: opt.displayName || opt.name,
+				}));
+				effects = [...timeline, ...native];
 			});
 
 		const { unsubscribe: unsubActivation } = client
