@@ -827,7 +827,7 @@ func attrsContainFold(attrs map[string]string, substr string) bool {
 // validateAutomationInput validates automation node/edge inputs before persisting.
 // Returns a user-friendly error if the graph has structural issues (no triggers,
 // invalid cron expressions, cycles, etc.).
-func validateAutomationInput(inputNodes []*model.AutomationNodeInput, inputEdges []*model.AutomationEdgeInput) error {
+func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes []*model.AutomationNodeInput, inputEdges []*model.AutomationEdgeInput) error {
 	domainNodes := make([]automation.Node, 0, len(inputNodes))
 	for _, n := range inputNodes {
 		domainNodes = append(domainNodes, automation.Node{
@@ -852,6 +852,9 @@ func validateAutomationInput(inputNodes []*model.AutomationNodeInput, inputEdges
 		if err := validateAlarmActionPayloads(inputNodes); err != nil {
 			return err
 		}
+		if err := validateRunEffectActions(ctx, store, inputNodes); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -860,6 +863,62 @@ func validateAutomationInput(inputNodes []*model.AutomationNodeInput, inputEdges
 		msgs = append(msgs, err.Error())
 	}
 	return fmt.Errorf("automation validation failed: %s", strings.Join(msgs, "; "))
+}
+
+// validateRunEffectActions checks every run_effect action node: the payload
+// must parse and supply exactly one of effect_id (referring to a stored
+// effect) or native_name (referring to an auto-discovered native effect);
+// the node's target_type must be one of device/group/room and target_id must
+// be non-empty. Capability coverage is intentionally not enforced here — the
+// runner logs at debug when a step is dropped per device, so a partial cap
+// match is a soft warning rather than a hard rejection.
+func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var outer struct {
+			ActionType string `json:"action_type"`
+			TargetType string `json:"target_type"`
+			TargetID   string `json:"target_id"`
+			Payload    string `json:"payload"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
+			continue
+		}
+		if outer.ActionType != automation.ActionRunEffect {
+			continue
+		}
+		var p struct {
+			EffectID   string `json:"effect_id"`
+			NativeName string `json:"native_name"`
+		}
+		if err := json.Unmarshal([]byte(outer.Payload), &p); err != nil {
+			return fmt.Errorf("node %s: invalid run_effect payload JSON", n.ID)
+		}
+		hasEffect := p.EffectID != ""
+		hasNative := p.NativeName != ""
+		if !hasEffect && !hasNative {
+			return fmt.Errorf("node %s: run_effect requires effect_id or native_name", n.ID)
+		}
+		if hasEffect && hasNative {
+			return fmt.Errorf("node %s: run_effect must set exactly one of effect_id or native_name", n.ID)
+		}
+		switch automation.TargetType(outer.TargetType) {
+		case automation.TargetDevice, automation.TargetGroup, automation.TargetRoom:
+		default:
+			return fmt.Errorf("node %s: run_effect target_type must be device, group, or room (got %q)", n.ID, outer.TargetType)
+		}
+		if outer.TargetID == "" {
+			return fmt.Errorf("node %s: run_effect requires target_id", n.ID)
+		}
+		if hasEffect {
+			if _, err := store.GetEffect(ctx, p.EffectID); err != nil {
+				return fmt.Errorf("node %s: run_effect effect_id %q not found", n.ID, p.EffectID)
+			}
+		}
+	}
+	return nil
 }
 
 // validateAlarmActionPayloads type-checks the alarm-specific fields carried
