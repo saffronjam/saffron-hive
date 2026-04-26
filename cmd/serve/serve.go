@@ -154,17 +154,17 @@ func Run(ctx context.Context) error {
 	spawn("activity.recorder", func() { activityRecorder.Run(ctx) })
 	spawn("activity.retention", func() { activity.RunRetention(ctx, sqlStore) })
 
-	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore)
-	if err := sceneWatcher.Hydrate(ctx); err != nil {
-		serveLogger.Warn("scene watcher hydrate failed", "error", err)
-	}
-	spawn("scene.watcher", func() { sceneWatcher.Run(ctx) })
-
 	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, zigbeeTerminator{})
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)
 	}
 	spawn("effect.runner", func() { effectRunner.Run(ctx) })
+
+	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore, effectRunner)
+	if err := sceneWatcher.Hydrate(ctx); err != nil {
+		serveLogger.Warn("scene watcher hydrate failed", "error", err)
+	}
+	spawn("scene.watcher", func() { sceneWatcher.Run(ctx) })
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
@@ -186,7 +186,7 @@ func Run(ctx context.Context) error {
 		serveLogger.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
 	}
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
+	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc, effectRunner)
 	spawn("automation.engine", func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			serveLogger.Error("automation engine error", "error", err)

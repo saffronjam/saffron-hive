@@ -101,19 +101,19 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	go activityRecorder.Run(appCtx)
 
-	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore)
-	if err := sceneWatcher.Hydrate(appCtx); err != nil {
-		log.Printf("scene watcher hydrate failed: %v", err)
-	}
-	go sceneWatcher.Run(appCtx)
-
 	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, e2eTerminator{})
 	if err := effectRunner.Hydrate(appCtx); err != nil {
 		log.Printf("effect runner hydrate failed: %v", err)
 	}
 	go effectRunner.Run(appCtx)
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc)
+	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore, effectRunner)
+	if err := sceneWatcher.Hydrate(appCtx); err != nil {
+		log.Printf("scene watcher hydrate failed: %v", err)
+	}
+	go sceneWatcher.Run(appCtx)
+
+	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc, effectRunner)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
 			log.Printf("automation engine error: %v", err)
