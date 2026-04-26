@@ -10,21 +10,36 @@ import {
 describe("parsePayload", () => {
   it("parses valid JSON", () => {
     expect(parsePayload('{"on":true,"brightness":200}')).toEqual({
+      kind: "static",
       on: true,
       brightness: 200,
     });
   });
 
   it("parses a partial payload as-is", () => {
-    expect(parsePayload('{"colorTemp":350}')).toEqual({ colorTemp: 350 });
+    expect(parsePayload('{"colorTemp":350}')).toEqual({ kind: "static", colorTemp: 350 });
   });
 
   it("falls back to empty on invalid JSON", () => {
-    expect(parsePayload("not-json")).toEqual({});
+    expect(parsePayload("not-json")).toEqual({ kind: "static" });
   });
 
   it("falls back to empty on empty string", () => {
-    expect(parsePayload("")).toEqual({});
+    expect(parsePayload("")).toEqual({ kind: "static" });
+  });
+
+  it("parses a tagged effect payload", () => {
+    expect(parsePayload('{"kind":"effect","effect_id":"fireplace"}')).toEqual({
+      kind: "effect",
+      effectId: "fireplace",
+    });
+  });
+
+  it("parses a tagged native_effect payload", () => {
+    expect(parsePayload('{"kind":"native_effect","native_name":"fireplace"}')).toEqual({
+      kind: "native_effect",
+      nativeName: "fireplace",
+    });
   });
 });
 
@@ -100,7 +115,7 @@ describe("sceneToEditorState", () => {
     expect(state.targets).toHaveLength(2);
     expect(state.targets[0].type).toBe("device");
     expect(state.targets[1].type).toBe("group");
-    expect(state.payloads.get("d1")).toEqual({ on: true, brightness: 100 });
+    expect(state.payloads.get("d1")).toEqual({ kind: "static", on: true, brightness: 100 });
   });
 
   it("handles empty scenes", () => {

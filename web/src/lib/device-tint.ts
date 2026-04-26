@@ -119,6 +119,7 @@ export function sceneTintColors(payloads: ActionPayload[]): string[] {
   const nonSwitchColors: RGB[] = [];
   const switchColors: RGB[] = [];
   for (const payload of payloads) {
+    if (payload.kind !== "static") continue;
     if (!payload.on) continue;
     const rgb = resolveTintRgb({
       on: true,
@@ -163,7 +164,10 @@ export function groupTintColors(devices: Device[]): string[] {
 function payloadTintRgb(
   payload: ActionPayload,
   device: Device | undefined,
-): { rgb: RGB; isSwitchOnly: boolean } {
+): { rgb: RGB; isSwitchOnly: boolean; on: boolean } {
+  if (payload.kind !== "static") {
+    return { rgb: NEUTRAL, isSwitchOnly: false, on: false };
+  }
   const rgb = resolveTintRgb({
     type: device?.type,
     on: payload.on,
@@ -172,7 +176,7 @@ function payloadTintRgb(
     brightness: payload.brightness,
   });
   const isSwitchOnly = !payload.color && payload.colorTemp == null && payload.brightness == null;
-  return { rgb, isSwitchOnly };
+  return { rgb, isSwitchOnly, on: payload.on === true };
 }
 
 /**
@@ -189,8 +193,8 @@ export function sceneTint(
   const switchColors: RGB[] = [];
   for (const [deviceId, payload] of payloads) {
     const device = devicesById.get(deviceId);
-    const { rgb, isSwitchOnly } = payloadTintRgb(payload, device);
-    if (!payload.on) continue;
+    const { rgb, isSwitchOnly, on } = payloadTintRgb(payload, device);
+    if (!on) continue;
     if (isSwitchOnly) switchColors.push(rgb);
     else nonSwitchColors.push(rgb);
   }
@@ -224,6 +228,7 @@ export function sceneTintFromPayloads(payloads: ActionPayload[]): string {
   const nonSwitchColors: RGB[] = [];
   const switchColors: RGB[] = [];
   for (const payload of payloads) {
+    if (payload.kind !== "static") continue;
     if (!payload.on) continue;
     const rgb = resolveTintRgb({
       on: payload.on,
