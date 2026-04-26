@@ -10,17 +10,19 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
+func loopingTrack(brightness, dur int) []Track {
+	return []Track{{Clips: []Clip{brightnessClip(0, 0, brightness)}}}
+}
+
 func TestRunnerStart_PersistsLoopTimelineNonVolatile(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(40, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(20)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 20,
+		Tracks:     loopingTrack(40, 20),
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -50,11 +52,12 @@ func TestRunnerStart_PersistsNonLoopTimelineVolatile(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "one-shot",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepWait, Config: waitConfig(60_000)},
-		},
+		ID:         "one-shot",
+		Kind:       KindTimeline,
+		DurationMs: 60_000,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(50_000, 0, 100)},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -104,12 +107,13 @@ func TestRunnerStop_DeletesPersistedRow(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepWait, Config: waitConfig(60_000)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 60_000,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(50_000, 0, 100)},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -129,22 +133,18 @@ func TestRunnerStart_UpsertCollapsesByTarget(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "a",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(50, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(30)},
-		},
+		ID:         "a",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 30,
+		Tracks:     loopingTrack(50, 30),
 	})
 	st.put(Effect{
-		ID:   "b",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(150, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(30)},
-		},
+		ID:         "b",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 30,
+		Tracks:     loopingTrack(150, 30),
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -172,13 +172,11 @@ func TestRunnerHydrate_RelaunchesNonVolatileRow(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(80, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(10)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 10,
+		Tracks:     loopingTrack(80, 10),
 	})
 
 	if err := st.UpsertActiveEffect(context.Background(), UpsertActiveEffectParams{
@@ -212,11 +210,12 @@ func TestRunnerHydrate_PurgesVolatileRowsAndDoesNotRelaunch(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "one-shot",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(80, 0)},
-		},
+		ID:         "one-shot",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 80)},
+		}},
 	})
 	st.put(Effect{
 		ID:         "candle",
@@ -265,11 +264,12 @@ func TestRunnerHydrate_PurgesVolatileRowsAndDoesNotRelaunch(t *testing.T) {
 func TestRunnerHydrate_CrashSimulationVolatileRowPurged(t *testing.T) {
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "one-shot",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepWait, Config: waitConfig(60_000)},
-		},
+		ID:         "one-shot",
+		Kind:       KindTimeline,
+		DurationMs: 60_000,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(50_000, 0, 100)},
+		}},
 	})
 
 	rec1 := newRecorder()
@@ -307,13 +307,11 @@ func TestRunnerHydrate_SkipsDeletedEffect(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "good",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(60, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(10)},
-		},
+		ID:         "good",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 10,
+		Tracks:     loopingTrack(60, 10),
 	})
 
 	ctx := context.Background()
@@ -356,11 +354,12 @@ func TestRunnerStart_ToleratesPersistenceFailure(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(50, 0)},
-		},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 50)},
+		}},
 	})
 	st.setUpsertErr(errors.New("disk full"))
 	r := makeRunner(rec, st, newFakeReader(), nil)
@@ -380,8 +379,6 @@ func TestRunnerStart_ToleratesPersistenceFailure(t *testing.T) {
 		t.Errorf("persisted rows = %d, want 0 (upsert failed)", got)
 	}
 }
-
-// poll-helpers used only by Phase 7 persistence tests.
 
 func waitForActive(t *testing.T, st *fakeStore, want int) []ActiveEffectRecord {
 	t.Helper()
@@ -405,5 +402,4 @@ func waitForActiveBy(t *testing.T, st *fakeStore, pred func([]ActiveEffectRecord
 	return nil
 }
 
-// silence unused-import check if eventbus drops out of scope.
 var _ = eventbus.EventCommandRequested
