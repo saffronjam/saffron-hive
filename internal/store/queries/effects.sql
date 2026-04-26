@@ -1,9 +1,9 @@
 -- name: CreateEffect :exec
-INSERT INTO effects (id, name, icon, kind, native_name, loop, created_by)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO effects (id, name, icon, kind, native_name, loop, duration_ms, created_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetEffect :one
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop,
+SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -13,7 +13,7 @@ LEFT JOIN users u ON u.id = e.created_by
 WHERE e.id = ?;
 
 -- name: ListEffects :many
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop,
+SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -28,6 +28,7 @@ UPDATE effects SET
     kind        = COALESCE(sqlc.narg('kind'),        kind),
     native_name = COALESCE(sqlc.narg('native_name'), native_name),
     loop        = COALESCE(sqlc.narg('loop'),        loop),
+    duration_ms = COALESCE(sqlc.narg('duration_ms'), duration_ms),
     updated_at  = CURRENT_TIMESTAMP
 WHERE id = sqlc.arg('id');
 
@@ -37,21 +38,34 @@ UPDATE effects SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: ClearEffectNativeName :exec
 UPDATE effects SET native_name = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
+-- name: UpdateEffectDuration :exec
+UPDATE effects SET duration_ms = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
 -- name: DeleteEffect :exec
 DELETE FROM effects WHERE id = ?;
 
--- name: CreateEffectStep :exec
-INSERT INTO effect_steps (id, effect_id, step_index, kind, config)
-VALUES (?, ?, ?, ?, ?);
+-- name: CreateEffectTrack :exec
+INSERT INTO effect_tracks (id, effect_id, track_index, name)
+VALUES (?, ?, ?, ?);
 
--- name: ListEffectSteps :many
-SELECT id, effect_id, step_index, kind, config
-FROM effect_steps
+-- name: ListEffectTracks :many
+SELECT id, effect_id, track_index, name
+FROM effect_tracks
 WHERE effect_id = ?
-ORDER BY step_index;
+ORDER BY track_index;
 
--- name: DeleteEffectStepsByEffect :exec
-DELETE FROM effect_steps WHERE effect_id = ?;
+-- name: DeleteEffectTracksByEffect :exec
+DELETE FROM effect_tracks WHERE effect_id = ?;
+
+-- name: CreateEffectClip :exec
+INSERT INTO effect_clips (id, track_id, start_ms, transition_min_ms, transition_max_ms, kind, config)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- name: ListEffectClips :many
+SELECT id, track_id, start_ms, transition_min_ms, transition_max_ms, kind, config
+FROM effect_clips
+WHERE track_id = ?
+ORDER BY start_ms, id;
 
 -- name: UpsertActiveEffect :exec
 INSERT INTO active_effects (id, effect_id, target_type, target_id, started_at, volatile)
