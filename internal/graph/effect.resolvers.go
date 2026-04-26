@@ -22,7 +22,8 @@ var nativeEffectTerminators = []string{
 // validateEffectInput rejects effect inputs whose step kinds carry malformed
 // JSON for their declared kind, and enforces the kind-vs-payload invariants:
 // native effects need a non-empty nativeName and no steps; timeline effects
-// need at least one step and no nativeName.
+// must not set nativeName. Empty timeline step lists are allowed so the
+// create flow can persist a fresh effect that the user fills in afterwards.
 func validateEffectInput(kind model.EffectKind, nativeName *string, steps []*model.EffectStepInput) error {
 	switch kind {
 	case model.EffectKindNative:
@@ -33,9 +34,6 @@ func validateEffectInput(kind model.EffectKind, nativeName *string, steps []*mod
 			return fmt.Errorf("native effect must not have steps")
 		}
 	case model.EffectKindTimeline:
-		if len(steps) == 0 {
-			return fmt.Errorf("timeline effect requires at least one step")
-		}
 		if nativeName != nil && strings.TrimSpace(*nativeName) != "" {
 			return fmt.Errorf("timeline effect must not set nativeName")
 		}
