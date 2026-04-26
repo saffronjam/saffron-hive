@@ -179,6 +179,7 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 
 	if old != nil {
 		r.preempt(old)
+		r.publishEnded(old, eventbus.EffectEndReasonPreempted)
 	}
 
 	go r.run(runCtx, run, eff)
@@ -208,11 +209,65 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 	return runID, nil
 }
 
+// StartNative launches an ad-hoc native effect by name against a target with
+// no Effect row backing it. The runner constructs an in-memory effect.Effect
+// with KindNative and dispatches it through the existing native worker, which
+// only needs NativeName. No active_effects row is persisted because ad-hoc
+// native runs are fire-and-forget — Query.activeEffects intentionally does
+// not list them.
+func (r *Runner) StartNative(ctx context.Context, nativeName string, target Target) (string, error) {
+	if target.ID == "" {
+		return "", errors.New("effect runner: target id is empty")
+	}
+	if nativeName == "" {
+		return "", errors.New("effect runner: native name is empty")
+	}
+
+	eff := Effect{
+		Kind:       KindNative,
+		NativeName: nativeName,
+	}
+
+	runID := uuid.New().String()
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	run := &activeRun{
+		runID:    runID,
+		effectID: "",
+		kind:     eff.Kind,
+		target:   target,
+		cancel:   cancel,
+		done:     make(chan struct{}),
+		members:  make(map[device.DeviceID]struct{}),
+	}
+
+	key := keyFor(target)
+
+	r.mu.Lock()
+	old := r.active[key]
+	r.active[key] = run
+	r.mu.Unlock()
+
+	if old != nil {
+		r.preempt(old)
+		r.publishEnded(old, eventbus.EffectEndReasonPreempted)
+	}
+
+	go r.run(runCtx, run, eff)
+
+	_ = ctx
+	return runID, nil
+}
+
 // Stop cancels any active run for the given target. Returns true if a run
 // was active. For a native run, the appropriate terminator is published per
 // device in the resolved set before this returns so the device's animation
 // stops promptly.
 func (r *Runner) Stop(target Target) bool {
+	return r.stopWithReason(target, eventbus.EffectEndReasonStopped)
+}
+
+func (r *Runner) stopWithReason(target Target, reason eventbus.EffectEndReason) bool {
 	key := keyFor(target)
 
 	r.mu.Lock()
@@ -227,6 +282,7 @@ func (r *Runner) Stop(target Target) bool {
 	}
 	r.preempt(run)
 	r.deleteActive(run.target)
+	r.publishEnded(run, reason)
 	return true
 }
 
@@ -341,6 +397,7 @@ func (r *Runner) unregister(run *activeRun) {
 	r.mu.Unlock()
 	if stillOwner {
 		r.deleteActive(run.target)
+		r.publishEnded(run, eventbus.EffectEndReasonCompleted)
 	}
 }
 
@@ -571,7 +628,7 @@ func (r *Runner) handleDrift(evt eventbus.Event) {
 	r.mu.Unlock()
 
 	for _, t := range toStop {
-		if r.Stop(t) {
+		if r.stopWithReason(t, eventbus.EffectEndReasonDrift) {
 			logger.Info("effect run stopped by foreign drift",
 				"target_type", t.Type,
 				"target_id", t.ID,
@@ -596,6 +653,25 @@ func (r *Runner) publishCommand(ctx context.Context, run *activeRun, cmd device.
 		"run_id", run.runID,
 		"effect_id", run.effectID,
 		"device_id", cmd.DeviceID)
+}
+
+func (r *Runner) publishEnded(run *activeRun, reason eventbus.EffectEndReason) {
+	deviceID := ""
+	if run.target.Type == device.TargetDevice {
+		deviceID = run.target.ID
+	}
+	r.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventEffectEnded,
+		DeviceID:  deviceID,
+		Timestamp: time.Now(),
+		Payload: eventbus.EffectEndedEvent{
+			RunID:      run.runID,
+			EffectID:   run.effectID,
+			TargetType: string(run.target.Type),
+			TargetID:   run.target.ID,
+			Reason:     reason,
+		},
+	})
 }
 
 func (r *Runner) publishStep(run *activeRun, stepIndex int, active bool) {
