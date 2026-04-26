@@ -464,6 +464,21 @@ type SceneDevicePayload struct {
 	Payload  string `json:"payload"`
 }
 
+// SceneDevicePayloadInput is one entry in a scene's per-device payload list.
+// The payload field is a JSON string carrying a tagged-union body. Three shapes
+// are supported:
+//
+//	static:        {"kind":"static","on":true,"brightness":200,"color_temp":370}
+//	effect:        {"kind":"effect","effect_id":"<id>"}
+//	native_effect: {"kind":"native_effect","native_name":"<name>"}
+//
+// The static shape's optional desired-state fields (on, brightness, color_temp,
+// color, transition) are filtered against the device's writable capabilities at
+// apply time. The effect shape starts the named stored timeline/native effect
+// run on this device when the scene is applied. The native_effect shape starts
+// an auto-discovered native effect (one whose name appears in
+// nativeEffectOptions) on this device. Deactivating the scene stops any runs
+// started for either effect shape.
 type SceneDevicePayloadInput struct {
 	DeviceID string `json:"deviceId"`
 	Payload  string `json:"payload"`

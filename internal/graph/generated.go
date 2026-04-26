@@ -278,6 +278,7 @@ type ComplexityRoot struct {
 		RemoveRoomMember       func(childComplexity int, id string) int
 		ResetUserPassword      func(childComplexity int, id string, newPassword string) int
 		RunEffect              func(childComplexity int, effectID string, targetType string, targetID string) int
+		RunNativeEffect        func(childComplexity int, nativeName string, targetType string, targetID string) int
 		SetDeviceState         func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		SimulateDeviceAction   func(childComplexity int, deviceID string, action string) int
 		StopEffect             func(childComplexity int, targetType string, targetID string) int
@@ -463,6 +464,7 @@ type MutationResolver interface {
 	UpdateEffect(ctx context.Context, input model.UpdateEffectInput) (*model.Effect, error)
 	DeleteEffect(ctx context.Context, id string) (bool, error)
 	RunEffect(ctx context.Context, effectID string, targetType string, targetID string) (*model.ActiveEffect, error)
+	RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.ActiveEffect, error)
 	StopEffect(ctx context.Context, targetType string, targetID string) (bool, error)
 }
 type QueryResolver interface {
@@ -1699,6 +1701,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RunEffect(childComplexity, args["effectId"].(string), args["targetType"].(string), args["targetId"].(string)), true
+	case "Mutation.runNativeEffect":
+		if e.ComplexityRoot.Mutation.RunNativeEffect == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_runNativeEffect_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RunNativeEffect(childComplexity, args["nativeName"].(string), args["targetType"].(string), args["targetId"].(string)), true
 	case "Mutation.setDeviceState":
 		if e.ComplexityRoot.Mutation.SetDeviceState == nil {
 			break
@@ -3070,6 +3083,23 @@ input SceneActionInput {
   targetId: ID!
 }
 
+"""
+SceneDevicePayloadInput is one entry in a scene's per-device payload list.
+The payload field is a JSON string carrying a tagged-union body. Three shapes
+are supported:
+
+  static:        {"kind":"static","on":true,"brightness":200,"color_temp":370}
+  effect:        {"kind":"effect","effect_id":"<id>"}
+  native_effect: {"kind":"native_effect","native_name":"<name>"}
+
+The static shape's optional desired-state fields (on, brightness, color_temp,
+color, transition) are filtered against the device's writable capabilities at
+apply time. The effect shape starts the named stored timeline/native effect
+run on this device when the scene is applied. The native_effect shape starts
+an auto-discovered native effect (one whose name appears in
+nativeEffectOptions) on this device. Deactivating the scene stops any runs
+started for either effect shape.
+"""
 input SceneDevicePayloadInput {
   deviceId: ID!
   payload: String!
@@ -3241,6 +3271,14 @@ type Mutation {
   running on the target. Returns the resulting active-run row.
   """
   runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect!
+  """
+  Starts a native effect by name on the given target without requiring a
+  stored Effect row. Preempts any effect already running on the target.
+  Native ad-hoc runs are fire-and-forget: no active_effects row is
+  persisted, so Query.activeEffects will not list them. The returned
+  ActiveEffect synthesises a transient view of the run.
+  """
+  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect!
   """
   Stops any effect currently running on the target. Returns true when a
   run was active, false otherwise.
@@ -3654,6 +3692,27 @@ func (ec *executionContext) field_Mutation_runEffect_args(ctx context.Context, r
 		return nil, err
 	}
 	args["effectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetType", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["targetType"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "targetId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["targetId"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_runNativeEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "nativeName", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["nativeName"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetType", ec.unmarshalNString2string)
 	if err != nil {
 		return nil, err
@@ -10518,6 +10577,61 @@ func (ec *executionContext) fieldContext_Mutation_runEffect(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_runEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_runNativeEffect(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_runNativeEffect,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RunNativeEffect(ctx, fc.Args["nativeName"].(string), fc.Args["targetType"].(string), fc.Args["targetId"].(string))
+		},
+		nil,
+		ec.marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_runNativeEffect(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ActiveEffect_id(ctx, field)
+			case "effect":
+				return ec.fieldContext_ActiveEffect_effect(ctx, field)
+			case "targetType":
+				return ec.fieldContext_ActiveEffect_targetType(ctx, field)
+			case "targetId":
+				return ec.fieldContext_ActiveEffect_targetId(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_ActiveEffect_startedAt(ctx, field)
+			case "volatile":
+				return ec.fieldContext_ActiveEffect_volatile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ActiveEffect", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_runNativeEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -18352,6 +18466,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "runEffect":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_runEffect(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runNativeEffect":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_runNativeEffect(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

@@ -519,6 +519,23 @@ input SceneActionInput {
   targetId: ID!
 }
 
+"""
+SceneDevicePayloadInput is one entry in a scene's per-device payload list.
+The payload field is a JSON string carrying a tagged-union body. Three shapes
+are supported:
+
+  static:        {"kind":"static","on":true,"brightness":200,"color_temp":370}
+  effect:        {"kind":"effect","effect_id":"<id>"}
+  native_effect: {"kind":"native_effect","native_name":"<name>"}
+
+The static shape's optional desired-state fields (on, brightness, color_temp,
+color, transition) are filtered against the device's writable capabilities at
+apply time. The effect shape starts the named stored timeline/native effect
+run on this device when the scene is applied. The native_effect shape starts
+an auto-discovered native effect (one whose name appears in
+nativeEffectOptions) on this device. Deactivating the scene stops any runs
+started for either effect shape.
+"""
 input SceneDevicePayloadInput {
   deviceId: ID!
   payload: String!
@@ -690,6 +707,14 @@ type Mutation {
   running on the target. Returns the resulting active-run row.
   """
   runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect!
+  """
+  Starts a native effect by name on the given target without requiring a
+  stored Effect row. Preempts any effect already running on the target.
+  Native ad-hoc runs are fire-and-forget: no active_effects row is
+  persisted, so Query.activeEffects will not list them. The returned
+  ActiveEffect synthesises a transient view of the run.
+  """
+  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect!
   """
   Stops any effect currently running on the target. Returns true when a
   run was active, false otherwise.
