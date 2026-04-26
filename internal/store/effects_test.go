@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -19,15 +18,21 @@ func TestCreateEffectTimeline(t *testing.T) {
 
 	icon := "sparkles"
 	e, err := s.CreateEffect(ctx, CreateEffectParams{
-		ID:   "eff-1",
-		Name: "Sunrise",
-		Icon: &icon,
-		Kind: effect.KindTimeline,
-		Loop: false,
-		Steps: []EffectStepInput{
-			{ID: "step-1", Index: 0, Kind: effect.StepSetOnOff, ConfigJSON: `{"value":true,"transition_ms":0}`},
-			{ID: "step-2", Index: 1, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":500}`},
-			{ID: "step-3", Index: 2, Kind: effect.StepSetBrightness, ConfigJSON: `{"value":200,"transition_ms":1000}`},
+		ID:         "eff-1",
+		Name:       "Sunrise",
+		Icon:       &icon,
+		Kind:       effect.KindTimeline,
+		Loop:       false,
+		DurationMs: 1500,
+		Tracks: []EffectTrackInput{
+			{
+				ID:    "track-1",
+				Index: 0,
+				Clips: []EffectClipInput{
+					{ID: "clip-1", StartMs: 0, TransitionMinMs: 0, TransitionMaxMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+					{ID: "clip-2", StartMs: 500, TransitionMinMs: 1000, TransitionMaxMs: 1000, Kind: effect.ClipSetBrightness, ConfigJSON: `{"value":200}`},
+				},
+			},
 		},
 	})
 	if err != nil {
@@ -39,16 +44,11 @@ func TestCreateEffectTimeline(t *testing.T) {
 	if e.Icon == nil || *e.Icon != "sparkles" {
 		t.Fatalf("icon = %v, want sparkles", e.Icon)
 	}
-	if e.Loop {
-		t.Fatalf("loop = true, want false")
+	if e.DurationMs != 1500 {
+		t.Fatalf("durationMs = %d, want 1500", e.DurationMs)
 	}
-	if len(e.Steps) != 3 {
-		t.Fatalf("steps len = %d, want 3", len(e.Steps))
-	}
-	for i, s := range e.Steps {
-		if s.Index != i {
-			t.Errorf("step %d index = %d, want %d", i, s.Index, i)
-		}
+	if len(e.Tracks) != 1 || len(e.Tracks[0].Clips) != 2 {
+		t.Fatalf("expected 1 track with 2 clips, got %+v", e.Tracks)
 	}
 	if e.CreatedAt.IsZero() || e.UpdatedAt.IsZero() {
 		t.Error("expected timestamps to be set")
@@ -79,8 +79,8 @@ func TestCreateEffectNative(t *testing.T) {
 	if !e.Loop {
 		t.Fatalf("loop = false, want true")
 	}
-	if len(e.Steps) != 0 {
-		t.Fatalf("steps len = %d, want 0", len(e.Steps))
+	if len(e.Tracks) != 0 {
+		t.Fatalf("tracks len = %d, want 0", len(e.Tracks))
 	}
 }
 
@@ -132,11 +132,13 @@ func TestUpdateEffectMutableFields(t *testing.T) {
 	newName := "Renamed"
 	newIcon := "new"
 	loop := true
+	dur := 2000
 	updated, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{
-		Name:    &newName,
-		SetIcon: true,
-		Icon:    &newIcon,
-		Loop:    &loop,
+		Name:       &newName,
+		SetIcon:    true,
+		Icon:       &newIcon,
+		Loop:       &loop,
+		DurationMs: &dur,
 	})
 	if err != nil {
 		t.Fatalf("update: %v", err)
@@ -149,6 +151,9 @@ func TestUpdateEffectMutableFields(t *testing.T) {
 	}
 	if !updated.Loop {
 		t.Error("loop = false, want true")
+	}
+	if updated.DurationMs != 2000 {
+		t.Errorf("durationMs = %d, want 2000", updated.DurationMs)
 	}
 
 	cleared, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{SetIcon: true, Icon: nil})
@@ -183,79 +188,93 @@ func TestUpdateEffectClearNativeName(t *testing.T) {
 	}
 }
 
-func TestSaveEffectStepsReplaces(t *testing.T) {
+func TestSaveEffectTracksReplaces(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
 	if _, err := s.CreateEffect(ctx, CreateEffectParams{
 		ID: "eff-1", Name: "Sunrise", Kind: effect.KindTimeline,
-		Steps: []EffectStepInput{
-			{ID: "s-1", Index: 0, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":100}`},
+		Tracks: []EffectTrackInput{
+			{ID: "t-seed", Index: 0, Clips: []EffectClipInput{
+				{ID: "c-seed", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+			}},
 		},
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	if err := s.SaveEffectSteps(ctx, "eff-1", []EffectStepInput{
-		{ID: "s-2", Index: 0, Kind: effect.StepSetOnOff, ConfigJSON: `{"value":true,"transition_ms":0}`},
-		{ID: "s-3", Index: 1, Kind: effect.StepSetBrightness, ConfigJSON: `{"value":255,"transition_ms":500}`},
+	if err := s.SaveEffectTracks(ctx, "eff-1", []EffectTrackInput{
+		{ID: "t-2", Index: 0, Clips: []EffectClipInput{
+			{ID: "c-a", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+		}},
+		{ID: "t-3", Index: 1, Clips: []EffectClipInput{
+			{ID: "c-b", StartMs: 0, TransitionMaxMs: 500, Kind: effect.ClipSetBrightness, ConfigJSON: `{"value":255}`},
+		}},
 	}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 
-	got, err := s.ListEffectSteps(ctx, "eff-1")
+	got, err := s.GetEffect(ctx, "eff-1")
 	if err != nil {
-		t.Fatalf("list: %v", err)
+		t.Fatalf("get: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("len = %d, want 2", len(got))
+	if len(got.Tracks) != 2 {
+		t.Fatalf("len = %d, want 2", len(got.Tracks))
 	}
-	if got[0].ID != "s-2" || got[1].ID != "s-3" {
-		t.Fatalf("ids = %q,%q want s-2,s-3", got[0].ID, got[1].ID)
+	if got.Tracks[0].ID != "t-2" || got.Tracks[1].ID != "t-3" {
+		t.Fatalf("ids = %q,%q want t-2,t-3", got.Tracks[0].ID, got.Tracks[1].ID)
 	}
-	if got[0].Index != 0 || got[1].Index != 1 {
-		t.Fatalf("indices = %d,%d", got[0].Index, got[1].Index)
+	if got.Tracks[0].Clips[0].ID != "c-a" || got.Tracks[1].Clips[0].ID != "c-b" {
+		t.Fatalf("clip ids = %q,%q want c-a,c-b", got.Tracks[0].Clips[0].ID, got.Tracks[1].Clips[0].ID)
 	}
 }
 
-func TestSaveEffectStepsAtomicOnConflict(t *testing.T) {
+func TestSaveEffectTracksAtomicOnConflict(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
 	if _, err := s.CreateEffect(ctx, CreateEffectParams{
 		ID: "eff-1", Name: "x", Kind: effect.KindTimeline,
-		Steps: []EffectStepInput{
-			{ID: "seed", Index: 0, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":1}`},
+		Tracks: []EffectTrackInput{
+			{ID: "seed-track", Index: 0, Clips: []EffectClipInput{
+				{ID: "seed-clip", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+			}},
 		},
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	err := s.SaveEffectSteps(ctx, "eff-1", []EffectStepInput{
-		{ID: "dup", Index: 0, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":1}`},
-		{ID: "dup", Index: 1, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":2}`},
+	err := s.SaveEffectTracks(ctx, "eff-1", []EffectTrackInput{
+		{ID: "dup", Index: 0, Clips: []EffectClipInput{
+			{ID: "ca", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+		}},
+		{ID: "dup", Index: 1, Clips: []EffectClipInput{
+			{ID: "cb", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":false}`},
+		}},
 	})
 	if err == nil {
 		t.Fatal("expected duplicate primary-key failure")
 	}
 
-	got, err := s.ListEffectSteps(ctx, "eff-1")
+	got, err := s.GetEffect(ctx, "eff-1")
 	if err != nil {
-		t.Fatalf("list: %v", err)
+		t.Fatalf("get: %v", err)
 	}
-	if len(got) != 1 || got[0].ID != "seed" {
-		t.Fatalf("seed steps mutated by failed save: %+v", got)
+	if len(got.Tracks) != 1 || got.Tracks[0].ID != "seed-track" {
+		t.Fatalf("seed tracks mutated by failed save: %+v", got.Tracks)
 	}
 }
 
-func TestDeleteEffectCascadesSteps(t *testing.T) {
+func TestDeleteEffectCascadesTracksAndClips(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
 	if _, err := s.CreateEffect(ctx, CreateEffectParams{
 		ID: "eff-1", Name: "x", Kind: effect.KindTimeline,
-		Steps: []EffectStepInput{
-			{ID: "s-1", Index: 0, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":1}`},
+		Tracks: []EffectTrackInput{
+			{ID: "t-1", Index: 0, Clips: []EffectClipInput{
+				{ID: "c-1", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+			}},
 		},
 	}); err != nil {
 		t.Fatalf("create: %v", err)
@@ -263,12 +282,33 @@ func TestDeleteEffectCascadesSteps(t *testing.T) {
 	if err := s.DeleteEffect(ctx, "eff-1"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	steps, err := s.ListEffectSteps(ctx, "eff-1")
-	if err != nil {
-		t.Fatalf("list after delete: %v", err)
+	row := s.RawDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM effect_tracks WHERE effect_id = ?`, "eff-1")
+	var n int
+	if err := row.Scan(&n); err != nil {
+		t.Fatalf("count tracks: %v", err)
 	}
-	if len(steps) != 0 {
-		t.Errorf("len = %d, want 0", len(steps))
+	if n != 0 {
+		t.Errorf("tracks remaining after delete = %d, want 0", n)
+	}
+}
+
+func TestUpdateEffectDuration(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	if _, err := s.CreateEffect(ctx, CreateEffectParams{
+		ID: "eff-1", Name: "x", Kind: effect.KindTimeline, DurationMs: 100,
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := s.UpdateEffectDuration(ctx, "eff-1", 750); err != nil {
+		t.Fatalf("UpdateEffectDuration: %v", err)
+	}
+	got, err := s.GetEffect(ctx, "eff-1")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.DurationMs != 750 {
+		t.Errorf("durationMs = %d, want 750", got.DurationMs)
 	}
 }
 
@@ -419,15 +459,17 @@ func TestLoadEffectRoundTrip(t *testing.T) {
 
 	icon := "sparkles"
 	if _, err := s.CreateEffect(ctx, CreateEffectParams{
-		ID:   "eff-load",
-		Name: "Sunrise",
-		Icon: &icon,
-		Kind: effect.KindTimeline,
-		Loop: false,
-		Steps: []EffectStepInput{
-			{ID: "step-1", Index: 0, Kind: effect.StepSetOnOff, ConfigJSON: `{"value":true,"transition_ms":0}`},
-			{ID: "step-2", Index: 1, Kind: effect.StepWait, ConfigJSON: `{"duration_ms":500}`},
-			{ID: "step-3", Index: 2, Kind: effect.StepSetColorRGB, ConfigJSON: `{"r":244,"g":42,"b":23,"transition_ms":200}`},
+		ID:         "eff-load",
+		Name:       "Sunrise",
+		Icon:       &icon,
+		Kind:       effect.KindTimeline,
+		Loop:       false,
+		DurationMs: 800,
+		Tracks: []EffectTrackInput{
+			{ID: "t-1", Index: 0, Clips: []EffectClipInput{
+				{ID: "c-1", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+				{ID: "c-2", StartMs: 500, TransitionMinMs: 200, TransitionMaxMs: 200, Kind: effect.ClipSetColorRGB, ConfigJSON: `{"r":244,"g":42,"b":23}`},
+			}},
 		},
 	}); err != nil {
 		t.Fatalf("create effect: %v", err)
@@ -443,20 +485,24 @@ func TestLoadEffectRoundTrip(t *testing.T) {
 	if got.Kind != effect.KindTimeline {
 		t.Fatalf("kind = %q, want timeline", got.Kind)
 	}
-	if got.Loop {
-		t.Fatal("loop = true, want false")
+	if got.DurationMs != 800 {
+		t.Fatalf("duration_ms = %d, want 800", got.DurationMs)
 	}
-	if len(got.Steps) != 3 {
-		t.Fatalf("steps len = %d, want 3", len(got.Steps))
+	if len(got.Tracks) != 1 || len(got.Tracks[0].Clips) != 2 {
+		t.Fatalf("expected 1 track with 2 clips, got %+v", got.Tracks)
 	}
-
-	wantSteps := []effect.Step{
-		{ID: "step-1", Index: 0, Kind: effect.StepSetOnOff, Config: effect.StepConfig{SetOnOff: &effect.SetOnOffConfig{Value: true}}},
-		{ID: "step-2", Index: 1, Kind: effect.StepWait, Config: effect.StepConfig{Wait: &effect.WaitConfig{DurationMS: 500}}},
-		{ID: "step-3", Index: 2, Kind: effect.StepSetColorRGB, Config: effect.StepConfig{SetColorRGB: &effect.SetColorRGBConfig{R: 244, G: 42, B: 23, TransitionMS: 200}}},
+	clip := got.Tracks[0].Clips[1]
+	if clip.Kind != effect.ClipSetColorRGB {
+		t.Fatalf("clip kind = %q", clip.Kind)
 	}
-	if !reflect.DeepEqual(got.Steps, wantSteps) {
-		t.Fatalf("steps mismatch:\n got %+v\nwant %+v", got.Steps, wantSteps)
+	if clip.Config.SetColorRGB == nil ||
+		clip.Config.SetColorRGB.R != 244 ||
+		clip.Config.SetColorRGB.G != 42 ||
+		clip.Config.SetColorRGB.B != 23 {
+		t.Fatalf("clip color = %+v", clip.Config.SetColorRGB)
+	}
+	if clip.TransitionMinMs != 200 || clip.TransitionMaxMs != 200 {
+		t.Fatalf("transition = (%d,%d)", clip.TransitionMinMs, clip.TransitionMaxMs)
 	}
 }
 
@@ -488,8 +534,8 @@ func TestLoadEffectNative(t *testing.T) {
 	if !got.Loop {
 		t.Fatal("loop = false, want true")
 	}
-	if len(got.Steps) != 0 {
-		t.Fatalf("steps len = %d, want 0", len(got.Steps))
+	if len(got.Tracks) != 0 {
+		t.Fatalf("tracks len = %d, want 0", len(got.Tracks))
 	}
 }
 
