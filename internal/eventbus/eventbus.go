@@ -23,6 +23,11 @@ const (
 	// frontend live view uses it to highlight the running step inside an
 	// effect timeline.
 	EventEffectStepActivated EventType = "effect.step_activated"
+	// EventEffectEnded is emitted by the effect runner when a run terminates
+	// for any reason (manual stop, drift preempt, natural completion, or a
+	// preempting Start). Subscribers (scene watcher) use it to release any
+	// per-run bookkeeping they hold against the run.
+	EventEffectEnded EventType = "effect.ended"
 	// EventRoomMembershipChanged signals that some room/device membership
 	// changed (create/delete room, add/remove member). It carries no
 	// payload; subscribers should refresh their own view of memberships.
@@ -44,6 +49,36 @@ type EffectStepActivatedEvent struct {
 	EffectID  string `json:"effectId"`
 	StepIndex int    `json:"stepIndex"`
 	Active    bool   `json:"active"`
+}
+
+// EffectEndReason classifies why an effect run ended. Subscribers branch on
+// it; the runner publishes EventEffectEnded exactly once per run.
+type EffectEndReason string
+
+const (
+	// EffectEndReasonStopped signals that a run was stopped via Runner.Stop
+	// (manual stop, scene deactivation cascade, automation stop).
+	EffectEndReasonStopped EffectEndReason = "stopped"
+	// EffectEndReasonPreempted signals that a new Start on the same target
+	// preempted this run.
+	EffectEndReasonPreempted EffectEndReason = "preempted"
+	// EffectEndReasonCompleted signals that a non-loop timeline run finished
+	// its steps and exited.
+	EffectEndReasonCompleted EffectEndReason = "completed"
+	// EffectEndReasonDrift signals that a foreign command on a member device
+	// caused the runner's drift goroutine to stop the run.
+	EffectEndReasonDrift EffectEndReason = "drift"
+)
+
+// EffectEndedEvent is the payload for EventEffectEnded. It identifies the
+// terminated run and its target so subscribers (scene watcher) can release
+// per-run bookkeeping.
+type EffectEndedEvent struct {
+	RunID      string          `json:"runId"`
+	EffectID   string          `json:"effectId"`
+	TargetType string          `json:"targetType"`
+	TargetID   string          `json:"targetId"`
+	Reason     EffectEndReason `json:"reason"`
 }
 
 // Event is the generic envelope carried by the bus.
