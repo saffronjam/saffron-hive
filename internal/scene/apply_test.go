@@ -40,13 +40,53 @@ func TestBuildApplyCommands_DropsButtonWithStrayPayload(t *testing.T) {
 		{SceneID: "s1", DeviceID: "button-1", Payload: `{"on":false}`},
 	}
 
-	cmds := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, payloads)
+	plan := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, payloads)
 
-	if len(cmds) != 1 {
-		t.Fatalf("expected 1 command (light-1 only), got %d: %+v", len(cmds), cmds)
+	if len(plan.Commands) != 1 {
+		t.Fatalf("expected 1 command (light-1 only), got %d: %+v", len(plan.Commands), plan.Commands)
 	}
-	if cmds[0].DeviceID != "light-1" {
-		t.Errorf("expected light-1, got %s", cmds[0].DeviceID)
+	if plan.Commands[0].DeviceID != "light-1" {
+		t.Errorf("expected light-1, got %s", plan.Commands[0].DeviceID)
+	}
+	if len(plan.EffectRuns) != 0 {
+		t.Errorf("expected no effect runs, got %d", len(plan.EffectRuns))
+	}
+}
+
+// TestBuildApplyCommands_NativeEffectPayloadEmitsEffectRun confirms that a
+// per-device payload tagged kind=native_effect produces an EffectRun carrying
+// NativeName (and no EffectID) instead of a static command.
+func TestBuildApplyCommands_NativeEffectPayloadEmitsEffectRun(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{
+		ID:           "light-1",
+		Capabilities: []device.Capability{writableCap(device.CapOnOff), writableCap(device.CapBrightness)},
+	})
+
+	resolver := &fakeResolver{groups: map[string][]device.DeviceID{}}
+
+	actions := []store.SceneAction{{SceneID: "s1", TargetType: "device", TargetID: "light-1"}}
+	payloads := []store.SceneDevicePayload{
+		{SceneID: "s1", DeviceID: "light-1", Payload: `{"kind":"native_effect","native_name":"fireplace"}`},
+	}
+
+	plan := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, payloads)
+
+	if len(plan.Commands) != 0 {
+		t.Errorf("expected no static commands for native effect payload, got %d", len(plan.Commands))
+	}
+	if len(plan.EffectRuns) != 1 {
+		t.Fatalf("expected 1 effect run, got %d", len(plan.EffectRuns))
+	}
+	got := plan.EffectRuns[0]
+	if got.DeviceID != "light-1" {
+		t.Errorf("device id: want light-1, got %s", got.DeviceID)
+	}
+	if got.NativeName != "fireplace" {
+		t.Errorf("native_name: want fireplace, got %q", got.NativeName)
+	}
+	if got.EffectID != "" {
+		t.Errorf("effect_id should be empty for native run, got %q", got.EffectID)
 	}
 }
 

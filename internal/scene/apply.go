@@ -21,12 +21,34 @@ import (
 // instead of snapping.
 const DefaultTransitionSeconds = 0.4
 
+// EffectRun is one effect-kind device payload resolved against a scene's
+// target set: the runner is asked to start a stored effect (EffectID) or an
+// auto-discovered native effect (NativeName) on this device when the scene
+// activates. Exactly one of EffectID / NativeName is set. The watcher uses
+// the same record to track which devices are intentionally evolving so their
+// state changes do not register as drift.
+type EffectRun struct {
+	DeviceID   device.DeviceID
+	EffectID   string
+	NativeName string
+}
+
+// ApplyPlan is the result of resolving a scene's actions and payloads against
+// the live device set. Commands are static-payload device commands ready to
+// publish; EffectRuns identify effect-payload devices the runner must start
+// runs on. The two slices are independent — a single scene activation can
+// produce both.
+type ApplyPlan struct {
+	Commands   []device.Command
+	EffectRuns []EffectRun
+}
+
 // BuildApplyCommands resolves a scene's target membership to a unique device
 // set (preserving action order, deduplicating across overlapping groups/rooms)
-// and produces one command per device: the explicit per-device payload if one
-// exists, else the capability-filtered warm-white default. Each command is
-// stamped with OriginScene(sceneID) so downstream consumers can attribute the
-// resulting state echo back to the originating scene.
+// and produces an ApplyPlan: one static command per static-payload device
+// (capability-gated, stamped with OriginScene(sceneID)) plus one EffectRun
+// entry per effect-payload device. Devices without an explicit payload fall
+// back to the capability-filtered warm-white default static command.
 func BuildApplyCommands(
 	ctx context.Context,
 	tr device.TargetResolver,
@@ -34,7 +56,7 @@ func BuildApplyCommands(
 	sceneID string,
 	actions []store.SceneAction,
 	payloads []store.SceneDevicePayload,
-) []device.Command {
+) ApplyPlan {
 	payloadByDevice := make(map[device.DeviceID]string, len(payloads))
 	for _, p := range payloads {
 		payloadByDevice[p.DeviceID] = p.Payload
@@ -53,15 +75,29 @@ func BuildApplyCommands(
 	}
 
 	origin := device.OriginScene(sceneID)
-	cmds := make([]device.Command, 0, len(order))
+	plan := ApplyPlan{
+		Commands:   make([]device.Command, 0, len(order)),
+		EffectRuns: nil,
+	}
 	for _, did := range order {
 		var cmd device.Command
 		if raw, ok := payloadByDevice[did]; ok {
-			var desired map[string]any
-			if err := json.Unmarshal([]byte(raw), &desired); err == nil {
-				cmd = commandFromDesired(sr, did, desired)
-			} else {
+			parsed, err := store.ParseScenePayload(raw)
+			if err != nil {
 				cmd = DefaultScenePayload(sr, did)
+			} else {
+				switch parsed.Kind {
+				case store.ScenePayloadEffect:
+					plan.EffectRuns = append(plan.EffectRuns, EffectRun{DeviceID: did, EffectID: parsed.EffectID})
+					continue
+				case store.ScenePayloadNativeEffect:
+					plan.EffectRuns = append(plan.EffectRuns, EffectRun{DeviceID: did, NativeName: parsed.NativeName})
+					continue
+				case store.ScenePayloadStatic:
+					cmd = commandFromDesired(sr, did, parsed.Static)
+				default:
+					cmd = DefaultScenePayload(sr, did)
+				}
 			}
 		} else {
 			cmd = DefaultScenePayload(sr, did)
@@ -70,9 +106,9 @@ func BuildApplyCommands(
 			continue
 		}
 		cmd.Origin = origin
-		cmds = append(cmds, cmd)
+		plan.Commands = append(plan.Commands, cmd)
 	}
-	return cmds
+	return plan
 }
 
 // isEmptyCommand returns true when capability gating has stripped every
