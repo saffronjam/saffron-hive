@@ -984,11 +984,11 @@ func (r *mutationResolver) BatchAddGroupDevices(ctx context.Context, groupID str
 // CreateEffect is the resolver for the createEffect field.
 func (r *mutationResolver) CreateEffect(ctx context.Context, input model.CreateEffectInput) (*model.Effect, error) {
 	nativeName := input.NativeName.Value()
-	if err := validateEffectInput(input.Kind, nativeName, input.Steps); err != nil {
+	if err := validateEffectInput(input.Kind, nativeName, input.Loop, input.DurationMs, input.Tracks); err != nil {
 		return nil, err
 	}
 
-	steps, err := buildEffectStepInputs(input.Steps)
+	tracks, err := buildEffectTrackInputs(input.Tracks)
 	if err != nil {
 		return nil, err
 	}
@@ -1001,8 +1001,9 @@ func (r *mutationResolver) CreateEffect(ctx context.Context, input model.CreateE
 		Kind:       effectKindFromModel(input.Kind),
 		NativeName: nativeName,
 		Loop:       input.Loop,
+		DurationMs: input.DurationMs,
 		CreatedBy:  currentUserID(ctx),
-		Steps:      steps,
+		Tracks:     tracks,
 	}); err != nil {
 		return nil, err
 	}
@@ -1021,10 +1022,18 @@ func (r *mutationResolver) UpdateEffect(ctx context.Context, input model.UpdateE
 		return nil, fmt.Errorf("effect %q not found: %w", input.ID, err)
 	}
 
-	stepsValue, stepsGiven := input.Steps.ValueOK()
-	if stepsGiven {
+	tracksValue, tracksGiven := input.Tracks.ValueOK()
+	if tracksGiven {
+		loop := existing.Loop
+		if v, ok := input.Loop.ValueOK(); ok && v != nil {
+			loop = *v
+		}
+		duration := existing.DurationMs
+		if v, ok := input.DurationMs.ValueOK(); ok && v != nil {
+			duration = *v
+		}
 		nativeName := input.NativeName.Value()
-		if err := validateEffectInput(modelKindFromStore(existing.Kind), nativeName, stepsValue); err != nil {
+		if err := validateEffectInput(modelKindFromStore(existing.Kind), nativeName, loop, duration, tracksValue); err != nil {
 			return nil, err
 		}
 	}
@@ -1040,6 +1049,9 @@ func (r *mutationResolver) UpdateEffect(ctx context.Context, input model.UpdateE
 	if loop, ok := input.Loop.ValueOK(); ok && loop != nil {
 		params.Loop = loop
 	}
+	if duration, ok := input.DurationMs.ValueOK(); ok && duration != nil {
+		params.DurationMs = duration
+	}
 	if nativeName, ok := input.NativeName.ValueOK(); ok {
 		params.SetNativeName = true
 		params.NativeName = nativeName
@@ -1048,12 +1060,12 @@ func (r *mutationResolver) UpdateEffect(ctx context.Context, input model.UpdateE
 		return nil, err
 	}
 
-	if stepsGiven {
-		newSteps, err := buildEffectStepInputs(stepsValue)
+	if tracksGiven {
+		newTracks, err := buildEffectTrackInputs(tracksValue)
 		if err != nil {
 			return nil, err
 		}
-		if err := r.Store.SaveEffectSteps(ctx, input.ID, newSteps); err != nil {
+		if err := r.Store.SaveEffectTracks(ctx, input.ID, newTracks); err != nil {
 			return nil, err
 		}
 	}
@@ -1135,7 +1147,8 @@ func (r *mutationResolver) RunNativeEffect(ctx context.Context, nativeName strin
 			Kind:                 model.EffectKindNative,
 			NativeName:           &nameCopy,
 			Loop:                 false,
-			Steps:                []*model.EffectStep{},
+			DurationMs:           0,
+			Tracks:               []*model.EffectTrack{},
 			RequiredCapabilities: []string{},
 			CreatedAt:            time.Now(),
 			UpdatedAt:            time.Now(),
