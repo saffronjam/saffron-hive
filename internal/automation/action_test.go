@@ -19,7 +19,7 @@ func TestSkipCommandWhenStateMatches(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
@@ -45,7 +45,7 @@ func TestSendCommandWhenStateDiffers(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
@@ -75,7 +75,7 @@ func TestSendCommandWhenCurrentStateUnknown(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,
@@ -100,7 +100,7 @@ func TestSetDeviceStateActionStampsAutomationOrigin(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		AutomationID: "auto-7",
 		ActionType:   ActionSetDeviceState,
@@ -137,7 +137,7 @@ func TestPartialStateComparison(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionSetDeviceState,
 		TargetType: TargetDevice,

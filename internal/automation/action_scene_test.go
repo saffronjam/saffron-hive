@@ -37,7 +37,7 @@ func TestActivateSceneExplicitPayloadsFanOut(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
@@ -65,7 +65,7 @@ func TestActivateSceneNotFound(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "nonexistent",
@@ -88,7 +88,7 @@ func TestActivateSceneEmptyActions(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-empty",
@@ -126,7 +126,7 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionActivateScene,
 		Payload:    "scene-1",
@@ -180,7 +180,7 @@ func TestActivateSceneDefaultFallbackCapabilityFiltered(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{ActionType: ActionActivateScene, Payload: "scene-1"})
 
 	cmds := drainCommands(t, ch, 2)
@@ -228,7 +228,7 @@ func TestActivateSceneStampsSceneOrigin(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{ActionType: ActionActivateScene, Payload: "scene-7"})
 
 	select {
