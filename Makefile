@@ -1,4 +1,4 @@
-.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version package sqlc sqlc-check codegen codegen-check prepare-for-commit
+.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version mqttprint package sqlc sqlc-check codegen codegen-check prepare-for-commit
 
 SQLC_VERSION := 1.31.0
 
@@ -45,6 +45,9 @@ migrate-down-n:
 
 migrate-version:
 	go run . migrate version
+
+mqttprint:
+	set -a && . ./.env && set +a && go run ./cmd/mqttprint $(TOPIC)
 
 package:
 	@version=$$(git describe --tags --always --dirty 2>/dev/null || echo localbuild); \
