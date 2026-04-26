@@ -18,18 +18,25 @@ func TestMutationCreateEffectTimeline(t *testing.T) {
 
 	resp := env.query(t, `mutation($input: CreateEffectInput!) {
         createEffect(input: $input) {
-          id name kind loop steps { index kind config } requiredCapabilities
+          id name kind loop durationMs
+          tracks { index clips { startMs transitionMinMs transitionMaxMs kind config } }
+          requiredCapabilities
         }
       }`,
 		map[string]any{
 			"input": map[string]any{
-				"name": "Pulse",
-				"kind": "TIMELINE",
-				"loop": true,
-				"steps": []map[string]any{
-					{"kind": "SET_BRIGHTNESS", "config": `{"value":255,"transition_ms":500}`},
-					{"kind": "WAIT", "config": `{"duration_ms":1000}`},
-					{"kind": "SET_BRIGHTNESS", "config": `{"value":50,"transition_ms":500}`},
+				"name":       "Pulse",
+				"kind":       "TIMELINE",
+				"loop":       true,
+				"durationMs": 2200,
+				"tracks": []map[string]any{
+					{
+						"name": "Pulse track",
+						"clips": []map[string]any{
+							{"startMs": 0, "transitionMinMs": 500, "transitionMaxMs": 500, "kind": "SET_BRIGHTNESS", "config": `{"value":255}`},
+							{"startMs": 1500, "transitionMinMs": 500, "transitionMaxMs": 500, "kind": "SET_BRIGHTNESS", "config": `{"value":50}`},
+						},
+					},
 				},
 			},
 		})
@@ -39,15 +46,21 @@ func TestMutationCreateEffectTimeline(t *testing.T) {
 
 	var data struct {
 		CreateEffect struct {
-			ID    string `json:"id"`
-			Name  string `json:"name"`
-			Kind  string `json:"kind"`
-			Loop  bool   `json:"loop"`
-			Steps []struct {
-				Index  int    `json:"index"`
-				Kind   string `json:"kind"`
-				Config string `json:"config"`
-			} `json:"steps"`
+			ID         string `json:"id"`
+			Name       string `json:"name"`
+			Kind       string `json:"kind"`
+			Loop       bool   `json:"loop"`
+			DurationMs int    `json:"durationMs"`
+			Tracks     []struct {
+				Index int `json:"index"`
+				Clips []struct {
+					StartMs         int    `json:"startMs"`
+					TransitionMinMs int    `json:"transitionMinMs"`
+					TransitionMaxMs int    `json:"transitionMaxMs"`
+					Kind            string `json:"kind"`
+					Config          string `json:"config"`
+				} `json:"clips"`
+			} `json:"tracks"`
 			RequiredCapabilities []string `json:"requiredCapabilities"`
 		} `json:"createEffect"`
 	}
@@ -63,14 +76,75 @@ func TestMutationCreateEffectTimeline(t *testing.T) {
 	if !data.CreateEffect.Loop {
 		t.Error("expected loop=true")
 	}
-	if len(data.CreateEffect.Steps) != 3 {
-		t.Fatalf("expected 3 steps, got %d", len(data.CreateEffect.Steps))
+	if data.CreateEffect.DurationMs != 2200 {
+		t.Errorf("expected durationMs=2200, got %d", data.CreateEffect.DurationMs)
 	}
-	if data.CreateEffect.Steps[0].Index != 0 || data.CreateEffect.Steps[2].Index != 2 {
-		t.Errorf("step indices not contiguous: %+v", data.CreateEffect.Steps)
+	if len(data.CreateEffect.Tracks) != 1 {
+		t.Fatalf("expected 1 track, got %d", len(data.CreateEffect.Tracks))
+	}
+	if len(data.CreateEffect.Tracks[0].Clips) != 2 {
+		t.Fatalf("expected 2 clips, got %d", len(data.CreateEffect.Tracks[0].Clips))
 	}
 	if len(data.CreateEffect.RequiredCapabilities) != 1 || data.CreateEffect.RequiredCapabilities[0] != device.CapBrightness {
 		t.Errorf("expected requiredCapabilities=[brightness], got %v", data.CreateEffect.RequiredCapabilities)
+	}
+}
+
+func TestMutationCreateEffectMultiTrack(t *testing.T) {
+	env := newTestEnv(t)
+
+	resp := env.query(t, `mutation($input: CreateEffectInput!) {
+        createEffect(input: $input) {
+          id tracks { index clips { kind } } requiredCapabilities
+        }
+      }`,
+		map[string]any{
+			"input": map[string]any{
+				"name":       "Multi",
+				"kind":       "TIMELINE",
+				"loop":       false,
+				"durationMs": 1000,
+				"tracks": []map[string]any{
+					{
+						"name": "Color",
+						"clips": []map[string]any{
+							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_COLOR_RGB", "config": `{"r":255,"g":0,"b":0}`},
+						},
+					},
+					{
+						"name": "Brightness",
+						"clips": []map[string]any{
+							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": `{"value":150}`},
+						},
+					},
+				},
+			},
+		})
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", resp.Errors)
+	}
+
+	var data struct {
+		CreateEffect struct {
+			Tracks []struct {
+				Index int `json:"index"`
+				Clips []struct {
+					Kind string `json:"kind"`
+				} `json:"clips"`
+			} `json:"tracks"`
+			RequiredCapabilities []string `json:"requiredCapabilities"`
+		} `json:"createEffect"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(data.CreateEffect.Tracks) != 2 {
+		t.Fatalf("expected 2 tracks, got %d", len(data.CreateEffect.Tracks))
+	}
+	caps := append([]string(nil), data.CreateEffect.RequiredCapabilities...)
+	sort.Strings(caps)
+	if len(caps) != 2 || caps[0] != device.CapBrightness || caps[1] != device.CapColor {
+		t.Errorf("expected capabilities {brightness,color}, got %v", caps)
 	}
 }
 
@@ -80,16 +154,64 @@ func TestMutationCreateEffectRejectsMalformedConfig(t *testing.T) {
 	resp := env.query(t, `mutation($input: CreateEffectInput!) { createEffect(input: $input) { id } }`,
 		map[string]any{
 			"input": map[string]any{
-				"name": "Bad",
-				"kind": "TIMELINE",
-				"loop": false,
-				"steps": []map[string]any{
-					{"kind": "SET_BRIGHTNESS", "config": `not json`},
+				"name":       "Bad",
+				"kind":       "TIMELINE",
+				"loop":       false,
+				"durationMs": 0,
+				"tracks": []map[string]any{
+					{"clips": []map[string]any{
+						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 100, "kind": "SET_BRIGHTNESS", "config": `not json`},
+					}},
 				},
 			},
 		})
 	if len(resp.Errors) == 0 {
-		t.Fatal("expected error for malformed step config")
+		t.Fatal("expected error for malformed clip config")
+	}
+}
+
+func TestMutationCreateEffectRejectsOverlappingClips(t *testing.T) {
+	env := newTestEnv(t)
+
+	resp := env.query(t, `mutation($input: CreateEffectInput!) { createEffect(input: $input) { id } }`,
+		map[string]any{
+			"input": map[string]any{
+				"name":       "Overlap",
+				"kind":       "TIMELINE",
+				"loop":       false,
+				"durationMs": 2000,
+				"tracks": []map[string]any{
+					{"clips": []map[string]any{
+						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": `{"value":100}`},
+						{"startMs": 500, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_BRIGHTNESS", "config": `{"value":200}`},
+					}},
+				},
+			},
+		})
+	if len(resp.Errors) == 0 {
+		t.Fatal("expected error for overlapping clips")
+	}
+}
+
+func TestMutationCreateEffectRejectsClipPastDurationOnLoop(t *testing.T) {
+	env := newTestEnv(t)
+
+	resp := env.query(t, `mutation($input: CreateEffectInput!) { createEffect(input: $input) { id } }`,
+		map[string]any{
+			"input": map[string]any{
+				"name":       "Past",
+				"kind":       "TIMELINE",
+				"loop":       true,
+				"durationMs": 500,
+				"tracks": []map[string]any{
+					{"clips": []map[string]any{
+						{"startMs": 100, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": `{"value":100}`},
+					}},
+				},
+			},
+		})
+	if len(resp.Errors) == 0 {
+		t.Fatal("expected error for clip extending past durationMs when loop=true")
 	}
 }
 
@@ -98,7 +220,7 @@ func TestMutationCreateEffectNative(t *testing.T) {
 
 	nativeName := "candle"
 	resp := env.query(t, `mutation($input: CreateEffectInput!) {
-        createEffect(input: $input) { id name kind nativeName steps { kind } requiredCapabilities }
+        createEffect(input: $input) { id name kind nativeName tracks { clips { kind } } requiredCapabilities }
       }`,
 		map[string]any{
 			"input": map[string]any{
@@ -106,7 +228,8 @@ func TestMutationCreateEffectNative(t *testing.T) {
 				"kind":       "NATIVE",
 				"nativeName": nativeName,
 				"loop":       false,
-				"steps":      []map[string]any{},
+				"durationMs": 0,
+				"tracks":     []map[string]any{},
 			},
 		})
 	if len(resp.Errors) > 0 {
@@ -134,23 +257,35 @@ func TestMutationCreateEffectNative(t *testing.T) {
 func TestMutationUpdateEffect(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.effects["e1"] = store.Effect{
-		ID:    "e1",
-		Name:  "Old",
-		Kind:  effect.KindTimeline,
-		Loop:  false,
-		Steps: []store.EffectStep{{ID: "s1", EffectID: "e1", Index: 0, Kind: effect.StepSetOnOff, ConfigJSON: `{"value":true}`}},
+		ID:   "e1",
+		Name: "Old",
+		Kind: effect.KindTimeline,
+		Loop: false,
+		Tracks: []store.EffectTrack{
+			{
+				ID:       "t1",
+				EffectID: "e1",
+				Index:    0,
+				Clips: []store.EffectClip{
+					{ID: "c1", TrackID: "t1", StartMs: 0, TransitionMinMs: 0, TransitionMaxMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
+				},
+			},
+		},
 	}
 
 	resp := env.query(t, `mutation($input: UpdateEffectInput!) {
-        updateEffect(input: $input) { id name loop steps { kind index } }
+        updateEffect(input: $input) { id name loop durationMs tracks { index clips { kind } } }
       }`,
 		map[string]any{
 			"input": map[string]any{
-				"id":   "e1",
-				"name": "New",
-				"loop": true,
-				"steps": []map[string]any{
-					{"kind": "SET_COLOR_RGB", "config": `{"r":255,"g":0,"b":0,"transition_ms":200}`},
+				"id":         "e1",
+				"name":       "New",
+				"loop":       true,
+				"durationMs": 500,
+				"tracks": []map[string]any{
+					{"name": "Updated", "clips": []map[string]any{
+						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_COLOR_RGB", "config": `{"r":255,"g":0,"b":0}`},
+					}},
 				},
 			},
 		})
@@ -160,12 +295,15 @@ func TestMutationUpdateEffect(t *testing.T) {
 
 	var data struct {
 		UpdateEffect struct {
-			Name  string `json:"name"`
-			Loop  bool   `json:"loop"`
-			Steps []struct {
-				Kind  string `json:"kind"`
-				Index int    `json:"index"`
-			} `json:"steps"`
+			Name       string `json:"name"`
+			Loop       bool   `json:"loop"`
+			DurationMs int    `json:"durationMs"`
+			Tracks     []struct {
+				Index int `json:"index"`
+				Clips []struct {
+					Kind string `json:"kind"`
+				} `json:"clips"`
+			} `json:"tracks"`
 		} `json:"updateEffect"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -174,8 +312,11 @@ func TestMutationUpdateEffect(t *testing.T) {
 	if data.UpdateEffect.Name != "New" || !data.UpdateEffect.Loop {
 		t.Errorf("update did not apply: %+v", data.UpdateEffect)
 	}
-	if len(data.UpdateEffect.Steps) != 1 || data.UpdateEffect.Steps[0].Kind != "SET_COLOR_RGB" {
-		t.Errorf("expected single SET_COLOR_RGB step, got %+v", data.UpdateEffect.Steps)
+	if data.UpdateEffect.DurationMs != 500 {
+		t.Errorf("expected durationMs=500, got %d", data.UpdateEffect.DurationMs)
+	}
+	if len(data.UpdateEffect.Tracks) != 1 || len(data.UpdateEffect.Tracks[0].Clips) != 1 || data.UpdateEffect.Tracks[0].Clips[0].Kind != "SET_COLOR_RGB" {
+		t.Errorf("expected single SET_COLOR_RGB clip, got %+v", data.UpdateEffect.Tracks)
 	}
 }
 

@@ -845,14 +845,25 @@ func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetTyp
 func (m *mockStore) CreateEffect(_ context.Context, params store.CreateEffectParams) (store.Effect, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	steps := make([]store.EffectStep, len(params.Steps))
-	for i, s := range params.Steps {
-		steps[i] = store.EffectStep{
-			ID:         s.ID,
-			EffectID:   params.ID,
-			Index:      s.Index,
-			Kind:       s.Kind,
-			ConfigJSON: s.ConfigJSON,
+	tracks := make([]store.EffectTrack, len(params.Tracks))
+	for i, t := range params.Tracks {
+		clips := make([]store.EffectClip, len(t.Clips))
+		for j, c := range t.Clips {
+			clips[j] = store.EffectClip{
+				ID:              c.ID,
+				TrackID:         t.ID,
+				StartMs:         c.StartMs,
+				TransitionMinMs: c.TransitionMinMs,
+				TransitionMaxMs: c.TransitionMaxMs,
+				Kind:            c.Kind,
+				ConfigJSON:      c.ConfigJSON,
+			}
+		}
+		tracks[i] = store.EffectTrack{
+			ID:       t.ID,
+			EffectID: params.ID,
+			Index:    t.Index,
+			Clips:    clips,
 		}
 	}
 	now := time.Now()
@@ -863,9 +874,10 @@ func (m *mockStore) CreateEffect(_ context.Context, params store.CreateEffectPar
 		Kind:       params.Kind,
 		NativeName: params.NativeName,
 		Loop:       params.Loop,
+		DurationMs: params.DurationMs,
 		CreatedAt:  now,
 		UpdatedAt:  now,
-		Steps:      steps,
+		Tracks:     tracks,
 	}
 	m.effects[params.ID] = e
 	return e, nil
@@ -913,6 +925,9 @@ func (m *mockStore) UpdateEffect(_ context.Context, id string, params store.Upda
 	if params.Loop != nil {
 		e.Loop = *params.Loop
 	}
+	if params.DurationMs != nil {
+		e.DurationMs = *params.DurationMs
+	}
 	e.UpdatedAt = time.Now()
 	m.effects[id] = e
 	return e, nil
@@ -933,24 +948,35 @@ func (m *mockStore) DeleteEffect(_ context.Context, id string) error {
 	return nil
 }
 
-func (m *mockStore) SaveEffectSteps(_ context.Context, effectID string, steps []store.EffectStepInput) error {
+func (m *mockStore) SaveEffectTracks(_ context.Context, effectID string, tracks []store.EffectTrackInput) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	e, ok := m.effects[effectID]
 	if !ok {
 		return fmt.Errorf("effect %q not found", effectID)
 	}
-	out := make([]store.EffectStep, len(steps))
-	for i, s := range steps {
-		out[i] = store.EffectStep{
-			ID:         s.ID,
-			EffectID:   effectID,
-			Index:      s.Index,
-			Kind:       s.Kind,
-			ConfigJSON: s.ConfigJSON,
+	out := make([]store.EffectTrack, len(tracks))
+	for i, t := range tracks {
+		clips := make([]store.EffectClip, len(t.Clips))
+		for j, c := range t.Clips {
+			clips[j] = store.EffectClip{
+				ID:              c.ID,
+				TrackID:         t.ID,
+				StartMs:         c.StartMs,
+				TransitionMinMs: c.TransitionMinMs,
+				TransitionMaxMs: c.TransitionMaxMs,
+				Kind:            c.Kind,
+				ConfigJSON:      c.ConfigJSON,
+			}
+		}
+		out[i] = store.EffectTrack{
+			ID:       t.ID,
+			EffectID: effectID,
+			Index:    t.Index,
+			Clips:    clips,
 		}
 	}
-	e.Steps = out
+	e.Tracks = out
 	e.UpdatedAt = time.Now()
 	m.effects[effectID] = e
 	return nil
@@ -961,22 +987,38 @@ func (m *mockStore) LoadEffect(ctx context.Context, id string) (effect.Effect, e
 	if err != nil {
 		return effect.Effect{}, err
 	}
-	steps := make([]effect.Step, 0, len(row.Steps))
-	for _, st := range row.Steps {
-		cfg, err := effect.UnmarshalConfig(st.Kind, []byte(st.ConfigJSON))
-		if err != nil {
-			return effect.Effect{}, err
+	tracks := make([]effect.Track, 0, len(row.Tracks))
+	for _, tr := range row.Tracks {
+		clips := make([]effect.Clip, 0, len(tr.Clips))
+		for _, cl := range tr.Clips {
+			cfg, err := effect.UnmarshalClipConfig(cl.Kind, []byte(cl.ConfigJSON))
+			if err != nil {
+				return effect.Effect{}, err
+			}
+			clips = append(clips, effect.Clip{
+				ID:              cl.ID,
+				StartMs:         cl.StartMs,
+				TransitionMinMs: cl.TransitionMinMs,
+				TransitionMaxMs: cl.TransitionMaxMs,
+				Kind:            cl.Kind,
+				Config:          cfg,
+			})
 		}
-		steps = append(steps, effect.Step{ID: st.ID, Index: st.Index, Kind: st.Kind, Config: cfg})
+		tracks = append(tracks, effect.Track{
+			ID:    tr.ID,
+			Index: tr.Index,
+			Clips: clips,
+		})
 	}
 	out := effect.Effect{
-		ID:        row.ID,
-		Name:      row.Name,
-		Kind:      row.Kind,
-		Loop:      row.Loop,
-		Steps:     steps,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		ID:         row.ID,
+		Name:       row.Name,
+		Kind:       row.Kind,
+		Loop:       row.Loop,
+		DurationMs: row.DurationMs,
+		Tracks:     tracks,
+		CreatedAt:  row.CreatedAt,
+		UpdatedAt:  row.UpdatedAt,
 	}
 	if row.Icon != nil {
 		out.Icon = *row.Icon
