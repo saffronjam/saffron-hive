@@ -111,12 +111,12 @@ enum EffectKind {
   NATIVE
 }
 
-enum EffectStepKind {
-  WAIT
+enum EffectClipKind {
   SET_ON_OFF
   SET_BRIGHTNESS
   SET_COLOR_RGB
   SET_COLOR_TEMP
+  NATIVE_EFFECT
 }
 
 type Effect {
@@ -126,12 +126,22 @@ type Effect {
   kind: EffectKind!
   nativeName: String
   loop: Boolean!
-  steps: [EffectStep!]!
+  """
+  For loop=true timeline effects, the loop length in milliseconds (the
+  position of the End line on the editor timeline). Inter-loop delay equals
+  durationMs minus the rightmost clip's end. For loop=false effects, this is
+  informational and reflects the rightmost clip end captured at save time.
+  Always 0 for native effects.
+  """
+  durationMs: Int!
+  tracks: [EffectTrack!]!
   """
   Capabilities every target device must support for this effect to apply
-  cleanly. Derived from the effect's step kinds for timeline effects;
-  empty for native effects (the per-device native option list owns that
-  filtering).
+  cleanly. Derived from the union of clip kinds across all tracks for
+  timeline effects; empty for native effects (the per-device native option
+  list owns that filtering). native_effect clips inside a timeline
+  contribute no capability either; their support is gated by the device's
+  effect cap value list.
   """
   requiredCapabilities: [String!]!
   createdBy: User
@@ -140,19 +150,44 @@ type Effect {
 }
 
 """
-A single step inside a timeline effect. config is a JSON document whose
-shape is determined by kind — the disk shape directly, not wrapped, e.g.
-{"r":244,"g":42,"b":23,"transition_ms":200} for SET_COLOR_RGB.
+A single track inside a timeline effect. Tracks fire in parallel; clips
+within a track are mutually exclusive in time. name is a user-supplied
+label shown in the editor; empty string is valid and rendered as a
+placeholder ("Track {n}").
 """
-type EffectStep {
+type EffectTrack {
   id: ID!
   index: Int!
-  kind: EffectStepKind!
+  name: String!
+  clips: [EffectClip!]!
+}
+
+"""
+A single clip on a track. config is a JSON document whose shape is
+determined by kind — the inner config struct directly, e.g.
+{"r":244,"g":42,"b":23} for SET_COLOR_RGB. transitionMinMs and
+transitionMaxMs bound a uniform random pick of the actual transition
+sampled per clip-execution; equal bounds collapse to a deterministic value.
+"""
+type EffectClip {
+  id: ID!
+  startMs: Int!
+  transitionMinMs: Int!
+  transitionMaxMs: Int!
+  kind: EffectClipKind!
   config: String!
 }
 
-input EffectStepInput {
-  kind: EffectStepKind!
+input EffectTrackInput {
+  name: String!
+  clips: [EffectClipInput!]!
+}
+
+input EffectClipInput {
+  startMs: Int!
+  transitionMinMs: Int!
+  transitionMaxMs: Int!
+  kind: EffectClipKind!
   config: String!
 }
 
@@ -162,7 +197,8 @@ input CreateEffectInput {
   kind: EffectKind!
   nativeName: String
   loop: Boolean!
-  steps: [EffectStepInput!]!
+  durationMs: Int!
+  tracks: [EffectTrackInput!]!
 }
 
 input UpdateEffectInput {
@@ -170,8 +206,9 @@ input UpdateEffectInput {
   name: String
   icon: String
   loop: Boolean
+  durationMs: Int
   nativeName: String
-  steps: [EffectStepInput!]
+  tracks: [EffectTrackInput!]
 }
 
 """
@@ -200,8 +237,10 @@ type NativeEffectOption {
 }
 
 """
-Step boundary marker emitted by the runner. active=true on enter,
+Clip boundary marker emitted by the runner. active=true on enter,
 active=false on exit. runId identifies the in-flight run instance.
+stepIndex is the clip's ordinal in the iteration's flat sorted-by-startMs
+event list.
 """
 type EffectStepEvent {
   runId: ID!
