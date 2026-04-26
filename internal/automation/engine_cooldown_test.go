@@ -31,7 +31,7 @@ func TestTriggerCooldownBlocksRefire(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil)
 
 	var (
 		mu  sync.Mutex
@@ -161,7 +161,7 @@ func TestTriggerGraceWindowCombinesWithLaterEvent(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil)
 
 	var (
 		mu  sync.Mutex
@@ -229,7 +229,7 @@ func TestTriggerGraceExpiresDoesNotFire(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil)
 
 	var (
 		mu  sync.Mutex

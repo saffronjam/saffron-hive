@@ -14,7 +14,7 @@ func TestReloadPicksUpNewAutomation(t *testing.T) {
 	s := newMockStore()
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil)
 	engine.now = func() time.Time { return time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) }
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -70,7 +70,7 @@ func TestReloadRemovesDeletedAutomation(t *testing.T) {
 	)
 
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil)
 	engine.now = func() time.Time { return time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC) }
 
 	ctx, cancel := context.WithCancel(context.Background())

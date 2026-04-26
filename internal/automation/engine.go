@@ -90,14 +90,15 @@ func (e *Engine) Stats() Stats {
 }
 
 // NewEngine creates a new automation Engine. alarmSvc may be nil in tests
-// that don't exercise alarm actions.
-func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser) *Engine {
+// that don't exercise alarm actions; runner may be nil in tests that don't
+// exercise run_effect or scene-payload effect dispatch.
+func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner) *Engine {
 	return &Engine{
 		bus:              bus,
 		reader:           reader,
 		store:            s,
 		resolver:         resolver,
-		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc),
+		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc, runner),
 		now:              time.Now,
 		baseCtx:          context.Background(),
 		triggers:         make(map[string][]compiledTrigger),
@@ -511,8 +512,10 @@ func (e *Engine) executeAction(node Node, automationID string) {
 	actionCfg.AutomationID = automationID
 
 	// Alarm actions are not target-scoped; they fire exactly once per
-	// activation regardless of device/group/room membership.
-	if actionCfg.ActionType == ActionRaiseAlarm || actionCfg.ActionType == ActionClearAlarm {
+	// activation regardless of device/group/room membership. Run-effect
+	// actions are also not fanned out: the runner accepts a group/room
+	// target and re-resolves members at each iteration boundary.
+	if actionCfg.ActionType == ActionRaiseAlarm || actionCfg.ActionType == ActionClearAlarm || actionCfg.ActionType == ActionRunEffect {
 		e.executor.ExecuteGraphAction(actionCfg)
 		return
 	}
