@@ -29,8 +29,8 @@ func (q *Queries) ClearEffectNativeName(ctx context.Context, id string) error {
 }
 
 const createEffect = `-- name: CreateEffect :exec
-INSERT INTO effects (id, name, icon, kind, native_name, loop, created_by)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO effects (id, name, icon, kind, native_name, loop, duration_ms, created_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateEffectParams struct {
@@ -40,6 +40,7 @@ type CreateEffectParams struct {
 	Kind       string
 	NativeName *string
 	Loop       int64
+	DurationMs int64
 	CreatedBy  *string
 }
 
@@ -51,31 +52,58 @@ func (q *Queries) CreateEffect(ctx context.Context, arg CreateEffectParams) erro
 		arg.Kind,
 		arg.NativeName,
 		arg.Loop,
+		arg.DurationMs,
 		arg.CreatedBy,
 	)
 	return err
 }
 
-const createEffectStep = `-- name: CreateEffectStep :exec
-INSERT INTO effect_steps (id, effect_id, step_index, kind, config)
-VALUES (?, ?, ?, ?, ?)
+const createEffectClip = `-- name: CreateEffectClip :exec
+INSERT INTO effect_clips (id, track_id, start_ms, transition_min_ms, transition_max_ms, kind, config)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
-type CreateEffectStepParams struct {
-	ID        string
-	EffectID  string
-	StepIndex int64
-	Kind      string
-	Config    string
+type CreateEffectClipParams struct {
+	ID              string
+	TrackID         string
+	StartMs         int64
+	TransitionMinMs int64
+	TransitionMaxMs int64
+	Kind            string
+	Config          string
 }
 
-func (q *Queries) CreateEffectStep(ctx context.Context, arg CreateEffectStepParams) error {
-	_, err := q.db.ExecContext(ctx, createEffectStep,
+func (q *Queries) CreateEffectClip(ctx context.Context, arg CreateEffectClipParams) error {
+	_, err := q.db.ExecContext(ctx, createEffectClip,
 		arg.ID,
-		arg.EffectID,
-		arg.StepIndex,
+		arg.TrackID,
+		arg.StartMs,
+		arg.TransitionMinMs,
+		arg.TransitionMaxMs,
 		arg.Kind,
 		arg.Config,
+	)
+	return err
+}
+
+const createEffectTrack = `-- name: CreateEffectTrack :exec
+INSERT INTO effect_tracks (id, effect_id, track_index, name)
+VALUES (?, ?, ?, ?)
+`
+
+type CreateEffectTrackParams struct {
+	ID         string
+	EffectID   string
+	TrackIndex int64
+	Name       string
+}
+
+func (q *Queries) CreateEffectTrack(ctx context.Context, arg CreateEffectTrackParams) error {
+	_, err := q.db.ExecContext(ctx, createEffectTrack,
+		arg.ID,
+		arg.EffectID,
+		arg.TrackIndex,
+		arg.Name,
 	)
 	return err
 }
@@ -103,12 +131,12 @@ func (q *Queries) DeleteEffect(ctx context.Context, id string) error {
 	return err
 }
 
-const deleteEffectStepsByEffect = `-- name: DeleteEffectStepsByEffect :exec
-DELETE FROM effect_steps WHERE effect_id = ?
+const deleteEffectTracksByEffect = `-- name: DeleteEffectTracksByEffect :exec
+DELETE FROM effect_tracks WHERE effect_id = ?
 `
 
-func (q *Queries) DeleteEffectStepsByEffect(ctx context.Context, effectID string) error {
-	_, err := q.db.ExecContext(ctx, deleteEffectStepsByEffect, effectID)
+func (q *Queries) DeleteEffectTracksByEffect(ctx context.Context, effectID string) error {
+	_, err := q.db.ExecContext(ctx, deleteEffectTracksByEffect, effectID)
 	return err
 }
 
@@ -125,7 +153,7 @@ func (q *Queries) DeleteVolatileActiveEffects(ctx context.Context) (int64, error
 }
 
 const getEffect = `-- name: GetEffect :one
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop,
+SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -142,6 +170,7 @@ type GetEffectRow struct {
 	Kind            string
 	NativeName      *string
 	Loop            int64
+	DurationMs      int64
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -159,6 +188,7 @@ func (q *Queries) GetEffect(ctx context.Context, id string) (GetEffectRow, error
 		&i.Kind,
 		&i.NativeName,
 		&i.Loop,
+		&i.DurationMs,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CreatorID,
@@ -203,26 +233,28 @@ func (q *Queries) ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	return items, nil
 }
 
-const listEffectSteps = `-- name: ListEffectSteps :many
-SELECT id, effect_id, step_index, kind, config
-FROM effect_steps
-WHERE effect_id = ?
-ORDER BY step_index
+const listEffectClips = `-- name: ListEffectClips :many
+SELECT id, track_id, start_ms, transition_min_ms, transition_max_ms, kind, config
+FROM effect_clips
+WHERE track_id = ?
+ORDER BY start_ms, id
 `
 
-func (q *Queries) ListEffectSteps(ctx context.Context, effectID string) ([]EffectStep, error) {
-	rows, err := q.db.QueryContext(ctx, listEffectSteps, effectID)
+func (q *Queries) ListEffectClips(ctx context.Context, trackID string) ([]EffectClip, error) {
+	rows, err := q.db.QueryContext(ctx, listEffectClips, trackID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []EffectStep
+	var items []EffectClip
 	for rows.Next() {
-		var i EffectStep
+		var i EffectClip
 		if err := rows.Scan(
 			&i.ID,
-			&i.EffectID,
-			&i.StepIndex,
+			&i.TrackID,
+			&i.StartMs,
+			&i.TransitionMinMs,
+			&i.TransitionMaxMs,
 			&i.Kind,
 			&i.Config,
 		); err != nil {
@@ -239,8 +271,43 @@ func (q *Queries) ListEffectSteps(ctx context.Context, effectID string) ([]Effec
 	return items, nil
 }
 
+const listEffectTracks = `-- name: ListEffectTracks :many
+SELECT id, effect_id, track_index, name
+FROM effect_tracks
+WHERE effect_id = ?
+ORDER BY track_index
+`
+
+func (q *Queries) ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error) {
+	rows, err := q.db.QueryContext(ctx, listEffectTracks, effectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EffectTrack
+	for rows.Next() {
+		var i EffectTrack
+		if err := rows.Scan(
+			&i.ID,
+			&i.EffectID,
+			&i.TrackIndex,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEffects = `-- name: ListEffects :many
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop,
+SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -256,6 +323,7 @@ type ListEffectsRow struct {
 	Kind            string
 	NativeName      *string
 	Loop            int64
+	DurationMs      int64
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -279,6 +347,7 @@ func (q *Queries) ListEffects(ctx context.Context) ([]ListEffectsRow, error) {
 			&i.Kind,
 			&i.NativeName,
 			&i.Loop,
+			&i.DurationMs,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CreatorID,
@@ -305,8 +374,9 @@ UPDATE effects SET
     kind        = COALESCE(?3,        kind),
     native_name = COALESCE(?4, native_name),
     loop        = COALESCE(?5,        loop),
+    duration_ms = COALESCE(?6, duration_ms),
     updated_at  = CURRENT_TIMESTAMP
-WHERE id = ?6
+WHERE id = ?7
 `
 
 type UpdateEffectParams struct {
@@ -315,6 +385,7 @@ type UpdateEffectParams struct {
 	Kind       *string
 	NativeName *string
 	Loop       *int64
+	DurationMs *int64
 	ID         string
 }
 
@@ -325,8 +396,23 @@ func (q *Queries) UpdateEffect(ctx context.Context, arg UpdateEffectParams) erro
 		arg.Kind,
 		arg.NativeName,
 		arg.Loop,
+		arg.DurationMs,
 		arg.ID,
 	)
+	return err
+}
+
+const updateEffectDuration = `-- name: UpdateEffectDuration :exec
+UPDATE effects SET duration_ms = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+`
+
+type UpdateEffectDurationParams struct {
+	DurationMs int64
+	ID         string
+}
+
+func (q *Queries) UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error {
+	_, err := q.db.ExecContext(ctx, updateEffectDuration, arg.DurationMs, arg.ID)
 	return err
 }
 

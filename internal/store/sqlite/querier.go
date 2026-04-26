@@ -43,7 +43,8 @@ type Querier interface {
 	// fallback preserved in mapper.go).
 	CreateDevice(ctx context.Context, arg CreateDeviceParams) error
 	CreateEffect(ctx context.Context, arg CreateEffectParams) error
-	CreateEffectStep(ctx context.Context, arg CreateEffectStepParams) error
+	CreateEffectClip(ctx context.Context, arg CreateEffectClipParams) error
+	CreateEffectTrack(ctx context.Context, arg CreateEffectTrackParams) error
 	// Same join shape as rooms; member table is group_members with typed member_type.
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	// Rooms share the same read-shape with scenes/groups/automations: the row is
@@ -64,7 +65,7 @@ type Querier interface {
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
 	DeleteEffect(ctx context.Context, id string) error
-	DeleteEffectStepsByEffect(ctx context.Context, effectID string) error
+	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
@@ -117,7 +118,8 @@ type Querier interface {
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
-	ListEffectSteps(ctx context.Context, effectID string) ([]EffectStep, error)
+	ListEffectClips(ctx context.Context, trackID string) ([]EffectClip, error)
+	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
 	ListEnabledAutomations(ctx context.Context) ([]ListEnabledAutomationsRow, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
@@ -170,6 +172,7 @@ type Querier interface {
 	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
 	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
+	UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error
 	UpdateRoomIcon(ctx context.Context, arg UpdateRoomIconParams) error

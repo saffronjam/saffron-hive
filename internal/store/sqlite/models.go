@@ -101,14 +101,24 @@ type Effect struct {
 	CreatedBy  *string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+	DurationMs int64
 }
 
-type EffectStep struct {
-	ID        string
-	EffectID  string
-	StepIndex int64
-	Kind      string
-	Config    string
+type EffectClip struct {
+	ID              string
+	TrackID         string
+	StartMs         int64
+	TransitionMinMs int64
+	TransitionMaxMs int64
+	Kind            string
+	Config          string
+}
+
+type EffectTrack struct {
+	ID         string
+	EffectID   string
+	TrackIndex int64
+	Name       string
 }
 
 type Group struct {
