@@ -155,18 +155,12 @@ func (f *fakeReader) ListGroupMembers(_ device.GroupID) []device.GroupMember {
 }
 func (f *fakeReader) ResolveGroupDevices(_ device.GroupID) []device.DeviceID { return nil }
 
-// fakeTargets is the default device-only resolver: a target id resolves to a
-// single device with the same id. Tests that need group/room semantics use
-// programmableTargets instead.
 type fakeTargets struct{}
 
 func (fakeTargets) ResolveTargetDeviceIDs(_ context.Context, _ device.TargetType, id string) []device.DeviceID {
 	return []device.DeviceID{device.DeviceID(id)}
 }
 
-// programmableTargets returns a configurable device set per target id and
-// counts how many times each id has been resolved. Tests can mutate the
-// membership between iterations to verify the runner picks up the change.
 type programmableTargets struct {
 	mu      sync.Mutex
 	members map[string][]device.DeviceID
@@ -202,9 +196,7 @@ type fakeStopper struct {
 func (f fakeStopper) TerminatorFor(_ device.Device) string { return f.terminator }
 
 // recorder is an in-memory EventBus that records every published event and
-// forwards publishes to subscribers. The runner subscribes to
-// EventCommandRequested for drift detection, so the recorder must satisfy
-// the full EventBus interface.
+// forwards publishes to subscribers.
 type recorder struct {
 	bus    *eventbus.ChannelBus
 	mu     sync.Mutex
@@ -251,16 +243,6 @@ func (r *recorder) commands() []device.Command {
 	return out
 }
 
-func (r *recorder) commandsByOrigin(kind string) []device.Command {
-	var out []device.Command
-	for _, c := range r.commands() {
-		if c.Origin.Kind == kind {
-			out = append(out, c)
-		}
-	}
-	return out
-}
-
 func (r *recorder) nativeRequests() []device.NativeEffectRequest {
 	var out []device.NativeEffectRequest
 	for _, e := range r.snapshot() {
@@ -288,16 +270,25 @@ func waitFor(t *testing.T, want int, get func() int, msg string) {
 	}
 }
 
-func waitConfig(ms int) StepConfig {
-	return StepConfig{Wait: &WaitConfig{DurationMS: ms}}
+// brightnessClip builds a SET_BRIGHTNESS clip with deterministic transition.
+func brightnessClip(startMs, transitionMs, value int) Clip {
+	return Clip{
+		StartMs:         startMs,
+		TransitionMinMs: transitionMs,
+		TransitionMaxMs: transitionMs,
+		Kind:            ClipSetBrightness,
+		Config:          ClipConfig{SetBrightness: &SetBrightnessClipConfig{Value: value}},
+	}
 }
 
-func brightnessConfig(value, transitionMS int) StepConfig {
-	return StepConfig{SetBrightness: &SetBrightnessConfig{Value: value, TransitionMS: transitionMS}}
-}
-
-func colorConfig(r, g, b, transitionMS int) StepConfig {
-	return StepConfig{SetColorRGB: &SetColorRGBConfig{R: r, G: g, B: b, TransitionMS: transitionMS}}
+func colorClip(startMs, transitionMs, r, g, b int) Clip {
+	return Clip{
+		StartMs:         startMs,
+		TransitionMinMs: transitionMs,
+		TransitionMaxMs: transitionMs,
+		Kind:            ClipSetColorRGB,
+		Config:          ClipConfig{SetColorRGB: &SetColorRGBClipConfig{R: r, G: g, B: b}},
+	}
 }
 
 func makeRunner(rec *recorder, store EffectStore, reader device.StateReader, term NativeEffectStopper) *Runner {
@@ -331,17 +322,19 @@ func startDriftLoop(t *testing.T, r *Runner) (cancel context.CancelFunc, done <-
 	return c, d
 }
 
-func TestRunnerTimeline_PublishesStepsInOrder(t *testing.T) {
+func TestRunnerTimeline_PublishesClipsInOrder(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(50, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(20)},
-			{Index: 2, Kind: StepSetBrightness, Config: brightnessConfig(150, 0)},
-		},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 30,
+		Tracks: []Track{{
+			Clips: []Clip{
+				brightnessClip(0, 0, 50),
+				brightnessClip(20, 0, 150),
+			},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -370,93 +363,117 @@ func TestRunnerTimeline_PublishesStepsInOrder(t *testing.T) {
 	}
 }
 
-func TestRunnerTimeline_CoalescesAdjacentSetSteps(t *testing.T) {
+func TestRunnerTimeline_ParallelTracksFireConcurrently(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetColorRGB, Config: colorConfig(244, 42, 23, 200)},
-			{Index: 1, Kind: StepSetBrightness, Config: brightnessConfig(180, 0)},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 100,
+		Tracks: []Track{
+			{Clips: []Clip{brightnessClip(0, 0, 80)}},
+			{Clips: []Clip{colorClip(0, 0, 200, 100, 50)}},
 		},
 	})
-	r := makeRunner(rec, st, newFakeReader(), nil)
+	reader := newFakeReader()
+	reader.addDevice(device.Device{
+		ID: "dev-1",
+		Capabilities: []device.Capability{
+			{Name: device.CapBrightness, Access: 7},
+			{Name: device.CapColor, Access: 7},
+		},
+	})
+	r := makeRunner(rec, st, reader, nil)
 
 	if _, err := r.Start(context.Background(), "e1", deviceTarget("dev-1")); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	waitFor(t, 1, func() int { return len(rec.commands()) }, "coalesced command")
-
-	time.Sleep(30 * time.Millisecond)
+	waitFor(t, 2, func() int { return len(rec.commands()) }, "two parallel publishes")
+	time.Sleep(20 * time.Millisecond)
 
 	cmds := rec.commands()
-	if len(cmds) != 1 {
-		t.Fatalf("expected 1 coalesced publish, got %d", len(cmds))
+	if len(cmds) != 2 {
+		t.Fatalf("expected 2 commands (one per track), got %d", len(cmds))
 	}
-	cmd := cmds[0]
-	if cmd.Color == nil || cmd.Color.R != 244 || cmd.Color.G != 42 || cmd.Color.B != 23 {
-		t.Fatalf("color = %+v, want {244,42,23}", cmd.Color)
+	hasBrightness := false
+	hasColor := false
+	for _, c := range cmds {
+		if c.Brightness != nil && *c.Brightness == 80 {
+			hasBrightness = true
+		}
+		if c.Color != nil && c.Color.R == 200 {
+			hasColor = true
+		}
 	}
-	if cmd.Brightness == nil || *cmd.Brightness != 180 {
-		t.Fatalf("brightness = %v, want 180", cmd.Brightness)
-	}
-	if cmd.Transition == nil || *cmd.Transition != 0.2 {
-		t.Fatalf("transition = %v, want 0.2", cmd.Transition)
+	if !hasBrightness || !hasColor {
+		t.Fatalf("expected one brightness + one color command, got %+v", cmds)
 	}
 }
 
-func TestRunnerTimeline_StepActivatedEvents(t *testing.T) {
+// fixedSampler implements transitionSampler with a deterministic sequence so
+// random transitions are reproducible in tests.
+type fixedSampler struct {
+	values []int
+	idx    int
+	mu     sync.Mutex
+}
+
+func (s *fixedSampler) IntN(n int) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.values) == 0 {
+		return 0
+	}
+	v := s.values[s.idx%len(s.values)]
+	s.idx++
+	if v >= n {
+		v = n - 1
+	}
+	if v < 0 {
+		v = 0
+	}
+	return v
+}
+
+func TestRunnerTimeline_RandomTransitionWithinBounds(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(50, 0)},
-		},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 500,
+		Tracks: []Track{{
+			Clips: []Clip{{
+				StartMs:         0,
+				TransitionMinMs: 200,
+				TransitionMaxMs: 400,
+				Kind:            ClipSetBrightness,
+				Config:          ClipConfig{SetBrightness: &SetBrightnessClipConfig{Value: 100}},
+			}},
+		}},
 	})
-	r := makeRunner(rec, st, newFakeReader(), nil)
+	sampler := &fixedSampler{values: []int{50}}
+	r := NewRunnerWithRand(rec, fakeTargets{}, newFakeReader(), st, nil, sampler)
 
 	if _, err := r.Start(context.Background(), "e1", deviceTarget("dev-1")); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	waitFor(t, 1, func() int { return len(rec.commands()) }, "one command")
-	time.Sleep(20 * time.Millisecond)
 
-	var enter, exit int
-	for _, e := range rec.snapshot() {
-		if e.Type != eventbus.EventEffectStepActivated {
-			continue
-		}
-		p := e.Payload.(eventbus.EffectStepActivatedEvent)
-		if p.Active {
-			enter++
-		} else {
-			exit++
-		}
+	cmds := rec.commands()
+	if len(cmds) != 1 {
+		t.Fatalf("expected 1 command, got %d", len(cmds))
 	}
-	if enter != 1 || exit != 1 {
-		t.Fatalf("step activations: enter=%d exit=%d, want 1 each", enter, exit)
+	if cmds[0].Transition == nil {
+		t.Fatal("expected transition to be set")
 	}
-
-	events := rec.snapshot()
-	var firstActivate, cmdIdx, secondActivate int = -1, -1, -1
-	for i, e := range events {
-		switch e.Type {
-		case eventbus.EventEffectStepActivated:
-			p := e.Payload.(eventbus.EffectStepActivatedEvent)
-			if p.Active && firstActivate == -1 {
-				firstActivate = i
-			} else if !p.Active {
-				secondActivate = i
-			}
-		case eventbus.EventCommandRequested:
-			cmdIdx = i
-		}
+	got := *cmds[0].Transition
+	if got < 0.2 || got > 0.4 {
+		t.Errorf("transition out of bounds: got %f, want 0.2..0.4", got)
 	}
-	if !(firstActivate < cmdIdx && cmdIdx < secondActivate) {
-		t.Fatalf("event order wrong: enter=%d cmd=%d exit=%d", firstActivate, cmdIdx, secondActivate)
+	wantSec := float64(200+50) / 1000.0
+	if got != wantSec {
+		t.Errorf("seeded transition = %f, want %f", got, wantSec)
 	}
 }
 
@@ -464,22 +481,24 @@ func TestRunnerStart_PreemptsExistingRun(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "long",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(50, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(2000)},
-			{Index: 2, Kind: StepSetBrightness, Config: brightnessConfig(100, 0)},
-			{Index: 3, Kind: StepWait, Config: waitConfig(2000)},
-			{Index: 4, Kind: StepSetBrightness, Config: brightnessConfig(150, 0)},
-		},
+		ID:         "long",
+		Kind:       KindTimeline,
+		DurationMs: 5000,
+		Tracks: []Track{{
+			Clips: []Clip{
+				brightnessClip(0, 0, 50),
+				brightnessClip(2000, 0, 100),
+				brightnessClip(4000, 0, 150),
+			},
+		}},
 	})
 	st.put(Effect{
-		ID:   "short",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(220, 0)},
-		},
+		ID:         "short",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 220)},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -521,13 +540,15 @@ func TestRunnerStop_NoLeakAfterCancel(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(50, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(5000)},
-			{Index: 2, Kind: StepSetBrightness, Config: brightnessConfig(150, 0)},
-		},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 5000,
+		Tracks: []Track{{
+			Clips: []Clip{
+				brightnessClip(0, 0, 50),
+				brightnessClip(5000, 0, 150),
+			},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -561,11 +582,12 @@ func TestRunnerStartStop_QuickShutdown(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepWait, Config: waitConfig(10_000)},
-		},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 10_000,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(9000, 0, 100)},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -582,7 +604,7 @@ func TestRunnerStartStop_QuickShutdown(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("Stop did not return promptly during a long wait")
+		t.Fatal("Stop did not return promptly during a long iteration")
 	}
 }
 
@@ -671,11 +693,12 @@ func TestRunnerNative_PreemptedByTimelinePublishesTerminatorFirst(t *testing.T) 
 		NativeName: "fireplace",
 	})
 	st.put(Effect{
-		ID:   "ramp",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(80, 0)},
-		},
+		ID:         "ramp",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 80)},
+		}},
 	})
 	reader := newFakeReader()
 	reader.addDevice(device.Device{
@@ -732,11 +755,12 @@ func TestRunner_StartStopLeakSmoke(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "e1",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepWait, Config: waitConfig(1_000_000)},
-		},
+		ID:         "e1",
+		Kind:       KindTimeline,
+		DurationMs: 1_000_000,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(900_000, 0, 100)},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -762,15 +786,16 @@ func TestRunnerTimeline_LoopRunsRepeatedly(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(40, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(5)},
-			{Index: 2, Kind: StepSetBrightness, Config: brightnessConfig(120, 0)},
-			{Index: 3, Kind: StepWait, Config: waitConfig(5)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 10,
+		Tracks: []Track{{
+			Clips: []Clip{
+				brightnessClip(0, 0, 40),
+				brightnessClip(5, 0, 120),
+			},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 
@@ -800,11 +825,12 @@ func TestRunnerTimeline_GroupFanOut(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "grp",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(60, 0)},
-		},
+		ID:         "grp",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 60)},
+		}},
 	})
 
 	tr := newProgrammableTargets()
@@ -853,13 +879,13 @@ func TestRunnerTimeline_MidLoopMembershipChange(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(80, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(15)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 15,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 80)},
+		}},
 	})
 
 	tr := newProgrammableTargets()
@@ -918,15 +944,16 @@ func TestRunnerDrift_SelfPublishDoesNotStop(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(40, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(10)},
-			{Index: 2, Kind: StepSetBrightness, Config: brightnessConfig(120, 0)},
-			{Index: 3, Kind: StepWait, Config: waitConfig(10)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 15,
+		Tracks: []Track{{
+			Clips: []Clip{
+				brightnessClip(0, 0, 40),
+				brightnessClip(10, 0, 120),
+			},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 	startDriftLoop(t, r)
@@ -951,13 +978,13 @@ func TestRunnerDrift_ForeignCommandStopsDeviceRun(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(60, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(20)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 20,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 60)},
+		}},
 	})
 	r := makeRunner(rec, st, newFakeReader(), nil)
 	startDriftLoop(t, r)
@@ -996,13 +1023,13 @@ func TestRunnerDrift_ForeignCommandStopsGroupRun(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "loop",
-		Kind: KindTimeline,
-		Loop: true,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetBrightness, Config: brightnessConfig(60, 0)},
-			{Index: 1, Kind: StepWait, Config: waitConfig(20)},
-		},
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 20,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 60)},
+		}},
 	})
 
 	tr := newProgrammableTargets()
@@ -1099,11 +1126,12 @@ func TestRunnerTimeline_CapabilityFanOut(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()
 	st.put(Effect{
-		ID:   "rgb",
-		Kind: KindTimeline,
-		Steps: []Step{
-			{Index: 0, Kind: StepSetColorRGB, Config: colorConfig(255, 100, 50, 0)},
-		},
+		ID:         "rgb",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{colorClip(0, 0, 255, 100, 50)},
+		}},
 	})
 
 	tr := newProgrammableTargets()
@@ -1167,6 +1195,45 @@ func TestRunnerTimeline_CapabilityFanOut(t *testing.T) {
 	}
 	if plug != nil && plug.Color != nil {
 		t.Fatalf("plug received color field, should have been filtered: %+v", plug)
+	}
+}
+
+func TestRunnerTimeline_NativeEffectClipPublishesNativeRequest(t *testing.T) {
+	rec := newRecorder()
+	st := newFakeStore()
+	st.put(Effect{
+		ID:         "mixed",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{{
+				StartMs:         0,
+				TransitionMinMs: 0,
+				TransitionMaxMs: 0,
+				Kind:            ClipNativeEffect,
+				Config:          ClipConfig{NativeEffect: &NativeEffectClipConfig{Name: "candle"}},
+			}},
+		}},
+	})
+	r := makeRunner(rec, st, newFakeReader(), nil)
+
+	runID, err := r.Start(context.Background(), "mixed", deviceTarget("dev-1"))
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { r.Stop(deviceTarget("dev-1")) })
+
+	waitFor(t, 1, func() int { return len(rec.nativeRequests()) }, "native_effect clip request")
+
+	reqs := rec.nativeRequests()
+	if reqs[0].Name != "candle" {
+		t.Errorf("name = %q, want candle", reqs[0].Name)
+	}
+	if reqs[0].DeviceID != "dev-1" {
+		t.Errorf("deviceID = %q, want dev-1", reqs[0].DeviceID)
+	}
+	if reqs[0].Origin.Kind != device.OriginKindEffect || reqs[0].Origin.ID != runID {
+		t.Errorf("origin = %+v, want effect/%s", reqs[0].Origin, runID)
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,19 +17,15 @@ import (
 
 // Persistence and reboot recovery: Loop timeline runs are persisted to
 // active_effects with Volatile=false so they survive a restart; Hydrate
-// re-launches them from step 0. There is no mid-step resume — loops are
-// intended to be ambient and idempotent, so a hydrate-from-the-top is
-// indistinguishable from continuing the cycle. Native runs and non-loop
-// timeline runs are persisted with Volatile=true and wiped at the next
-// process startup before Hydrate runs.
+// re-launches them from t=0. There is no mid-run resume — loops are intended
+// to be ambient and idempotent. Native runs and non-loop timeline runs are
+// persisted with Volatile=true and wiped at the next process startup before
+// Hydrate runs.
 
 var logger = logging.Named("effect")
 
-// EffectStore is the narrow store contract the runner consumes. It returns
-// the domain effect.Effect with parsed StepConfig payloads so the runner does
-// not depend on internal/store types — the store package already imports
-// internal/effect for Kind / StepKind, so the reverse import would cycle.
-// *store.DB satisfies this interface implicitly.
+// EffectStore is the narrow store contract the runner consumes. *store.DB
+// satisfies this interface implicitly.
 type EffectStore interface {
 	LoadEffect(ctx context.Context, id string) (Effect, error)
 	UpsertActiveEffect(ctx context.Context, params UpsertActiveEffectParams) error
@@ -39,8 +37,6 @@ type EffectStore interface {
 // NativeEffectStopper looks up the terminator name a device understands when
 // it is told to stop a running native effect. The runner holds this as a
 // separate interface so it does not import the zigbee adapter package.
-// The zigbee adapter's TerminatorFor function satisfies it once wrapped in a
-// trivial value-receiver type at wiring time.
 type NativeEffectStopper interface {
 	TerminatorFor(dev device.Device) string
 }
@@ -54,7 +50,6 @@ type Target struct {
 	ID   string
 }
 
-// targetKey is the registry key used to deduplicate active runs by target.
 type targetKey struct {
 	Type device.TargetType
 	ID   string
@@ -72,26 +67,20 @@ type activeRun struct {
 	cancel   context.CancelFunc
 	done     chan struct{}
 
-	// members is the device set the run is currently driving. It is refreshed
-	// at each iteration boundary by the timeline worker (and once at start by
-	// the native worker) so the drift comparator has an up-to-date view of
-	// which devices a foreign command must touch to stop the run. Guarded by
-	// the Runner's mu.
+	// members is the device set the run is currently driving. Refreshed at
+	// each iteration boundary by the timeline worker (and once at start by the
+	// native worker) so the drift comparator has an up-to-date view of which
+	// devices a foreign command must touch to stop the run. Guarded by mu.
 	members map[device.DeviceID]struct{}
 }
 
-// Runner walks timeline effects step by step or hands native effects to the
-// adapter. It owns the in-memory registry of active runs keyed by target;
-// starting a new run on a target preempts any run already there.
+// Runner walks timeline effects across multi-track event lists or hands native
+// effects to the adapter. It owns the in-memory registry of active runs keyed
+// by target; starting a new run on a target preempts any run already there.
 //
 // A drift goroutine subscribes to EventCommandRequested and stops any run
 // whose currently-resolved device set sees a command whose origin is not the
-// run's own. EventCommandRequested is the signal because its origin is set
-// authoritatively at the publisher (this runner, scenes, automations, the
-// GraphQL setDeviceState mutation), making the comparator deterministic for
-// every command flowing through the bus. Out-of-bus events (zigbee2mqtt UI,
-// physical Zigbee remotes) bypass the bus and do not stop a run; that is an
-// accepted v1 simplification.
+// run's own.
 type Runner struct {
 	bus     eventbus.EventBus
 	targets device.TargetResolver
@@ -103,12 +92,34 @@ type Runner struct {
 	active map[targetKey]*activeRun
 
 	driftCh <-chan eventbus.Event
+
+	// rand seeds the per-clip random transition sampler. Tests can swap it for
+	// a seeded source via NewRunnerWithRand for reproducibility.
+	rand transitionSampler
 }
 
+// transitionSampler abstracts the random source used to pick a per-clip
+// transition. Production runners use a global crypto-seeded rand; tests can
+// inject a deterministic implementation.
+type transitionSampler interface {
+	IntN(n int) int
+}
+
+// defaultSampler delegates to math/rand/v2's package-level functions, which
+// math/rand/v2 seeds at program start.
+type defaultSampler struct{}
+
+func (defaultSampler) IntN(n int) int { return rand.IntN(n) }
+
 // NewRunner constructs a Runner and immediately subscribes its drift goroutine
-// to the bus so any EventCommandRequested published after construction is
-// buffered for Run to consume.
+// to the bus.
 func NewRunner(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper) *Runner {
+	return NewRunnerWithRand(bus, targets, reader, st, term, defaultSampler{})
+}
+
+// NewRunnerWithRand is NewRunner with an injected transitionSampler. Tests
+// pass a seeded implementation to make per-clip transition picks reproducible.
+func NewRunnerWithRand(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper, sampler transitionSampler) *Runner {
 	r := &Runner{
 		bus:     bus,
 		targets: targets,
@@ -116,19 +127,16 @@ func NewRunner(bus eventbus.EventBus, targets device.TargetResolver, reader devi
 		store:   st,
 		term:    term,
 		active:  make(map[targetKey]*activeRun),
+		rand:    sampler,
 	}
 	r.driftCh = bus.Subscribe(eventbus.EventCommandRequested)
 	return r
 }
 
 // Run blocks until ctx is done, consuming EventCommandRequested events and
-// stopping any active run whose device set matches a foreign command. The
-// wiring layer is responsible for invoking Run; without it, drift detection
-// is inert (commands still publish, runs still complete, but foreign drift
-// will not preempt).
+// stopping any active run whose device set matches a foreign command.
 func (r *Runner) Run(ctx context.Context) {
 	defer r.bus.Unsubscribe(r.driftCh)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -184,11 +192,6 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 
 	go r.run(runCtx, run, eff)
 
-	// Persistence runs after the worker is dispatched so a slow disk does
-	// not delay the run starting. A persistence error is logged and ignored:
-	// missing the active_effects row only costs reboot recovery for this run,
-	// and degrading correctness of the live run by failing the call would be
-	// worse.
 	volatile := !(eff.Loop && eff.Kind == KindTimeline)
 	if err := r.store.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
 		ID:         runID,
@@ -210,11 +213,7 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 }
 
 // StartNative launches an ad-hoc native effect by name against a target with
-// no Effect row backing it. The runner constructs an in-memory effect.Effect
-// with KindNative and dispatches it through the existing native worker, which
-// only needs NativeName. No active_effects row is persisted because ad-hoc
-// native runs are fire-and-forget — Query.activeEffects intentionally does
-// not list them.
+// no Effect row backing it.
 func (r *Runner) StartNative(ctx context.Context, nativeName string, target Target) (string, error) {
 	if target.ID == "" {
 		return "", errors.New("effect runner: target id is empty")
@@ -261,8 +260,7 @@ func (r *Runner) StartNative(ctx context.Context, nativeName string, target Targ
 
 // Stop cancels any active run for the given target. Returns true if a run
 // was active. For a native run, the appropriate terminator is published per
-// device in the resolved set before this returns so the device's animation
-// stops promptly.
+// device in the resolved set before this returns.
 func (r *Runner) Stop(target Target) bool {
 	return r.stopWithReason(target, eventbus.EffectEndReasonStopped)
 }
@@ -288,9 +286,7 @@ func (r *Runner) stopWithReason(target Target, reason eventbus.EffectEndReason) 
 
 // Hydrate reconciles persisted active_effects rows after a restart. Volatile
 // rows from any previous lifetime are wiped first; surviving rows are
-// re-launched from step 0. Per-row launch failures (effect deleted, target
-// invalid) are logged and skipped — one bad row never bails the whole
-// hydrate.
+// re-launched from t=0.
 func (r *Runner) Hydrate(ctx context.Context) error {
 	if _, err := r.store.DeleteVolatileActiveEffects(ctx); err != nil {
 		return fmt.Errorf("effect runner: purge volatile active effects: %w", err)
@@ -315,9 +311,6 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 	return nil
 }
 
-// deleteActive removes the persisted active_effects row for target. Errors
-// are logged and ignored: a stale row only degrades reboot recovery, never
-// the live run.
 func (r *Runner) deleteActive(target Target) {
 	if err := r.store.DeleteActiveEffect(context.Background(), string(target.Type), target.ID); err != nil {
 		logger.Error("delete active effect failed",
@@ -327,11 +320,6 @@ func (r *Runner) deleteActive(target Target) {
 	}
 }
 
-// preempt cancels run's worker context, blocks until the worker has
-// returned, and (for native runs) publishes the device's terminator. The
-// blocking guarantees that no further publishes from this run can land
-// after preempt returns, which is what callers of Start (preempting an
-// existing run) and Stop both rely on.
 func (r *Runner) preempt(run *activeRun) {
 	run.cancel()
 	<-run.done
@@ -365,8 +353,6 @@ func (r *Runner) preempt(run *activeRun) {
 	}
 }
 
-// run dispatches to the timeline or native worker. Cleanup unregisters the
-// run and signals done so any waiter (preempt) can proceed.
 func (r *Runner) run(ctx context.Context, run *activeRun, eff Effect) {
 	defer close(run.done)
 	defer r.unregister(run)
@@ -381,11 +367,6 @@ func (r *Runner) run(ctx context.Context, run *activeRun, eff Effect) {
 	}
 }
 
-// unregister removes run from the active registry only if it is still the
-// owner of its target slot. A preempting Start call has already swapped the
-// slot to the new run; clearing it here would race with the new run. The
-// persisted row is also deleted on natural completion so a non-loop run that
-// finishes does not leave an orphaned row for the next reboot.
 func (r *Runner) unregister(run *activeRun) {
 	key := keyFor(run.target)
 	r.mu.Lock()
@@ -424,80 +405,140 @@ func (r *Runner) runNative(ctx context.Context, run *activeRun, eff Effect) {
 	}
 	r.publishStep(run, 0, false)
 
-	// Native runs have no per-step work after the initial publish — the
-	// device owns the animation. The worker parks on ctx.Done() so the run
-	// stays registered until Stop or a preempting Start cancels it; that's
-	// what triggers the terminator publish in preempt().
 	<-ctx.Done()
 }
 
+// scheduledEvent is one clip flattened into the per-iteration ordered event
+// list. Stable ordering across iterations is by (StartMs, Ordinal).
+type scheduledEvent struct {
+	StartMs int
+	Ordinal int
+	Clip    Clip
+}
+
+func flattenEvents(eff Effect) []scheduledEvent {
+	var events []scheduledEvent
+	for _, t := range eff.Tracks {
+		for _, c := range t.Clips {
+			events = append(events, scheduledEvent{
+				StartMs: c.StartMs,
+				Clip:    c,
+			})
+		}
+	}
+	sort.SliceStable(events, func(i, j int) bool {
+		return events[i].StartMs < events[j].StartMs
+	})
+	for i := range events {
+		events[i].Ordinal = i
+	}
+	return events
+}
+
 func (r *Runner) runTimeline(ctx context.Context, run *activeRun, eff Effect) {
+	events := flattenEvents(eff)
+
 	for {
 		if ctx.Err() != nil {
 			return
 		}
 
 		devices := r.resolveMembers(ctx, run)
+		iterStart := time.Now()
 
-		for i := 0; i < len(eff.Steps); {
+		for _, ev := range events {
 			if ctx.Err() != nil {
 				return
 			}
-			step := eff.Steps[i]
-			if step.Kind == StepWait {
-				d := waitDuration(step.Config)
-				if d <= 0 {
-					i++
-					continue
-				}
+			waitUntil := iterStart.Add(time.Duration(ev.StartMs) * time.Millisecond)
+			delay := time.Until(waitUntil)
+			if delay > 0 {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(d):
+				case <-time.After(delay):
 				}
-				i++
-				continue
 			}
-
-			end := i
-			tmpl := device.Command{}
-			for end < len(eff.Steps) && eff.Steps[end].Kind != StepWait {
-				applyStepToCommand(&tmpl, eff.Steps[end])
-				end++
-			}
-
-			origin := device.OriginEffect(run.runID)
-			tmpl.Origin = origin
-
-			for k := i; k < end; k++ {
-				r.publishStep(run, eff.Steps[k].Index, true)
-			}
-			for _, did := range devices {
-				cmd := r.commandForDevice(tmpl, did)
-				if cmd == nil {
-					logger.Debug("effect command filtered out: no supported fields",
-						"run_id", run.runID, "effect_id", run.effectID, "device_id", did)
-					continue
-				}
-				r.publishCommand(ctx, run, *cmd)
-			}
-			for k := i; k < end; k++ {
-				r.publishStep(run, eff.Steps[k].Index, false)
-			}
-
-			i = end
+			r.publishClip(ctx, run, devices, ev)
 		}
 
 		if !eff.Loop {
 			return
 		}
+
+		nextIter := iterStart.Add(time.Duration(eff.DurationMs) * time.Millisecond)
+		delay := time.Until(nextIter)
+		if delay > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+			}
+		}
 	}
 }
 
+// publishClip dispatches one event to the bus. Native-effect clips publish a
+// NativeEffectRequest per resolved device; all other clip kinds build a
+// device.Command, sample a transition, and publish per resolved device after
+// capability fan-out filtering.
+func (r *Runner) publishClip(ctx context.Context, run *activeRun, devices []device.DeviceID, ev scheduledEvent) {
+	if ctx.Err() != nil {
+		return
+	}
+	r.publishStep(run, ev.Ordinal, true)
+	defer r.publishStep(run, ev.Ordinal, false)
+
+	if ev.Clip.Kind == ClipNativeEffect {
+		if ev.Clip.Config.NativeEffect == nil || ev.Clip.Config.NativeEffect.Name == "" {
+			logger.Warn("native_effect clip skipped: missing name",
+				"run_id", run.runID, "effect_id", run.effectID, "clip_id", ev.Clip.ID)
+			return
+		}
+		name := ev.Clip.Config.NativeEffect.Name
+		origin := device.OriginEffect(run.runID)
+		for _, did := range devices {
+			device.RequestNativeEffect(r.bus, did, name, origin)
+		}
+		return
+	}
+
+	tmpl := device.Command{}
+	applyClipToCommand(&tmpl, ev.Clip)
+	transitionMs := r.sampleTransitionMs(ev.Clip)
+	if transitionMs > 0 {
+		v := float64(transitionMs) / 1000.0
+		tmpl.Transition = &v
+	}
+	tmpl.Origin = device.OriginEffect(run.runID)
+
+	for _, did := range devices {
+		cmd := r.commandForDevice(tmpl, did)
+		if cmd == nil {
+			logger.Debug("effect command filtered out: no supported fields",
+				"run_id", run.runID, "effect_id", run.effectID, "device_id", did)
+			continue
+		}
+		r.publishCommand(ctx, run, *cmd)
+	}
+}
+
+// sampleTransitionMs returns a transition duration uniformly chosen in
+// [TransitionMinMs, TransitionMaxMs]. Equal bounds collapse to a deterministic
+// value; a zero TransitionMaxMs yields zero (no transition).
+func (r *Runner) sampleTransitionMs(c Clip) int {
+	if c.TransitionMaxMs <= 0 {
+		return 0
+	}
+	if c.TransitionMinMs >= c.TransitionMaxMs {
+		return c.TransitionMinMs
+	}
+	span := c.TransitionMaxMs - c.TransitionMinMs + 1
+	return c.TransitionMinMs + r.rand.IntN(span)
+}
+
 // resolveMembers re-resolves the run's target to a device set, updates the
-// activeRun's mu-protected member view (so the drift goroutine sees the new
-// set), and returns the resolved slice. A device target resolves to itself
-// without consulting the resolver.
+// activeRun's mu-protected member view, and returns the resolved slice.
 func (r *Runner) resolveMembers(ctx context.Context, run *activeRun) []device.DeviceID {
 	var devices []device.DeviceID
 	if run.target.Type == device.TargetDevice {
@@ -518,9 +559,8 @@ func (r *Runner) resolveMembers(ctx context.Context, run *activeRun) []device.De
 }
 
 // commandForDevice returns the command to publish for did derived from tmpl,
-// with capability-aware field filtering applied so a step's RGB payload does
-// not reach a CT-only bulb in a mixed group. Returns nil when filtering drops
-// every commandable field for the device.
+// with capability-aware field filtering applied. Returns nil when filtering
+// drops every commandable field for the device.
 func (r *Runner) commandForDevice(tmpl device.Command, did device.DeviceID) *device.Command {
 	dev, ok := r.reader.GetDevice(did)
 	if !ok {
@@ -602,9 +642,6 @@ func fieldsToCommand(fields map[string]any) device.Command {
 	return cmd
 }
 
-// handleDrift inspects an EventCommandRequested and stops any active run
-// whose currently-resolved device set contains the command's device when the
-// origin does not match the run's own OriginEffect(runID).
 func (r *Runner) handleDrift(evt eventbus.Event) {
 	cmd, ok := evt.Payload.(device.Command)
 	if !ok {
@@ -674,7 +711,10 @@ func (r *Runner) publishEnded(run *activeRun, reason eventbus.EffectEndReason) {
 	})
 }
 
-func (r *Runner) publishStep(run *activeRun, stepIndex int, active bool) {
+// publishStep emits an enter/exit pair around a clip's dispatch. The event's
+// StepIndex field carries the clip's ordinal in the flat sorted-by-startMs
+// event list — clients use it to highlight the active clip in the live view.
+func (r *Runner) publishStep(run *activeRun, ordinal int, active bool) {
 	deviceID := ""
 	if run.target.Type == device.TargetDevice {
 		deviceID = run.target.ID
@@ -686,63 +726,41 @@ func (r *Runner) publishStep(run *activeRun, stepIndex int, active bool) {
 		Payload: eventbus.EffectStepActivatedEvent{
 			RunID:     run.runID,
 			EffectID:  run.effectID,
-			StepIndex: stepIndex,
+			StepIndex: ordinal,
 			Active:    active,
 		},
 	})
 }
 
-func waitDuration(cfg StepConfig) time.Duration {
-	if cfg.Wait == nil {
-		return 0
-	}
-	return time.Duration(cfg.Wait.DurationMS) * time.Millisecond
-}
-
-// applyStepToCommand merges step's typed config into cmd. Coalescing is the
-// caller's responsibility; this only fills the appropriate Command fields.
-// A later step's value overwrites an earlier step's value for the same
-// field, which is the documented coalesce semantic.
-func applyStepToCommand(cmd *device.Command, step Step) {
-	switch step.Kind {
-	case StepSetOnOff:
-		if step.Config.SetOnOff == nil {
+// applyClipToCommand merges clip's typed config into cmd. Last-writer-wins
+// when multiple clips of the same iteration touch the same field; this
+// matters only if a future change reintroduces coalescing — v2 publishes one
+// command per clip event, so coalescing is a no-op today.
+func applyClipToCommand(cmd *device.Command, c Clip) {
+	switch c.Kind {
+	case ClipSetOnOff:
+		if c.Config.SetOnOff == nil {
 			return
 		}
-		v := step.Config.SetOnOff.Value
+		v := c.Config.SetOnOff.Value
 		cmd.On = &v
-		applyTransition(cmd, step.Config.SetOnOff.TransitionMS)
-	case StepSetBrightness:
-		if step.Config.SetBrightness == nil {
+	case ClipSetBrightness:
+		if c.Config.SetBrightness == nil {
 			return
 		}
-		v := step.Config.SetBrightness.Value
+		v := c.Config.SetBrightness.Value
 		cmd.Brightness = &v
-		applyTransition(cmd, step.Config.SetBrightness.TransitionMS)
-	case StepSetColorRGB:
-		if step.Config.SetColorRGB == nil {
+	case ClipSetColorRGB:
+		if c.Config.SetColorRGB == nil {
 			return
 		}
-		c := step.Config.SetColorRGB
-		cmd.Color = &device.Color{R: c.R, G: c.G, B: c.B}
-		applyTransition(cmd, c.TransitionMS)
-	case StepSetColorTemp:
-		if step.Config.SetColorTemp == nil {
+		cc := c.Config.SetColorRGB
+		cmd.Color = &device.Color{R: cc.R, G: cc.G, B: cc.B}
+	case ClipSetColorTemp:
+		if c.Config.SetColorTemp == nil {
 			return
 		}
-		v := step.Config.SetColorTemp.Mireds
+		v := c.Config.SetColorTemp.Mireds
 		cmd.ColorTemp = &v
-		applyTransition(cmd, step.Config.SetColorTemp.TransitionMS)
 	}
-}
-
-// applyTransition stamps the command's transition only when the step
-// supplies a positive value. Coalesced steps with conflicting transitions
-// keep the later step's value, matching the field-overwrite rule above.
-func applyTransition(cmd *device.Command, transitionMS int) {
-	if transitionMS <= 0 {
-		return
-	}
-	v := float64(transitionMS) / 1000.0
-	cmd.Transition = &v
 }
