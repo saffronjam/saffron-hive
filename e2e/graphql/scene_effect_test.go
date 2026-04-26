@@ -33,18 +33,28 @@ func TestScenes_MixedStaticAndEffectPayloads(t *testing.T) {
 	}
 	time.Sleep(200 * time.Millisecond)
 
-	effectStep1 := `{"value":true,"transition_ms":0}`
-	effectStep2 := `{"duration_ms":50}`
+	clipConfig := `{"value":true}`
 	data, err := graphqlMutation(`mutation($input: CreateEffectInput!) {
 		createEffect(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name": "Phase9 Loop",
-			"kind": "TIMELINE",
-			"loop": true,
-			"steps": []map[string]any{
-				{"kind": "SET_ON_OFF", "config": effectStep1},
-				{"kind": "WAIT", "config": effectStep2},
+			"name":       "Phase9 Loop",
+			"kind":       "TIMELINE",
+			"loop":       true,
+			"durationMs": 50,
+			"tracks": []map[string]any{
+				{
+					"name": "Track 1",
+					"clips": []map[string]any{
+						{
+							"startMs":         0,
+							"transitionMinMs": 0,
+							"transitionMaxMs": 0,
+							"kind":            "SET_ON_OFF",
+							"config":          clipConfig,
+						},
+					},
+				},
 			},
 		},
 	})
