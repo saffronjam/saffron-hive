@@ -1,0 +1,1 @@
+ALTER TABLE effect_tracks ADD COLUMN name TEXT NOT NULL DEFAULT '';
