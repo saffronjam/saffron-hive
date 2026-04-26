@@ -1,122 +1,129 @@
-import { EffectKind, EffectStepKind, type Effect, type EffectStep } from "$lib/gql/graphql";
+import {
+  EffectClipKind,
+  EffectKind,
+  type Effect,
+  type EffectClip,
+  type EffectTrack,
+} from "$lib/gql/graphql";
 import { deviceHasCapability, type Device } from "$lib/stores/devices";
 
-export type StepKind =
-  | "wait"
+export type ClipKind =
   | "set_on_off"
   | "set_brightness"
   | "set_color_rgb"
-  | "set_color_temp";
+  | "set_color_temp"
+  | "native_effect";
 
-export interface WaitStepConfig {
-  duration_ms: number;
-}
-
-export interface SetOnOffStepConfig {
+export interface SetOnOffClipConfig {
   value: boolean;
-  transition_ms: number;
 }
 
-export interface SetBrightnessStepConfig {
+export interface SetBrightnessClipConfig {
   value: number;
-  transition_ms: number;
 }
 
-export interface SetColorRGBStepConfig {
+export interface SetColorRGBClipConfig {
   r: number;
   g: number;
   b: number;
-  transition_ms: number;
 }
 
-export interface SetColorTempStepConfig {
+export interface SetColorTempClipConfig {
   mireds: number;
-  transition_ms: number;
 }
 
-export type StepConfig =
-  | { kind: "wait"; config: WaitStepConfig }
-  | { kind: "set_on_off"; config: SetOnOffStepConfig }
-  | { kind: "set_brightness"; config: SetBrightnessStepConfig }
-  | { kind: "set_color_rgb"; config: SetColorRGBStepConfig }
-  | { kind: "set_color_temp"; config: SetColorTempStepConfig };
+export interface NativeEffectClipConfig {
+  name: string;
+}
 
-export interface EditableStep {
+export type ClipConfig =
+  | { kind: "set_on_off"; config: SetOnOffClipConfig }
+  | { kind: "set_brightness"; config: SetBrightnessClipConfig }
+  | { kind: "set_color_rgb"; config: SetColorRGBClipConfig }
+  | { kind: "set_color_temp"; config: SetColorTempClipConfig }
+  | { kind: "native_effect"; config: NativeEffectClipConfig };
+
+export interface EditableClip {
   /** Stable client-side id used for keyed iteration during editing. */
   uid: string;
-  step: StepConfig;
-  /** Trailing wait card synthesised by the loop toggle; non-deletable. */
-  trailing?: boolean;
+  startMs: number;
+  transitionMinMs: number;
+  transitionMaxMs: number;
+  kind: ClipKind;
+  config: ClipConfig;
 }
 
-export const MIN_WAIT_MS = 50;
-export const DEFAULT_TRAILING_WAIT_MS = 200;
+export interface EditableTrack {
+  /** Stable client-side id used for keyed iteration during editing. */
+  uid: string;
+  /** User-supplied label. Empty string is valid and rendered as a placeholder. */
+  name: string;
+  clips: EditableClip[];
+}
+
 export const DEFAULT_TRANSITION_MS = 200;
+export const MIN_CLIP_VISUAL_PX = 30;
 
-export function gqlKindToString(kind: EffectStepKind): StepKind {
+export function gqlKindToString(kind: EffectClipKind): ClipKind {
   switch (kind) {
-    case EffectStepKind.Wait:
-      return "wait";
-    case EffectStepKind.SetOnOff:
+    case EffectClipKind.SetOnOff:
       return "set_on_off";
-    case EffectStepKind.SetBrightness:
+    case EffectClipKind.SetBrightness:
       return "set_brightness";
-    case EffectStepKind.SetColorRgb:
+    case EffectClipKind.SetColorRgb:
       return "set_color_rgb";
-    case EffectStepKind.SetColorTemp:
+    case EffectClipKind.SetColorTemp:
       return "set_color_temp";
+    case EffectClipKind.NativeEffect:
+      return "native_effect";
   }
 }
 
-export function stringToGqlKind(kind: StepKind): EffectStepKind {
+export function stringToGqlKind(kind: ClipKind): EffectClipKind {
   switch (kind) {
-    case "wait":
-      return EffectStepKind.Wait;
     case "set_on_off":
-      return EffectStepKind.SetOnOff;
+      return EffectClipKind.SetOnOff;
     case "set_brightness":
-      return EffectStepKind.SetBrightness;
+      return EffectClipKind.SetBrightness;
     case "set_color_rgb":
-      return EffectStepKind.SetColorRgb;
+      return EffectClipKind.SetColorRgb;
     case "set_color_temp":
-      return EffectStepKind.SetColorTemp;
+      return EffectClipKind.SetColorTemp;
+    case "native_effect":
+      return EffectClipKind.NativeEffect;
   }
 }
 
-export function defaultStepConfig(kind: StepKind): StepConfig {
+export function defaultClipConfig(kind: ClipKind): ClipConfig {
   switch (kind) {
-    case "wait":
-      return { kind: "wait", config: { duration_ms: 250 } };
     case "set_on_off":
-      return { kind: "set_on_off", config: { value: true, transition_ms: 0 } };
+      return { kind: "set_on_off", config: { value: true } };
     case "set_brightness":
-      return {
-        kind: "set_brightness",
-        config: { value: 200, transition_ms: DEFAULT_TRANSITION_MS },
-      };
+      return { kind: "set_brightness", config: { value: 200 } };
     case "set_color_rgb":
-      return {
-        kind: "set_color_rgb",
-        config: { r: 255, g: 0, b: 0, transition_ms: DEFAULT_TRANSITION_MS },
-      };
+      return { kind: "set_color_rgb", config: { r: 255, g: 0, b: 0 } };
     case "set_color_temp":
-      return {
-        kind: "set_color_temp",
-        config: { mireds: 370, transition_ms: DEFAULT_TRANSITION_MS },
-      };
+      return { kind: "set_color_temp", config: { mireds: 370 } };
+    case "native_effect":
+      return { kind: "native_effect", config: { name: "" } };
   }
 }
 
-export function newEditableStep(kind: StepKind): EditableStep {
-  return { uid: crypto.randomUUID(), step: defaultStepConfig(kind) };
-}
-
-export function newTrailingWait(durationMs = DEFAULT_TRAILING_WAIT_MS): EditableStep {
+export function newEditableClip(kind: ClipKind, startMs = 0): EditableClip {
+  const transitionMs =
+    kind === "set_on_off" || kind === "native_effect" ? 0 : DEFAULT_TRANSITION_MS;
   return {
     uid: crypto.randomUUID(),
-    step: { kind: "wait", config: { duration_ms: durationMs } },
-    trailing: true,
+    startMs,
+    transitionMinMs: transitionMs,
+    transitionMaxMs: transitionMs,
+    kind,
+    config: defaultClipConfig(kind),
   };
+}
+
+export function newEditableTrack(): EditableTrack {
+  return { uid: crypto.randomUUID(), name: "", clips: [] };
 }
 
 function safeJsonParse(raw: string): unknown {
@@ -139,24 +146,20 @@ function bool(v: unknown, fallback: boolean): boolean {
   return typeof v === "boolean" ? v : fallback;
 }
 
-export function parseStepConfig(kind: StepKind, raw: string): StepConfig {
+function str(v: unknown, fallback: string): string {
+  return typeof v === "string" ? v : fallback;
+}
+
+export function parseClipConfig(kind: ClipKind, raw: string): ClipConfig {
   const parsed = safeJsonParse(raw);
   const obj = isRecord(parsed) ? parsed : {};
   switch (kind) {
-    case "wait":
-      return { kind: "wait", config: { duration_ms: Math.max(MIN_WAIT_MS, num(obj.duration_ms, 250)) } };
     case "set_on_off":
-      return {
-        kind: "set_on_off",
-        config: { value: bool(obj.value, true), transition_ms: Math.max(0, num(obj.transition_ms, 0)) },
-      };
+      return { kind: "set_on_off", config: { value: bool(obj.value, true) } };
     case "set_brightness":
       return {
         kind: "set_brightness",
-        config: {
-          value: Math.min(254, Math.max(0, Math.round(num(obj.value, 200)))),
-          transition_ms: Math.max(0, num(obj.transition_ms, DEFAULT_TRANSITION_MS)),
-        },
+        config: { value: Math.min(254, Math.max(0, Math.round(num(obj.value, 200)))) },
       };
     case "set_color_rgb":
       return {
@@ -165,55 +168,85 @@ export function parseStepConfig(kind: StepKind, raw: string): StepConfig {
           r: Math.min(255, Math.max(0, Math.round(num(obj.r, 255)))),
           g: Math.min(255, Math.max(0, Math.round(num(obj.g, 0)))),
           b: Math.min(255, Math.max(0, Math.round(num(obj.b, 0)))),
-          transition_ms: Math.max(0, num(obj.transition_ms, DEFAULT_TRANSITION_MS)),
         },
       };
     case "set_color_temp":
       return {
         kind: "set_color_temp",
-        config: {
-          mireds: Math.max(0, Math.round(num(obj.mireds, 370))),
-          transition_ms: Math.max(0, num(obj.transition_ms, DEFAULT_TRANSITION_MS)),
-        },
+        config: { mireds: Math.max(0, Math.round(num(obj.mireds, 370))) },
       };
+    case "native_effect":
+      return { kind: "native_effect", config: { name: str(obj.name, "") } };
   }
 }
 
-export function stringifyStepConfig(s: StepConfig): string {
-  return JSON.stringify(s.config);
+export function stringifyClipConfig(c: ClipConfig): string {
+  return JSON.stringify(c.config);
 }
 
-export function effectStepsToEditable(loop: boolean, steps: readonly EffectStep[]): EditableStep[] {
-  const editable: EditableStep[] = steps
-    .slice()
-    .sort((a, b) => a.index - b.index)
-    .map((s) => ({
-      uid: crypto.randomUUID(),
-      step: parseStepConfig(gqlKindToString(s.kind), s.config),
-    }));
-  if (loop) {
-    const last = editable.at(-1);
-    if (last && last.step.kind === "wait") {
-      last.trailing = true;
-    } else {
-      editable.push(newTrailingWait());
-    }
-  }
-  return editable;
-}
+type EffectTrackData = Pick<EffectTrack, "id" | "index" | "name"> & {
+  clips: ReadonlyArray<
+    Pick<EffectClip, "id" | "startMs" | "transitionMinMs" | "transitionMaxMs" | "kind" | "config">
+  >;
+};
 
-export function editableToInputSteps(steps: readonly EditableStep[]): {
-  kind: EffectStepKind;
-  config: string;
-}[] {
-  return steps.map((s) => ({
-    kind: stringToGqlKind(s.step.kind),
-    config: stringifyStepConfig(s.step),
+type EffectInputData = {
+  tracks: ReadonlyArray<EffectTrackData>;
+};
+
+export function effectToEditable(effect: EffectInputData): EditableTrack[] {
+  const sortedTracks = effect.tracks.slice().sort((a, b) => a.index - b.index);
+  return sortedTracks.map((t) => ({
+    uid: crypto.randomUUID(),
+    name: t.name,
+    clips: t.clips
+      .slice()
+      .sort((a, b) => a.startMs - b.startMs)
+      .map((c) => {
+        const k = gqlKindToString(c.kind);
+        return {
+          uid: crypto.randomUUID(),
+          startMs: Math.max(0, c.startMs),
+          transitionMinMs: Math.max(0, c.transitionMinMs),
+          transitionMaxMs: Math.max(c.transitionMinMs, c.transitionMaxMs),
+          kind: k,
+          config: parseClipConfig(k, c.config),
+        } satisfies EditableClip;
+      }),
   }));
 }
 
-/** Capability name required for a given step kind, or null for steps that need none. */
-export function capabilityForStepKind(kind: StepKind): string | null {
+export interface ClipInputDto {
+  startMs: number;
+  transitionMinMs: number;
+  transitionMaxMs: number;
+  kind: EffectClipKind;
+  config: string;
+}
+
+export interface TrackInputDto {
+  name: string;
+  clips: ClipInputDto[];
+}
+
+export function editableToInputTracks(tracks: readonly EditableTrack[]): TrackInputDto[] {
+  return tracks.map((t) => ({
+    name: t.name,
+    clips: t.clips
+      .slice()
+      .sort((a, b) => a.startMs - b.startMs)
+      .map((c) => ({
+        startMs: c.startMs,
+        transitionMinMs: c.transitionMinMs,
+        transitionMaxMs: c.transitionMaxMs,
+        kind: stringToGqlKind(c.kind),
+        config: stringifyClipConfig(c.config),
+      })),
+  }));
+}
+
+/** Capability name required for a given clip kind, or null for clips that need none. */
+export function capabilityForClipKind(kind: ClipKind): string | null {
   switch (kind) {
     case "set_on_off":
       return "on_off";
@@ -223,21 +256,23 @@ export function capabilityForStepKind(kind: StepKind): string | null {
       return "color";
     case "set_color_temp":
       return "color_temp";
-    case "wait":
+    case "native_effect":
       return null;
   }
 }
 
-/** Recompute required capabilities locally so the editor reflects step edits before save. */
-export function computeRequiredCapabilities(steps: readonly EditableStep[]): string[] {
+/** Recompute required capabilities locally so the editor reflects clip edits before save. */
+export function computeRequiredCapabilities(tracks: readonly EditableTrack[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const s of steps) {
-    const cap = capabilityForStepKind(s.step.kind);
-    if (cap === null) continue;
-    if (seen.has(cap)) continue;
-    seen.add(cap);
-    out.push(cap);
+  for (const t of tracks) {
+    for (const c of t.clips) {
+      const cap = capabilityForClipKind(c.kind);
+      if (cap === null) continue;
+      if (seen.has(cap)) continue;
+      seen.add(cap);
+      out.push(cap);
+    }
   }
   return out;
 }
@@ -250,45 +285,105 @@ export function deviceSupportsCaps(device: Device, caps: readonly string[]): boo
 }
 
 export interface EffectValidationError {
-  field: "name" | "steps" | "step" | "nativeName";
-  index?: number;
+  field: "name" | "duration" | "tracks" | "clip" | "nativeName";
+  trackIndex?: number;
+  clipIndex?: number;
   message: string;
 }
 
-/** Validate an editable timeline effect. trailing wait cards are part of the loop pattern. */
+function clipEnd(c: EditableClip): number {
+  return c.startMs + Math.max(c.transitionMaxMs, 0);
+}
+
+function isValidClipConfig(c: EditableClip): boolean {
+  switch (c.config.kind) {
+    case "set_on_off":
+      return typeof c.config.config.value === "boolean";
+    case "set_brightness": {
+      const v = c.config.config.value;
+      return Number.isFinite(v) && v >= 0 && v <= 254;
+    }
+    case "set_color_rgb": {
+      const { r, g, b } = c.config.config;
+      const ok = (n: number) => Number.isFinite(n) && n >= 0 && n <= 255;
+      return ok(r) && ok(g) && ok(b);
+    }
+    case "set_color_temp": {
+      const m = c.config.config.mireds;
+      return Number.isFinite(m) && m >= 0;
+    }
+    case "native_effect":
+      return c.config.config.name.trim() !== "";
+  }
+}
+
 export function validateTimelineEffect(
   name: string,
+  durationMs: number,
   loop: boolean,
-  steps: readonly EditableStep[],
+  tracks: readonly EditableTrack[],
 ): EffectValidationError | null {
   if (name.trim() === "") return { field: "name", message: "Pick a name" };
-  if (steps.length === 0) return { field: "steps", message: "Add at least one step" };
-  if (loop) {
-    const last = steps.at(-1);
-    if (!last || last.step.kind !== "wait" || !last.trailing) {
-      return {
-        field: "steps",
-        message: "Loop effects must end with a trailing wait step",
-      };
-    }
-  } else {
-    if (steps.some((s) => s.trailing)) {
-      return {
-        field: "steps",
-        message: "Trailing wait step is only valid when loop is on",
-      };
-    }
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    return { field: "duration", message: "Duration must be zero or positive" };
   }
-  for (let i = 0; i < steps.length; i++) {
-    const s = steps[i];
-    if (s.step.kind === "wait" && s.step.config.duration_ms < MIN_WAIT_MS) {
-      return { field: "step", index: i, message: `Wait must be at least ${MIN_WAIT_MS}ms` };
+  for (let ti = 0; ti < tracks.length; ti++) {
+    const track = tracks[ti];
+    const sorted = track.clips.slice().sort((a, b) => a.startMs - b.startMs);
+    for (let ci = 0; ci < sorted.length; ci++) {
+      const clip = sorted[ci];
+      if (clip.startMs < 0) {
+        return {
+          field: "clip",
+          trackIndex: ti,
+          clipIndex: ci,
+          message: "Clip start must be zero or positive",
+        };
+      }
+      if (clip.transitionMinMs < 0 || clip.transitionMaxMs < clip.transitionMinMs) {
+        return {
+          field: "clip",
+          trackIndex: ti,
+          clipIndex: ci,
+          message: "Clip transition bounds are invalid",
+        };
+      }
+      if (!isValidClipConfig(clip)) {
+        return {
+          field: "clip",
+          trackIndex: ti,
+          clipIndex: ci,
+          message: "Clip configuration is invalid",
+        };
+      }
+      if (loop && clipEnd(clip) > durationMs) {
+        return {
+          field: "clip",
+          trackIndex: ti,
+          clipIndex: ci,
+          message: "Clip extends past the loop end",
+        };
+      }
+      if (ci > 0) {
+        const prev = sorted[ci - 1];
+        if (clip.startMs < clipEnd(prev)) {
+          return {
+            field: "clip",
+            trackIndex: ti,
+            clipIndex: ci,
+            message: "Clips on a track cannot overlap",
+          };
+        }
+      }
     }
   }
   return null;
 }
 
-export function validateNativeEffect(name: string, nativeName: string | null): EffectValidationError | null {
+export function validateNativeEffect(
+  name: string,
+  nativeName: string | null,
+): EffectValidationError | null {
   if (name.trim() === "") return { field: "name", message: "Pick a name" };
   if (!nativeName || nativeName.trim() === "") {
     return { field: "nativeName", message: "Pick a native effect" };
@@ -296,7 +391,6 @@ export function validateNativeEffect(name: string, nativeName: string | null): E
   return null;
 }
 
-/** Title-case a native effect identifier such as "fireplace" → "Fireplace". */
 export function nativeOptionLabel(name: string, displayName?: string | null): string {
   if (displayName && displayName.trim() !== "") return displayName;
   if (!name) return "";
@@ -313,7 +407,9 @@ export interface EffectSummary {
   requiredCapabilities: readonly string[];
 }
 
-export function effectSummary(e: Pick<Effect, "id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "requiredCapabilities">): EffectSummary {
+export function effectSummary(
+  e: Pick<Effect, "id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "requiredCapabilities">,
+): EffectSummary {
   return {
     id: e.id,
     name: e.name,
@@ -323,4 +419,63 @@ export function effectSummary(e: Pick<Effect, "id" | "name" | "icon" | "kind" | 
     loop: e.loop,
     requiredCapabilities: e.requiredCapabilities,
   };
+}
+
+export function maxClipEnd(tracks: readonly EditableTrack[]): number {
+  let maxEnd = 0;
+  for (const t of tracks) {
+    for (const c of t.clips) {
+      const end = clipEnd(c);
+      if (end > maxEnd) maxEnd = end;
+    }
+  }
+  return maxEnd;
+}
+
+/**
+ * Finds a free start position on a track for a clip of `width` ms, preferring
+ * `desiredStart` (or as close to it as possible). Returns the chosen start, or
+ * null if no gap on the track fits the requested width.
+ *
+ * Algorithm: build the sorted occupied intervals, then walk the gaps in
+ * insertion order [0, first.start), [first.end, second.start), ...,
+ * [last.end, +infinity). For each gap that fits `width`, the candidate is
+ * clamp(desiredStart, gap.start, gap.end - width). The gap closest to
+ * desiredStart (by candidate distance) wins.
+ */
+export function findFreeStartOnTrack(
+  track: EditableTrack,
+  desiredStart: number,
+  width: number,
+): number | null {
+  const w = Math.max(0, Math.round(width));
+  const want = Math.max(0, Math.round(desiredStart));
+  const intervals = track.clips
+    .slice()
+    .sort((a, b) => a.startMs - b.startMs)
+    .map((c) => ({ start: c.startMs, end: c.startMs + Math.max(c.transitionMaxMs, 0) }));
+
+  type Gap = { start: number; end: number };
+  const gaps: Gap[] = [];
+  let cursor = 0;
+  for (const iv of intervals) {
+    if (iv.start > cursor) gaps.push({ start: cursor, end: iv.start });
+    if (iv.end > cursor) cursor = iv.end;
+  }
+  gaps.push({ start: cursor, end: Number.POSITIVE_INFINITY });
+
+  let best: number | null = null;
+  let bestDelta = Number.POSITIVE_INFINITY;
+  for (const g of gaps) {
+    const fits = g.end === Number.POSITIVE_INFINITY ? true : g.end - g.start >= w;
+    if (!fits) continue;
+    const upper = g.end === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : g.end - w;
+    const candidate = Math.min(Math.max(want, g.start), upper);
+    const delta = Math.abs(candidate - want);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = candidate;
+    }
+  }
+  return best;
 }
