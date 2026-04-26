@@ -11,6 +11,7 @@
 		id?: string;
 		class?: string;
 		ariaLabel?: string;
+		onValueChange?: (next: number | null) => void;
 	}
 
 	let {
@@ -22,6 +23,7 @@
 		id,
 		class: className = "",
 		ariaLabel,
+		onValueChange,
 	}: Props = $props();
 
 	let inputRef = $state<HTMLInputElement | null>(null);
@@ -52,6 +54,7 @@
 			const fallback = min ?? 0;
 			value = fallback;
 			buffer = String(fallback);
+			onValueChange?.(fallback);
 			return;
 		}
 		const parsed = parseInt(buffer, 10);
@@ -59,6 +62,7 @@
 			const fallback = min ?? 0;
 			value = fallback;
 			buffer = String(fallback);
+			onValueChange?.(fallback);
 			return;
 		}
 		let clamped = parsed;
@@ -66,6 +70,7 @@
 		if (typeof max === "number" && clamped > max) clamped = max;
 		value = clamped;
 		buffer = String(clamped);
+		onValueChange?.(clamped);
 	}
 </script>
 

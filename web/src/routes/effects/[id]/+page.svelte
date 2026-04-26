@@ -20,12 +20,12 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import {
-		editableToInputSteps,
-		effectStepsToEditable,
+		editableToInputTracks,
+		effectToEditable,
 		validateTimelineEffect,
-		type EditableStep,
+		type EditableTrack,
 	} from "$lib/effect-editable";
-	import { EffectKind, type Effect, type EffectStep } from "$lib/gql/graphql";
+	import { EffectKind, type Effect, type EffectClip, type EffectTrack } from "$lib/gql/graphql";
 
 	const effectId = $derived(page.params.id);
 
@@ -38,12 +38,20 @@
 				kind
 				nativeName
 				loop
+				durationMs
 				requiredCapabilities
-				steps {
+				tracks {
 					id
 					index
-					kind
-					config
+					name
+					clips {
+						id
+						startMs
+						transitionMinMs
+						transitionMaxMs
+						kind
+						config
+					}
 				}
 			}
 		}
@@ -56,12 +64,20 @@
 				name
 				icon
 				loop
+				durationMs
 				requiredCapabilities
-				steps {
+				tracks {
 					id
 					index
-					kind
-					config
+					name
+					clips {
+						id
+						startMs
+						transitionMinMs
+						transitionMaxMs
+						kind
+						config
+					}
 				}
 			}
 		}
@@ -73,11 +89,17 @@
 		}
 	`);
 
+	type EffectClipData = Pick<
+		EffectClip,
+		"id" | "startMs" | "transitionMinMs" | "transitionMaxMs" | "kind" | "config"
+	>;
+	type EffectTrackData = Pick<EffectTrack, "id" | "index" | "name"> & { clips: EffectClipData[] };
+
 	type EffectData = Pick<
 		Effect,
-		"id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "requiredCapabilities"
+		"id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
 	> & {
-		steps: Pick<EffectStep, "id" | "index" | "kind" | "config">[];
+		tracks: EffectTrackData[];
 	};
 
 	interface EffectQueryResult {
@@ -85,8 +107,11 @@
 	}
 
 	interface UpdateEffectResult {
-		updateEffect: Pick<Effect, "id" | "name" | "icon" | "loop" | "requiredCapabilities"> & {
-			steps: Pick<EffectStep, "id" | "index" | "kind" | "config">[];
+		updateEffect: Pick<
+			Effect,
+			"id" | "name" | "icon" | "loop" | "durationMs" | "requiredCapabilities"
+		> & {
+			tracks: EffectTrackData[];
 		};
 	}
 
@@ -106,20 +131,23 @@
 	let effectName = $state("");
 	let effectIcon = $state<string | null>(null);
 	let loop = $state(false);
-	let steps = $state<EditableStep[]>([]);
+	let durationMs = $state(0);
+	let tracks = $state<EditableTrack[]>([]);
 	let requiredCapabilities = $state<readonly string[]>([]);
 
 	let savedName = $state("");
 	let savedIcon = $state<string | null>(null);
 	let savedLoop = $state(false);
-	let savedStepsJson = $state("");
+	let savedDurationMs = $state(0);
+	let savedTracksJson = $state("");
 
-	const currentStepsJson = $derived(JSON.stringify(editableToInputSteps(steps)));
+	const currentTracksJson = $derived(JSON.stringify(editableToInputTracks(tracks)));
 	const isDirty = $derived(
 		effectName !== savedName ||
 			effectIcon !== savedIcon ||
 			loop !== savedLoop ||
-			currentStepsJson !== savedStepsJson,
+			durationMs !== savedDurationMs ||
+			currentTracksJson !== savedTracksJson,
 	);
 
 	onMount(() => {
@@ -202,20 +230,22 @@
 		effectName = data.name;
 		effectIcon = data.icon ?? null;
 		loop = data.loop;
-		steps = effectStepsToEditable(data.loop, data.steps);
+		durationMs = data.durationMs;
+		tracks = effectToEditable(data);
 		requiredCapabilities = data.requiredCapabilities;
 
 		savedName = effectName;
 		savedIcon = effectIcon;
 		savedLoop = loop;
-		savedStepsJson = JSON.stringify(editableToInputSteps(steps));
+		savedDurationMs = durationMs;
+		savedTracksJson = JSON.stringify(editableToInputTracks(tracks));
 	}
 
 	async function handleSave() {
 		if (!effectData || saving) return;
 		errors.clear();
 
-		const validation = validateTimelineEffect(effectName, loop, steps);
+		const validation = validateTimelineEffect(effectName, durationMs, loop, tracks);
 		if (validation) {
 			errors.setWithAutoDismiss(validation.message);
 			return;
@@ -229,7 +259,8 @@
 					name: effectName.trim(),
 					icon: effectIcon,
 					loop,
-					steps: editableToInputSteps(steps),
+					durationMs,
+					tracks: editableToInputTracks(tracks),
 				},
 			})
 			.toPromise();
@@ -243,17 +274,19 @@
 		const updated = result.data?.updateEffect;
 		if (!updated) return;
 
-		effectData = { ...effectData, ...updated, steps: updated.steps } as EffectData;
+		effectData = { ...effectData, ...updated, tracks: updated.tracks } as EffectData;
 		effectName = updated.name;
 		effectIcon = updated.icon ?? null;
 		loop = updated.loop;
-		steps = effectStepsToEditable(updated.loop, updated.steps);
+		durationMs = updated.durationMs;
+		tracks = effectToEditable(updated);
 		requiredCapabilities = updated.requiredCapabilities;
 
 		savedName = effectName;
 		savedIcon = effectIcon;
 		savedLoop = loop;
-		savedStepsJson = JSON.stringify(editableToInputSteps(steps));
+		savedDurationMs = durationMs;
+		savedTracksJson = JSON.stringify(editableToInputTracks(tracks));
 
 		toast.success("Effect saved");
 	}
@@ -323,7 +356,7 @@
 				</div>
 			</div>
 
-			<EffectTimelineEditor bind:steps bind:loop disabled={saving} />
+			<EffectTimelineEditor bind:tracks bind:loop bind:durationMs disabled={saving} />
 		</div>
 	{:else}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">

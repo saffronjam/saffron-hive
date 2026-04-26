@@ -114,23 +114,25 @@
 {:else}
 	<SidebarProvider>
 		<AppSidebar />
-		<SidebarInset>
+		<SidebarInset class="min-w-0">
 			<header class="flex h-12 shrink-0 items-center gap-2 shadow-[0_2px_6px_-2px_rgb(0_0_0/var(--header-shadow-opacity))] px-4">
-				<SidebarTrigger class="-ml-1" />
-				{#each pageHeader.breadcrumbs as crumb, i}
-					{#if i > 0}
-						<span class="text-sm text-muted-foreground">/</span>
-					{/if}
-					{#if crumb.href}
-						<a href={crumb.href} class="text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</a>
-					{:else if crumb.onclick}
-						<button type="button" onclick={crumb.onclick} class="text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</button>
-					{:else}
-						<h1 class="text-sm font-semibold">{crumb.label}</h1>
-					{/if}
-				{/each}
+				<SidebarTrigger class="-ml-1 shrink-0" />
+				<div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+					{#each pageHeader.breadcrumbs as crumb, i}
+						{#if i > 0}
+							<span class="shrink-0 text-sm text-muted-foreground">/</span>
+						{/if}
+						{#if crumb.href}
+							<a href={crumb.href} class="truncate text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</a>
+						{:else if crumb.onclick}
+							<button type="button" onclick={crumb.onclick} class="truncate text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</button>
+						{:else}
+							<h1 class="truncate text-sm font-semibold">{crumb.label}</h1>
+						{/if}
+					{/each}
+				</div>
 				{#if pageHeader.viewToggle || pageHeader.actions.length > 0}
-					<div class="ml-auto flex items-center gap-2">
+					<div class="flex shrink-0 items-center gap-2">
 						{#if pageHeader.viewToggle}
 							<ViewToggle
 								value={pageHeader.viewToggle.value}
@@ -160,7 +162,7 @@
 					</div>
 				{/if}
 			</header>
-			<main class="flex-1 p-6">
+			<main class="min-w-0 flex-1 p-6">
 				{@render children()}
 			</main>
 		</SidebarInset>

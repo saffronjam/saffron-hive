@@ -30,8 +30,10 @@
 
 	type EffectSummary = Pick<
 		Effect,
-		"id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "requiredCapabilities"
-	>;
+		"id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
+	> & {
+		tracks: { id: string; clips: { id: string }[] }[];
+	};
 
 	const EFFECTS_QUERY = graphql(`
 		query Effects {
@@ -42,7 +44,14 @@
 				kind
 				nativeName
 				loop
+				durationMs
 				requiredCapabilities
+				tracks {
+					id
+					clips {
+						id
+					}
+				}
 				createdBy {
 					id
 					username
@@ -197,7 +206,8 @@
 					name: newEffectName.trim(),
 					kind: EffectKind.Timeline,
 					loop: false,
-					steps: [],
+					durationMs: 0,
+					tracks: [],
 					nativeName: null,
 				},
 			})
@@ -352,10 +362,12 @@
 				{:else}
 					<AnimatedGrid>
 						{#each filteredEffects as effect (effect.id)}
+							{@const trackCount = effect.tracks.length}
+							{@const clipCount = effect.tracks.reduce((s, t) => s + t.clips.length, 0)}
 							<EntityCard
 								entity={effect}
 								fallbackIcon={Sparkles}
-								subtitle={effect.loop ? "Timeline · loop" : "Timeline"}
+								subtitle={`${effect.loop ? "Loop" : "Once"} · ${trackCount} track${trackCount === 1 ? "" : "s"} · ${clipCount} clip${clipCount === 1 ? "" : "s"}`}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onedit={handleEdit}

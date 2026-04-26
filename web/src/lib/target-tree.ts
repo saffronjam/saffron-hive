@@ -127,7 +127,13 @@ export function buildTargetTree(
       if (g) {
         folder.children = g.members
           .map((m, i) =>
-            build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
+            build(
+              `${folder.key}:${i}`,
+              m.memberType as TargetKind,
+              m.memberId,
+              depth + 1,
+              nextSeen,
+            ),
           )
           .filter((c): c is TargetTreeNode => c !== null);
       }
