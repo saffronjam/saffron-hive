@@ -1,6 +1,6 @@
 // Package effect defines the protocol-agnostic domain types for Effects:
-// timed sequences of device commands ("timeline" effects) or named external
-// effect programs run on the device itself ("native" effects).
+// timed multi-track sequences of device commands ("timeline" effects) or named
+// external effect programs run on the device itself ("native" effects).
 package effect
 
 import (
@@ -9,36 +9,37 @@ import (
 	"time"
 )
 
-// Kind classifies an effect by how it executes. Timeline effects are stepped
-// by the runner; native effects delegate to a protocol-side effect program
-// referenced by NativeName.
+// Kind classifies an effect by how it executes. Timeline effects walk a flat
+// sorted-by-startMs event list across all tracks; native effects delegate to a
+// protocol-side program referenced by NativeName.
 type Kind string
 
 const (
-	// KindTimeline is a runner-driven sequence of typed steps.
+	// KindTimeline is a runner-driven multi-track timeline of typed clips.
 	KindTimeline Kind = "timeline"
 	// KindNative is a single named effect program executed on the device.
 	KindNative Kind = "native"
 )
 
-// StepKind classifies a single step inside a timeline effect.
-type StepKind string
+// ClipKind classifies a single clip inside a timeline track.
+type ClipKind string
 
 const (
-	// StepWait pauses the runner for a fixed duration.
-	StepWait StepKind = "wait"
-	// StepSetOnOff sets the on/off state of the target.
-	StepSetOnOff StepKind = "set_on_off"
-	// StepSetBrightness sets the brightness level of the target.
-	StepSetBrightness StepKind = "set_brightness"
-	// StepSetColorRGB sets the color of the target by RGB triplet.
-	StepSetColorRGB StepKind = "set_color_rgb"
-	// StepSetColorTemp sets the color temperature of the target in mireds.
-	StepSetColorTemp StepKind = "set_color_temp"
+	// ClipSetOnOff sets the on/off state of the target.
+	ClipSetOnOff ClipKind = "set_on_off"
+	// ClipSetBrightness sets the brightness level of the target.
+	ClipSetBrightness ClipKind = "set_brightness"
+	// ClipSetColorRGB sets the color of the target by RGB triplet.
+	ClipSetColorRGB ClipKind = "set_color_rgb"
+	// ClipSetColorTemp sets the color temperature of the target in mireds.
+	ClipSetColorTemp ClipKind = "set_color_temp"
+	// ClipNativeEffect fires a native protocol-side effect by name at the
+	// clip's start offset.
+	ClipNativeEffect ClipKind = "native_effect"
 )
 
-// Effect is a named sequence of steps (or a single named native program) that
-// can be applied to one or more targets.
+// Effect is a named multi-track timeline (or a single named native program)
+// that can be applied to one or more targets.
 type Effect struct {
 	ID         string
 	Name       string
@@ -46,135 +47,149 @@ type Effect struct {
 	Kind       Kind
 	NativeName string
 	Loop       bool
-	Steps      []Step
+	// DurationMs is the loop length for Loop=true effects (the End line on the
+	// editor's timeline). For Loop=false effects it is informational; the
+	// runner stops as soon as the last clip event has fired.
+	DurationMs int
+	Tracks     []Track
 	CreatedBy  string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
 
-// Step is one entry in a timeline effect. Exactly one field of Config is
-// non-nil — the one matching Kind.
-type Step struct {
-	ID     string
-	Index  int
-	Kind   StepKind
-	Config StepConfig
+// Track is a generic ordered container of mutually-exclusive clips. Multiple
+// tracks fire in parallel. Name is the user-supplied label shown in the
+// editor; an empty string is valid and rendered as a placeholder by the UI.
+type Track struct {
+	ID    string
+	Index int
+	Name  string
+	Clips []Clip
 }
 
-// StepConfig is a tagged-union of step-specific parameter shapes. Marshalling
-// emits exactly the inner struct that matches the configured StepKind, so the
-// disk shape is the inner struct directly (no wrapper object), e.g.
-// {"r": 244, "g": 42, "b": 23, "transition_ms": 200} for a color step.
-type StepConfig struct {
-	Wait          *WaitConfig
-	SetOnOff      *SetOnOffConfig
-	SetBrightness *SetBrightnessConfig
-	SetColorRGB   *SetColorRGBConfig
-	SetColorTemp  *SetColorTempConfig
+// Clip is an absolute-positioned event on a track. Exactly one field of Config
+// is non-nil — the one matching Kind. TransitionMinMs and TransitionMaxMs
+// bound the random transition sampled per clip-execution; equal bounds collapse
+// to a deterministic value. Visual clip width on the editor is TransitionMaxMs.
+type Clip struct {
+	ID              string
+	StartMs         int
+	TransitionMinMs int
+	TransitionMaxMs int
+	Kind            ClipKind
+	Config          ClipConfig
 }
 
-// WaitConfig parameterises a StepWait step.
-type WaitConfig struct {
-	DurationMS int `json:"duration_ms"`
+// ClipConfig is a tagged-union of clip-specific parameter shapes. Marshalling
+// emits exactly the inner struct that matches Kind, so the disk shape is the
+// inner struct directly (no wrapper object).
+type ClipConfig struct {
+	SetOnOff      *SetOnOffClipConfig
+	SetBrightness *SetBrightnessClipConfig
+	SetColorRGB   *SetColorRGBClipConfig
+	SetColorTemp  *SetColorTempClipConfig
+	NativeEffect  *NativeEffectClipConfig
 }
 
-// SetOnOffConfig parameterises a StepSetOnOff step.
-type SetOnOffConfig struct {
-	Value        bool `json:"value"`
-	TransitionMS int  `json:"transition_ms"`
+// SetOnOffClipConfig parameterises a ClipSetOnOff clip.
+type SetOnOffClipConfig struct {
+	Value bool `json:"value"`
 }
 
-// SetBrightnessConfig parameterises a StepSetBrightness step.
-type SetBrightnessConfig struct {
-	Value        int `json:"value"`
-	TransitionMS int `json:"transition_ms"`
+// SetBrightnessClipConfig parameterises a ClipSetBrightness clip.
+type SetBrightnessClipConfig struct {
+	Value int `json:"value"`
 }
 
-// SetColorRGBConfig parameterises a StepSetColorRGB step.
-type SetColorRGBConfig struct {
-	R            int `json:"r"`
-	G            int `json:"g"`
-	B            int `json:"b"`
-	TransitionMS int `json:"transition_ms"`
+// SetColorRGBClipConfig parameterises a ClipSetColorRGB clip.
+type SetColorRGBClipConfig struct {
+	R int `json:"r"`
+	G int `json:"g"`
+	B int `json:"b"`
 }
 
-// SetColorTempConfig parameterises a StepSetColorTemp step.
-type SetColorTempConfig struct {
-	Mireds       int `json:"mireds"`
-	TransitionMS int `json:"transition_ms"`
+// SetColorTempClipConfig parameterises a ClipSetColorTemp clip.
+type SetColorTempClipConfig struct {
+	Mireds int `json:"mireds"`
 }
 
-// MarshalConfig serialises a Step's typed Config to JSON. The output is the
-// inner struct that matches kind, with no wrapper object.
-func MarshalConfig(kind StepKind, cfg StepConfig) ([]byte, error) {
+// NativeEffectClipConfig parameterises a ClipNativeEffect clip; Name is the
+// protocol-side effect program to fire at the clip's StartMs.
+type NativeEffectClipConfig struct {
+	Name string `json:"name"`
+}
+
+// MarshalClipConfig serialises a Clip's typed Config to JSON. The output is
+// the inner struct that matches kind, with no wrapper object.
+func MarshalClipConfig(kind ClipKind, cfg ClipConfig) ([]byte, error) {
 	switch kind {
-	case StepWait:
-		if cfg.Wait == nil {
-			return nil, fmt.Errorf("marshal step config: kind %q missing wait payload", kind)
-		}
-		return json.Marshal(cfg.Wait)
-	case StepSetOnOff:
+	case ClipSetOnOff:
 		if cfg.SetOnOff == nil {
-			return nil, fmt.Errorf("marshal step config: kind %q missing set_on_off payload", kind)
+			return nil, fmt.Errorf("marshal clip config: kind %q missing set_on_off payload", kind)
 		}
 		return json.Marshal(cfg.SetOnOff)
-	case StepSetBrightness:
+	case ClipSetBrightness:
 		if cfg.SetBrightness == nil {
-			return nil, fmt.Errorf("marshal step config: kind %q missing set_brightness payload", kind)
+			return nil, fmt.Errorf("marshal clip config: kind %q missing set_brightness payload", kind)
 		}
 		return json.Marshal(cfg.SetBrightness)
-	case StepSetColorRGB:
+	case ClipSetColorRGB:
 		if cfg.SetColorRGB == nil {
-			return nil, fmt.Errorf("marshal step config: kind %q missing set_color_rgb payload", kind)
+			return nil, fmt.Errorf("marshal clip config: kind %q missing set_color_rgb payload", kind)
 		}
 		return json.Marshal(cfg.SetColorRGB)
-	case StepSetColorTemp:
+	case ClipSetColorTemp:
 		if cfg.SetColorTemp == nil {
-			return nil, fmt.Errorf("marshal step config: kind %q missing set_color_temp payload", kind)
+			return nil, fmt.Errorf("marshal clip config: kind %q missing set_color_temp payload", kind)
 		}
 		return json.Marshal(cfg.SetColorTemp)
+	case ClipNativeEffect:
+		if cfg.NativeEffect == nil {
+			return nil, fmt.Errorf("marshal clip config: kind %q missing native_effect payload", kind)
+		}
+		return json.Marshal(cfg.NativeEffect)
 	default:
-		return nil, fmt.Errorf("marshal step config: unknown kind %q", kind)
+		return nil, fmt.Errorf("marshal clip config: unknown kind %q", kind)
 	}
 }
 
-// UnmarshalConfig parses a JSON payload into the StepConfig variant indicated
-// by kind. Exactly one StepConfig field is set on success.
-func UnmarshalConfig(kind StepKind, data []byte) (StepConfig, error) {
-	var cfg StepConfig
+// UnmarshalClipConfig parses a JSON payload into the ClipConfig variant
+// indicated by kind. Exactly one ClipConfig field is set on success.
+func UnmarshalClipConfig(kind ClipKind, data []byte) (ClipConfig, error) {
+	var cfg ClipConfig
 	switch kind {
-	case StepWait:
-		var v WaitConfig
+	case ClipSetOnOff:
+		var v SetOnOffClipConfig
 		if err := json.Unmarshal(data, &v); err != nil {
-			return StepConfig{}, fmt.Errorf("unmarshal wait config: %w", err)
-		}
-		cfg.Wait = &v
-	case StepSetOnOff:
-		var v SetOnOffConfig
-		if err := json.Unmarshal(data, &v); err != nil {
-			return StepConfig{}, fmt.Errorf("unmarshal set_on_off config: %w", err)
+			return ClipConfig{}, fmt.Errorf("unmarshal set_on_off config: %w", err)
 		}
 		cfg.SetOnOff = &v
-	case StepSetBrightness:
-		var v SetBrightnessConfig
+	case ClipSetBrightness:
+		var v SetBrightnessClipConfig
 		if err := json.Unmarshal(data, &v); err != nil {
-			return StepConfig{}, fmt.Errorf("unmarshal set_brightness config: %w", err)
+			return ClipConfig{}, fmt.Errorf("unmarshal set_brightness config: %w", err)
 		}
 		cfg.SetBrightness = &v
-	case StepSetColorRGB:
-		var v SetColorRGBConfig
+	case ClipSetColorRGB:
+		var v SetColorRGBClipConfig
 		if err := json.Unmarshal(data, &v); err != nil {
-			return StepConfig{}, fmt.Errorf("unmarshal set_color_rgb config: %w", err)
+			return ClipConfig{}, fmt.Errorf("unmarshal set_color_rgb config: %w", err)
 		}
 		cfg.SetColorRGB = &v
-	case StepSetColorTemp:
-		var v SetColorTempConfig
+	case ClipSetColorTemp:
+		var v SetColorTempClipConfig
 		if err := json.Unmarshal(data, &v); err != nil {
-			return StepConfig{}, fmt.Errorf("unmarshal set_color_temp config: %w", err)
+			return ClipConfig{}, fmt.Errorf("unmarshal set_color_temp config: %w", err)
 		}
 		cfg.SetColorTemp = &v
+	case ClipNativeEffect:
+		var v NativeEffectClipConfig
+		if err := json.Unmarshal(data, &v); err != nil {
+			return ClipConfig{}, fmt.Errorf("unmarshal native_effect config: %w", err)
+		}
+		cfg.NativeEffect = &v
 	default:
-		return StepConfig{}, fmt.Errorf("unmarshal step config: unknown kind %q", kind)
+		return ClipConfig{}, fmt.Errorf("unmarshal clip config: unknown kind %q", kind)
 	}
 	return cfg, nil
 }

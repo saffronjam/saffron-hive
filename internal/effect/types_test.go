@@ -6,48 +6,48 @@ import (
 	"testing"
 )
 
-func TestStepConfigJSONRoundTrip(t *testing.T) {
+func TestClipConfigJSONRoundTrip(t *testing.T) {
 	cases := []struct {
 		name string
-		kind StepKind
-		cfg  StepConfig
+		kind ClipKind
+		cfg  ClipConfig
 		want string
 	}{
 		{
-			name: "wait",
-			kind: StepWait,
-			cfg:  StepConfig{Wait: &WaitConfig{DurationMS: 250}},
-			want: `{"duration_ms":250}`,
-		},
-		{
 			name: "set_on_off",
-			kind: StepSetOnOff,
-			cfg:  StepConfig{SetOnOff: &SetOnOffConfig{Value: true, TransitionMS: 100}},
-			want: `{"value":true,"transition_ms":100}`,
+			kind: ClipSetOnOff,
+			cfg:  ClipConfig{SetOnOff: &SetOnOffClipConfig{Value: true}},
+			want: `{"value":true}`,
 		},
 		{
 			name: "set_brightness",
-			kind: StepSetBrightness,
-			cfg:  StepConfig{SetBrightness: &SetBrightnessConfig{Value: 200, TransitionMS: 500}},
-			want: `{"value":200,"transition_ms":500}`,
+			kind: ClipSetBrightness,
+			cfg:  ClipConfig{SetBrightness: &SetBrightnessClipConfig{Value: 200}},
+			want: `{"value":200}`,
 		},
 		{
 			name: "set_color_rgb",
-			kind: StepSetColorRGB,
-			cfg:  StepConfig{SetColorRGB: &SetColorRGBConfig{R: 244, G: 42, B: 23, TransitionMS: 200}},
-			want: `{"r":244,"g":42,"b":23,"transition_ms":200}`,
+			kind: ClipSetColorRGB,
+			cfg:  ClipConfig{SetColorRGB: &SetColorRGBClipConfig{R: 244, G: 42, B: 23}},
+			want: `{"r":244,"g":42,"b":23}`,
 		},
 		{
 			name: "set_color_temp",
-			kind: StepSetColorTemp,
-			cfg:  StepConfig{SetColorTemp: &SetColorTempConfig{Mireds: 370, TransitionMS: 0}},
-			want: `{"mireds":370,"transition_ms":0}`,
+			kind: ClipSetColorTemp,
+			cfg:  ClipConfig{SetColorTemp: &SetColorTempClipConfig{Mireds: 370}},
+			want: `{"mireds":370}`,
+		},
+		{
+			name: "native_effect",
+			kind: ClipNativeEffect,
+			cfg:  ClipConfig{NativeEffect: &NativeEffectClipConfig{Name: "candle"}},
+			want: `{"name":"candle"}`,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := MarshalConfig(tc.kind, tc.cfg)
+			got, err := MarshalClipConfig(tc.kind, tc.cfg)
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
 			}
@@ -55,7 +55,7 @@ func TestStepConfigJSONRoundTrip(t *testing.T) {
 				t.Errorf("marshal = %s, want %s", got, tc.want)
 			}
 
-			parsed, err := UnmarshalConfig(tc.kind, got)
+			parsed, err := UnmarshalClipConfig(tc.kind, got)
 			if err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
@@ -63,7 +63,7 @@ func TestStepConfigJSONRoundTrip(t *testing.T) {
 				t.Errorf("round trip mismatch:\n got  %+v\n want %+v", parsed, tc.cfg)
 			}
 
-			reMarshalled, err := MarshalConfig(tc.kind, parsed)
+			reMarshalled, err := MarshalClipConfig(tc.kind, parsed)
 			if err != nil {
 				t.Fatalf("re-marshal: %v", err)
 			}
@@ -74,35 +74,35 @@ func TestStepConfigJSONRoundTrip(t *testing.T) {
 	}
 }
 
-func TestMarshalConfigMissingPayloadReturnsError(t *testing.T) {
-	for _, kind := range []StepKind{StepWait, StepSetOnOff, StepSetBrightness, StepSetColorRGB, StepSetColorTemp} {
-		if _, err := MarshalConfig(kind, StepConfig{}); err == nil {
+func TestMarshalClipConfigMissingPayloadReturnsError(t *testing.T) {
+	for _, kind := range []ClipKind{ClipSetOnOff, ClipSetBrightness, ClipSetColorRGB, ClipSetColorTemp, ClipNativeEffect} {
+		if _, err := MarshalClipConfig(kind, ClipConfig{}); err == nil {
 			t.Errorf("kind %q: expected error for missing payload", kind)
 		}
 	}
 }
 
-func TestMarshalConfigUnknownKind(t *testing.T) {
-	if _, err := MarshalConfig(StepKind("bogus"), StepConfig{}); err == nil {
+func TestMarshalClipConfigUnknownKind(t *testing.T) {
+	if _, err := MarshalClipConfig(ClipKind("bogus"), ClipConfig{}); err == nil {
 		t.Fatal("expected error for unknown kind")
 	}
 }
 
-func TestUnmarshalConfigUnknownKind(t *testing.T) {
-	if _, err := UnmarshalConfig(StepKind("bogus"), []byte(`{}`)); err == nil {
+func TestUnmarshalClipConfigUnknownKind(t *testing.T) {
+	if _, err := UnmarshalClipConfig(ClipKind("bogus"), []byte(`{}`)); err == nil {
 		t.Fatal("expected error for unknown kind")
 	}
 }
 
-func TestUnmarshalConfigMalformedJSON(t *testing.T) {
-	if _, err := UnmarshalConfig(StepWait, []byte(`{not json`)); err == nil {
+func TestUnmarshalClipConfigMalformedJSON(t *testing.T) {
+	if _, err := UnmarshalClipConfig(ClipSetBrightness, []byte(`{not json`)); err == nil {
 		t.Fatal("expected error for malformed JSON")
 	}
 }
 
-func TestStepConfigDiskShapeColorRGB(t *testing.T) {
-	cfg := StepConfig{SetColorRGB: &SetColorRGBConfig{R: 244, G: 42, B: 23, TransitionMS: 200}}
-	raw, err := MarshalConfig(StepSetColorRGB, cfg)
+func TestClipConfigDiskShapeColorRGB(t *testing.T) {
+	cfg := ClipConfig{SetColorRGB: &SetColorRGBClipConfig{R: 244, G: 42, B: 23}}
+	raw, err := MarshalClipConfig(ClipSetColorRGB, cfg)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -110,12 +110,12 @@ func TestStepConfigDiskShapeColorRGB(t *testing.T) {
 	if err := json.Unmarshal(raw, &fields); err != nil {
 		t.Fatalf("unmarshal raw: %v", err)
 	}
-	for _, k := range []string{"r", "g", "b", "transition_ms"} {
+	for _, k := range []string{"r", "g", "b"} {
 		if _, ok := fields[k]; !ok {
 			t.Errorf("missing field %q in disk shape: %s", k, raw)
 		}
 	}
-	if len(fields) != 4 {
-		t.Errorf("extra fields in disk shape: %s", raw)
+	if len(fields) != 3 {
+		t.Errorf("expected exactly 3 fields in disk shape, got: %s", raw)
 	}
 }
