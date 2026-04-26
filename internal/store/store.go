@@ -518,8 +518,9 @@ type InsertAlarmParams struct {
 	RaisedAt time.Time
 }
 
-// CreateEffectParams holds the parameters for creating a new effect. Steps is
-// optional at create time; callers can populate steps later via SaveEffectSteps.
+// CreateEffectParams holds the parameters for creating a new effect. Tracks is
+// optional at create time; callers can populate the timeline later via
+// SaveEffectTracks.
 type CreateEffectParams struct {
 	ID         string
 	Name       string
@@ -527,8 +528,9 @@ type CreateEffectParams struct {
 	Kind       effect.Kind
 	NativeName *string
 	Loop       bool
+	DurationMs int
 	CreatedBy  *string
-	Steps      []EffectStepInput
+	Tracks     []EffectTrackInput
 }
 
 // UpdateEffectParams holds optional fields for updating an effect. Nil pointers
@@ -543,32 +545,59 @@ type UpdateEffectParams struct {
 	SetNativeName bool
 	NativeName    *string
 	Loop          *bool
+	DurationMs    *int
 }
 
-// EffectStepInput is one step in a save-effect-steps batch. The caller picks
-// the ID; Index is the step's position in the timeline (must be unique within
-// the effect). ConfigJSON is the marshalled step config.
-type EffectStepInput struct {
-	ID         string
-	Index      int
-	Kind       effect.StepKind
-	ConfigJSON string
+// EffectTrackInput is one track in a save-effect-tracks batch. The caller
+// picks the ID; Index is the track's position in the effect (must be unique
+// within the effect). Name is the user-supplied label shown in the editor;
+// empty string is allowed and rendered as a placeholder by the UI. Clips
+// holds the ordered, mutually-exclusive clips on this track.
+type EffectTrackInput struct {
+	ID    string
+	Index int
+	Name  string
+	Clips []EffectClipInput
 }
 
-// EffectStep is the persistence-layer representation of a single effect step,
-// returned alongside the parent Effect. ConfigJSON is the raw on-disk JSON;
-// callers parse it with effect.UnmarshalConfig.
-type EffectStep struct {
-	ID         string
-	EffectID   string
-	Index      int
-	Kind       effect.StepKind
-	ConfigJSON string
+// EffectClipInput is one clip on a track in a save-effect-tracks batch. The
+// caller picks the ID. ConfigJSON is the marshalled clip config matching Kind.
+type EffectClipInput struct {
+	ID              string
+	StartMs         int
+	TransitionMinMs int
+	TransitionMaxMs int
+	Kind            effect.ClipKind
+	ConfigJSON      string
+}
+
+// EffectClip is the persistence-layer representation of a single clip on a
+// track. ConfigJSON is the raw on-disk JSON; callers parse it with
+// effect.UnmarshalClipConfig.
+type EffectClip struct {
+	ID              string
+	TrackID         string
+	StartMs         int
+	TransitionMinMs int
+	TransitionMaxMs int
+	Kind            effect.ClipKind
+	ConfigJSON      string
+}
+
+// EffectTrack is the persistence-layer representation of a single track on an
+// effect. Clips are ordered by start_ms. Name is a user-supplied label shown
+// in the editor; the empty string is valid and rendered as a placeholder.
+type EffectTrack struct {
+	ID       string
+	EffectID string
+	Index    int
+	Name     string
+	Clips    []EffectClip
 }
 
 // Effect is the persistence-layer representation of an effect row paired with
-// its step list. Frontend / runtime code maps this to the domain effect.Effect
-// (with parsed StepConfig payloads).
+// its track list. Frontend / runtime code maps this to the domain effect.Effect
+// (with parsed ClipConfig payloads).
 type Effect struct {
 	ID         string
 	Name       string
@@ -576,8 +605,9 @@ type Effect struct {
 	Kind       effect.Kind
 	NativeName *string
 	Loop       bool
+	DurationMs int
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	CreatedBy  *UserRef
-	Steps      []EffectStep
+	Tracks     []EffectTrack
 }
