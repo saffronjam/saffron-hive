@@ -6,14 +6,19 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import HiveIcon from "$lib/components/hive-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
-	import { ChevronDown, ChevronRight, Eye, Palette, Pencil, Plus, Trash2 } from "@lucide/svelte";
-	import { deviceSceneCapabilities, isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
+	import { ChevronDown, ChevronRight, Eye, Palette, Pencil, Plus, Sparkles, Trash2 } from "@lucide/svelte";
+	import { deviceSceneCapabilities, deviceHasCapability, isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
 	import {
 		defaultScenePayload,
 		type ActionPayload,
+		type StaticActionPayload,
 		type DevicePayloadMap,
 		type EditableTarget,
 	} from "$lib/scene-editable";
+	import EffectPickerDrawer from "$lib/components/effect-picker-drawer.svelte";
+	import type { EffectPickerSelection } from "$lib/components/effect-picker-drawer.svelte";
+	import { EffectKind } from "$lib/gql/graphql";
+	import type { EffectSummary } from "$lib/effect-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
 	import { buildTargetTree, type TargetTreeNode } from "$lib/target-tree";
 
@@ -23,6 +28,7 @@
 		devicesById: Map<string, Device>;
 		groupsLite: GroupLite[];
 		roomsLite: RoomLite[];
+		effects?: EffectSummary[];
 		onupdatedevicepayload: (deviceId: string, payload: ActionPayload) => void;
 		onsendcommand: (deviceId: string, payload: ActionPayload) => void;
 		onremovetarget: (index: number) => void;
@@ -35,11 +41,14 @@
 		devicesById,
 		groupsLite,
 		roomsLite,
+		effects = [],
 		onupdatedevicepayload,
 		onsendcommand,
 		onremovetarget,
 		onaddtarget,
 	}: Props = $props();
+
+	let effectPicker = $state<{ deviceId: string; caps: string[] } | null>(null);
 
 	let mode = $state<"edit" | "live">("edit");
 	let expanded = $state<Set<string>>(new Set());
@@ -106,9 +115,15 @@
 		return payloadsByDevice.get(device.id) ?? defaultScenePayload(device);
 	}
 
-	function liveValueFor(device: Device): ActionPayload {
+	function staticPayloadFor(device: Device): StaticActionPayload {
+		const p = payloadFor(device);
+		return p.kind === "static" ? p : defaultScenePayload(device);
+	}
+
+	function liveValueFor(device: Device): StaticActionPayload {
 		const s = device.state;
 		return {
+			kind: "static",
 			on: s?.on ?? undefined,
 			brightness: s?.brightness ?? undefined,
 			colorTemp: s?.colorTemp ?? undefined,
@@ -116,8 +131,58 @@
 		};
 	}
 
-	function displayValueFor(device: Device): ActionPayload {
-		return mode === "live" ? liveValueFor(device) : payloadFor(device);
+	function displayValueFor(device: Device): StaticActionPayload {
+		return mode === "live" ? liveValueFor(device) : staticPayloadFor(device);
+	}
+
+	function isEffectMode(device: Device): boolean {
+		const k = payloadFor(device).kind;
+		return k === "effect" || k === "native_effect";
+	}
+
+	function effectFor(device: Device): EffectSummary | null {
+		const p = payloadFor(device);
+		if (p.kind === "effect") {
+			return effects.find((e) => e.id === p.effectId) ?? null;
+		}
+		if (p.kind === "native_effect") {
+			return (
+				effects.find((e) => e.kind === EffectKind.Native && e.nativeName === p.nativeName) ?? null
+			);
+		}
+		return null;
+	}
+
+	function deviceCapsList(device: Device): string[] {
+		const caps = deviceSceneCapabilities(device);
+		const names: string[] = [];
+		if (caps.hasOnOff) names.push("on_off");
+		if (caps.hasBrightness) names.push("brightness");
+		if (caps.hasColor) names.push("color");
+		if (caps.hasColorTemp) names.push("color_temp");
+		return names;
+	}
+
+	function setStaticMode(device: Device) {
+		onupdatedevicepayload(device.id, defaultScenePayload(device));
+	}
+
+	function openEffectPicker(device: Device) {
+		effectPicker = { deviceId: device.id, caps: deviceCapsList(device) };
+	}
+
+	function handleEffectPick(selection: EffectPickerSelection) {
+		const target = effectPicker;
+		if (!target) return;
+		if (selection.kind === "native") {
+			onupdatedevicepayload(target.deviceId, {
+				kind: "native_effect",
+				nativeName: selection.nativeName,
+			});
+		} else {
+			onupdatedevicepayload(target.deviceId, { kind: "effect", effectId: selection.effectId });
+		}
+		effectPicker = null;
 	}
 
 	function rgbToXy(r: number, g: number, b: number): { x: number; y: number } {
@@ -139,26 +204,29 @@
 	}
 
 	function colorsEqual(
-		a: ActionPayload["color"] | null | undefined,
-		b: ActionPayload["color"] | null | undefined,
+		a: StaticActionPayload["color"] | null | undefined,
+		b: StaticActionPayload["color"] | null | undefined,
 	): boolean {
 		if (a == null && b == null) return true;
 		if (a == null || b == null) return false;
 		return a.r === b.r && a.g === b.g && a.b === b.b;
 	}
 
-	function mergePayload(base: ActionPayload, patch: Partial<ActionPayload>): ActionPayload {
-		const next: ActionPayload = { ...base, ...patch };
+	function mergePayload(
+		base: StaticActionPayload,
+		patch: Partial<StaticActionPayload>,
+	): StaticActionPayload {
+		const next: StaticActionPayload = { ...base, ...patch, kind: "static" };
 		if (patch.color !== undefined) delete next.colorTemp;
 		if (patch.colorTemp !== undefined) delete next.color;
 		return next;
 	}
 
-	function applyChange(device: Device, patch: Partial<ActionPayload>) {
+	function applyChange(device: Device, patch: Partial<StaticActionPayload>) {
 		if (mode === "live") {
 			onsendcommand(device.id, mergePayload(liveValueFor(device), patch));
 		} else {
-			onupdatedevicepayload(device.id, mergePayload(payloadFor(device), patch));
+			onupdatedevicepayload(device.id, mergePayload(staticPayloadFor(device), patch));
 		}
 	}
 
@@ -172,8 +240,10 @@
 			const state = device.state;
 			if (!state) continue;
 			const current = payloadFor(device);
-			const next: ActionPayload = {
+			if (current.kind !== "static") continue;
+			const next: StaticActionPayload = {
 				...current,
+				kind: "static",
 				on: state.on ?? current.on,
 				brightness: state.brightness ?? current.brightness,
 				colorTemp: state.colorTemp ?? current.colorTemp,
@@ -219,7 +289,7 @@
 	}
 
 	function previewColorCss(
-		payload: ActionPayload,
+		payload: StaticActionPayload,
 		caps: { hasColor: boolean; hasColorTemp: boolean },
 	): string | null {
 		if (caps.hasColor && payload.color) return colorCss(payload.color);
@@ -227,6 +297,49 @@
 		return null;
 	}
 </script>
+
+{#snippet payloadModeToggle(device: Device)}
+	{@const isEffect = isEffectMode(device)}
+	<div class="flex items-center rounded-md border border-border dark:border-input">
+		<Button
+			variant={!isEffect ? "secondary" : "ghost"}
+			size="sm"
+			class="rounded-r-none border-0 h-7 px-2"
+			onclick={() => setStaticMode(device)}
+			aria-pressed={!isEffect}
+			aria-label="Use static state for {device.name}"
+		>
+			<Palette class="size-3.5" />
+		</Button>
+		<Button
+			variant={isEffect ? "secondary" : "ghost"}
+			size="sm"
+			class="rounded-l-none border-0 h-7 px-2"
+			onclick={() => openEffectPicker(device)}
+			aria-pressed={isEffect}
+			aria-label="Use effect for {device.name}"
+		>
+			<Sparkles class="size-3.5" />
+		</Button>
+	</div>
+{/snippet}
+
+{#snippet effectChip(device: Device)}
+	{@const eff = effectFor(device)}
+	<Badge
+		variant="secondary"
+		class="cursor-default text-xs"
+		role="button"
+		tabindex={0}
+		onclick={(e: MouseEvent) => {
+			e.stopPropagation();
+			openEffectPicker(device);
+		}}
+	>
+		<Sparkles class="size-3" />
+		<span class="truncate">{eff?.name ?? "Pick effect"}</span>
+	</Badge>
+{/snippet}
 
 {#snippet adjustTrigger(device: Device, caps: { hasColor: boolean; hasColorTemp: boolean; hasBrightness: boolean })}
 	{@const p = displayValueFor(device)}
@@ -320,15 +433,22 @@
 			{#if mode === "live" && deviceForRow}
 				{@render liveIndicators(deviceForRow)}
 			{/if}
-			{#if deviceForRow && rowHasRich && rowCaps}
-				{@render adjustTrigger(deviceForRow, rowCaps)}
+			{#if deviceForRow && mode === "edit"}
+				{@render payloadModeToggle(deviceForRow)}
 			{/if}
-			{#if deviceForRow}
-				<Switch
-					checked={displayValueFor(deviceForRow).on ?? false}
-					onCheckedChange={(c) => setDeviceOn(deviceForRow, c)}
-					aria-label={`Toggle ${deviceForRow.name}`}
-				/>
+			{#if deviceForRow && isEffectMode(deviceForRow) && mode === "edit"}
+				{@render effectChip(deviceForRow)}
+			{:else}
+				{#if deviceForRow && rowHasRich && rowCaps}
+					{@render adjustTrigger(deviceForRow, rowCaps)}
+				{/if}
+				{#if deviceForRow}
+					<Switch
+						checked={displayValueFor(deviceForRow).on ?? false}
+						onCheckedChange={(c) => setDeviceOn(deviceForRow, c)}
+						aria-label={`Toggle ${deviceForRow.name}`}
+					/>
+				{/if}
 			{/if}
 			<Button
 				variant="ghost"
@@ -417,14 +537,21 @@
 			{#if mode === "live"}
 				{@render liveIndicators(device)}
 			{/if}
-			{#if leafHasRich}
-				{@render adjustTrigger(device, leafCaps)}
+			{#if mode === "edit"}
+				{@render payloadModeToggle(device)}
 			{/if}
-			<Switch
-				checked={displayValueFor(device).on ?? false}
-				onCheckedChange={(c) => setDeviceOn(device, c)}
-				aria-label={`Toggle ${device.name}`}
-			/>
+			{#if isEffectMode(device) && mode === "edit"}
+				{@render effectChip(device)}
+			{:else}
+				{#if leafHasRich}
+					{@render adjustTrigger(device, leafCaps)}
+				{/if}
+				<Switch
+					checked={displayValueFor(device).on ?? false}
+					onCheckedChange={(c) => setDeviceOn(device, c)}
+					aria-label={`Toggle ${device.name}`}
+				/>
+			{/if}
 		</div>
 	</div>
 {/snippet}
@@ -500,3 +627,11 @@
 		{/if}
 	</div>
 </div>
+
+<EffectPickerDrawer
+	open={effectPicker !== null}
+	caps={effectPicker?.caps ?? []}
+	{effects}
+	onclose={() => (effectPicker = null)}
+	onselect={handleEffectPick}
+/>

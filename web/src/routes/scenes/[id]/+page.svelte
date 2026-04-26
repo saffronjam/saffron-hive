@@ -22,7 +22,8 @@
 	import { isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
 	import {
 		sceneToEditorState,
-		defaultScenePayload,
+		stringifyPayload,
+		staticFieldsOf,
 		type SceneData,
 		type GroupData,
 		type RoomData,
@@ -31,6 +32,8 @@
 		type TargetKind,
 		type DevicePayloadMap,
 	} from "$lib/scene-editable";
+	import { effectSummary, nativeOptionLabel, type EffectSummary } from "$lib/effect-editable";
+	import { EffectKind } from "$lib/gql/graphql";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
 
 	const sceneId = $derived($page.params.id);
@@ -370,6 +373,25 @@
 		}
 	`);
 
+	const EFFECTS_QUERY = graphql(`
+		query SceneEditEffects {
+			effects {
+				id
+				name
+				icon
+				kind
+				nativeName
+				loop
+				requiredCapabilities
+			}
+			nativeEffectOptions {
+				name
+				displayName
+				supportedDeviceCount
+			}
+		}
+	`);
+
 	const DEVICE_STATE_CHANGED = graphql(`
 		subscription DeviceStateChanged {
 			deviceStateChanged {
@@ -474,6 +496,7 @@
 	let allDevices = $state<Device[]>([]);
 	let allGroups = $state<GroupData[]>([]);
 	let allRooms = $state<RoomData[]>([]);
+	let allEffects = $state<EffectSummary[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
 	const errors = new BannerError();
@@ -574,13 +597,14 @@
 
 	function sendDeviceCommand(deviceId: string, payload: ActionPayload) {
 		if (!clientRef) return;
+		if (payload.kind !== "static") return;
 		const existing = commandTimers.get(deviceId);
 		if (existing) clearTimeout(existing);
 		const timer = setTimeout(() => {
 			commandTimers.delete(deviceId);
 			clientRef?.mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
 				deviceId,
-				state: payload,
+				state: staticFieldsOf(payload),
 			}).toPromise();
 		}, 300);
 		commandTimers.set(deviceId, timer);
@@ -648,7 +672,7 @@
 			})
 			.map(([deviceId, payload]) => ({
 				deviceId,
-				payload: JSON.stringify(payload),
+				payload: stringifyPayload(payload),
 			}));
 
 		const result = await clientRef
@@ -755,6 +779,24 @@
 				}
 			});
 
+		client
+			.query(EFFECTS_QUERY, {})
+			.toPromise()
+			.then((result) => {
+				if (!result.data) return;
+				const timelineEffects: EffectSummary[] = result.data.effects.map(effectSummary);
+				const nativeEffects: EffectSummary[] = result.data.nativeEffectOptions.map((opt) => ({
+					id: `native:${opt.name}`,
+					name: nativeOptionLabel(opt.name, opt.displayName),
+					icon: null,
+					kind: EffectKind.Native,
+					nativeName: opt.name,
+					loop: false,
+					requiredCapabilities: [],
+				}));
+				allEffects = [...timelineEffects, ...nativeEffects];
+			});
+
 		const { unsubscribe: unsubState } = client
 			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, {})
 			.subscribe((result) => {
@@ -819,6 +861,7 @@
 				{devicesById}
 				{groupsLite}
 				{roomsLite}
+				effects={allEffects}
 				onupdatedevicepayload={handleDevicePayloadUpdate}
 				onsendcommand={sendDeviceCommand}
 				onremovetarget={handleTargetRemove}
