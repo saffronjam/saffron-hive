@@ -20,58 +20,76 @@ func TestRequiredCapabilities(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "wait only contributes nothing",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepWait},
-				{Kind: StepWait},
+			name: "empty tracks contribute nothing",
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Index: 0},
+				{Index: 1},
 			}},
 			want: nil,
 		},
 		{
 			name: "set_on_off",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepSetOnOff},
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipSetOnOff}}},
 			}},
 			want: []string{device.CapOnOff},
 		},
 		{
 			name: "set_brightness",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepSetBrightness},
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipSetBrightness}}},
 			}},
 			want: []string{device.CapBrightness},
 		},
 		{
 			name: "set_color_rgb",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepSetColorRGB},
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipSetColorRGB}}},
 			}},
 			want: []string{device.CapColor},
 		},
 		{
 			name: "set_color_temp",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepSetColorTemp},
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipSetColorTemp}}},
 			}},
 			want: []string{device.CapColorTemp},
 		},
 		{
-			name: "deduplicates repeated step kinds",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepSetBrightness},
-				{Kind: StepWait},
-				{Kind: StepSetBrightness},
+			name: "native_effect contributes no generic capability",
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipNativeEffect}}},
+			}},
+			want: nil,
+		},
+		{
+			name: "deduplicates repeated clip kinds across a track",
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{
+					{Kind: ClipSetBrightness, StartMs: 0},
+					{Kind: ClipSetBrightness, StartMs: 100},
+				}},
 			}},
 			want: []string{device.CapBrightness},
 		},
 		{
-			name: "union across all controllable steps",
-			eff: Effect{Kind: KindTimeline, Steps: []Step{
-				{Kind: StepSetOnOff},
-				{Kind: StepWait},
-				{Kind: StepSetBrightness},
-				{Kind: StepSetColorRGB},
-				{Kind: StepSetColorTemp},
+			name: "deduplicates across tracks",
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipSetBrightness}}},
+				{Clips: []Clip{{Kind: ClipSetBrightness}}},
+			}},
+			want: []string{device.CapBrightness},
+		},
+		{
+			name: "union across all controllable clip kinds",
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{
+					{Kind: ClipSetOnOff},
+					{Kind: ClipSetBrightness, StartMs: 1},
+					{Kind: ClipSetColorRGB, StartMs: 2},
+					{Kind: ClipSetColorTemp, StartMs: 3},
+					{Kind: ClipNativeEffect, StartMs: 4},
+				}},
 			}},
 			want: []string{
 				device.CapOnOff,
@@ -82,8 +100,8 @@ func TestRequiredCapabilities(t *testing.T) {
 		},
 		{
 			name: "native effect returns no caps",
-			eff: Effect{Kind: KindNative, NativeName: "candle", Steps: []Step{
-				{Kind: StepSetBrightness},
+			eff: Effect{Kind: KindNative, NativeName: "candle", Tracks: []Track{
+				{Clips: []Clip{{Kind: ClipSetBrightness}}},
 			}},
 			want: nil,
 		},
