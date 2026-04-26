@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -10,8 +11,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-// nativeEffectTerminators are the effect-cap values that exist purely to
-// stop a running native effect. They are filtered out of the user-facing
+// nativeEffectTerminators are the effect-cap values that exist purely to stop
+// a running native effect. They are filtered out of the user-facing
 // nativeEffectOptions list so the editor only offers playable programs.
 var nativeEffectTerminators = []string{
 	"stop_effect",
@@ -19,19 +20,21 @@ var nativeEffectTerminators = []string{
 	"stop_hue_effect",
 }
 
-// validateEffectInput rejects effect inputs whose step kinds carry malformed
-// JSON for their declared kind, and enforces the kind-vs-payload invariants:
-// native effects need a non-empty nativeName and no steps; timeline effects
-// must not set nativeName. Empty timeline step lists are allowed so the
-// create flow can persist a fresh effect that the user fills in afterwards.
-func validateEffectInput(kind model.EffectKind, nativeName *string, steps []*model.EffectStepInput) error {
+// validateEffectInput rejects effect inputs whose clip kinds carry malformed
+// JSON, and enforces the kind-vs-payload invariants:
+//   - native effects require a non-empty nativeName and no tracks
+//   - timeline effects must not set nativeName
+//   - durationMs must be non-negative
+//   - within a track, clips must not overlap
+//   - when loop=true, no clip may extend past durationMs
+func validateEffectInput(kind model.EffectKind, nativeName *string, loop bool, durationMs int, tracks []*model.EffectTrackInput) error {
 	switch kind {
 	case model.EffectKindNative:
 		if nativeName == nil || strings.TrimSpace(*nativeName) == "" {
 			return fmt.Errorf("native effect requires a non-empty nativeName")
 		}
-		if len(steps) > 0 {
-			return fmt.Errorf("native effect must not have steps")
+		if len(tracks) > 0 {
+			return fmt.Errorf("native effect must not have tracks")
 		}
 	case model.EffectKindTimeline:
 		if nativeName != nil && strings.TrimSpace(*nativeName) != "" {
@@ -40,58 +43,128 @@ func validateEffectInput(kind model.EffectKind, nativeName *string, steps []*mod
 	default:
 		return fmt.Errorf("unknown effect kind %q", kind)
 	}
-	for i, s := range steps {
-		stepKind := stepKindFromModel(s.Kind)
-		if _, err := effect.UnmarshalConfig(stepKind, []byte(s.Config)); err != nil {
-			return fmt.Errorf("step %d (%s): %w", i, s.Kind, err)
+	if durationMs < 0 {
+		return fmt.Errorf("durationMs must be non-negative (got %d)", durationMs)
+	}
+	for ti, t := range tracks {
+		if err := validateClips(loop, durationMs, ti, t.Clips); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-// buildEffectStepInputs assigns IDs and indices to step inputs and validates
-// each config payload by parsing and re-marshalling it. The re-marshalled JSON
-// is the canonical disk shape — extraneous fields in user-supplied JSON are
+// validateClips enforces per-track clip invariants: each clip's config parses,
+// transition bounds are well-formed, clips do not overlap each other, and
+// (when loop=true) no clip extends past durationMs.
+func validateClips(loop bool, durationMs, trackIndex int, clips []*model.EffectClipInput) error {
+	type interval struct {
+		start, end int
+	}
+	intervals := make([]interval, 0, len(clips))
+	for ci, c := range clips {
+		clipKind := clipKindFromModel(c.Kind)
+		if _, err := effect.UnmarshalClipConfig(clipKind, []byte(c.Config)); err != nil {
+			return fmt.Errorf("track %d clip %d (%s): %w", trackIndex, ci, c.Kind, err)
+		}
+		if c.StartMs < 0 {
+			return fmt.Errorf("track %d clip %d: startMs must be non-negative", trackIndex, ci)
+		}
+		if c.TransitionMinMs < 0 {
+			return fmt.Errorf("track %d clip %d: transitionMinMs must be non-negative", trackIndex, ci)
+		}
+		if c.TransitionMaxMs < c.TransitionMinMs {
+			return fmt.Errorf("track %d clip %d: transitionMaxMs must be >= transitionMinMs", trackIndex, ci)
+		}
+		end := c.StartMs + c.TransitionMaxMs
+		if loop && durationMs > 0 && end > durationMs {
+			return fmt.Errorf("track %d clip %d extends past durationMs (%d > %d)", trackIndex, ci, end, durationMs)
+		}
+		intervals = append(intervals, interval{start: c.StartMs, end: end})
+	}
+	sort.Slice(intervals, func(i, j int) bool { return intervals[i].start < intervals[j].start })
+	for i := 1; i < len(intervals); i++ {
+		if intervals[i].start < intervals[i-1].end {
+			return fmt.Errorf("track %d clips overlap: %d-%d and %d-%d",
+				trackIndex,
+				intervals[i-1].start, intervals[i-1].end,
+				intervals[i].start, intervals[i].end)
+		}
+	}
+	return nil
+}
+
+// buildEffectTrackInputs assigns IDs to track + clip inputs and validates each
+// config payload by parsing and re-marshalling it. The re-marshalled JSON is
+// the canonical disk shape — extraneous fields in user-supplied JSON are
 // dropped at this point.
-func buildEffectStepInputs(steps []*model.EffectStepInput) ([]store.EffectStepInput, error) {
-	out := make([]store.EffectStepInput, len(steps))
-	for i, s := range steps {
-		stepKind := stepKindFromModel(s.Kind)
-		cfg, err := effect.UnmarshalConfig(stepKind, []byte(s.Config))
-		if err != nil {
-			return nil, fmt.Errorf("step %d (%s): %w", i, s.Kind, err)
+func buildEffectTrackInputs(tracks []*model.EffectTrackInput) ([]store.EffectTrackInput, error) {
+	out := make([]store.EffectTrackInput, len(tracks))
+	for ti, t := range tracks {
+		clips := make([]store.EffectClipInput, len(t.Clips))
+		for ci, c := range t.Clips {
+			clipKind := clipKindFromModel(c.Kind)
+			cfg, err := effect.UnmarshalClipConfig(clipKind, []byte(c.Config))
+			if err != nil {
+				return nil, fmt.Errorf("track %d clip %d (%s): %w", ti, ci, c.Kind, err)
+			}
+			raw, err := effect.MarshalClipConfig(clipKind, cfg)
+			if err != nil {
+				return nil, fmt.Errorf("track %d clip %d (%s): re-marshal: %w", ti, ci, c.Kind, err)
+			}
+			clips[ci] = store.EffectClipInput{
+				ID:              uuid.New().String(),
+				StartMs:         c.StartMs,
+				TransitionMinMs: c.TransitionMinMs,
+				TransitionMaxMs: c.TransitionMaxMs,
+				Kind:            clipKind,
+				ConfigJSON:      string(raw),
+			}
 		}
-		raw, err := effect.MarshalConfig(stepKind, cfg)
-		if err != nil {
-			return nil, fmt.Errorf("step %d (%s): re-marshal: %w", i, s.Kind, err)
-		}
-		out[i] = store.EffectStepInput{
-			ID:         uuid.New().String(),
-			Index:      i,
-			Kind:       stepKind,
-			ConfigJSON: string(raw),
+		out[ti] = store.EffectTrackInput{
+			ID:    uuid.New().String(),
+			Index: ti,
+			Clips: clips,
 		}
 	}
 	return out, nil
 }
 
 func mapEffect(row store.Effect) *model.Effect {
-	domainSteps := make([]effect.Step, 0, len(row.Steps))
-	modelSteps := make([]*model.EffectStep, 0, len(row.Steps))
-	for _, s := range row.Steps {
-		domainSteps = append(domainSteps, effect.Step{
-			ID:    s.ID,
-			Index: s.Index,
-			Kind:  s.Kind,
+	domainTracks := make([]effect.Track, 0, len(row.Tracks))
+	modelTracks := make([]*model.EffectTrack, 0, len(row.Tracks))
+	for _, tr := range row.Tracks {
+		domainClips := make([]effect.Clip, 0, len(tr.Clips))
+		modelClips := make([]*model.EffectClip, 0, len(tr.Clips))
+		for _, cl := range tr.Clips {
+			domainClips = append(domainClips, effect.Clip{
+				ID:              cl.ID,
+				StartMs:         cl.StartMs,
+				TransitionMinMs: cl.TransitionMinMs,
+				TransitionMaxMs: cl.TransitionMaxMs,
+				Kind:            cl.Kind,
+			})
+			modelClips = append(modelClips, &model.EffectClip{
+				ID:              cl.ID,
+				StartMs:         cl.StartMs,
+				TransitionMinMs: cl.TransitionMinMs,
+				TransitionMaxMs: cl.TransitionMaxMs,
+				Kind:            clipKindToModel(cl.Kind),
+				Config:          cl.ConfigJSON,
+			})
+		}
+		domainTracks = append(domainTracks, effect.Track{
+			ID:    tr.ID,
+			Index: tr.Index,
+			Clips: domainClips,
 		})
-		modelSteps = append(modelSteps, &model.EffectStep{
-			ID:     s.ID,
-			Index:  s.Index,
-			Kind:   stepKindToModel(s.Kind),
-			Config: s.ConfigJSON,
+		modelTracks = append(modelTracks, &model.EffectTrack{
+			ID:    tr.ID,
+			Index: tr.Index,
+			Clips: modelClips,
 		})
 	}
-	domain := effect.Effect{Kind: row.Kind, Steps: domainSteps}
+	domain := effect.Effect{Kind: row.Kind, Tracks: domainTracks}
 	caps := domain.RequiredCapabilities()
 	if caps == nil {
 		caps = []string{}
@@ -103,7 +176,8 @@ func mapEffect(row store.Effect) *model.Effect {
 		Kind:                 modelKindFromStore(row.Kind),
 		NativeName:           row.NativeName,
 		Loop:                 row.Loop,
-		Steps:                modelSteps,
+		DurationMs:           row.DurationMs,
+		Tracks:               modelTracks,
 		RequiredCapabilities: caps,
 		CreatedBy:            mapUserRef(row.CreatedBy),
 		CreatedAt:            row.CreatedAt,
@@ -143,36 +217,36 @@ func modelKindFromStore(k effect.Kind) model.EffectKind {
 	return model.EffectKindTimeline
 }
 
-func stepKindFromModel(k model.EffectStepKind) effect.StepKind {
+func clipKindFromModel(k model.EffectClipKind) effect.ClipKind {
 	switch k {
-	case model.EffectStepKindWait:
-		return effect.StepWait
-	case model.EffectStepKindSetOnOff:
-		return effect.StepSetOnOff
-	case model.EffectStepKindSetBrightness:
-		return effect.StepSetBrightness
-	case model.EffectStepKindSetColorRgb:
-		return effect.StepSetColorRGB
-	case model.EffectStepKindSetColorTemp:
-		return effect.StepSetColorTemp
+	case model.EffectClipKindSetOnOff:
+		return effect.ClipSetOnOff
+	case model.EffectClipKindSetBrightness:
+		return effect.ClipSetBrightness
+	case model.EffectClipKindSetColorRgb:
+		return effect.ClipSetColorRGB
+	case model.EffectClipKindSetColorTemp:
+		return effect.ClipSetColorTemp
+	case model.EffectClipKindNativeEffect:
+		return effect.ClipNativeEffect
 	}
-	return effect.StepKind("")
+	return effect.ClipKind("")
 }
 
-func stepKindToModel(k effect.StepKind) model.EffectStepKind {
+func clipKindToModel(k effect.ClipKind) model.EffectClipKind {
 	switch k {
-	case effect.StepWait:
-		return model.EffectStepKindWait
-	case effect.StepSetOnOff:
-		return model.EffectStepKindSetOnOff
-	case effect.StepSetBrightness:
-		return model.EffectStepKindSetBrightness
-	case effect.StepSetColorRGB:
-		return model.EffectStepKindSetColorRgb
-	case effect.StepSetColorTemp:
-		return model.EffectStepKindSetColorTemp
+	case effect.ClipSetOnOff:
+		return model.EffectClipKindSetOnOff
+	case effect.ClipSetBrightness:
+		return model.EffectClipKindSetBrightness
+	case effect.ClipSetColorRGB:
+		return model.EffectClipKindSetColorRgb
+	case effect.ClipSetColorTemp:
+		return model.EffectClipKindSetColorTemp
+	case effect.ClipNativeEffect:
+		return model.EffectClipKindNativeEffect
 	}
-	return model.EffectStepKindWait
+	return model.EffectClipKindSetOnOff
 }
 
 // sentenceCase converts a snake_case identifier into a sentence-cased display

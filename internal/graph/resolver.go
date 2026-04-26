@@ -106,7 +106,7 @@ type GraphStore interface {
 	ListEffects(ctx context.Context) ([]store.Effect, error)
 	UpdateEffect(ctx context.Context, id string, params store.UpdateEffectParams) (store.Effect, error)
 	DeleteEffect(ctx context.Context, id string) error
-	SaveEffectSteps(ctx context.Context, effectID string, steps []store.EffectStepInput) error
+	SaveEffectTracks(ctx context.Context, effectID string, tracks []store.EffectTrackInput) error
 	LoadEffect(ctx context.Context, id string) (effect.Effect, error)
 	ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord, error)
 
