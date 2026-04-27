@@ -11,6 +11,10 @@
 		id?: string;
 		class?: string;
 		ariaLabel?: string;
+		ariaInvalid?: "true" | "false" | undefined;
+		allowDecimal?: boolean;
+		allowNegative?: boolean;
+		nullable?: boolean;
 		onValueChange?: (next: number | null) => void;
 	}
 
@@ -23,6 +27,10 @@
 		id,
 		class: className = "",
 		ariaLabel,
+		ariaInvalid,
+		allowDecimal = false,
+		allowNegative = false,
+		nullable = false,
 		onValueChange,
 	}: Props = $props();
 
@@ -40,29 +48,57 @@
 		});
 	});
 
+	function cleanBuffer(raw: string): string {
+		let sign = "";
+		let body = raw;
+		if (allowNegative && body.startsWith("-")) {
+			sign = "-";
+			body = body.slice(1);
+		}
+		body = body.replace(/-/g, "");
+		if (!allowDecimal) return sign + body.replace(/[^0-9]/g, "");
+		body = body.replace(/[^0-9.]/g, "");
+		const firstDot = body.indexOf(".");
+		if (firstDot !== -1) {
+			body = body.slice(0, firstDot + 1) + body.slice(firstDot + 1).replace(/\./g, "");
+		}
+		return sign + body;
+	}
+
 	function handleInput(event: Event) {
 		const raw = (event.currentTarget as HTMLInputElement).value;
-		const cleaned = raw.replace(/[^0-9]/g, "");
+		const cleaned = cleanBuffer(raw);
 		buffer = cleaned;
 		if (cleaned !== raw) {
 			(event.currentTarget as HTMLInputElement).value = cleaned;
 		}
 	}
 
-	function commit() {
-		if (buffer === "") {
-			const fallback = min ?? 0;
-			value = fallback;
-			buffer = String(fallback);
-			onValueChange?.(fallback);
+	function commitEmpty() {
+		if (nullable) {
+			value = null;
+			buffer = "";
+			onValueChange?.(null);
 			return;
 		}
-		const parsed = parseInt(buffer, 10);
+		const fallback = min ?? 0;
+		value = fallback;
+		buffer = String(fallback);
+		onValueChange?.(fallback);
+	}
+
+	function isPartial(s: string): boolean {
+		return s === "" || s === "-" || s === "." || s === "-." ;
+	}
+
+	function commit() {
+		if (isPartial(buffer)) {
+			commitEmpty();
+			return;
+		}
+		const parsed = allowDecimal ? parseFloat(buffer) : parseInt(buffer, 10);
 		if (!Number.isFinite(parsed)) {
-			const fallback = min ?? 0;
-			value = fallback;
-			buffer = String(fallback);
-			onValueChange?.(fallback);
+			commitEmpty();
 			return;
 		}
 		let clamped = parsed;
@@ -78,13 +114,13 @@
 	bind:ref={inputRef}
 	{id}
 	type="text"
-	inputmode="numeric"
-	pattern="[0-9]*"
+	inputmode={allowDecimal ? "decimal" : "numeric"}
 	value={buffer}
 	{placeholder}
 	{disabled}
 	class={className}
 	aria-label={ariaLabel}
+	aria-invalid={ariaInvalid}
 	oninput={handleInput}
 	onblur={commit}
 />

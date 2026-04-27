@@ -7,6 +7,7 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import NumberInput from "$lib/components/number-input.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
@@ -380,18 +381,17 @@
 									{/each}
 								</SelectContent>
 							</Select>
-							<Input
-								type="number"
-								value={data.config.value ?? ""}
-								oninput={(e) => {
-									const target = e.target as HTMLInputElement;
-									update({ value: target.value });
-								}}
+							<NumberInput
+								allowDecimal
+								allowNegative
+								nullable
+								value={data.config.value !== undefined && data.config.value !== "" ? Number(data.config.value) : null}
+								onValueChange={(v) => update({ value: v === null ? "" : String(v) })}
 								min={selectedCapability.valueMin ?? undefined}
 								max={selectedCapability.valueMax ?? undefined}
 								placeholder={selectedCapability.unit ?? "value"}
 								class="text-xs"
-								aria-invalid={validationError?.field === "value" ? "true" : undefined}
+								ariaInvalid={validationError?.field === "value" ? "true" : undefined}
 							/>
 						</div>
 					{:else if selectedCapability.type === "enum" && selectedCapability.values}
@@ -482,43 +482,34 @@
 
 				{#if (data.config.scheduleSubmode ?? "at") === "at"}
 					<div class="flex gap-1">
-						<Input
-							type="number"
-							value={data.config.scheduleHour ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ scheduleHour: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.scheduleHour ?? null}
+							onValueChange={(v) => update({ scheduleHour: v ?? undefined })}
 							min={0}
 							max={23}
 							placeholder="HH"
 							class="text-xs"
+							ariaLabel="Schedule hour"
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
-						<Input
-							type="number"
-							value={data.config.scheduleMinute ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ scheduleMinute: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.scheduleMinute ?? null}
+							onValueChange={(v) => update({ scheduleMinute: v ?? undefined })}
 							min={0}
 							max={59}
 							placeholder="MM"
 							class="text-xs"
+							ariaLabel="Schedule minute"
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
-						<Input
-							type="number"
-							value={data.config.scheduleSecond ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ scheduleSecond: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.scheduleSecond ?? null}
+							onValueChange={(v) => update({ scheduleSecond: v ?? undefined })}
 							min={0}
 							max={59}
 							placeholder="SS"
 							class="text-xs"
+							ariaLabel="Schedule second"
 						/>
 					</div>
 					<div class="flex gap-0.5">
@@ -536,17 +527,14 @@
 					</div>
 				{:else if data.config.scheduleSubmode === "every"}
 					<div class="flex gap-1">
-						<Input
-							type="number"
-							value={data.config.scheduleIntervalValue ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ scheduleIntervalValue: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.scheduleIntervalValue ?? null}
+							onValueChange={(v) => update({ scheduleIntervalValue: v ?? undefined })}
 							min={1}
 							placeholder="N"
 							class="text-xs w-16"
-							aria-invalid={validationError?.field === "interval" ? "true" : undefined}
+							ariaInvalid={validationError?.field === "interval" ? "true" : undefined}
+							ariaLabel="Schedule interval"
 						/>
 						<Select
 							type="single"

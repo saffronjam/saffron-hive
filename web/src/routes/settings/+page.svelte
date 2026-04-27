@@ -4,6 +4,7 @@
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import NumberInput from "$lib/components/number-input.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import {
@@ -100,8 +101,8 @@
 	let logLevel = $state("INFO");
 	let origLogLevel = $state("");
 
-	let historyRetentionDays = $state("365");
-	let origHistoryRetentionDays = $state("365");
+	let historyRetentionDays = $state<number | null>(365);
+	let origHistoryRetentionDays = $state(365);
 
 	let saving = $state(false);
 	let testing = $state(false);
@@ -148,7 +149,9 @@
 				if (s.key === "log_level") {
 					logLevel = origLogLevel = s.value;
 				} else if (s.key === "history.retention_days") {
-					historyRetentionDays = origHistoryRetentionDays = s.value;
+					const parsed = parseInt(s.value, 10);
+					const days = Number.isFinite(parsed) && parsed > 0 ? parsed : 365;
+					historyRetentionDays = origHistoryRetentionDays = days;
 				}
 			}
 		}
@@ -197,22 +200,22 @@
 				origLogLevel = logLevel;
 			}
 			if (historyRetentionDays !== origHistoryRetentionDays) {
-				const parsed = Number(historyRetentionDays);
-				if (!Number.isFinite(parsed) || parsed <= 0) {
+				const parsed = historyRetentionDays;
+				if (parsed === null || !Number.isFinite(parsed) || parsed <= 0) {
 					console.error("Invalid retention value");
 					return;
 				}
 				const result = await client
 					.mutation(UPDATE_SETTING, {
 						key: "history.retention_days",
-						value: String(Math.floor(parsed)),
+						value: String(parsed),
 					})
 					.toPromise();
 				if (result.error) {
 					console.error("Failed to update retention:", result.error);
 					return;
 				}
-				origHistoryRetentionDays = historyRetentionDays;
+				origHistoryRetentionDays = parsed;
 			}
 		} finally {
 			saving = false;
@@ -319,11 +322,11 @@
 		<div class="grid gap-4 max-w-lg">
 			<div class="grid gap-1.5">
 				<label for="retention-days" class="text-sm font-medium">Retention (days)</label>
-				<Input
+				<NumberInput
 					id="retention-days"
-					type="number"
-					min="1"
+					min={1}
 					bind:value={historyRetentionDays}
+					ariaLabel="Retention days"
 				/>
 				<p class="text-xs text-muted-foreground">
 					Device state samples older than this are pruned every 6 hours.

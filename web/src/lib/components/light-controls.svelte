@@ -2,9 +2,9 @@
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
+	import NumberInput from "$lib/components/number-input.svelte";
 	import type { DeviceState } from "$lib/stores/devices";
 
 	interface CommandInput {
@@ -28,13 +28,13 @@
 	let colorTimer: ReturnType<typeof setTimeout> | null = $state(null);
 
 	let localBrightness = $state(127);
-	let transitionValue = $state("");
+	let transitionValue = $state<number | null>(null);
 	let initialized = $state(false);
 
 	$effect(() => {
 		if (!initialized) {
 			localBrightness = lightState.brightness ?? 127;
-			transitionValue = lightState.transition?.toString() ?? "";
+			transitionValue = lightState.transition ?? null;
 			initialized = true;
 		}
 	});
@@ -58,11 +58,11 @@
 		if (brightnessTimer) clearTimeout(brightnessTimer);
 		brightnessTimer = setTimeout(() => {
 			brightnessTimer = null;
-			const t = parseFloat(transitionValue);
+			const t = transitionValue;
 			oncommand({
 				...autoOn(),
 				brightness: val,
-				...(Number.isFinite(t) && t > 0 ? { transition: t } : {}),
+				...(t !== null && t > 0 ? { transition: t } : {}),
 			});
 		}, 200);
 	}
@@ -71,11 +71,11 @@
 		if (colorTempTimer) clearTimeout(colorTempTimer);
 		colorTempTimer = setTimeout(() => {
 			colorTempTimer = null;
-			const t = parseFloat(transitionValue);
+			const t = transitionValue;
 			oncommand({
 				...autoOn(),
 				colorTemp: val,
-				...(Number.isFinite(t) && t > 0 ? { transition: t } : {}),
+				...(t !== null && t > 0 ? { transition: t } : {}),
 			});
 		}, 200);
 	}
@@ -106,11 +106,11 @@
 		colorTimer = setTimeout(() => {
 			colorTimer = null;
 			const xy = rgbToXy(color.r, color.g, color.b);
-			const t = parseFloat(transitionValue);
+			const t = transitionValue;
 			oncommand({
 				...autoOn(),
 				color: { ...color, x: xy.x, y: xy.y },
-				...(Number.isFinite(t) && t > 0 ? { transition: t } : {}),
+				...(t !== null && t > 0 ? { transition: t } : {}),
 			});
 		}, 200);
 	}
@@ -189,14 +189,14 @@
 		</CardHeader>
 		<CardContent>
 			<div class="flex items-center gap-3">
-				<Input
-					type="number"
+				<NumberInput
+					allowDecimal
 					placeholder="0.0"
 					bind:value={transitionValue}
 					class="max-w-32"
 					min={0}
-					step={0.1}
 					disabled={sending}
+					ariaLabel="Transition seconds"
 				/>
 				<span class="text-sm text-muted-foreground">seconds</span>
 			</div>

@@ -7,6 +7,7 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import NumberInput from "$lib/components/number-input.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
@@ -230,60 +231,48 @@
 				<div class="grid gap-1.5">
 					<span class="text-[10px] text-muted-foreground">After</span>
 					<div class="flex gap-1">
-						<Input
-							type="number"
-							value={data.config.afterHour ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ afterHour: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.afterHour ?? null}
+							onValueChange={(v) => update({ afterHour: v ?? undefined })}
 							min={0}
 							max={23}
 							placeholder="HH"
 							class="text-xs"
+							ariaLabel="After hour"
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
-						<Input
-							type="number"
-							value={data.config.afterMinute ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ afterMinute: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.afterMinute ?? null}
+							onValueChange={(v) => update({ afterMinute: v ?? undefined })}
 							min={0}
 							max={59}
 							placeholder="MM"
 							class="text-xs"
+							ariaLabel="After minute"
 						/>
 					</div>
 				</div>
 				<div class="grid gap-1.5">
 					<span class="text-[10px] text-muted-foreground">Before</span>
 					<div class="flex gap-1">
-						<Input
-							type="number"
-							value={data.config.beforeHour ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ beforeHour: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.beforeHour ?? null}
+							onValueChange={(v) => update({ beforeHour: v ?? undefined })}
 							min={0}
 							max={23}
 							placeholder="HH"
 							class="text-xs"
+							ariaLabel="Before hour"
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
-						<Input
-							type="number"
-							value={data.config.beforeMinute ?? ""}
-							oninput={(e) => {
-								const t = e.target as HTMLInputElement;
-								update({ beforeMinute: t.value !== "" ? Number(t.value) : undefined });
-							}}
+						<NumberInput
+							value={data.config.beforeMinute ?? null}
+							onValueChange={(v) => update({ beforeMinute: v ?? undefined })}
 							min={0}
 							max={59}
 							placeholder="MM"
 							class="text-xs"
+							ariaLabel="Before minute"
 						/>
 					</div>
 				</div>
@@ -377,16 +366,15 @@
 									{/each}
 								</SelectContent>
 							</Select>
-							<Input
-								type="number"
-								value={data.config.value ?? ""}
-								oninput={(e) => {
-									const t = e.target as HTMLInputElement;
-									update({ value: t.value });
-								}}
+							<NumberInput
+								allowDecimal
+								allowNegative
+								nullable
+								value={data.config.value !== undefined && data.config.value !== "" ? Number(data.config.value) : null}
+								onValueChange={(v) => update({ value: v === null ? "" : String(v) })}
 								placeholder="value"
 								class="text-xs"
-								aria-invalid={validationError?.field === "value" ? "true" : undefined}
+								ariaInvalid={validationError?.field === "value" ? "true" : undefined}
 							/>
 						</div>
 					{:else if selectedCapability.type === "enum" && selectedCapability.values}
