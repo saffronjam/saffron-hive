@@ -376,19 +376,28 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 		active[id] = result
 	}
 
-	// Reachable set: nodes on any path from a fired trigger, plus all
-	// incoming ancestors of those nodes. Only reachable nodes are processed
-	// below. Forward BFS finds the active paths; a backward pass pulls in
-	// orphan inputs (e.g. a standalone condition feeding an AND operator
-	// that also has a firing trigger as input) so merge nodes see their
-	// full set of inputs. Without this gate, NOT operators in disjoint
-	// subgraphs would invert a zero-value trigger state and fire unrelated
-	// actions.
-	reachable := make(map[NodeID]bool)
+	// Two-tier reachability gate.
+	//
+	// forwardReachable: nodes downstream of a fired trigger. These are the
+	// nodes the event actually drove. Operators and actions only fire when
+	// they sit in this set — their "active" state is meaningful only as a
+	// consequence of an event flowing through them.
+	//
+	// reachable: forwardReachable plus the ancestors of those nodes. The
+	// backward pass pulls in inputs that operators in the forward set need
+	// to evaluate (e.g. a side condition on an AND with a firing trigger
+	// as its other input). Conditions in this expanded set get evaluated;
+	// operators in this set but not in forwardReachable are NOT evaluated
+	// and stay at their zero-value active=false. Without this distinction
+	// a NOT pulled in purely for backward eval would invert a zero-value
+	// trigger to true and propagate that bogus state down to a forward-
+	// reachable action, firing it for an event it has no logical relation
+	// to.
+	forwardReachable := make(map[NodeID]bool)
 	fwdQueue := make([]NodeID, 0, len(triggerResults))
 	for id, fired := range triggerResults {
 		if fired {
-			reachable[id] = true
+			forwardReachable[id] = true
 			fwdQueue = append(fwdQueue, id)
 		}
 	}
@@ -396,11 +405,15 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 		id := fwdQueue[0]
 		fwdQueue = fwdQueue[1:]
 		for _, next := range cg.outgoingMap[id] {
-			if !reachable[next] {
-				reachable[next] = true
+			if !forwardReachable[next] {
+				forwardReachable[next] = true
 				fwdQueue = append(fwdQueue, next)
 			}
 		}
+	}
+	reachable := make(map[NodeID]bool, len(forwardReachable))
+	for id := range forwardReachable {
+		reachable[id] = true
 	}
 	backQueue := make([]NodeID, 0, len(reachable))
 	for id := range reachable {
@@ -445,6 +458,9 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			e.publishNodeActivation(cg.automationID, nodeID, result)
 
 		case NodeOperator:
+			if !forwardReachable[nodeID] {
+				continue
+			}
 			opCfg, ok := node.Config.(OperatorConfig)
 			if !ok {
 				continue

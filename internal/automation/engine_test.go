@@ -1082,3 +1082,335 @@ func TestEngineSetDeviceStateGroupFanoutFilters(t *testing.T) {
 		t.Errorf("unknown: expected permissive passthrough, got %+v", unknown)
 	}
 }
+
+// TestEngineDisjointOrAndNotChainsIsolated covers a graph with two unrelated
+// chains sharing only a graph id: on_press → OR → on:true and
+// off_press → condition → NOT → on:false. Pressing on_press must fire on:true
+// only; the NOT operator in the unrelated chain must not invert a zero-value
+// trigger and emit on:false.
+func TestEngineDisjointOrAndNotChainsIsolated(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-distinct", Name: "Distinct", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tOn", AutomationID: "auto-distinct", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"on_press\""}`},
+			{ID: "tOff", AutomationID: "auto-distinct", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"off_press\""}`},
+			{ID: "cThu", AutomationID: "auto-distinct", Type: "condition",
+				Config: `{"expr":"time.weekday == \"Thursday\""}`},
+			{ID: "opNot", AutomationID: "auto-distinct", Type: "operator", Config: `{"kind":"not"}`},
+			{ID: "opOr", AutomationID: "auto-distinct", Type: "operator", Config: `{"kind":"or"}`},
+			{ID: "aOn", AutomationID: "auto-distinct", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
+			{ID: "aOff", AutomationID: "auto-distinct", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":false}"}`},
+		},
+		[]store.AutomationEdge{
+			{AutomationID: "auto-distinct", FromNodeID: "tOn", ToNodeID: "opOr"},
+			{AutomationID: "auto-distinct", FromNodeID: "opOr", ToNodeID: "aOn"},
+			{AutomationID: "auto-distinct", FromNodeID: "tOff", ToNodeID: "cThu"},
+			{AutomationID: "auto-distinct", FromNodeID: "cThu", ToNodeID: "opNot"},
+			{AutomationID: "auto-distinct", FromNodeID: "opNot", ToNodeID: "aOff"},
+			{AutomationID: "auto-distinct", FromNodeID: "opNot", ToNodeID: "opOr"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "on_press"},
+	})
+
+	deadline := time.After(200 * time.Millisecond)
+	var got []eventbus.Event
+collect:
+	for {
+		select {
+		case ev := <-ch:
+			got = append(got, ev)
+		case <-deadline:
+			break collect
+		}
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected exactly 1 command (on:true) from on_press, got %d: %+v", len(got), got)
+	}
+	cmd := got[0].Payload.(device.Command)
+	if cmd.On == nil || !*cmd.On {
+		t.Fatalf("expected on:true command, got %+v", cmd)
+	}
+}
+
+// TestEngineANDWithBackwardSideCondition guards the reason backward BFS
+// exists: an AND with one input from a fired trigger and another input
+// from a standalone condition still evaluates the condition. Without the
+// backward pass, the AND would see active[condition]=false (zero default)
+// and never fire even when the condition is in fact true.
+func TestEngineANDWithBackwardSideCondition(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-and-side", Name: "and+side", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tOn", AutomationID: "auto-and-side", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"on_press\""}`},
+			// setupEngine fixes the clock to Monday 2025-01-06; this condition
+			// is true at that timestamp.
+			{ID: "cAfter", AutomationID: "auto-and-side", Type: "condition", Config: `{"expr":"time.hour >= 12"}`},
+			{ID: "opAnd", AutomationID: "auto-and-side", Type: "operator", Config: `{"kind":"and"}`},
+			{ID: "aOn", AutomationID: "auto-and-side", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{AutomationID: "auto-and-side", FromNodeID: "tOn", ToNodeID: "opAnd"},
+			{AutomationID: "auto-and-side", FromNodeID: "cAfter", ToNodeID: "opAnd"},
+			{AutomationID: "auto-and-side", FromNodeID: "opAnd", ToNodeID: "aOn"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "on_press"},
+	})
+
+	select {
+	case <-ch:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("AND with backward-pulled side condition should have fired the action")
+	}
+}
+
+// TestEngineOperatorBackwardOnlyDoesNotPropagate verifies that an operator
+// pulled into the evaluation set only by backward BFS (i.e. not on a path
+// from any fired trigger) does not get evaluated and cannot drive a
+// forward-reachable action. Graph:
+//
+//	manual_trigger ──► NOT ───────────┐
+//	                                  ▼
+//	off_press ──► cond(Sunday) ──► action(on:true)
+//
+// On a non-Sunday, pressing off_press leaves cond=false. The action has
+// NOT as a second incoming, but NOT is backward-only — it must not be
+// evaluated to NOT(unfired_manual=false)=true and fire the action.
+func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-bug", Name: "bug", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tManual", AutomationID: "auto-bug", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "tOff", AutomationID: "auto-bug", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"off_press\""}`},
+			{ID: "cSun", AutomationID: "auto-bug", Type: "condition", Config: `{"expr":"time.weekday == \"Sunday\""}`},
+			{ID: "opNot", AutomationID: "auto-bug", Type: "operator", Config: `{"kind":"not"}`},
+			{ID: "aOn", AutomationID: "auto-bug", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{
+			{AutomationID: "auto-bug", FromNodeID: "tManual", ToNodeID: "opNot"},
+			{AutomationID: "auto-bug", FromNodeID: "opNot", ToNodeID: "aOn"},
+			{AutomationID: "auto-bug", FromNodeID: "tOff", ToNodeID: "cSun"},
+			{AutomationID: "auto-bug", FromNodeID: "cSun", ToNodeID: "aOn"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "off_press"},
+	})
+
+	select {
+	case ev := <-ch:
+		t.Fatalf("action should NOT fire — manual trigger never fired and condition is false (non-Sunday). got %+v", ev)
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
+// TestEngineDistinctActivationVisibility reports exactly which node activation
+// events the engine publishes when on_press fires on the user's "Distinct"
+// graph. action(on:false) — the top-action — must never appear with
+// active=true.
+func TestEngineDistinctActivationVisibility(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-distinct", Name: "Distinct", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tOn", AutomationID: "auto-distinct", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"on_press\"","grace_ms":5000}`},
+			{ID: "tOff", AutomationID: "auto-distinct", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"off_press\""}`},
+			{ID: "cThu", AutomationID: "auto-distinct", Type: "condition",
+				Config: `{"expr":"time.weekday == \"Thursday\""}`},
+			{ID: "opNot", AutomationID: "auto-distinct", Type: "operator", Config: `{"kind":"not"}`},
+			{ID: "opOr", AutomationID: "auto-distinct", Type: "operator", Config: `{"kind":"or"}`},
+			{ID: "aOn", AutomationID: "auto-distinct", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
+			{ID: "aOff", AutomationID: "auto-distinct", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":false}"}`},
+		},
+		[]store.AutomationEdge{
+			{AutomationID: "auto-distinct", FromNodeID: "tOn", ToNodeID: "opOr"},
+			{AutomationID: "auto-distinct", FromNodeID: "opOr", ToNodeID: "aOn"},
+			{AutomationID: "auto-distinct", FromNodeID: "tOff", ToNodeID: "cThu"},
+			{AutomationID: "auto-distinct", FromNodeID: "cThu", ToNodeID: "opNot"},
+			{AutomationID: "auto-distinct", FromNodeID: "opNot", ToNodeID: "aOff"},
+			{AutomationID: "auto-distinct", FromNodeID: "opNot", ToNodeID: "opOr"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventAutomationNodeActivated)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "on_press"},
+	})
+
+	deadline := time.After(200 * time.Millisecond)
+	var got []NodeActivation
+collect:
+	for {
+		select {
+		case ev := <-ch:
+			got = append(got, ev.Payload.(NodeActivation))
+		case <-deadline:
+			break collect
+		}
+	}
+
+	for _, na := range got {
+		if na.NodeID == "aOff" && na.Active {
+			t.Fatalf("aOff (top-action on:false) should NOT receive active=true on on_press, got %+v", na)
+		}
+	}
+}
+
+// TestEngineGraceCrossFireBothChains pins down the user-visible misfire: with
+// grace_ms set on the on_press trigger, pressing on_press and then off_press
+// inside the grace window pulls both triggers into the active set, the OR
+// operator (which now also takes NOT as input) sees both branches as true,
+// and BOTH actions fire (on:true and on:false). This is the loop-prevention
+// gap exposed by mixing grace with cross-chain NOT→OR wiring.
+func TestEngineGraceCrossFireBothChains(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-distinct", Name: "Distinct", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "tOn", AutomationID: "auto-distinct", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"on_press\"","grace_ms":5000}`},
+			{ID: "tOff", AutomationID: "auto-distinct", Type: "trigger",
+				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"off_press\""}`},
+			{ID: "cThu", AutomationID: "auto-distinct", Type: "condition",
+				Config: `{"expr":"time.weekday == \"Thursday\""}`},
+			{ID: "opNot", AutomationID: "auto-distinct", Type: "operator", Config: `{"kind":"not"}`},
+			{ID: "opOr", AutomationID: "auto-distinct", Type: "operator", Config: `{"kind":"or"}`},
+			{ID: "aOn", AutomationID: "auto-distinct", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
+			{ID: "aOff", AutomationID: "auto-distinct", Type: "action",
+				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":false}"}`},
+		},
+		[]store.AutomationEdge{
+			{AutomationID: "auto-distinct", FromNodeID: "tOn", ToNodeID: "opOr"},
+			{AutomationID: "auto-distinct", FromNodeID: "opOr", ToNodeID: "aOn"},
+			{AutomationID: "auto-distinct", FromNodeID: "tOff", ToNodeID: "cThu"},
+			{AutomationID: "auto-distinct", FromNodeID: "cThu", ToNodeID: "opNot"},
+			{AutomationID: "auto-distinct", FromNodeID: "opNot", ToNodeID: "aOff"},
+			{AutomationID: "auto-distinct", FromNodeID: "opNot", ToNodeID: "opOr"},
+		},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "on_press"},
+	})
+	time.Sleep(50 * time.Millisecond)
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceActionFired,
+		DeviceID:  "btn-1",
+		Timestamp: time.Now(),
+		Payload:   device.Action{Action: "off_press"},
+	})
+
+	deadline := time.After(300 * time.Millisecond)
+	var got []device.Command
+collect:
+	for {
+		select {
+		case ev := <-ch:
+			got = append(got, ev.Payload.(device.Command))
+		case <-deadline:
+			break collect
+		}
+	}
+
+	hasOn, hasOff := false, false
+	for _, c := range got {
+		if c.On == nil {
+			continue
+		}
+		if *c.On {
+			hasOn = true
+		} else {
+			hasOff = true
+		}
+	}
+	if !(hasOn && hasOff) {
+		t.Fatalf("expected both on:true and on:false to fire (grace+NOT→OR cross-fire), got %d commands", len(got))
+	}
+}
