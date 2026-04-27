@@ -67,7 +67,7 @@ func deviceLookup(reader device.StateReader) func(string) map[string]any {
 			result["brightness"] = *st.Brightness
 		}
 		if st.ColorTemp != nil {
-			result["color_temp"] = *st.ColorTemp
+			result["colorTemp"] = *st.ColorTemp
 		}
 		if st.Temperature != nil {
 			result["temperature"] = *st.Temperature

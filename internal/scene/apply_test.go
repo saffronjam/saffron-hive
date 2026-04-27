@@ -104,7 +104,7 @@ func TestCommandFromDesired_GatesByCapability(t *testing.T) {
 	cmd := commandFromDesired(state, "dim-only", map[string]any{
 		"on":         true,
 		"brightness": 150,
-		"color_temp": 370,
+		"colorTemp":  370,
 		"color":      map[string]any{"r": 10, "g": 20, "b": 30, "x": 0.5, "y": 0.4},
 	})
 
@@ -119,5 +119,41 @@ func TestCommandFromDesired_GatesByCapability(t *testing.T) {
 	}
 	if cmd.Color != nil {
 		t.Errorf("expected Color=nil (no capability), got %+v", cmd.Color)
+	}
+}
+
+// TestCommandFromDesired_FrontendPayloadShape locks the contract between the
+// frontend's stored ActionPayload JSON shape (camelCase keys, with a "kind"
+// discriminator), store.ParseScenePayload, and commandFromDesired. The
+// literal payload below is copied from a real scene_device_payloads row.
+func TestCommandFromDesired_FrontendPayloadShape(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{
+		ID: "bulb",
+		Capabilities: []device.Capability{
+			writableCap(device.CapOnOff),
+			writableCap(device.CapBrightness),
+			writableCap(device.CapColorTemp),
+		},
+	})
+
+	parsed, err := store.ParseScenePayload(`{"on":true,"brightness":254,"colorTemp":150,"kind":"static"}`)
+	if err != nil {
+		t.Fatalf("ParseScenePayload: %v", err)
+	}
+	if parsed.Kind != store.ScenePayloadStatic {
+		t.Fatalf("expected static kind, got %q", parsed.Kind)
+	}
+
+	cmd := commandFromDesired(state, "bulb", parsed.Static)
+
+	if cmd.ColorTemp == nil || *cmd.ColorTemp != 150 {
+		t.Errorf("ColorTemp: want 150, got %v", cmd.ColorTemp)
+	}
+	if cmd.Brightness == nil || *cmd.Brightness != 254 {
+		t.Errorf("Brightness: want 254, got %v", cmd.Brightness)
+	}
+	if cmd.On == nil || !*cmd.On {
+		t.Errorf("On: want true, got %v", cmd.On)
 	}
 }

@@ -72,7 +72,7 @@ func TestScenes_MixedStaticAndEffectPayloads(t *testing.T) {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteEffect(id: $id) }`, map[string]any{"id": effID})
 	})
 
-	staticPayload := `{"kind":"static","on":true,"brightness":100,"color_temp":370}`
+	staticPayload := `{"kind":"static","on":true,"brightness":100,"colorTemp":370}`
 	effectPayload := `{"kind":"effect","effect_id":"` + effID + `"}`
 	data, err = graphqlMutation(`mutation($input: CreateSceneInput!) {
 		createScene(input: $input) { id }

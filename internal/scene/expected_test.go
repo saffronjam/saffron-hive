@@ -144,11 +144,11 @@ func TestExpectedMatchesCurrent_AnyFieldDiffers(t *testing.T) {
 			t.Fatal("brightness change should not match")
 		}
 	})
-	t.Run("color_temp differs", func(t *testing.T) {
+	t.Run("colorTemp differs", func(t *testing.T) {
 		c := *matching
 		c.ColorTemp = device.Ptr(300)
 		if ExpectedMatchesCurrent(base, &c) {
-			t.Fatal("color_temp change should not match")
+			t.Fatal("colorTemp change should not match")
 		}
 	})
 	t.Run("color differs", func(t *testing.T) {
@@ -207,9 +207,9 @@ func TestExpectedMatchesCurrent_NilExpectedIsDontCare(t *testing.T) {
 		t.Fatal("want match when only on is expected and current has only on")
 	}
 	// brightness is nil in expected → don't care; any current brightness
-	// should still match. The alternative strict rule caused scenes that
-	// set color_temp to deactivate themselves from the device's derived
-	// colour echo, which was the wrong behaviour.
+	// should still match. The alternative strict rule causes scenes that
+	// set colorTemp to deactivate themselves from the device's derived
+	// colour echo, which is the wrong behaviour.
 	if !ExpectedMatchesCurrent(exp, &device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(50)}) {
 		t.Fatal("expected-nil + current-non-nil should match (don't-care)")
 	}
@@ -221,7 +221,7 @@ func TestBuildExpected_ColorTempOnlyDoesNotTrackColor(t *testing.T) {
 		On:        device.Ptr(true),
 		ColorTemp: device.Ptr(500),
 	}
-	// Device was on colour X before apply; applying color_temp makes the
+	// Device was on colour X before apply; applying colorTemp makes the
 	// device derive a different colour. We must NOT record the pre-apply
 	// colour as expected, or the echo would invalidate us.
 	current := &device.DeviceState{
@@ -234,7 +234,7 @@ func TestBuildExpected_ColorTempOnlyDoesNotTrackColor(t *testing.T) {
 		t.Fatalf("ColorTemp: want 500, got %v", exp.ColorTemp)
 	}
 	if exp.ColorR != nil || exp.ColorG != nil || exp.ColorB != nil {
-		t.Fatalf("Color must be nil (don't-care) when scene drives color_temp; got (%v,%v,%v)", exp.ColorR, exp.ColorG, exp.ColorB)
+		t.Fatalf("Color must be nil (don't-care) when scene drives colorTemp; got (%v,%v,%v)", exp.ColorR, exp.ColorG, exp.ColorB)
 	}
 
 	// Post-apply echo: device reports the new derived colour. Must still match.
@@ -244,7 +244,7 @@ func TestBuildExpected_ColorTempOnlyDoesNotTrackColor(t *testing.T) {
 		Color:     &device.Color{R: 255, G: 180, B: 90},
 	}
 	if !ExpectedMatchesCurrent(exp, echo) {
-		t.Fatal("color_temp scene must not invalidate on derived colour echo")
+		t.Fatal("colorTemp scene must not invalidate on derived colour echo")
 	}
 }
 

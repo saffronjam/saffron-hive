@@ -452,7 +452,7 @@ func TestScenes_ActivatedAtSetOnApply(t *testing.T) {
 				{"targetType": "device", "targetId": deviceID},
 			},
 			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":255,"color_temp":370}`},
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":255,"colorTemp":370}`},
 			},
 		},
 	})
@@ -518,7 +518,7 @@ func TestScenes_DeactivatesOnDivergingState(t *testing.T) {
 				{"targetType": "device", "targetId": deviceID},
 			},
 			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":100,"color_temp":370}`},
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":100,"colorTemp":370}`},
 			},
 		},
 	})
@@ -603,7 +603,7 @@ func TestScenes_ActiveChangedSubscription(t *testing.T) {
 				{"targetType": "device", "targetId": deviceID},
 			},
 			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":120,"color_temp":370}`},
+				{"deviceId": deviceID, "payload": `{"on":true,"brightness":120,"colorTemp":370}`},
 			},
 		},
 	})

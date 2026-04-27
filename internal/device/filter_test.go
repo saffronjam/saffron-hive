@@ -35,8 +35,8 @@ func TestFilterCommandFields(t *testing.T) {
 		{
 			name: "light keeps all fields it supports",
 			dev:  light,
-			in:   map[string]any{"on": true, "brightness": 100, "color_temp": 370, "color": map[string]any{"r": 255}},
-			want: map[string]any{"on": true, "brightness": 100, "color_temp": 370, "color": map[string]any{"r": 255}},
+			in:   map[string]any{"on": true, "brightness": 100, "colorTemp": 370, "color": map[string]any{"r": 255}},
+			want: map[string]any{"on": true, "brightness": 100, "colorTemp": 370, "color": map[string]any{"r": 255}},
 		},
 		{
 			name: "plug strips brightness and color",

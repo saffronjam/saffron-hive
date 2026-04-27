@@ -251,7 +251,7 @@ func buildCommand(deviceID device.DeviceID, desired map[string]any) device.Comma
 	if v, ok := desired["brightness"]; ok {
 		cmd.Brightness = device.Ptr(toInt(v))
 	}
-	if v, ok := desired["color_temp"]; ok {
+	if v, ok := desired["colorTemp"]; ok {
 		cmd.ColorTemp = device.Ptr(toInt(v))
 	}
 	if v, ok := desired["color"]; ok {
@@ -336,7 +336,7 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 			if !ok || st.On == nil || *st.On != b {
 				return false
 			}
-		case "color_temp":
+		case "colorTemp":
 			if st.ColorTemp == nil || *st.ColorTemp != toInt(val) {
 				return false
 			}

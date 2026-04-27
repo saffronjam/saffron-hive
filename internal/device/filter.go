@@ -7,7 +7,7 @@ package device
 var commandFieldCapabilities = map[string]string{
 	"on":         CapOnOff,
 	"brightness": CapBrightness,
-	"color_temp": CapColorTemp,
+	"colorTemp":  CapColorTemp,
 	"color":      CapColor,
 }
 

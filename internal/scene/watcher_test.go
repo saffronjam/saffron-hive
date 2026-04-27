@@ -383,7 +383,7 @@ func TestWatcher_OverlappingScenes_BApplyDeactivatesA(t *testing.T) {
 	f.seedScene("scene-B", "dev-1")
 	f.store.mu.Lock()
 	f.store.payloads["scene-B"] = []store.SceneDevicePayload{
-		{SceneID: "scene-B", DeviceID: "dev-1", Payload: `{"on":true,"brightness":123,"color_temp":250}`},
+		{SceneID: "scene-B", DeviceID: "dev-1", Payload: `{"on":true,"brightness":123,"colorTemp":250}`},
 	}
 	f.store.mu.Unlock()
 

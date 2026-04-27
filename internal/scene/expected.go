@@ -25,8 +25,8 @@ const colorMatchDeltaE = 3.0
 //   - Left nil, meaning "don't care" — the field doesn't participate in
 //     invalidation. ExpectedMatchesCurrent treats nil as always matching.
 //
-// The color/color_temp pair is coupled on most colour bulbs: the device
-// derives one from the other. To avoid a scene that sets color_temp
+// The color/colorTemp pair is coupled on most colour bulbs: the device
+// derives one from the other. To avoid a scene that sets colorTemp
 // invalidating itself the moment the bulb echoes back a recomputed colour,
 // only the field the scene explicitly set is tracked when the scene touches
 // this pair. If the scene sets neither, both fall back to the pre-apply
@@ -69,13 +69,13 @@ func BuildExpected(sceneID string, cmd device.Command, current *device.DeviceSta
 // ExpectedMatchesCurrent reports whether a device's current reported state
 // still matches the expected snapshot. Nil expected fields are treated as
 // "don't care" and always match — this is what lets a scene that commanded
-// `color_temp` tolerate the bulb's derived colour drifting.
+// `colorTemp` tolerate the bulb's derived colour drifting.
 //
 // For non-nil expected fields the rule is strict: current must be non-nil
 // and equal. A device that stops reporting a field it was reporting at
 // apply time counts as drift.
 //
-// The set of compared fields is fixed to on, brightness, color_temp, and
+// The set of compared fields is fixed to on, brightness, colorTemp, and
 // color (RGB only, ignoring xy since devices round xy differently — an
 // exact RGB match is what "same colour" means for scene-active detection).
 // Sensor fields (temperature, humidity, battery, …) are never scene-relevant.
@@ -88,7 +88,7 @@ func ExpectedMatchesCurrent(exp store.SceneExpectedState, current *device.Device
 
 const (
 	fieldBrightness = "brightness"
-	fieldColorTemp  = "color_temp"
+	fieldColorTemp  = "colorTemp"
 )
 
 func boolFieldMatches(expected, current *bool) bool {

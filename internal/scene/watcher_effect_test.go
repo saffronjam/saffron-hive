@@ -237,7 +237,7 @@ func TestWatcher_MixedStaticAndEffectActivatesBoth(t *testing.T) {
 
 	f.seedSceneAction("scene-mix", "static-1")
 	f.seedSceneAction("scene-mix", "effect-1")
-	f.seedPayload("scene-mix", "static-1", `{"kind":"static","on":true,"brightness":150,"color_temp":370}`)
+	f.seedPayload("scene-mix", "static-1", `{"kind":"static","on":true,"brightness":150,"colorTemp":370}`)
 	f.seedPayload("scene-mix", "effect-1", `{"kind":"effect","effect_id":"fireplace"}`)
 
 	f.applyScene("scene-mix")
@@ -278,7 +278,7 @@ func TestWatcher_EffectDeviceDoesNotTriggerDriftOnStateChange(t *testing.T) {
 
 	f.seedSceneAction("scene-mix", "static-1")
 	f.seedSceneAction("scene-mix", "effect-1")
-	f.seedPayload("scene-mix", "static-1", `{"kind":"static","on":true,"brightness":200,"color_temp":370}`)
+	f.seedPayload("scene-mix", "static-1", `{"kind":"static","on":true,"brightness":200,"colorTemp":370}`)
 	f.seedPayload("scene-mix", "effect-1", `{"kind":"effect","effect_id":"fireplace"}`)
 
 	f.applyScene("scene-mix")

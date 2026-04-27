@@ -145,7 +145,7 @@ const (
 // ScenePayload is the parsed tagged-union form of a scene's per-device payload.
 // Exactly one of Static / EffectID / NativeName is meaningful, selected by
 // Kind. Static is the raw desired-state field map
-// (on/brightness/color_temp/color/transition); the apply path applies
+// (on/brightness/colorTemp/color/transition); the apply path applies
 // capability gating against it.
 type ScenePayload struct {
 	Kind       ScenePayloadKind

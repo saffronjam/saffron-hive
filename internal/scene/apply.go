@@ -159,7 +159,7 @@ func CommandToDesired(cmd device.Command) map[string]any {
 		out["brightness"] = *cmd.Brightness
 	}
 	if cmd.ColorTemp != nil {
-		out["color_temp"] = *cmd.ColorTemp
+		out["colorTemp"] = *cmd.ColorTemp
 	}
 	if cmd.Color != nil {
 		out["color"] = map[string]any{
@@ -189,7 +189,7 @@ func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired
 	if v, ok := desired["brightness"]; ok && allow(device.CapBrightness) {
 		cmd.Brightness = device.Ptr(toInt(v))
 	}
-	if v, ok := desired["color_temp"]; ok && allow(device.CapColorTemp) {
+	if v, ok := desired["colorTemp"]; ok && allow(device.CapColorTemp) {
 		cmd.ColorTemp = device.Ptr(toInt(v))
 	}
 	if v, ok := desired["color"]; ok && allow(device.CapColor) {
