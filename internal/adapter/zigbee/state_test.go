@@ -129,7 +129,7 @@ func TestMapDeviceState_OnOff(t *testing.T) {
 }
 
 func TestMapDeviceState_SensorFields(t *testing.T) {
-	raw := json.RawMessage(`{"temperature":22.5,"humidity":45.0,"battery":87}`)
+	raw := json.RawMessage(`{"temperature":22.5,"humidity":45.0,"battery":91.5}`)
 	state, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
@@ -140,8 +140,8 @@ func TestMapDeviceState_SensorFields(t *testing.T) {
 	if state.Humidity == nil || *state.Humidity != 45.0 {
 		t.Fatalf("expected Humidity=45.0, got %v", state.Humidity)
 	}
-	if state.Battery == nil || *state.Battery != 87 {
-		t.Fatalf("expected Battery=87, got %v", state.Battery)
+	if state.Battery == nil || *state.Battery != 91.5 {
+		t.Fatalf("expected Battery=91.5, got %v", state.Battery)
 	}
 }
 

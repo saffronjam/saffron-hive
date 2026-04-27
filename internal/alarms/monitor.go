@@ -18,7 +18,7 @@ const (
 	DiskFreeThreshold    = 0.10              // raise when free fraction falls below this
 	HeapBytesThreshold   = 500 * 1024 * 1024 // 500 MiB
 	DeviceStaleAfter     = 30 * time.Minute  // device considered unavailable after this
-	BatteryLowThreshold  = 15                // percentage
+	BatteryLowThreshold  = 15.0              // percentage
 	monitorTickInterval  = 30 * time.Second
 	monitorStartupSettle = 60 * time.Second // give boot time before first tick
 )
@@ -246,7 +246,7 @@ func collectChecks(
 						AlarmID:  batteryID,
 						Severity: store.AlarmSeverityLow,
 						Kind:     store.AlarmKindAuto,
-						Message:  fmt.Sprintf("Device %q battery is %d%%", d.Name, *ss.Battery),
+						Message:  fmt.Sprintf("Device %q battery is %.0f%%", d.Name, *ss.Battery),
 						Source:   MonitorSource,
 					},
 				})

@@ -149,7 +149,7 @@
 			result.push({ label: "Illuminance", value: state.illuminance.toFixed(0), unit: "lx", icon: Sun });
 		}
 		if (state.battery != null) {
-			result.push({ label: "Battery", value: `${state.battery}`, unit: "%", icon: Battery });
+			result.push({ label: "Battery", value: `${Math.round(state.battery)}`, unit: "%", icon: Battery });
 		}
 		return result;
 	});

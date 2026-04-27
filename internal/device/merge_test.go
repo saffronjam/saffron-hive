@@ -121,7 +121,7 @@ func TestMergeDeviceState_AllFields(t *testing.T) {
 		Transition:  Ptr(0.5),
 		Temperature: Ptr(20.0),
 		Humidity:    Ptr(50.0),
-		Battery:     Ptr(95),
+		Battery:     Ptr(95.0),
 		Pressure:    Ptr(1013.0),
 		Illuminance: Ptr(300.0),
 		Power:       Ptr(10.0),

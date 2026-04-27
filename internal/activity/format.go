@@ -141,7 +141,7 @@ func sensorParts(s device.DeviceState) []string {
 		parts = append(parts, fmt.Sprintf("%.0f lux", *s.Illuminance))
 	}
 	if s.Battery != nil {
-		parts = append(parts, fmt.Sprintf("battery %d%%", *s.Battery))
+		parts = append(parts, fmt.Sprintf("battery %.0f%%", *s.Battery))
 	}
 	return parts
 }

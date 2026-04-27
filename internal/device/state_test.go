@@ -32,7 +32,7 @@ func TestDeviceStateSensorFields(t *testing.T) {
 	s := DeviceState{
 		Temperature: Ptr(21.0),
 		Humidity:    Ptr(55.0),
-		Battery:     Ptr(87),
+		Battery:     Ptr(87.0),
 		Pressure:    Ptr(1013.25),
 		Illuminance: Ptr(340.0),
 	}
@@ -43,7 +43,7 @@ func TestDeviceStateSensorFields(t *testing.T) {
 		t.Fatalf("expected 55.0, got %f", *s.Humidity)
 	}
 	if *s.Battery != 87 {
-		t.Fatalf("expected 87, got %d", *s.Battery)
+		t.Fatalf("expected 87, got %g", *s.Battery)
 	}
 	if *s.Pressure != 1013.25 {
 		t.Fatalf("expected 1013.25, got %f", *s.Pressure)

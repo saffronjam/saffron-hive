@@ -94,7 +94,7 @@
 				<div class="flex items-center justify-between">
 					<CardTitle>Battery</CardTitle>
 					<Badge variant={state.battery > 20 ? "secondary" : "destructive"}>
-						{state.battery}%
+						{Math.round(state.battery)}%
 					</Badge>
 				</div>
 			</CardHeader>

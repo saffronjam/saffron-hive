@@ -171,7 +171,7 @@ func TestQueryDeviceSensorState(t *testing.T) {
 			State struct {
 				Temperature *float64 `json:"temperature"`
 				Humidity    *float64 `json:"humidity"`
-				Battery     *int     `json:"battery"`
+				Battery     *float64 `json:"battery"`
 			} `json:"state"`
 		} `json:"device"`
 	}

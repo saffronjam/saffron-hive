@@ -139,7 +139,7 @@
 						{sensor.humidity.toFixed(0)}% RH
 					{/if}
 					{#if sensor.temperature == null && sensor.humidity == null && sensor.battery != null}
-						Battery {sensor.battery}%
+						Battery {Math.round(sensor.battery)}%
 					{/if}
 					{#if sensor.temperature == null && sensor.humidity == null && sensor.battery == null}
 						No data

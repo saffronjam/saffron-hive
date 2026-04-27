@@ -48,7 +48,7 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 		State: device.DeviceState{
 			Temperature: ptr(21.5),
 			Humidity:    ptr(55.0),
-			Battery:     ptr(87),
+			Battery:     ptr(87.0),
 		},
 	}
 	bus.Publish(eventbus.Event{
@@ -67,7 +67,7 @@ func TestPayloadWithDomainTypes(t *testing.T) {
 		t.Fatalf("expected temperature 21.5, got %f", *ss.State.Temperature)
 	}
 	if *ss.State.Battery != 87 {
-		t.Fatalf("expected battery 87, got %d", *ss.State.Battery)
+		t.Fatalf("expected battery 87, got %g", *ss.State.Battery)
 	}
 	if !ss.Origin.IsZero() {
 		t.Fatalf("expected zero origin, got %+v", ss.Origin)

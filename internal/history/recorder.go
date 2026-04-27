@@ -66,7 +66,7 @@ func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
 		{FieldHumidity, ptrFloat(ds.Humidity), ds.Humidity != nil},
 		{FieldPressure, ptrFloat(ds.Pressure), ds.Pressure != nil},
 		{FieldIlluminance, ptrFloat(ds.Illuminance), ds.Illuminance != nil},
-		{FieldBattery, ptrIntToFloat(ds.Battery), ds.Battery != nil},
+		{FieldBattery, ptrFloat(ds.Battery), ds.Battery != nil},
 		{FieldPower, ptrFloat(ds.Power), ds.Power != nil},
 		{FieldVoltage, ptrFloat(ds.Voltage), ds.Voltage != nil},
 		{FieldCurrent, ptrFloat(ds.Current), ds.Current != nil},

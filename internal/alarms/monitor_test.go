@@ -427,7 +427,7 @@ func TestEvaluateAndApplyBatteryLowPerDevice(t *testing.T) {
 	s := newTestStore(t)
 	svc := NewService(s, NewBuffer())
 
-	lowBattery := 5
+	lowBattery := 5.0
 	reader := &fakeReader{
 		devices: []device.Device{
 			{ID: "sensor-1", Name: "Kitchen sensor", Type: device.Sensor, Available: true, LastSeen: time.Now()},
