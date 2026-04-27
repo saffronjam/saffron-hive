@@ -61,6 +61,34 @@ func TestCommandTranslation_LightOn(t *testing.T) {
 	}
 }
 
+func TestCommandTranslation_LightOff(t *testing.T) {
+	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "hall_light", "0xhall", device.Light)
+	defer adapter.Stop()
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventCommandRequested,
+		DeviceID:  "0xhall",
+		Timestamp: time.Now(),
+		Payload: device.Command{
+			DeviceID: device.DeviceID("0xhall"),
+			On:       device.Ptr(false),
+		},
+	})
+
+	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
+	if len(pubs) == 0 {
+		t.Fatal("expected at least one publish")
+	}
+
+	var payload z2mSetPayload
+	if err := json.Unmarshal(pubs[0].Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.State != "OFF" {
+		t.Fatalf("expected state OFF, got %s", payload.State)
+	}
+}
+
 func TestCommandTranslation_ColorTemp(t *testing.T) {
 	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "desk_lamp", "0xdef", device.Light)
 	defer adapter.Stop()
@@ -108,16 +136,81 @@ func TestCommandTranslation_Color(t *testing.T) {
 		t.Fatal("expected at least one publish")
 	}
 
-	var payload z2mSetPayload
-	if err := json.Unmarshal(pubs[0].Payload, &payload); err != nil {
+	var raw struct {
+		Color map[string]any `json:"color"`
+	}
+	if err := json.Unmarshal(pubs[0].Payload, &raw); err != nil {
 		t.Fatal(err)
 	}
-	if payload.Color == nil {
+	if raw.Color == nil {
 		t.Fatal("expected color to be set")
 	}
-	if payload.Color.R != 255 || payload.Color.G != 0 || payload.Color.B != 128 {
-		t.Fatalf("expected RGB 255,0,128 got %d,%d,%d", payload.Color.R, payload.Color.G, payload.Color.B)
+	if got := toInt(raw.Color["r"]); got != 255 {
+		t.Fatalf("color.r = %d, want 255", got)
 	}
+	if got := toInt(raw.Color["g"]); got != 0 {
+		t.Fatalf("color.g = %d, want 0", got)
+	}
+	if got := toInt(raw.Color["b"]); got != 128 {
+		t.Fatalf("color.b = %d, want 128", got)
+	}
+	if _, hasX := raw.Color["x"]; hasX {
+		t.Fatalf("RGB-only command must not include x: %v", raw.Color)
+	}
+	if _, hasY := raw.Color["y"]; hasY {
+		t.Fatalf("RGB-only command must not include y: %v", raw.Color)
+	}
+}
+
+func TestCommandTranslation_ColorXY(t *testing.T) {
+	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "xy_light", "0xxy", device.Light)
+	defer adapter.Stop()
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventCommandRequested,
+		DeviceID:  "0xxy",
+		Timestamp: time.Now(),
+		Payload: device.Command{
+			DeviceID: device.DeviceID("0xxy"),
+			Color:    &device.Color{R: 0, G: 0, B: 0, X: 0.4, Y: 0.5},
+		},
+	})
+
+	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
+	if len(pubs) == 0 {
+		t.Fatal("expected at least one publish")
+	}
+
+	var raw struct {
+		Color map[string]any `json:"color"`
+	}
+	if err := json.Unmarshal(pubs[0].Payload, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw.Color == nil {
+		t.Fatal("expected color to be set")
+	}
+	if got, _ := raw.Color["x"].(float64); got != 0.4 {
+		t.Fatalf("color.x = %v, want 0.4", raw.Color["x"])
+	}
+	if got, _ := raw.Color["y"].(float64); got != 0.5 {
+		t.Fatalf("color.y = %v, want 0.5", raw.Color["y"])
+	}
+	for _, k := range []string{"r", "g", "b"} {
+		if _, has := raw.Color[k]; has {
+			t.Fatalf("XY-mode command must not include %s: %v", k, raw.Color)
+		}
+	}
+}
+
+func toInt(v any) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	}
+	return 0
 }
 
 func TestCommandTranslation_UnknownDevice(t *testing.T) {
