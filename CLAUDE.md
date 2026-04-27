@@ -111,6 +111,22 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - The only exception is the persisted data at rest (user data, migrations). Write a proper migration; never keep a second table "just in case".
 - Corollary: if a rewrite leaves unused code anywhere in the tree, that code gets deleted in the same change.
 
+### No data backfills in Go code
+- **Schema or stored-data evolution lives in `internal/store/migrations/*.sql`. Never in Go.** golang-migrate runs the SQL files at startup; that is the only mechanism for transforming persisted data.
+- Forbidden: Go-side "one-shot" startup migrators that read legacy tables and rewrite rows, helper packages named `migrate.go`/`Migrate*`, accessors like `RawDB()` that exist solely to let such migrators bypass sqlc, version-detection branches in resolvers, or "if old shape, convert" code paths anywhere in `internal/`.
+- When the persisted shape changes: write the up/down migration SQL, update every Go/TS caller to the new shape in the same change, and delete the old shape from the codebase. There is no in-between state for the code to handle.
+- If a transform genuinely cannot be expressed in SQL, raise it before writing any code — do not invent a Go-side workaround.
+
+### Reuse first
+- Before writing a new function, component, or store, search for an existing one. Generic stores live under `web/src/lib/stores/`, shared utilities under `web/src/lib/utils/`, shared UI under `web/src/lib/components/`.
+- Concrete examples to reuse, not re-implement: `HistoryStack` (snapshot-based undo/redo), `LightColorPicker` (Color/White toggle + brightness slider), `NumberInput` (buffered numeric input with `allowDecimal` / `allowNegative` / `nullable` opt-ins), `HiveChip`, `HiveDrawer`, `isEditableTarget` (keyboard guard for editor-level shortcuts).
+- When you find yourself copy-pasting a pattern across two files, extract it on the third occurrence — or sooner if the pattern is non-trivial. The first place to check for a third near-identical implementation is the second one.
+
+### Design language
+- Stick to existing tokens: `rounded-lg shadow-card bg-card` for content cards (no `border`), `transition-colors duration-200` for state-driven properties, shadcn `Button` variants (`ghost`, `outline`, `default` with sizes like `sm`, `xs`, `icon-sm`), lucide icons for iconography.
+- Don't introduce new colour ramps, button shapes, or layout primitives unless the user explicitly asks for a new component or interaction pattern. New ideas land as deliberate user decisions, not drift.
+- For interactive editor surfaces with copy/paste/undo/redo, mirror the toolbar layout used in the automations editor: undo · redo · copy · paste, then domain-specific controls (zoom, etc.). Same shadcn `variant="ghost" size="icon-sm"` icon buttons, same keyboard map: `mod+z`, `mod+shift+z` / `mod+y`, `mod+c`, `mod+v`, all guarded by `isEditableTarget`.
+
 ### Type safety
 - Avoid `any` in domain and business logic. Use concrete types, generics, or union types. `any` is acceptable only at framework boundaries: the event bus payload (type-asserted by subscribers), gqlgen-generated code, and raw JSON envelopes at the HTTP / MQTT edges.
 - Prefer compile-time type checking over runtime assertions wherever possible.
@@ -130,6 +146,17 @@ Domain types are the authoritative representation. Everything else maps to/from 
   - Test helper comments like "regression: `X` used to `Y`", "the bug this refactor fixed" — name the invariant the test protects, not the patch history.
   - Migration SQL comments: explain **what the migration does in the current schema**, not how the model changed.
 - Comments describe what the code does *now*. If a comment only adds value by contrasting with a previous version, delete it — `git log` and `git blame` carry that story. For non-obvious current behavior, say **why it is that way now**, with no reference to what it used to be.
+
+### JSON key casing
+
+Three independent vocabularies coexist; pick the one that matches the layer you're writing in and don't cross-pollinate.
+
+- **Internal payload maps — camelCase.** The `map[string]any` representation passed between scene apply (`internal/scene/apply.go`), the automation action executor and `stateMatches` (`internal/automation/action.go`), the effect runner (`internal/effect/runner.go`), the capability filter (`internal/device/filter.go`), and the automation expression context (`internal/automation/expr.go`); plus the JSON stored in `scene_device_payloads.payload`. Keys: `on`, `brightness`, `colorTemp`, `color`, `transition`. Matches the GraphQL schema (`DeviceState.colorTemp`) and the frontend's `ActionPayload`. Adding a new field requires the same casing across every reader, writer, and the filter map — a missed lookup silently drops the field, there is no compile-time check across the boundary.
+- **MQTT / zigbee2mqtt wire format — snake_case.** Lives only in `internal/adapter/zigbee/dto.go` (struct tags), `state.go`, `command.go`, and the e2e MQTT fixtures. Never leaks past the adapter.
+- **Capability names — snake_case.** `device.CapColorTemp = "color_temp"` and friends mirror the capability strings Z2M emits in `bridge/devices`. Used as device capability identifiers (matched against `Device.Capabilities`), never as JSON map keys.
+- **Effect clip kind names — snake_case.** `set_color_temp`, `set_color_rgb`, etc. Independent identifier vocabulary for effect step types.
+
+If you find yourself wanting a third spelling for the same concept, you're on the wrong side of the boundary — domain types are the canonical bridge.
 
 ### Logging
 - Use `log/slog` (Go stdlib) — structured, leveled logging. No external logging libraries.

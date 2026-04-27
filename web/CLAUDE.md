@@ -86,6 +86,19 @@ Dark and light mode are supported via Tailwind's `dark:` class variant. The `<ht
 - Use Tailwind's `dark:` variant only when a component needs different styling beyond what the CSS variables provide.
 - Test both themes when adding or modifying components.
 
+## Save actions don't toast
+
+An edit page's Save button does not fire `toast.success`. The button's own
+state change — the dirty indicator turning off, or "Saving…" reverting to
+"Save" — is the visual ack. Toasts are reserved for errors and asynchronous
+out-of-band events (a scene drift-deactivating server-side, an alarm
+firing, etc.).
+
+Verified pattern: scenes, automations, settings save silently. When you
+add a new edit page, follow that pattern. Delete-and-navigate-away flows
+may toast (the page is gone before the user could read the button), but
+in-place saves do not.
+
 ## Card styling
 
 Content cards use `rounded-lg shadow-card bg-card` — no `border`. The `shadow-card` token provides the visual separation. Never use `border` on content cards; it produces a white outline in dark mode that clashes with the rest of the UI.
@@ -127,17 +140,22 @@ clearing or partially typing values, which makes editing painful (e.g.
 "go from 0 to 1000": users naturally erase the 0, then type 1-0-0-0,
 but `type="number"` rejects "" and clamps each keystroke).
 
-Use `web/src/lib/components/number-input.svelte` for any integer field.
+Use `web/src/lib/components/number-input.svelte` for any numeric field.
 It buffers the typed string, allows invalid intermediate states
-(empty, below `min`), and only clamps + emits a clean number on blur.
+(empty, below `min`, lone `-` or `.`), and only clamps + emits a clean
+number on blur.
 
 ```svelte
 <NumberInput bind:value={durationMs} min={50} ariaLabel="Duration" />
 ```
 
+Opt-ins as needed:
+- `allowDecimal` — fractional values (transition seconds, sensor floats).
+- `allowNegative` — sign at index 0 (temperature comparators).
+- `nullable` — empty buffer commits to `null` instead of falling back
+  to `min ?? 0`. Use when "empty" is a meaningful state (e.g. an
+  unset capability comparator value that save validation must reject).
+
 Page-level save validation (e.g. `validateTimelineEffect`) is still
 responsible for rejecting out-of-range values at submit time.
 NumberInput's job is to unblock typing, not to be the gatekeeper.
-
-For decimal inputs: not supported in v1. Extend NumberInput with an
-`allowDecimal` prop when the first real use case lands.
