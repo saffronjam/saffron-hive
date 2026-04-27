@@ -287,8 +287,6 @@
 		savedLoop = loop;
 		savedDurationMs = durationMs;
 		savedTracksJson = JSON.stringify(editableToInputTracks(tracks));
-
-		toast.success("Effect saved");
 	}
 
 	async function handleDelete() {

@@ -353,7 +353,7 @@
 	{#if open}
 		{#if suggestionMode === "keyword" && keywordSuggestions.length > 0}
 			<PopoverContent
-				class="w-(--bits-popover-anchor-width) min-w-48 max-h-64 overflow-auto p-0 ring-0 shadow-card"
+				class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
 				align="start"
 				sideOffset={4}
 				trapFocus={false}
@@ -388,7 +388,7 @@
 			</PopoverContent>
 		{:else if suggestionMode === "value" && valueSuggestions.length > 0}
 			<PopoverContent
-				class="w-(--bits-popover-anchor-width) min-w-48 max-h-64 overflow-auto p-0 ring-0 shadow-card"
+				class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
 				align="start"
 				sideOffset={4}
 				trapFocus={false}
@@ -420,7 +420,7 @@
 			</PopoverContent>
 		{:else if suggestionMode === "item" && items.length > 0 && getKey && getLabel}
 			<PopoverContent
-				class="w-(--bits-popover-anchor-width) min-w-48 max-h-64 overflow-auto p-0 ring-0 shadow-card"
+				class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
 				align="start"
 				sideOffset={4}
 				trapFocus={false}
