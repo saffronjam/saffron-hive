@@ -22,6 +22,8 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { Clapperboard, Workflow } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
+	import { isEditableTarget } from "$lib/utils/keyboard";
+	import dagre from "@dagrejs/dagre";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
 	import type { FlowApi } from "$lib/components/graph/flow-bridge.svelte";
 	import JsonEditor from "$lib/components/json-editor.svelte";
@@ -93,7 +95,6 @@
 	}
 
 	interface AutomationEdgeData {
-		id: string;
 		fromNodeId: string;
 		toNodeId: string;
 	}
@@ -480,7 +481,7 @@
 	}
 
 	function handleSort() {
-		flowNodes = layoutGraph(flowNodes);
+		flowNodes = layoutGraph(flowNodes, flowEdges);
 		takeSnapshot();
 	}
 
@@ -541,13 +542,6 @@
 	function handleRedo() {
 		const snap = history.redo();
 		if (snap) restoreSnapshot(snap);
-	}
-
-	function isEditableTarget(target: EventTarget | null): boolean {
-		if (!(target instanceof HTMLElement)) return false;
-		const tag = target.tagName;
-		if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-		return target.isContentEditable;
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -712,26 +706,53 @@
 		action: 300,
 	};
 
-	// layoutGraph assigns left-to-right column positions to nodes, compacting
-	// empty columns (e.g. if the graph has no operators, triggers sit next to
-	// actions without a gap). Returns a new array with updated positions.
-	function layoutGraph(nodes: Node[]): Node[] {
-		const presentTypes = COLUMN_ORDER.filter((t) => nodes.some((n) => n.type === t));
-		const columnIndex: Record<string, number> = {};
-		presentTypes.forEach((t, i) => (columnIndex[t] = i));
-		const yCounters: Record<string, number> = {};
+	// Fallback dimensions used when a node hasn't been measured by xyflow yet
+	// (e.g. on first load before mount). These are upper-bound estimates so
+	// dagre leaves enough vertical room — a too-small height is what produced
+	// the overlapping rows in the old type-bucketed layout.
+	const NODE_FALLBACK_DIMS: Record<string, { width: number; height: number }> = {
+		trigger: { width: 256, height: 360 },
+		condition: { width: 256, height: 280 },
+		operator: { width: 176, height: 140 },
+		action: { width: 256, height: 320 },
+	};
+
+	// layoutGraph runs dagre's hierarchical algorithm left-to-right with
+	// per-node measured dimensions, producing a layout that respects edge
+	// directionality and minimises crossings. Falls back to per-type
+	// estimates when a node hasn't been measured yet.
+	function layoutGraph(nodes: Node[], edges: Edge[]): Node[] {
+		const g = new dagre.graphlib.Graph();
+		g.setDefaultEdgeLabel(() => ({}));
+		g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 40, marginx: 20, marginy: 20 });
+
+		for (const n of nodes) {
+			const measured = n.measured;
+			const fallback = NODE_FALLBACK_DIMS[n.type ?? ""] ?? { width: 256, height: 240 };
+			g.setNode(n.id, {
+				width: measured?.width ?? fallback.width,
+				height: measured?.height ?? fallback.height,
+			});
+		}
+		for (const e of edges) {
+			g.setEdge(e.source, e.target);
+		}
+
+		dagre.layout(g);
+
 		return nodes.map((n) => {
-			const type = n.type ?? "trigger";
-			const col = columnIndex[type] ?? 0;
-			const row = yCounters[type] ?? 0;
-			yCounters[type] = row + 1;
-			const spacing = ROW_SPACING[type] ?? 250;
-			return { ...n, position: { x: col * COLUMN_WIDTH, y: row * spacing } };
+			const laid = g.node(n.id);
+			if (!laid) return n;
+			return {
+				...n,
+				position: { x: laid.x - laid.width / 2, y: laid.y - laid.height / 2 },
+			};
 		});
 	}
 
 	function automationNodesToFlowNodes(
 		nodes: AutomationNodeData[],
+		edges: AutomationEdgeData[],
 		isEditable: boolean,
 		activatedSet: Map<string, ReturnType<typeof setTimeout>>
 	): Node[] {
@@ -745,12 +766,18 @@
 				data: makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id),
 			};
 		});
-		return allZeroPositions ? layoutGraph(baseNodes) : baseNodes;
+		if (!allZeroPositions) return baseNodes;
+		const layoutEdges: Edge[] = edges.map((e) => ({
+			id: `edge-${e.fromNodeId}-${e.toNodeId}`,
+			source: e.fromNodeId,
+			target: e.toNodeId,
+		}));
+		return layoutGraph(baseNodes, layoutEdges);
 	}
 
 	function automationEdgesToFlowEdges(edges: AutomationEdgeData[]): Edge[] {
 		return edges.map((e) => ({
-			id: e.id,
+			id: `edge-${e.fromNodeId}-${e.toNodeId}`,
 			source: e.fromNodeId,
 			target: e.toNodeId,
 			animated: true,
@@ -922,8 +949,7 @@
 			positionY: typeof n.positionY === "number" ? n.positionY : 0,
 		}));
 
-		const edges: AutomationEdgeData[] = (obj.edges as Record<string, unknown>[]).map((e, i) => ({
-			id: `edge-${e.from}-${e.to}-${i}`,
+		const edges: AutomationEdgeData[] = (obj.edges as Record<string, unknown>[]).map((e) => ({
 			fromNodeId: e.from as string,
 			toNodeId: e.to as string,
 		}));
@@ -945,7 +971,7 @@
 		if (result.ok) {
 			jsonError = null;
 			automationName = result.name;
-			flowNodes = automationNodesToFlowNodes(result.nodes, editMode, activatedNodes);
+			flowNodes = automationNodesToFlowNodes(result.nodes, result.edges, editMode, activatedNodes);
 			flowEdges = automationEdgesToFlowEdges(result.edges);
 			takeSnapshot();
 		} else {
@@ -1258,7 +1284,7 @@
 			const newIds = auto.nodes.map((n) => n.id);
 			const idsChanged = oldIds.length !== newIds.length || oldIds.some((id, i) => id !== newIds[i]);
 			if (idsChanged) {
-				flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
+				flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
 			}
 			flowEdges = automationEdgesToFlowEdges(auto.edges);
 			jsonString = flowStateToJson();
@@ -1301,7 +1327,7 @@
 					automationName = auto.name;
 					automationIcon = auto.icon ?? null;
 					automationEnabled = auto.enabled;
-					flowNodes = automationNodesToFlowNodes(auto.nodes, editMode, activatedNodes);
+					flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
 					flowEdges = automationEdgesToFlowEdges(auto.edges);
 
 					let maxId = 0;
@@ -1388,10 +1414,10 @@
 					const node = flowNodes.find((n) => n.id === nodeId);
 					const isTrigger = node?.type === "trigger";
 					const cfg = node ? ((node.data as Record<string, unknown>).config as { graceMs?: number } | undefined) : undefined;
-					// Triggers hold their activation for their grace window (floor 100 ms
+					// Triggers hold their activation for their grace window (floor 600 ms
 					// so blink-short fires are still visible). Other node types get a
-					// fixed short blink — they have no persistent "active" semantics.
-					const durationMs = isTrigger ? Math.max(100, cfg?.graceMs ?? 0) : 100;
+					// fixed visible flash — they have no persistent "active" semantics.
+					const durationMs = isTrigger ? Math.max(600, cfg?.graceMs ?? 0) : 600;
 
 					const timeout = setTimeout(() => {
 						activatedNodes.delete(nodeId);
