@@ -154,12 +154,6 @@ func Run(ctx context.Context) error {
 	spawn("activity.recorder", func() { activityRecorder.Run(ctx) })
 	spawn("activity.retention", func() { activity.RunRetention(ctx, sqlStore) })
 
-	serveLogger.Info("effect step-to-track data migration starting")
-	if err := effect.MigrateEffectStepsToTracks(ctx, sqlStore); err != nil {
-		return fmt.Errorf("migrate effect_steps to tracks: %w", err)
-	}
-	serveLogger.Info("effect step-to-track data migration finished")
-
 	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, zigbeeTerminator{})
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)

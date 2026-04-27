@@ -23,13 +23,6 @@ func New(db *sql.DB) *DB {
 	return &DB{q: sqlite.New(db), db: db}
 }
 
-// RawDB returns the underlying *sql.DB. Used by one-shot data migrations that
-// need to read or write tables sqlc does not currently model (e.g. legacy
-// tables on their way out).
-func (s *DB) RawDB() *sql.DB {
-	return s.db
-}
-
 // execTx runs fn inside a BEGIN IMMEDIATE transaction, committing on success
 // and rolling back on error. The fn receives a *sqlite.Queries bound to the
 // tx so follow-up statements stay inside the same transaction.
