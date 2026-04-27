@@ -137,12 +137,14 @@ func mapEffect(row store.Effect) *model.Effect {
 		domainClips := make([]effect.Clip, 0, len(tr.Clips))
 		modelClips := make([]*model.EffectClip, 0, len(tr.Clips))
 		for _, cl := range tr.Clips {
+			cfg, _ := effect.UnmarshalClipConfig(cl.Kind, []byte(cl.ConfigJSON))
 			domainClips = append(domainClips, effect.Clip{
 				ID:              cl.ID,
 				StartMs:         cl.StartMs,
 				TransitionMinMs: cl.TransitionMinMs,
 				TransitionMaxMs: cl.TransitionMaxMs,
 				Kind:            cl.Kind,
+				Config:          cfg,
 			})
 			modelClips = append(modelClips, &model.EffectClip{
 				ID:              cl.ID,
@@ -223,10 +225,8 @@ func clipKindFromModel(k model.EffectClipKind) effect.ClipKind {
 		return effect.ClipSetOnOff
 	case model.EffectClipKindSetBrightness:
 		return effect.ClipSetBrightness
-	case model.EffectClipKindSetColorRgb:
-		return effect.ClipSetColorRGB
-	case model.EffectClipKindSetColorTemp:
-		return effect.ClipSetColorTemp
+	case model.EffectClipKindSetColor:
+		return effect.ClipSetColor
 	case model.EffectClipKindNativeEffect:
 		return effect.ClipNativeEffect
 	}
@@ -239,10 +239,8 @@ func clipKindToModel(k effect.ClipKind) model.EffectClipKind {
 		return model.EffectClipKindSetOnOff
 	case effect.ClipSetBrightness:
 		return model.EffectClipKindSetBrightness
-	case effect.ClipSetColorRGB:
-		return model.EffectClipKindSetColorRgb
-	case effect.ClipSetColorTemp:
-		return model.EffectClipKindSetColorTemp
+	case effect.ClipSetColor:
+		return model.EffectClipKindSetColor
 	case effect.ClipNativeEffect:
 		return model.EffectClipKindNativeEffect
 	}

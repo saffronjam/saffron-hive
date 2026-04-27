@@ -27,15 +27,21 @@ func TestClipConfigJSONRoundTrip(t *testing.T) {
 		},
 		{
 			name: "set_color_rgb",
-			kind: ClipSetColorRGB,
-			cfg:  ClipConfig{SetColorRGB: &SetColorRGBClipConfig{R: 244, G: 42, B: 23}},
-			want: `{"r":244,"g":42,"b":23}`,
+			kind: ClipSetColor,
+			cfg: ClipConfig{SetColor: &SetColorClipConfig{
+				Mode: ColorModeRGB,
+				RGB:  &SetColorRGBValue{R: 244, G: 42, B: 23},
+			}},
+			want: `{"mode":"rgb","rgb":{"r":244,"g":42,"b":23}}`,
 		},
 		{
 			name: "set_color_temp",
-			kind: ClipSetColorTemp,
-			cfg:  ClipConfig{SetColorTemp: &SetColorTempClipConfig{Mireds: 370}},
-			want: `{"mireds":370}`,
+			kind: ClipSetColor,
+			cfg: ClipConfig{SetColor: &SetColorClipConfig{
+				Mode: ColorModeTemp,
+				Temp: &SetColorTempValue{Mireds: 370},
+			}},
+			want: `{"mode":"temp","temp":{"mireds":370}}`,
 		},
 		{
 			name: "native_effect",
@@ -75,10 +81,25 @@ func TestClipConfigJSONRoundTrip(t *testing.T) {
 }
 
 func TestMarshalClipConfigMissingPayloadReturnsError(t *testing.T) {
-	for _, kind := range []ClipKind{ClipSetOnOff, ClipSetBrightness, ClipSetColorRGB, ClipSetColorTemp, ClipNativeEffect} {
+	for _, kind := range []ClipKind{ClipSetOnOff, ClipSetBrightness, ClipSetColor, ClipNativeEffect} {
 		if _, err := MarshalClipConfig(kind, ClipConfig{}); err == nil {
 			t.Errorf("kind %q: expected error for missing payload", kind)
 		}
+	}
+}
+
+func TestMarshalSetColorRequiresMatchingSubPayload(t *testing.T) {
+	cfgRGB := ClipConfig{SetColor: &SetColorClipConfig{Mode: ColorModeRGB}}
+	if _, err := MarshalClipConfig(ClipSetColor, cfgRGB); err == nil {
+		t.Error("mode=rgb without RGB payload should error")
+	}
+	cfgTemp := ClipConfig{SetColor: &SetColorClipConfig{Mode: ColorModeTemp}}
+	if _, err := MarshalClipConfig(ClipSetColor, cfgTemp); err == nil {
+		t.Error("mode=temp without Temp payload should error")
+	}
+	cfgUnknown := ClipConfig{SetColor: &SetColorClipConfig{Mode: ColorMode("bogus")}}
+	if _, err := MarshalClipConfig(ClipSetColor, cfgUnknown); err == nil {
+		t.Error("unknown mode should error")
 	}
 }
 
@@ -100,9 +121,12 @@ func TestUnmarshalClipConfigMalformedJSON(t *testing.T) {
 	}
 }
 
-func TestClipConfigDiskShapeColorRGB(t *testing.T) {
-	cfg := ClipConfig{SetColorRGB: &SetColorRGBClipConfig{R: 244, G: 42, B: 23}}
-	raw, err := MarshalClipConfig(ClipSetColorRGB, cfg)
+func TestClipConfigDiskShapeSetColorRGB(t *testing.T) {
+	cfg := ClipConfig{SetColor: &SetColorClipConfig{
+		Mode: ColorModeRGB,
+		RGB:  &SetColorRGBValue{R: 244, G: 42, B: 23},
+	}}
+	raw, err := MarshalClipConfig(ClipSetColor, cfg)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -110,12 +134,44 @@ func TestClipConfigDiskShapeColorRGB(t *testing.T) {
 	if err := json.Unmarshal(raw, &fields); err != nil {
 		t.Fatalf("unmarshal raw: %v", err)
 	}
+	if fields["mode"] != "rgb" {
+		t.Errorf("mode = %v, want rgb", fields["mode"])
+	}
+	if _, ok := fields["temp"]; ok {
+		t.Errorf("rgb-mode disk shape must not include temp: %s", raw)
+	}
+	rgb, ok := fields["rgb"].(map[string]any)
+	if !ok {
+		t.Fatalf("rgb missing or wrong type: %s", raw)
+	}
 	for _, k := range []string{"r", "g", "b"} {
-		if _, ok := fields[k]; !ok {
-			t.Errorf("missing field %q in disk shape: %s", k, raw)
+		if _, ok := rgb[k]; !ok {
+			t.Errorf("missing rgb.%s in disk shape: %s", k, raw)
 		}
 	}
-	if len(fields) != 3 {
-		t.Errorf("expected exactly 3 fields in disk shape, got: %s", raw)
+}
+
+func TestClipConfigDiskShapeSetColorTemp(t *testing.T) {
+	cfg := ClipConfig{SetColor: &SetColorClipConfig{
+		Mode: ColorModeTemp,
+		Temp: &SetColorTempValue{Mireds: 370},
+	}}
+	raw, err := MarshalClipConfig(ClipSetColor, cfg)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatalf("unmarshal raw: %v", err)
+	}
+	if fields["mode"] != "temp" {
+		t.Errorf("mode = %v, want temp", fields["mode"])
+	}
+	if _, ok := fields["rgb"]; ok {
+		t.Errorf("temp-mode disk shape must not include rgb: %s", raw)
+	}
+	temp, ok := fields["temp"].(map[string]any)
+	if !ok || temp["mireds"] == nil {
+		t.Fatalf("temp.mireds missing: %s", raw)
 	}
 }

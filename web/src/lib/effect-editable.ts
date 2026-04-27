@@ -7,12 +7,9 @@ import {
 } from "$lib/gql/graphql";
 import { deviceHasCapability, type Device } from "$lib/stores/devices";
 
-export type ClipKind =
-  | "set_on_off"
-  | "set_brightness"
-  | "set_color_rgb"
-  | "set_color_temp"
-  | "native_effect";
+export type ClipKind = "set_on_off" | "set_brightness" | "set_color" | "native_effect";
+
+export type ColorMode = "rgb" | "temp";
 
 export interface SetOnOffClipConfig {
   value: boolean;
@@ -22,15 +19,27 @@ export interface SetBrightnessClipConfig {
   value: number;
 }
 
-export interface SetColorRGBClipConfig {
+export interface SetColorRGBValue {
   r: number;
   g: number;
   b: number;
 }
 
-export interface SetColorTempClipConfig {
+export interface SetColorTempValue {
   mireds: number;
 }
+
+export interface SetColorClipConfigRGB {
+  mode: "rgb";
+  rgb: SetColorRGBValue;
+}
+
+export interface SetColorClipConfigTemp {
+  mode: "temp";
+  temp: SetColorTempValue;
+}
+
+export type SetColorClipConfig = SetColorClipConfigRGB | SetColorClipConfigTemp;
 
 export interface NativeEffectClipConfig {
   name: string;
@@ -39,8 +48,7 @@ export interface NativeEffectClipConfig {
 export type ClipConfig =
   | { kind: "set_on_off"; config: SetOnOffClipConfig }
   | { kind: "set_brightness"; config: SetBrightnessClipConfig }
-  | { kind: "set_color_rgb"; config: SetColorRGBClipConfig }
-  | { kind: "set_color_temp"; config: SetColorTempClipConfig }
+  | { kind: "set_color"; config: SetColorClipConfig }
   | { kind: "native_effect"; config: NativeEffectClipConfig };
 
 export interface EditableClip {
@@ -62,7 +70,8 @@ export interface EditableTrack {
 }
 
 export const DEFAULT_TRANSITION_MS = 200;
-export const MIN_CLIP_VISUAL_PX = 30;
+export const MIN_CLIP_VISUAL_PX = 22;
+export const CLIP_LABEL_THRESHOLD_PX = 56;
 
 export function gqlKindToString(kind: EffectClipKind): ClipKind {
   switch (kind) {
@@ -70,10 +79,8 @@ export function gqlKindToString(kind: EffectClipKind): ClipKind {
       return "set_on_off";
     case EffectClipKind.SetBrightness:
       return "set_brightness";
-    case EffectClipKind.SetColorRgb:
-      return "set_color_rgb";
-    case EffectClipKind.SetColorTemp:
-      return "set_color_temp";
+    case EffectClipKind.SetColor:
+      return "set_color";
     case EffectClipKind.NativeEffect:
       return "native_effect";
   }
@@ -85,10 +92,8 @@ export function stringToGqlKind(kind: ClipKind): EffectClipKind {
       return EffectClipKind.SetOnOff;
     case "set_brightness":
       return EffectClipKind.SetBrightness;
-    case "set_color_rgb":
-      return EffectClipKind.SetColorRgb;
-    case "set_color_temp":
-      return EffectClipKind.SetColorTemp;
+    case "set_color":
+      return EffectClipKind.SetColor;
     case "native_effect":
       return EffectClipKind.NativeEffect;
   }
@@ -100,10 +105,8 @@ export function defaultClipConfig(kind: ClipKind): ClipConfig {
       return { kind: "set_on_off", config: { value: true } };
     case "set_brightness":
       return { kind: "set_brightness", config: { value: 200 } };
-    case "set_color_rgb":
-      return { kind: "set_color_rgb", config: { r: 255, g: 0, b: 0 } };
-    case "set_color_temp":
-      return { kind: "set_color_temp", config: { mireds: 370 } };
+    case "set_color":
+      return { kind: "set_color", config: { mode: "rgb", rgb: { r: 255, g: 0, b: 0 } } };
     case "native_effect":
       return { kind: "native_effect", config: { name: "" } };
   }
@@ -161,20 +164,31 @@ export function parseClipConfig(kind: ClipKind, raw: string): ClipConfig {
         kind: "set_brightness",
         config: { value: Math.min(254, Math.max(0, Math.round(num(obj.value, 200)))) },
       };
-    case "set_color_rgb":
+    case "set_color": {
+      const mode = str(obj.mode, "rgb") === "temp" ? "temp" : "rgb";
+      if (mode === "rgb") {
+        const rgbObj = isRecord(obj.rgb) ? obj.rgb : {};
+        return {
+          kind: "set_color",
+          config: {
+            mode: "rgb",
+            rgb: {
+              r: Math.min(255, Math.max(0, Math.round(num(rgbObj.r, 255)))),
+              g: Math.min(255, Math.max(0, Math.round(num(rgbObj.g, 0)))),
+              b: Math.min(255, Math.max(0, Math.round(num(rgbObj.b, 0)))),
+            },
+          },
+        };
+      }
+      const tempObj = isRecord(obj.temp) ? obj.temp : {};
       return {
-        kind: "set_color_rgb",
+        kind: "set_color",
         config: {
-          r: Math.min(255, Math.max(0, Math.round(num(obj.r, 255)))),
-          g: Math.min(255, Math.max(0, Math.round(num(obj.g, 0)))),
-          b: Math.min(255, Math.max(0, Math.round(num(obj.b, 0)))),
+          mode: "temp",
+          temp: { mireds: Math.max(0, Math.round(num(tempObj.mireds, 370))) },
         },
       };
-    case "set_color_temp":
-      return {
-        kind: "set_color_temp",
-        config: { mireds: Math.max(0, Math.round(num(obj.mireds, 370))) },
-      };
+    }
     case "native_effect":
       return { kind: "native_effect", config: { name: str(obj.name, "") } };
   }
@@ -245,17 +259,21 @@ export function editableToInputTracks(tracks: readonly EditableTrack[]): TrackIn
   }));
 }
 
-/** Capability name required for a given clip kind, or null for clips that need none. */
-export function capabilityForClipKind(kind: ClipKind): string | null {
-  switch (kind) {
+/**
+ * Capability name required for a given clip, or null for clips that need none.
+ * For set_color, the capability depends on the chosen mode: rgb requires
+ * color, temp requires color_temp.
+ */
+export function capabilityForClip(c: EditableClip): string | null {
+  switch (c.kind) {
     case "set_on_off":
       return "on_off";
     case "set_brightness":
       return "brightness";
-    case "set_color_rgb":
-      return "color";
-    case "set_color_temp":
-      return "color_temp";
+    case "set_color":
+      return c.config.kind === "set_color" && c.config.config.mode === "temp"
+        ? "color_temp"
+        : "color";
     case "native_effect":
       return null;
   }
@@ -267,7 +285,7 @@ export function computeRequiredCapabilities(tracks: readonly EditableTrack[]): s
   const out: string[] = [];
   for (const t of tracks) {
     for (const c of t.clips) {
-      const cap = capabilityForClipKind(c.kind);
+      const cap = capabilityForClip(c);
       if (cap === null) continue;
       if (seen.has(cap)) continue;
       seen.add(cap);
@@ -303,13 +321,14 @@ function isValidClipConfig(c: EditableClip): boolean {
       const v = c.config.config.value;
       return Number.isFinite(v) && v >= 0 && v <= 254;
     }
-    case "set_color_rgb": {
-      const { r, g, b } = c.config.config;
-      const ok = (n: number) => Number.isFinite(n) && n >= 0 && n <= 255;
-      return ok(r) && ok(g) && ok(b);
-    }
-    case "set_color_temp": {
-      const m = c.config.config.mireds;
+    case "set_color": {
+      const cfg = c.config.config;
+      if (cfg.mode === "rgb") {
+        const { r, g, b } = cfg.rgb;
+        const ok = (n: number) => Number.isFinite(n) && n >= 0 && n <= 255;
+        return ok(r) && ok(g) && ok(b);
+      }
+      const m = cfg.temp.mireds;
       return Number.isFinite(m) && m >= 0;
     }
     case "native_effect":

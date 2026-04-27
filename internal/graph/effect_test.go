@@ -108,7 +108,7 @@ func TestMutationCreateEffectMultiTrack(t *testing.T) {
 					{
 						"name": "Color",
 						"clips": []map[string]any{
-							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_COLOR_RGB", "config": `{"r":255,"g":0,"b":0}`},
+							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_COLOR", "config": `{"mode":"rgb","rgb":{"r":255,"g":0,"b":0}}`},
 						},
 					},
 					{
@@ -284,7 +284,7 @@ func TestMutationUpdateEffect(t *testing.T) {
 				"durationMs": 500,
 				"tracks": []map[string]any{
 					{"name": "Updated", "clips": []map[string]any{
-						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_COLOR_RGB", "config": `{"r":255,"g":0,"b":0}`},
+						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_COLOR", "config": `{"mode":"rgb","rgb":{"r":255,"g":0,"b":0}}`},
 					}},
 				},
 			},
@@ -315,8 +315,8 @@ func TestMutationUpdateEffect(t *testing.T) {
 	if data.UpdateEffect.DurationMs != 500 {
 		t.Errorf("expected durationMs=500, got %d", data.UpdateEffect.DurationMs)
 	}
-	if len(data.UpdateEffect.Tracks) != 1 || len(data.UpdateEffect.Tracks[0].Clips) != 1 || data.UpdateEffect.Tracks[0].Clips[0].Kind != "SET_COLOR_RGB" {
-		t.Errorf("expected single SET_COLOR_RGB clip, got %+v", data.UpdateEffect.Tracks)
+	if len(data.UpdateEffect.Tracks) != 1 || len(data.UpdateEffect.Tracks[0].Clips) != 1 || data.UpdateEffect.Tracks[0].Clips[0].Kind != "SET_COLOR" {
+		t.Errorf("expected single SET_COLOR clip, got %+v", data.UpdateEffect.Tracks)
 	}
 }
 

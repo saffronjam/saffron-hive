@@ -2655,7 +2655,7 @@ type DeviceState {
   humidity: Float
   pressure: Float
   illuminance: Float
-  battery: Int
+  battery: Float
   power: Float
   voltage: Float
   current: Float
@@ -2732,8 +2732,12 @@ enum EffectKind {
 enum EffectClipKind {
   SET_ON_OFF
   SET_BRIGHTNESS
-  SET_COLOR_RGB
-  SET_COLOR_TEMP
+  """
+  Sets the color of the target — either RGB or color temperature, distinguished
+  by the config's "mode" field ("rgb" or "temp"). Required device capability is
+  derived per-clip from the mode (color vs color_temp).
+  """
+  SET_COLOR
   NATIVE_EFFECT
 }
 
@@ -2783,9 +2787,11 @@ type EffectTrack {
 """
 A single clip on a track. config is a JSON document whose shape is
 determined by kind — the inner config struct directly, e.g.
-{"r":244,"g":42,"b":23} for SET_COLOR_RGB. transitionMinMs and
-transitionMaxMs bound a uniform random pick of the actual transition
-sampled per clip-execution; equal bounds collapse to a deterministic value.
+{"mode":"rgb","rgb":{"r":244,"g":42,"b":23}} for a SET_COLOR clip in rgb
+mode, {"mode":"temp","temp":{"mireds":370}} for the same kind in temp mode.
+transitionMinMs and transitionMaxMs bound a uniform random pick of the
+actual transition sampled per clip-execution; equal bounds collapse to a
+deterministic value.
 """
 type EffectClip {
   id: ID!
@@ -3181,11 +3187,11 @@ SceneDevicePayloadInput is one entry in a scene's per-device payload list.
 The payload field is a JSON string carrying a tagged-union body. Three shapes
 are supported:
 
-  static:        {"kind":"static","on":true,"brightness":200,"color_temp":370}
+  static:        {"kind":"static","on":true,"brightness":200,"colorTemp":370}
   effect:        {"kind":"effect","effect_id":"<id>"}
   native_effect: {"kind":"native_effect","native_name":"<name>"}
 
-The static shape's optional desired-state fields (on, brightness, color_temp,
+The static shape's optional desired-state fields (on, brightness, colorTemp,
 color, transition) are filtered against the device's writable capabilities at
 apply time. The effect shape starts the named stored timeline/native effect
 run on this device when the scene is applied. The native_effect shape starts
@@ -6924,7 +6930,7 @@ func (ec *executionContext) _DeviceState_battery(ctx context.Context, field grap
 			return obj.Battery, nil
 		},
 		nil,
-		ec.marshalOInt2ᚖint,
+		ec.marshalOFloat2ᚖfloat64,
 		true,
 		false,
 	)
@@ -6937,7 +6943,7 @@ func (ec *executionContext) fieldContext_DeviceState_battery(_ context.Context, 
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil

@@ -599,7 +599,7 @@ func commandToFields(cmd device.Command) map[string]any {
 		out["brightness"] = *cmd.Brightness
 	}
 	if cmd.ColorTemp != nil {
-		out["color_temp"] = *cmd.ColorTemp
+		out["colorTemp"] = *cmd.ColorTemp
 	}
 	if cmd.Color != nil {
 		c := *cmd.Color
@@ -623,7 +623,7 @@ func fieldsToCommand(fields map[string]any) device.Command {
 			cmd.Brightness = &i
 		}
 	}
-	if v, ok := fields["color_temp"]; ok {
+	if v, ok := fields["colorTemp"]; ok {
 		if i, ok := v.(int); ok {
 			cmd.ColorTemp = &i
 		}
@@ -750,17 +750,23 @@ func applyClipToCommand(cmd *device.Command, c Clip) {
 		}
 		v := c.Config.SetBrightness.Value
 		cmd.Brightness = &v
-	case ClipSetColorRGB:
-		if c.Config.SetColorRGB == nil {
+	case ClipSetColor:
+		if c.Config.SetColor == nil {
 			return
 		}
-		cc := c.Config.SetColorRGB
-		cmd.Color = &device.Color{R: cc.R, G: cc.G, B: cc.B}
-	case ClipSetColorTemp:
-		if c.Config.SetColorTemp == nil {
-			return
+		switch c.Config.SetColor.Mode {
+		case ColorModeRGB:
+			if c.Config.SetColor.RGB == nil {
+				return
+			}
+			rgb := c.Config.SetColor.RGB
+			cmd.Color = &device.Color{R: rgb.R, G: rgb.G, B: rgb.B}
+		case ColorModeTemp:
+			if c.Config.SetColor.Temp == nil {
+				return
+			}
+			v := c.Config.SetColor.Temp.Mireds
+			cmd.ColorTemp = &v
 		}
-		v := c.Config.SetColorTemp.Mireds
-		cmd.ColorTemp = &v
 	}
 }

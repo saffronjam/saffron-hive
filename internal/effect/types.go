@@ -29,13 +29,24 @@ const (
 	ClipSetOnOff ClipKind = "set_on_off"
 	// ClipSetBrightness sets the brightness level of the target.
 	ClipSetBrightness ClipKind = "set_brightness"
-	// ClipSetColorRGB sets the color of the target by RGB triplet.
-	ClipSetColorRGB ClipKind = "set_color_rgb"
-	// ClipSetColorTemp sets the color temperature of the target in mireds.
-	ClipSetColorTemp ClipKind = "set_color_temp"
+	// ClipSetColor sets the color of the target — either by RGB triplet or by
+	// color temperature (mireds), distinguished by the clip config's Mode field.
+	// Capability requirements are derived per-clip from Mode: rgb → color,
+	// temp → color_temp.
+	ClipSetColor ClipKind = "set_color"
 	// ClipNativeEffect fires a native protocol-side effect by name at the
 	// clip's start offset.
 	ClipNativeEffect ClipKind = "native_effect"
+)
+
+// ColorMode discriminates the payload inside a ClipSetColor: rgb means the RGB
+// triplet is authoritative, temp means the mireds value is authoritative. Only
+// one of the matching sub-payloads is non-nil at a time.
+type ColorMode string
+
+const (
+	ColorModeRGB  ColorMode = "rgb"
+	ColorModeTemp ColorMode = "temp"
 )
 
 // Effect is a named multi-track timeline (or a single named native program)
@@ -86,8 +97,7 @@ type Clip struct {
 type ClipConfig struct {
 	SetOnOff      *SetOnOffClipConfig
 	SetBrightness *SetBrightnessClipConfig
-	SetColorRGB   *SetColorRGBClipConfig
-	SetColorTemp  *SetColorTempClipConfig
+	SetColor      *SetColorClipConfig
 	NativeEffect  *NativeEffectClipConfig
 }
 
@@ -101,15 +111,23 @@ type SetBrightnessClipConfig struct {
 	Value int `json:"value"`
 }
 
-// SetColorRGBClipConfig parameterises a ClipSetColorRGB clip.
-type SetColorRGBClipConfig struct {
+// SetColorClipConfig parameterises a ClipSetColor clip. Mode discriminates
+// the active payload: when "rgb", RGB is authoritative; when "temp", Temp is.
+// The other sub-payload is nil. Disk shape is {"mode":..., "rgb":{...}} or
+// {"mode":..., "temp":{...}} — only the matching sub-key is present.
+type SetColorClipConfig struct {
+	Mode ColorMode          `json:"mode"`
+	RGB  *SetColorRGBValue  `json:"rgb,omitempty"`
+	Temp *SetColorTempValue `json:"temp,omitempty"`
+}
+
+type SetColorRGBValue struct {
 	R int `json:"r"`
 	G int `json:"g"`
 	B int `json:"b"`
 }
 
-// SetColorTempClipConfig parameterises a ClipSetColorTemp clip.
-type SetColorTempClipConfig struct {
+type SetColorTempValue struct {
 	Mireds int `json:"mireds"`
 }
 
@@ -133,16 +151,23 @@ func MarshalClipConfig(kind ClipKind, cfg ClipConfig) ([]byte, error) {
 			return nil, fmt.Errorf("marshal clip config: kind %q missing set_brightness payload", kind)
 		}
 		return json.Marshal(cfg.SetBrightness)
-	case ClipSetColorRGB:
-		if cfg.SetColorRGB == nil {
-			return nil, fmt.Errorf("marshal clip config: kind %q missing set_color_rgb payload", kind)
+	case ClipSetColor:
+		if cfg.SetColor == nil {
+			return nil, fmt.Errorf("marshal clip config: kind %q missing set_color payload", kind)
 		}
-		return json.Marshal(cfg.SetColorRGB)
-	case ClipSetColorTemp:
-		if cfg.SetColorTemp == nil {
-			return nil, fmt.Errorf("marshal clip config: kind %q missing set_color_temp payload", kind)
+		switch cfg.SetColor.Mode {
+		case ColorModeRGB:
+			if cfg.SetColor.RGB == nil {
+				return nil, fmt.Errorf("marshal clip config: set_color mode=rgb missing rgb payload")
+			}
+		case ColorModeTemp:
+			if cfg.SetColor.Temp == nil {
+				return nil, fmt.Errorf("marshal clip config: set_color mode=temp missing temp payload")
+			}
+		default:
+			return nil, fmt.Errorf("marshal clip config: set_color unknown mode %q", cfg.SetColor.Mode)
 		}
-		return json.Marshal(cfg.SetColorTemp)
+		return json.Marshal(cfg.SetColor)
 	case ClipNativeEffect:
 		if cfg.NativeEffect == nil {
 			return nil, fmt.Errorf("marshal clip config: kind %q missing native_effect payload", kind)
@@ -170,18 +195,26 @@ func UnmarshalClipConfig(kind ClipKind, data []byte) (ClipConfig, error) {
 			return ClipConfig{}, fmt.Errorf("unmarshal set_brightness config: %w", err)
 		}
 		cfg.SetBrightness = &v
-	case ClipSetColorRGB:
-		var v SetColorRGBClipConfig
+	case ClipSetColor:
+		var v SetColorClipConfig
 		if err := json.Unmarshal(data, &v); err != nil {
-			return ClipConfig{}, fmt.Errorf("unmarshal set_color_rgb config: %w", err)
+			return ClipConfig{}, fmt.Errorf("unmarshal set_color config: %w", err)
 		}
-		cfg.SetColorRGB = &v
-	case ClipSetColorTemp:
-		var v SetColorTempClipConfig
-		if err := json.Unmarshal(data, &v); err != nil {
-			return ClipConfig{}, fmt.Errorf("unmarshal set_color_temp config: %w", err)
+		switch v.Mode {
+		case ColorModeRGB:
+			if v.RGB == nil {
+				return ClipConfig{}, fmt.Errorf("unmarshal set_color: mode=rgb missing rgb payload")
+			}
+			v.Temp = nil
+		case ColorModeTemp:
+			if v.Temp == nil {
+				return ClipConfig{}, fmt.Errorf("unmarshal set_color: mode=temp missing temp payload")
+			}
+			v.RGB = nil
+		default:
+			return ClipConfig{}, fmt.Errorf("unmarshal set_color: unknown mode %q", v.Mode)
 		}
-		cfg.SetColorTemp = &v
+		cfg.SetColor = &v
 	case ClipNativeEffect:
 		var v NativeEffectClipConfig
 		if err := json.Unmarshal(data, &v); err != nil {

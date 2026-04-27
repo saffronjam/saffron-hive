@@ -9,6 +9,10 @@ import "github.com/saffronjam/saffron-hive/internal/device"
 // Native-effect clips inside a timeline contribute no capability either —
 // their support is gated by the device's effect cap value list, not the
 // generic on/off/brightness/color set.
+//
+// For ClipSetColor, the capability depends on the clip's Mode: rgb requires
+// CapColor, temp requires CapColorTemp. The same effect may therefore require
+// different capabilities depending on which color modes its clips use.
 func (e Effect) RequiredCapabilities() []string {
 	if e.Kind == KindNative {
 		return nil
@@ -17,7 +21,7 @@ func (e Effect) RequiredCapabilities() []string {
 	var out []string
 	for _, t := range e.Tracks {
 		for _, c := range t.Clips {
-			cap := capabilityForClip(c.Kind)
+			cap := capabilityForClip(c)
 			if cap == "" {
 				continue
 			}
@@ -31,16 +35,23 @@ func (e Effect) RequiredCapabilities() []string {
 	return out
 }
 
-func capabilityForClip(kind ClipKind) string {
-	switch kind {
+func capabilityForClip(c Clip) string {
+	switch c.Kind {
 	case ClipSetOnOff:
 		return device.CapOnOff
 	case ClipSetBrightness:
 		return device.CapBrightness
-	case ClipSetColorRGB:
-		return device.CapColor
-	case ClipSetColorTemp:
-		return device.CapColorTemp
+	case ClipSetColor:
+		if c.Config.SetColor == nil {
+			return ""
+		}
+		switch c.Config.SetColor.Mode {
+		case ColorModeRGB:
+			return device.CapColor
+		case ColorModeTemp:
+			return device.CapColorTemp
+		}
+		return ""
 	case ClipNativeEffect:
 		return ""
 	default:

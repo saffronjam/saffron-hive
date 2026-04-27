@@ -291,7 +291,7 @@ export type DeviceAvailabilityEvent = {
  */
 export type DeviceState = {
   __typename?: 'DeviceState';
-  battery?: Maybe<Scalars['Int']['output']>;
+  battery?: Maybe<Scalars['Float']['output']>;
   brightness?: Maybe<Scalars['Int']['output']>;
   color?: Maybe<Color>;
   colorTemp?: Maybe<Scalars['Int']['output']>;
@@ -355,9 +355,11 @@ export type Effect = {
 /**
  * A single clip on a track. config is a JSON document whose shape is
  * determined by kind — the inner config struct directly, e.g.
- * {"r":244,"g":42,"b":23} for SET_COLOR_RGB. transitionMinMs and
- * transitionMaxMs bound a uniform random pick of the actual transition
- * sampled per clip-execution; equal bounds collapse to a deterministic value.
+ * {"mode":"rgb","rgb":{"r":244,"g":42,"b":23}} for a SET_COLOR clip in rgb
+ * mode, {"mode":"temp","temp":{"mireds":370}} for the same kind in temp mode.
+ * transitionMinMs and transitionMaxMs bound a uniform random pick of the
+ * actual transition sampled per clip-execution; equal bounds collapse to a
+ * deterministic value.
  */
 export type EffectClip = {
   __typename?: 'EffectClip';
@@ -380,8 +382,12 @@ export type EffectClipInput = {
 export enum EffectClipKind {
   NativeEffect = 'NATIVE_EFFECT',
   SetBrightness = 'SET_BRIGHTNESS',
-  SetColorRgb = 'SET_COLOR_RGB',
-  SetColorTemp = 'SET_COLOR_TEMP',
+  /**
+   * Sets the color of the target — either RGB or color temperature, distinguished
+   * by the config's "mode" field ("rgb" or "temp"). Required device capability is
+   * derived per-clip from the mode (color vs color_temp).
+   */
+  SetColor = 'SET_COLOR',
   SetOnOff = 'SET_ON_OFF'
 }
 
@@ -999,11 +1005,11 @@ export type SceneDevicePayload = {
  * The payload field is a JSON string carrying a tagged-union body. Three shapes
  * are supported:
  *
- *   static:        {"kind":"static","on":true,"brightness":200,"color_temp":370}
+ *   static:        {"kind":"static","on":true,"brightness":200,"colorTemp":370}
  *   effect:        {"kind":"effect","effect_id":"<id>"}
  *   native_effect: {"kind":"native_effect","native_name":"<name>"}
  *
- * The static shape's optional desired-state fields (on, brightness, color_temp,
+ * The static shape's optional desired-state fields (on, brightness, colorTemp,
  * color, transition) are filtered against the device's writable capabilities at
  * apply time. The effect shape starts the named stored timeline/native effect
  * run on this device when the scene is applied. The native_effect shape starts
@@ -1587,6 +1593,11 @@ export type EffectRunTargetDrawerRunNativeEffectMutationVariables = Exact<{
 
 
 export type EffectRunTargetDrawerRunNativeEffectMutation = { __typename?: 'Mutation', runNativeEffect: { __typename?: 'ActiveEffect', id: string } };
+
+export type EffectTimelineEditorNativeOptionsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type EffectTimelineEditorNativeOptionsQuery = { __typename?: 'Query', nativeEffectOptions: Array<{ __typename?: 'NativeEffectOption', name: string, displayName: string, supportedDeviceCount: number }> };
 
 export type StateHistoryQueryVariables = Exact<{
   filter: StateHistoryFilter;
@@ -2346,6 +2357,7 @@ export const NativeEffectOptionsDocument = {"kind":"Document","definitions":[{"k
 export const EffectRunTargetDrawerDataDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EffectRunTargetDrawerData"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"devices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"capabilities"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"values"}},{"kind":"Field","name":{"kind":"Name","value":"valueMin"}},{"kind":"Field","name":{"kind":"Name","value":"valueMax"}},{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"access"}}]}},{"kind":"Field","name":{"kind":"Name","value":"available"}},{"kind":"Field","name":{"kind":"Name","value":"lastSeen"}},{"kind":"Field","name":{"kind":"Name","value":"state"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"on"}},{"kind":"Field","name":{"kind":"Name","value":"brightness"}},{"kind":"Field","name":{"kind":"Name","value":"colorTemp"}},{"kind":"Field","name":{"kind":"Name","value":"color"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"r"}},{"kind":"Field","name":{"kind":"Name","value":"g"}},{"kind":"Field","name":{"kind":"Name","value":"b"}},{"kind":"Field","name":{"kind":"Name","value":"x"}},{"kind":"Field","name":{"kind":"Name","value":"y"}}]}},{"kind":"Field","name":{"kind":"Name","value":"transition"}},{"kind":"Field","name":{"kind":"Name","value":"temperature"}},{"kind":"Field","name":{"kind":"Name","value":"humidity"}},{"kind":"Field","name":{"kind":"Name","value":"pressure"}},{"kind":"Field","name":{"kind":"Name","value":"illuminance"}},{"kind":"Field","name":{"kind":"Name","value":"battery"}},{"kind":"Field","name":{"kind":"Name","value":"power"}},{"kind":"Field","name":{"kind":"Name","value":"voltage"}},{"kind":"Field","name":{"kind":"Name","value":"current"}},{"kind":"Field","name":{"kind":"Name","value":"energy"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"groups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"icon"}},{"kind":"Field","name":{"kind":"Name","value":"members"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"memberType"}},{"kind":"Field","name":{"kind":"Name","value":"memberId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"rooms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"icon"}},{"kind":"Field","name":{"kind":"Name","value":"members"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"memberType"}},{"kind":"Field","name":{"kind":"Name","value":"memberId"}}]}}]}}]}}]} as unknown as DocumentNode<EffectRunTargetDrawerDataQuery, EffectRunTargetDrawerDataQueryVariables>;
 export const EffectRunTargetDrawerRunEffectDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"EffectRunTargetDrawerRunEffect"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"effectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"targetType"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"targetId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"runEffect"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"effectId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"effectId"}}},{"kind":"Argument","name":{"kind":"Name","value":"targetType"},"value":{"kind":"Variable","name":{"kind":"Name","value":"targetType"}}},{"kind":"Argument","name":{"kind":"Name","value":"targetId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"targetId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<EffectRunTargetDrawerRunEffectMutation, EffectRunTargetDrawerRunEffectMutationVariables>;
 export const EffectRunTargetDrawerRunNativeEffectDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"EffectRunTargetDrawerRunNativeEffect"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"nativeName"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"targetType"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"targetId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"runNativeEffect"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"nativeName"},"value":{"kind":"Variable","name":{"kind":"Name","value":"nativeName"}}},{"kind":"Argument","name":{"kind":"Name","value":"targetType"},"value":{"kind":"Variable","name":{"kind":"Name","value":"targetType"}}},{"kind":"Argument","name":{"kind":"Name","value":"targetId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"targetId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<EffectRunTargetDrawerRunNativeEffectMutation, EffectRunTargetDrawerRunNativeEffectMutationVariables>;
+export const EffectTimelineEditorNativeOptionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EffectTimelineEditorNativeOptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"nativeEffectOptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayName"}},{"kind":"Field","name":{"kind":"Name","value":"supportedDeviceCount"}}]}}]}}]} as unknown as DocumentNode<EffectTimelineEditorNativeOptionsQuery, EffectTimelineEditorNativeOptionsQueryVariables>;
 export const StateHistoryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"StateHistory"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"StateHistoryFilter"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"stateHistory"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deviceId"}},{"kind":"Field","name":{"kind":"Name","value":"field"}},{"kind":"Field","name":{"kind":"Name","value":"points"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"at"}},{"kind":"Field","name":{"kind":"Name","value":"value"}}]}}]}}]}}]} as unknown as DocumentNode<StateHistoryQuery, StateHistoryQueryVariables>;
 export const ActiveAlarmsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ActiveAlarms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"alarms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"latestRowId"}},{"kind":"Field","name":{"kind":"Name","value":"severity"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"firstRaisedAt"}},{"kind":"Field","name":{"kind":"Name","value":"lastRaisedAt"}}]}}]}}]} as unknown as DocumentNode<ActiveAlarmsQuery, ActiveAlarmsQueryVariables>;
 export const AlarmEventsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"AlarmEvents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"alarmEvent"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"clearedAlarmId"}},{"kind":"Field","name":{"kind":"Name","value":"alarm"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"latestRowId"}},{"kind":"Field","name":{"kind":"Name","value":"severity"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"firstRaisedAt"}},{"kind":"Field","name":{"kind":"Name","value":"lastRaisedAt"}}]}}]}}]}}]} as unknown as DocumentNode<AlarmEventsSubscription, AlarmEventsSubscriptionVariables>;

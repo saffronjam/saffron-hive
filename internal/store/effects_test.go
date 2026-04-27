@@ -282,7 +282,7 @@ func TestDeleteEffectCascadesTracksAndClips(t *testing.T) {
 	if err := s.DeleteEffect(ctx, "eff-1"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	row := s.RawDB().QueryRowContext(ctx, `SELECT COUNT(*) FROM effect_tracks WHERE effect_id = ?`, "eff-1")
+	row := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM effect_tracks WHERE effect_id = ?`, "eff-1")
 	var n int
 	if err := row.Scan(&n); err != nil {
 		t.Fatalf("count tracks: %v", err)
@@ -468,7 +468,7 @@ func TestLoadEffectRoundTrip(t *testing.T) {
 		Tracks: []EffectTrackInput{
 			{ID: "t-1", Index: 0, Clips: []EffectClipInput{
 				{ID: "c-1", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
-				{ID: "c-2", StartMs: 500, TransitionMinMs: 200, TransitionMaxMs: 200, Kind: effect.ClipSetColorRGB, ConfigJSON: `{"r":244,"g":42,"b":23}`},
+				{ID: "c-2", StartMs: 500, TransitionMinMs: 200, TransitionMaxMs: 200, Kind: effect.ClipSetColor, ConfigJSON: `{"mode":"rgb","rgb":{"r":244,"g":42,"b":23}}`},
 			}},
 		},
 	}); err != nil {
@@ -492,14 +492,15 @@ func TestLoadEffectRoundTrip(t *testing.T) {
 		t.Fatalf("expected 1 track with 2 clips, got %+v", got.Tracks)
 	}
 	clip := got.Tracks[0].Clips[1]
-	if clip.Kind != effect.ClipSetColorRGB {
+	if clip.Kind != effect.ClipSetColor {
 		t.Fatalf("clip kind = %q", clip.Kind)
 	}
-	if clip.Config.SetColorRGB == nil ||
-		clip.Config.SetColorRGB.R != 244 ||
-		clip.Config.SetColorRGB.G != 42 ||
-		clip.Config.SetColorRGB.B != 23 {
-		t.Fatalf("clip color = %+v", clip.Config.SetColorRGB)
+	if clip.Config.SetColor == nil || clip.Config.SetColor.Mode != effect.ColorModeRGB ||
+		clip.Config.SetColor.RGB == nil ||
+		clip.Config.SetColor.RGB.R != 244 ||
+		clip.Config.SetColor.RGB.G != 42 ||
+		clip.Config.SetColor.RGB.B != 23 {
+		t.Fatalf("clip color = %+v", clip.Config.SetColor)
 	}
 	if clip.TransitionMinMs != 200 || clip.TransitionMaxMs != 200 {
 		t.Fatalf("transition = (%d,%d)", clip.TransitionMinMs, clip.TransitionMaxMs)

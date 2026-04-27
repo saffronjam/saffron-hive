@@ -43,13 +43,9 @@ describe("defaultClipConfig", () => {
       kind: "set_brightness",
       config: { value: 200 },
     });
-    expect(defaultClipConfig("set_color_rgb")).toEqual({
-      kind: "set_color_rgb",
-      config: { r: 255, g: 0, b: 0 },
-    });
-    expect(defaultClipConfig("set_color_temp")).toEqual({
-      kind: "set_color_temp",
-      config: { mireds: 370 },
+    expect(defaultClipConfig("set_color")).toEqual({
+      kind: "set_color",
+      config: { mode: "rgb", rgb: { r: 255, g: 0, b: 0 } },
     });
     expect(defaultClipConfig("native_effect")).toEqual({
       kind: "native_effect",
@@ -65,9 +61,20 @@ describe("parseClipConfig / stringifyClipConfig", () => {
     expect(parseClipConfig("set_brightness", raw)).toEqual(c);
   });
 
-  it("round-trips a set_color_rgb config", () => {
-    const c = { kind: "set_color_rgb" as const, config: { r: 12, g: 34, b: 56 } };
-    expect(parseClipConfig("set_color_rgb", stringifyClipConfig(c))).toEqual(c);
+  it("round-trips a set_color rgb config", () => {
+    const c = {
+      kind: "set_color" as const,
+      config: { mode: "rgb" as const, rgb: { r: 12, g: 34, b: 56 } },
+    };
+    expect(parseClipConfig("set_color", stringifyClipConfig(c))).toEqual(c);
+  });
+
+  it("round-trips a set_color temp config", () => {
+    const c = {
+      kind: "set_color" as const,
+      config: { mode: "temp" as const, temp: { mireds: 250 } },
+    };
+    expect(parseClipConfig("set_color", stringifyClipConfig(c))).toEqual(c);
   });
 
   it("clamps brightness out of range", () => {
@@ -76,8 +83,11 @@ describe("parseClipConfig / stringifyClipConfig", () => {
   });
 
   it("falls back on invalid JSON", () => {
-    const out = parseClipConfig("set_color_temp", "not-json");
-    expect(out).toEqual({ kind: "set_color_temp", config: { mireds: 370 } });
+    const out = parseClipConfig("set_color", "not-json");
+    expect(out).toEqual({
+      kind: "set_color",
+      config: { mode: "rgb", rgb: { r: 255, g: 0, b: 0 } },
+    });
   });
 });
 
@@ -154,9 +164,35 @@ describe("computeRequiredCapabilities", () => {
         clip({ kind: "set_on_off", config: defaultClipConfig("set_on_off") }),
         clip({ kind: "set_brightness", config: defaultClipConfig("set_brightness") }),
       ]),
-      track([clip({ kind: "set_color_rgb", config: defaultClipConfig("set_color_rgb") })]),
+      track([clip({ kind: "set_color", config: defaultClipConfig("set_color") })]),
     ];
     expect(computeRequiredCapabilities(tracks)).toEqual(["on_off", "brightness", "color"]);
+  });
+
+  it("derives color_temp capability from set_color clips in temp mode", () => {
+    const tracks = [
+      track([
+        clip({
+          kind: "set_color",
+          config: { kind: "set_color", config: { mode: "temp", temp: { mireds: 370 } } },
+        }),
+      ]),
+    ];
+    expect(computeRequiredCapabilities(tracks)).toEqual(["color_temp"]);
+  });
+
+  it("derives both color and color_temp when set_color clips of both modes coexist", () => {
+    const tracks = [
+      track([
+        clip({ kind: "set_color", config: defaultClipConfig("set_color") }),
+        clip({
+          kind: "set_color",
+          config: { kind: "set_color", config: { mode: "temp", temp: { mireds: 370 } } },
+          startMs: 1000,
+        }),
+      ]),
+    ];
+    expect(computeRequiredCapabilities(tracks)).toEqual(["color", "color_temp"]);
   });
 
   it("ignores native_effect clips", () => {

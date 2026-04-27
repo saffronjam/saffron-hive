@@ -42,18 +42,44 @@ func TestRequiredCapabilities(t *testing.T) {
 			want: []string{device.CapBrightness},
 		},
 		{
-			name: "set_color_rgb",
+			name: "set_color rgb",
 			eff: Effect{Kind: KindTimeline, Tracks: []Track{
-				{Clips: []Clip{{Kind: ClipSetColorRGB}}},
+				{Clips: []Clip{{
+					Kind: ClipSetColor,
+					Config: ClipConfig{SetColor: &SetColorClipConfig{
+						Mode: ColorModeRGB,
+						RGB:  &SetColorRGBValue{R: 1},
+					}},
+				}}},
 			}},
 			want: []string{device.CapColor},
 		},
 		{
-			name: "set_color_temp",
+			name: "set_color temp",
 			eff: Effect{Kind: KindTimeline, Tracks: []Track{
-				{Clips: []Clip{{Kind: ClipSetColorTemp}}},
+				{Clips: []Clip{{
+					Kind: ClipSetColor,
+					Config: ClipConfig{SetColor: &SetColorClipConfig{
+						Mode: ColorModeTemp,
+						Temp: &SetColorTempValue{Mireds: 370},
+					}},
+				}}},
 			}},
 			want: []string{device.CapColorTemp},
+		},
+		{
+			name: "set_color rgb and temp clips contribute both caps",
+			eff: Effect{Kind: KindTimeline, Tracks: []Track{
+				{Clips: []Clip{
+					{Kind: ClipSetColor, StartMs: 0, Config: ClipConfig{SetColor: &SetColorClipConfig{
+						Mode: ColorModeRGB, RGB: &SetColorRGBValue{},
+					}}},
+					{Kind: ClipSetColor, StartMs: 100, Config: ClipConfig{SetColor: &SetColorClipConfig{
+						Mode: ColorModeTemp, Temp: &SetColorTempValue{},
+					}}},
+				}},
+			}},
+			want: []string{device.CapColor, device.CapColorTemp},
 		},
 		{
 			name: "native_effect contributes no generic capability",
@@ -86,8 +112,12 @@ func TestRequiredCapabilities(t *testing.T) {
 				{Clips: []Clip{
 					{Kind: ClipSetOnOff},
 					{Kind: ClipSetBrightness, StartMs: 1},
-					{Kind: ClipSetColorRGB, StartMs: 2},
-					{Kind: ClipSetColorTemp, StartMs: 3},
+					{Kind: ClipSetColor, StartMs: 2, Config: ClipConfig{SetColor: &SetColorClipConfig{
+						Mode: ColorModeRGB, RGB: &SetColorRGBValue{},
+					}}},
+					{Kind: ClipSetColor, StartMs: 3, Config: ClipConfig{SetColor: &SetColorClipConfig{
+						Mode: ColorModeTemp, Temp: &SetColorTempValue{},
+					}}},
 					{Kind: ClipNativeEffect, StartMs: 4},
 				}},
 			}},

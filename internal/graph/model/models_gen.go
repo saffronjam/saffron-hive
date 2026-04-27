@@ -262,7 +262,7 @@ type DeviceState struct {
 	Humidity    *float64 `json:"humidity,omitempty"`
 	Pressure    *float64 `json:"pressure,omitempty"`
 	Illuminance *float64 `json:"illuminance,omitempty"`
-	Battery     *int     `json:"battery,omitempty"`
+	Battery     *float64 `json:"battery,omitempty"`
 	Power       *float64 `json:"power,omitempty"`
 	Voltage     *float64 `json:"voltage,omitempty"`
 	Current     *float64 `json:"current,omitempty"`
@@ -310,9 +310,11 @@ type Effect struct {
 
 // A single clip on a track. config is a JSON document whose shape is
 // determined by kind — the inner config struct directly, e.g.
-// {"r":244,"g":42,"b":23} for SET_COLOR_RGB. transitionMinMs and
-// transitionMaxMs bound a uniform random pick of the actual transition
-// sampled per clip-execution; equal bounds collapse to a deterministic value.
+// {"mode":"rgb","rgb":{"r":244,"g":42,"b":23}} for a SET_COLOR clip in rgb
+// mode, {"mode":"temp","temp":{"mireds":370}} for the same kind in temp mode.
+// transitionMinMs and transitionMaxMs bound a uniform random pick of the
+// actual transition sampled per clip-execution; equal bounds collapse to a
+// deterministic value.
 type EffectClip struct {
 	ID              string         `json:"id"`
 	StartMs         int            `json:"startMs"`
@@ -502,11 +504,11 @@ type SceneDevicePayload struct {
 // The payload field is a JSON string carrying a tagged-union body. Three shapes
 // are supported:
 //
-//	static:        {"kind":"static","on":true,"brightness":200,"color_temp":370}
+//	static:        {"kind":"static","on":true,"brightness":200,"colorTemp":370}
 //	effect:        {"kind":"effect","effect_id":"<id>"}
 //	native_effect: {"kind":"native_effect","native_name":"<name>"}
 //
-// The static shape's optional desired-state fields (on, brightness, color_temp,
+// The static shape's optional desired-state fields (on, brightness, colorTemp,
 // color, transition) are filtered against the device's writable capabilities at
 // apply time. The effect shape starts the named stored timeline/native effect
 // run on this device when the scene is applied. The native_effect shape starts
@@ -783,22 +785,23 @@ type EffectClipKind string
 const (
 	EffectClipKindSetOnOff      EffectClipKind = "SET_ON_OFF"
 	EffectClipKindSetBrightness EffectClipKind = "SET_BRIGHTNESS"
-	EffectClipKindSetColorRgb   EffectClipKind = "SET_COLOR_RGB"
-	EffectClipKindSetColorTemp  EffectClipKind = "SET_COLOR_TEMP"
-	EffectClipKindNativeEffect  EffectClipKind = "NATIVE_EFFECT"
+	// Sets the color of the target — either RGB or color temperature, distinguished
+	// by the config's "mode" field ("rgb" or "temp"). Required device capability is
+	// derived per-clip from the mode (color vs color_temp).
+	EffectClipKindSetColor     EffectClipKind = "SET_COLOR"
+	EffectClipKindNativeEffect EffectClipKind = "NATIVE_EFFECT"
 )
 
 var AllEffectClipKind = []EffectClipKind{
 	EffectClipKindSetOnOff,
 	EffectClipKindSetBrightness,
-	EffectClipKindSetColorRgb,
-	EffectClipKindSetColorTemp,
+	EffectClipKindSetColor,
 	EffectClipKindNativeEffect,
 }
 
 func (e EffectClipKind) IsValid() bool {
 	switch e {
-	case EffectClipKindSetOnOff, EffectClipKindSetBrightness, EffectClipKindSetColorRgb, EffectClipKindSetColorTemp, EffectClipKindNativeEffect:
+	case EffectClipKindSetOnOff, EffectClipKindSetBrightness, EffectClipKindSetColor, EffectClipKindNativeEffect:
 		return true
 	}
 	return false

@@ -286,8 +286,32 @@ func colorClip(startMs, transitionMs, r, g, b int) Clip {
 		StartMs:         startMs,
 		TransitionMinMs: transitionMs,
 		TransitionMaxMs: transitionMs,
-		Kind:            ClipSetColorRGB,
-		Config:          ClipConfig{SetColorRGB: &SetColorRGBClipConfig{R: r, G: g, B: b}},
+		Kind:            ClipSetColor,
+		Config: ClipConfig{SetColor: &SetColorClipConfig{
+			Mode: ColorModeRGB,
+			RGB:  &SetColorRGBValue{R: r, G: g, B: b},
+		}},
+	}
+}
+
+func onOffClip(startMs int, value bool) Clip {
+	return Clip{
+		StartMs: startMs,
+		Kind:    ClipSetOnOff,
+		Config:  ClipConfig{SetOnOff: &SetOnOffClipConfig{Value: value}},
+	}
+}
+
+func colorTempClip(startMs, transitionMs, mireds int) Clip {
+	return Clip{
+		StartMs:         startMs,
+		TransitionMinMs: transitionMs,
+		TransitionMaxMs: transitionMs,
+		Kind:            ClipSetColor,
+		Config: ClipConfig{SetColor: &SetColorClipConfig{
+			Mode: ColorModeTemp,
+			Temp: &SetColorTempValue{Mireds: mireds},
+		}},
 	}
 }
 
@@ -1238,3 +1262,117 @@ func TestRunnerTimeline_NativeEffectClipPublishesNativeRequest(t *testing.T) {
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+func TestRunnerTimeline_SetOnOffClipPublishesOnFlag(t *testing.T) {
+	rec := newRecorder()
+	st := newFakeStore()
+	st.put(Effect{
+		ID:         "switch",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{
+				onOffClip(0, true),
+				onOffClip(20, false),
+			},
+		}},
+	})
+	reader := newFakeReader()
+	reader.addDevice(device.Device{
+		ID:           "dev-1",
+		Capabilities: []device.Capability{{Name: device.CapOnOff, Access: 7}},
+	})
+	r := makeRunner(rec, st, reader, nil)
+
+	if _, err := r.Start(context.Background(), "switch", deviceTarget("dev-1")); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { r.Stop(deviceTarget("dev-1")) })
+
+	waitFor(t, 2, func() int { return len(rec.commands()) }, "two on/off commands")
+
+	cmds := rec.commands()
+	if cmds[0].On == nil || *cmds[0].On != true {
+		t.Fatalf("first cmd On = %v, want true", cmds[0].On)
+	}
+	if cmds[1].On == nil || *cmds[1].On != false {
+		t.Fatalf("second cmd On = %v, want false", cmds[1].On)
+	}
+}
+
+func TestRunnerTimeline_SetColorTempClipPublishesMireds(t *testing.T) {
+	rec := newRecorder()
+	st := newFakeStore()
+	st.put(Effect{
+		ID:         "warm",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{colorTempClip(0, 0, 370)},
+		}},
+	})
+	reader := newFakeReader()
+	reader.addDevice(device.Device{
+		ID: "dev-1",
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Access: 7},
+			{Name: device.CapColorTemp, Access: 7},
+		},
+	})
+	r := makeRunner(rec, st, reader, nil)
+
+	if _, err := r.Start(context.Background(), "warm", deviceTarget("dev-1")); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { r.Stop(deviceTarget("dev-1")) })
+
+	waitFor(t, 1, func() int { return len(rec.commands()) }, "one color_temp command")
+
+	cmd := rec.commands()[0]
+	if cmd.ColorTemp == nil || *cmd.ColorTemp != 370 {
+		t.Fatalf("ColorTemp = %v, want 370", cmd.ColorTemp)
+	}
+	if cmd.On != nil || cmd.Brightness != nil || cmd.Color != nil {
+		t.Fatalf("color_temp clip leaked other fields: %+v", cmd)
+	}
+}
+
+func TestRunnerTimeline_SetColorRGBClipLeavesXYZero(t *testing.T) {
+	rec := newRecorder()
+	st := newFakeStore()
+	st.put(Effect{
+		ID:         "rgb",
+		Kind:       KindTimeline,
+		DurationMs: 0,
+		Tracks: []Track{{
+			Clips: []Clip{colorClip(0, 0, 13, 255, 0)},
+		}},
+	})
+	reader := newFakeReader()
+	reader.addDevice(device.Device{
+		ID: "dev-1",
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Access: 7},
+			{Name: device.CapColor, Access: 7},
+		},
+	})
+	r := makeRunner(rec, st, reader, nil)
+
+	if _, err := r.Start(context.Background(), "rgb", deviceTarget("dev-1")); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { r.Stop(deviceTarget("dev-1")) })
+
+	waitFor(t, 1, func() int { return len(rec.commands()) }, "one rgb command")
+
+	cmd := rec.commands()[0]
+	if cmd.Color == nil {
+		t.Fatal("expected Color set")
+	}
+	if cmd.Color.R != 13 || cmd.Color.G != 255 || cmd.Color.B != 0 {
+		t.Fatalf("RGB = %d,%d,%d, want 13,255,0", cmd.Color.R, cmd.Color.G, cmd.Color.B)
+	}
+	if cmd.Color.X != 0 || cmd.Color.Y != 0 {
+		t.Fatalf("RGB clip must leave X/Y at zero, got X=%v Y=%v", cmd.Color.X, cmd.Color.Y)
+	}
+}
