@@ -8,7 +8,7 @@
 	import { deviceIcon } from "$lib/utils";
 	import { deviceSupportsCaps } from "$lib/effect-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
-	import type { Device } from "$lib/stores/devices";
+	import { deviceSupportsNativeEffect, type Device } from "$lib/stores/devices";
 
 	interface GroupSummary {
 		id: string;
@@ -159,6 +159,9 @@
 	);
 
 	function deviceFilter(device: Device): boolean {
+		if (mode === "native") {
+			return deviceSupportsNativeEffect(device, nativeName!);
+		}
 		if (requiredCapabilities.length === 0) return true;
 		return deviceSupportsCaps(device, requiredCapabilities);
 	}

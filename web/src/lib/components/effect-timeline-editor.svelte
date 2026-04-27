@@ -1,36 +1,46 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { toast } from "svelte-sonner";
+	import { getContextClient, queryStore } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import ColorPicker from "$lib/components/color-picker.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import NumberInput from "$lib/components/number-input.svelte";
 	import {
-		Popover,
-		PopoverContent,
-		PopoverTrigger,
-	} from "$lib/components/ui/popover/index.js";
+		Select,
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+	} from "$lib/components/ui/select/index.js";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
 		DropdownMenuItem,
+		DropdownMenuSeparator,
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
 	import {
+		ClipboardPaste,
+		Copy,
 		Lightbulb,
 		Maximize2,
 		Minus,
 		Palette,
 		Plus,
+		Redo2,
 		Sun,
 		Thermometer,
 		Trash2,
+		Undo2,
 		Zap,
 	} from "@lucide/svelte";
+	import { HistoryStack } from "$lib/stores/history.svelte";
+	import { isEditableTarget } from "$lib/utils/keyboard";
 	import {
+		CLIP_LABEL_THRESHOLD_PX,
 		MIN_CLIP_VISUAL_PX,
 		computeRequiredCapabilities,
 		findFreeStartOnTrack,
@@ -65,12 +75,96 @@
 
 	const SNAP_PX = 6;
 
+	const NATIVE_EFFECT_OPTIONS_QUERY = graphql(`
+		query EffectTimelineEditorNativeOptions {
+			nativeEffectOptions {
+				name
+				displayName
+				supportedDeviceCount
+			}
+		}
+	`);
+	const optionsStore = queryStore({
+		client: getContextClient(),
+		query: NATIVE_EFFECT_OPTIONS_QUERY,
+	});
+	const nativeOptions = $derived($optionsStore.data?.nativeEffectOptions ?? []);
+
 	let pxPerMs = $state(0.05);
 	let viewportEl = $state<HTMLDivElement | null>(null);
+	let editorRootEl = $state<HTMLDivElement | null>(null);
 	let viewportWidth = $state(800);
 	let activeClipUid = $state<string | null>(null);
 	let randomMap = $state<Record<string, boolean>>({});
 	let initialized = $state(false);
+
+	type PanelPos = { x: number; y: number };
+	const PANEL_WIDTH = 288;
+	const PANEL_FALLBACK_HEIGHT = 360;
+	let panelPos = $state<PanelPos>({ x: 0, y: 0 });
+	let panelEl = $state<HTMLDivElement | null>(null);
+
+	type ClipboardEntry = { kind: ClipKind; transitionMinMs: number; transitionMaxMs: number; config: EditableClip["config"] };
+	let clipboardClip = $state<ClipboardEntry | null>(null);
+
+	type TimelineSnapshot = {
+		tracks: EditableTrack[];
+		loop: boolean;
+		durationMs: number;
+	};
+	const history = new HistoryStack<TimelineSnapshot>();
+	let restoringSnapshot = false;
+	let snapshotPending = false;
+	let snapshotSuppressed = false;
+	let historySeeded = false;
+
+	function cloneTracks(value: EditableTrack[]): EditableTrack[] {
+		return JSON.parse(JSON.stringify(value));
+	}
+
+	function snapshotTimeline(): TimelineSnapshot {
+		return {
+			tracks: cloneTracks(tracks),
+			loop,
+			durationMs,
+		};
+	}
+
+	function takeSnapshot() {
+		if (restoringSnapshot) return;
+		history.push(snapshotTimeline());
+	}
+
+	function takeSnapshotSoon() {
+		if (restoringSnapshot || snapshotSuppressed || snapshotPending) return;
+		snapshotPending = true;
+		queueMicrotask(() => {
+			snapshotPending = false;
+			if (restoringSnapshot || snapshotSuppressed) return;
+			history.push(snapshotTimeline());
+		});
+	}
+
+	function applySnapshot(snap: TimelineSnapshot) {
+		restoringSnapshot = true;
+		tracks = cloneTracks(snap.tracks);
+		loop = snap.loop;
+		durationMs = snap.durationMs;
+		activeClipUid = null;
+		queueMicrotask(() => {
+			restoringSnapshot = false;
+		});
+	}
+
+	function undo() {
+		const snap = history.undo();
+		if (snap) applySnapshot(snap);
+	}
+
+	function redo() {
+		const snap = history.redo();
+		if (snap) applySnapshot(snap);
+	}
 
 	type ContextMenuState = {
 		trackUid: string;
@@ -84,8 +178,7 @@
 	const clipTypes: { kind: ClipKind; label: string }[] = [
 		{ kind: "set_on_off", label: "On / off" },
 		{ kind: "set_brightness", label: "Brightness" },
-		{ kind: "set_color_rgb", label: "Color rgb" },
-		{ kind: "set_color_temp", label: "Color temp" },
+		{ kind: "set_color", label: "Color" },
 		{ kind: "native_effect", label: "Native effect" },
 	];
 
@@ -126,6 +219,8 @@
 	}
 
 	onMount(() => {
+		history.reset(snapshotTimeline());
+		historySeeded = true;
 		if (typeof ResizeObserver !== "undefined" && viewportEl) {
 			const ro = new ResizeObserver((entries) => {
 				for (const entry of entries) {
@@ -146,40 +241,87 @@
 		fitToViewport();
 	});
 
+	let prevLoop = loop;
+	$effect(() => {
+		const cur = loop;
+		untrack(() => {
+			if (cur === prevLoop) return;
+			prevLoop = cur;
+			if (!historySeeded || restoringSnapshot) return;
+			takeSnapshot();
+		});
+	});
+
 	function clamp(v: number, lo: number, hi: number): number {
 		if (v < lo) return lo;
 		if (v > hi) return hi;
 		return v;
 	}
 
-	function clipIcon(kind: ClipKind) {
-		switch (kind) {
+	function clipIcon(c: EditableClip | { kind: ClipKind }) {
+		switch (c.kind) {
 			case "set_on_off":
 				return Lightbulb;
 			case "set_brightness":
 				return Sun;
-			case "set_color_rgb":
+			case "set_color": {
+				const cfg = (c as EditableClip).config;
+				if (cfg && cfg.kind === "set_color" && cfg.config.mode === "temp") return Thermometer;
 				return Palette;
-			case "set_color_temp":
-				return Thermometer;
+			}
 			case "native_effect":
 				return Zap;
 		}
 	}
 
-	function clipColor(kind: ClipKind): string {
-		switch (kind) {
-			case "set_on_off":
-				return "bg-yellow-500/20 border-yellow-500/60 text-yellow-900 dark:text-yellow-100";
-			case "set_brightness":
-				return "bg-amber-500/20 border-amber-500/60 text-amber-900 dark:text-amber-100";
-			case "set_color_rgb":
-				return "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-900 dark:text-fuchsia-100";
-			case "set_color_temp":
-				return "bg-teal-500/20 border-teal-500/60 text-teal-900 dark:text-teal-100";
-			case "native_effect":
-				return "bg-purple-500/20 border-purple-500/60 text-purple-900 dark:text-purple-100";
+	function miredToRGB(mireds: number): { r: number; g: number; b: number } {
+		const min = 150;
+		const max = 500;
+		const c = Math.min(max, Math.max(min, mireds));
+		const t = (max - c) / (max - min);
+		const warm = { r: 255, g: 138, b: 54 };
+		const cool = { r: 160, g: 200, b: 255 };
+		return {
+			r: Math.round(warm.r + (cool.r - warm.r) * t),
+			g: Math.round(warm.g + (cool.g - warm.g) * t),
+			b: Math.round(warm.b + (cool.b - warm.b) * t),
+		};
+	}
+
+	function textOnColor(r: number, g: number, b: number): string {
+		const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+		return lum > 140 ? "#1a1a1a" : "#fafafa";
+	}
+
+	function clipStyle(c: EditableClip): string {
+		if (c.kind === "set_on_off" && c.config.kind === "set_on_off") {
+			return c.config.config.value
+				? "background-color: rgba(234,179,8,0.22); border-color: rgba(234,179,8,0.7); color: #fde68a;"
+				: "background-color: rgba(115,115,115,0.22); border-color: rgba(115,115,115,0.7); color: #e5e5e5;";
 		}
+		if (c.kind === "set_brightness" && c.config.kind === "set_brightness") {
+			const v = Math.max(0, Math.min(254, c.config.config.value));
+			const t = v / 254;
+			const alpha = 0.2 + t * 0.8;
+			const text = t > 0.55 ? "#1a1a1a" : "#fafafa";
+			return `background-color: rgba(255,255,255,${alpha.toFixed(3)}); border-color: rgba(255,255,255,${Math.min(1, alpha + 0.15).toFixed(3)}); color: ${text};`;
+		}
+		if (c.kind === "set_color" && c.config.kind === "set_color") {
+			let r = 255;
+			let g = 255;
+			let b = 255;
+			if (c.config.config.mode === "rgb") {
+				({ r, g, b } = c.config.config.rgb);
+			} else {
+				({ r, g, b } = miredToRGB(c.config.config.temp.mireds));
+			}
+			const text = textOnColor(r, g, b);
+			return `background-color: rgba(${r},${g},${b},0.65); border-color: rgb(${r},${g},${b}); color: ${text};`;
+		}
+		if (c.kind === "native_effect") {
+			return "background-color: rgba(59,130,246,0.22); border-color: rgba(59,130,246,0.7); color: #bfdbfe;";
+		}
+		return "";
 	}
 
 	function clipKindLabel(kind: ClipKind): string {
@@ -188,10 +330,8 @@
 				return "On / off";
 			case "set_brightness":
 				return "Brightness";
-			case "set_color_rgb":
-				return "Color rgb";
-			case "set_color_temp":
-				return "Color temp";
+			case "set_color":
+				return "Color";
 			case "native_effect":
 				return "Native effect";
 		}
@@ -203,12 +343,14 @@
 				return c.config.config.value ? "On" : "Off";
 			case "set_brightness":
 				return `Bri ${c.config.config.value}`;
-			case "set_color_rgb": {
-				const { r, g, b } = c.config.config;
-				return `RGB ${r},${g},${b}`;
+			case "set_color": {
+				const cfg = c.config.config;
+				if (cfg.mode === "rgb") {
+					const { r, g, b } = cfg.rgb;
+					return `RGB ${r},${g},${b}`;
+				}
+				return `${cfg.temp.mireds} mired`;
 			}
-			case "set_color_temp":
-				return `${c.config.config.mireds} mired`;
 			case "native_effect":
 				return c.config.config.name || "(native)";
 		}
@@ -306,14 +448,17 @@
 
 	function addTrack() {
 		tracks = [...tracks, newEditableTrack()];
+		takeSnapshot();
 	}
 
 	function removeTrack(uid: string) {
 		tracks = tracks.filter((t) => t.uid !== uid);
+		takeSnapshot();
 	}
 
 	function renameTrack(uid: string, newName: string) {
 		updateTrack(uid, (t) => ({ ...t, name: newName }));
+		takeSnapshot();
 	}
 
 	function addClipToTrackAt(trackUid: string, kind: ClipKind, desiredStartMs: number) {
@@ -329,6 +474,7 @@
 		}
 		probe.startMs = start;
 		updateTrack(trackUid, (t) => ({ ...t, clips: [...t.clips, probe] }));
+		takeSnapshot();
 	}
 
 	function updateTrack(uid: string, mut: (t: EditableTrack) => EditableTrack) {
@@ -340,10 +486,12 @@
 			...t,
 			clips: t.clips.map((c) => (c.uid === clipUid ? mut(c) : c)),
 		}));
+		takeSnapshotSoon();
 	}
 
 	function removeClip(trackUid: string, clipUid: string) {
 		updateTrack(trackUid, (t) => ({ ...t, clips: t.clips.filter((c) => c.uid !== clipUid) }));
+		takeSnapshot();
 	}
 
 	function moveClipBetweenTracks(fromUid: string, toUid: string, clipUid: string) {
@@ -426,6 +574,7 @@
 			const dy = e.clientY - startY;
 			if (!dragHappened && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
 				dragHappened = true;
+				snapshotSuppressed = true;
 				target.setPointerCapture?.(e.pointerId);
 				pointerCaptured = true;
 			}
@@ -479,6 +628,8 @@
 			window.removeEventListener("pointerup", handleUp);
 			if (pointerCaptured) target.releasePointerCapture?.(e.pointerId);
 			if (dragHappened) {
+				snapshotSuppressed = false;
+				takeSnapshot();
 				const suppress = (ev: Event) => {
 					ev.stopPropagation();
 					ev.preventDefault();
@@ -509,6 +660,7 @@
 		target.setPointerCapture(evt.pointerId);
 		const startX = evt.clientX;
 		const initial = durationMs;
+		let dragHappened = false;
 
 		function handleMove(e: PointerEvent) {
 			const dx = e.clientX - startX;
@@ -520,6 +672,7 @@
 			if (Math.abs(tickSnap * pxPerMs - proposed * pxPerMs) < SNAP_PX && tickSnap >= minDurationMsAllowed) {
 				proposed = tickSnap;
 			}
+			if (proposed !== durationMs) dragHappened = true;
 			durationMs = proposed;
 		}
 
@@ -527,6 +680,7 @@
 			window.removeEventListener("pointermove", handleMove);
 			window.removeEventListener("pointerup", handleUp);
 			target.releasePointerCapture?.(e.pointerId);
+			if (dragHappened) takeSnapshot();
 		}
 
 		window.addEventListener("pointermove", handleMove);
@@ -590,6 +744,7 @@
 				}
 			}
 		}
+		takeSnapshot();
 	}
 
 	function setClipStart(trackUid: string, clipUid: string, v: number | null) {
@@ -623,12 +778,249 @@
 	}
 
 	const totalClips = $derived(tracks.reduce((sum, t) => sum + t.clips.length, 0));
+
+	const activeClip = $derived.by(() => {
+		if (!activeClipUid) return null;
+		for (const t of tracks) {
+			const c = t.clips.find((c) => c.uid === activeClipUid);
+			if (c) return { trackUid: t.uid, clip: c };
+		}
+		return null;
+	});
+
+	function clampPanelPos(x: number, y: number): PanelPos {
+		const editorRect = editorRootEl?.getBoundingClientRect();
+		const minX = editorRect ? editorRect.left : 8;
+		const maxX = window.innerWidth - PANEL_WIDTH - 8;
+		const height = panelEl?.offsetHeight ?? PANEL_FALLBACK_HEIGHT;
+		const minY = 8;
+		const maxY = window.innerHeight - height - 8;
+		return {
+			x: Math.max(minX, Math.min(maxX, x)),
+			y: Math.max(minY, Math.min(Math.max(maxY, minY), y)),
+		};
+	}
+
+	function placeBesideRect(rect: DOMRect): PanelPos {
+		const PANEL_GAP = 8;
+		const editorRect = editorRootEl?.getBoundingClientRect();
+		const editorLeft = editorRect ? editorRect.left : 0;
+		const fitsRight = rect.right + PANEL_GAP + PANEL_WIDTH + 8 <= window.innerWidth;
+		const desiredX = fitsRight
+			? rect.right + PANEL_GAP
+			: rect.left - PANEL_GAP - PANEL_WIDTH;
+		const x = desiredX < editorLeft ? rect.right + PANEL_GAP : desiredX;
+		return clampPanelPos(x, rect.top);
+	}
+
+	function openClipPanel(uid: string, triggerRect: DOMRect) {
+		activeClipUid = uid;
+		panelPos = placeBesideRect(triggerRect);
+	}
+
+	function closeClipPanel() {
+		activeClipUid = null;
+	}
+
+	function startPanelDrag(evt: PointerEvent) {
+		if (disabled) return;
+		const target = evt.currentTarget as HTMLElement;
+		evt.preventDefault();
+		target.setPointerCapture(evt.pointerId);
+		const startX = evt.clientX;
+		const startY = evt.clientY;
+		const initial = panelPos;
+
+		function handleMove(e: PointerEvent) {
+			const dx = e.clientX - startX;
+			const dy = e.clientY - startY;
+			panelPos = clampPanelPos(initial.x + dx, initial.y + dy);
+		}
+
+		function handleUp(e: PointerEvent) {
+			window.removeEventListener("pointermove", handleMove);
+			window.removeEventListener("pointerup", handleUp);
+			target.releasePointerCapture?.(e.pointerId);
+		}
+
+		window.addEventListener("pointermove", handleMove);
+		window.addEventListener("pointerup", handleUp);
+	}
+
+	function copyClip(clip: EditableClip) {
+		clipboardClip = {
+			kind: clip.kind,
+			transitionMinMs: clip.transitionMinMs,
+			transitionMaxMs: clip.transitionMaxMs,
+			config: structuredClone(clip.config),
+		};
+	}
+
+	function pasteClipOnTrack(trackUid: string, desiredStartMs: number) {
+		const entry = clipboardClip;
+		if (!entry) return;
+		const track = tracks.find((t) => t.uid === trackUid);
+		if (!track) return;
+		const interval = tickIntervalMs;
+		const snapped = Math.max(0, Math.round(desiredStartMs / interval) * interval);
+		const start = findFreeStartOnTrack(track, snapped, entry.transitionMaxMs);
+		if (start === null) {
+			toast.error("No free space on this track for the pasted clip");
+			return;
+		}
+		const newClip: EditableClip = {
+			uid: crypto.randomUUID(),
+			startMs: start,
+			transitionMinMs: entry.transitionMinMs,
+			transitionMaxMs: entry.transitionMaxMs,
+			kind: entry.kind,
+			config: structuredClone(entry.config),
+		};
+		updateTrack(trackUid, (t) => ({ ...t, clips: [...t.clips, newClip] }));
+		takeSnapshot();
+	}
+
+	function pasteClipOnFirstTrack() {
+		if (!clipboardClip) return;
+		if (tracks.length === 0) {
+			toast.error("Add a track before pasting");
+			return;
+		}
+		pasteClipOnTrack(tracks[0].uid, lastClipEndMs);
+	}
+
+	$effect(() => {
+		if (disabled) return;
+		const handler = (e: KeyboardEvent) => {
+			if (activeClipUid && e.key === "Escape") {
+				e.preventDefault();
+				closeClipPanel();
+				return;
+			}
+			if (isEditableTarget(document.activeElement)) return;
+			const mod = e.metaKey || e.ctrlKey;
+			if ((e.key === "Backspace" || e.key === "Delete") && activeClipUid) {
+				const uid = activeClipUid;
+				for (const t of tracks) {
+					if (t.clips.some((c) => c.uid === uid)) {
+						e.preventDefault();
+						removeClip(t.uid, uid);
+						activeClipUid = null;
+						break;
+					}
+				}
+				return;
+			}
+			if (mod && e.key === "z" && !e.shiftKey) {
+				if (!history.canUndo) return;
+				e.preventDefault();
+				undo();
+				return;
+			}
+			if (mod && (e.key === "Z" || e.key === "y")) {
+				if (!history.canRedo) return;
+				e.preventDefault();
+				redo();
+				return;
+			}
+			if (mod && e.key.toLowerCase() === "c") {
+				const cur = activeClip;
+				if (cur) {
+					e.preventDefault();
+					copyClip(cur.clip);
+				}
+				return;
+			}
+			if (mod && e.key.toLowerCase() === "v") {
+				if (!clipboardClip) return;
+				e.preventDefault();
+				pasteClipOnFirstTrack();
+				return;
+			}
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	});
+
+	$effect(() => {
+		if (!activeClipUid) return;
+		const handler = (e: PointerEvent) => {
+			const target = e.target as Node | null;
+			if (!target) return;
+			if (panelEl && panelEl.contains(target)) return;
+			const clipBtn = (e.target as HTMLElement | null)?.closest?.("[data-clip-button]");
+			if (clipBtn) return;
+			closeClipPanel();
+		};
+		window.addEventListener("pointerdown", handler, true);
+		return () => window.removeEventListener("pointerdown", handler, true);
+	});
+
+	$effect(() => {
+		if (!activeClipUid || !panelEl) return;
+		const uid = activeClipUid;
+		const id = requestAnimationFrame(() => {
+			const btn = document.querySelector<HTMLElement>(`[data-clip-uid="${uid}"]`);
+			if (btn) {
+				panelPos = placeBesideRect(btn.getBoundingClientRect());
+			} else {
+				panelPos = clampPanelPos(panelPos.x, panelPos.y);
+			}
+		});
+		return () => cancelAnimationFrame(id);
+	});
 </script>
 
-<div class="flex flex-col gap-3 rounded-lg shadow-card bg-card p-3">
+<div bind:this={editorRootEl} class="flex flex-col gap-3 rounded-lg shadow-card bg-card p-3">
 	<div class="flex flex-wrap items-center justify-between gap-2">
 		<h2 class="text-sm font-medium text-foreground">Timeline</h2>
 		<div class="flex items-center gap-3">
+			<div class="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					disabled={disabled || !history.canUndo}
+					aria-label="Undo"
+					title="Undo"
+					onclick={undo}
+				>
+					<Undo2 class="size-3.5" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					disabled={disabled || !history.canRedo}
+					aria-label="Redo"
+					title="Redo"
+					onclick={redo}
+				>
+					<Redo2 class="size-3.5" />
+				</Button>
+			</div>
+			<div class="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					disabled={disabled || !activeClip}
+					aria-label="Copy clip"
+					title="Copy clip"
+					onclick={() => {
+						if (activeClip) copyClip(activeClip.clip);
+					}}
+				>
+					<Copy class="size-3.5" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					disabled={disabled || !clipboardClip || tracks.length === 0}
+					aria-label="Paste clip"
+					title="Paste clip"
+					onclick={pasteClipOnFirstTrack}
+				>
+					<ClipboardPaste class="size-3.5" />
+				</Button>
+			</div>
 			<div class="flex items-center gap-1">
 				<Button
 					variant="ghost"
@@ -763,47 +1155,47 @@
 						{/each}
 
 						{#each track.clips as clip (clip.uid)}
-							{@const Icon = clipIcon(clip.kind)}
+							{@const Icon = clipIcon(clip)}
 							{@const isActive = activeClipUid === clip.uid}
-							<Popover
-								open={isActive}
-								onOpenChange={(o) => {
-									if (o) activeClipUid = clip.uid;
-									else if (activeClipUid === clip.uid) activeClipUid = null;
+							{@const widthPx = clipWidthPx(clip)}
+							<button
+								type="button"
+								data-clip-button
+								data-clip-uid={clip.uid}
+								class="absolute top-1.5 flex h-[calc(100%-12px)] items-center gap-1 rounded border-2 px-1.5 transition-colors duration-200 {isActive
+									? 'ring-2 ring-primary'
+									: ''}"
+								style="left: {clipLeftPx(clip)}px; width: {widthPx}px; {clipStyle(clip)}"
+								onpointerdown={(e: PointerEvent) =>
+									startClipDrag(e, track.uid, clip, "move")}
+								onclick={(e: MouseEvent) => {
+									const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+									openClipPanel(clip.uid, rect);
 								}}
+								oncontextmenu={(e: MouseEvent) => {
+									e.preventDefault();
+									e.stopPropagation();
+								}}
+								ondblclick={(e: MouseEvent) => e.stopPropagation()}
+								aria-label="Edit clip"
+								title={clipSummaryLabel(clip)}
 							>
-								<PopoverTrigger
-									class="absolute top-1.5 flex h-[calc(100%-12px)] items-center gap-1 rounded border-2 px-2 transition-colors duration-200 {clipColor(
-										clip.kind,
-									)} {isActive ? 'ring-2 ring-primary' : ''}"
-									style="left: {clipLeftPx(clip)}px; width: {clipWidthPx(clip)}px;"
-									onpointerdown={(e: PointerEvent) =>
-										startClipDrag(e, track.uid, clip, "move")}
-									oncontextmenu={(e: MouseEvent) => {
-										e.preventDefault();
-										e.stopPropagation();
-									}}
-									ondblclick={(e: MouseEvent) => e.stopPropagation()}
-									aria-label="Edit clip"
-								>
-									<Icon class="size-3 shrink-0" />
+								<Icon class="size-3 shrink-0" />
+								{#if widthPx >= CLIP_LABEL_THRESHOLD_PX}
 									<span class="truncate text-[10px] font-medium">
 										{clipSummaryLabel(clip)}
 									</span>
-									<div
-										role="separator"
-										aria-label="Resize clip"
-										class="absolute right-0 top-0 h-full w-1.5 bg-primary/30 hover:bg-primary/60 transition-colors duration-200"
-										onpointerdown={(e: PointerEvent) => {
-											e.stopPropagation();
-											startClipDrag(e, track.uid, clip, "resize");
-										}}
-									></div>
-								</PopoverTrigger>
-								<PopoverContent class="w-72 p-3">
-									{@render clipEditor(track.uid, clip)}
-								</PopoverContent>
-							</Popover>
+								{/if}
+								<div
+									role="separator"
+									aria-label="Resize clip"
+									class="absolute right-0 top-0 h-full w-1.5 bg-primary/30 hover:bg-primary/60 transition-colors duration-200"
+									onpointerdown={(e: PointerEvent) => {
+										e.stopPropagation();
+										startClipDrag(e, track.uid, clip, "resize");
+									}}
+								></div>
+							</button>
 						{/each}
 					</div>
 				{/each}
@@ -849,14 +1241,28 @@
 			aria-hidden="true"
 			tabindex={-1}
 		></DropdownMenuTrigger>
-		<DropdownMenuContent align="start">
+		<DropdownMenuContent align="start" class="min-w-[12rem]">
 			{#each clipTypes as ct (ct.kind)}
-				{@const ItemIcon = clipIcon(ct.kind)}
+				{@const ItemIcon = clipIcon(ct)}
 				<DropdownMenuItem onclick={() => handleContextMenuPick(ct.kind)}>
 					<ItemIcon class="size-3.5" />
 					{ct.label}
 				</DropdownMenuItem>
 			{/each}
+			{#if clipboardClip}
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					onclick={() => {
+						const state = contextMenuState;
+						contextMenuOpen = false;
+						contextMenuState = null;
+						if (state) pasteClipOnTrack(state.trackUid, state.startMs);
+					}}
+				>
+					<ClipboardPaste class="size-3.5" />
+					Paste clip
+				</DropdownMenuItem>
+			{/if}
 		</DropdownMenuContent>
 	</DropdownMenu>
 
@@ -875,23 +1281,51 @@
 	</div>
 </div>
 
+{#if activeClip}
+	<div
+		bind:this={panelEl}
+		class="fixed z-50 flex w-72 flex-col gap-3 rounded-md bg-popover p-3 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden"
+		style="left: {panelPos.x}px; top: {panelPos.y}px;"
+		role="dialog"
+		aria-label="Edit clip"
+	>
+		{@render clipEditor(activeClip.trackUid, activeClip.clip)}
+	</div>
+{/if}
+
 {#snippet clipEditor(trackUid: string, clip: EditableClip)}
 	{@const isRandom = randomMap[clip.uid] ?? clip.transitionMinMs !== clip.transitionMaxMs}
 	<div class="flex flex-col gap-3">
-		<div class="flex items-center justify-between gap-2">
+		<div
+			class="-m-3 mb-0 flex cursor-grab items-center justify-between gap-2 rounded-t-md border-b border-border/50 bg-muted/40 px-3 py-2 active:cursor-grabbing"
+			onpointerdown={startPanelDrag}
+			role="presentation"
+		>
 			<span class="text-sm font-medium">{clipKindLabel(clip.kind)}</span>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				{disabled}
-				onclick={() => {
-					removeClip(trackUid, clip.uid);
-					activeClipUid = null;
-				}}
-				aria-label="Remove clip"
-			>
-				<Trash2 class="size-3.5" />
-			</Button>
+			<div class="flex items-center gap-1" onpointerdown={(e: PointerEvent) => e.stopPropagation()} role="presentation">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					{disabled}
+					onclick={() => copyClip(clip)}
+					aria-label="Copy clip"
+					title="Copy clip"
+				>
+					<Copy class="size-3.5" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					{disabled}
+					onclick={() => {
+						removeClip(trackUid, clip.uid);
+						activeClipUid = null;
+					}}
+					aria-label="Remove clip"
+				>
+					<Trash2 class="size-3.5" />
+				</Button>
+			</div>
 		</div>
 
 		<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
@@ -938,102 +1372,136 @@
 					}}
 				/>
 			</label>
-		{:else if clip.kind === "set_color_rgb" && clip.config.kind === "set_color_rgb"}
-			<ColorPicker
-				r={clip.config.config.r}
-				g={clip.config.config.g}
-				b={clip.config.config.b}
+		{:else if clip.kind === "set_color" && clip.config.kind === "set_color"}
+			{@const colorCfg = clip.config.config}
+			<LightColorPicker
+				compact
+				hasColor
+				hasColorTemp
+				color={colorCfg.mode === "rgb" ? colorCfg.rgb : null}
+				colorTemp={colorCfg.mode === "temp" ? colorCfg.temp.mireds : null}
+				mode={colorCfg.mode === "rgb" ? "color" : "temp"}
 				{disabled}
-				onchange={(rgb) => {
+				oncolorchange={(rgb) =>
 					updateClip(trackUid, clip.uid, (cc) =>
-						cc.config.kind === "set_color_rgb"
+						cc.config.kind === "set_color"
+							? { ...cc, config: { kind: "set_color", config: { mode: "rgb", rgb } } }
+							: cc,
+					)}
+				ontempchange={(mireds) =>
+					updateClip(trackUid, clip.uid, (cc) =>
+						cc.config.kind === "set_color"
 							? {
 									...cc,
-									config: { kind: "set_color_rgb", config: { ...cc.config.config, ...rgb } },
+									config: { kind: "set_color", config: { mode: "temp", temp: { mireds } } },
 								}
 							: cc,
-					);
-				}}
+					)}
+				onmodechange={(m) =>
+					updateClip(trackUid, clip.uid, (cc) => {
+						if (cc.config.kind !== "set_color") return cc;
+						if (m === "color" && cc.config.config.mode !== "rgb") {
+							return {
+								...cc,
+								config: { kind: "set_color", config: { mode: "rgb", rgb: { r: 255, g: 0, b: 0 } } },
+							};
+						}
+						if (m === "temp" && cc.config.config.mode !== "temp") {
+							return {
+								...cc,
+								config: { kind: "set_color", config: { mode: "temp", temp: { mireds: 370 } } },
+							};
+						}
+						return cc;
+					})}
 			/>
-		{:else if clip.kind === "set_color_temp" && clip.config.kind === "set_color_temp"}
-			<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				Mireds ({clip.config.config.mireds})
-				<input
-					type="range"
-					min={150}
-					max={500}
-					value={clip.config.config.mireds}
-					{disabled}
-					oninput={(e: Event) => {
-						const v = parseInt((e.currentTarget as HTMLInputElement).value, 10) || 0;
-						updateClip(trackUid, clip.uid, (cc) =>
-							cc.config.kind === "set_color_temp"
-								? { ...cc, config: { kind: "set_color_temp", config: { mireds: v } } }
-								: cc,
-						);
-					}}
-				/>
-			</label>
+			{#if colorCfg.mode === "temp"}
+				<div class="text-[11px] text-muted-foreground">Mireds: {colorCfg.temp.mireds}</div>
+			{/if}
 		{:else if clip.kind === "native_effect" && clip.config.kind === "native_effect"}
-			<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				Native effect name
-				<Input
-					value={clip.config.config.name}
-					{disabled}
-					placeholder="e.g. fireplace"
-					oninput={(e: Event) => {
-						const v = (e.currentTarget as HTMLInputElement).value;
-						updateClip(trackUid, clip.uid, (cc) =>
-							cc.config.kind === "native_effect"
-								? { ...cc, config: { kind: "native_effect", config: { name: v } } }
-								: cc,
-						);
-					}}
-				/>
-			</label>
+			{@const nativeName = clip.config.config.name}
+			{@const selected = nativeOptions.find((o) => o.name === nativeName) ?? null}
+			<div class="flex flex-col gap-1 text-[11px] text-muted-foreground">
+				<span>Native effect</span>
+				{#if nativeOptions.length === 0}
+					<span class="text-[11px]">No native effects available</span>
+				{:else}
+					<Select
+						type="single"
+						value={nativeName}
+						onValueChange={(v: string) => {
+							if (!v) return;
+							updateClip(trackUid, clip.uid, (cc) =>
+								cc.config.kind === "native_effect"
+									? { ...cc, config: { kind: "native_effect", config: { name: v } } }
+									: cc,
+							);
+						}}
+						{disabled}
+					>
+						<SelectTrigger class="w-full text-xs">
+							{selected ? selected.displayName : "Select an effect"}
+						</SelectTrigger>
+						<SelectContent>
+							{#each nativeOptions as opt (opt.name)}
+								<SelectItem value={opt.name}>
+									<div class="flex items-center justify-between gap-3 w-full">
+										<span>{opt.displayName}</span>
+										<span class="text-xs text-muted-foreground">
+											{opt.supportedDeviceCount} dev{opt.supportedDeviceCount === 1 ? "" : "s"}
+										</span>
+									</div>
+								</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{/if}
+			</div>
 		{/if}
 
-		<div class="flex items-center justify-between text-[11px]">
-			<span class="text-muted-foreground">Random transition</span>
-			<Switch
-				checked={isRandom}
-				{disabled}
-				onCheckedChange={(v) => setRandom(clip.uid, v)}
-			/>
-		</div>
+		{#if clip.kind !== "set_on_off" && clip.kind !== "native_effect"}
+			<div class="flex items-center justify-between text-[11px]">
+				<span class="text-muted-foreground">Random transition</span>
+				<Switch
+					checked={isRandom}
+					{disabled}
+					onCheckedChange={(v) => setRandom(clip.uid, v)}
+				/>
+			</div>
 
-		{#if isRandom}
-			<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				Transition min (ms)
-				<NumberInput
-					value={clip.transitionMinMs}
-					min={0}
-					{disabled}
-					ariaLabel="Transition min in milliseconds"
-					onValueChange={(v) => setClipTransitionMin(trackUid, clip.uid, v)}
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				Transition max (ms)
-				<NumberInput
-					value={clip.transitionMaxMs}
-					min={clip.transitionMinMs}
-					{disabled}
-					ariaLabel="Transition max in milliseconds"
-					onValueChange={(v) => setClipTransitionMax(trackUid, clip.uid, v)}
-				/>
-			</label>
-		{:else}
-			<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				Transition (ms)
-				<NumberInput
-					value={clip.transitionMaxMs}
-					min={0}
-					{disabled}
-					ariaLabel="Transition in milliseconds"
-					onValueChange={(v) => setClipTransition(trackUid, clip.uid, v)}
-				/>
-			</label>
+			{#if isRandom}
+				<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
+					Transition min (ms)
+					<NumberInput
+						value={clip.transitionMinMs}
+						min={0}
+						{disabled}
+						ariaLabel="Transition min in milliseconds"
+						onValueChange={(v) => setClipTransitionMin(trackUid, clip.uid, v)}
+					/>
+				</label>
+				<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
+					Transition max (ms)
+					<NumberInput
+						value={clip.transitionMaxMs}
+						min={clip.transitionMinMs}
+						{disabled}
+						ariaLabel="Transition max in milliseconds"
+						onValueChange={(v) => setClipTransitionMax(trackUid, clip.uid, v)}
+					/>
+				</label>
+			{:else}
+				<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
+					Transition (ms)
+					<NumberInput
+						value={clip.transitionMaxMs}
+						min={0}
+						{disabled}
+						ariaLabel="Transition in milliseconds"
+						onValueChange={(v) => setClipTransition(trackUid, clip.uid, v)}
+					/>
+				</label>
+			{/if}
 		{/if}
 	</div>
 {/snippet}

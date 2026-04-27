@@ -278,6 +278,20 @@ export function deviceHasCapability(device: Device, name: string): boolean {
   return device.capabilities.some((c) => c.name === name);
 }
 
+/**
+ * Whether the device supports a given native effect program. Mirrors the
+ * server-side `nativeEffectOptions` derivation: a device supports `name` iff
+ * its `effect` capability's `values` list contains the name.
+ */
+export function deviceSupportsNativeEffect(device: Device, name: string): boolean {
+  for (const c of device.capabilities) {
+    if (c.name !== "effect") continue;
+    if (!c.values) return false;
+    return c.values.includes(name);
+  }
+  return false;
+}
+
 export interface SceneCapabilities {
   hasOnOff: boolean;
   hasBrightness: boolean;

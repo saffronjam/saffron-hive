@@ -6,9 +6,10 @@
 		onchange: (color: { r: number; g: number; b: number }) => void;
 		disabled?: boolean;
 		showPreview?: boolean;
+		compact?: boolean;
 	}
 
-	let { r, g, b, onchange, disabled = false, showPreview = true }: Props = $props();
+	let { r, g, b, onchange, disabled = false, showPreview = true, compact = false }: Props = $props();
 
 	let canvasEl: HTMLCanvasElement | null = $state(null);
 	let dragging = $state(false);
@@ -191,7 +192,11 @@
 />
 
 <div class="flex flex-col gap-3" class:opacity-50={disabled}>
-	<div class="relative mx-auto aspect-square w-full max-w-xs">
+	<div
+		class="relative mx-auto aspect-square w-full"
+		class:max-w-xs={!compact}
+		class:max-w-[160px]={compact}
+	>
 		<canvas
 			bind:this={canvasEl}
 			width={320}

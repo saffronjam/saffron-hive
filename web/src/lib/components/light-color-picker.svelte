@@ -10,11 +10,14 @@
 		b: number;
 	}
 
+	type Mode = "color" | "temp";
+
 	interface Props {
 		color: ColorValue | null;
 		colorTemp: number | null;
 		hasColor: boolean;
 		hasColorTemp: boolean;
+		mode?: Mode;
 		minColorTemp?: number;
 		maxColorTemp?: number;
 		hasBrightness?: boolean;
@@ -24,7 +27,9 @@
 		onbrightnesschange?: (val: number) => void;
 		oncolorchange: (c: ColorValue) => void;
 		ontempchange: (mired: number) => void;
+		onmodechange?: (mode: Mode) => void;
 		disabled?: boolean;
+		compact?: boolean;
 	}
 
 	let {
@@ -32,6 +37,7 @@
 		colorTemp,
 		hasColor,
 		hasColorTemp,
+		mode = $bindable<Mode>("color"),
 		minColorTemp = 150,
 		maxColorTemp = 500,
 		hasBrightness = false,
@@ -41,11 +47,16 @@
 		onbrightnesschange,
 		oncolorchange,
 		ontempchange,
+		onmodechange,
 		disabled = false,
+		compact = false,
 	}: Props = $props();
 
-	type Mode = "color" | "temp";
-	let mode = $state<Mode>("color");
+	function setMode(m: Mode) {
+		if (mode === m) return;
+		mode = m;
+		onmodechange?.(m);
+	}
 
 	$effect(() => {
 		if (mode === "color" && !hasColor && hasColorTemp) mode = "temp";
@@ -121,6 +132,7 @@
 		onchange={oncolorchange}
 		showPreview={false}
 		{disabled}
+		{compact}
 	/>
 {/snippet}
 
@@ -131,6 +143,7 @@
 		max={maxColorTemp}
 		onchange={ontempchange}
 		{disabled}
+		{compact}
 	/>
 {/snippet}
 
@@ -166,7 +179,7 @@
 						variant={mode === "color" ? "default" : "ghost"}
 						size="xs"
 						class="rounded-full"
-						onclick={() => (mode = "color")}
+						onclick={() => setMode("color")}
 						{disabled}
 						aria-pressed={mode === "color"}
 					>
@@ -177,7 +190,7 @@
 						variant={mode === "temp" ? "default" : "ghost"}
 						size="xs"
 						class="rounded-full"
-						onclick={() => (mode = "temp")}
+						onclick={() => setMode("temp")}
 						{disabled}
 						aria-pressed={mode === "temp"}
 					>

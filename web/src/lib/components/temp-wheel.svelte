@@ -5,9 +5,10 @@
 		max?: number;
 		onchange: (mired: number) => void;
 		disabled?: boolean;
+		compact?: boolean;
 	}
 
-	let { value, min = 150, max = 500, onchange, disabled = false }: Props = $props();
+	let { value, min = 150, max = 500, onchange, disabled = false, compact = false }: Props = $props();
 
 	let canvasEl: HTMLCanvasElement | null = $state(null);
 	let dragging = $state(false);
@@ -144,7 +145,12 @@
 	ontouchend={handleWindowUp}
 />
 
-<div class="relative mx-auto aspect-square w-full max-w-xs" class:opacity-50={disabled}>
+<div
+	class="relative mx-auto aspect-square w-full"
+	class:max-w-xs={!compact}
+	class:max-w-[160px]={compact}
+	class:opacity-50={disabled}
+>
 	<canvas
 		bind:this={canvasEl}
 		width={320}
