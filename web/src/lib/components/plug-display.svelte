@@ -6,11 +6,10 @@
 
 	interface Props {
 		state: DeviceState;
-		sending: boolean;
 		oncommand: (state: { on: boolean }) => void;
 	}
 
-	let { state, sending, oncommand }: Props = $props();
+	let { state, oncommand }: Props = $props();
 
 	function toggle(next: boolean) {
 		oncommand({ on: next });
@@ -32,7 +31,6 @@
 					<Switch
 						checked={state.on === true}
 						onCheckedChange={toggle}
-						disabled={sending}
 						aria-label="Toggle plug"
 					/>
 				</div>

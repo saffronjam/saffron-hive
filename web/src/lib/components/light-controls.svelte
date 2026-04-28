@@ -2,9 +2,7 @@
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
-	import NumberInput from "$lib/components/number-input.svelte";
 	import type { DeviceState } from "$lib/stores/devices";
 
 	interface CommandInput {
@@ -12,29 +10,25 @@
 		brightness?: number;
 		colorTemp?: number;
 		color?: { r: number; g: number; b: number; x: number; y: number };
-		transition?: number;
 	}
 
 	interface Props {
 		lightState: DeviceState;
 		oncommand: (input: CommandInput) => void;
-		sending: boolean;
 	}
 
-	let { lightState, oncommand, sending }: Props = $props();
+	let { lightState, oncommand }: Props = $props();
 
 	let brightnessTimer: ReturnType<typeof setTimeout> | null = $state(null);
 	let colorTempTimer: ReturnType<typeof setTimeout> | null = $state(null);
 	let colorTimer: ReturnType<typeof setTimeout> | null = $state(null);
 
 	let localBrightness = $state(127);
-	let transitionValue = $state<number | null>(null);
 	let initialized = $state(false);
 
 	$effect(() => {
 		if (!initialized) {
 			localBrightness = lightState.brightness ?? 127;
-			transitionValue = lightState.transition ?? null;
 			initialized = true;
 		}
 	});
@@ -58,12 +52,7 @@
 		if (brightnessTimer) clearTimeout(brightnessTimer);
 		brightnessTimer = setTimeout(() => {
 			brightnessTimer = null;
-			const t = transitionValue;
-			oncommand({
-				...autoOn(),
-				brightness: val,
-				...(t !== null && t > 0 ? { transition: t } : {}),
-			});
+			oncommand({ ...autoOn(), brightness: val });
 		}, 200);
 	}
 
@@ -71,12 +60,7 @@
 		if (colorTempTimer) clearTimeout(colorTempTimer);
 		colorTempTimer = setTimeout(() => {
 			colorTempTimer = null;
-			const t = transitionValue;
-			oncommand({
-				...autoOn(),
-				colorTemp: val,
-				...(t !== null && t > 0 ? { transition: t } : {}),
-			});
+			oncommand({ ...autoOn(), colorTemp: val });
 		}, 200);
 	}
 
@@ -106,11 +90,9 @@
 		colorTimer = setTimeout(() => {
 			colorTimer = null;
 			const xy = rgbToXy(color.r, color.g, color.b);
-			const t = transitionValue;
 			oncommand({
 				...autoOn(),
 				color: { ...color, x: xy.x, y: xy.y },
-				...(t !== null && t > 0 ? { transition: t } : {}),
 			});
 		}, 200);
 	}
@@ -128,21 +110,34 @@
 		<CardHeader>
 			<div class="flex items-center justify-between">
 				<CardTitle>Power</CardTitle>
-				<div class="flex items-center gap-2">
-					{#if sending}
-						<Badge variant="outline">Sending...</Badge>
-					{/if}
-					<Switch
-						checked={lightState.on ?? false}
-						onCheckedChange={handleToggle}
-						disabled={sending}
-					/>
-				</div>
+				<Switch
+					checked={lightState.on ?? false}
+					onCheckedChange={handleToggle}
+				/>
 			</div>
 		</CardHeader>
 	</Card>
 
-	{#if lightState.brightness != null}
+	{#if hasColor || hasColorTemp}
+		<Card>
+			<CardHeader>
+				<CardTitle>Color</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<LightColorPicker
+					color={lightState.color ?? null}
+					colorTemp={lightState.colorTemp ?? null}
+					{hasColor}
+					{hasColorTemp}
+					hasBrightness={lightState.brightness != null}
+					brightness={localBrightness}
+					oncolorchange={handleColorChange}
+					ontempchange={handleColorTempChange}
+					onbrightnesschange={handleBrightnessChange}
+				/>
+			</CardContent>
+		</Card>
+	{:else if lightState.brightness != null}
 		<Card>
 			<CardHeader>
 				<div class="flex items-center justify-between">
@@ -158,48 +153,8 @@
 					max={254}
 					step={1}
 					onValueChange={handleBrightnessChange}
-					disabled={sending}
 				/>
 			</CardContent>
 		</Card>
 	{/if}
-
-	{#if hasColor || hasColorTemp}
-		<Card>
-			<CardHeader>
-				<CardTitle>Color</CardTitle>
-			</CardHeader>
-			<CardContent>
-				<LightColorPicker
-					color={lightState.color ?? null}
-					colorTemp={lightState.colorTemp ?? null}
-					{hasColor}
-					{hasColorTemp}
-					oncolorchange={handleColorChange}
-					ontempchange={handleColorTempChange}
-					disabled={sending}
-				/>
-			</CardContent>
-		</Card>
-	{/if}
-
-	<Card>
-		<CardHeader>
-			<CardTitle>Transition Time</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<div class="flex items-center gap-3">
-				<NumberInput
-					allowDecimal
-					placeholder="0.0"
-					bind:value={transitionValue}
-					class="max-w-32"
-					min={0}
-					disabled={sending}
-					ariaLabel="Transition seconds"
-				/>
-				<span class="text-sm text-muted-foreground">seconds</span>
-			</div>
-		</CardContent>
-	</Card>
 </div>

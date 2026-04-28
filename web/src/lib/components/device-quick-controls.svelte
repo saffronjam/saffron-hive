@@ -34,7 +34,6 @@
 	`);
 
 	const client = getContextClient();
-	let sending = $state(false);
 
 	const hasOnOff = $derived(device.state?.on != null);
 	const hasBrightness = $derived(device.state?.brightness != null);
@@ -49,14 +48,12 @@
 		color?: { r: number; g: number; b: number; x: number; y: number };
 	}
 
-	async function send(input: CommandInput) {
-		sending = true;
-		await client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
-		sending = false;
+	function send(input: CommandInput) {
+		void client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
 	}
 
 	function handleToggle(checked: boolean) {
-		void send({ on: checked });
+		send({ on: checked });
 	}
 
 	const THROTTLE_MS = 250;
@@ -102,11 +99,11 @@
 
 	function handleBrightnessChange(val: number) {
 		localBrightness = val;
-		throttle(brightnessThrottle, () => void send({ ...autoOn(), brightness: val }));
+		throttle(brightnessThrottle, () => send({ ...autoOn(), brightness: val }));
 	}
 
 	function handleColorTempChange(val: number) {
-		throttle(colorTempThrottle, () => void send({ ...autoOn(), colorTemp: val }));
+		throttle(colorTempThrottle, () => send({ ...autoOn(), colorTemp: val }));
 	}
 
 	function rgbToXy(r: number, g: number, b: number): { x: number; y: number } {
@@ -133,7 +130,7 @@
 	function handleColorChange(color: { r: number; g: number; b: number }) {
 		throttle(colorThrottle, () => {
 			const xy = rgbToXy(color.r, color.g, color.b);
-			void send({ ...autoOn(), color: { ...color, x: xy.x, y: xy.y } });
+			send({ ...autoOn(), color: { ...color, x: xy.x, y: xy.y } });
 		});
 	}
 
@@ -146,7 +143,7 @@
 			<Switch
 				checked={isOn}
 				onCheckedChange={handleToggle}
-				disabled={sending || !device.available}
+				disabled={!device.available}
 				aria-label={`Toggle ${device.name}`}
 			/>
 		</TooltipTrigger>
@@ -184,7 +181,6 @@
 						oncolorchange={handleColorChange}
 						ontempchange={handleColorTempChange}
 						onbrightnesschange={handleBrightnessChange}
-						disabled={sending}
 					/>
 				</div>
 			{/if}
