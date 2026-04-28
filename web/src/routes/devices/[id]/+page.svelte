@@ -49,7 +49,6 @@
 		}
 	});
 	let error = $state<string | null>(null);
-	let sending = $state(false);
 	let copied = $state(false);
 
 	interface GroupMember {
@@ -160,22 +159,6 @@
 		mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
 			}
 		}
 	`);
@@ -223,10 +206,6 @@
 
 	interface RoomsQueryResult {
 		rooms: RoomInfo[];
-	}
-
-	interface SetDeviceStateResult {
-		setDeviceState: Device;
 	}
 
 	interface DeviceStateChangedResult {
@@ -379,26 +358,9 @@
 		transition?: number;
 	}
 
-	async function handleDeviceCommand(input: CommandInput) {
+	function handleDeviceCommand(input: CommandInput) {
 		if (!clientRef || !device) return;
-		sending = true;
-
-		const result = await clientRef
-			.mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
-				deviceId: device.id,
-				state: input,
-			})
-			.toPromise();
-
-		sending = false;
-
-		if (result.data) {
-			device = result.data.setDeviceState;
-		}
-		if (result.error) {
-			error = result.error.message;
-			setTimeout(() => { error = null; }, 5000);
-		}
+		void clientRef.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
 	}
 
 	onMount(() => {
@@ -584,9 +546,9 @@
 
 			<div class="flex flex-col gap-4">
 				{#if light}
-					<LightControls lightState={light} oncommand={handleDeviceCommand} {sending} />
+					<LightControls lightState={light} oncommand={handleDeviceCommand} />
 				{:else if plug}
-					<PlugDisplay state={plug} oncommand={handleDeviceCommand} {sending} />
+					<PlugDisplay state={plug} oncommand={handleDeviceCommand} />
 				{:else if sensor}
 					<SensorDisplay state={sensor} />
 				{:else if isButton}
