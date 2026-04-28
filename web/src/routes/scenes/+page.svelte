@@ -16,6 +16,8 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import SceneTable from "$lib/components/scene-table.svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
 	import { sceneTintColors } from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
@@ -27,7 +29,8 @@
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { Plus, Clapperboard, Play } from "@lucide/svelte";
+	import { deviceIcon } from "$lib/utils";
+	import { Plus, Clapperboard, Play, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
@@ -169,6 +172,38 @@
 			devices {
 				id
 				name
+				type
+				capabilities {
+					name
+					access
+				}
+			}
+		}
+	`);
+
+	const GROUPS_QUERY = graphql(`
+		query ScenesPageGroups {
+			groups {
+				id
+				name
+				icon
+				members {
+					memberType
+					memberId
+				}
+			}
+		}
+	`);
+
+	const ROOMS_QUERY = graphql(`
+		query ScenesPageRooms {
+			rooms {
+				id
+				name
+				icon
+				resolvedDevices {
+					id
+				}
 			}
 		}
 	`);
@@ -176,21 +211,146 @@
 	interface DeviceRef {
 		id: string;
 		name: string;
+		type: string;
+		capabilities: { name: string; access: number }[];
+	}
+
+	interface GroupRef {
+		id: string;
+		name: string;
+		icon?: string | null;
+		members: { memberType: string; memberId: string }[];
+	}
+
+	interface RoomRef {
+		id: string;
+		name: string;
+		icon?: string | null;
+		resolvedDevices: { id: string }[];
 	}
 
 	interface DevicesQueryResult {
 		devices: DeviceRef[];
 	}
 
+	interface GroupsQueryResult {
+		groups: GroupRef[];
+	}
+
+	interface RoomsQueryResult {
+		rooms: RoomRef[];
+	}
+
+	type SceneTargetKind = "device" | "group" | "room";
+
+	function isScenePickerTarget(d: DeviceRef): boolean {
+		const has = (n: string) =>
+			d.capabilities.some((c) => c.name === n && (c.access & 2) !== 0);
+		return has("on_off") || has("state") || has("brightness") || has("color") || has("color_temp");
+	}
+
 	const clientRef = getContextClient();
 	let scenes = $state<SceneData[]>([]);
 	let devicesRef = $state<DeviceRef[]>([]);
+	let groupsRef = $state<GroupRef[]>([]);
+	let roomsRef = $state<RoomRef[]>([]);
 	let loading = $state(true);
 	let applyingId = $state<string | null>(null);
 	let createDialogOpen = $state(false);
 	let newSceneName = $state("");
 	let createLoading = $state(false);
 	let newSceneNameInput = $state<HTMLInputElement | null>(null);
+
+	let quickAddScene = $state<SceneData | null>(null);
+	let quickAddOpen = $state(false);
+	let pendingQuickAdds: { targetType: SceneTargetKind; targetId: string }[] = [];
+	let quickAddFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+	const quickAddDrawerGroups = $derived.by((): DrawerGroup<SceneTargetKind>[] => {
+		if (!quickAddScene) return [];
+		const existing = new Set(quickAddScene.actions.map((a) => `${a.targetType}:${a.targetId}`));
+		const result: DrawerGroup<SceneTargetKind>[] = [];
+
+		const devs = devicesRef.filter(
+			(d) => isScenePickerTarget(d) && !existing.has(`device:${d.id}`),
+		);
+		if (devs.length > 0) {
+			result.push({
+				heading: "Devices",
+				items: devs.map((d) => ({
+					type: "device" as const,
+					id: d.id,
+					name: d.name,
+					icon: deviceIcon(d.type),
+					searchValue: `${d.name} ${d.type}`,
+				})),
+			});
+		}
+
+		const grps = groupsRef.filter((g) => !existing.has(`group:${g.id}`));
+		if (grps.length > 0) {
+			result.push({
+				heading: "Groups",
+				items: grps.map((g) => ({
+					type: "group" as const,
+					id: g.id,
+					name: g.name,
+					icon: GroupIcon,
+					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+				})),
+			});
+		}
+
+		const rms = roomsRef.filter((r) => !existing.has(`room:${r.id}`));
+		if (rms.length > 0) {
+			result.push({
+				heading: "Rooms",
+				items: rms.map((r) => ({
+					type: "room" as const,
+					id: r.id,
+					name: r.name,
+					icon: DoorOpen,
+					badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
+				})),
+			});
+		}
+
+		return result;
+	});
+
+	function handleAddToScene(scene: SceneData) {
+		quickAddScene = scene;
+		quickAddOpen = true;
+	}
+
+	function handleQuickAddSelect(targetType: SceneTargetKind, targetId: string) {
+		if (!quickAddScene) return;
+		pendingQuickAdds.push({ targetType, targetId });
+		if (quickAddFlushTimer == null) {
+			quickAddFlushTimer = setTimeout(() => {
+				quickAddFlushTimer = null;
+				void flushQuickAdds();
+			}, 0);
+		}
+	}
+
+	async function flushQuickAdds() {
+		if (!clientRef || !quickAddScene || pendingQuickAdds.length === 0) return;
+		const scene = quickAddScene;
+		const picks = pendingQuickAdds;
+		pendingQuickAdds = [];
+		const newActions = [
+			...scene.actions.map((a) => ({ targetType: a.targetType, targetId: a.targetId })),
+			...picks,
+		];
+		const result = await clientRef
+			.mutation(UPDATE_SCENE_NAME, { id: scene.id, input: { actions: newActions } })
+			.toPromise();
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+		}
+		fetchScenes();
+	}
 
 	let view = $state<ListViewMode>(profile.get("view.scenes", "card"));
 
@@ -378,6 +538,18 @@
 		if (result.data) devicesRef = result.data.devices;
 	}
 
+	async function fetchGroups() {
+		if (!clientRef) return;
+		const result = await clientRef.query<GroupsQueryResult>(GROUPS_QUERY, {}).toPromise();
+		if (result.data) groupsRef = result.data.groups;
+	}
+
+	async function fetchRooms() {
+		if (!clientRef) return;
+		const result = await clientRef.query<RoomsQueryResult>(ROOMS_QUERY, {}).toPromise();
+		if (result.data) roomsRef = result.data.rooms;
+	}
+
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
 	const targetOptions = [
@@ -484,6 +656,8 @@
 	onMount(() => {
 		fetchScenes();
 		fetchDevices();
+		fetchGroups();
+		fetchRooms();
 	});
 </script>
 
@@ -562,6 +736,8 @@
 										oniconchange={handleIconChange}
 										onedit={handleEdit}
 										ondelete={(s) => (deleteConfirmScene = s)}
+										onAddTo={handleAddToScene}
+										addLabel="Add target"
 									>
 										{#snippet leadingActions()}
 											<Button
@@ -589,6 +765,7 @@
 								ondelete={(s) => (deleteConfirmScene = s)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
+								onAddTo={handleAddToScene}
 							/>
 						{/snippet}
 					</ListView>
@@ -657,5 +834,14 @@
 		loading={batchDeleteLoading}
 		onconfirm={handleBatchDelete}
 		oncancel={() => (batchDeleteConfirm = false)}
+	/>
+
+	<HiveDrawer
+		bind:open={quickAddOpen}
+		title={quickAddScene ? `Add targets to ${quickAddScene.name}` : "Add targets"}
+		description="Pick devices, groups, or rooms to include in this scene."
+		multiple
+		groups={quickAddDrawerGroups}
+		onselect={handleQuickAddSelect}
 	/>
 </div>

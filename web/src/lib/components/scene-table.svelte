@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
@@ -16,7 +17,7 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
-	import { Clapperboard, Play } from "@lucide/svelte";
+	import { Clapperboard, Play, Plus } from "@lucide/svelte";
 	import { sceneTintFromPayloads } from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
 
@@ -50,6 +51,7 @@
 		ondelete: (scene: SceneData) => void;
 		onrename: (scene: SceneData, newName: string) => void;
 		oniconchange: (scene: SceneData, icon: string | null) => void;
+		onAddTo?: (scene: SceneData) => void;
 	}
 
 	let {
@@ -61,6 +63,7 @@
 		ondelete,
 		onrename,
 		oniconchange,
+		onAddTo,
 	}: Props = $props();
 
 	const COLUMNS: ColumnDef<SceneData>[] = [
@@ -114,7 +117,7 @@
 			key: "actions",
 			label: "",
 			hideable: false,
-			headClass: "w-32 text-right",
+			headClass: "w-40 text-right",
 			head: actionsHead,
 			cell: actionsCell,
 		},
@@ -194,6 +197,21 @@
 			>
 				<Play class="size-4" />
 			</Button>
+			{#if onAddTo}
+				<Tooltip>
+					<TooltipTrigger>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							onclick={() => onAddTo?.(s)}
+							aria-label="Add target"
+						>
+							<Plus class="size-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Add…</TooltipContent>
+				</Tooltip>
+			{/if}
 		{/snippet}
 	</RowActionsCell>
 {/snippet}
