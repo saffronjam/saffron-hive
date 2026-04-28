@@ -1,4 +1,4 @@
-.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version mqttprint package sqlc sqlc-check codegen codegen-check prepare-for-commit
+.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version mqttprint package sqlc sqlc-check codegen codegen-check gqlgen gqlgen-check prepare-for-commit
 
 SQLC_VERSION := 1.31.0
 
@@ -72,6 +72,22 @@ sqlc-check:
 	fi; \
 	rm -rf $$tmpdir
 
+gqlgen:
+	go run github.com/99designs/gqlgen generate --config api/gqlgen.yml
+
+gqlgen-check:
+	@tmpdir=$$(mktemp -d); \
+	cp -R internal/graph/. $$tmpdir/; \
+	go run github.com/99designs/gqlgen generate --config api/gqlgen.yml; \
+	if ! diff -rq $$tmpdir internal/graph >/dev/null 2>&1; then \
+		echo "gqlgen output drift detected under internal/graph/."; \
+		echo "Run 'make gqlgen' and commit the regenerated files."; \
+		diff -rq $$tmpdir internal/graph || true; \
+		rm -rf $$tmpdir; \
+		exit 1; \
+	fi; \
+	rm -rf $$tmpdir
+
 codegen:
 	cd web && bun run codegen
 
@@ -98,4 +114,4 @@ e2e-ts:
 	docker build -t saffron-hive-test .
 	cd web && bun run test:e2e
 
-prepare-for-commit: deps sqlc-check codegen-check format lint typecheck errcheck test
+prepare-for-commit: deps sqlc-check gqlgen-check codegen-check format lint typecheck errcheck test
