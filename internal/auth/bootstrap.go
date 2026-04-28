@@ -36,6 +36,18 @@ type bootstrapStore interface {
 	UpsertSetting(ctx context.Context, key, value string) error
 }
 
+// IsInternalSettingKey reports whether a settings-table key is server-internal
+// and must not be exposed via Query.settings or modifiable via
+// Mutation.updateSetting. The JWT secret is the headline case: it lives in the
+// settings table for storage convenience, but reading it would let any caller
+// forge tokens, and overwriting it would log every active session out
+// silently. Keep this list narrow — anything users may legitimately tune
+// (e.g. log_level, retention_days, auth.token_ttl_hours) belongs on the
+// public side.
+func IsInternalSettingKey(key string) bool {
+	return key == SettingJWTSecret
+}
+
 // LoadOrInitSecret returns the JWT signing secret. On first boot, generates a
 // cryptographically random 32-byte secret and persists it base64-encoded in
 // the settings table.

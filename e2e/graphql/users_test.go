@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -171,15 +172,20 @@ func TestDeleteUserRejectsSelf(t *testing.T) {
 	}
 }
 
-func TestDeletedUserTokenGets401(t *testing.T) {
+func TestDeletedUserTokenLosesAccess(t *testing.T) {
 	u := createUserForTest(t, "willbedeleted", "Soon Gone", "initialpw1")
 	tok := loginForTest(t, "willbedeleted", "initialpw1")
 
 	// As the seed admin, delete the new user.
 	deleteUserForTest(t, u.ID)
 
-	// The deleted user's token should now fail on any authed request.
-	req, _ := http.NewRequest(http.MethodPost, graphqlURL, bytes.NewReader([]byte(`{"operationName":"me","query":"query me { me { id } }"}`)))
+	// The deleted user's token must lose access. Under the directive-based
+	// auth model the middleware no longer 401s on its own — a token whose
+	// user has vanished is treated as no token at all (pass-through with no
+	// user on the context). The @auth directive then rejects any protected
+	// field with HTTP 200 + GraphQL UNAUTHENTICATED. Hitting Query.users
+	// (carries @auth) with the deleted user's token must produce that error.
+	req, _ := http.NewRequest(http.MethodPost, graphqlURL, bytes.NewReader([]byte(`{"query":"query { users { id } }"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tok)
 	resp, err := http.DefaultClient.Do(req)
@@ -187,8 +193,22 @@ func TestDeletedUserTokenGets401(t *testing.T) {
 		t.Fatalf("request: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401 for deleted user's token", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (auth enforced at directive layer)", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	var gqlResp graphqlResponse
+	if err := json.Unmarshal(body, &gqlResp); err != nil {
+		t.Fatalf("unmarshal: %v body=%s", err, string(body))
+	}
+	if len(gqlResp.Errors) == 0 {
+		t.Fatalf("expected UNAUTHENTICATED error, got data=%s", string(gqlResp.Data))
+	}
+	if !strings.Contains(gqlResp.Errors[0].Message, "authentication required") {
+		t.Errorf("error message = %q, want contains \"authentication required\"", gqlResp.Errors[0].Message)
 	}
 }
 

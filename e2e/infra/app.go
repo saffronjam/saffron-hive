@@ -173,6 +173,9 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
 		Resolvers: resolver,
+		Directives: graph.DirectiveRoot{
+			Auth: graph.AuthDirective,
+		},
 	}))
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})

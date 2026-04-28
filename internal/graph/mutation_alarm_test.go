@@ -12,9 +12,11 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "modernc.org/sqlite"
+	"net/http"
 	"net/http/httptest"
 
 	"github.com/saffronjam/saffron-hive/internal/alarms"
+	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -71,9 +73,19 @@ func newAlarmTestEnv(t *testing.T) (*testEnv, *alarms.Service) {
 		LevelVar:           levelVar,
 	}
 
-	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolver}))
+	srv := handler.New(NewExecutableSchema(Config{
+		Resolvers:  resolver,
+		Directives: DirectiveRoot{Auth: AuthDirective},
+	}))
 	srv.AddTransport(transport.POST{})
-	ts := httptest.NewServer(srv)
+
+	// Mirror the user-injecting wrapper from newTestEnv so the @auth directive
+	// is satisfied for the protected alarm queries/mutations exercised here.
+	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = r.WithContext(auth.WithUser(r.Context(), testUser))
+		srv.ServeHTTP(w, r)
+	})
+	ts := httptest.NewServer(authed)
 	t.Cleanup(ts.Close)
 
 	return &testEnv{server: ts, stateReader: sr, store: st, bus: bus, reloader: rl}, svc

@@ -1,5 +1,14 @@
 scalar DateTime
 
+"""
+Marks a field as requiring an authenticated caller. The directive resolver
+rejects the request with code UNAUTHENTICATED when no user is attached to the
+request context. Default-deny: every Query / Mutation / Subscription field
+should carry @auth unless it is intentionally public (login, createInitialUser,
+setupStatus, me).
+"""
+directive @auth on FIELD_DEFINITION
+
 type Capability {
   name: String!
   type: String!
@@ -657,101 +666,101 @@ input UpdateAutomationInput {
 }
 
 type Query {
-  devices: [Device!]!
-  device(id: ID!): Device
-  scenes: [Scene!]!
-  scene(id: ID!): Scene
-  automations: [AutomationGraph!]!
-  automation(id: ID!): AutomationGraph
-  groups: [Group!]!
-  group(id: ID!): Group
-  rooms: [Room!]!
-  room(id: ID!): Room
-  stateHistory(filter: StateHistoryFilter!): [StateSeries!]!
-  stateHistoryFields: [String!]!
-  mqttConfig: MqttConfig
-  settings: [Setting!]!
-  logs(search: String, limit: Int): [LogEntry!]!
-  activity(filter: ActivityFilter): [ActivityEvent!]!
-  alarms(filter: AlarmFilter): [Alarm!]!
+  devices: [Device!]! @auth
+  device(id: ID!): Device @auth
+  scenes: [Scene!]! @auth
+  scene(id: ID!): Scene @auth
+  automations: [AutomationGraph!]! @auth
+  automation(id: ID!): AutomationGraph @auth
+  groups: [Group!]! @auth
+  group(id: ID!): Group @auth
+  rooms: [Room!]! @auth
+  room(id: ID!): Room @auth
+  stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
+  stateHistoryFields: [String!]! @auth
+  mqttConfig: MqttConfig @auth
+  settings: [Setting!]! @auth
+  logs(search: String, limit: Int): [LogEntry!]! @auth
+  activity(filter: ActivityFilter): [ActivityEvent!]! @auth
+  alarms(filter: AlarmFilter): [Alarm!]! @auth
   setupStatus: SetupStatus!
   me: User
-  users: [User!]!
-  effects: [Effect!]!
-  effect(id: ID!): Effect
-  activeEffects: [ActiveEffect!]!
-  nativeEffectOptions: [NativeEffectOption!]!
+  users: [User!]! @auth
+  effects: [Effect!]! @auth
+  effect(id: ID!): Effect @auth
+  activeEffects: [ActiveEffect!]! @auth
+  nativeEffectOptions: [NativeEffectOption!]! @auth
 }
 
 type Mutation {
-  updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
-  setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device!
+  updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
+  setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device! @auth
   """
   Simulate a device-fired action by publishing a synthetic
   EventDeviceActionFired on the in-process event bus. Automations listening
   for the action run as if the physical device emitted it; no command is
   sent to the device itself. Useful for testing automations from the UI.
   """
-  simulateDeviceAction(deviceId: ID!, action: String!): Boolean!
-  applyScene(sceneId: ID!): Scene!
-  createScene(input: CreateSceneInput!): Scene!
-  updateScene(id: ID!, input: UpdateSceneInput!): Scene!
-  deleteScene(id: ID!): Boolean!
-  createAutomation(input: CreateAutomationInput!): AutomationGraph!
-  updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph!
-  deleteAutomation(id: ID!): Boolean!
-  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph!
+  simulateDeviceAction(deviceId: ID!, action: String!): Boolean! @auth
+  applyScene(sceneId: ID!): Scene! @auth
+  createScene(input: CreateSceneInput!): Scene! @auth
+  updateScene(id: ID!, input: UpdateSceneInput!): Scene! @auth
+  deleteScene(id: ID!): Boolean! @auth
+  createAutomation(input: CreateAutomationInput!): AutomationGraph! @auth
+  updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph! @auth
+  deleteAutomation(id: ID!): Boolean! @auth
+  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph! @auth
   """
   Fires a manual trigger node immediately. The automation must be enabled and
   the node must be a trigger with mode=manual. Bypasses the automation's
   cooldown. Intended for debugging automations from the editor.
   """
-  fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean!
-  createGroup(input: CreateGroupInput!): Group!
-  updateGroup(id: ID!, input: UpdateGroupInput!): Group!
-  deleteGroup(id: ID!): Boolean!
-  addGroupMember(input: AddGroupMemberInput!): GroupMember!
-  removeGroupMember(id: ID!): Boolean!
-  createRoom(input: CreateRoomInput!): Room!
-  updateRoom(id: ID!, input: UpdateRoomInput!): Room!
-  deleteRoom(id: ID!): Boolean!
-  addRoomMember(input: AddRoomMemberInput!): RoomMember!
-  removeRoomMember(id: ID!): Boolean!
-  updateMqttConfig(input: MqttConfigInput!): MqttConfig!
-  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult!
-  updateSetting(key: String!, value: String!): Setting!
+  fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean! @auth
+  createGroup(input: CreateGroupInput!): Group! @auth
+  updateGroup(id: ID!, input: UpdateGroupInput!): Group! @auth
+  deleteGroup(id: ID!): Boolean! @auth
+  addGroupMember(input: AddGroupMemberInput!): GroupMember! @auth
+  removeGroupMember(id: ID!): Boolean! @auth
+  createRoom(input: CreateRoomInput!): Room! @auth
+  updateRoom(id: ID!, input: UpdateRoomInput!): Room! @auth
+  deleteRoom(id: ID!): Boolean! @auth
+  addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
+  removeRoomMember(id: ID!): Boolean! @auth
+  updateMqttConfig(input: MqttConfigInput!): MqttConfig! @auth
+  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult! @auth
+  updateSetting(key: String!, value: String!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
-  createUser(input: CreateUserInput!): User!
-  updateCurrentUser(input: UpdateCurrentUserInput!): User!
-  changePassword(input: ChangePasswordInput!): Boolean!
-  resetUserPassword(id: ID!, newPassword: String!): Boolean!
-  deleteUser(id: ID!): Boolean!
-  raiseAlarm(input: RaiseAlarmInput!): Alarm!
-  deleteAlarm(alarmId: ID!): Boolean!
+  createUser(input: CreateUserInput!): User! @auth
+  updateCurrentUser(input: UpdateCurrentUserInput!): User! @auth
+  changePassword(input: ChangePasswordInput!): Boolean! @auth
+  resetUserPassword(id: ID!, newPassword: String!): Boolean! @auth
+  deleteUser(id: ID!): Boolean! @auth
+  raiseAlarm(input: RaiseAlarmInput!): Alarm! @auth
+  deleteAlarm(alarmId: ID!): Boolean! @auth
 
-  batchDeleteScenes(ids: [ID!]!): Int!
-  batchDeleteAutomations(ids: [ID!]!): Int!
-  batchDeleteGroups(ids: [ID!]!): Int!
-  batchDeleteRooms(ids: [ID!]!): Int!
-  batchDeleteAlarms(alarmIds: [ID!]!): Int!
+  batchDeleteScenes(ids: [ID!]!): Int! @auth
+  batchDeleteAutomations(ids: [ID!]!): Int! @auth
+  batchDeleteGroups(ids: [ID!]!): Int! @auth
+  batchDeleteRooms(ids: [ID!]!): Int! @auth
+  batchDeleteAlarms(alarmIds: [ID!]!): Int! @auth
   """
   Deletes the specified users. The currently authenticated user is silently
   skipped if present in the list. Returns the number of users actually deleted.
   """
-  batchDeleteUsers(ids: [ID!]!): Int!
+  batchDeleteUsers(ids: [ID!]!): Int! @auth
 
-  batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room!
-  batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
+  batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room! @auth
+  batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group! @auth
 
-  createEffect(input: CreateEffectInput!): Effect!
-  updateEffect(input: UpdateEffectInput!): Effect!
-  deleteEffect(id: ID!): Boolean!
+  createEffect(input: CreateEffectInput!): Effect! @auth
+  updateEffect(input: UpdateEffectInput!): Effect! @auth
+  deleteEffect(id: ID!): Boolean! @auth
   """
   Starts effectId on the given target. Preempts any effect already
   running on the target. Returns the resulting active-run row.
   """
-  runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect!
+  runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect! @auth
   """
   Starts a native effect by name on the given target without requiring a
   stored Effect row. Preempts any effect already running on the target.
@@ -759,29 +768,29 @@ type Mutation {
   persisted, so Query.activeEffects will not list them. The returned
   ActiveEffect synthesises a transient view of the run.
   """
-  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect!
+  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect! @auth
   """
   Stops any effect currently running on the target. Returns true when a
   run was active, false otherwise.
   """
-  stopEffect(targetType: String!, targetId: ID!): Boolean!
+  stopEffect(targetType: String!, targetId: ID!): Boolean! @auth
 }
 
 type Subscription {
-  deviceStateChanged(deviceId: ID): DeviceStateEvent!
-  deviceActionFired(deviceId: ID): DeviceActionEvent!
-  deviceAvailabilityChanged: DeviceAvailabilityEvent!
-  deviceAdded: Device!
-  deviceRemoved: ID!
-  automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
-  sceneActiveChanged: SceneActiveEvent!
-  logStream: LogEntry!
-  activityStream(advanced: Boolean): ActivityEvent!
-  alarmEvent: AlarmEvent!
+  deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth
+  deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
+  deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
+  deviceAdded: Device! @auth
+  deviceRemoved: ID! @auth
+  automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
+  sceneActiveChanged: SceneActiveEvent! @auth
+  logStream: LogEntry! @auth
+  activityStream(advanced: Boolean): ActivityEvent! @auth
+  alarmEvent: AlarmEvent! @auth
   """
   Step-boundary events from the effect runner. When runId is provided,
   only events for that run are delivered; otherwise every effect run's
   step boundaries are broadcast.
   """
-  effectStepActivated(runId: ID): EffectStepEvent!
+  effectStepActivated(runId: ID): EffectStepEvent! @auth
 }

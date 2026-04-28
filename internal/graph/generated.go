@@ -34,6 +34,7 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
+	Auth func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -2618,6 +2619,15 @@ func newExecutionContext(
 var sources = []*ast.Source{
 	{Name: "../../api/schema.graphql", Input: `scalar DateTime
 
+"""
+Marks a field as requiring an authenticated caller. The directive resolver
+rejects the request with code UNAUTHENTICATED when no user is attached to the
+request context. Default-deny: every Query / Mutation / Subscription field
+should carry @auth unless it is intentionally public (login, createInitialUser,
+setupStatus, me).
+"""
+directive @auth on FIELD_DEFINITION
+
 type Capability {
   name: String!
   type: String!
@@ -3275,101 +3285,101 @@ input UpdateAutomationInput {
 }
 
 type Query {
-  devices: [Device!]!
-  device(id: ID!): Device
-  scenes: [Scene!]!
-  scene(id: ID!): Scene
-  automations: [AutomationGraph!]!
-  automation(id: ID!): AutomationGraph
-  groups: [Group!]!
-  group(id: ID!): Group
-  rooms: [Room!]!
-  room(id: ID!): Room
-  stateHistory(filter: StateHistoryFilter!): [StateSeries!]!
-  stateHistoryFields: [String!]!
-  mqttConfig: MqttConfig
-  settings: [Setting!]!
-  logs(search: String, limit: Int): [LogEntry!]!
-  activity(filter: ActivityFilter): [ActivityEvent!]!
-  alarms(filter: AlarmFilter): [Alarm!]!
+  devices: [Device!]! @auth
+  device(id: ID!): Device @auth
+  scenes: [Scene!]! @auth
+  scene(id: ID!): Scene @auth
+  automations: [AutomationGraph!]! @auth
+  automation(id: ID!): AutomationGraph @auth
+  groups: [Group!]! @auth
+  group(id: ID!): Group @auth
+  rooms: [Room!]! @auth
+  room(id: ID!): Room @auth
+  stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
+  stateHistoryFields: [String!]! @auth
+  mqttConfig: MqttConfig @auth
+  settings: [Setting!]! @auth
+  logs(search: String, limit: Int): [LogEntry!]! @auth
+  activity(filter: ActivityFilter): [ActivityEvent!]! @auth
+  alarms(filter: AlarmFilter): [Alarm!]! @auth
   setupStatus: SetupStatus!
   me: User
-  users: [User!]!
-  effects: [Effect!]!
-  effect(id: ID!): Effect
-  activeEffects: [ActiveEffect!]!
-  nativeEffectOptions: [NativeEffectOption!]!
+  users: [User!]! @auth
+  effects: [Effect!]! @auth
+  effect(id: ID!): Effect @auth
+  activeEffects: [ActiveEffect!]! @auth
+  nativeEffectOptions: [NativeEffectOption!]! @auth
 }
 
 type Mutation {
-  updateDevice(id: ID!, input: UpdateDeviceInput!): Device!
-  setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device!
+  updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
+  setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device! @auth
   """
   Simulate a device-fired action by publishing a synthetic
   EventDeviceActionFired on the in-process event bus. Automations listening
   for the action run as if the physical device emitted it; no command is
   sent to the device itself. Useful for testing automations from the UI.
   """
-  simulateDeviceAction(deviceId: ID!, action: String!): Boolean!
-  applyScene(sceneId: ID!): Scene!
-  createScene(input: CreateSceneInput!): Scene!
-  updateScene(id: ID!, input: UpdateSceneInput!): Scene!
-  deleteScene(id: ID!): Boolean!
-  createAutomation(input: CreateAutomationInput!): AutomationGraph!
-  updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph!
-  deleteAutomation(id: ID!): Boolean!
-  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph!
+  simulateDeviceAction(deviceId: ID!, action: String!): Boolean! @auth
+  applyScene(sceneId: ID!): Scene! @auth
+  createScene(input: CreateSceneInput!): Scene! @auth
+  updateScene(id: ID!, input: UpdateSceneInput!): Scene! @auth
+  deleteScene(id: ID!): Boolean! @auth
+  createAutomation(input: CreateAutomationInput!): AutomationGraph! @auth
+  updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph! @auth
+  deleteAutomation(id: ID!): Boolean! @auth
+  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph! @auth
   """
   Fires a manual trigger node immediately. The automation must be enabled and
   the node must be a trigger with mode=manual. Bypasses the automation's
   cooldown. Intended for debugging automations from the editor.
   """
-  fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean!
-  createGroup(input: CreateGroupInput!): Group!
-  updateGroup(id: ID!, input: UpdateGroupInput!): Group!
-  deleteGroup(id: ID!): Boolean!
-  addGroupMember(input: AddGroupMemberInput!): GroupMember!
-  removeGroupMember(id: ID!): Boolean!
-  createRoom(input: CreateRoomInput!): Room!
-  updateRoom(id: ID!, input: UpdateRoomInput!): Room!
-  deleteRoom(id: ID!): Boolean!
-  addRoomMember(input: AddRoomMemberInput!): RoomMember!
-  removeRoomMember(id: ID!): Boolean!
-  updateMqttConfig(input: MqttConfigInput!): MqttConfig!
-  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult!
-  updateSetting(key: String!, value: String!): Setting!
+  fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean! @auth
+  createGroup(input: CreateGroupInput!): Group! @auth
+  updateGroup(id: ID!, input: UpdateGroupInput!): Group! @auth
+  deleteGroup(id: ID!): Boolean! @auth
+  addGroupMember(input: AddGroupMemberInput!): GroupMember! @auth
+  removeGroupMember(id: ID!): Boolean! @auth
+  createRoom(input: CreateRoomInput!): Room! @auth
+  updateRoom(id: ID!, input: UpdateRoomInput!): Room! @auth
+  deleteRoom(id: ID!): Boolean! @auth
+  addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
+  removeRoomMember(id: ID!): Boolean! @auth
+  updateMqttConfig(input: MqttConfigInput!): MqttConfig! @auth
+  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult! @auth
+  updateSetting(key: String!, value: String!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
-  createUser(input: CreateUserInput!): User!
-  updateCurrentUser(input: UpdateCurrentUserInput!): User!
-  changePassword(input: ChangePasswordInput!): Boolean!
-  resetUserPassword(id: ID!, newPassword: String!): Boolean!
-  deleteUser(id: ID!): Boolean!
-  raiseAlarm(input: RaiseAlarmInput!): Alarm!
-  deleteAlarm(alarmId: ID!): Boolean!
+  createUser(input: CreateUserInput!): User! @auth
+  updateCurrentUser(input: UpdateCurrentUserInput!): User! @auth
+  changePassword(input: ChangePasswordInput!): Boolean! @auth
+  resetUserPassword(id: ID!, newPassword: String!): Boolean! @auth
+  deleteUser(id: ID!): Boolean! @auth
+  raiseAlarm(input: RaiseAlarmInput!): Alarm! @auth
+  deleteAlarm(alarmId: ID!): Boolean! @auth
 
-  batchDeleteScenes(ids: [ID!]!): Int!
-  batchDeleteAutomations(ids: [ID!]!): Int!
-  batchDeleteGroups(ids: [ID!]!): Int!
-  batchDeleteRooms(ids: [ID!]!): Int!
-  batchDeleteAlarms(alarmIds: [ID!]!): Int!
+  batchDeleteScenes(ids: [ID!]!): Int! @auth
+  batchDeleteAutomations(ids: [ID!]!): Int! @auth
+  batchDeleteGroups(ids: [ID!]!): Int! @auth
+  batchDeleteRooms(ids: [ID!]!): Int! @auth
+  batchDeleteAlarms(alarmIds: [ID!]!): Int! @auth
   """
   Deletes the specified users. The currently authenticated user is silently
   skipped if present in the list. Returns the number of users actually deleted.
   """
-  batchDeleteUsers(ids: [ID!]!): Int!
+  batchDeleteUsers(ids: [ID!]!): Int! @auth
 
-  batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room!
-  batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group!
+  batchAddRoomMembers(roomId: ID!, members: [RoomMemberInput!]!): Room! @auth
+  batchAddGroupDevices(groupId: ID!, deviceIds: [ID!]!): Group! @auth
 
-  createEffect(input: CreateEffectInput!): Effect!
-  updateEffect(input: UpdateEffectInput!): Effect!
-  deleteEffect(id: ID!): Boolean!
+  createEffect(input: CreateEffectInput!): Effect! @auth
+  updateEffect(input: UpdateEffectInput!): Effect! @auth
+  deleteEffect(id: ID!): Boolean! @auth
   """
   Starts effectId on the given target. Preempts any effect already
   running on the target. Returns the resulting active-run row.
   """
-  runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect!
+  runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect! @auth
   """
   Starts a native effect by name on the given target without requiring a
   stored Effect row. Preempts any effect already running on the target.
@@ -3377,31 +3387,31 @@ type Mutation {
   persisted, so Query.activeEffects will not list them. The returned
   ActiveEffect synthesises a transient view of the run.
   """
-  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect!
+  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect! @auth
   """
   Stops any effect currently running on the target. Returns true when a
   run was active, false otherwise.
   """
-  stopEffect(targetType: String!, targetId: ID!): Boolean!
+  stopEffect(targetType: String!, targetId: ID!): Boolean! @auth
 }
 
 type Subscription {
-  deviceStateChanged(deviceId: ID): DeviceStateEvent!
-  deviceActionFired(deviceId: ID): DeviceActionEvent!
-  deviceAvailabilityChanged: DeviceAvailabilityEvent!
-  deviceAdded: Device!
-  deviceRemoved: ID!
-  automationNodeActivated(automationId: ID): AutomationNodeActivationEvent!
-  sceneActiveChanged: SceneActiveEvent!
-  logStream: LogEntry!
-  activityStream(advanced: Boolean): ActivityEvent!
-  alarmEvent: AlarmEvent!
+  deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth
+  deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
+  deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
+  deviceAdded: Device! @auth
+  deviceRemoved: ID! @auth
+  automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
+  sceneActiveChanged: SceneActiveEvent! @auth
+  logStream: LogEntry! @auth
+  activityStream(advanced: Boolean): ActivityEvent! @auth
+  alarmEvent: AlarmEvent! @auth
   """
   Step-boundary events from the effect runner. When runId is provided,
   only events for that run are delivered; otherwise every effect run's
   step boundaries are broadcast.
   """
-  effectStepActivated(runId: ID): EffectStepEvent!
+  effectStepActivated(runId: ID): EffectStepEvent! @auth
 }
 `, BuiltIn: false},
 }
@@ -8627,7 +8637,20 @@ func (ec *executionContext) _Mutation_updateDevice(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateDevice(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateDeviceInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
 		true,
 		true,
@@ -8686,7 +8709,20 @@ func (ec *executionContext) _Mutation_setDeviceState(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().SetDeviceState(ctx, fc.Args["deviceId"].(string), fc.Args["state"].(model.DeviceStateInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
 		true,
 		true,
@@ -8745,7 +8781,20 @@ func (ec *executionContext) _Mutation_simulateDeviceAction(ctx context.Context, 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().SimulateDeviceAction(ctx, fc.Args["deviceId"].(string), fc.Args["action"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -8786,7 +8835,20 @@ func (ec *executionContext) _Mutation_applyScene(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ApplyScene(ctx, fc.Args["sceneId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Scene
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene,
 		true,
 		true,
@@ -8845,7 +8907,20 @@ func (ec *executionContext) _Mutation_createScene(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateScene(ctx, fc.Args["input"].(model.CreateSceneInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Scene
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene,
 		true,
 		true,
@@ -8904,7 +8979,20 @@ func (ec *executionContext) _Mutation_updateScene(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateScene(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateSceneInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Scene
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene,
 		true,
 		true,
@@ -8963,7 +9051,20 @@ func (ec *executionContext) _Mutation_deleteScene(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteScene(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9004,7 +9105,20 @@ func (ec *executionContext) _Mutation_createAutomation(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateAutomation(ctx, fc.Args["input"].(model.CreateAutomationInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		true,
@@ -9063,7 +9177,20 @@ func (ec *executionContext) _Mutation_updateAutomation(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateAutomation(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateAutomationInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		true,
@@ -9122,7 +9249,20 @@ func (ec *executionContext) _Mutation_deleteAutomation(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteAutomation(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9163,7 +9303,20 @@ func (ec *executionContext) _Mutation_toggleAutomation(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ToggleAutomation(ctx, fc.Args["id"].(string), fc.Args["enabled"].(bool))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		true,
@@ -9222,7 +9375,20 @@ func (ec *executionContext) _Mutation_fireAutomationTrigger(ctx context.Context,
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().FireAutomationTrigger(ctx, fc.Args["automationId"].(string), fc.Args["nodeId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9263,7 +9429,20 @@ func (ec *executionContext) _Mutation_createGroup(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateGroup(ctx, fc.Args["input"].(model.CreateGroupInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Group
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
 		true,
 		true,
@@ -9318,7 +9497,20 @@ func (ec *executionContext) _Mutation_updateGroup(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateGroup(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateGroupInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Group
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
 		true,
 		true,
@@ -9373,7 +9565,20 @@ func (ec *executionContext) _Mutation_deleteGroup(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteGroup(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9414,7 +9619,20 @@ func (ec *executionContext) _Mutation_addGroupMember(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().AddGroupMember(ctx, fc.Args["input"].(model.AddGroupMemberInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.GroupMember
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember,
 		true,
 		true,
@@ -9469,7 +9687,20 @@ func (ec *executionContext) _Mutation_removeGroupMember(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RemoveGroupMember(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9510,7 +9741,20 @@ func (ec *executionContext) _Mutation_createRoom(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateRoom(ctx, fc.Args["input"].(model.CreateRoomInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Room
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
 		true,
 		true,
@@ -9565,7 +9809,20 @@ func (ec *executionContext) _Mutation_updateRoom(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateRoom(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateRoomInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Room
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
 		true,
 		true,
@@ -9620,7 +9877,20 @@ func (ec *executionContext) _Mutation_deleteRoom(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteRoom(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9661,7 +9931,20 @@ func (ec *executionContext) _Mutation_addRoomMember(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().AddRoomMember(ctx, fc.Args["input"].(model.AddRoomMemberInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.RoomMember
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNRoomMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember,
 		true,
 		true,
@@ -9714,7 +9997,20 @@ func (ec *executionContext) _Mutation_removeRoomMember(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RemoveRoomMember(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -9755,7 +10051,20 @@ func (ec *executionContext) _Mutation_updateMqttConfig(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateMqttConfig(ctx, fc.Args["input"].(model.MqttConfigInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.MqttConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig,
 		true,
 		true,
@@ -9806,7 +10115,20 @@ func (ec *executionContext) _Mutation_testMqttConnection(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().TestMqttConnection(ctx, fc.Args["input"].(model.MqttConfigInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
 		true,
 		true,
@@ -9853,7 +10175,20 @@ func (ec *executionContext) _Mutation_updateSetting(ctx context.Context, field g
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateSetting(ctx, fc.Args["key"].(string), fc.Args["value"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Setting
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNSetting2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetting,
 		true,
 		true,
@@ -9994,7 +10329,20 @@ func (ec *executionContext) _Mutation_createUser(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateUser(ctx, fc.Args["input"].(model.CreateUserInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.User
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
 		true,
 		true,
@@ -10049,7 +10397,20 @@ func (ec *executionContext) _Mutation_updateCurrentUser(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateCurrentUser(ctx, fc.Args["input"].(model.UpdateCurrentUserInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.User
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
 		true,
 		true,
@@ -10104,7 +10465,20 @@ func (ec *executionContext) _Mutation_changePassword(ctx context.Context, field 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ChangePassword(ctx, fc.Args["input"].(model.ChangePasswordInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -10145,7 +10519,20 @@ func (ec *executionContext) _Mutation_resetUserPassword(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().ResetUserPassword(ctx, fc.Args["id"].(string), fc.Args["newPassword"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -10186,7 +10573,20 @@ func (ec *executionContext) _Mutation_deleteUser(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteUser(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -10227,7 +10627,20 @@ func (ec *executionContext) _Mutation_raiseAlarm(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RaiseAlarm(ctx, fc.Args["input"].(model.RaiseAlarmInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Alarm
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAlarm2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAlarm,
 		true,
 		true,
@@ -10288,7 +10701,20 @@ func (ec *executionContext) _Mutation_deleteAlarm(ctx context.Context, field gra
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteAlarm(ctx, fc.Args["alarmId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -10329,7 +10755,20 @@ func (ec *executionContext) _Mutation_batchDeleteScenes(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchDeleteScenes(ctx, fc.Args["ids"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNInt2int,
 		true,
 		true,
@@ -10370,7 +10809,20 @@ func (ec *executionContext) _Mutation_batchDeleteAutomations(ctx context.Context
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchDeleteAutomations(ctx, fc.Args["ids"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNInt2int,
 		true,
 		true,
@@ -10411,7 +10863,20 @@ func (ec *executionContext) _Mutation_batchDeleteGroups(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchDeleteGroups(ctx, fc.Args["ids"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNInt2int,
 		true,
 		true,
@@ -10452,7 +10917,20 @@ func (ec *executionContext) _Mutation_batchDeleteRooms(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchDeleteRooms(ctx, fc.Args["ids"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNInt2int,
 		true,
 		true,
@@ -10493,7 +10971,20 @@ func (ec *executionContext) _Mutation_batchDeleteAlarms(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchDeleteAlarms(ctx, fc.Args["alarmIds"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNInt2int,
 		true,
 		true,
@@ -10534,7 +11025,20 @@ func (ec *executionContext) _Mutation_batchDeleteUsers(ctx context.Context, fiel
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchDeleteUsers(ctx, fc.Args["ids"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNInt2int,
 		true,
 		true,
@@ -10575,7 +11079,20 @@ func (ec *executionContext) _Mutation_batchAddRoomMembers(ctx context.Context, f
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchAddRoomMembers(ctx, fc.Args["roomId"].(string), fc.Args["members"].([]*model.RoomMemberInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Room
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
 		true,
 		true,
@@ -10630,7 +11147,20 @@ func (ec *executionContext) _Mutation_batchAddGroupDevices(ctx context.Context, 
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().BatchAddGroupDevices(ctx, fc.Args["groupId"].(string), fc.Args["deviceIds"].([]string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Group
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
 		true,
 		true,
@@ -10685,7 +11215,20 @@ func (ec *executionContext) _Mutation_createEffect(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().CreateEffect(ctx, fc.Args["input"].(model.CreateEffectInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Effect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
 		true,
 		true,
@@ -10752,7 +11295,20 @@ func (ec *executionContext) _Mutation_updateEffect(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().UpdateEffect(ctx, fc.Args["input"].(model.UpdateEffectInput))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Effect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
 		true,
 		true,
@@ -10819,7 +11375,20 @@ func (ec *executionContext) _Mutation_deleteEffect(ctx context.Context, field gr
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().DeleteEffect(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -10860,7 +11429,20 @@ func (ec *executionContext) _Mutation_runEffect(ctx context.Context, field graph
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RunEffect(ctx, fc.Args["effectId"].(string), fc.Args["targetType"].(string), fc.Args["targetId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ActiveEffect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect,
 		true,
 		true,
@@ -10915,7 +11497,20 @@ func (ec *executionContext) _Mutation_runNativeEffect(ctx context.Context, field
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().RunNativeEffect(ctx, fc.Args["nativeName"].(string), fc.Args["targetType"].(string), fc.Args["targetId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ActiveEffect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect,
 		true,
 		true,
@@ -10970,7 +11565,20 @@ func (ec *executionContext) _Mutation_stopEffect(ctx context.Context, field grap
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Mutation().StopEffect(ctx, fc.Args["targetType"].(string), fc.Args["targetId"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNBoolean2bool,
 		true,
 		true,
@@ -11097,7 +11705,20 @@ func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.Co
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Devices(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDevice2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceᚄ,
 		true,
 		true,
@@ -11145,7 +11766,20 @@ func (ec *executionContext) _Query_device(ctx context.Context, field graphql.Col
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Device(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalODevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
 		true,
 		false,
@@ -11203,7 +11837,20 @@ func (ec *executionContext) _Query_scenes(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Scenes(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Scene
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNScene2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneᚄ,
 		true,
 		true,
@@ -11251,7 +11898,20 @@ func (ec *executionContext) _Query_scene(ctx context.Context, field graphql.Coll
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Scene(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Scene
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalOScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene,
 		true,
 		false,
@@ -11309,7 +11969,20 @@ func (ec *executionContext) _Query_automations(ctx context.Context, field graphq
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Automations(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.AutomationGraph
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAutomationGraph2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraphᚄ,
 		true,
 		true,
@@ -11357,7 +12030,20 @@ func (ec *executionContext) _Query_automation(ctx context.Context, field graphql
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Automation(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalOAutomationGraph2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationGraph,
 		true,
 		false,
@@ -11415,7 +12101,20 @@ func (ec *executionContext) _Query_groups(ctx context.Context, field graphql.Col
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Groups(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Group
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNGroup2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupᚄ,
 		true,
 		true,
@@ -11459,7 +12158,20 @@ func (ec *executionContext) _Query_group(ctx context.Context, field graphql.Coll
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Group(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Group
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
 		true,
 		false,
@@ -11513,7 +12225,20 @@ func (ec *executionContext) _Query_rooms(ctx context.Context, field graphql.Coll
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Rooms(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Room
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNRoom2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomᚄ,
 		true,
 		true,
@@ -11557,7 +12282,20 @@ func (ec *executionContext) _Query_room(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Room(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Room
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalORoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
 		true,
 		false,
@@ -11612,7 +12350,20 @@ func (ec *executionContext) _Query_stateHistory(ctx context.Context, field graph
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().StateHistory(ctx, fc.Args["filter"].(model.StateHistoryFilter))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.StateSeries
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNStateSeries2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesᚄ,
 		true,
 		true,
@@ -11660,7 +12411,20 @@ func (ec *executionContext) _Query_stateHistoryFields(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().StateHistoryFields(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNString2ᚕstringᚄ,
 		true,
 		true,
@@ -11689,7 +12453,20 @@ func (ec *executionContext) _Query_mqttConfig(ctx context.Context, field graphql
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().MqttConfig(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.MqttConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalOMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig,
 		true,
 		false,
@@ -11728,7 +12505,20 @@ func (ec *executionContext) _Query_settings(ctx context.Context, field graphql.C
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Settings(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Setting
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNSetting2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSettingᚄ,
 		true,
 		true,
@@ -11764,7 +12554,20 @@ func (ec *executionContext) _Query_logs(ctx context.Context, field graphql.Colle
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Logs(ctx, fc.Args["search"].(*string), fc.Args["limit"].(*int))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.LogEntry
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNLogEntry2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLogEntryᚄ,
 		true,
 		true,
@@ -11815,7 +12618,20 @@ func (ec *executionContext) _Query_activity(ctx context.Context, field graphql.C
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Activity(ctx, fc.Args["filter"].(*model.ActivityFilter))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.ActivityEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNActivityEvent2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEventᚄ,
 		true,
 		true,
@@ -11870,7 +12686,20 @@ func (ec *executionContext) _Query_alarms(ctx context.Context, field graphql.Col
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Alarms(ctx, fc.Args["filter"].(*model.AlarmFilter))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Alarm
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAlarm2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAlarmᚄ,
 		true,
 		true,
@@ -12008,7 +12837,20 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Users(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.User
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNUser2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserᚄ,
 		true,
 		true,
@@ -12051,7 +12893,20 @@ func (ec *executionContext) _Query_effects(ctx context.Context, field graphql.Co
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().Effects(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Effect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNEffect2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectᚄ,
 		true,
 		true,
@@ -12107,7 +12962,20 @@ func (ec *executionContext) _Query_effect(ctx context.Context, field graphql.Col
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().Effect(ctx, fc.Args["id"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Effect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect,
 		true,
 		false,
@@ -12173,7 +13041,20 @@ func (ec *executionContext) _Query_activeEffects(ctx context.Context, field grap
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().ActiveEffects(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.ActiveEffect
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNActiveEffect2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffectᚄ,
 		true,
 		true,
@@ -12216,7 +13097,20 @@ func (ec *executionContext) _Query_nativeEffectOptions(ctx context.Context, fiel
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Query().NativeEffectOptions(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.NativeEffectOption
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNNativeEffectOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOptionᚄ,
 		true,
 		true,
@@ -13493,7 +14387,20 @@ func (ec *executionContext) _Subscription_deviceStateChanged(ctx context.Context
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Subscription().DeviceStateChanged(ctx, fc.Args["deviceId"].(*string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DeviceStateEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDeviceStateEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceStateEvent,
 		true,
 		true,
@@ -13540,7 +14447,20 @@ func (ec *executionContext) _Subscription_deviceActionFired(ctx context.Context,
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Subscription().DeviceActionFired(ctx, fc.Args["deviceId"].(*string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DeviceActionEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDeviceActionEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceActionEvent,
 		true,
 		true,
@@ -13588,7 +14508,20 @@ func (ec *executionContext) _Subscription_deviceAvailabilityChanged(ctx context.
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().DeviceAvailabilityChanged(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DeviceAvailabilityEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDeviceAvailabilityEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceAvailabilityEvent,
 		true,
 		true,
@@ -13623,7 +14556,20 @@ func (ec *executionContext) _Subscription_deviceAdded(ctx context.Context, field
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().DeviceAdded(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
 		true,
 		true,
@@ -13670,7 +14616,20 @@ func (ec *executionContext) _Subscription_deviceRemoved(ctx context.Context, fie
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().DeviceRemoved(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNID2string,
 		true,
 		true,
@@ -13700,7 +14659,20 @@ func (ec *executionContext) _Subscription_automationNodeActivated(ctx context.Co
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Subscription().AutomationNodeActivated(ctx, fc.Args["automationId"].(*string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AutomationNodeActivationEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAutomationNodeActivationEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeActivationEvent,
 		true,
 		true,
@@ -13748,7 +14720,20 @@ func (ec *executionContext) _Subscription_sceneActiveChanged(ctx context.Context
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().SceneActiveChanged(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.SceneActiveEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNSceneActiveEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActiveEvent,
 		true,
 		true,
@@ -13783,7 +14768,20 @@ func (ec *executionContext) _Subscription_logStream(ctx context.Context, field g
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().LogStream(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.LogEntry
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNLogEntry2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLogEntry,
 		true,
 		true,
@@ -13823,7 +14821,20 @@ func (ec *executionContext) _Subscription_activityStream(ctx context.Context, fi
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Subscription().ActivityStream(ctx, fc.Args["advanced"].(*bool))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ActivityEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNActivityEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActivityEvent,
 		true,
 		true,
@@ -13877,7 +14888,20 @@ func (ec *executionContext) _Subscription_alarmEvent(ctx context.Context, field 
 		func(ctx context.Context) (any, error) {
 			return ec.Resolvers.Subscription().AlarmEvent(ctx)
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AlarmEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNAlarmEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAlarmEvent,
 		true,
 		true,
@@ -13915,7 +14939,20 @@ func (ec *executionContext) _Subscription_effectStepActivated(ctx context.Contex
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Subscription().EffectStepActivated(ctx, fc.Args["runId"].(*string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.EffectStepEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		ec.marshalNEffectStepEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectStepEvent,
 		true,
 		true,

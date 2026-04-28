@@ -1,10 +1,8 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 
@@ -16,17 +14,6 @@ import (
 // forward on activity — users stay logged in for as long as they're active.
 const RefreshedTokenHeader = "X-Refreshed-Token"
 
-// whitelistedOps are GraphQL operations that must work without authentication.
-// setupStatus drives the initial /setup gate; login issues the first token;
-// createInitialUser bootstraps the first user on a fresh install;
-// IntrospectionQuery is used by codegen tooling and the GraphQL playground.
-var whitelistedOps = map[string]bool{
-	"setupStatus":        true,
-	"login":              true,
-	"createInitialUser":  true,
-	"IntrospectionQuery": true,
-}
-
 // UserLookup loads the current user row. The Middleware calls it after parsing
 // the JWT so deleted accounts reject on their next authenticated request. Keep
 // the interface narrow so tests can provide a fake without pulling in the
@@ -35,45 +22,34 @@ type UserLookup interface {
 	GetUserByID(ctx context.Context, id string) (store.User, error)
 }
 
-// Middleware enforces auth on the GraphQL HTTP endpoint.
+// Middleware attempts to authenticate the request and attaches the user to the
+// context when a valid Bearer token is present. Requests without a token (or
+// with an invalid one) flow through with no user attached — per-field auth is
+// enforced by the @auth schema directive at the GraphQL layer, so public
+// operations (login, createInitialUser, setupStatus, me) work without a token
+// while every other field rejects with UNAUTHENTICATED.
 //
-// Behaviour:
-//  1. If the operationName of the incoming GraphQL request is in the
-//     whitelist, the request is allowed through without a token. The ctx
-//     carries no user.
-//  2. Otherwise, an `Authorization: Bearer <token>` header is required; the
-//     token is verified, the user is reloaded from the DB, and the fresh
-//     name/username are attached to the request context via WithUser. A
-//     freshly signed token is returned in the X-Refreshed-Token response
-//     header.
-//  3. If the user lookup returns no row (e.g. an admin deleted the account
-//     while the session was live), the request gets a 401 UNAUTHENTICATED
-//     so the frontend redirects to /login.
+// On success, a freshly signed token is returned in X-Refreshed-Token so the
+// frontend can slide the session forward.
+//
+// WebSocket upgrade requests pass through untouched: the graphql-ws transport
+// authenticates via the connection_init payload, handled by the gqlgen
+// transport's InitFunc.
 func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// WebSocket upgrade requests authenticate via the graphql-ws
-			// connection_init payload, handled by the gqlgen transport's
-			// InitFunc. Let the upgrade through; the InitFunc will reject
-			// bad tokens before any subscription data flows.
 			if isWebSocketUpgrade(r) {
-				next.ServeHTTP(w, r)
-				return
-			}
-			opName := extractOperationName(r)
-			if whitelistedOps[opName] {
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			user, err := authenticate(r, svc, lookup)
 			if err != nil {
-				writeAuthError(w, err.Error())
+				next.ServeHTTP(w, r)
 				return
 			}
 
-			fresh, signErr := svc.Sign(user.ID, user.Username, user.Name)
-			if signErr == nil {
+			if fresh, signErr := svc.Sign(user.ID, user.Username, user.Name); signErr == nil {
 				w.Header().Set(RefreshedTokenHeader, fresh)
 				w.Header().Add("Access-Control-Expose-Headers", RefreshedTokenHeader)
 			}
@@ -83,10 +59,10 @@ func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler
 	}
 }
 
-// RequireAuth wraps an HTTP handler with JWT + DB-lookup authentication, used
-// by non-GraphQL endpoints (e.g. avatar upload). Returns 401 with a clear
-// UNAUTHENTICATED code on failure so the frontend's existing 401 handler
-// behaves identically for GraphQL and REST.
+// RequireAuth wraps a non-GraphQL HTTP handler with strict JWT + DB-lookup
+// authentication. Used by the avatar upload endpoint, where there is no
+// per-field directive to fall back on, so the middleware itself must reject
+// unauthenticated callers.
 func RequireAuth(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -142,36 +118,6 @@ func extractBearer(r *http.Request) string {
 		return ""
 	}
 	return strings.TrimSpace(h[len(prefix):])
-}
-
-// extractOperationName peeks at the GraphQL request to find its operationName.
-// For POST requests, the body is parsed and then restored so the downstream
-// handler sees it untouched. For GET requests, the query parameter is read.
-// Returns "" when the operation name cannot be determined — which falls
-// through to the auth check (safe default).
-func extractOperationName(r *http.Request) string {
-	if r.Method == http.MethodGet {
-		return r.URL.Query().Get("operationName")
-	}
-	if r.Method != http.MethodPost {
-		return ""
-	}
-	if r.Body == nil {
-		return ""
-	}
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return ""
-	}
-	r.Body = io.NopCloser(bytes.NewReader(body))
-
-	var payload struct {
-		OperationName string `json:"operationName"`
-	}
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return ""
-	}
-	return payload.OperationName
 }
 
 func writeAuthError(w http.ResponseWriter, msg string) {

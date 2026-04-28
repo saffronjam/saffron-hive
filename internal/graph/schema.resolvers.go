@@ -645,8 +645,14 @@ func (r *mutationResolver) TestMqttConnection(ctx context.Context, input model.M
 	}, nil
 }
 
-// UpdateSetting is the resolver for the updateSetting field.
+// UpdateSetting is the resolver for the updateSetting field. Server-internal
+// keys (auth.IsInternalSettingKey) are rejected so a caller cannot overwrite
+// secrets that the public settings surface intentionally hides — see the doc
+// comment on IsInternalSettingKey.
 func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error) {
+	if auth.IsInternalSettingKey(key) {
+		return nil, fmt.Errorf("setting %q is read-only", key)
+	}
 	if err := r.Store.UpsertSetting(ctx, key, value); err != nil {
 		return nil, err
 	}
@@ -1421,15 +1427,20 @@ func (r *queryResolver) MqttConfig(ctx context.Context) (*model.MqttConfig, erro
 	}, nil
 }
 
-// Settings is the resolver for the settings field.
+// Settings is the resolver for the settings field. Server-internal keys
+// (auth.IsInternalSettingKey) are filtered out so callers cannot exfiltrate
+// secrets like the JWT signing key — see the doc comment on IsInternalSettingKey.
 func (r *queryResolver) Settings(ctx context.Context) ([]*model.Setting, error) {
 	settings, err := r.Store.ListSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*model.Setting, len(settings))
-	for i, s := range settings {
-		result[i] = &model.Setting{Key: s.Key, Value: s.Value}
+	result := make([]*model.Setting, 0, len(settings))
+	for _, s := range settings {
+		if auth.IsInternalSettingKey(s.Key) {
+			continue
+		}
+		result = append(result, &model.Setting{Key: s.Key, Value: s.Value})
 	}
 	return result, nil
 }

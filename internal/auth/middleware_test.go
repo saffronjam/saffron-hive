@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -57,7 +56,40 @@ func gqlRequest(t *testing.T, opName string) *http.Request {
 	return httptest.NewRequest(http.MethodPost, "/graphql", bytes.NewReader(body))
 }
 
-func TestMiddlewareWhitelistedBypassesAuth(t *testing.T) {
+// TestMiddlewarePassesThroughMissingToken pins the post-fix behaviour: the
+// middleware does NOT reject unauthenticated requests on its own. It passes
+// them through with no user attached so the @auth schema directive can decide
+// per field whether the call is allowed (login/setupStatus/createInitialUser/me
+// stay public; everything else rejects with UNAUTHENTICATED). Before the fix,
+// the middleware was the only gate and would 401 here — but it also waved
+// through any request whose client-supplied operationName matched a string
+// allowlist (CRITICAL bypass). Both behaviours are now gone.
+func TestMiddlewarePassesThroughMissingToken(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	h := &testHandler{}
+	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
+
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, gqlRequest(t, "scenes"))
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 (directive enforces auth, not middleware)", rec.Code)
+	}
+	if !h.called {
+		t.Error("downstream not called — middleware should pass through")
+	}
+	if h.hasUser {
+		t.Error("user injected with no token; should be absent for directive to reject")
+	}
+}
+
+// TestMiddlewareDoesNotHonourOperationNameAllowlist regression-tests the
+// CRITICAL operationName bypass: a request claiming operationName=login but
+// carrying no token must not result in a user being attached, because the
+// middleware no longer treats operationName as authz-relevant. Whether the
+// downstream operation runs or rejects is the directive's job — but the
+// middleware must never produce a *user-attached* context without a real
+// token.
+func TestMiddlewareDoesNotHonourOperationNameAllowlist(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	h := &testHandler{}
 	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
@@ -65,36 +97,16 @@ func TestMiddlewareWhitelistedBypassesAuth(t *testing.T) {
 	for _, op := range []string{"setupStatus", "login", "createInitialUser", "IntrospectionQuery"} {
 		rec := httptest.NewRecorder()
 		wrapped.ServeHTTP(rec, gqlRequest(t, op))
-		if rec.Code != http.StatusOK {
-			t.Errorf("op %q: status %d, want 200", op, rec.Code)
-		}
-		if !h.called {
-			t.Errorf("op %q: downstream handler not called", op)
-		}
 		if h.hasUser {
-			t.Errorf("op %q: user should not be injected on whitelisted request", op)
+			t.Errorf("op %q: user attached without token — middleware honoured allowlist", op)
 		}
 		h.called = false
 		h.hasUser = false
+		_ = rec
 	}
 }
 
-func TestMiddlewareRejectsMissingToken(t *testing.T) {
-	svc := NewService([]byte("s"), time.Hour)
-	h := &testHandler{}
-	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
-
-	rec := httptest.NewRecorder()
-	wrapped.ServeHTTP(rec, gqlRequest(t, "scenes"))
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want 401", rec.Code)
-	}
-	if h.called {
-		t.Error("downstream called despite missing token")
-	}
-}
-
-func TestMiddlewareRejectsInvalidToken(t *testing.T) {
+func TestMiddlewarePassesThroughInvalidToken(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	h := &testHandler{}
 	wrapped := Middleware(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
@@ -104,11 +116,14 @@ func TestMiddlewareRejectsInvalidToken(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	wrapped.ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want 401", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 (directive enforces, not middleware)", rec.Code)
 	}
-	if h.called {
-		t.Error("downstream called despite invalid token")
+	if !h.called {
+		t.Error("downstream not called — middleware should pass through")
+	}
+	if h.hasUser {
+		t.Error("invalid token must not produce a user-attached context")
 	}
 }
 
@@ -145,9 +160,6 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	if fresh == "" {
 		t.Error("X-Refreshed-Token header missing")
 	}
-	// JWT `iat`/`exp` have second-level resolution; two signs within the same
-	// second produce identical tokens. The important guarantee is that the
-	// header is set with a valid, parseable JWT.
 	claims, err := svc.Parse(fresh)
 	if err != nil {
 		t.Errorf("refreshed token does not parse: %v", err)
@@ -157,7 +169,12 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	}
 }
 
-func TestMiddlewareRejectsDeletedUser(t *testing.T) {
+// TestMiddlewareDeletedUserPassesThroughWithoutUser pins the deleted-user
+// behaviour to the new model: a token whose user no longer exists in the DB
+// is treated as no token at all — the request flows through, no user is
+// attached, and the @auth directive rejects whatever protected field was
+// asked for.
+func TestMiddlewareDeletedUserPassesThroughWithoutUser(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	tok, err := svc.Sign("u-gone", "alice", "Alice")
 	if err != nil {
@@ -172,11 +189,14 @@ func TestMiddlewareRejectsDeletedUser(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	wrapped.ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want 401 for deleted user", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rec.Code)
 	}
-	if h.called {
-		t.Error("downstream called despite user no longer existing")
+	if !h.called {
+		t.Error("downstream not called")
+	}
+	if h.hasUser {
+		t.Error("deleted user must not produce a user-attached context")
 	}
 }
 
@@ -198,28 +218,22 @@ func TestMiddlewareAllowsWebSocketUpgrade(t *testing.T) {
 	}
 }
 
-func TestExtractOperationNameGET(t *testing.T) {
-	// GET carries operationName as a query param.
-	req := httptest.NewRequest(http.MethodGet, "/graphql?operationName=setupStatus&query=x", nil)
-	if got := extractOperationName(req); got != "setupStatus" {
-		t.Errorf("extractOperationName GET = %q, want setupStatus", got)
-	}
-}
+// TestRequireAuthRejectsMissingToken pins the non-GraphQL handler behaviour:
+// /api/avatars has no per-field directive to fall back on, so the wrapper
+// itself must 401 when no token is present.
+func TestRequireAuthRejectsMissingToken(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	h := &testHandler{}
+	wrapped := RequireAuth(svc, lookupWith(store.User{ID: "u-1", Username: "alice", Name: "Alice"}))(h)
 
-func TestExtractOperationNamePreservesBody(t *testing.T) {
-	// Peeking at the body must not consume it — the downstream handler needs
-	// to read the JSON too.
-	body := `{"operationName":"login","query":"mutation { login }"}`
-	req := httptest.NewRequest(http.MethodPost, "/graphql", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/avatars", nil)
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, req)
 
-	if got := extractOperationName(req); got != "login" {
-		t.Errorf("extractOperationName = %q, want login", got)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", rec.Code)
 	}
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(req.Body); err != nil {
-		t.Fatalf("read body after peek: %v", err)
-	}
-	if buf.String() != body {
-		t.Errorf("body after peek = %q, want %q", buf.String(), body)
+	if h.called {
+		t.Error("downstream called despite missing token")
 	}
 }

@@ -35,7 +35,10 @@ func rebuildWithAuth(t *testing.T, st *mockStore, svc *auth.Service) *testEnv {
 		LevelVar:           levelVar,
 		Auth:               svc,
 	}
-	srv := handler.New(NewExecutableSchema(Config{Resolvers: resolver}))
+	srv := handler.New(NewExecutableSchema(Config{
+		Resolvers:  resolver,
+		Directives: DirectiveRoot{Auth: AuthDirective},
+	}))
 	srv.AddTransport(transport.POST{})
 
 	ts := httptest.NewServer(srv)
@@ -163,5 +166,57 @@ func TestCreateInitialUserAndLogin(t *testing.T) {
 	})
 	if len(resp.Errors) == 0 {
 		t.Error("expected login with wrong password to fail")
+	}
+}
+
+// TestAuthDirectiveRejectsUnauthenticatedProtectedField pins the headline
+// regression: before the fix, a request with operationName="login" but a body
+// like `query login { users { id } }` would slip past the middleware allowlist
+// and exfiltrate user data. Now the @auth directive on Query.users rejects
+// any caller without a user on the context, regardless of what the operation
+// is *named*. The rebuildWithAuth env runs the real AuthDirective without a
+// user-injecting wrapper, so this exercises the production rejection path.
+func TestAuthDirectiveRejectsUnauthenticatedProtectedField(t *testing.T) {
+	te := newTestEnv(t)
+	svc := auth.NewService([]byte("s"), time.Hour)
+	te2 := rebuildWithAuth(t, te.store, svc)
+
+	// The hostile shape: operation literally named "login" but selecting a
+	// protected root field. The schema directive is the gate now, not the
+	// operation name.
+	resp := te2.query(t, `query login { users { id username } }`, nil)
+	if len(resp.Errors) == 0 {
+		t.Fatal("expected UNAUTHENTICATED error; got none — bypass regressed")
+	}
+	if got := resp.Errors[0].Extensions["code"]; got != "UNAUTHENTICATED" {
+		t.Errorf("error code = %v, want UNAUTHENTICATED", got)
+	}
+}
+
+// TestAuthDirectiveAllowsPublicFields pins the negative case: setupStatus,
+// login, createInitialUser, and me carry no @auth marker, so an unauth caller
+// must reach them. (login/createInitialUser are exercised end-to-end in
+// TestCreateInitialUserAndLogin; setupStatus has its own test; this asserts
+// `me` returns null cleanly without a user on the context — the SPA relies on
+// that to decide between the dashboard and the login screen on cold load.)
+func TestAuthDirectiveAllowsPublicFields(t *testing.T) {
+	te := newTestEnv(t)
+	svc := auth.NewService([]byte("s"), time.Hour)
+	te2 := rebuildWithAuth(t, te.store, svc)
+
+	resp := te2.query(t, `query { me { id } }`, nil)
+	if len(resp.Errors) != 0 {
+		t.Fatalf("unexpected errors on public field: %v", resp.Errors)
+	}
+	var body struct {
+		Me *struct {
+			ID string `json:"id"`
+		} `json:"me"`
+	}
+	if err := json.Unmarshal(resp.Data, &body); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if body.Me != nil {
+		t.Errorf("me = %+v, want null for unauthenticated caller", body.Me)
 	}
 }
