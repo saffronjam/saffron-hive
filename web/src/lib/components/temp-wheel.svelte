@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { createConfirmationHold } from "$lib/utils/confirmation-hold";
+
 	interface Props {
 		value: number | null;
 		min?: number;
@@ -10,7 +12,13 @@
 
 	let { value, min = 150, max = 500, onchange, disabled = false, compact = false }: Props = $props();
 
+	const MIRED_TOLERANCE = 5;
+	const hold = createConfirmationHold<number>({
+		matches: (incoming, pending) => Math.abs(incoming - pending) <= MIRED_TOLERANCE,
+	});
+
 	let canvasEl: HTMLCanvasElement | null = $state(null);
+	let pointerDown = $state(false);
 	let dragging = $state(false);
 	let markerX = $state(0.5);
 	let markerY = $state(0.5);
@@ -26,9 +34,9 @@
 	}
 
 	$effect(() => {
-		if (!dragging && value != null) {
-			markerX = valueToX(value);
-		}
+		if (pointerDown || value == null) return;
+		if (hold.shouldSuppress(value)) return;
+		markerX = valueToX(value);
 	});
 
 	$effect(() => {
@@ -107,7 +115,9 @@
 		const tx = Math.min(1, Math.max(0, 0.5 + finalDx / (2 * radius)));
 		markerX = tx;
 		markerY = (finalDy + cy) / rect.height;
-		onchange(xToValue(tx));
+		const mired = xToValue(tx);
+		hold.hold(mired);
+		onchange(mired);
 	}
 
 	function pointerCoords(e: MouseEvent | TouchEvent): { x: number; y: number } {
@@ -119,18 +129,20 @@
 
 	function handleDown(e: MouseEvent | TouchEvent) {
 		if (disabled) return;
-		dragging = true;
+		pointerDown = true;
 		const p = pointerCoords(e);
 		handlePoint(p.x, p.y);
 	}
 
 	function handleWindowMove(e: MouseEvent | TouchEvent) {
-		if (!dragging) return;
+		if (!pointerDown) return;
+		dragging = true;
 		const p = pointerCoords(e);
 		handlePoint(p.x, p.y);
 	}
 
 	function handleWindowUp() {
+		pointerDown = false;
 		dragging = false;
 	}
 

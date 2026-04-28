@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { createConfirmationHold } from "$lib/utils/confirmation-hold";
+
 	interface Props {
 		r: number;
 		g: number;
@@ -11,7 +13,18 @@
 
 	let { r, g, b, onchange, disabled = false, showPreview = true, compact = false }: Props = $props();
 
+	const HUE_TOLERANCE_DEG = 5;
+	const SATURATION_TOLERANCE = 0.05;
+	const hold = createConfirmationHold<{ h: number; s: number }>({
+		matches: (incoming, pending) => {
+			let dh = Math.abs(incoming.h - pending.h);
+			if (dh > 180) dh = 360 - dh;
+			return dh <= HUE_TOLERANCE_DEG && Math.abs(incoming.s - pending.s) <= SATURATION_TOLERANCE;
+		},
+	});
+
 	let canvasEl: HTMLCanvasElement | null = $state(null);
+	let pointerDown = $state(false);
 	let dragging = $state(false);
 
 	let hue = $state(0);
@@ -74,11 +87,11 @@
 	}
 
 	$effect(() => {
-		if (!dragging) {
-			const hs = rgbToHs(r, g, b);
-			hue = hs.h;
-			saturation = hs.s;
-		}
+		if (pointerDown) return;
+		const hs = rgbToHs(r, g, b);
+		if (hold.shouldSuppress(hs)) return;
+		hue = hs.h;
+		saturation = hs.s;
 	});
 
 	$effect(() => {
@@ -131,6 +144,7 @@
 
 	function emitColor() {
 		const rgb = hsvToRgb(hue, saturation, 1);
+		hold.hold({ h: hue, s: saturation });
 		onchange(rgb);
 	}
 
@@ -164,18 +178,20 @@
 
 	function handleDown(e: MouseEvent | TouchEvent) {
 		if (disabled) return;
-		dragging = true;
+		pointerDown = true;
 		const p = pointerCoords(e);
 		handlePoint(p.x, p.y);
 	}
 
 	function handleWindowMove(e: MouseEvent | TouchEvent) {
-		if (!dragging) return;
+		if (!pointerDown) return;
+		dragging = true;
 		const p = pointerCoords(e);
 		handlePoint(p.x, p.y);
 	}
 
 	function handleWindowUp() {
+		pointerDown = false;
 		dragging = false;
 	}
 
