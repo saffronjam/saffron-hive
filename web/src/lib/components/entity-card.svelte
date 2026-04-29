@@ -30,6 +30,15 @@
 		leadingActions?: Snippet;
 		tintColors?: string[] | null;
 		/**
+		 * 0..1 multiplier on the tint gradient's mix percentage. `1` keeps the
+		 * full default mix (vibrant); `0` resolves the gradient stops to
+		 * `var(--card)` (plain card colour). Drives the `--tint-strength` CSS
+		 * variable, which is registered with `@property` so changes transition
+		 * smoothly. Used by room/group/device cards to convey light brightness
+		 * as gradient opacity rather than as RGB darkening.
+		 */
+		tintStrength?: number;
+		/**
 		 * Scene-style active/inactive indicator. `null` → no active concept, the
 		 * full-card gradient is always visible (existing behaviour for non-scene
 		 * cards). `false` → active, full-card gradient visible. `true` → inactive,
@@ -46,6 +55,12 @@
 		 * snippets still render so a Play button or badge remains visible.
 		 */
 		readOnly?: boolean;
+		/**
+		 * Extra utility classes appended to the card wrapper. Use to give
+		 * collection cards (rooms, groups) a uniform `h-full min-h-…`
+		 * footprint so they line up in a grid regardless of footer content.
+		 */
+		class?: string;
 	}
 
 	let {
@@ -63,9 +78,11 @@
 		addLabel = "Add…",
 		leadingActions,
 		tintColors = null,
+		tintStrength = 1,
 		tintInactive = null,
 		footer,
 		readOnly = false,
+		class: extraClass = "",
 	}: Props = $props();
 
 	const tintClass = $derived.by(() => {
@@ -88,6 +105,7 @@
 		const parts: string[] = [`--tint-color: ${tintColors![0]}`];
 		if (tintColors![1]) parts.push(`--tint-color-2: ${tintColors![1]}`);
 		if (tintColors![2]) parts.push(`--tint-color-3: ${tintColors![2]}`);
+		parts.push(`--tint-strength: ${tintStrength}`);
 		return parts.join("; ");
 	});
 
@@ -118,9 +136,9 @@
 </script>
 
 <div
-	class="relative overflow-hidden rounded-lg shadow-card bg-card p-4 transition-all {showTint
+	class="relative flex flex-col overflow-hidden rounded-lg shadow-card bg-card p-4 transition-all {showTint
 		? tintClass
-		: ''}"
+		: ''} {extraClass}"
 	style={tintStyle}
 >
 	<div class="relative flex items-center justify-between">
@@ -178,7 +196,7 @@
 							<EllipsisVertical class="size-4" />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align="end" class="w-44">
 						<DropdownMenuItem onclick={() => onedit?.(entity)}>
 							<Pencil class="size-4" />
 							{editLabel}

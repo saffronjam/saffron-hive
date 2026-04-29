@@ -186,39 +186,66 @@
   inherits: false;
   initial-value: transparent;
 }
-
-.tint-1 {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, color-mix(in srgb, var(--tint-color) 70%, white) 50%, var(--card)),
-    color-mix(in srgb, var(--tint-color) 50%, var(--card)),
-    color-mix(in srgb, color-mix(in srgb, var(--tint-color) 65%, black) 50%, var(--card))
-  );
-  transition: --tint-color 300ms ease;
+@property --tint-strength {
+  syntax: "<number>";
+  inherits: false;
+  /* 0 is the "no tint" baseline so the gradient resolves to plain
+     var(--card) when the variable is unset. Adding a tint-N class with an
+     explicit --tint-strength then transitions in from plain → tint, instead
+     of flashing through full strength on the way down. */
+  initial-value: 0;
 }
 
-.tint-2 {
-  background: linear-gradient(
+/* Use background-image (not the `background` shorthand) so background-color
+   stays at the surrounding bg-card var(--card) value. The shorthand resets
+   background-color to transparent, and `transition-all` on the card then
+   animates that color back to var(--card) over 150ms when the tint class
+   is removed — the brief transparent gap reveals the (darker) page bg
+   behind the card and reads as a "black flash" toggle-off transition. */
+.tint-1 {
+  background-image: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--tint-color) 50%, var(--card)),
-    color-mix(in srgb, var(--tint-color-2) 50%, var(--card))
+    color-mix(
+      in srgb,
+      color-mix(in srgb, var(--tint-color) 70%, white) calc(50% * var(--tint-strength)),
+      var(--card)
+    ),
+    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)),
+    color-mix(
+      in srgb,
+      color-mix(in srgb, var(--tint-color) 65%, black) calc(50% * var(--tint-strength)),
+      var(--card)
+    )
   );
   transition:
     --tint-color 300ms ease,
-    --tint-color-2 300ms ease;
+    --tint-strength 300ms ease;
 }
 
-.tint-3 {
-  background: linear-gradient(
+.tint-2 {
+  background-image: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--tint-color) 50%, var(--card)),
-    color-mix(in srgb, var(--tint-color-2) 50%, var(--card)),
-    color-mix(in srgb, var(--tint-color-3) 50%, var(--card))
+    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)),
+    color-mix(in srgb, var(--tint-color-2) calc(50% * var(--tint-strength)), var(--card))
   );
   transition:
     --tint-color 300ms ease,
     --tint-color-2 300ms ease,
-    --tint-color-3 300ms ease;
+    --tint-strength 300ms ease;
+}
+
+.tint-3 {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)),
+    color-mix(in srgb, var(--tint-color-2) calc(50% * var(--tint-strength)), var(--card)),
+    color-mix(in srgb, var(--tint-color-3) calc(50% * var(--tint-strength)), var(--card))
+  );
+  transition:
+    --tint-color 300ms ease,
+    --tint-color-2 300ms ease,
+    --tint-color-3 300ms ease,
+    --tint-strength 300ms ease;
 }
 
 @keyframes activity-row-flash {
