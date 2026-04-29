@@ -2,7 +2,7 @@
 	import type { Device } from "$lib/stores/devices";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
-	import { ChevronDown } from "@lucide/svelte";
+	import { Battery, ChevronDown, Droplets, Thermometer } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 
 	interface CommandInput {
@@ -128,23 +128,29 @@
 					{/if}
 				</p>
 			{:else if sensor}
-				<p class="text-xs text-muted-foreground">
+				<div class="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
 					{#if sensor.temperature != null}
-						{sensor.temperature.toFixed(1)}&deg;C
-					{/if}
-					{#if sensor.temperature != null && sensor.humidity != null}
-						/
+						<span class="flex items-center gap-1">
+							<Thermometer class="size-3.5" />
+							<span class="text-foreground">{sensor.temperature.toFixed(1)}&deg;C</span>
+						</span>
 					{/if}
 					{#if sensor.humidity != null}
-						{sensor.humidity.toFixed(0)}% RH
+						<span class="flex items-center gap-1">
+							<Droplets class="size-3.5" />
+							<span class="text-foreground">{sensor.humidity.toFixed(0)}%</span>
+						</span>
 					{/if}
 					{#if sensor.temperature == null && sensor.humidity == null && sensor.battery != null}
-						Battery {Math.round(sensor.battery)}%
+						<span class="flex items-center gap-1">
+							<Battery class="size-3.5" />
+							<span class="text-foreground">{Math.round(sensor.battery)}%</span>
+						</span>
 					{/if}
 					{#if sensor.temperature == null && sensor.humidity == null && sensor.battery == null}
-						No data
+						<span>No data</span>
 					{/if}
-				</p>
+				</div>
 			{:else if sw}
 				<p class="text-xs text-muted-foreground">Button</p>
 			{/if}
