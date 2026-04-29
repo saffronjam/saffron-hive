@@ -23,11 +23,11 @@ func mapDeviceState(raw json.RawMessage) (device.DeviceState, error) {
 		on := dto.State == "ON"
 		state.On = &on
 	}
-	if dto.Brightness != 0 {
-		state.Brightness = device.Ptr(dto.Brightness)
+	if dto.Brightness != nil {
+		state.Brightness = dto.Brightness
 	}
-	if dto.ColorTemp != 0 {
-		state.ColorTemp = device.Ptr(dto.ColorTemp)
+	if dto.ColorTemp != nil {
+		state.ColorTemp = dto.ColorTemp
 	}
 	if dto.Color != nil {
 		color := &device.Color{

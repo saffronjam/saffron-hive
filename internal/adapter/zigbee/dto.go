@@ -29,8 +29,8 @@ type z2mFeature struct {
 
 type z2mDeviceState struct {
 	State      string    `json:"state"`
-	Brightness int       `json:"brightness"`
-	ColorTemp  int       `json:"color_temp"`
+	Brightness *int      `json:"brightness"`
+	ColorTemp  *int      `json:"color_temp"`
 	Color      *z2mColor `json:"color"`
 
 	Temperature *float64 `json:"temperature"`
