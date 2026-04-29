@@ -80,6 +80,16 @@ func translateCommand(cmd device.Command) z2mSetPayload {
 	return p
 }
 
+// hasCapability reports whether dev exposes the named capability.
+func hasCapability(dev device.Device, name string) bool {
+	for _, c := range dev.Capabilities {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 	a.mu.RLock()
 	friendlyName, ok := a.idToName[cmd.DeviceID]
@@ -88,6 +98,19 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 	if !ok {
 		logger.Warn("command for unknown device", "device_id", cmd.DeviceID)
 		return
+	}
+
+	// brightness=0 on a device with on/off capability means "off". Sending
+	// {state: ON, brightness: 0} flapping between ON and OFF as the bulb
+	// snaps to off (its own interpretation of zero brightness) and the
+	// frontend re-issues commands while the slider is held at zero. Collapse
+	// to a clean OFF here before the payload leaves the adapter.
+	if cmd.Brightness != nil && *cmd.Brightness == 0 {
+		if dev, found := a.stateReader.GetDevice(cmd.DeviceID); found && hasCapability(dev, device.CapOnOff) {
+			off := false
+			cmd.On = &off
+			cmd.Brightness = nil
+		}
 	}
 
 	payload := translateCommand(cmd)

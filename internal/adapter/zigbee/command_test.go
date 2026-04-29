@@ -89,6 +89,114 @@ func TestCommandTranslation_LightOff(t *testing.T) {
 	}
 }
 
+func TestCommandTranslation_BrightnessZeroBecomesOff(t *testing.T) {
+	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	id := device.DeviceID("0xzero")
+	dev := device.Device{
+		ID:        id,
+		Name:      "ceiling_light",
+		Type:      device.Light,
+		Available: true,
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Type: "binary", Access: 7},
+			{Name: device.CapBrightness, Type: "numeric", Access: 7},
+		},
+	}
+	sw.Register(dev)
+	sr.Set(dev)
+
+	adapter.mu.Lock()
+	adapter.nameToID["ceiling_light"] = id
+	adapter.idToName[id] = "ceiling_light"
+	adapter.ieeeToID["0xzero"] = id
+	adapter.mu.Unlock()
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventCommandRequested,
+		DeviceID:  "0xzero",
+		Timestamp: time.Now(),
+		Payload: device.Command{
+			DeviceID:   id,
+			On:         device.Ptr(true),
+			Brightness: device.Ptr(0),
+		},
+	})
+
+	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
+	if len(pubs) == 0 {
+		t.Fatal("expected at least one publish")
+	}
+
+	var payload z2mSetPayload
+	if err := json.Unmarshal(pubs[0].Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.State != "OFF" {
+		t.Fatalf("expected state OFF, got %q", payload.State)
+	}
+	if payload.Brightness != nil {
+		t.Fatalf("expected brightness to be omitted, got %v", *payload.Brightness)
+	}
+}
+
+func TestCommandTranslation_BrightnessZeroPreservedWithoutOnOff(t *testing.T) {
+	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	id := device.DeviceID("0xdimonly")
+	dev := device.Device{
+		ID:        id,
+		Name:      "dim_only",
+		Type:      device.Light,
+		Available: true,
+		Capabilities: []device.Capability{
+			{Name: device.CapBrightness, Type: "numeric", Access: 7},
+		},
+	}
+	sw.Register(dev)
+	sr.Set(dev)
+
+	adapter.mu.Lock()
+	adapter.nameToID["dim_only"] = id
+	adapter.idToName[id] = "dim_only"
+	adapter.ieeeToID["0xdimonly"] = id
+	adapter.mu.Unlock()
+
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventCommandRequested,
+		DeviceID:  "0xdimonly",
+		Timestamp: time.Now(),
+		Payload: device.Command{
+			DeviceID:   id,
+			Brightness: device.Ptr(0),
+		},
+	})
+
+	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
+	if len(pubs) == 0 {
+		t.Fatal("expected at least one publish")
+	}
+
+	var payload z2mSetPayload
+	if err := json.Unmarshal(pubs[0].Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.State != "" {
+		t.Fatalf("expected state to be omitted (no on/off cap), got %q", payload.State)
+	}
+	if payload.Brightness == nil || *payload.Brightness != 0 {
+		t.Fatalf("expected brightness 0 to pass through, got %v", payload.Brightness)
+	}
+}
+
 func TestCommandTranslation_ColorTemp(t *testing.T) {
 	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "desk_lamp", "0xdef", device.Light)
 	defer adapter.Stop()
