@@ -202,7 +202,7 @@
 			{#if hasBrightness}
 				<div
 					bind:this={brightnessEl}
-					class="relative ml-auto h-8 overflow-hidden rounded-full bg-muted transition-[width] duration-300 ease-out select-none"
+					class="relative ml-auto h-8 overflow-hidden rounded-full bg-muted transition-[width] duration-300 ease-out select-none touch-none"
 					class:w-48={brightnessExpanded}
 					class:w-24={!brightnessExpanded}
 					class:opacity-50={disabled}

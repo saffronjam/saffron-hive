@@ -167,7 +167,7 @@
 		bind:this={canvasEl}
 		width={320}
 		height={320}
-		class="h-full w-full"
+		class="h-full w-full touch-none"
 		onmousedown={handleDown}
 		ontouchstart={handleDown}
 		role="slider"
