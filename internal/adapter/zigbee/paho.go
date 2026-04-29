@@ -8,19 +8,20 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// readyTimeout bounds how long Connect will block waiting for paho's
-// OnConnectHandler to fire after CONNACK. Generous because the TLS+WebSocket
-// handshake on public brokers can take a few seconds.
-const readyTimeout = 15 * time.Second
+// readyTimeout bounds how long Connect will block waiting for the first
+// OnConnectHandler cycle that successfully applies every subscription.
+// Generous because the TLS+WebSocket handshake on public brokers can take a
+// few seconds and we want to ride out one or two auto-reconnect cycles if
+// the first SUBSCRIBE races the WSS transport coming up.
+const readyTimeout = 30 * time.Second
 
 // PahoClient wraps the paho MQTT client to implement MQTTClient.
 type PahoClient struct {
 	client mqtt.Client
 
-	mu           sync.Mutex
-	subs         []pahoSub
-	connected    chan struct{}
-	subscribeErr error
+	mu        sync.Mutex
+	subs      []pahoSub
+	connected chan struct{}
 }
 
 type pahoSub struct {
@@ -76,13 +77,14 @@ func NewPahoClient(cfg PahoConfig) *PahoClient {
 // Subscribe completed" race that occurs when SUBSCRIBE frames are fired
 // directly after CONNACK on a WSS transport whose reader isn't yet armed.
 //
-// If subscribes fail, the result is captured so Connect() can surface it.
+// If a subscribe fails, the connection is considered not-yet-ready: we do
+// NOT signal p.connected and instead let paho's auto-reconnect cycle fire
+// us again on a fresh transport. Connect() bounds the wait with readyTimeout.
 func (p *PahoClient) onConnect(c mqtt.Client) {
 	p.mu.Lock()
 	subs := append([]pahoSub(nil), p.subs...)
 	p.mu.Unlock()
 
-	var firstErr error
 	for _, s := range subs {
 		cb := s.callback
 		token := c.Subscribe(s.topic, s.qos, func(_ mqtt.Client, msg mqtt.Message) {
@@ -90,16 +92,10 @@ func (p *PahoClient) onConnect(c mqtt.Client) {
 		})
 		token.Wait()
 		if err := token.Error(); err != nil {
-			logger.Warn("mqtt subscribe failed", "topic", s.topic, "error", err)
-			if firstErr == nil {
-				firstErr = fmt.Errorf("subscribe %q: %w", s.topic, err)
-			}
+			logger.Warn("mqtt subscribe failed, awaiting auto-reconnect", "topic", s.topic, "error", err)
+			return
 		}
 	}
-
-	p.mu.Lock()
-	p.subscribeErr = firstErr
-	p.mu.Unlock()
 
 	select {
 	case p.connected <- struct{}{}:
@@ -107,11 +103,15 @@ func (p *PahoClient) onConnect(c mqtt.Client) {
 	}
 }
 
-// Connect establishes the MQTT connection and blocks until OnConnectHandler
-// has applied every registered subscription. Callers must register their
-// subscriptions via Subscribe BEFORE calling Connect so the subscribes happen
-// inside paho's post-CONNACK callback, where the transport is guaranteed to
-// be fully ready.
+// Connect establishes the MQTT connection and blocks until an OnConnectHandler
+// cycle has successfully applied every registered subscription. Callers must
+// register their subscriptions via Subscribe BEFORE calling Connect so the
+// subscribes happen inside paho's post-CONNACK callback, where the transport
+// is guaranteed to be fully ready.
+//
+// If the first onConnect cycle's SUBSCRIBE races the WSS transport coming up
+// and fails, paho's auto-reconnect re-fires onConnect on a fresh transport
+// and we wait for that cycle to succeed within readyTimeout.
 func (p *PahoClient) Connect() error {
 	token := p.client.Connect()
 	token.Wait()
@@ -120,10 +120,7 @@ func (p *PahoClient) Connect() error {
 	}
 	select {
 	case <-p.connected:
-		p.mu.Lock()
-		err := p.subscribeErr
-		p.mu.Unlock()
-		return err
+		return nil
 	case <-time.After(readyTimeout):
 		return fmt.Errorf("mqtt connected but transport never became ready within %s", readyTimeout)
 	}
