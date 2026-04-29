@@ -3,7 +3,7 @@
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { type Device } from "$lib/stores/devices";
-	import { deviceTintColor } from "$lib/device-tint";
+	import { brightnessToTintStrength, deviceTintBase } from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import HiveIcon from "$lib/components/hive-icon.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -43,10 +43,22 @@
 		onAddTo,
 	}: Props = $props();
 
-	let localBrightness = $state(127);
+	let localBrightness = $state(0);
 	let brightnessLastSent = 0;
 	let brightnessTrailingTimer: ReturnType<typeof setTimeout> | null = null;
+	let interacting = $state(false);
+	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
 	const BRIGHTNESS_THROTTLE_MS = 250;
+	const INTERACT_COOLDOWN_MS = 1500;
+
+	function noteInteract() {
+		interacting = true;
+		if (interactingTimer) clearTimeout(interactingTimer);
+		interactingTimer = setTimeout(() => {
+			interactingTimer = null;
+			interacting = false;
+		}, INTERACT_COOLDOWN_MS);
+	}
 
 	const isSensor = $derived(device.type === "sensor");
 	const hasBrightness = $derived(device.state?.brightness != null);
@@ -60,9 +72,17 @@
 			? { ...device, state: { ...device.state, brightness: localBrightness } }
 			: device,
 	);
-	const tintColor = $derived(deviceTintColor(tintDevice));
-	const cardStyle = $derived(tintColor ? `--tint-color: ${tintColor}` : "");
-	const mutedTextClass = $derived(tintColor ? "text-foreground/70" : "text-muted-foreground");
+	const tintColor = $derived(deviceTintBase(tintDevice));
+	const tintStrength = $derived.by(() => {
+		if (!device.state?.on) return 0;
+		return hasBrightness ? brightnessToTintStrength(localBrightness) : 1;
+	});
+	const cardStyle = $derived(
+		tintColor ? `--tint-color: ${tintColor}; --tint-strength: ${tintStrength}` : "",
+	);
+	const mutedTextClass = $derived(
+		tintColor && device.state?.on ? "text-foreground/70" : "text-muted-foreground",
+	);
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
@@ -87,26 +107,22 @@
 	}
 
 	const client = getContextClient();
-	let sending = $state(false);
 
 	$effect(() => {
-		if (!brightnessTrailingTimer && device.state?.brightness != null) {
-			localBrightness = device.state.brightness;
+		if (!brightnessTrailingTimer && !interacting && device.state?.brightness != null) {
+			localBrightness = device.state.on ? device.state.brightness : 0;
 		}
 	});
 
 	function sendBrightness(val: number) {
 		const input: { on?: true; brightness: number } = { brightness: val };
 		if (!device.state?.on) input.on = true;
-		sending = true;
-		void client
-			.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input })
-			.toPromise()
-			.finally(() => (sending = false));
+		void client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
 	}
 
 	function handleBrightnessChange(val: number) {
 		localBrightness = val;
+		noteInteract();
 		const now = Date.now();
 		const elapsed = now - brightnessLastSent;
 		if (brightnessTrailingTimer) {
@@ -245,7 +261,7 @@
 							max={254}
 							step={1}
 							onValueChange={handleBrightnessChange}
-							disabled={sending || !device.available}
+							disabled={!device.available}
 							aria-label={`${device.name} brightness`}
 						/>
 					</div>
