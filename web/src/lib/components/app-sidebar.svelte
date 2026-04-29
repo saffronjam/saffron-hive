@@ -13,7 +13,9 @@
 		SidebarMenuButton,
 		SidebarMenuItem,
 		SidebarSeparator,
+		useSidebar,
 	} from "$lib/components/ui/sidebar/index.js";
+	import { Collapsible } from "bits-ui";
 	import HiveLogo from "$lib/components/icons/hive-logo.svelte";
 	import {
 		LayoutDashboard,
@@ -30,6 +32,8 @@
 		Users,
 		LineChart,
 		Sparkles,
+		Wrench,
+		ChevronUp,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -100,7 +104,15 @@
 		return page.url.pathname.startsWith(href);
 	}
 
+	const sidebar = useSidebar();
+	let systemOpen = $state(false);
+
+	function handleNav() {
+		if (sidebar.isMobile) sidebar.setOpenMobile(false);
+	}
+
 	function logout() {
+		handleNav();
 		auth.clearToken();
 		void goto("/login", { replaceState: true });
 	}
@@ -129,7 +141,7 @@
 									tooltipContent={item.label}
 								>
 									{#snippet child({ props })}
-										<a href={item.href ?? "#"} {...props}>
+										<a href={item.href ?? "#"} {...props} onclick={handleNav}>
 											<item.icon class="size-4" />
 											<span>{item.label}</span>
 											{#if item.href === "/alarms" && alarmsStore.activeCount > 0}
@@ -152,34 +164,53 @@
 	</SidebarContent>
 
 	<SidebarFooter>
-		<SidebarGroup>
-			<SidebarGroupContent>
-				<SidebarMenu>
-					{#each adminItems as item (item.label)}
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								isActive={isActive(item.href)}
-								tooltipContent={item.label}
-							>
-								{#snippet child({ props })}
-									{#if item.href}
-										<a href={item.href} {...props}>
-											<item.icon class="size-4" />
-											<span>{item.label}</span>
-										</a>
-									{:else}
-										<button type="button" {...props}>
-											<item.icon class="size-4" />
-											<span>{item.label}</span>
-										</button>
-									{/if}
-								{/snippet}
+		<Collapsible.Root bind:open={systemOpen} class="group/system">
+			<Collapsible.Content>
+				<SidebarGroup>
+					<SidebarGroupContent>
+						<SidebarMenu>
+							{#each adminItems as item (item.label)}
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										isActive={isActive(item.href)}
+										tooltipContent={item.label}
+									>
+										{#snippet child({ props })}
+											{#if item.href}
+												<a href={item.href} {...props} onclick={handleNav}>
+													<item.icon class="size-4" />
+													<span>{item.label}</span>
+												</a>
+											{:else}
+												<button type="button" {...props} onclick={handleNav}>
+													<item.icon class="size-4" />
+													<span>{item.label}</span>
+												</button>
+											{/if}
+										{/snippet}
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							{/each}
+						</SidebarMenu>
+					</SidebarGroupContent>
+				</SidebarGroup>
+			</Collapsible.Content>
+			<SidebarMenu>
+				<SidebarMenuItem>
+					<Collapsible.Trigger>
+						{#snippet child({ props })}
+							<SidebarMenuButton {...props} tooltipContent="System">
+								<Wrench class="size-4" />
+								<span>System</span>
+								<ChevronUp
+									class="ml-auto size-4 transition-transform group-data-[state=closed]/system:rotate-180"
+								/>
 							</SidebarMenuButton>
-						</SidebarMenuItem>
-					{/each}
-				</SidebarMenu>
-			</SidebarGroupContent>
-		</SidebarGroup>
+						{/snippet}
+					</Collapsible.Trigger>
+				</SidebarMenuItem>
+			</SidebarMenu>
+		</Collapsible.Root>
 
 		<SidebarSeparator />
 
@@ -194,7 +225,7 @@
 				<SidebarMenuItem>
 					<SidebarMenuButton isActive={isActive("/profile")} tooltipContent="Profile">
 						{#snippet child({ props })}
-							<a href="/profile" {...props}>
+							<a href="/profile" {...props} onclick={handleNav}>
 								<Avatar user={profileUser} size="xs" />
 								<span>Profile</span>
 							</a>
