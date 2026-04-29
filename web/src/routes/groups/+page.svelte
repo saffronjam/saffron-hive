@@ -11,10 +11,9 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
-	import EntityCard from "$lib/components/entity-card.svelte";
+	import DeviceCollectionCard from "$lib/components/device-collection-card.svelte";
 	import GroupTable from "$lib/components/group-table.svelte";
 	import { groupMemberBreakdown } from "$lib/list-helpers";
-	import { groupTintColors } from "$lib/device-tint";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
@@ -44,7 +43,8 @@
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import type { Device } from "$lib/stores/devices";
+	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { rgbToXy } from "$lib/color";
 
 	interface RoomData {
 		id: string;
@@ -68,10 +68,6 @@
 		icon?: string | null;
 		members: GroupMember[];
 		createdBy?: { id: string; username: string; name: string } | null;
-	}
-
-	interface DevicesQueryResult {
-		devices: Device[];
 	}
 
 	interface GroupsQueryResult {
@@ -192,36 +188,6 @@
 		}
 	`);
 
-	const DEVICES_QUERY = graphql(`
-		query GroupsPageDevices {
-			devices {
-				id
-				name
-				type
-				capabilities { name type values valueMin valueMax unit access }
-				source
-				available
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
 	const ROOMS_QUERY = graphql(`
 		query GroupsPageRooms {
 			rooms {
@@ -290,12 +256,23 @@
 		}
 	`);
 
+	const SET_DEVICE_STATE = graphql(`
+		mutation GroupsPageSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
+			setDeviceState(deviceId: $deviceId, state: $state) {
+				id
+				state {
+					on
+					brightness
+				}
+			}
+		}
+	`);
+
 	const groupsQuery = queryStore<GroupsQueryResult>({ client, query: GROUPS_QUERY });
-	const devicesQuery = queryStore<DevicesQueryResult>({ client, query: DEVICES_QUERY });
 	const roomsQuery = queryStore<{ rooms: RoomData[] }>({ client, query: ROOMS_QUERY });
 
 	const groups = $derived($groupsQuery.data?.groups ?? []);
-	const devices = $derived($devicesQuery.data?.devices ?? []);
+	const devices = $derived(Object.values($deviceStore));
 	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
 
 	const deviceById = $derived(new Map(devices.map((d) => [d.id, d])));
@@ -330,6 +307,63 @@
 			if (d) out.push(d);
 		}
 		return out;
+	}
+
+	async function commitGroupBrightness(group: GroupData, brightness: number) {
+		const lights = flattenGroupDevices(group).filter(
+			(d) => d.type === "light" && d.state?.brightness != null,
+		);
+		if (lights.length === 0) return;
+		await Promise.all(
+			lights.map((d) => {
+				const input: { on?: true; brightness: number } = { brightness };
+				if (!d.state?.on) input.on = true;
+				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
+			}),
+		);
+	}
+
+	async function commitGroupToggle(group: GroupData, on: boolean) {
+		const targets = flattenGroupDevices(group).filter((d) =>
+			d.capabilities.some((c) => c.name === "on_off"),
+		);
+		if (targets.length === 0) return;
+		await Promise.all(
+			targets.map((d) =>
+				client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on } }).toPromise(),
+			),
+		);
+	}
+
+	async function commitGroupColor(group: GroupData, color: { r: number; g: number; b: number }) {
+		const targets = flattenGroupDevices(group).filter((d) =>
+			d.capabilities.some((c) => c.name === "color"),
+		);
+		if (targets.length === 0) return;
+		const xy = rgbToXy(color.r, color.g, color.b);
+		await Promise.all(
+			targets.map((d) => {
+				const input: { on?: true; color: { r: number; g: number; b: number; x: number; y: number } } = {
+					color: { ...color, x: xy.x, y: xy.y },
+				};
+				if (!d.state?.on) input.on = true;
+				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
+			}),
+		);
+	}
+
+	async function commitGroupTemp(group: GroupData, mired: number) {
+		const targets = flattenGroupDevices(group).filter((d) =>
+			d.capabilities.some((c) => c.name === "color_temp"),
+		);
+		if (targets.length === 0) return;
+		await Promise.all(
+			targets.map((d) => {
+				const input: { on?: true; colorTemp: number } = { colorTemp: mired };
+				if (!d.state?.on) input.on = true;
+				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
+			}),
+		);
 	}
 
 	let hasLoadedOnce = $state(false);
@@ -1002,17 +1036,20 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredGroups as group (group.id)}
-									{@const tintColors = groupTintColors(flattenGroupDevices(group))}
-									<EntityCard
+									<DeviceCollectionCard
 										entity={group}
+										devices={flattenGroupDevices(group)}
 										fallbackIcon={GroupIcon}
 										subtitle="{group.members.length} member{group.members.length === 1 ? '' : 's'}{group.members.length > 0 ? ' · ' + groupMemberBreakdown(group.members) : ''}"
-										tintColors={tintColors.length > 0 ? tintColors : null}
 										onedit={startEditing}
 										ondelete={(g) => (deleteConfirmGroup = g)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										onAddTo={handleAddToGroup}
+										onbrightness={(v) => commitGroupBrightness(group, v)}
+										ontoggle={(on) => commitGroupToggle(group, on)}
+										oncolor={(c) => commitGroupColor(group, c)}
+										ontemp={(t) => commitGroupTemp(group, t)}
 										addLabel="Add member"
 									/>
 								{/each}

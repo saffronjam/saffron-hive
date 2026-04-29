@@ -14,7 +14,7 @@
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import MemberTable from "$lib/components/member-table.svelte";
-	import EntityCard from "$lib/components/entity-card.svelte";
+	import DeviceCollectionCard from "$lib/components/device-collection-card.svelte";
 	import RoomTable from "$lib/components/room-table.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -40,8 +40,9 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import type { Device } from "$lib/stores/devices";
+	import { deviceStore, type Device } from "$lib/stores/devices";
 	import { deviceIcon } from "$lib/utils";
+	import { rgbToXy } from "$lib/color";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 
 	interface RoomMemberDevice {
@@ -108,18 +109,6 @@
 					username
 					name
 				}
-			}
-		}
-	`);
-
-	const DEVICES_QUERY = graphql(`
-		query RoomsPageDevices {
-			devices {
-				id
-				name
-				type
-				source
-				available
 			}
 		}
 	`);
@@ -212,13 +201,89 @@
 		}
 	`);
 
+	const SET_DEVICE_STATE = graphql(`
+		mutation RoomsPageSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
+			setDeviceState(deviceId: $deviceId, state: $state) {
+				id
+				state {
+					on
+					brightness
+				}
+			}
+		}
+	`);
+
 	const roomsQuery = queryStore<{ rooms: RoomData[] }>({ client, query: ROOMS_QUERY });
-	const devicesQuery = queryStore<{ devices: Device[] }>({ client, query: DEVICES_QUERY });
 	const groupsQuery = queryStore<{ groups: SimpleGroup[] }>({ client, query: GROUPS_QUERY });
 
 	const rooms = $derived($roomsQuery.data?.rooms ?? []);
-	const devices = $derived($devicesQuery.data?.devices ?? []);
+	const devices = $derived(Object.values($deviceStore));
 	const allGroups = $derived($groupsQuery.data?.groups ?? []);
+	const deviceById = $derived(new Map(devices.map((d) => [d.id, d])));
+
+	function roomDevices(room: RoomData): Device[] {
+		const out: Device[] = [];
+		for (const rd of room.resolvedDevices) {
+			const d = deviceById.get(rd.id);
+			if (d) out.push(d);
+		}
+		return out;
+	}
+
+	async function commitRoomBrightness(room: RoomData, brightness: number) {
+		const lights = roomDevices(room).filter((d) => d.type === "light" && d.state?.brightness != null);
+		if (lights.length === 0) return;
+		await Promise.all(
+			lights.map((d) => {
+				const input: { on?: true; brightness: number } = { brightness };
+				if (!d.state?.on) input.on = true;
+				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
+			}),
+		);
+	}
+
+	async function commitRoomToggle(room: RoomData, on: boolean) {
+		const targets = roomDevices(room).filter((d) =>
+			d.capabilities.some((c) => c.name === "on_off"),
+		);
+		if (targets.length === 0) return;
+		await Promise.all(
+			targets.map((d) =>
+				client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on } }).toPromise(),
+			),
+		);
+	}
+
+	async function commitRoomColor(room: RoomData, color: { r: number; g: number; b: number }) {
+		const targets = roomDevices(room).filter((d) =>
+			d.capabilities.some((c) => c.name === "color"),
+		);
+		if (targets.length === 0) return;
+		const xy = rgbToXy(color.r, color.g, color.b);
+		await Promise.all(
+			targets.map((d) => {
+				const input: { on?: true; color: { r: number; g: number; b: number; x: number; y: number } } = {
+					color: { ...color, x: xy.x, y: xy.y },
+				};
+				if (!d.state?.on) input.on = true;
+				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
+			}),
+		);
+	}
+
+	async function commitRoomTemp(room: RoomData, mired: number) {
+		const targets = roomDevices(room).filter((d) =>
+			d.capabilities.some((c) => c.name === "color_temp"),
+		);
+		if (targets.length === 0) return;
+		await Promise.all(
+			targets.map((d) => {
+				const input: { on?: true; colorTemp: number } = { colorTemp: mired };
+				if (!d.state?.on) input.on = true;
+				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
+			}),
+		);
+	}
 
 	let hasLoadedOnce = $state(false);
 	$effect(() => {
@@ -281,18 +346,16 @@
 		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
 		const query = searchState.freeText.toLowerCase();
 
-		const deviceById = new Map(devices.map((d) => [d.id, d]));
-
 		return rooms.filter((r) => {
-			const roomDevices = r.resolvedDevices
+			const ds = r.resolvedDevices
 				.map((rd) => deviceById.get(rd.id))
 				.filter((d): d is Device => !!d);
-			if (typeValues.length > 0 && !roomDevices.some((d) => typeValues.includes(d.type))) {
+			if (typeValues.length > 0 && !ds.some((d) => typeValues.includes(d.type))) {
 				return false;
 			}
 			if (
 				deviceValues.length > 0 &&
-				!deviceValues.some((v) => roomDevices.some((d) => d.name.toLowerCase().includes(v)))
+				!deviceValues.some((v) => ds.some((d) => d.name.toLowerCase().includes(v)))
 			)
 				return false;
 			if (emptyValues.length > 0) {
@@ -901,8 +964,9 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredRooms as room (room.id)}
-									<EntityCard
+									<DeviceCollectionCard
 										entity={room}
+										devices={roomDevices(room)}
 										fallbackIcon={DoorOpen}
 										subtitle="{room.resolvedDevices.length} device{room.resolvedDevices.length === 1 ? '' : 's'}"
 										onedit={startEditing}
@@ -910,6 +974,10 @@
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										onAddTo={handleAddToRoom}
+										onbrightness={(v) => commitRoomBrightness(room, v)}
+										ontoggle={(on) => commitRoomToggle(room, on)}
+										oncolor={(c) => commitRoomColor(room, c)}
+										ontemp={(t) => commitRoomTemp(room, t)}
 										addLabel="Add to room"
 									/>
 								{/each}
