@@ -1,5 +1,7 @@
 import type { Device, DeviceState } from "$lib/stores/devices";
 import type { ActionPayload } from "$lib/scene-editable";
+import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
+import type { Component } from "svelte";
 
 interface RGB {
   r: number;
@@ -60,6 +62,18 @@ function resolveTintRgb(input: TintInput): RGB {
   if (input.colorTemp != null) return miredToRgb(input.colorTemp);
   if (input.brightness != null && input.type === "light") return brightnessToRgb(input.brightness);
   return CREAM;
+}
+
+/**
+ * Returns a 0..1 strength factor for a light at the given brightness, suitable
+ * for driving the `--tint-strength` CSS variable. `null`/missing brightness
+ * yields full strength (1). Uses a sqrt curve so low brightness still shows
+ * a perceptible hue without making mid-brightness look flat.
+ */
+export function brightnessToTintStrength(brightness: number | null | undefined): number {
+  if (brightness == null) return 1;
+  const t = clamp01(brightness / BRIGHTNESS_MAX);
+  return Math.sqrt(t);
 }
 
 /**
@@ -136,6 +150,54 @@ export function sceneTintColors(payloads: ActionPayload[]): string[] {
 }
 
 /**
+ * Like {@link deviceTintColor} but ignores the device's on/off state, so
+ * the returned colour is always the device's "natural" hue. Use when the
+ * card keeps the tint class applied even while the device is off and
+ * conveys on-state via `--tint-strength` instead — the gradient then
+ * transitions smoothly to plain card colour as strength → 0.
+ */
+export function deviceTintBase(device: Device): string | null {
+  const state: DeviceState | null | undefined = device.state;
+  if (!state) return null;
+  if (state.color == null && state.colorTemp == null && state.brightness == null) {
+    return null;
+  }
+  return toCss(
+    resolveTintRgb({
+      type: device.type,
+      on: true,
+      color: state.color,
+      colorTemp: state.colorTemp,
+      brightness: state.brightness,
+    }),
+  );
+}
+
+/**
+ * Like {@link groupTintColors} but ignores per-device on/off state. Use
+ * for room/group cards that fade their gradient via `--tint-strength`
+ * (driven by aggregate on-state) instead of dropping the tint class.
+ */
+export function groupBaseTintColors(devices: Device[]): string[] {
+  const colors: RGB[] = [];
+  for (const device of devices) {
+    const state = device.state;
+    if (!state) continue;
+    if (state.color == null && state.colorTemp == null && state.brightness == null) continue;
+    colors.push(
+      resolveTintRgb({
+        type: device.type,
+        on: true,
+        color: state.color,
+        colorTemp: state.colorTemp,
+        brightness: state.brightness,
+      }),
+    );
+  }
+  return dedupe(colors).slice(0, 3).map(toCss);
+}
+
+/**
  * Returns up to three `rgb(...)` strings aggregated from the current state of
  * a group's effective device list, mirroring {@link sceneTintColors} for live
  * device readings. Empty when no device is switched on.
@@ -205,6 +267,80 @@ export function sceneTint(
     return `linear-gradient(135deg, ${toCss(unique[0])}, ${toCss(unique[0])})`;
   const stops = unique.map(toCss).join(", ");
   return `linear-gradient(135deg, ${stops})`;
+}
+
+export interface AggregatedReading {
+  label: string;
+  value: string;
+  unit: string;
+  icon: Component;
+}
+
+interface ReadingSpec {
+  label: string;
+  unit: string;
+  icon: Component;
+  read: (state: DeviceState) => number | null | undefined;
+  format: (avg: number) => string;
+}
+
+const READING_SPECS: ReadingSpec[] = [
+  {
+    label: "Temperature",
+    unit: "°C",
+    icon: Thermometer,
+    read: (s) => s.temperature,
+    format: (n) => n.toFixed(1),
+  },
+  {
+    label: "Humidity",
+    unit: "%",
+    icon: Droplets,
+    read: (s) => s.humidity,
+    format: (n) => n.toFixed(0),
+  },
+  {
+    label: "Pressure",
+    unit: "hPa",
+    icon: Gauge,
+    read: (s) => s.pressure,
+    format: (n) => n.toFixed(0),
+  },
+  {
+    label: "Illuminance",
+    unit: "lx",
+    icon: Sun,
+    read: (s) => s.illuminance,
+    format: (n) => n.toFixed(0),
+  },
+];
+
+/**
+ * Aggregates sensor readings across a device list by averaging each
+ * supported field over all devices that report it. Fields with no
+ * contributing devices are omitted.
+ */
+export function aggregateSensorReadings(devices: Device[]): AggregatedReading[] {
+  const result: AggregatedReading[] = [];
+  for (const spec of READING_SPECS) {
+    let sum = 0;
+    let count = 0;
+    for (const device of devices) {
+      if (!device.state) continue;
+      const v = spec.read(device.state);
+      if (v == null) continue;
+      sum += v;
+      count++;
+    }
+    if (count === 0) continue;
+    result.push({
+      label: spec.label,
+      value: spec.format(sum / count),
+      unit: spec.unit,
+      icon: spec.icon,
+    });
+  }
+  return result;
 }
 
 function dedupe(colors: RGB[]): RGB[] {
