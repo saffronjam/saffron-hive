@@ -17,6 +17,7 @@
 		brightnessToTintStrength,
 		groupBaseTintColors,
 	} from "$lib/device-tint";
+	import { throttle, type Throttle } from "$lib/throttle";
 	import { Palette } from "@lucide/svelte";
 
 	interface Props {
@@ -155,32 +156,8 @@
 		return brightnessToTintStrength(sum / onLights.length);
 	});
 
-	const THROTTLE_MS = 250;
-	interface Throttle {
-		lastSent: number;
-		trailing: ReturnType<typeof setTimeout> | null;
-	}
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
-
-	function throttle(t: Throttle, fire: () => void) {
-		const now = Date.now();
-		const elapsed = now - t.lastSent;
-		if (t.trailing) {
-			clearTimeout(t.trailing);
-			t.trailing = null;
-		}
-		if (elapsed >= THROTTLE_MS) {
-			t.lastSent = now;
-			fire();
-		} else {
-			t.trailing = setTimeout(() => {
-				t.trailing = null;
-				t.lastSent = Date.now();
-				fire();
-			}, THROTTLE_MS - elapsed);
-		}
-	}
 
 	function handleColor(c: { r: number; g: number; b: number }) {
 		throttle(colorThrottle, () => oncolor?.(c));

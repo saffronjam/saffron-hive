@@ -11,6 +11,7 @@
 	} from "$lib/components/ui/popover/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
+	import { throttle, type Throttle } from "$lib/throttle";
 	import { Palette } from "@lucide/svelte";
 
 	interface Props {
@@ -56,34 +57,9 @@
 		send({ on: checked });
 	}
 
-	const THROTTLE_MS = 250;
-
-	interface Throttle {
-		lastSent: number;
-		trailing: ReturnType<typeof setTimeout> | null;
-	}
 	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 	const colorTempThrottle: Throttle = { lastSent: 0, trailing: null };
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
-
-	function throttle(t: Throttle, fire: () => void) {
-		const now = Date.now();
-		const elapsed = now - t.lastSent;
-		if (t.trailing) {
-			clearTimeout(t.trailing);
-			t.trailing = null;
-		}
-		if (elapsed >= THROTTLE_MS) {
-			t.lastSent = now;
-			fire();
-		} else {
-			t.trailing = setTimeout(() => {
-				t.trailing = null;
-				t.lastSent = Date.now();
-				fire();
-			}, THROTTLE_MS - elapsed);
-		}
-	}
 
 	let localBrightness = $state(127);
 
