@@ -16,7 +16,7 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { deviceStore } from "$lib/stores/devices";
 	import { deviceIcon, sentenceCase } from "$lib/utils";
-	import { Layers, Plus, X } from "@lucide/svelte";
+	import { Layers, Plus, Trash2 } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { onMount, onDestroy } from "svelte";
 	import { page } from "$app/state";
@@ -73,6 +73,7 @@
 					id: d.id,
 					name: d.name,
 					icon: deviceIcon(d.type),
+					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),
 			});
@@ -185,7 +186,7 @@
 										aria-label={`Remove ${g.name}`}
 										onclick={() => removeSource(g.deviceId)}
 									>
-										<X class="size-3.5" />
+										<Trash2 class="size-3.5" />
 									</Button>
 								</div>
 								{#if g.series.length > 0}

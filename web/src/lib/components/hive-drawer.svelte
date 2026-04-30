@@ -6,6 +6,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import EntitySelector from "$lib/components/entity-selector.svelte";
+	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 
 	type Selection = { type: T; id: string };
@@ -79,8 +80,14 @@
 						onSelect={() => handleSelect(item.type, item.id)}
 						data-checked={checked}
 					>
-						{#if Icon}
-							<Icon class="size-4 text-muted-foreground" />
+						{#if item.iconRef || Icon}
+							<AnimatedIcon icon={item.iconRef ?? null} class="size-4 text-muted-foreground">
+								{#snippet fallback()}
+									{#if Icon}
+										<Icon class="size-4 text-muted-foreground" />
+									{/if}
+								{/snippet}
+							</AnimatedIcon>
 						{/if}
 						<span class="flex-1 truncate">{item.name}</span>
 						{#if item.badge}

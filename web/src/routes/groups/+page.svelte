@@ -461,6 +461,7 @@
 					id: d.id,
 					name: d.name,
 					icon: deviceIcon(d.type),
+					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),
 			});
@@ -811,7 +812,7 @@
 		if (availableDevices.length > 0) {
 			result.push({ heading: "Devices", items: availableDevices.map((d) => ({
 				type: "device" as const, id: d.id, name: d.name,
-				icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}`,
+				icon: deviceIcon(d.type), iconRef: d.icon ?? null, searchValue: `${d.name} ${d.type}`,
 			}))});
 		}
 		if (availableGroups.length > 0) {

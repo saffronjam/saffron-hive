@@ -385,7 +385,7 @@
 			return [{ heading: "Scenes", items: scenes.map((s) => ({ type: "scene" as const, id: s.id, name: s.name, icon: Clapperboard })) }];
 		}
 		return [
-			{ heading: "Devices", items: devices.map((d) => ({ type: "device" as const, id: d.id, name: d.name, icon: deviceIcon(d.type), searchValue: `${d.name} ${d.type}` })) },
+			{ heading: "Devices", items: devices.map((d) => ({ type: "device" as const, id: d.id, name: d.name, icon: deviceIcon(d.type), iconRef: d.icon ?? null, searchValue: `${d.name} ${d.type}` })) },
 			{ heading: "Groups", items: groups.map((g) => ({ type: "group" as const, id: g.id, name: g.name, icon: Workflow })) },
 			{ heading: "Rooms", items: rooms.map((r) => ({ type: "room" as const, id: r.id, name: r.name, icon: Workflow })) },
 		];

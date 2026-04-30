@@ -184,6 +184,7 @@
 			devices {
 				id
 				name
+				icon
 				type
 				capabilities {
 					name
@@ -223,6 +224,7 @@
 	interface DeviceRef {
 		id: string;
 		name: string;
+		icon?: string | null;
 		type: string;
 		capabilities: { name: string; access: number }[];
 	}
@@ -294,6 +296,7 @@
 					id: d.id,
 					name: d.name,
 					icon: deviceIcon(d.type),
+					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),
 			});

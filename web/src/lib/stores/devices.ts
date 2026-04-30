@@ -44,6 +44,7 @@ const DEVICES_QUERY = graphql(`
     devices {
       id
       name
+      icon
       source
       type
       capabilities {

@@ -171,6 +171,7 @@
 			devices {
 				id
 				name
+				icon
 				type
 				source
 				available
@@ -608,6 +609,7 @@
 					id: d.id,
 					name: d.name,
 					icon: deviceIcon(d.type),
+					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),
 			});
