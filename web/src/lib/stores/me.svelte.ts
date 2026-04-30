@@ -11,6 +11,7 @@ const ME_QUERY = graphql(`
       avatarPath
       theme
       createdAt
+      mustChangePassword
     }
   }
 `);
@@ -22,6 +23,7 @@ export interface Me {
   avatarPath: string | null;
   theme: Theme;
   createdAt: string;
+  mustChangePassword: boolean;
 }
 
 function createMe() {
@@ -34,6 +36,7 @@ function createMe() {
     avatarPath?: string | null;
     theme?: "LIGHT" | "DARK" | null;
     createdAt?: string | null;
+    mustChangePassword?: boolean | null;
   }) {
     const t: Theme = data.theme === "LIGHT" ? "light" : "dark";
     user = {
@@ -43,6 +46,7 @@ function createMe() {
       avatarPath: data.avatarPath ?? null,
       theme: t,
       createdAt: data.createdAt ?? "",
+      mustChangePassword: data.mustChangePassword ?? false,
     };
     theme.syncFromProfile(t);
   }
@@ -66,6 +70,7 @@ function createMe() {
       avatarPath?: string | null;
       theme?: "LIGHT" | "DARK" | null;
       createdAt?: string | null;
+      mustChangePassword?: boolean | null;
     }) {
       setFromData(data);
     },

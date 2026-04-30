@@ -88,7 +88,7 @@ type Documents = {
     "\n  subscription DeviceAvailabilityChanged {\n    deviceAvailabilityChanged {\n      deviceId\n      available\n    }\n  }\n": typeof types.DeviceAvailabilityChangedDocument,
     "\n  subscription DeviceAdded {\n    deviceAdded {\n      id\n      name\n      source\n      type\n      capabilities {\n        name\n        type\n        values\n        valueMin\n        valueMax\n        unit\n        access\n      }\n      available\n      lastSeen\n      state {\n        on\n        brightness\n        colorTemp\n        color {\n          r\n          g\n          b\n          x\n          y\n        }\n        transition\n        temperature\n        humidity\n        pressure\n        illuminance\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": typeof types.DeviceAddedDocument,
     "\n  subscription DeviceRemoved {\n    deviceRemoved\n  }\n": typeof types.DeviceRemovedDocument,
-    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n": typeof types.MeDocument,
+    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n": typeof types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": typeof types.SetupStatusDocument,
     "\n\t\tquery DashboardRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardRoomsDocument,
     "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttags\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardGroupsDocument,
@@ -116,6 +116,7 @@ type Documents = {
     "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditScenesDocument,
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditEffectsDocument,
     "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditNodeActivatedDocument,
+    "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t": typeof types.CompleteFirstPasswordChangeDocument,
     "\n\t\tmutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n\t\t\tupdateDevice(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateDeviceDocument,
     "\n\t\tquery DeviceListRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": typeof types.DeviceListRoomsDocument,
     "\n\t\tquery DeviceListGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": typeof types.DeviceListGroupsDocument,
@@ -147,7 +148,7 @@ type Documents = {
     "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteGroupsDocument,
     "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t": typeof types.AddGroupMemberDocument,
     "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\t\t\tremoveGroupMember(id: $id)\n\t\t}\n\t": typeof types.RemoveGroupMemberDocument,
-    "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
+    "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogStreamDocument,
     "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.ProfileUpdateCurrentUserDocument,
@@ -269,7 +270,7 @@ const documents: Documents = {
     "\n  subscription DeviceAvailabilityChanged {\n    deviceAvailabilityChanged {\n      deviceId\n      available\n    }\n  }\n": types.DeviceAvailabilityChangedDocument,
     "\n  subscription DeviceAdded {\n    deviceAdded {\n      id\n      name\n      source\n      type\n      capabilities {\n        name\n        type\n        values\n        valueMin\n        valueMax\n        unit\n        access\n      }\n      available\n      lastSeen\n      state {\n        on\n        brightness\n        colorTemp\n        color {\n          r\n          g\n          b\n          x\n          y\n        }\n        transition\n        temperature\n        humidity\n        pressure\n        illuminance\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": types.DeviceAddedDocument,
     "\n  subscription DeviceRemoved {\n    deviceRemoved\n  }\n": types.DeviceRemovedDocument,
-    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n": types.MeDocument,
+    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n": types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": types.SetupStatusDocument,
     "\n\t\tquery DashboardRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.DashboardRoomsDocument,
     "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttags\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.DashboardGroupsDocument,
@@ -297,6 +298,7 @@ const documents: Documents = {
     "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.AutomationEditScenesDocument,
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": types.AutomationEditEffectsDocument,
     "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t": types.AutomationEditNodeActivatedDocument,
+    "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t": types.CompleteFirstPasswordChangeDocument,
     "\n\t\tmutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n\t\t\tupdateDevice(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.UpdateDeviceDocument,
     "\n\t\tquery DeviceListRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": types.DeviceListRoomsDocument,
     "\n\t\tquery DeviceListGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": types.DeviceListGroupsDocument,
@@ -328,7 +330,7 @@ const documents: Documents = {
     "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t": types.BatchDeleteGroupsDocument,
     "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t": types.AddGroupMemberDocument,
     "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\t\t\tremoveGroupMember(id: $id)\n\t\t}\n\t": types.RemoveGroupMemberDocument,
-    "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
+    "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogStreamDocument,
     "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.ProfileUpdateCurrentUserDocument,
@@ -689,7 +691,7 @@ export function graphql(source: "\n  subscription DeviceRemoved {\n    deviceRem
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n    }\n  }\n"];
+export function graphql(source: "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n"): (typeof documents)["\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -798,6 +800,10 @@ export function graphql(source: "\n\t\tquery AutomationEditEffects {\n\t\t\teffe
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -925,7 +931,7 @@ export function graphql(source: "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

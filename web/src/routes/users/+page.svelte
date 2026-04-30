@@ -45,7 +45,7 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { EllipsisVertical, KeyRound, Plus, Trash2 } from "@lucide/svelte";
-	import { onDestroy } from "svelte";
+	import { onDestroy, onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 
 	const client = getContextClient();
@@ -178,10 +178,12 @@
 		}
 	}
 
-	pageHeader.breadcrumbs = [{ label: "Users" }];
-	pageHeader.actions = [
-		{ label: "Create user", icon: Plus, onclick: () => (createOpen = true) },
-	];
+	onMount(() => {
+		pageHeader.breadcrumbs = [{ label: "Users" }];
+		pageHeader.actions = [
+			{ label: "Create user", icon: Plus, onclick: () => (createOpen = true) },
+		];
+	});
 	$effect(() => {
 		pageHeader.viewToggle = { value: view, onchange: setView };
 	});

@@ -24,10 +24,12 @@
 
 	let { children } = $props();
 
-	// Routes that deliberately bypass the auth gate. /login is where the user
-	// enters credentials; /setup is the first-run flow that creates the initial
-	// user and configures MQTT before any login is possible.
-	const PUBLIC_ROUTES = ["/login", "/setup"];
+	// Routes that render full-screen without the sidebar chrome. /login is where
+	// the user enters credentials; /setup is the first-run flow that creates the
+	// initial user and configures MQTT before any login is possible;
+	// /change-password-required is the forced first-login password change form
+	// (authenticated, but the user can't reach the rest of the app until done).
+	const PUBLIC_ROUTES = ["/login", "/setup", "/change-password-required"];
 
 	let ready = $state(false);
 	const loader = delayedLoading(() => !ready);
@@ -73,6 +75,24 @@
 			if (pathname !== "/setup") {
 				await goto("/setup", { replaceState: true });
 			}
+			ready = true;
+			return;
+		}
+
+		// Force-change gate: an admin-created user (or one whose password was
+		// just reset) must complete the change before any other route is
+		// reachable. Load `me` synchronously here so the redirect is decided
+		// before children render — the post-ready $effect only catches up later.
+		if (!me.user) await me.refresh(client);
+		if (me.user?.mustChangePassword) {
+			if (pathname !== "/change-password-required") {
+				await goto("/change-password-required", { replaceState: true });
+			}
+			ready = true;
+			return;
+		}
+		if (pathname === "/change-password-required") {
+			await goto("/", { replaceState: true });
 			ready = true;
 			return;
 		}
