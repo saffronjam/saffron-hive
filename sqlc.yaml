@@ -22,6 +22,8 @@ sql:
             go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"
           - column: "group_members.member_type"
             go_type: "github.com/saffronjam/saffron-hive/internal/device.GroupMemberType"
+          - column: "group_tags.tag"
+            go_type: "github.com/saffronjam/saffron-hive/internal/device.GroupTag"
           - column: "room_members.member_type"
             go_type: "github.com/saffronjam/saffron-hive/internal/device.RoomMemberType"
           - column: "scene_actions.target_type"
