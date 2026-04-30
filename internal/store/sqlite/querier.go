@@ -74,6 +74,7 @@ type Querier interface {
 	DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error
 	DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error)
 	DeleteSceneExpectedStatesByScene(ctx context.Context, sceneID string) error
+	DeleteSceneRooms(ctx context.Context, sceneID string) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
@@ -109,6 +110,7 @@ type Querier interface {
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
 	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
+	InsertSceneRoom(ctx context.Context, arg InsertSceneRoomParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
@@ -116,6 +118,7 @@ type Querier interface {
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
 	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
 	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
+	ListAllSceneRooms(ctx context.Context) ([]SceneRoom, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
@@ -136,6 +139,7 @@ type Querier interface {
 	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
 	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error)
 	ListSceneExpectedStates(ctx context.Context, sceneID string) ([]SceneExpectedState, error)
+	ListSceneRooms(ctx context.Context, sceneID string) ([]string, error)
 	ListScenes(ctx context.Context) ([]ListScenesRow, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)

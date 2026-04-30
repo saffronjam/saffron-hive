@@ -199,6 +199,11 @@ type SceneExpectedState struct {
 	ColorB     *int64
 }
 
+type SceneRoom struct {
+	SceneID string
+	RoomID  string
+}
+
 type Setting struct {
 	Key   string
 	Value string
