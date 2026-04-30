@@ -7,7 +7,14 @@
 	} from "$lib/components/ui/sheet/index.js";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import DashboardLightCard from "$lib/components/dashboard-light-card.svelte";
+	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import {
+		Popover,
+		PopoverContent,
+		PopoverTrigger,
+	} from "$lib/components/ui/popover/index.js";
 	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
@@ -20,6 +27,15 @@
 	import { deviceIcon } from "$lib/utils";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
 	import type { Component } from "svelte";
+	import {
+		commitGroupBrightness,
+		commitGroupColor,
+		commitGroupTemp,
+		commitGroupToggle,
+	} from "$lib/group-commands";
+	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
+	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
+	import { onDestroy } from "svelte";
 
 	interface RoomEntity {
 		id: string;
@@ -44,6 +60,8 @@
 	interface SceneInfo {
 		id: string;
 		name: string;
+		icon?: string | null;
+		rooms: { id: string }[];
 		actions: SceneAction[];
 	}
 
@@ -94,6 +112,91 @@
 		let sum = 0;
 		for (const d of lit) sum += d.state!.brightness!;
 		return brightnessToTintStrength(sum / lit.length);
+	});
+
+	const roomHasColor = $derived(
+		roomDevices.some((d) => d.capabilities.some((c) => c.name === "color")),
+	);
+	const roomHasColorTemp = $derived(
+		roomDevices.some((d) => d.capabilities.some((c) => c.name === "color_temp")),
+	);
+	const roomHasPicker = $derived(roomHasColor || roomHasColorTemp);
+
+	const roomAggregatedColor = $derived.by((): { r: number; g: number; b: number } | null => {
+		const onWithColor = roomDevices.find((d) => d.state?.on && d.state?.color);
+		if (!onWithColor?.state?.color) return null;
+		const c = onWithColor.state.color;
+		return { r: c.r, g: c.g, b: c.b };
+	});
+
+	const roomAggregatedTemp = $derived.by((): number | null => {
+		const onWithTemp = roomDevices.find((d) => d.state?.on && d.state?.colorTemp != null);
+		return onWithTemp?.state?.colorTemp ?? null;
+	});
+
+	let roomPickerOpen = $state(false);
+
+	const roomColorThrottle: Throttle = { lastSent: 0, trailing: null };
+	const roomTempThrottle: Throttle = { lastSent: 0, trailing: null };
+
+	function handleRoomColorChange(c: { r: number; g: number; b: number }) {
+		throttle(roomColorThrottle, () => commitGroupColor(client, roomDevices, c));
+	}
+	function handleRoomTempChange(mired: number) {
+		throttle(roomTempThrottle, () => commitGroupTemp(client, roomDevices, mired));
+	}
+
+	const roomDimmableLights = $derived(
+		roomDevices.filter((d) => d.type === "light" && d.state?.brightness != null),
+	);
+	const roomAvgBrightness = $derived.by((): number => {
+		const lit = onLights.filter((d) => d.state?.brightness != null);
+		if (lit.length === 0) return 0;
+		let sum = 0;
+		for (const d of lit) sum += d.state!.brightness!;
+		return sum / lit.length;
+	});
+	let roomPreviewBrightness = $state<number | null>(null);
+	let roomInteractingTimer: ReturnType<typeof setTimeout> | null = null;
+	const ROOM_INTERACT_COOLDOWN_MS = 1500;
+
+	function noteRoomInteract() {
+		if (roomInteractingTimer) clearTimeout(roomInteractingTimer);
+		roomInteractingTimer = setTimeout(() => {
+			roomInteractingTimer = null;
+			roomPreviewBrightness = null;
+		}, ROOM_INTERACT_COOLDOWN_MS);
+	}
+	onDestroy(() => {
+		if (roomInteractingTimer) clearTimeout(roomInteractingTimer);
+	});
+
+	const roomEffectiveBrightness = $derived(
+		roomPreviewBrightness ?? (isOn ? roomAvgBrightness : 0),
+	);
+	const roomBrightnessFill = $derived(
+		roomDimmableLights.length === 0 ? null : roomEffectiveBrightness / 254,
+	);
+	const roomBrightnessActive = $derived(
+		roomPreviewBrightness != null ? roomPreviewBrightness > 0 : isOn,
+	);
+	const roomBrightnessThrottle: Throttle = { lastSent: 0, trailing: null };
+
+	const roomDragOpts = $derived({
+		initial: () => (isOn ? roomAvgBrightness : 0),
+		onpreview: (v: number) => {
+			roomPreviewBrightness = v;
+			throttle(roomBrightnessThrottle, () =>
+				commitGroupBrightness(client, roomDimmableLights, v),
+			);
+		},
+		oncommit: (v: number) => {
+			flushThrottle(roomBrightnessThrottle);
+			commitGroupBrightness(client, roomDimmableLights, v);
+			roomPreviewBrightness = v;
+			noteRoomInteract();
+		},
+		enabled: () => roomDimmableLights.length > 0,
 	});
 
 	const groupsById = $derived(new Map(groups.map((g) => [g.id, g])));
@@ -154,21 +257,10 @@
 	});
 
 	const filteredScenes = $derived.by((): SceneInfo[] => {
-		if (!room || roomDeviceIds.size === 0) return [];
-		return scenes.filter((s) => {
-			for (const a of s.actions) {
-				const resolved = resolveTargetDevices(
-					{ type: a.targetType as "device" | "group" | "room", id: a.targetId },
-					devices,
-					groups,
-					rooms,
-				);
-				for (const d of resolved) {
-					if (roomDeviceIds.has(d.id)) return true;
-				}
-			}
-			return false;
-		});
+		if (!room) return [];
+		return scenes
+			.filter((s) => s.rooms.some((r) => r.id === room.id))
+			.toSorted((a, b) => a.name.localeCompare(b.name));
 	});
 </script>
 
@@ -180,7 +272,8 @@
 >
 	<SheetContent
 		side="bottom"
-		class="max-h-[85vh] overflow-y-auto rounded-t-2xl p-4 sm:max-w-none lg:left-1/2! lg:right-auto! lg:w-[calc(100%-3rem)] lg:max-w-3xl lg:-translate-x-1/2"
+		showCloseButton={false}
+		class="max-h-[85vh] overflow-y-auto rounded-t-2xl bg-[color-mix(in_oklch,var(--background)_50%,var(--card))] p-4 pb-24 sm:max-w-none lg:left-1/2! lg:right-auto! lg:w-[calc(100%-3rem)] lg:max-w-3xl lg:-translate-x-1/2"
 	>
 		<SheetTitle class="sr-only">{room?.name ?? "Room"}</SheetTitle>
 		<SheetDescription class="sr-only">
@@ -188,51 +281,117 @@
 		</SheetDescription>
 
 		{#if room}
-			<div class="mr-12">
-				<EntityCard
-					entity={room}
-					fallbackIcon={DoorOpen}
-					subtitle={isOn ? `On · ${onLights.length} of ${lightDevices.length} light${lightDevices.length === 1 ? "" : "s"}` : "Off"}
-					tintColors={tintColors.length > 0 ? tintColors : null}
-					{tintStrength}
-					tintInactive={!isOn}
-					readOnly
-				>
-					{#snippet leadingActions()}
-						{#if hasSensors}
-							<div class="flex items-center gap-3 text-sm tabular-nums">
-								{#each sensorReadings as r (r.label)}
-									<span class="flex items-center gap-1 text-muted-foreground">
-										<r.icon class="size-4" />
-										<span class="text-foreground">{r.value}</span>
-										<span class="ml-0.5 text-xs">{r.unit}</span>
-									</span>
-								{/each}
-							</div>
-						{/if}
-					{/snippet}
-				</EntityCard>
-			</div>
+			<EntityCard
+				entity={room}
+				fallbackIcon={DoorOpen}
+				subtitle={isOn ? "On" : "Off"}
+				tintColors={tintColors.length > 0 ? tintColors : null}
+				{tintStrength}
+				tintInactive={!roomBrightnessActive}
+				brightnessFill={roomBrightnessFill}
+				dragOpts={roomDragOpts}
+				readOnly
+				onclick={() => {
+					if (popoverDismissedRecently()) return;
+					commitGroupToggle(client, roomDevices, !isOn);
+				}}
+			>
+				{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
+					{#if roomHasPicker}
+						<Popover
+						bind:open={roomPickerOpen}
+						onOpenChange={(open) => {
+							if (!open) markPopoverDismissed();
+						}}
+					>
+							<PopoverTrigger>
+								{#snippet child({ props })}
+									<button
+										{...props}
+										type="button"
+										aria-label={`Adjust ${room.name}`}
+										class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									>
+										{#if hasTint}
+											<div
+												class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+												style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+												aria-hidden="true"
+											></div>
+										{/if}
+										<AnimatedIcon icon={room.icon} class="relative size-5 {iconTextClass}">
+											{#snippet fallback()}
+												<DoorOpen class="relative size-5 {iconTextClass}" />
+											{/snippet}
+										</AnimatedIcon>
+									</button>
+								{/snippet}
+							</PopoverTrigger>
+							<PopoverContent class="w-72 p-3" align="start">
+								<LightColorPicker
+									color={roomAggregatedColor}
+									colorTemp={roomAggregatedTemp}
+									hasColor={roomHasColor}
+									hasColorTemp={roomHasColorTemp}
+									hasBrightness={false}
+									oncolorchange={handleRoomColorChange}
+									ontempchange={handleRoomTempChange}
+								/>
+							</PopoverContent>
+						</Popover>
+					{:else}
+						<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
+							{#if hasTint}
+								<div
+									class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+									style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+									aria-hidden="true"
+								></div>
+							{/if}
+							<AnimatedIcon icon={room.icon} class="relative size-5 {iconTextClass}">
+								{#snippet fallback()}
+									<DoorOpen class="relative size-5 {iconTextClass}" />
+								{/snippet}
+							</AnimatedIcon>
+						</div>
+					{/if}
+				{/snippet}
+				{#snippet leadingActions()}
+					{#if hasSensors}
+						<div class="flex items-center gap-3 text-sm tabular-nums">
+							{#each sensorReadings as r (r.label)}
+								<span class="flex items-center gap-1 text-muted-foreground">
+									<r.icon class="size-4" />
+									<span class="text-foreground">{r.value}</span>
+									<span class="ml-0.5 text-xs">{r.unit}</span>
+								</span>
+							{/each}
+						</div>
+					{/if}
+				{/snippet}
+			</EntityCard>
 
 			{#if filteredScenes.length > 0}
-				<div class="mt-4 flex gap-2 overflow-x-auto pb-1">
+				<div class="mt-2 flex flex-wrap justify-center gap-2">
 					{#each filteredScenes as scene (scene.id)}
 						<Button
 							variant="outline"
-							size="sm"
-							class="shrink-0"
+							size="lg"
+							class="h-12 shrink-0 gap-2 px-5 text-base"
 							disabled={applyingSceneId === scene.id}
 							onclick={() => onapplyscene(scene)}
 						>
-							<Clapperboard class="size-3.5" />
+							<AnimatedIcon icon={scene.icon} class="size-5 shrink-0">
+								{#snippet fallback()}<Clapperboard class="size-5 shrink-0" />{/snippet}
+							</AnimatedIcon>
 							<span>{applyingSceneId === scene.id ? "Applying..." : scene.name}</span>
 						</Button>
 					{/each}
 				</div>
 			{/if}
 
-			<section class="mt-6">
-				<div class="mb-3 flex items-center gap-3">
+			<section class="mt-2">
+				<div class="mb-2 flex items-center gap-3">
 					<h3 class="text-sm font-semibold text-foreground">Lights</h3>
 					<div class="h-px flex-1 bg-muted" aria-hidden="true"></div>
 				</div>
@@ -251,14 +410,6 @@
 						{/each}
 					</div>
 				{/if}
-			</section>
-
-			<section class="mt-6">
-				<div class="mb-3 flex items-center gap-3">
-					<h3 class="text-sm font-semibold text-foreground">More</h3>
-					<div class="h-px flex-1 bg-muted" aria-hidden="true"></div>
-				</div>
-				<p class="text-sm text-muted-foreground">Coming soon.</p>
 			</section>
 		{/if}
 	</SheetContent>

@@ -39,6 +39,8 @@
 	interface SceneData {
 		id: string;
 		name: string;
+		icon?: string | null;
+		rooms: { id: string }[];
 		actions: { targetType: string; targetId: string }[];
 	}
 
@@ -72,6 +74,8 @@
 			scenes {
 				id
 				name
+				icon
+				rooms { id }
 				actions { targetType targetId }
 			}
 		}
@@ -131,6 +135,7 @@
 						{devices}
 						{groups}
 						{rooms}
+						{client}
 						onopen={(r) => (openRoomId = r.id)}
 					/>
 				{/each}
