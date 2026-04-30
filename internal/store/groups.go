@@ -11,12 +11,26 @@ import (
 
 // CreateGroup inserts a new group and returns it.
 func (s *DB) CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error) {
-	if err := s.q.CreateGroup(ctx, sqlite.CreateGroupParams{
-		ID:        params.ID,
-		Name:      params.Name,
-		CreatedBy: params.CreatedBy,
-	}); err != nil {
-		return Group{}, fmt.Errorf("create group: %w", err)
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.CreateGroup(ctx, sqlite.CreateGroupParams{
+			ID:        params.ID,
+			Name:      params.Name,
+			CreatedBy: params.CreatedBy,
+		}); err != nil {
+			return fmt.Errorf("create group: %w", err)
+		}
+		for _, tag := range dedupeGroupTags(params.Tags) {
+			if err := q.InsertGroupTag(ctx, sqlite.InsertGroupTagParams{
+				GroupID: params.ID,
+				Tag:     tag,
+			}); err != nil {
+				return fmt.Errorf("insert group tag: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Group{}, err
 	}
 	return s.GetGroup(ctx, params.ID)
 }
@@ -27,10 +41,15 @@ func (s *DB) GetGroup(ctx context.Context, id string) (Group, error) {
 	if err != nil {
 		return Group{}, fmt.Errorf("get group: %w", err)
 	}
+	tags, err := s.q.ListGroupTags(ctx, id)
+	if err != nil {
+		return Group{}, fmt.Errorf("list group tags: %w", err)
+	}
 	return Group{
 		ID:        row.ID,
 		Name:      row.Name,
 		Icon:      row.Icon,
+		Tags:      tags,
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
 		CreatedBy: userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
@@ -43,12 +62,17 @@ func (s *DB) ListGroups(ctx context.Context) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list groups: %w", err)
 	}
+	tagsByGroup, err := s.loadAllGroupTags(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var groups []Group
 	for _, r := range rows {
 		groups = append(groups, Group{
 			ID:        r.ID,
 			Name:      r.Name,
 			Icon:      r.Icon,
+			Tags:      tagsByGroup[r.ID],
 			CreatedAt: r.CreatedAt,
 			UpdatedAt: r.UpdatedAt,
 			CreatedBy: userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
@@ -57,30 +81,81 @@ func (s *DB) ListGroups(ctx context.Context) ([]Group, error) {
 	return groups, nil
 }
 
-// UpdateGroup updates a group's name and (optionally) its icon, returning the updated group.
+// UpdateGroup updates a group's name and (optionally) its icon and tags, returning the updated group.
 // Icon is updated only when params.SetIcon is true; a nil params.Icon clears the column.
+// Tags are replaced wholesale only when params.SetTags is true; an empty Tags slice clears all tags.
 func (s *DB) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error) {
-	if err := s.q.UpdateGroupName(ctx, sqlite.UpdateGroupNameParams{
-		Name: params.Name,
-		ID:   params.ID,
-	}); err != nil {
-		return Group{}, fmt.Errorf("update group name: %w", err)
-	}
-	if params.SetIcon {
-		if params.Icon == nil {
-			if err := s.q.ClearGroupIcon(ctx, params.ID); err != nil {
-				return Group{}, fmt.Errorf("clear group icon: %w", err)
-			}
-		} else {
-			if err := s.q.UpdateGroupIcon(ctx, sqlite.UpdateGroupIconParams{
-				Icon: params.Icon,
-				ID:   params.ID,
-			}); err != nil {
-				return Group{}, fmt.Errorf("update group icon: %w", err)
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.UpdateGroupName(ctx, sqlite.UpdateGroupNameParams{
+			Name: params.Name,
+			ID:   params.ID,
+		}); err != nil {
+			return fmt.Errorf("update group name: %w", err)
+		}
+		if params.SetIcon {
+			if params.Icon == nil {
+				if err := q.ClearGroupIcon(ctx, params.ID); err != nil {
+					return fmt.Errorf("clear group icon: %w", err)
+				}
+			} else {
+				if err := q.UpdateGroupIcon(ctx, sqlite.UpdateGroupIconParams{
+					Icon: params.Icon,
+					ID:   params.ID,
+				}); err != nil {
+					return fmt.Errorf("update group icon: %w", err)
+				}
 			}
 		}
+		if params.SetTags {
+			if err := q.DeleteGroupTags(ctx, params.ID); err != nil {
+				return fmt.Errorf("clear group tags: %w", err)
+			}
+			for _, tag := range dedupeGroupTags(params.Tags) {
+				if err := q.InsertGroupTag(ctx, sqlite.InsertGroupTagParams{
+					GroupID: params.ID,
+					Tag:     tag,
+				}); err != nil {
+					return fmt.Errorf("insert group tag: %w", err)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Group{}, err
 	}
 	return s.GetGroup(ctx, params.ID)
+}
+
+// dedupeGroupTags removes duplicate and unrecognised tags, preserving the
+// order of first appearance. The DB has a UNIQUE constraint on (group_id, tag);
+// this trims input before hitting the constraint.
+func dedupeGroupTags(tags []device.GroupTag) []device.GroupTag {
+	if len(tags) == 0 {
+		return nil
+	}
+	seen := make(map[device.GroupTag]bool, len(tags))
+	out := make([]device.GroupTag, 0, len(tags))
+	for _, t := range tags {
+		if !device.IsValidGroupTag(t) || seen[t] {
+			continue
+		}
+		seen[t] = true
+		out = append(out, t)
+	}
+	return out
+}
+
+func (s *DB) loadAllGroupTags(ctx context.Context) (map[string][]device.GroupTag, error) {
+	rows, err := s.q.ListAllGroupTags(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all group tags: %w", err)
+	}
+	out := make(map[string][]device.GroupTag, len(rows))
+	for _, r := range rows {
+		out[r.GroupID] = append(out[r.GroupID], r.Tag)
+	}
+	return out, nil
 }
 
 // DeleteGroup deletes a group and any room_members rows that pointed to it.

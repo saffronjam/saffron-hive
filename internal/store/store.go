@@ -236,6 +236,7 @@ type CreateGroupParams struct {
 	ID        string
 	Name      string
 	CreatedBy *string
+	Tags      []device.GroupTag
 }
 
 // Group represents a group row.
@@ -243,6 +244,7 @@ type Group struct {
 	ID        string
 	Name      string
 	Icon      *string
+	Tags      []device.GroupTag
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	CreatedBy *UserRef
@@ -250,11 +252,15 @@ type Group struct {
 
 // UpdateGroupParams holds the parameters for updating a group.
 // SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
+// SetTags likewise distinguishes "leave tags alone" from "replace tags with this set"
+// (nil/empty Tags clears all tags when SetTags is true).
 type UpdateGroupParams struct {
 	ID      string
 	Name    string
 	SetIcon bool
 	Icon    *string
+	SetTags bool
+	Tags    []device.GroupTag
 }
 
 // AddGroupMemberParams holds the parameters for adding a group member.
