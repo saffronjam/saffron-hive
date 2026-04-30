@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name: string; icon?: string | null }">
 	import type { Snippet, Component } from "svelte";
+	import { brightnessDrag, type BrightnessDragOpts } from "$lib/actions/brightness-drag";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		DropdownMenu,
@@ -68,6 +69,36 @@
 		 * interactive controls inside that would conflict.
 		 */
 		onclick?: (entity: T) => void;
+		/**
+		 * Replaces the default icon block (IconPicker / static icon) entirely.
+		 * Consumers render their own icon UI here — typically a button wrapped
+		 * in a Popover. The snippet receives helpers for the standard tinted
+		 * icon visual so consumers can mirror it inside their own button.
+		 */
+		iconArea?: Snippet<
+			[
+				{
+					tintColors: string[] | null;
+					tintInactive: boolean | null;
+					iconGradient: string;
+					iconTextClass: string;
+					hasTint: boolean;
+				},
+			]
+		>;
+		/**
+		 * 0..1 horizontal brightness fill. When set with `tintColors`, the
+		 * card's background switches from the radial tint gradient to a
+		 * left → right linear fill at this percentage. `null` keeps the
+		 * existing radial tint.
+		 */
+		brightnessFill?: number | null;
+		/**
+		 * Press-and-drag horizontal brightness control wired on the card
+		 * wrapper. Tap (no drag) falls through to `onclick`. See
+		 * `$lib/actions/brightness-drag` for full semantics.
+		 */
+		dragOpts?: BrightnessDragOpts;
 	}
 
 	let {
@@ -91,6 +122,9 @@
 		readOnly = false,
 		class: extraClass = "",
 		onclick,
+		iconArea,
+		brightnessFill = null,
+		dragOpts,
 	}: Props = $props();
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -116,12 +150,22 @@
 	// before card, so var(--card) for the tint still leaves a light → dark
 	// banding visible. Dropping the class is the only way to get pure bg-card.
 	const showTint = $derived(hasTint && tintInactive !== true);
+	// Horizontal fill mode is opt-in (brightnessFill prop set) and stays
+	// applied even when tintInactive flips to true — that lets the fill
+	// animate down to 0% smoothly when the user toggles off, instead of
+	// the class dropping mid-transition and snapping.
+	const useFill = $derived(hasTint && brightnessFill != null);
+	const fillPct = $derived.by(() => {
+		if (brightnessFill == null) return 0;
+		return Math.max(0, Math.min(1, brightnessFill)) * 100;
+	});
 	const tintStyle = $derived.by(() => {
-		if (!showTint) return "";
+		if (!showTint && !useFill) return "";
 		const parts: string[] = [`--tint-color: ${tintColors![0]}`];
 		if (tintColors![1]) parts.push(`--tint-color-2: ${tintColors![1]}`);
 		if (tintColors![2]) parts.push(`--tint-color-3: ${tintColors![2]}`);
 		parts.push(`--tint-strength: ${tintStrength}`);
+		if (useFill) parts.push(`--brightness-fill: ${fillPct}%`);
 		return parts.join("; ");
 	});
 
@@ -153,18 +197,25 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="relative flex flex-col overflow-hidden rounded-lg shadow-card bg-card p-4 transition-all {showTint
-		? tintClass
-		: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {extraClass}"
+	class="relative flex flex-col overflow-hidden rounded-lg shadow-card bg-card p-4 transition-all {useFill
+		? 'tint-fill-horizontal'
+		: showTint
+			? tintClass
+			: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {dragOpts
+		? 'select-none touch-none'
+		: ''} {extraClass}"
 	style={tintStyle}
 	role={onclick ? "button" : undefined}
 	tabindex={onclick ? 0 : undefined}
 	onclick={onclick ? () => onclick(entity) : undefined}
 	onkeydown={onclick ? handleKeydown : undefined}
+	use:brightnessDrag={dragOpts ?? { initial: () => 0, onpreview: () => {}, oncommit: () => {}, enabled: () => false }}
 >
 	<div class="relative flex items-center justify-between">
 		<div class="flex flex-1 min-w-0 items-center gap-3">
-			{#if readOnly}
+			{#if iconArea}
+				{@render iconArea({ tintColors, tintInactive, iconGradient, iconTextClass, hasTint })}
+			{:else if readOnly}
 				<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
 					{#if hasTint}
 						<div

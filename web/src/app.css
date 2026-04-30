@@ -195,6 +195,11 @@
      of flashing through full strength on the way down. */
   initial-value: 0;
 }
+@property --brightness-fill {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
 
 /* Use background-image (not the `background` shorthand) so background-color
    stays at the surrounding bg-card var(--card) value. The shorthand resets
@@ -246,6 +251,26 @@
     --tint-color-2 300ms ease,
     --tint-color-3 300ms ease,
     --tint-strength 300ms ease;
+}
+
+/* Horizontal brightness fill. Same color-mix fade as tint-1 (so the colour
+   reads as faded against bg-card, not raw saturated), but a left → right
+   linear gradient with a hard stop at --brightness-fill. The
+   @property-registered --brightness-fill interpolates as a percentage, so
+   pointer-driven changes glide instead of jumping. */
+.tint-fill-horizontal {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)) 0%,
+    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card))
+      var(--brightness-fill),
+    var(--card) var(--brightness-fill),
+    var(--card) 100%
+  );
+  transition:
+    --tint-color 300ms ease,
+    --tint-strength 300ms ease,
+    --brightness-fill 280ms ease-out;
 }
 
 @keyframes activity-row-flash {
