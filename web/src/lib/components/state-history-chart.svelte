@@ -2,6 +2,7 @@
 	export interface SeriesInfo {
 		key: string;
 		deviceId: string;
+		deviceName: string;
 		field: string;
 		color: string;
 		label: string;
@@ -36,11 +37,12 @@
 	import type { ResultOf } from "@graphql-typed-document-node/core";
 	import type { CombinedError } from "@urql/core";
 	import { ChartContainer, type ChartConfig } from "$lib/components/ui/chart/index.js";
-	import { LineChart, Spline, ChartClipPath } from "layerchart";
+	import { LineChart, Spline, ChartClipPath, Tooltip } from "layerchart";
 	import { SvelteSet } from "svelte/reactivity";
 	import { curveMonotoneX } from "d3-shape";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { formatTooltip } from "$lib/time-format";
+	import { deviceStore } from "$lib/stores/devices";
 
 	interface Props {
 		deviceIds: string[];
@@ -102,6 +104,14 @@
 			.toPromise()
 			.then((result) => {
 				if (cancelled) return;
+				const items = result.data?.stateHistory ?? [];
+				for (const s of items) {
+					const key = `${s.deviceId}__${s.field}`;
+					if (!seenKeys.has(key)) {
+						seenKeys.add(key);
+						if (DEFAULT_OFF_FIELDS.has(s.field)) disabledKeys.add(key);
+					}
+				}
 				historyData = result.data;
 				historyError = result.error;
 				historyFetching = false;
@@ -118,27 +128,59 @@
 
 	const allSeries = $derived.by<SeriesInfo[]>(() => {
 		const items = historyData?.stateHistory ?? [];
-		return items.map((s) => ({
-			key: `${s.deviceId}__${s.field}`,
-			deviceId: s.deviceId,
-			field: s.field,
-			color: FIELD_COLOR[s.field] ?? FALLBACK_COLOR,
-			label: fieldLabel(s.field),
-		}));
+		const allowed = new Set(deviceIds);
+		return items
+			.filter((s) => allowed.has(s.deviceId))
+			.map((s) => ({
+				key: `${s.deviceId}__${s.field}`,
+				deviceId: s.deviceId,
+				deviceName: $deviceStore[s.deviceId]?.name ?? s.deviceId,
+				field: s.field,
+				color: FIELD_COLOR[s.field] ?? FALLBACK_COLOR,
+				label: fieldLabel(s.field),
+			}));
 	});
 
-	const seenKeys = new SvelteSet<string>();
+	const seriesByKey = $derived(new Map(allSeries.map((s) => [s.key, s])));
+
+	interface TooltipGroup {
+		deviceId: string;
+		deviceName: string;
+		items: { key: string; label: string; value: unknown; color?: string }[];
+	}
+
+	function formatTooltipValue(value: unknown): string {
+		if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "");
+		if (Number.isInteger(value)) return value.toString();
+		return (Math.round(value * 10) / 10).toString();
+	}
+
+	function groupTooltipSeries(
+		visible: { key: string; label: string; value: unknown; color?: string }[],
+	): TooltipGroup[] {
+		const order: string[] = [];
+		const byDevice = new Map<string, TooltipGroup>();
+		for (const item of visible) {
+			const info = seriesByKey.get(item.key);
+			const deviceId = info?.deviceId ?? "";
+			let group = byDevice.get(deviceId);
+			if (!group) {
+				group = {
+					deviceId,
+					deviceName: info?.deviceName ?? deviceId,
+					items: [],
+				};
+				byDevice.set(deviceId, group);
+				order.push(deviceId);
+			}
+			group.items.push(item);
+		}
+		return order.map((id) => byDevice.get(id)!);
+	}
+
+	const seenKeys = new Set<string>();
 	const internalDisabled = new SvelteSet<string>();
 	const disabledKeys = $derived(externalDisabled ?? internalDisabled);
-
-	$effect(() => {
-		for (const s of allSeries) {
-			if (!seenKeys.has(s.key)) {
-				seenKeys.add(s.key);
-				if (DEFAULT_OFF_FIELDS.has(s.field)) disabledKeys.add(s.key);
-			}
-		}
-	});
 
 	$effect(() => {
 		onSeriesChange?.(allSeries);
@@ -153,8 +195,10 @@
 
 	const rows = $derived.by<Row[]>(() => {
 		const items = historyData?.stateHistory ?? [];
+		const allowed = new Set(deviceIds);
 		const byTs = new Map<number, Row>();
 		for (const s of items) {
+			if (!allowed.has(s.deviceId)) continue;
 			const key = `${s.deviceId}__${s.field}`;
 			for (const p of s.points) {
 				const at = new Date(p.at);
@@ -237,10 +281,6 @@
 				spline: { opacity: 1 },
 				highlight: { opacity: 1 },
 				xAxis: { ticks: xTickCount },
-				tooltip: {
-					hideTotal: true,
-					header: { format: (d: Date) => formatTooltip(d) },
-				},
 			}}
 		>
 			{#snippet marks({ context })}
@@ -249,6 +289,30 @@
 						<Spline seriesKey={s.key} opacity={1} curve={curveMonotoneX} />
 					{/each}
 				</ChartClipPath>
+			{/snippet}
+			{#snippet tooltip({ context })}
+				<Tooltip.Root {context}>
+					{#snippet children({ data })}
+						{@const visible = context.tooltip.series.filter((s) => s.visible)}
+						{@const groups = groupTooltipSeries(visible)}
+						<Tooltip.Header value={context.x(data)} format={(d: Date) => formatTooltip(d)} />
+						{#each groups as g, gi (g.deviceId)}
+							<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
+								{g.deviceName}
+							</div>
+							<Tooltip.List>
+								{#each g.items as s (s.key)}
+									<Tooltip.Item
+										label={s.label}
+										value={formatTooltipValue(s.value)}
+										color={s.color}
+										valueAlign="right"
+									/>
+								{/each}
+							</Tooltip.List>
+						{/each}
+					{/snippet}
+				</Tooltip.Root>
 			{/snippet}
 		</LineChart>
 	{/if}

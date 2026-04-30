@@ -99,6 +99,14 @@
 		 * `$lib/actions/brightness-drag` for full semantics.
 		 */
 		dragOpts?: BrightnessDragOpts;
+		/**
+		 * Card size variant. `"default"` (the standard p-4 / rounded-lg shape
+		 * used on list pages and detail surfaces) or `"sm"` (tighter p-3 /
+		 * rounded-xl shape for the dashboard bottom-drawer cards, where rows
+		 * are denser and the rounder corner reads more as an interactive
+		 * surface). Default: `"default"`.
+		 */
+		size?: "default" | "sm";
 	}
 
 	let {
@@ -125,7 +133,10 @@
 		iconArea,
 		brightnessFill = null,
 		dragOpts,
+		size = "default",
 	}: Props = $props();
+
+	const sizeClass = $derived(size === "sm" ? "p-3 rounded-xl" : "p-4 rounded-lg");
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!onclick) return;
@@ -197,7 +208,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="relative flex flex-col overflow-hidden rounded-lg shadow-card bg-card p-4 transition-all {useFill
+	class="relative flex flex-col overflow-hidden shadow-card bg-card transition-all {sizeClass} {useFill
 		? 'tint-fill-horizontal'
 		: showTint
 			? tintClass

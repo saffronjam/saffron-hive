@@ -185,10 +185,13 @@
 	{brightnessFill}
 	{dragOpts}
 	readOnly
+	size="sm"
 	onclick={handleToggle}
 	class={extraClass}
 >
 	{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
+		{@const showPlugOn = !hasTint && isOn}
+		{@const plugIconClass = showPlugOn ? "text-orange-400" : iconTextClass}
 		<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
 			{#if hasTint}
 				<div
@@ -196,10 +199,16 @@
 					style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
 					aria-hidden="true"
 				></div>
+			{:else}
+				<div
+					class="pointer-events-none absolute inset-0 rounded-md bg-orange-500/30 transition-opacity duration-300 ease-out"
+					style="opacity: {showPlugOn ? 1 : 0}"
+					aria-hidden="true"
+				></div>
 			{/if}
-			<AnimatedIcon icon={entity.icon} class="relative size-5 {iconTextClass}">
+			<AnimatedIcon icon={entity.icon} class="relative size-5 transition-colors duration-300 {plugIconClass}">
 				{#snippet fallback()}
-					<FallbackIcon class="relative size-5 {iconTextClass}" />
+					<FallbackIcon class="relative size-5 transition-colors duration-300 {plugIconClass}" />
 				{/snippet}
 			</AnimatedIcon>
 		</div>

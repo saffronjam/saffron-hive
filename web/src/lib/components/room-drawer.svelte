@@ -15,7 +15,7 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
+	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon, Palette } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
 		brightnessToTintStrength,
@@ -246,7 +246,7 @@
 			if (!isLightLike) continue;
 			entries.push({
 				key: `device:${dev.id}`,
-				entity: { id: dev.id, name: dev.name, icon: null },
+				entity: { id: dev.id, name: dev.name, icon: dev.icon ?? null },
 				devices: [dev],
 				isGroup: false,
 				fallbackIcon: deviceIcon(dev.type) ?? Lightbulb,
@@ -254,6 +254,24 @@
 		}
 
 		return entries;
+	});
+
+	// Pair up groups with groups and individual lights with individual lights;
+	// never let the two kinds share a row. When a kind has an odd count, the
+	// trailing item spans both columns instead of pairing with the next kind.
+	const sectionARows = $derived.by((): { entry: LightCardEntry; fullWidth: boolean }[] => {
+		const groups = sectionAEntries.filter((e) => e.isGroup);
+		const singles = sectionAEntries.filter((e) => !e.isGroup);
+		const result: { entry: LightCardEntry; fullWidth: boolean }[] = [];
+		for (let i = 0; i < groups.length; i++) {
+			const isLast = i === groups.length - 1;
+			result.push({ entry: groups[i], fullWidth: isLast && groups.length % 2 === 1 });
+		}
+		for (let i = 0; i < singles.length; i++) {
+			const isLast = i === singles.length - 1;
+			result.push({ entry: singles[i], fullWidth: isLast && singles.length % 2 === 1 });
+		}
+		return result;
 	});
 
 	const filteredScenes = $derived.by((): SceneInfo[] => {
@@ -291,72 +309,65 @@
 				brightnessFill={roomBrightnessFill}
 				dragOpts={roomDragOpts}
 				readOnly
+				size="sm"
 				onclick={() => {
 					if (popoverDismissedRecently()) return;
 					commitGroupToggle(client, roomDevices, !isOn);
 				}}
 			>
 				{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
-					{#if roomHasPicker}
-						<Popover
-						bind:open={roomPickerOpen}
-						onOpenChange={(open) => {
-							if (!open) markPopoverDismissed();
-						}}
-					>
-							<PopoverTrigger>
-								{#snippet child({ props })}
-									<button
-										{...props}
-										type="button"
-										aria-label={`Adjust ${room.name}`}
-										class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-									>
-										{#if hasTint}
-											<div
-												class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
-												style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
-												aria-hidden="true"
-											></div>
-										{/if}
-										<AnimatedIcon icon={room.icon} class="relative size-5 {iconTextClass}">
-											{#snippet fallback()}
-												<DoorOpen class="relative size-5 {iconTextClass}" />
-											{/snippet}
-										</AnimatedIcon>
-									</button>
-								{/snippet}
-							</PopoverTrigger>
-							<PopoverContent class="w-72 p-3" align="start">
-								<LightColorPicker
-									color={roomAggregatedColor}
-									colorTemp={roomAggregatedTemp}
-									hasColor={roomHasColor}
-									hasColorTemp={roomHasColorTemp}
-									hasBrightness={false}
-									oncolorchange={handleRoomColorChange}
-									ontempchange={handleRoomTempChange}
-								/>
-							</PopoverContent>
-						</Popover>
-					{:else}
-						<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
-							{#if hasTint}
-								<div
-									class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
-									style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
-									aria-hidden="true"
-								></div>
-							{/if}
-							<AnimatedIcon icon={room.icon} class="relative size-5 {iconTextClass}">
-								{#snippet fallback()}
-									<DoorOpen class="relative size-5 {iconTextClass}" />
-								{/snippet}
-							</AnimatedIcon>
-						</div>
-					{/if}
+					<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
+						{#if hasTint}
+							<div
+								class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+								style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+								aria-hidden="true"
+							></div>
+						{/if}
+						<AnimatedIcon icon={room.icon} class="relative size-5 {iconTextClass}">
+							{#snippet fallback()}
+								<DoorOpen class="relative size-5 {iconTextClass}" />
+							{/snippet}
+						</AnimatedIcon>
+					</div>
 				{/snippet}
 				{#snippet leadingActions()}
+					{#if roomHasPicker}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<span onclick={(e: MouseEvent) => e.stopPropagation()}>
+							<Popover
+								bind:open={roomPickerOpen}
+								onOpenChange={(open) => {
+									if (!open) markPopoverDismissed();
+								}}
+							>
+								<PopoverTrigger>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											variant="ghost"
+											size="icon-sm"
+											aria-label={`Adjust ${room.name} colour`}
+										>
+											<Palette class="size-4" />
+										</Button>
+									{/snippet}
+								</PopoverTrigger>
+								<PopoverContent class="w-72 p-3" align="end">
+									<LightColorPicker
+										color={roomAggregatedColor}
+										colorTemp={roomAggregatedTemp}
+										hasColor={roomHasColor}
+										hasColorTemp={roomHasColorTemp}
+										hasBrightness={false}
+										oncolorchange={handleRoomColorChange}
+										ontempchange={handleRoomTempChange}
+									/>
+								</PopoverContent>
+							</Popover>
+						</span>
+					{/if}
 					{#if hasSensors}
 						<div class="flex items-center gap-3 text-sm tabular-nums">
 							{#each sensorReadings as r (r.label)}
@@ -399,13 +410,14 @@
 					<p class="text-sm text-muted-foreground">No lights in this room.</p>
 				{:else}
 					<div class="grid grid-cols-2 gap-3">
-						{#each sectionAEntries as entry (entry.key)}
+						{#each sectionARows as { entry, fullWidth } (entry.key)}
 							<DashboardLightCard
 								entity={entry.entity}
 								devices={entry.devices}
 								isGroup={entry.isGroup}
 								fallbackIcon={entry.fallbackIcon}
 								{client}
+								class={fullWidth ? "col-span-2" : ""}
 							/>
 						{/each}
 					</div>
