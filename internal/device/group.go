@@ -11,6 +11,29 @@ type Group struct {
 	Name string
 }
 
+// GroupTag classifies a group by the role it represents on the dashboard.
+// A group can carry zero, one, or both tags simultaneously. Tags are decorative
+// metadata for now; only the dashboard renderer interprets them (LIGHT collapses
+// a group's member bulbs into a single virtual light card).
+type GroupTag string
+
+const (
+	// GroupTagLight marks the group as representing a single virtual light
+	// (e.g., a lamp built from multiple bulbs).
+	GroupTagLight GroupTag = "light"
+	// GroupTagSensor marks the group as representing sensor data.
+	GroupTagSensor GroupTag = "sensor"
+)
+
+// IsValidGroupTag reports whether t is a recognised GroupTag value.
+func IsValidGroupTag(t GroupTag) bool {
+	switch t {
+	case GroupTagLight, GroupTagSensor:
+		return true
+	}
+	return false
+}
+
 // GroupMemberType classifies what kind of entity a group member is.
 type GroupMemberType string
 
