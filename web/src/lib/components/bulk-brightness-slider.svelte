@@ -33,7 +33,19 @@
 		return Math.round(sum / on.length);
 	});
 
-	let initialised = $state(false);
+	// Seed the value synchronously, before the first render, when devices are
+	// already available at mount. Without this, value would be undefined for
+	// the first render (slider draws at 0), then a `$effect` would set it to
+	// liveValue — the slider would animate from 0 to the real position on
+	// every page load. The post-mount `$effect` below still handles the case
+	// where devices arrive asynchronously after mount.
+	// svelte-ignore state_referenced_locally
+	if (value === undefined && hasLights) {
+		// svelte-ignore state_referenced_locally
+		value = liveValue;
+	}
+
+	let initialised = $state(value !== undefined);
 	let interacting = $state(false);
 	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
 	let lastSent = 0;
