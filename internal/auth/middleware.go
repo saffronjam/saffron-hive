@@ -89,7 +89,12 @@ func authenticate(r *http.Request, svc *Service, lookup UserLookup) (CtxUser, er
 	if err != nil {
 		return CtxUser{}, errStr("user not found")
 	}
-	return CtxUser{ID: u.ID, Username: u.Username, Name: u.Name}, nil
+	return CtxUser{
+		ID:                 u.ID,
+		Username:           u.Username,
+		Name:               u.Name,
+		MustChangePassword: u.MustChangePassword,
+	}, nil
 }
 
 type errStr string

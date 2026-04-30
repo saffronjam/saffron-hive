@@ -5,11 +5,14 @@ import "context"
 // CtxUser is the user identity attached to authenticated request contexts.
 // It intentionally carries only the denormalized fields — enough to render
 // attribution and populate createdBy — so resolvers never need to fetch the
-// user record on every request.
+// user record on every request. MustChangePassword is loaded fresh from the
+// store on every request so the AuthDirective can gate the forced-change
+// flow without an additional DB lookup per resolver.
 type CtxUser struct {
-	ID       string
-	Username string
-	Name     string
+	ID                 string
+	Username           string
+	Name               string
+	MustChangePassword bool
 }
 
 type ctxKey struct{}

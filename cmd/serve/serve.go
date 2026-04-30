@@ -226,7 +226,7 @@ func Run(ctx context.Context) error {
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{
-		InitFunc: wsInitFunc(authSvc),
+		InitFunc: wsInitFunc(authSvc, sqlStore),
 	})
 
 	mux := http.NewServeMux()
@@ -313,8 +313,10 @@ func spaFallbackHandler(fsys fs.FS) http.Handler {
 
 // wsInitFunc validates the authToken sent via graphql-ws connectionParams and
 // attaches the user to the subscription context. Whitelisted subscriptions do
-// not exist — every subscription requires authentication.
-func wsInitFunc(svc *auth.Service) transport.WebsocketInitFunc {
+// not exist — every subscription requires authentication. The user row is
+// reloaded fresh on connect so the must_change_password flag reflects current
+// DB state, mirroring the HTTP middleware path.
+func wsInitFunc(svc *auth.Service, lookup auth.UserLookup) transport.WebsocketInitFunc {
 	return func(ctx context.Context, init transport.InitPayload) (context.Context, *transport.InitPayload, error) {
 		tokenAny, ok := init["authToken"]
 		if !ok {
@@ -328,10 +330,15 @@ func wsInitFunc(svc *auth.Service) transport.WebsocketInitFunc {
 		if err != nil {
 			return ctx, nil, errors.New("invalid or expired token")
 		}
+		u, err := lookup.GetUserByID(ctx, claims.UserID)
+		if err != nil {
+			return ctx, nil, errors.New("user not found")
+		}
 		authedCtx := auth.WithUser(ctx, auth.CtxUser{
-			ID:       claims.UserID,
-			Username: claims.Username,
-			Name:     claims.Name,
+			ID:                 u.ID,
+			Username:           u.Username,
+			Name:               u.Name,
+			MustChangePassword: u.MustChangePassword,
 		})
 		return authedCtx, nil, nil
 	}
