@@ -405,21 +405,23 @@ type RoomMembership struct {
 
 // CreateUserParams holds the parameters for creating a new user.
 type CreateUserParams struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	MustChangePassword bool
 }
 
 // User represents a user row.
 type User struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
-	AvatarPath   *string
-	Theme        string
-	CreatedAt    time.Time
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	AvatarPath         *string
+	Theme              string
+	MustChangePassword bool
+	CreatedAt          time.Time
 }
 
 // UpdateUserProfileParams holds optional fields for updating a user's profile.

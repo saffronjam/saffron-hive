@@ -10,10 +10,11 @@ import (
 // CreateUser inserts a new user row and returns it.
 func (s *DB) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
 	if err := s.q.CreateUser(ctx, sqlite.CreateUserParams{
-		ID:           params.ID,
-		Username:     params.Username,
-		Name:         params.Name,
-		PasswordHash: params.PasswordHash,
+		ID:                 params.ID,
+		Username:           params.Username,
+		Name:               params.Name,
+		PasswordHash:       params.PasswordHash,
+		MustChangePassword: params.MustChangePassword,
 	}); err != nil {
 		return User{}, fmt.Errorf("create user: %w", err)
 	}
@@ -27,13 +28,14 @@ func (s *DB) GetUserByID(ctx context.Context, id string) (User, error) {
 		return User{}, fmt.Errorf("get user by id: %w", err)
 	}
 	return User{
-		ID:           row.ID,
-		Username:     row.Username,
-		Name:         row.Name,
-		PasswordHash: row.PasswordHash,
-		AvatarPath:   row.AvatarPath,
-		Theme:        row.Theme,
-		CreatedAt:    row.CreatedAt,
+		ID:                 row.ID,
+		Username:           row.Username,
+		Name:               row.Name,
+		PasswordHash:       row.PasswordHash,
+		AvatarPath:         row.AvatarPath,
+		Theme:              row.Theme,
+		MustChangePassword: row.MustChangePassword,
+		CreatedAt:          row.CreatedAt,
 	}, nil
 }
 
@@ -44,13 +46,14 @@ func (s *DB) GetUserByUsername(ctx context.Context, username string) (User, erro
 		return User{}, fmt.Errorf("get user by username: %w", err)
 	}
 	return User{
-		ID:           row.ID,
-		Username:     row.Username,
-		Name:         row.Name,
-		PasswordHash: row.PasswordHash,
-		AvatarPath:   row.AvatarPath,
-		Theme:        row.Theme,
-		CreatedAt:    row.CreatedAt,
+		ID:                 row.ID,
+		Username:           row.Username,
+		Name:               row.Name,
+		PasswordHash:       row.PasswordHash,
+		AvatarPath:         row.AvatarPath,
+		Theme:              row.Theme,
+		MustChangePassword: row.MustChangePassword,
+		CreatedAt:          row.CreatedAt,
 	}, nil
 }
 
@@ -63,13 +66,14 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 	users := make([]User, 0, len(rows))
 	for _, row := range rows {
 		users = append(users, User{
-			ID:           row.ID,
-			Username:     row.Username,
-			Name:         row.Name,
-			PasswordHash: row.PasswordHash,
-			AvatarPath:   row.AvatarPath,
-			Theme:        row.Theme,
-			CreatedAt:    row.CreatedAt,
+			ID:                 row.ID,
+			Username:           row.Username,
+			Name:               row.Name,
+			PasswordHash:       row.PasswordHash,
+			AvatarPath:         row.AvatarPath,
+			Theme:              row.Theme,
+			MustChangePassword: row.MustChangePassword,
+			CreatedAt:          row.CreatedAt,
 		})
 	}
 	return users, nil
@@ -114,6 +118,32 @@ func (s *DB) UpdateUserPasswordHash(ctx context.Context, id, hash string) error 
 		PasswordHash: hash,
 	}); err != nil {
 		return fmt.Errorf("update user password hash: %w", err)
+	}
+	return nil
+}
+
+// CompleteFirstPasswordChange sets a fresh password hash and clears the
+// must_change_password flag in one statement. Returns the number of rows
+// affected: 0 means the user was not in the forced-change state and the
+// caller should not let the request through.
+func (s *DB) CompleteFirstPasswordChange(ctx context.Context, id, hash string) (int64, error) {
+	n, err := s.q.CompleteFirstPasswordChange(ctx, sqlite.CompleteFirstPasswordChangeParams{
+		PasswordHash: hash,
+		ID:           id,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("complete first password change: %w", err)
+	}
+	return n, nil
+}
+
+// SetUserMustChangePassword sets or clears the must_change_password flag.
+func (s *DB) SetUserMustChangePassword(ctx context.Context, id string, flag bool) error {
+	if err := s.q.SetUserMustChangePassword(ctx, sqlite.SetUserMustChangePasswordParams{
+		MustChangePassword: flag,
+		ID:                 id,
+	}); err != nil {
+		return fmt.Errorf("set user must change password: %w", err)
 	}
 	return nil
 }
