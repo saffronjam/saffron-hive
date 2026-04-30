@@ -1,19 +1,19 @@
 -- name: CreateUser :exec
-INSERT INTO users (id, username, name, password_hash)
-VALUES (?, ?, ?, ?);
+INSERT INTO users (id, username, name, password_hash, must_change_password)
+VALUES (?, ?, ?, ?, ?);
 
 -- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
 FROM users
 WHERE username = ?;
 
 -- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
 FROM users
 ORDER BY created_at ASC;
 
@@ -36,6 +36,18 @@ UPDATE users SET avatar_path = NULL WHERE id = ?;
 
 -- name: UpdateUserPasswordHash :exec
 UPDATE users SET password_hash = ? WHERE id = ?;
+
+-- name: CompleteFirstPasswordChange :execrows
+-- Sets a fresh password hash and clears the must_change_password flag in one
+-- statement. The WHERE clause guards against use outside the forced-change
+-- flow: only rows where the flag is currently set will be updated.
+UPDATE users
+SET password_hash = sqlc.arg('password_hash'),
+    must_change_password = false
+WHERE id = sqlc.arg('id') AND must_change_password = true;
+
+-- name: SetUserMustChangePassword :exec
+UPDATE users SET must_change_password = sqlc.arg('must_change_password') WHERE id = sqlc.arg('id');
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;

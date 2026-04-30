@@ -32,6 +32,29 @@ func (q *Queries) ClearUserAvatar(ctx context.Context, id string) error {
 	return err
 }
 
+const completeFirstPasswordChange = `-- name: CompleteFirstPasswordChange :execrows
+UPDATE users
+SET password_hash = ?1,
+    must_change_password = false
+WHERE id = ?2 AND must_change_password = true
+`
+
+type CompleteFirstPasswordChangeParams struct {
+	PasswordHash string
+	ID           string
+}
+
+// Sets a fresh password hash and clears the must_change_password flag in one
+// statement. The WHERE clause guards against use outside the forced-change
+// flow: only rows where the flag is currently set will be updated.
+func (q *Queries) CompleteFirstPasswordChange(ctx context.Context, arg CompleteFirstPasswordChangeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, completeFirstPasswordChange, arg.PasswordHash, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
 `
@@ -44,15 +67,16 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (id, username, name, password_hash)
-VALUES (?, ?, ?, ?)
+INSERT INTO users (id, username, name, password_hash, must_change_password)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type CreateUserParams struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	MustChangePassword bool
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
@@ -61,6 +85,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.Username,
 		arg.Name,
 		arg.PasswordHash,
+		arg.MustChangePassword,
 	)
 	return err
 }
@@ -119,19 +144,20 @@ func (q *Queries) GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) (
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
 FROM users
 WHERE id = ?
 `
 
 type GetUserByIDRow struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
-	AvatarPath   *string
-	Theme        string
-	CreatedAt    time.Time
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	AvatarPath         *string
+	Theme              string
+	MustChangePassword bool
+	CreatedAt          time.Time
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error) {
@@ -144,25 +170,27 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 		&i.PasswordHash,
 		&i.AvatarPath,
 		&i.Theme,
+		&i.MustChangePassword,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
 FROM users
 WHERE username = ?
 `
 
 type GetUserByUsernameRow struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
-	AvatarPath   *string
-	Theme        string
-	CreatedAt    time.Time
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	AvatarPath         *string
+	Theme              string
+	MustChangePassword bool
+	CreatedAt          time.Time
 }
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
@@ -175,25 +203,27 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.PasswordHash,
 		&i.AvatarPath,
 		&i.Theme,
+		&i.MustChangePassword,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
 FROM users
 ORDER BY created_at ASC
 `
 
 type ListUsersRow struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
-	AvatarPath   *string
-	Theme        string
-	CreatedAt    time.Time
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	AvatarPath         *string
+	Theme              string
+	MustChangePassword bool
+	CreatedAt          time.Time
 }
 
 func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
@@ -212,6 +242,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.PasswordHash,
 			&i.AvatarPath,
 			&i.Theme,
+			&i.MustChangePassword,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -225,6 +256,20 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setUserMustChangePassword = `-- name: SetUserMustChangePassword :exec
+UPDATE users SET must_change_password = ?1 WHERE id = ?2
+`
+
+type SetUserMustChangePasswordParams struct {
+	MustChangePassword bool
+	ID                 string
+}
+
+func (q *Queries) SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error {
+	_, err := q.db.ExecContext(ctx, setUserMustChangePassword, arg.MustChangePassword, arg.ID)
+	return err
 }
 
 const updateUserPasswordHash = `-- name: UpdateUserPasswordHash :exec

@@ -31,6 +31,10 @@ type Querier interface {
 	ClearSceneActivatedAt(ctx context.Context, id string) error
 	ClearSceneIcon(ctx context.Context, id string) error
 	ClearUserAvatar(ctx context.Context, id string) error
+	// Sets a fresh password hash and clears the must_change_password flag in one
+	// statement. The WHERE clause guards against use outside the forced-change
+	// flow: only rows where the flag is currently set will be updated.
+	CompleteFirstPasswordChange(ctx context.Context, arg CompleteFirstPasswordChangeParams) (int64, error)
 	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	// Automations own three related tables: automations, automation_nodes,
@@ -169,6 +173,7 @@ type Querier interface {
 	// member_id is polymorphic.
 	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
+	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
 	// Partial update via COALESCE(narg, col) gate. Nil narg values leave their
 	// column untouched. The nullable icon column can't be cleared through this

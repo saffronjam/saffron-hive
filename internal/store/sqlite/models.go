@@ -211,13 +211,14 @@ type Setting struct {
 }
 
 type User struct {
-	ID           string
-	Username     string
-	Name         string
-	PasswordHash string
-	CreatedAt    time.Time
-	AvatarPath   *string
-	Theme        string
+	ID                 string
+	Username           string
+	Name               string
+	PasswordHash       string
+	CreatedAt          time.Time
+	AvatarPath         *string
+	Theme              string
+	MustChangePassword bool
 }
 
 type ZigbeeDevice struct {
