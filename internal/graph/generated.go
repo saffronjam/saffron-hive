@@ -230,6 +230,7 @@ type ComplexityRoot struct {
 		Members         func(childComplexity int) int
 		Name            func(childComplexity int) int
 		ResolvedDevices func(childComplexity int) int
+		Tags            func(childComplexity int) int
 	}
 
 	GroupMember struct {
@@ -1304,6 +1305,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Group.ResolvedDevices(childComplexity), true
+	case "Group.tags":
+		if e.ComplexityRoot.Group.Tags == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.Tags(childComplexity), true
 
 	case "GroupMember.device":
 		if e.ComplexityRoot.GroupMember.Device == nil {
@@ -2900,9 +2907,21 @@ type Group {
   id: ID!
   name: String!
   icon: String
+  tags: [GroupTag!]!
   members: [GroupMember!]!
   resolvedDevices: [Device!]!
   createdBy: User
+}
+
+"""
+GroupTag classifies a group by the role it represents on the dashboard.
+A group can carry zero, one, or both tags. Tags drive the auto-generated
+dashboard: a LIGHT-tagged group containing multiple bulbs renders as a
+single virtual light card.
+"""
+enum GroupTag {
+  LIGHT
+  SENSOR
 }
 
 type GroupMember {
@@ -3243,11 +3262,13 @@ input AutomationEdgeInput {
 
 input CreateGroupInput {
   name: String!
+  tags: [GroupTag!]
 }
 
 input UpdateGroupInput {
   name: String
   icon: String
+  tags: [GroupTag!]
 }
 
 input AddGroupMemberInput {
@@ -8042,6 +8063,35 @@ func (ec *executionContext) fieldContext_Group_icon(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _Group_tags(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_tags,
+		func(ctx context.Context) (any, error) {
+			return obj.Tags, nil
+		},
+		nil,
+		ec.marshalNGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_tags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GroupTag does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Group_members(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8339,6 +8389,8 @@ func (ec *executionContext) fieldContext_GroupMember_group(_ context.Context, fi
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -9463,6 +9515,8 @@ func (ec *executionContext) fieldContext_Mutation_createGroup(ctx context.Contex
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -9531,6 +9585,8 @@ func (ec *executionContext) fieldContext_Mutation_updateGroup(ctx context.Contex
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -11181,6 +11237,8 @@ func (ec *executionContext) fieldContext_Mutation_batchAddGroupDevices(ctx conte
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -12135,6 +12193,8 @@ func (ec *executionContext) fieldContext_Query_groups(_ context.Context, field g
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -12192,6 +12252,8 @@ func (ec *executionContext) fieldContext_Query_group(ctx context.Context, field 
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -13628,6 +13690,8 @@ func (ec *executionContext) fieldContext_RoomMember_group(_ context.Context, fie
 				return ec.fieldContext_Group_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
 			case "members":
 				return ec.fieldContext_Group_members(ctx, field)
 			case "resolvedDevices":
@@ -17155,7 +17219,7 @@ func (ec *executionContext) unmarshalInputCreateGroupInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name"}
+	fieldsInOrder := [...]string{"name", "tags"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -17169,6 +17233,13 @@ func (ec *executionContext) unmarshalInputCreateGroupInput(ctx context.Context, 
 				return it, err
 			}
 			it.Name = data
+		case "tags":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
+			data, err := ec.unmarshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tags = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -18012,7 +18083,7 @@ func (ec *executionContext) unmarshalInputUpdateGroupInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon"}
+	fieldsInOrder := [...]string{"name", "icon", "tags"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18033,6 +18104,13 @@ func (ec *executionContext) unmarshalInputUpdateGroupInput(ctx context.Context, 
 				return it, err
 			}
 			it.Icon = graphql.OmittableOf(data)
+		case "tags":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
+			data, err := ec.unmarshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tags = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -19435,6 +19513,11 @@ func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "icon":
 			out.Values[i] = ec._Group_icon(ctx, field, obj)
+		case "tags":
+			out.Values[i] = ec._Group_tags(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "members":
 			out.Values[i] = ec._Group_members(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -22270,6 +22353,47 @@ func (ec *executionContext) marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋs
 	return ec._GroupMember(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx context.Context, v any) (model.GroupTag, error) {
+	var res model.GroupTag
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx context.Context, sel ast.SelectionSet, v model.GroupTag) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx context.Context, v any) ([]model.GroupTag, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.GroupTag, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx context.Context, sel ast.SelectionSet, v []model.GroupTag) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -23245,6 +23369,43 @@ func (ec *executionContext) marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffron
 		return graphql.Null
 	}
 	return ec._Group(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx context.Context, v any) ([]model.GroupTag, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.GroupTag, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx context.Context, sel ast.SelectionSet, v []model.GroupTag) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {

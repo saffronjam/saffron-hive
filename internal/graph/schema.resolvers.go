@@ -417,11 +417,15 @@ func (r *mutationResolver) FireAutomationTrigger(ctx context.Context, automation
 // CreateGroup is the resolver for the createGroup field.
 func (r *mutationResolver) CreateGroup(ctx context.Context, input model.CreateGroupInput) (*model.Group, error) {
 	groupID := uuid.New().String()
-	g, err := r.Store.CreateGroup(ctx, store.CreateGroupParams{
+	params := store.CreateGroupParams{
 		ID:        groupID,
 		Name:      input.Name,
 		CreatedBy: currentUserID(ctx),
-	})
+	}
+	if tags, ok := input.Tags.ValueOK(); ok {
+		params.Tags = groupTagsFromModel(tags)
+	}
+	g, err := r.Store.CreateGroup(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -445,6 +449,10 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 	if icon, ok := input.Icon.ValueOK(); ok {
 		gParams.SetIcon = true
 		gParams.Icon = icon
+	}
+	if tags, ok := input.Tags.ValueOK(); ok {
+		gParams.SetTags = true
+		gParams.Tags = groupTagsFromModel(tags)
 	}
 	g, err = r.Store.UpdateGroup(ctx, gParams)
 	if err != nil {

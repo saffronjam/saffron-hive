@@ -529,6 +529,7 @@ func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.
 		ID:        g.ID,
 		Name:      g.Name,
 		Icon:      g.Icon,
+		Tags:      groupTagsToModel(g.Tags),
 		CreatedBy: mapUserRef(g.CreatedBy),
 	}
 
@@ -541,6 +542,37 @@ func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.
 	mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
 
 	return mg
+}
+
+// groupTagsToModel converts domain GroupTag values (lowercase) to the GraphQL
+// enum (uppercase). Unknown values are dropped — the domain validates on write.
+func groupTagsToModel(tags []device.GroupTag) []model.GroupTag {
+	out := make([]model.GroupTag, 0, len(tags))
+	for _, t := range tags {
+		switch t {
+		case device.GroupTagLight:
+			out = append(out, model.GroupTagLight)
+		case device.GroupTagSensor:
+			out = append(out, model.GroupTagSensor)
+		}
+	}
+	return out
+}
+
+// groupTagsFromModel converts GraphQL enum values to domain values. Unknown
+// values are dropped at the boundary; the resolver should reject the request
+// upstream if strict validation is required.
+func groupTagsFromModel(tags []model.GroupTag) []device.GroupTag {
+	out := make([]device.GroupTag, 0, len(tags))
+	for _, t := range tags {
+		switch t {
+		case model.GroupTagLight:
+			out = append(out, device.GroupTagLight)
+		case model.GroupTagSensor:
+			out = append(out, device.GroupTagSensor)
+		}
+	}
+	return out
 }
 
 // collectDevicesFromGroupMembers walks the given group members and returns the

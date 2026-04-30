@@ -199,7 +199,8 @@ type CreateEffectInput struct {
 }
 
 type CreateGroupInput struct {
-	Name string `json:"name"`
+	Name string                        `json:"name"`
+	Tags graphql.Omittable[[]GroupTag] `json:"tags,omitempty"`
 }
 
 type CreateInitialUserInput struct {
@@ -363,6 +364,7 @@ type Group struct {
 	ID              string         `json:"id"`
 	Name            string         `json:"name"`
 	Icon            *string        `json:"icon,omitempty"`
+	Tags            []GroupTag     `json:"tags"`
 	Members         []*GroupMember `json:"members"`
 	ResolvedDevices []*Device      `json:"resolvedDevices"`
 	CreatedBy       *User          `json:"createdBy,omitempty"`
@@ -580,8 +582,9 @@ type UpdateEffectInput struct {
 }
 
 type UpdateGroupInput struct {
-	Name graphql.Omittable[*string] `json:"name,omitempty"`
-	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
+	Name graphql.Omittable[*string]    `json:"name,omitempty"`
+	Icon graphql.Omittable[*string]    `json:"icon,omitempty"`
+	Tags graphql.Omittable[[]GroupTag] `json:"tags,omitempty"`
 }
 
 type UpdateRoomInput struct {
@@ -892,6 +895,65 @@ func (e *EffectKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e EffectKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// GroupTag classifies a group by the role it represents on the dashboard.
+// A group can carry zero, one, or both tags. Tags drive the auto-generated
+// dashboard: a LIGHT-tagged group containing multiple bulbs renders as a
+// single virtual light card.
+type GroupTag string
+
+const (
+	GroupTagLight  GroupTag = "LIGHT"
+	GroupTagSensor GroupTag = "SENSOR"
+)
+
+var AllGroupTag = []GroupTag{
+	GroupTagLight,
+	GroupTagSensor,
+}
+
+func (e GroupTag) IsValid() bool {
+	switch e {
+	case GroupTagLight, GroupTagSensor:
+		return true
+	}
+	return false
+}
+
+func (e GroupTag) String() string {
+	return string(e)
+}
+
+func (e *GroupTag) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = GroupTag(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid GroupTag", str)
+	}
+	return nil
+}
+
+func (e GroupTag) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *GroupTag) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e GroupTag) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
