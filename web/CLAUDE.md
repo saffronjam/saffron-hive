@@ -2,6 +2,35 @@
 
 Svelte frontend for the Saffron Hive dashboard. Uses bun as package manager and runtime.
 
+## Reusable building blocks — search before you write
+
+The codebase has matured patterns for the things people repeatedly need to build. Search and reuse before writing anything in this list.
+
+| Need | Use |
+|---|---|
+| Brightness slider with anti-flicker + 250 ms throttle + trailing edge | `src/lib/components/bulk-brightness-slider.svelte`. Pass a single-element `devices` for per-device control. |
+| Throttle a user-driven mutation (colour, temp, brightness drag, …) | `src/lib/throttle.ts` — `Throttle` interface + `throttle()` + `flushThrottle()` (use on drag-release for an immediate final commit). |
+| Card layout (icon + name + actions + footer + tint) | `src/lib/components/entity-card.svelte`. Has `iconArea` snippet for custom icon controls, `dragOpts` for press-and-drag, `brightnessFill` for left → right horizontal fill mode. |
+| Card tint / brightness fill | CSS classes in `src/app.css`: `.tint-1` / `.tint-2` / `.tint-3` (radial), `.tint-fill-horizontal` (linear horizontal fill at `--brightness-fill`). All driven by the `--tint-color` / `--tint-strength` / `--brightness-fill` `@property`-registered CSS variables. Use `color-mix(in srgb, ${c} 50%, var(--card))` for fades — never bake colours into inline `background:` literals. |
+| Press-and-drag to set a numeric value on a card | `src/lib/actions/brightness-drag.ts` — Svelte action. Wire on `EntityCard` via the `dragOpts` prop. |
+| Colour / colour-temp picker | `src/lib/components/light-color-picker.svelte`. Capability flags come from `capabilityUnion()` in `src/lib/target-resolve.ts`. |
+| Card colour / temp picker that fans out to a group | Reuse `LightColorPicker` inside a Popover whose handlers call `commitGroupColor` / `commitGroupTemp` from `src/lib/group-commands.ts` through the shared `throttle()`. |
+| Group / room → device fan-out commits | `src/lib/group-commands.ts`: `commitGroupBrightness`, `commitGroupToggle`, `commitGroupColor`, `commitGroupTemp`, `flattenGroupDevices`. |
+| Resolve a scene/group/room target to its flattened device list | `src/lib/target-resolve.ts` — `resolveTargetDevices`, `capabilityUnion`. |
+| Aggregate sensor readings across a device list | `src/lib/device-tint.ts` — `aggregateSensorReadings`. Same file: `groupBaseTintColors`, `brightnessToTintStrength`. |
+| Drawer for picking from grouped lists | `src/lib/components/hive-drawer.svelte`. For a layout drawer with custom content: shadcn `Sheet` directly with `side="bottom"`. |
+| Popover outside-click on a whole-card-clickable surface | bits-ui Popover is non-modal — outside clicks bubble to underlying handlers. Stamp with `markPopoverDismissed()` (from `src/lib/popover-guard.ts`) inside the popover's `onOpenChange(open=false)`, and gate the card's `onclick` with `popoverDismissedRecently()`. |
+| Tag / badge with type-coloured palette (`light`, `sensor`, `room`, …) | `src/lib/components/hive-chip.svelte`. |
+| Numeric input | `src/lib/components/number-input.svelte` (with `allowDecimal` / `allowNegative` / `nullable`). |
+| Mobile detection | `IsMobile` in `src/lib/hooks/is-mobile.svelte.ts` (768 px breakpoint). |
+| Live device state | `deviceStore` (writable store) + `devicesHydrated` (readable boolean) in `src/lib/stores/devices.ts`. |
+| Editor keyboard guard | `isEditableTarget` (skip global shortcuts when typing). |
+| Snapshot-based undo/redo | `HistoryStack`. |
+
+When in doubt, grep first: `grep -rln "<thing-you-want>" src/lib/`. The first hit usually beats writing it again.
+
+
+
 ## Stack
 
 - Svelte 5 + SvelteKit

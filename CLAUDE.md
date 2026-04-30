@@ -118,8 +118,22 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - If a transform genuinely cannot be expressed in SQL, raise it before writing any code — do not invent a Go-side workaround.
 
 ### Reuse first
-- Before writing a new function, component, or store, search for an existing one. Generic stores live under `web/src/lib/stores/`, shared utilities under `web/src/lib/utils/`, shared UI under `web/src/lib/components/`.
-- Concrete examples to reuse, not re-implement: `HistoryStack` (snapshot-based undo/redo), `LightColorPicker` (Color/White toggle + brightness slider), `NumberInput` (buffered numeric input with `allowDecimal` / `allowNegative` / `nullable` opt-ins), `HiveChip`, `HiveDrawer`, `isEditableTarget` (keyboard guard for editor-level shortcuts).
+- Before writing a new function, component, or store, search for an existing one. Generic stores live under `web/src/lib/stores/`, shared utilities directly under `web/src/lib/`, shared UI under `web/src/lib/components/`.
+- Concrete examples — reuse these, do **not** re-implement:
+  - **Brightness slider** with anti-flicker (1500 ms interacting cooldown) + 250 ms throttle + trailing edge: `web/src/lib/components/bulk-brightness-slider.svelte`. Pass a single-element `devices` list for per-device control. Never write a raw `<Slider>` over `setDeviceState` for brightness.
+  - **Throttle** any user-driven mutation through the shared helper at `web/src/lib/throttle.ts` (`throttle`, `flushThrottle`, `Throttle` interface). Drag-release paths use `flushThrottle` + an immediate commit so the device ends at the released value, not the second-to-last sample.
+  - **Card layout** (icon + name + actions + footer + tint): `web/src/lib/components/entity-card.svelte`. Has `iconArea` snippet for custom icon controls, `dragOpts` for press-and-drag, `brightnessFill` for horizontal fill mode.
+  - **Card tint** comes from CSS classes in `web/src/app.css` (`tint-1`, `tint-2`, `tint-3`, `tint-fill-horizontal`), driven by `--tint-color`/`--tint-strength`/`--brightness-fill` `@property`-registered CSS variables. Do not bake colours into inline `background:` literals — use `color-mix(in srgb, ${c} 50%, var(--card))` so colours fade against the card surface.
+  - **Press-and-drag** to set a numeric value: `web/src/lib/actions/brightness-drag.ts` (Svelte action). Wire it on EntityCard via the `dragOpts` prop.
+  - **Colour / temp picker**: `web/src/lib/components/light-color-picker.svelte`. `hasColor` / `hasColorTemp` / `hasBrightness` come from `capabilityUnion()` in `web/src/lib/target-resolve.ts`.
+  - **Group / room → device fan-out**: `web/src/lib/group-commands.ts` (`commitGroupBrightness`, `commitGroupToggle`, `commitGroupColor`, `commitGroupTemp`, `flattenGroupDevices`).
+  - **Resolve a scene/group/room target to its device list**: `resolveTargetDevices` in `web/src/lib/target-resolve.ts`.
+  - **Aggregate sensor readings**: `aggregateSensorReadings` in `web/src/lib/device-tint.ts`. Same file has `groupBaseTintColors` and `brightnessToTintStrength` for tint computation.
+  - **Drawer / sheet** for picking from grouped lists: `HiveDrawer` (`web/src/lib/components/hive-drawer.svelte`). Custom layout drawer: shadcn `Sheet` directly with `side="bottom"`.
+  - **Popover outside-click guard** on cards that have a whole-card `onclick`: import from `web/src/lib/popover-guard.ts` and call `markPopoverDismissed()` from the popover's `onOpenChange(open=false)`; gate the card's `onclick` with `popoverDismissedRecently()`. bits-ui Popover is non-modal — without this, the outside click also triggers the underlying card.
+  - **Inline tag / badge** with type-coloured palette: `HiveChip` (`web/src/lib/components/hive-chip.svelte`).
+  - **Numeric input**: `NumberInput` (`web/src/lib/components/number-input.svelte`) with `allowDecimal` / `allowNegative` / `nullable` opt-ins.
+  - **Undo/redo**: `HistoryStack`. **Editor keyboard guard**: `isEditableTarget`.
 - When you find yourself copy-pasting a pattern across two files, extract it on the third occurrence — or sooner if the pattern is non-trivial. The first place to check for a third near-identical implementation is the second one.
 
 ### Design language
