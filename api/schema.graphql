@@ -281,9 +281,21 @@ type Group {
   id: ID!
   name: String!
   icon: String
+  tags: [GroupTag!]!
   members: [GroupMember!]!
   resolvedDevices: [Device!]!
   createdBy: User
+}
+
+"""
+GroupTag classifies a group by the role it represents on the dashboard.
+A group can carry zero, one, or both tags. Tags drive the auto-generated
+dashboard: a LIGHT-tagged group containing multiple bulbs renders as a
+single virtual light card.
+"""
+enum GroupTag {
+  LIGHT
+  SENSOR
 }
 
 type GroupMember {
@@ -624,11 +636,13 @@ input AutomationEdgeInput {
 
 input CreateGroupInput {
   name: String!
+  tags: [GroupTag!]
 }
 
 input UpdateGroupInput {
   name: String
   icon: String
+  tags: [GroupTag!]
 }
 
 input AddGroupMemberInput {
