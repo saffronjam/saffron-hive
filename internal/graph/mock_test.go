@@ -703,10 +703,11 @@ func (m *mockStore) CreateUser(_ context.Context, params store.CreateUserParams)
 		}
 	}
 	u := store.User{
-		ID:           params.ID,
-		Username:     params.Username,
-		Name:         params.Name,
-		PasswordHash: params.PasswordHash,
+		ID:                 params.ID,
+		Username:           params.Username,
+		Name:               params.Name,
+		PasswordHash:       params.PasswordHash,
+		MustChangePassword: params.MustChangePassword,
 	}
 	m.users[params.ID] = u
 	return u, nil
@@ -789,6 +790,34 @@ func (m *mockStore) UpdateUserPasswordHash(_ context.Context, id, hash string) e
 		return fmt.Errorf("user %q not found", id)
 	}
 	u.PasswordHash = hash
+	m.users[id] = u
+	return nil
+}
+
+func (m *mockStore) CompleteFirstPasswordChange(_ context.Context, id, hash string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return 0, fmt.Errorf("user %q not found", id)
+	}
+	if !u.MustChangePassword {
+		return 0, nil
+	}
+	u.PasswordHash = hash
+	u.MustChangePassword = false
+	m.users[id] = u
+	return 1, nil
+}
+
+func (m *mockStore) SetUserMustChangePassword(_ context.Context, id string, flag bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return fmt.Errorf("user %q not found", id)
+	}
+	u.MustChangePassword = flag
 	m.users[id] = u
 	return nil
 }

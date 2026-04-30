@@ -161,7 +161,7 @@ func mapActivitySource(row store.ActivityEvent) *model.ActivitySource {
 	}
 }
 
-func createUserRow(ctx context.Context, s GraphStore, username, name, password string) (store.User, error) {
+func createUserRow(ctx context.Context, s GraphStore, username, name, password string, mustChange bool) (store.User, error) {
 	username = strings.TrimSpace(username)
 	name = strings.TrimSpace(name)
 	if username == "" {
@@ -178,10 +178,11 @@ func createUserRow(ctx context.Context, s GraphStore, username, name, password s
 		return store.User{}, err
 	}
 	u, err := s.CreateUser(ctx, store.CreateUserParams{
-		ID:           uuid.New().String(),
-		Username:     username,
-		Name:         name,
-		PasswordHash: hash,
+		ID:                 uuid.New().String(),
+		Username:           username,
+		Name:               name,
+		PasswordHash:       hash,
+		MustChangePassword: mustChange,
 	})
 	if err != nil {
 		return store.User{}, fmt.Errorf("create user: %w", err)
@@ -407,13 +408,15 @@ func mapUserRef(ref *store.UserRef) *model.User {
 func mapUser(u store.User) *model.User {
 	theme := themeFromStore(u.Theme)
 	createdAt := u.CreatedAt
+	mustChange := u.MustChangePassword
 	return &model.User{
-		ID:         u.ID,
-		Username:   u.Username,
-		Name:       u.Name,
-		AvatarPath: u.AvatarPath,
-		Theme:      &theme,
-		CreatedAt:  &createdAt,
+		ID:                 u.ID,
+		Username:           u.Username,
+		Name:               u.Name,
+		AvatarPath:         u.AvatarPath,
+		Theme:              &theme,
+		CreatedAt:          &createdAt,
+		MustChangePassword: &mustChange,
 	}
 }
 

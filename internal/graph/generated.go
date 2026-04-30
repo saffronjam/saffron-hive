@@ -258,54 +258,55 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddGroupMember         func(childComplexity int, input model.AddGroupMemberInput) int
-		AddRoomMember          func(childComplexity int, input model.AddRoomMemberInput) int
-		ApplyScene             func(childComplexity int, sceneID string) int
-		BatchAddGroupDevices   func(childComplexity int, groupID string, deviceIds []string) int
-		BatchAddRoomMembers    func(childComplexity int, roomID string, members []*model.RoomMemberInput) int
-		BatchDeleteAlarms      func(childComplexity int, alarmIds []string) int
-		BatchDeleteAutomations func(childComplexity int, ids []string) int
-		BatchDeleteGroups      func(childComplexity int, ids []string) int
-		BatchDeleteRooms       func(childComplexity int, ids []string) int
-		BatchDeleteScenes      func(childComplexity int, ids []string) int
-		BatchDeleteUsers       func(childComplexity int, ids []string) int
-		ChangePassword         func(childComplexity int, input model.ChangePasswordInput) int
-		CreateAutomation       func(childComplexity int, input model.CreateAutomationInput) int
-		CreateEffect           func(childComplexity int, input model.CreateEffectInput) int
-		CreateGroup            func(childComplexity int, input model.CreateGroupInput) int
-		CreateInitialUser      func(childComplexity int, input model.CreateInitialUserInput) int
-		CreateRoom             func(childComplexity int, input model.CreateRoomInput) int
-		CreateScene            func(childComplexity int, input model.CreateSceneInput) int
-		CreateUser             func(childComplexity int, input model.CreateUserInput) int
-		DeleteAlarm            func(childComplexity int, alarmID string) int
-		DeleteAutomation       func(childComplexity int, id string) int
-		DeleteEffect           func(childComplexity int, id string) int
-		DeleteGroup            func(childComplexity int, id string) int
-		DeleteRoom             func(childComplexity int, id string) int
-		DeleteScene            func(childComplexity int, id string) int
-		DeleteUser             func(childComplexity int, id string) int
-		FireAutomationTrigger  func(childComplexity int, automationID string, nodeID string) int
-		Login                  func(childComplexity int, input model.LoginInput) int
-		RaiseAlarm             func(childComplexity int, input model.RaiseAlarmInput) int
-		RemoveGroupMember      func(childComplexity int, id string) int
-		RemoveRoomMember       func(childComplexity int, id string) int
-		ResetUserPassword      func(childComplexity int, id string, newPassword string) int
-		RunEffect              func(childComplexity int, effectID string, targetType string, targetID string) int
-		RunNativeEffect        func(childComplexity int, nativeName string, targetType string, targetID string) int
-		SetDeviceState         func(childComplexity int, deviceID string, state model.DeviceStateInput) int
-		SimulateDeviceAction   func(childComplexity int, deviceID string, action string) int
-		StopEffect             func(childComplexity int, targetType string, targetID string) int
-		TestMqttConnection     func(childComplexity int, input model.MqttConfigInput) int
-		ToggleAutomation       func(childComplexity int, id string, enabled bool) int
-		UpdateAutomation       func(childComplexity int, id string, input model.UpdateAutomationInput) int
-		UpdateCurrentUser      func(childComplexity int, input model.UpdateCurrentUserInput) int
-		UpdateDevice           func(childComplexity int, id string, input model.UpdateDeviceInput) int
-		UpdateEffect           func(childComplexity int, input model.UpdateEffectInput) int
-		UpdateGroup            func(childComplexity int, id string, input model.UpdateGroupInput) int
-		UpdateMqttConfig       func(childComplexity int, input model.MqttConfigInput) int
-		UpdateRoom             func(childComplexity int, id string, input model.UpdateRoomInput) int
-		UpdateScene            func(childComplexity int, id string, input model.UpdateSceneInput) int
-		UpdateSetting          func(childComplexity int, key string, value string) int
+		AddGroupMember              func(childComplexity int, input model.AddGroupMemberInput) int
+		AddRoomMember               func(childComplexity int, input model.AddRoomMemberInput) int
+		ApplyScene                  func(childComplexity int, sceneID string) int
+		BatchAddGroupDevices        func(childComplexity int, groupID string, deviceIds []string) int
+		BatchAddRoomMembers         func(childComplexity int, roomID string, members []*model.RoomMemberInput) int
+		BatchDeleteAlarms           func(childComplexity int, alarmIds []string) int
+		BatchDeleteAutomations      func(childComplexity int, ids []string) int
+		BatchDeleteGroups           func(childComplexity int, ids []string) int
+		BatchDeleteRooms            func(childComplexity int, ids []string) int
+		BatchDeleteScenes           func(childComplexity int, ids []string) int
+		BatchDeleteUsers            func(childComplexity int, ids []string) int
+		ChangePassword              func(childComplexity int, input model.ChangePasswordInput) int
+		CompleteFirstPasswordChange func(childComplexity int, newPassword string) int
+		CreateAutomation            func(childComplexity int, input model.CreateAutomationInput) int
+		CreateEffect                func(childComplexity int, input model.CreateEffectInput) int
+		CreateGroup                 func(childComplexity int, input model.CreateGroupInput) int
+		CreateInitialUser           func(childComplexity int, input model.CreateInitialUserInput) int
+		CreateRoom                  func(childComplexity int, input model.CreateRoomInput) int
+		CreateScene                 func(childComplexity int, input model.CreateSceneInput) int
+		CreateUser                  func(childComplexity int, input model.CreateUserInput) int
+		DeleteAlarm                 func(childComplexity int, alarmID string) int
+		DeleteAutomation            func(childComplexity int, id string) int
+		DeleteEffect                func(childComplexity int, id string) int
+		DeleteGroup                 func(childComplexity int, id string) int
+		DeleteRoom                  func(childComplexity int, id string) int
+		DeleteScene                 func(childComplexity int, id string) int
+		DeleteUser                  func(childComplexity int, id string) int
+		FireAutomationTrigger       func(childComplexity int, automationID string, nodeID string) int
+		Login                       func(childComplexity int, input model.LoginInput) int
+		RaiseAlarm                  func(childComplexity int, input model.RaiseAlarmInput) int
+		RemoveGroupMember           func(childComplexity int, id string) int
+		RemoveRoomMember            func(childComplexity int, id string) int
+		ResetUserPassword           func(childComplexity int, id string, newPassword string) int
+		RunEffect                   func(childComplexity int, effectID string, targetType string, targetID string) int
+		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
+		SetDeviceState              func(childComplexity int, deviceID string, state model.DeviceStateInput) int
+		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
+		StopEffect                  func(childComplexity int, targetType string, targetID string) int
+		TestMqttConnection          func(childComplexity int, input model.MqttConfigInput) int
+		ToggleAutomation            func(childComplexity int, id string, enabled bool) int
+		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateCurrentUser           func(childComplexity int, input model.UpdateCurrentUserInput) int
+		UpdateDevice                func(childComplexity int, id string, input model.UpdateDeviceInput) int
+		UpdateEffect                func(childComplexity int, input model.UpdateEffectInput) int
+		UpdateGroup                 func(childComplexity int, id string, input model.UpdateGroupInput) int
+		UpdateMqttConfig            func(childComplexity int, input model.MqttConfigInput) int
+		UpdateRoom                  func(childComplexity int, id string, input model.UpdateRoomInput) int
+		UpdateScene                 func(childComplexity int, id string, input model.UpdateSceneInput) int
+		UpdateSetting               func(childComplexity int, key string, value string) int
 	}
 
 	NativeEffectOption struct {
@@ -422,12 +423,13 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		AvatarPath func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Theme      func(childComplexity int) int
-		Username   func(childComplexity int) int
+		AvatarPath         func(childComplexity int) int
+		CreatedAt          func(childComplexity int) int
+		ID                 func(childComplexity int) int
+		MustChangePassword func(childComplexity int) int
+		Name               func(childComplexity int) int
+		Theme              func(childComplexity int) int
+		Username           func(childComplexity int) int
 	}
 }
 
@@ -462,6 +464,7 @@ type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
 	UpdateCurrentUser(ctx context.Context, input model.UpdateCurrentUserInput) (*model.User, error)
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error)
+	CompleteFirstPasswordChange(ctx context.Context, newPassword string) (bool, error)
 	ResetUserPassword(ctx context.Context, id string, newPassword string) (bool, error)
 	DeleteUser(ctx context.Context, id string) (bool, error)
 	RaiseAlarm(ctx context.Context, input model.RaiseAlarmInput) (*model.Alarm, error)
@@ -1539,6 +1542,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ChangePassword(childComplexity, args["input"].(model.ChangePasswordInput)), true
+	case "Mutation.completeFirstPasswordChange":
+		if e.ComplexityRoot.Mutation.CompleteFirstPasswordChange == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_completeFirstPasswordChange_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CompleteFirstPasswordChange(childComplexity, args["newPassword"].(string)), true
 	case "Mutation.createAutomation":
 		if e.ComplexityRoot.Mutation.CreateAutomation == nil {
 			break
@@ -2487,6 +2501,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.ID(childComplexity), true
+	case "User.mustChangePassword":
+		if e.ComplexityRoot.User.MustChangePassword == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.MustChangePassword(childComplexity), true
 	case "User.name":
 		if e.ComplexityRoot.User.Name == nil {
 			break
@@ -3049,6 +3069,14 @@ type User {
   Present on full user loads, null on attribution references.
   """
   createdAt: DateTime
+  """
+  When true, the user must change their password before any other authenticated
+  operation will succeed. Set automatically when an admin creates a user or
+  resets their password; cleared when the user completes the forced-change
+  flow. Present on full user loads (` + "`" + `me` + "`" + `, ` + "`" + `users` + "`" + `, ` + "`" + `AuthPayload.user` + "`" + `); null
+  on attribution references.
+  """
+  mustChangePassword: Boolean
 }
 
 type AuthPayload {
@@ -3399,6 +3427,14 @@ type Mutation {
   createUser(input: CreateUserInput!): User! @auth
   updateCurrentUser(input: UpdateCurrentUserInput!): User! @auth
   changePassword(input: ChangePasswordInput!): Boolean! @auth
+  """
+  Completes the forced first-login password change. Only callable while the
+  caller's ` + "`" + `mustChangePassword` + "`" + ` flag is set; the AuthDirective allowlists this
+  field for users in the forced-change state. Sets the new password hash and
+  clears the flag in one statement. Returns false if the caller was not in the
+  forced-change state.
+  """
+  completeFirstPasswordChange(newPassword: String!): Boolean! @auth
   resetUserPassword(id: ID!, newPassword: String!): Boolean! @auth
   deleteUser(id: ID!): Boolean! @auth
   raiseAlarm(input: RaiseAlarmInput!): Alarm! @auth
@@ -3606,6 +3642,17 @@ func (ec *executionContext) field_Mutation_changePassword_args(ctx context.Conte
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_completeFirstPasswordChange_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "newPassword", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["newPassword"] = arg0
 	return args, nil
 }
 
@@ -5313,6 +5360,8 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -5635,6 +5684,8 @@ func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Con
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -7545,6 +7596,8 @@ func (ec *executionContext) fieldContext_Effect_createdBy(_ context.Context, fie
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -8274,6 +8327,8 @@ func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -10493,6 +10548,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -10561,6 +10618,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCurrentUser(ctx context.
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -10627,6 +10686,60 @@ func (ec *executionContext) fieldContext_Mutation_changePassword(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_changePassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_completeFirstPasswordChange(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_completeFirstPasswordChange,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CompleteFirstPasswordChange(ctx, fc.Args["newPassword"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_completeFirstPasswordChange(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_completeFirstPasswordChange_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12959,6 +13072,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -13015,6 +13130,8 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -13597,6 +13714,8 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -14058,6 +14177,8 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_theme(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -15351,6 +15472,35 @@ func (ec *executionContext) fieldContext_User_createdAt(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_mustChangePassword(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_mustChangePassword,
+		func(ctx context.Context) (any, error) {
+			return obj.MustChangePassword, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_mustChangePassword(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -20093,6 +20243,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "completeFirstPasswordChange":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_completeFirstPasswordChange(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "resetUserPassword":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_resetUserPassword(ctx, field)
@@ -21413,6 +21570,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_theme(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
+		case "mustChangePassword":
+			out.Values[i] = ec._User_mustChangePassword(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

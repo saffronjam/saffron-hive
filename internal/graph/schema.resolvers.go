@@ -716,7 +716,7 @@ func (r *mutationResolver) CreateInitialUser(ctx context.Context, input model.Cr
 	if count > 0 {
 		return nil, fmt.Errorf("initial user already exists")
 	}
-	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password)
+	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password, false)
 	if err != nil {
 		return nil, err
 	}
@@ -725,12 +725,14 @@ func (r *mutationResolver) CreateInitialUser(ctx context.Context, input model.Cr
 
 // CreateUser is the resolver for the createUser field. Requires an
 // authenticated caller. All authenticated users are currently full admins;
-// roles will come later.
+// roles will come later. Admin-created users are always required to change
+// their initial password on first login (the admin-supplied password is
+// treated as temporary).
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error) {
 	if _, ok := auth.UserFromContext(ctx); !ok {
 		return nil, fmt.Errorf("authentication required")
 	}
-	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password)
+	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password, true)
 	if err != nil {
 		return nil, err
 	}
@@ -792,9 +794,34 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 	return true, nil
 }
 
+// CompleteFirstPasswordChange sets a fresh password hash and clears the
+// must_change_password flag for the authenticated user. Returns false if the
+// caller was not in the forced-change state (no row updated).
+func (r *mutationResolver) CompleteFirstPasswordChange(ctx context.Context, newPassword string) (bool, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return false, fmt.Errorf("authentication required")
+	}
+	if err := validatePassword(newPassword); err != nil {
+		return false, err
+	}
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return false, fmt.Errorf("hash password: %w", err)
+	}
+	n, err := r.Store.CompleteFirstPasswordChange(ctx, cu.ID, hash)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // ResetUserPassword sets a new password for an arbitrary user, without
 // requiring the old one. Every authenticated user is a full admin today
 // (roles/permissions are a future patch), so any caller can reset any target.
+// Re-arms must_change_password so the target is forced through the
+// forced-change flow on their next login: an admin-set password is always a
+// temporary password.
 func (r *mutationResolver) ResetUserPassword(ctx context.Context, id string, newPassword string) (bool, error) {
 	if _, ok := auth.UserFromContext(ctx); !ok {
 		return false, fmt.Errorf("authentication required")
@@ -810,6 +837,9 @@ func (r *mutationResolver) ResetUserPassword(ctx context.Context, id string, new
 		return false, fmt.Errorf("hash password: %w", err)
 	}
 	if err := r.Store.UpdateUserPasswordHash(ctx, id, hash); err != nil {
+		return false, err
+	}
+	if err := r.Store.SetUserMustChangePassword(ctx, id, true); err != nil {
 		return false, err
 	}
 	return true, nil

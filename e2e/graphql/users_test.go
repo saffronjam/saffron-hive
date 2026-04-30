@@ -88,6 +88,21 @@ func deleteUserForTest(t *testing.T, id string) {
 	}
 }
 
+// clearForcedChangeForTest completes the forced first-login password change for
+// the user holding the given token, setting their password to newPassword and
+// clearing the must_change_password flag. Use after createUserForTest +
+// loginForTest in tests that exercise behaviour beyond the forced-change flow.
+func clearForcedChangeForTest(t *testing.T, token, newPassword string) {
+	t.Helper()
+	gr, _ := rawPost(t, token,
+		`mutation($p: String!) { completeFirstPasswordChange(newPassword: $p) }`,
+		map[string]any{"p": newPassword},
+	)
+	if len(gr.Errors) > 0 {
+		t.Fatalf("clearForcedChange: %v", gr.Errors)
+	}
+}
+
 func TestCreateUserRequiresAuth(t *testing.T) {
 	err := graphqlMutationExpectError(
 		`mutation($input: CreateUserInput!) { createUser(input: $input) { id } }`,
@@ -111,6 +126,9 @@ func TestChangePasswordFlow(t *testing.T) {
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
 	tok := loginForTest(t, "cpw", "original123")
+	// Admin-created users start with must_change_password set; complete that
+	// flow first so the regular changePassword mutation is reachable.
+	clearForcedChangeForTest(t, tok, "original123")
 
 	// Wrong old password fails.
 	gr, _ := rawPost(t, tok,
@@ -227,6 +245,7 @@ func TestDeletedUserCannotLogin(t *testing.T) {
 func TestCreatedByPreservedAsNullAfterDelete(t *testing.T) {
 	creator := createUserForTest(t, "creator1", "The Creator", "creatorpw1")
 	creatorTok := loginForTest(t, "creator1", "creatorpw1")
+	clearForcedChangeForTest(t, creatorTok, "creatorpw1")
 
 	// Creator creates a scene; createdBy should reference creator.
 	data, _ := rawPost(t, creatorTok,
@@ -278,6 +297,131 @@ func TestCreatedByPreservedAsNullAfterDelete(t *testing.T) {
 
 	// Cleanup the orphan scene.
 	_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneResp.CreateScene.ID})
+}
+
+func meMustChangePasswordForToken(t *testing.T, token string) bool {
+	t.Helper()
+	gr, _ := rawPost(t, token, `{ me { mustChangePassword } }`, nil)
+	if len(gr.Errors) > 0 {
+		t.Fatalf("me query failed: %v", gr.Errors)
+	}
+	var resp struct {
+		Me struct {
+			MustChangePassword *bool `json:"mustChangePassword"`
+		} `json:"me"`
+	}
+	if err := json.Unmarshal(gr.Data, &resp); err != nil {
+		t.Fatalf("unmarshal me: %v", err)
+	}
+	return resp.Me.MustChangePassword != nil && *resp.Me.MustChangePassword
+}
+
+func TestCreateUserSetsMustChangePassword(t *testing.T) {
+	u := createUserForTest(t, "mcpw1", "Must Change User", "initialpw1")
+	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
+
+	tok := loginForTest(t, "mcpw1", "initialpw1")
+	if !meMustChangePasswordForToken(t, tok) {
+		t.Fatal("admin-created user should have mustChangePassword=true on first login")
+	}
+}
+
+func TestForcedChangeUserBlockedFromOtherOps(t *testing.T) {
+	u := createUserForTest(t, "mcpw2", "Blocked User", "initialpw1")
+	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
+
+	tok := loginForTest(t, "mcpw2", "initialpw1")
+
+	// Any @auth-protected operation other than `completeFirstPasswordChange`
+	// must be rejected with PASSWORD_CHANGE_REQUIRED. Pick a query that always
+	// runs through the directive: users.
+	gr, status := rawPost(t, tok, `{ users { id } }`, nil)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (directive rejects at GraphQL layer)", status)
+	}
+	if len(gr.Errors) == 0 {
+		t.Fatal("forced-change user reached users query without password change")
+	}
+	if !strings.Contains(gr.Errors[0].Message, "password change required") {
+		t.Errorf("error message = %q, want contains \"password change required\"", gr.Errors[0].Message)
+	}
+
+	// And that a write is also blocked.
+	gr, _ = rawPost(t, tok,
+		`mutation($input: CreateSceneInput!) { createScene(input: $input) { id } }`,
+		map[string]any{"input": map[string]any{"name": "should not exist", "actions": []any{}}},
+	)
+	if len(gr.Errors) == 0 {
+		t.Fatal("forced-change user reached createScene without password change")
+	}
+	if !strings.Contains(gr.Errors[0].Message, "password change required") {
+		t.Errorf("createScene error message = %q, want contains \"password change required\"", gr.Errors[0].Message)
+	}
+}
+
+func TestCompleteFirstPasswordChangeClearsFlag(t *testing.T) {
+	u := createUserForTest(t, "mcpw3", "Clearing User", "initialpw1")
+	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
+
+	tok := loginForTest(t, "mcpw3", "initialpw1")
+
+	gr, _ := rawPost(t, tok,
+		`mutation($p: String!) { completeFirstPasswordChange(newPassword: $p) }`,
+		map[string]any{"p": "newpassword999"},
+	)
+	if len(gr.Errors) > 0 {
+		t.Fatalf("completeFirstPasswordChange: %v", gr.Errors)
+	}
+
+	if meMustChangePasswordForToken(t, tok) {
+		t.Fatal("mustChangePassword should be cleared after completeFirstPasswordChange")
+	}
+
+	// Previously blocked operation now succeeds.
+	gr, _ = rawPost(t, tok, `{ users { id } }`, nil)
+	if len(gr.Errors) > 0 {
+		t.Fatalf("users query should succeed after change: %v", gr.Errors)
+	}
+
+	// Old password no longer logs in; new one does.
+	if err := graphqlMutationExpectError(
+		`mutation($input: LoginInput!) { login(input: $input) { token } }`,
+		map[string]any{"input": map[string]any{"username": "mcpw3", "password": "initialpw1"}},
+	); err != nil {
+		t.Fatalf("old password should have been rejected: %v", err)
+	}
+	_ = loginForTest(t, "mcpw3", "newpassword999")
+}
+
+func TestResetUserPasswordReArmsMustChange(t *testing.T) {
+	u := createUserForTest(t, "mcpw4", "ReArm User", "initialpw1")
+	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
+
+	// Clear the flag by completing the forced-change flow.
+	tok := loginForTest(t, "mcpw4", "initialpw1")
+	gr, _ := rawPost(t, tok,
+		`mutation($p: String!) { completeFirstPasswordChange(newPassword: $p) }`,
+		map[string]any{"p": "newpassword999"},
+	)
+	if len(gr.Errors) > 0 {
+		t.Fatalf("completeFirstPasswordChange: %v", gr.Errors)
+	}
+	if meMustChangePasswordForToken(t, tok) {
+		t.Fatal("flag not cleared by completeFirstPasswordChange")
+	}
+
+	// Admin resets the user's password — flag must come back.
+	if _, err := graphqlMutation(
+		`mutation($id: ID!, $p: String!) { resetUserPassword(id: $id, newPassword: $p) }`,
+		map[string]any{"id": u.ID, "p": "adminreset123"},
+	); err != nil {
+		t.Fatalf("resetUserPassword: %v", err)
+	}
+
+	tok2 := loginForTest(t, "mcpw4", "adminreset123")
+	if !meMustChangePasswordForToken(t, tok2) {
+		t.Fatal("admin reset should re-arm mustChangePassword")
+	}
 }
 
 // seedUserIDFromToken decodes the shared `authToken` JWT to obtain the seed

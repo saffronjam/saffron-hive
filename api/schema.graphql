@@ -409,6 +409,14 @@ type User {
   Present on full user loads, null on attribution references.
   """
   createdAt: DateTime
+  """
+  When true, the user must change their password before any other authenticated
+  operation will succeed. Set automatically when an admin creates a user or
+  resets their password; cleared when the user completes the forced-change
+  flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
+  on attribution references.
+  """
+  mustChangePassword: Boolean
 }
 
 type AuthPayload {
@@ -759,6 +767,14 @@ type Mutation {
   createUser(input: CreateUserInput!): User! @auth
   updateCurrentUser(input: UpdateCurrentUserInput!): User! @auth
   changePassword(input: ChangePasswordInput!): Boolean! @auth
+  """
+  Completes the forced first-login password change. Only callable while the
+  caller's `mustChangePassword` flag is set; the AuthDirective allowlists this
+  field for users in the forced-change state. Sets the new password hash and
+  clears the flag in one statement. Returns false if the caller was not in the
+  forced-change state.
+  """
+  completeFirstPasswordChange(newPassword: String!): Boolean! @auth
   resetUserPassword(id: ID!, newPassword: String!): Boolean! @auth
   deleteUser(id: ID!): Boolean! @auth
   raiseAlarm(input: RaiseAlarmInput!): Alarm! @auth

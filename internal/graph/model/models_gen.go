@@ -623,6 +623,12 @@ type User struct {
 	// Timestamp the user was created; used on the profile page as "member since".
 	// Present on full user loads, null on attribution references.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// When true, the user must change their password before any other authenticated
+	// operation will succeed. Set automatically when an admin creates a user or
+	// resets their password; cleared when the user completes the forced-change
+	// flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
+	// on attribution references.
+	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
 }
 
 type AlarmEventKind string

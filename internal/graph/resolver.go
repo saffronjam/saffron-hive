@@ -127,6 +127,8 @@ type GraphStore interface {
 	UpdateUserProfile(ctx context.Context, params store.UpdateUserProfileParams) (store.User, error)
 	ClearUserAvatar(ctx context.Context, id string) error
 	UpdateUserPasswordHash(ctx context.Context, id, hash string) error
+	CompleteFirstPasswordChange(ctx context.Context, id, hash string) (int64, error)
+	SetUserMustChangePassword(ctx context.Context, id string, flag bool) error
 	DeleteUser(ctx context.Context, id string) error
 	BatchDeleteUsers(ctx context.Context, ids []string) (int64, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
