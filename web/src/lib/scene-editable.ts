@@ -29,10 +29,17 @@ export interface SceneDevicePayloadEntry {
   payload: string;
 }
 
+export interface SceneRoomRef {
+  id: string;
+  name: string;
+  icon?: string | null;
+}
+
 export interface SceneData {
   id: string;
   name: string;
   icon?: string | null;
+  rooms?: SceneRoomRef[];
   actions: SceneAction[];
   devicePayloads: SceneDevicePayloadEntry[];
   activatedAt?: string | null;

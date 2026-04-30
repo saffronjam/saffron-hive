@@ -31,10 +31,16 @@
 		payload: string;
 	}
 
+	interface SceneRoomRef {
+		id: string;
+		name: string;
+	}
+
 	interface SceneData {
 		id: string;
 		name: string;
 		icon?: string | null;
+		rooms: SceneRoomRef[];
 		actions: SceneAction[];
 		devicePayloads: SceneDevicePayload[];
 		effectivePayloads: SceneDevicePayload[];
@@ -108,6 +114,12 @@
 			cell: breakdownCell,
 		},
 		{
+			key: "rooms",
+			label: "Rooms",
+			sortValue: (s) => s.rooms.map((r) => r.name).join(", "),
+			cell: roomsCell,
+		},
+		{
 			key: "createdBy",
 			label: "Created by",
 			sortValue: (s) => s.createdBy?.name ?? null,
@@ -167,6 +179,12 @@
 {#snippet breakdownCell(s: SceneData)}
 	<span class="text-sm text-muted-foreground">
 		{sceneTargetBreakdown(s.actions)}
+	</span>
+{/snippet}
+
+{#snippet roomsCell(s: SceneData)}
+	<span class="text-sm text-muted-foreground">
+		{s.rooms.length === 0 ? "—" : s.rooms.map((r) => r.name).join(", ")}
 	</span>
 {/snippet}
 

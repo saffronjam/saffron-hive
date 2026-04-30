@@ -15,7 +15,8 @@
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { ArrowLeft, Group, DoorOpen, Clapperboard, Play, X } from "@lucide/svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { ArrowLeft, Group, DoorOpen, Clapperboard, Play, Plus, X } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
@@ -44,6 +45,11 @@
 				id
 				name
 				icon
+				rooms {
+					id
+					name
+					icon
+				}
 				actions {
 					targetType
 					targetId
@@ -345,6 +351,11 @@
 				id
 				name
 				icon
+				rooms {
+					id
+					name
+					icon
+				}
 				actions {
 					targetType
 					targetId
@@ -504,11 +515,14 @@
 
 	let sceneName = $state("");
 	let sceneIcon = $state<string | null>(null);
+	let sceneRoomIds = $state<string[]>([]);
 	let targets = $state<EditableTarget[]>([]);
 	let payloadsByDevice = $state<DevicePayloadMap>(new Map());
 	let pickerOpen = $state(false);
+	let roomPickerOpen = $state(false);
 	let savedSceneName = $state("");
 	let savedSceneIcon = $state<string | null>(null);
+	let savedRoomIdsJson = $state("");
 	let savedTargetsJson = $state("");
 	let savedPayloadsJson = $state("");
 
@@ -520,12 +534,42 @@
 		);
 	}
 
+	function serializeRoomIds(ids: readonly string[]): string {
+		return JSON.stringify([...ids].sort());
+	}
+
 	const isDirty = $derived(
 		sceneName !== savedSceneName ||
 		sceneIcon !== savedSceneIcon ||
+		serializeRoomIds(sceneRoomIds) !== savedRoomIdsJson ||
 		JSON.stringify(targets) !== savedTargetsJson ||
 		serializePayloads(payloadsByDevice) !== savedPayloadsJson,
 	);
+
+	const roomPickerDrawerGroups = $derived.by((): DrawerGroup<TargetKind>[] => {
+		const available = allRooms.filter((r) => !sceneRoomIds.includes(r.id));
+		if (available.length === 0) return [];
+		return [
+			{
+				heading: "Rooms",
+				items: available.map((r) => ({
+					type: "room" as const,
+					id: r.id,
+					name: r.name,
+					icon: DoorOpen,
+				})),
+			},
+		];
+	});
+
+	function handleAddSceneRoom(_type: TargetKind, memberId: string) {
+		if (sceneRoomIds.includes(memberId)) return;
+		sceneRoomIds = [...sceneRoomIds, memberId];
+	}
+
+	function handleRemoveSceneRoom(roomId: string) {
+		sceneRoomIds = sceneRoomIds.filter((id) => id !== roomId);
+	}
 
 	let commandTimers = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -681,6 +725,7 @@
 				input: {
 					name: sceneName.trim() || scene.name,
 					icon: sceneIcon,
+					roomIds: sceneRoomIds,
 					actions,
 					devicePayloads,
 				},
@@ -703,6 +748,7 @@
 
 		savedSceneName = sceneName;
 		savedSceneIcon = sceneIcon;
+		savedRoomIdsJson = serializeRoomIds(sceneRoomIds);
 		savedTargetsJson = JSON.stringify(targets);
 		savedPayloadsJson = serializePayloads(payloadsByDevice);
 	}
@@ -736,11 +782,13 @@
 					scene = result.data.scene;
 					sceneName = result.data.scene.name;
 					sceneIcon = result.data.scene.icon ?? null;
+					sceneRoomIds = (result.data.scene.rooms ?? []).map((r) => r.id);
 					const state = sceneToEditorState(result.data.scene);
 					targets = state.targets;
 					payloadsByDevice = state.payloads;
 					savedSceneName = sceneName;
 					savedSceneIcon = sceneIcon;
+					savedRoomIdsJson = serializeRoomIds(sceneRoomIds);
 					savedTargetsJson = JSON.stringify(targets);
 					savedPayloadsJson = serializePayloads(payloadsByDevice);
 				} else {
@@ -853,6 +901,47 @@
 						placeholder="Scene name"
 					/>
 				</div>
+				<div class="mt-4">
+					<div class="mb-2 flex items-center justify-between gap-3">
+						<p class="text-sm font-medium text-foreground">Rooms</p>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => (roomPickerOpen = true)}
+							disabled={roomPickerDrawerGroups.length === 0}
+						>
+							<Plus class="size-3.5" />
+							<span>Add room</span>
+						</Button>
+					</div>
+					<p class="mb-3 text-xs text-muted-foreground">
+						Rooms where this scene appears in the dashboard. Tag a scene
+						<span class="font-medium">Living Room</span> to make it show up in that
+						room's drawer.
+					</p>
+					{#if sceneRoomIds.length === 0}
+						<p class="text-sm text-muted-foreground">No rooms tagged.</p>
+					{:else}
+						<div class="flex flex-wrap gap-2">
+							{#each sceneRoomIds as roomId (roomId)}
+								{@const r = allRooms.find((x) => x.id === roomId)}
+								{#if r}
+									<span class="inline-flex items-center gap-1">
+										<HiveChip type="room" label={r.name} iconOverride={r.icon} />
+										<button
+											type="button"
+											aria-label={`Remove ${r.name}`}
+											class="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+											onclick={() => handleRemoveSceneRoom(roomId)}
+										>
+											<X class="size-3" />
+										</button>
+									</span>
+								{/if}
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 
 			<SceneEditorComponent
@@ -888,5 +977,14 @@
 		groups={pickerDrawerGroups}
 		multiple
 		onselect={handleAddTarget}
+	/>
+
+	<HiveDrawer
+		bind:open={roomPickerOpen}
+		title="Tag rooms"
+		description="Pick the rooms where this scene should appear on the dashboard."
+		groups={roomPickerDrawerGroups}
+		multiple
+		onselect={handleAddSceneRoom}
 	/>
 </div>

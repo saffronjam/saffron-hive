@@ -45,10 +45,17 @@
 		payload: string;
 	}
 
+	interface SceneRoomRef {
+		id: string;
+		name: string;
+		icon?: string | null;
+	}
+
 	interface SceneData {
 		id: string;
 		name: string;
 		icon?: string | null;
+		rooms: SceneRoomRef[];
 		actions: SceneAction[];
 		devicePayloads: SceneDevicePayload[];
 		effectivePayloads: SceneDevicePayload[];
@@ -78,6 +85,11 @@
 				id
 				name
 				icon
+				rooms {
+					id
+					name
+					icon
+				}
 				actions {
 					targetType
 					targetId
@@ -739,6 +751,13 @@
 										onAddTo={handleAddToScene}
 										addLabel="Add target"
 									>
+										{#snippet subtitleTrailing()}
+											{#if scene.rooms.length > 0}
+												<span class="text-muted-foreground/70">
+													· {scene.rooms.map((r) => r.name).join(", ")}
+												</span>
+											{/if}
+										{/snippet}
 										{#snippet leadingActions()}
 											<Button
 												variant="ghost"
