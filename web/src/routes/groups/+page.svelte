@@ -29,6 +29,8 @@
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import GroupTagsSelect, { type GroupTag } from "$lib/components/group-tags-select.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import {
 		Plus,
@@ -44,7 +46,13 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { deviceStore, type Device } from "$lib/stores/devices";
-	import { rgbToXy } from "$lib/color";
+	import {
+		flattenGroupDevices as flattenGroupDevicesShared,
+		commitGroupBrightness as commitGroupBrightnessShared,
+		commitGroupToggle as commitGroupToggleShared,
+		commitGroupColor as commitGroupColorShared,
+		commitGroupTemp as commitGroupTempShared,
+	} from "$lib/group-commands";
 
 	interface RoomData {
 		id: string;
@@ -66,6 +74,7 @@
 		id: string;
 		name: string;
 		icon?: string | null;
+		tags: GroupTag[];
 		members: GroupMember[];
 		createdBy?: { id: string; username: string; name: string } | null;
 	}
@@ -102,6 +111,7 @@
 				id
 				name
 				icon
+				tags
 				members {
 					id
 					memberType
@@ -204,6 +214,7 @@
 			createGroup(input: $input) {
 				id
 				name
+				tags
 				members {
 					id
 					memberType
@@ -224,6 +235,7 @@
 				id
 				name
 				icon
+				tags
 			}
 		}
 	`);
@@ -256,18 +268,6 @@
 		}
 	`);
 
-	const SET_DEVICE_STATE = graphql(`
-		mutation GroupsPageSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-				state {
-					on
-					brightness
-				}
-			}
-		}
-	`);
-
 	const groupsQuery = queryStore<GroupsQueryResult>({ client, query: GROUPS_QUERY });
 	const roomsQuery = queryStore<{ rooms: RoomData[] }>({ client, query: ROOMS_QUERY });
 
@@ -275,95 +275,24 @@
 	const devices = $derived(Object.values($deviceStore));
 	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
 
-	const deviceById = $derived(new Map(devices.map((d) => [d.id, d])));
-	const groupById = $derived(new Map(groups.map((g) => [g.id, g])));
-	const roomById = $derived(new Map(allRooms.map((r) => [r.id, r])));
-
 	function flattenGroupDevices(group: GroupData): Device[] {
-		const visited = new Set<string>();
-		const ids = new Set<string>();
-
-		function walk(g: GroupData) {
-			if (visited.has(g.id)) return;
-			visited.add(g.id);
-			for (const member of g.members) {
-				if (member.memberType === "device") {
-					ids.add(member.memberId);
-				} else if (member.memberType === "room") {
-					const room = roomById.get(member.memberId);
-					if (room) for (const d of room.resolvedDevices) ids.add(d.id);
-				} else if (member.memberType === "group") {
-					const sub = groupById.get(member.memberId);
-					if (sub) walk(sub);
-				}
-			}
-		}
-
-		walk(group);
-
-		const out: Device[] = [];
-		for (const id of ids) {
-			const d = deviceById.get(id);
-			if (d) out.push(d);
-		}
-		return out;
+		return flattenGroupDevicesShared(group, devices, groups, allRooms);
 	}
 
 	async function commitGroupBrightness(group: GroupData, brightness: number) {
-		const lights = flattenGroupDevices(group).filter(
-			(d) => d.type === "light" && d.state?.brightness != null,
-		);
-		if (lights.length === 0) return;
-		await Promise.all(
-			lights.map((d) => {
-				const input: { on?: true; brightness: number } = { brightness };
-				if (!d.state?.on) input.on = true;
-				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
-			}),
-		);
+		await commitGroupBrightnessShared(client, flattenGroupDevices(group), brightness);
 	}
 
 	async function commitGroupToggle(group: GroupData, on: boolean) {
-		const targets = flattenGroupDevices(group).filter((d) =>
-			d.capabilities.some((c) => c.name === "on_off"),
-		);
-		if (targets.length === 0) return;
-		await Promise.all(
-			targets.map((d) =>
-				client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on } }).toPromise(),
-			),
-		);
+		await commitGroupToggleShared(client, flattenGroupDevices(group), on);
 	}
 
 	async function commitGroupColor(group: GroupData, color: { r: number; g: number; b: number }) {
-		const targets = flattenGroupDevices(group).filter((d) =>
-			d.capabilities.some((c) => c.name === "color"),
-		);
-		if (targets.length === 0) return;
-		const xy = rgbToXy(color.r, color.g, color.b);
-		await Promise.all(
-			targets.map((d) => {
-				const input: { on?: true; color: { r: number; g: number; b: number; x: number; y: number } } = {
-					color: { ...color, x: xy.x, y: xy.y },
-				};
-				if (!d.state?.on) input.on = true;
-				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
-			}),
-		);
+		await commitGroupColorShared(client, flattenGroupDevices(group), color);
 	}
 
 	async function commitGroupTemp(group: GroupData, mired: number) {
-		const targets = flattenGroupDevices(group).filter((d) =>
-			d.capabilities.some((c) => c.name === "color_temp"),
-		);
-		if (targets.length === 0) return;
-		await Promise.all(
-			targets.map((d) => {
-				const input: { on?: true; colorTemp: number } = { colorTemp: mired };
-				if (!d.state?.on) input.on = true;
-				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
-			}),
-		);
+		await commitGroupTempShared(client, flattenGroupDevices(group), mired);
 	}
 
 	let hasLoadedOnce = $state(false);
@@ -497,6 +426,8 @@
 	let editNameDirty = $state(false);
 	let editIcon = $state<string | null>(null);
 	let editIconDirty = $state(false);
+	let editTags = $state<GroupTag[]>([]);
+	let editTagsDirty = $state(false);
 	let editLoading = $state(false);
 
 	let pendingAdds = $state<PendingAdd[]>([]);
@@ -590,7 +521,7 @@
 	const errors = new BannerError();
 
 	const hasPendingChanges = $derived(
-		editNameDirty || editIconDirty || pendingAdds.length > 0 || pendingRemovals.size > 0
+		editNameDirty || editIconDirty || editTagsDirty || pendingAdds.length > 0 || pendingRemovals.size > 0
 	);
 
 	const urlEditId = $derived(page.url.searchParams.get("edit"));
@@ -669,6 +600,7 @@
 				editingGroup = null;
 				editNameDirty = false;
 				editIconDirty = false;
+				editTagsDirty = false;
 				pendingAdds = [];
 				pendingRemovals = new Set();
 			}
@@ -680,8 +612,10 @@
 			editingGroup = match;
 			editName = match.name;
 			editIcon = match.icon ?? null;
+			editTags = [...(match.tags ?? [])];
 			editNameDirty = false;
 			editIconDirty = false;
+			editTagsDirty = false;
 			pendingAdds = [];
 			pendingRemovals = new Set();
 		}
@@ -693,10 +627,11 @@
 		errors.clear();
 
 		const nameDirty = editName.trim() && editName.trim() !== editingGroup.name;
-		if (nameDirty || editIconDirty) {
-			const input: { name?: string; icon?: string | null } = {};
+		if (nameDirty || editIconDirty || editTagsDirty) {
+			const input: { name?: string; icon?: string | null; tags?: GroupTag[] } = {};
 			if (nameDirty) input.name = editName.trim();
 			if (editIconDirty) input.icon = editIcon;
+			if (editTagsDirty) input.tags = editTags;
 			const result = await client
 				.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: editingGroup.id, input })
 				.toPromise();
@@ -738,6 +673,7 @@
 		editLoading = false;
 		editNameDirty = false;
 		editIconDirty = false;
+		editTagsDirty = false;
 		pendingAdds = [];
 		pendingRemovals = new Set();
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
@@ -921,7 +857,7 @@
 	);
 </script>
 
-<UnsavedGuard dirty={editNameDirty || editIconDirty} />
+<UnsavedGuard dirty={editNameDirty || editIconDirty || editTagsDirty} />
 
 <div>
 	{#if errors.message}
@@ -955,6 +891,21 @@
 							bind:value={editName}
 							oninput={() => (editNameDirty = true)}
 							placeholder="Group name"
+						/>
+					</div>
+					<div class="mt-4">
+						<p class="mb-2 text-sm font-medium text-foreground">Tags</p>
+						<p class="mb-3 text-xs text-muted-foreground">
+							Tags determine how the dashboard auto-generates this group. Tag a group
+							<span class="font-medium">Light</span> to render its members as a single virtual light.
+						</p>
+						<GroupTagsSelect
+							value={editTags}
+							onchange={(next) => {
+								editTags = next;
+								editTagsDirty = true;
+							}}
+							disabled={editLoading}
 						/>
 					</div>
 				</div>
