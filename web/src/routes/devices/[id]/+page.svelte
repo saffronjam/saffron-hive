@@ -7,6 +7,9 @@
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
+	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
+	import { deviceIcon } from "$lib/utils";
+	import { deviceStore } from "$lib/stores/devices";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
 		Tooltip,
@@ -78,6 +81,7 @@
 			device(id: $id) {
 				id
 				name
+				icon
 				source
 				type
 				capabilities { name type values valueMin valueMax unit access }
@@ -159,6 +163,16 @@
 		mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
 			setDeviceState(deviceId: $deviceId, state: $state) {
 				id
+			}
+		}
+	`);
+
+	const UPDATE_DEVICE = graphql(`
+		mutation DeviceDetailUpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
+			updateDevice(id: $id, input: $input) {
+				id
+				name
+				icon
 			}
 		}
 	`);
@@ -350,6 +364,18 @@
 		}
 	}
 
+	async function handleIconChange(icon: string | null) {
+		if (!device) return;
+		device = { ...device, icon };
+		deviceStore.updateIcon(device.id, icon);
+		const result = await clientRef.mutation(UPDATE_DEVICE, { id: device.id, input: { icon } }).toPromise();
+		if (result.data?.updateDevice) {
+			const next = result.data.updateDevice.icon ?? null;
+			device = { ...device, icon: next };
+			deviceStore.updateIcon(device.id, next);
+		}
+	}
+
 	interface CommandInput {
 		on?: boolean;
 		brightness?: number;
@@ -498,6 +524,18 @@
 								<dt class="text-sm text-muted-foreground">Type</dt>
 								<dd>
 									<HiveChip type={device.type} />
+								</dd>
+							</div>
+
+							<div class="flex items-center justify-between">
+								<dt class="text-sm text-muted-foreground">Icon</dt>
+								<dd>
+									<IconCell
+										value={device.icon}
+										onselect={handleIconChange}
+										fallback={deviceIcon(device.type)}
+										size="sm"
+									/>
 								</dd>
 							</div>
 
