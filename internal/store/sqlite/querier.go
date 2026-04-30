@@ -67,6 +67,7 @@ type Querier interface {
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
 	DeleteGroup(ctx context.Context, id string) error
+	DeleteGroupTags(ctx context.Context, groupID string) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
 	DeleteSceneActionsByScene(ctx context.Context, sceneID string) error
@@ -107,11 +108,13 @@ type Querier interface {
 	// Deletion is by alarm_id, removing every row belonging to a logical alarm
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
+	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
+	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
 	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
@@ -123,6 +126,7 @@ type Querier interface {
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
 	ListEnabledAutomations(ctx context.Context) ([]ListEnabledAutomationsRow, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
+	ListGroupTags(ctx context.Context, groupID string) ([]device.GroupTag, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
 	ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, error)

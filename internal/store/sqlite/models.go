@@ -137,6 +137,11 @@ type GroupMember struct {
 	MemberID   string
 }
 
+type GroupTag struct {
+	GroupID string
+	Tag     device.GroupTag
+}
+
 type MqttConfig struct {
 	ID       int64
 	Broker   string
