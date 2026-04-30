@@ -48,25 +48,32 @@ type CreateSceneParams struct {
 	ID        string
 	Name      string
 	CreatedBy *string
+	Rooms     []string
 }
 
 // UpdateSceneParams holds optional fields for updating a scene.
 // SetIcon distinguishes "leave icon alone" (false) from "set icon to this value"
 // (true, with Icon either a pointer to the new value or nil to clear the column).
+// SetRooms likewise distinguishes "leave rooms alone" from "replace rooms with
+// this set" (nil/empty Rooms clears all room assignments when SetRooms is true).
 type UpdateSceneParams struct {
-	Name    *string
-	SetIcon bool
-	Icon    *string
+	Name     *string
+	SetIcon  bool
+	Icon     *string
+	SetRooms bool
+	Rooms    []string
 }
 
 // Scene represents a scene row. ActivatedAt is non-nil while the scene is
 // currently active — every device it reached at apply time is still in the
 // scene's desired state. Any scene-relevant state change on any of those
-// devices clears ActivatedAt back to nil.
+// devices clears ActivatedAt back to nil. Rooms is the list of room IDs the
+// scene is tagged to (controls which room drawer surfaces it on the dashboard).
 type Scene struct {
 	ID          string
 	Name        string
 	Icon        *string
+	Rooms       []string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	CreatedBy   *UserRef

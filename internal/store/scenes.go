@@ -57,12 +57,26 @@ func ParseScenePayload(raw string) (ScenePayload, error) {
 
 // CreateScene inserts a new scene and returns it.
 func (s *DB) CreateScene(ctx context.Context, params CreateSceneParams) (Scene, error) {
-	if err := s.q.CreateScene(ctx, sqlite.CreateSceneParams{
-		ID:        params.ID,
-		Name:      params.Name,
-		CreatedBy: params.CreatedBy,
-	}); err != nil {
-		return Scene{}, fmt.Errorf("create scene: %w", err)
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.CreateScene(ctx, sqlite.CreateSceneParams{
+			ID:        params.ID,
+			Name:      params.Name,
+			CreatedBy: params.CreatedBy,
+		}); err != nil {
+			return fmt.Errorf("create scene: %w", err)
+		}
+		for _, roomID := range dedupeStrings(params.Rooms) {
+			if err := q.InsertSceneRoom(ctx, sqlite.InsertSceneRoomParams{
+				SceneID: params.ID,
+				RoomID:  roomID,
+			}); err != nil {
+				return fmt.Errorf("insert scene room: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Scene{}, err
 	}
 	return s.GetScene(ctx, params.ID)
 }
@@ -73,10 +87,15 @@ func (s *DB) GetScene(ctx context.Context, id string) (Scene, error) {
 	if err != nil {
 		return Scene{}, fmt.Errorf("get scene: %w", err)
 	}
+	rooms, err := s.q.ListSceneRooms(ctx, id)
+	if err != nil {
+		return Scene{}, fmt.Errorf("list scene rooms: %w", err)
+	}
 	return Scene{
 		ID:          row.ID,
 		Name:        row.Name,
 		Icon:        row.Icon,
+		Rooms:       rooms,
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
 		ActivatedAt: row.ActivatedAt,
@@ -90,12 +109,17 @@ func (s *DB) ListScenes(ctx context.Context) ([]Scene, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list scenes: %w", err)
 	}
+	roomsByScene, err := s.loadAllSceneRooms(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var scenes []Scene
 	for _, r := range rows {
 		scenes = append(scenes, Scene{
 			ID:          r.ID,
 			Name:        r.Name,
 			Icon:        r.Icon,
+			Rooms:       roomsByScene[r.ID],
 			CreatedAt:   r.CreatedAt,
 			UpdatedAt:   r.UpdatedAt,
 			ActivatedAt: r.ActivatedAt,
@@ -107,29 +131,77 @@ func (s *DB) ListScenes(ctx context.Context) ([]Scene, error) {
 
 // UpdateScene updates a scene's mutable fields.
 func (s *DB) UpdateScene(ctx context.Context, id string, params UpdateSceneParams) (Scene, error) {
-	if params.Name != nil {
-		if err := s.q.UpdateSceneName(ctx, sqlite.UpdateSceneNameParams{
-			Name: *params.Name,
-			ID:   id,
-		}); err != nil {
-			return Scene{}, fmt.Errorf("update scene name: %w", err)
-		}
-	}
-	if params.SetIcon {
-		if params.Icon == nil {
-			if err := s.q.ClearSceneIcon(ctx, id); err != nil {
-				return Scene{}, fmt.Errorf("clear scene icon: %w", err)
-			}
-		} else {
-			if err := s.q.UpdateSceneIcon(ctx, sqlite.UpdateSceneIconParams{
-				Icon: params.Icon,
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		if params.Name != nil {
+			if err := q.UpdateSceneName(ctx, sqlite.UpdateSceneNameParams{
+				Name: *params.Name,
 				ID:   id,
 			}); err != nil {
-				return Scene{}, fmt.Errorf("update scene icon: %w", err)
+				return fmt.Errorf("update scene name: %w", err)
 			}
 		}
+		if params.SetIcon {
+			if params.Icon == nil {
+				if err := q.ClearSceneIcon(ctx, id); err != nil {
+					return fmt.Errorf("clear scene icon: %w", err)
+				}
+			} else {
+				if err := q.UpdateSceneIcon(ctx, sqlite.UpdateSceneIconParams{
+					Icon: params.Icon,
+					ID:   id,
+				}); err != nil {
+					return fmt.Errorf("update scene icon: %w", err)
+				}
+			}
+		}
+		if params.SetRooms {
+			if err := q.DeleteSceneRooms(ctx, id); err != nil {
+				return fmt.Errorf("clear scene rooms: %w", err)
+			}
+			for _, roomID := range dedupeStrings(params.Rooms) {
+				if err := q.InsertSceneRoom(ctx, sqlite.InsertSceneRoomParams{
+					SceneID: id,
+					RoomID:  roomID,
+				}); err != nil {
+					return fmt.Errorf("insert scene room: %w", err)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Scene{}, err
 	}
 	return s.GetScene(ctx, id)
+}
+
+// dedupeStrings removes empty and duplicate entries, preserving first-seen order.
+func dedupeStrings(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
+}
+
+func (s *DB) loadAllSceneRooms(ctx context.Context) (map[string][]string, error) {
+	rows, err := s.q.ListAllSceneRooms(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list all scene rooms: %w", err)
+	}
+	out := make(map[string][]string, len(rows))
+	for _, r := range rows {
+		out[r.SceneID] = append(out[r.SceneID], r.RoomID)
+	}
+	return out, nil
 }
 
 // DeleteScene deletes a scene by its ID. Cascading deletes remove associated actions.
