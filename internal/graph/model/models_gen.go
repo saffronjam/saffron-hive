@@ -217,6 +217,7 @@ type CreateSceneInput struct {
 	Name           string                                        `json:"name"`
 	Actions        []*SceneActionInput                           `json:"actions"`
 	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
+	RoomIds        graphql.Omittable[[]string]                   `json:"roomIds,omitempty"`
 }
 
 type CreateUserInput struct {
@@ -455,9 +456,14 @@ type RoomMemberInput struct {
 }
 
 type Scene struct {
-	ID      string         `json:"id"`
-	Name    string         `json:"name"`
-	Icon    *string        `json:"icon,omitempty"`
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	Icon *string `json:"icon,omitempty"`
+	// Rooms this scene is tagged to. Drives the per-room dashboard drawer's
+	// scene list — the drawer for a given room shows scenes whose `rooms`
+	// contain that room. A scene can carry zero rooms (not surfaced in any
+	// room drawer) or many.
+	Rooms   []*Room        `json:"rooms"`
 	Actions []*SceneAction `json:"actions"`
 	// Per-device payload overrides the user has saved explicitly. Devices that
 	// inherit their room/group default do NOT appear here. Use this for the
@@ -597,6 +603,7 @@ type UpdateSceneInput struct {
 	Icon           graphql.Omittable[*string]                    `json:"icon,omitempty"`
 	Actions        graphql.Omittable[[]*SceneActionInput]        `json:"actions,omitempty"`
 	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
+	RoomIds        graphql.Omittable[[]string]                   `json:"roomIds,omitempty"`
 }
 
 type User struct {

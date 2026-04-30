@@ -65,6 +65,13 @@ type Scene {
   id: ID!
   name: String!
   icon: String
+  """
+  Rooms this scene is tagged to. Drives the per-room dashboard drawer's
+  scene list — the drawer for a given room shows scenes whose `rooms`
+  contain that room. A scene can carry zero rooms (not surfaced in any
+  room drawer) or many.
+  """
+  rooms: [Room!]!
   actions: [SceneAction!]!
   """
   Per-device payload overrides the user has saved explicitly. Devices that
@@ -578,6 +585,7 @@ input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
   devicePayloads: [SceneDevicePayloadInput!]
+  roomIds: [ID!]
 }
 
 input SceneActionInput {
@@ -612,6 +620,7 @@ input UpdateSceneInput {
   icon: String
   actions: [SceneActionInput!]
   devicePayloads: [SceneDevicePayloadInput!]
+  roomIds: [ID!]
 }
 
 input CreateAutomationInput {

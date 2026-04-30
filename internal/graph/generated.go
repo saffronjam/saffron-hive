@@ -366,6 +366,7 @@ type ComplexityRoot struct {
 		ID                func(childComplexity int) int
 		Icon              func(childComplexity int) int
 		Name              func(childComplexity int) int
+		Rooms             func(childComplexity int) int
 	}
 
 	SceneAction struct {
@@ -2259,6 +2260,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.Name(childComplexity), true
+	case "Scene.rooms":
+		if e.ComplexityRoot.Scene.Rooms == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.Rooms(childComplexity), true
 
 	case "SceneAction.target":
 		if e.ComplexityRoot.SceneAction.Target == nil {
@@ -2691,6 +2698,13 @@ type Scene {
   id: ID!
   name: String!
   icon: String
+  """
+  Rooms this scene is tagged to. Drives the per-room dashboard drawer's
+  scene list — the drawer for a given room shows scenes whose ` + "`" + `rooms` + "`" + `
+  contain that room. A scene can carry zero rooms (not surfaced in any
+  room drawer) or many.
+  """
+  rooms: [Room!]!
   actions: [SceneAction!]!
   """
   Per-device payload overrides the user has saved explicitly. Devices that
@@ -3204,6 +3218,7 @@ input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
   devicePayloads: [SceneDevicePayloadInput!]
+  roomIds: [ID!]
 }
 
 input SceneActionInput {
@@ -3238,6 +3253,7 @@ input UpdateSceneInput {
   icon: String
   actions: [SceneActionInput!]
   devicePayloads: [SceneDevicePayloadInput!]
+  roomIds: [ID!]
 }
 
 input CreateAutomationInput {
@@ -8921,6 +8937,8 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 				return ec.fieldContext_Scene_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Scene_icon(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Scene_rooms(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
@@ -8993,6 +9011,8 @@ func (ec *executionContext) fieldContext_Mutation_createScene(ctx context.Contex
 				return ec.fieldContext_Scene_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Scene_icon(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Scene_rooms(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
@@ -9065,6 +9085,8 @@ func (ec *executionContext) fieldContext_Mutation_updateScene(ctx context.Contex
 				return ec.fieldContext_Scene_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Scene_icon(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Scene_rooms(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
@@ -11929,6 +11951,8 @@ func (ec *executionContext) fieldContext_Query_scenes(_ context.Context, field g
 				return ec.fieldContext_Scene_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Scene_icon(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Scene_rooms(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
@@ -11990,6 +12014,8 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 				return ec.fieldContext_Scene_name(ctx, field)
 			case "icon":
 				return ec.fieldContext_Scene_icon(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Scene_rooms(ctx, field)
 			case "actions":
 				return ec.fieldContext_Scene_actions(ctx, field)
 			case "devicePayloads":
@@ -13787,6 +13813,49 @@ func (ec *executionContext) fieldContext_Scene_icon(_ context.Context, field gra
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Scene_rooms(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Scene_rooms,
+		func(ctx context.Context) (any, error) {
+			return obj.Rooms, nil
+		},
+		nil,
+		ec.marshalNRoom2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Scene_rooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Scene",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Room_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Room_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Room_icon(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
 	}
 	return fc, nil
@@ -17330,7 +17399,7 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "actions", "devicePayloads"}
+	fieldsInOrder := [...]string{"name", "actions", "devicePayloads", "roomIds"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -17358,6 +17427,13 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.DevicePayloads = graphql.OmittableOf(data)
+		case "roomIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomIds = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -18164,7 +18240,7 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "actions", "devicePayloads"}
+	fieldsInOrder := [...]string{"name", "icon", "actions", "devicePayloads", "roomIds"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18199,6 +18275,13 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.DevicePayloads = graphql.OmittableOf(data)
+		case "roomIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomIds = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -20831,6 +20914,11 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "icon":
 			out.Values[i] = ec._Scene_icon(ctx, field, obj)
+		case "rooms":
+			out.Values[i] = ec._Scene_rooms(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "actions":
 			out.Values[i] = ec._Scene_actions(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -23398,6 +23486,42 @@ func (ec *executionContext) marshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaff
 		fc.Result = &v[i]
 		return ec.marshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx, sel, v[i])
 	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
 
 	for _, e := range ret {
 		if e == graphql.Null {

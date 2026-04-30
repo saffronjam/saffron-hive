@@ -314,6 +314,14 @@ func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolv
 		CreatedBy:   mapUserRef(sc.CreatedBy),
 		ActivatedAt: sc.ActivatedAt,
 	}
+	ms.Rooms = make([]*model.Room, 0, len(sc.Rooms))
+	for _, roomID := range sc.Rooms {
+		room, err := s.GetRoom(ctx, roomID)
+		if err != nil {
+			continue
+		}
+		ms.Rooms = append(ms.Rooms, mapSceneRoomRef(room))
+	}
 	ms.Actions = make([]*model.SceneAction, len(actions))
 	for i, a := range actions {
 		ms.Actions[i] = &model.SceneAction{
@@ -784,6 +792,21 @@ func (r *mutationResolver) walkDescendants(ctx context.Context, current, target 
 		}
 	}
 	return nil
+}
+
+// mapSceneRoomRef builds a minimal Room for use as a Scene.rooms entry. Only
+// id, name, icon, and creator attribution. Members and ResolvedDevices return
+// as empty slices (the schema requires non-null arrays); consumers that need
+// the full room shape query Query.room or Query.rooms directly.
+func mapSceneRoomRef(r store.Room) *model.Room {
+	return &model.Room{
+		ID:              r.ID,
+		Name:            r.Name,
+		Icon:            r.Icon,
+		Members:         []*model.RoomMember{},
+		ResolvedDevices: []*model.Device{},
+		CreatedBy:       mapUserRef(r.CreatedBy),
+	}
 }
 
 func mapRoom(ctx context.Context, sr device.StateReader, s GraphStore, r store.Room) *model.Room {
