@@ -61,6 +61,13 @@
 		 * footprint so they line up in a grid regardless of footer content.
 		 */
 		class?: string;
+		/**
+		 * Whole-card click handler. When set, the card wrapper becomes a
+		 * keyboard-focusable button-like region (role="button", Enter/Space
+		 * activate). Use only with `readOnly` so there are no nested
+		 * interactive controls inside that would conflict.
+		 */
+		onclick?: (entity: T) => void;
 	}
 
 	let {
@@ -83,7 +90,16 @@
 		footer,
 		readOnly = false,
 		class: extraClass = "",
+		onclick,
 	}: Props = $props();
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (!onclick) return;
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			onclick(entity);
+		}
+	}
 
 	const tintClass = $derived.by(() => {
 		const n = tintColors?.length ?? 0;
@@ -135,11 +151,16 @@
 	});
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	class="relative flex flex-col overflow-hidden rounded-lg shadow-card bg-card p-4 transition-all {showTint
 		? tintClass
-		: ''} {extraClass}"
+		: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {extraClass}"
 	style={tintStyle}
+	role={onclick ? "button" : undefined}
+	tabindex={onclick ? 0 : undefined}
+	onclick={onclick ? () => onclick(entity) : undefined}
+	onkeydown={onclick ? handleKeydown : undefined}
 >
 	<div class="relative flex items-center justify-between">
 		<div class="flex flex-1 min-w-0 items-center gap-3">
