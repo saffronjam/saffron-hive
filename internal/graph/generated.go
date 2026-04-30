@@ -145,6 +145,7 @@ type ComplexityRoot struct {
 		Available    func(childComplexity int) int
 		Capabilities func(childComplexity int) int
 		ID           func(childComplexity int) int
+		Icon         func(childComplexity int) int
 		LastSeen     func(childComplexity int) int
 		Name         func(childComplexity int) int
 		Source       func(childComplexity int) int
@@ -949,6 +950,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.ID(childComplexity), true
+	case "Device.icon":
+		if e.ComplexityRoot.Device.Icon == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Icon(childComplexity), true
 	case "Device.lastSeen":
 		if e.ComplexityRoot.Device.LastSeen == nil {
 			break
@@ -2655,6 +2662,7 @@ type Capability {
 type Device {
   id: ID!
   name: String!
+  icon: String
   source: String!
   type: String!
   capabilities: [Capability!]!
@@ -3212,6 +3220,7 @@ input ColorInput {
 
 input UpdateDeviceInput {
   name: String
+  icon: String
 }
 
 input CreateSceneInput {
@@ -6329,6 +6338,35 @@ func (ec *executionContext) fieldContext_Device_name(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _Device_icon(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_icon,
+		func(ctx context.Context) (any, error) {
+			return obj.Icon, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_icon(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Device_source(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8179,6 +8217,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -8356,6 +8396,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -8737,6 +8779,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -8809,6 +8853,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -11817,6 +11863,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -11878,6 +11926,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -13490,6 +13540,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -13667,6 +13719,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -14721,6 +14775,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -18057,7 +18113,7 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name"}
+	fieldsInOrder := [...]string{"name", "icon"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18071,6 +18127,13 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 				return it, err
 			}
 			it.Name = graphql.OmittableOf(data)
+		case "icon":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("icon"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Icon = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -19070,6 +19133,8 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "icon":
+			out.Values[i] = ec._Device_icon(ctx, field, obj)
 		case "source":
 			out.Values[i] = ec._Device_source(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

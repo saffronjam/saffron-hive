@@ -81,6 +81,7 @@ type Device struct {
 	Removed      bool
 	LastSeen     *time.Time
 	Capabilities string
+	Icon         *string
 }
 
 type DeviceStateSample struct {

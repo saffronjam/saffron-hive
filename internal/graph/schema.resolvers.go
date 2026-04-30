@@ -53,6 +53,16 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 	if err != nil {
 		return nil, err
 	}
+	if icon, ok := input.Icon.ValueOK(); ok {
+		d, err = r.Store.UpdateDeviceIcon(ctx, store.UpdateDeviceIconParams{
+			ID:      deviceID,
+			SetIcon: true,
+			Icon:    icon,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 	return mapDeviceFromReader(r.StateReader, d), nil
 }
 

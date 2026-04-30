@@ -229,6 +229,7 @@ type CreateUserInput struct {
 type Device struct {
 	ID           string        `json:"id"`
 	Name         string        `json:"name"`
+	Icon         *string       `json:"icon,omitempty"`
 	Source       string        `json:"source"`
 	Type         string        `json:"type"`
 	Capabilities []*Capability `json:"capabilities"`
@@ -575,6 +576,7 @@ type UpdateCurrentUserInput struct {
 
 type UpdateDeviceInput struct {
 	Name graphql.Omittable[*string] `json:"name,omitempty"`
+	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
 }
 
 type UpdateEffectInput struct {

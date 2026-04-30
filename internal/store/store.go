@@ -29,6 +29,14 @@ type UpdateDeviceParams struct {
 	LastSeen  time.Time
 }
 
+// UpdateDeviceIconParams holds the parameters for updating a device's icon.
+// SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
+type UpdateDeviceIconParams struct {
+	ID      device.DeviceID
+	SetIcon bool
+	Icon    *string
+}
+
 // RegisterZigbeeDeviceParams holds the parameters for registering a zigbee device.
 type RegisterZigbeeDeviceParams struct {
 	DeviceID     device.DeviceID

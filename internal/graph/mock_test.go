@@ -122,6 +122,10 @@ func (m *mockStore) UpdateDevice(_ context.Context, _ store.UpdateDeviceParams) 
 	return device.Device{}, nil
 }
 
+func (m *mockStore) UpdateDeviceIcon(_ context.Context, _ store.UpdateDeviceIconParams) (device.Device, error) {
+	return device.Device{}, nil
+}
+
 func (m *mockStore) CreateScene(_ context.Context, params store.CreateSceneParams) (store.Scene, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

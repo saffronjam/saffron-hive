@@ -12,6 +12,15 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const clearDeviceIcon = `-- name: ClearDeviceIcon :exec
+UPDATE devices SET icon = NULL WHERE id = ?
+`
+
+func (q *Queries) ClearDeviceIcon(ctx context.Context, id device.DeviceID) error {
+	_, err := q.db.ExecContext(ctx, clearDeviceIcon, id)
+	return err
+}
+
 const createDevice = `-- name: CreateDevice :exec
 
 INSERT INTO devices (id, name, source, type, capabilities, available, removed)
@@ -50,7 +59,7 @@ func (q *Queries) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
 FROM devices
 WHERE id = ?
 `
@@ -58,6 +67,7 @@ WHERE id = ?
 type GetDeviceRow struct {
 	ID           device.DeviceID
 	Name         string
+	Icon         *string
 	Source       device.Source
 	Type         device.DeviceType
 	Capabilities string
@@ -72,6 +82,7 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Icon,
 		&i.Source,
 		&i.Type,
 		&i.Capabilities,
@@ -83,13 +94,14 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
 FROM devices
 `
 
 type ListDevicesRow struct {
 	ID           device.DeviceID
 	Name         string
+	Icon         *string
 	Source       device.Source
 	Type         device.DeviceType
 	Capabilities string
@@ -110,6 +122,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Icon,
 			&i.Source,
 			&i.Type,
 			&i.Capabilities,
@@ -131,7 +144,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
 FROM devices
 WHERE source = ?
 `
@@ -139,6 +152,7 @@ WHERE source = ?
 type ListDevicesBySourceRow struct {
 	ID           device.DeviceID
 	Name         string
+	Icon         *string
 	Source       device.Source
 	Type         device.DeviceType
 	Capabilities string
@@ -159,6 +173,7 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Icon,
 			&i.Source,
 			&i.Type,
 			&i.Capabilities,
@@ -201,6 +216,25 @@ func (q *Queries) UpdateDevice(ctx context.Context, arg UpdateDeviceParams) erro
 		arg.LastSeen,
 		arg.ID,
 	)
+	return err
+}
+
+const updateDeviceIcon = `-- name: UpdateDeviceIcon :exec
+
+UPDATE devices SET icon = ? WHERE id = ?
+`
+
+type UpdateDeviceIconParams struct {
+	Icon *string
+	ID   device.DeviceID
+}
+
+// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
+// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
+// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
+// overwrite a user-set icon.
+func (q *Queries) UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeviceIcon, arg.Icon, arg.ID)
 	return err
 }
 

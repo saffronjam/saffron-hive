@@ -55,6 +55,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 	return device.Device{
 		ID:           row.ID,
 		Name:         row.Name,
+		Icon:         row.Icon,
 		Source:       row.Source,
 		Type:         row.Type,
 		Capabilities: unmarshalCapabilities(row.Capabilities),
@@ -75,6 +76,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 		devices = append(devices, device.Device{
 			ID:           r.ID,
 			Name:         r.Name,
+			Icon:         r.Icon,
 			Source:       r.Source,
 			Type:         r.Type,
 			Capabilities: unmarshalCapabilities(r.Capabilities),
@@ -97,6 +99,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 		devices = append(devices, device.Device{
 			ID:           r.ID,
 			Name:         r.Name,
+			Icon:         r.Icon,
 			Source:       r.Source,
 			Type:         r.Type,
 			Capabilities: unmarshalCapabilities(r.Capabilities),
@@ -109,6 +112,8 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 }
 
 // UpdateDevice updates a device's mutable fields and returns the updated device.
+// The icon column is intentionally not part of this update path; user-set icons
+// must persist across MQTT-driven re-syncs. Use UpdateDeviceIcon for icon changes.
 func (s *DB) UpdateDevice(ctx context.Context, params UpdateDeviceParams) (device.Device, error) {
 	lastSeen := params.LastSeen
 	var lastSeenArg *time.Time
@@ -123,6 +128,28 @@ func (s *DB) UpdateDevice(ctx context.Context, params UpdateDeviceParams) (devic
 		ID:        params.ID,
 	}); err != nil {
 		return device.Device{}, fmt.Errorf("update device: %w", err)
+	}
+	return s.GetDevice(ctx, params.ID)
+}
+
+// UpdateDeviceIcon sets a device's user-overridable icon and returns the updated
+// device. A nil params.Icon clears the column (frontend then falls back to the
+// type-based icon). SetIcon must be true; this is a dedicated entry point and
+// the bool exists for parity with UpdateRoomParams / UpdateGroupParams callers.
+func (s *DB) UpdateDeviceIcon(ctx context.Context, params UpdateDeviceIconParams) (device.Device, error) {
+	if params.SetIcon {
+		if params.Icon == nil {
+			if err := s.q.ClearDeviceIcon(ctx, params.ID); err != nil {
+				return device.Device{}, fmt.Errorf("clear device icon: %w", err)
+			}
+		} else {
+			if err := s.q.UpdateDeviceIcon(ctx, sqlite.UpdateDeviceIconParams{
+				Icon: params.Icon,
+				ID:   params.ID,
+			}); err != nil {
+				return device.Device{}, fmt.Errorf("update device icon: %w", err)
+			}
+		}
 	}
 	return s.GetDevice(ctx, params.ID)
 }

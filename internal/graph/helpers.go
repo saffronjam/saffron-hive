@@ -238,6 +238,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 	md := &model.Device{
 		ID:           string(d.ID),
 		Name:         d.Name,
+		Icon:         d.Icon,
 		Source:       string(d.Source),
 		Type:         string(d.Type),
 		Capabilities: mapCapabilities(d.Capabilities),

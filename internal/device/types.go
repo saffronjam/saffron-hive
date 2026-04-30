@@ -63,6 +63,7 @@ type Capability struct {
 type Device struct {
 	ID           DeviceID     `json:"id"`
 	Name         string       `json:"name"`
+	Icon         *string      `json:"icon,omitempty"`
 	Source       Source       `json:"source"`
 	Type         DeviceType   `json:"type"`
 	Capabilities []Capability `json:"capabilities"`

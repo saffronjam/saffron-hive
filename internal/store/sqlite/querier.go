@@ -23,6 +23,7 @@ type Querier interface {
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
 	ClearAutomationIcon(ctx context.Context, id string) error
+	ClearDeviceIcon(ctx context.Context, id device.DeviceID) error
 	ClearEffectIcon(ctx context.Context, id string) error
 	ClearEffectNativeName(ctx context.Context, id string) error
 	ClearGroupIcon(ctx context.Context, id string) error
@@ -179,6 +180,11 @@ type Querier interface {
 	// NOT touched so the "last edited" semantics stay distinct from "last fired".
 	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
+	// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
+	// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
+	// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
+	// overwrite a user-set icon.
+	UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error
 	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
 	UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error

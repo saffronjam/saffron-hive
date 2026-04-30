@@ -46,6 +46,7 @@ type GraphStore interface {
 	// Devices
 	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
 	UpdateDevice(ctx context.Context, params store.UpdateDeviceParams) (device.Device, error)
+	UpdateDeviceIcon(ctx context.Context, params store.UpdateDeviceIconParams) (device.Device, error)
 
 	// Scenes
 	CreateScene(ctx context.Context, params store.CreateSceneParams) (store.Scene, error)
