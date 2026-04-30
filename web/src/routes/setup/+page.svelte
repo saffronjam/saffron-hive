@@ -10,6 +10,7 @@
 	import { Loader2, Plug, CircleCheck, CircleX } from "@lucide/svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { delayedLoading } from "$lib/delayed-loading.svelte";
 
 	const SETUP_STATUS = graphql(`
 		query setupStatus {
@@ -52,6 +53,7 @@
 
 	let client: Client;
 	let phase = $state<"loading" | "user" | "mqtt" | "done">("loading");
+	const loader = delayedLoading(() => phase === "loading");
 	let error = $state<string | null>(null);
 
 	// Phase 1 state
@@ -170,10 +172,12 @@
 <div class="flex min-h-screen items-center justify-center bg-background p-6">
 	<div class="w-full max-w-lg rounded-lg shadow-card bg-card p-8">
 		{#if phase === "loading"}
-			<div class="flex items-center gap-2 text-muted-foreground">
-				<Loader2 class="size-4 animate-spin" />
-				Loading...
-			</div>
+			{#if loader.visible}
+				<div class="flex items-center gap-2 text-muted-foreground">
+					<Loader2 class="size-4 animate-spin" />
+					Loading...
+				</div>
+			{/if}
 		{:else if phase === "user"}
 			<h1 class="text-xl font-semibold">Welcome to Hive!</h1>
 			<p class="mt-1 text-sm text-muted-foreground">

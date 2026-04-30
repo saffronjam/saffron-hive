@@ -14,6 +14,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
 	import { deviceStore } from "$lib/stores/devices";
+	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { onMount, onDestroy } from "svelte";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/stores";
@@ -29,6 +30,7 @@
 	const PUBLIC_ROUTES = ["/login", "/setup"];
 
 	let ready = $state(false);
+	const loader = delayedLoading(() => !ready);
 
 	const SETUP_STATUS_QUERY = graphql(`
 		query setupStatus {
@@ -108,7 +110,9 @@
 </svelte:head>
 
 {#if !ready}
-	<div class="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>
+	{#if loader.visible}
+		<div class="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>
+	{/if}
 {:else if PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))}
 	{@render children()}
 {:else}

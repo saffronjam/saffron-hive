@@ -23,6 +23,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { Theme as ThemeEnum } from "$lib/gql/graphql";
 	import { Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
@@ -53,6 +54,8 @@
 	pageHeader.actions = [];
 	pageHeader.viewToggle = null;
 	onDestroy(() => pageHeader.reset());
+
+	const loader = delayedLoading(() => !me.user);
 
 	let nameDraft = $state(me.user?.name ?? auth.user?.name ?? "");
 	let nameSaving = $state(false);
@@ -277,7 +280,7 @@
 				<div>
 					<Button variant="outline" onclick={openPasswordDialog}>Change password</Button>
 				</div>
-			{:else}
+			{:else if loader.visible}
 				<p class="text-sm text-muted-foreground">Loading…</p>
 			{/if}
 		</CardContent>

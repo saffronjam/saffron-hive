@@ -43,6 +43,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { EllipsisVertical, KeyRound, Plus, Trash2 } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { toast } from "svelte-sonner";
@@ -97,6 +98,7 @@
 	}
 
 	const users = queryStore({ client, query: USERS_QUERY });
+	const loader = delayedLoading(() => $users.fetching && ($users.data?.users.length ?? 0) === 0);
 
 	const userList = $derived.by<UserRow[]>(() => {
 		const data = $users.data?.users ?? [];
@@ -325,7 +327,9 @@
 	</div>
 
 	{#if $users.fetching && userList.length === 0}
-		<p class="text-sm text-muted-foreground">Loading users…</p>
+		{#if loader.visible}
+			<p class="text-sm text-muted-foreground">Loading users…</p>
+		{/if}
 	{:else if filtered.length === 0}
 		<p class="text-sm text-muted-foreground">No users match.</p>
 	{:else}
