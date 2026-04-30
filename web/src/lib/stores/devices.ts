@@ -217,6 +217,13 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, name } });
   }
 
+  function updateIcon(deviceId: string, icon: string | null) {
+    const device = current[deviceId];
+    if (!device) return;
+    if ((device.icon ?? null) === icon) return;
+    set({ ...current, [deviceId]: { ...device, icon } });
+  }
+
   function removeDevice(deviceId: string) {
     if (!(deviceId in current)) return;
     const { [deviceId]: _, ...rest } = current;
@@ -230,6 +237,7 @@ function createDeviceStore() {
     updateAvailability,
     addDevice,
     updateName,
+    updateIcon,
     removeDevice,
 
     async start(client: Client) {

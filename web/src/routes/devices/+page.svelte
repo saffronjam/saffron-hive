@@ -94,6 +94,7 @@
 			updateDevice(id: $id, input: $input) {
 				id
 				name
+				icon
 			}
 		}
 	`);
@@ -246,6 +247,16 @@
 		}
 	}
 
+	async function handleIconChange(id: string, icon: string | null) {
+		deviceStore.updateIcon(id, icon);
+		const result = await client
+			.mutation(UPDATE_DEVICE, { id, input: { icon } })
+			.toPromise();
+		if (result.data) {
+			deviceStore.updateIcon(id, result.data.updateDevice.icon ?? null);
+		}
+	}
+
 	onMount(() => {
 		void refreshMemberships();
 	});
@@ -297,6 +308,7 @@
 								roomChips={chips.roomChips}
 								groupChips={chips.groupChips}
 								onrename={handleRename}
+								oniconchange={handleIconChange}
 								onAddTo={handleAddTo}
 							/>
 						{/each}
@@ -310,6 +322,7 @@
 						})}
 						{selection}
 						onrename={handleRename}
+						oniconchange={handleIconChange}
 						onAddTo={handleAddTo}
 					/>
 				{/snippet}

@@ -12,7 +12,7 @@
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
-	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
+	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
@@ -24,7 +24,7 @@
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
-	import { sentenceCase } from "$lib/utils";
+	import { deviceIcon, sentenceCase } from "$lib/utils";
 	import { DoorOpen, Group as GroupIcon, Plus } from "@lucide/svelte";
 
 	interface MembershipChip {
@@ -43,10 +43,11 @@
 		rows: Row[];
 		selection: TableSelection;
 		onrename: (id: string, newName: string) => void;
+		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 	}
 
-	let { rows, selection, onrename, onAddTo }: Props = $props();
+	let { rows, selection, onrename, oniconchange, onAddTo }: Props = $props();
 
 	const COLUMNS: ColumnDef<Row>[] = [
 		{
@@ -58,12 +59,18 @@
 			cell: selectCell,
 		},
 		{
-			key: "status",
-			label: "Status",
+			key: "icon",
+			label: "",
 			hideable: false,
-			headClass: "w-8",
-			sortValue: (r) => r.device.available,
-			cell: statusCell,
+			headClass: "w-12",
+			cellClass: "w-12",
+			cell: iconCell,
+		},
+		{
+			key: "name",
+			label: "Name",
+			sortValue: (r) => r.device.name,
+			cell: nameCell,
 		},
 		{
 			key: "color",
@@ -79,12 +86,6 @@
 			headClass: "w-24",
 			sortValue: (r) => r.device.type,
 			cell: typeCell,
-		},
-		{
-			key: "name",
-			label: "Name",
-			sortValue: (r) => r.device.name,
-			cell: nameCell,
 		},
 		{
 			key: "source",
@@ -134,15 +135,6 @@
 	/>
 {/snippet}
 
-{#snippet statusCell(row: Row)}
-	<span
-		class="inline-block h-2.5 w-2.5 shrink-0 rounded-full {row.device.available
-			? 'bg-status-online'
-			: 'bg-status-offline'}"
-		aria-label={row.device.available ? "Online" : "Offline"}
-	></span>
-{/snippet}
-
 {#snippet colorCell(row: Row)}
 	<HiveColorSwatch color={deviceTint(row.device)} />
 {/snippet}
@@ -151,11 +143,28 @@
 	<HiveChip type={row.device.type} />
 {/snippet}
 
-{#snippet nameCell(row: Row)}
-	<InlineEditName
-		name={row.device.name}
-		onsave={(newName) => onrename(row.device.id, newName)}
+{#snippet iconCell(row: Row)}
+	<IconCell
+		value={row.device.icon}
+		onselect={(icon) => oniconchange(row.device.id, icon)}
+		fallback={deviceIcon(row.device.type)}
 	/>
+{/snippet}
+
+{#snippet nameCell(row: Row)}
+	<div class="flex items-center gap-2">
+		<InlineEditName
+			name={row.device.name}
+			onsave={(newName) => onrename(row.device.id, newName)}
+		/>
+		{#if !row.device.available}
+			<span
+				class="size-2.5 shrink-0 rounded-full bg-status-offline"
+				title="Offline"
+				aria-label="Offline"
+			></span>
+		{/if}
+	</div>
 {/snippet}
 
 {#snippet sourceCell(row: Row)}

@@ -5,7 +5,8 @@
 	import { type Device } from "$lib/stores/devices";
 	import { brightnessToTintStrength, deviceTintBase } from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
-	import HiveIcon from "$lib/components/hive-icon.svelte";
+	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
+	import { deviceIcon } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import {
@@ -32,6 +33,7 @@
 		roomChips?: MembershipChip[];
 		groupChips?: MembershipChip[];
 		onrename: (id: string, newName: string) => void;
+		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 	}
 
@@ -40,6 +42,7 @@
 		roomChips = [],
 		groupChips = [],
 		onrename,
+		oniconchange,
 		onAddTo,
 	}: Props = $props();
 
@@ -179,7 +182,13 @@
 	<CardHeader>
 		<div class="flex items-center justify-between gap-2">
 			<div class="flex min-w-0 flex-1 items-center gap-2">
-				<HiveIcon type={device.type} class="size-4 shrink-0 {mutedTextClass}" />
+				<IconCell
+					value={device.icon}
+					onselect={(icon) => oniconchange(device.id, icon)}
+					fallback={deviceIcon(device.type)}
+					size="sm"
+					iconClass="size-4 {mutedTextClass}"
+				/>
 				<InlineEditName name={device.name} onsave={(newName) => onrename(device.id, newName)} />
 				{#if !device.available}
 					<span
