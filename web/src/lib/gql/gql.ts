@@ -80,6 +80,7 @@ type Documents = {
     "\n\t\tmutation EffectRunTargetDrawerRunNativeEffect($nativeName: String!, $targetType: String!, $targetId: ID!) {\n\t\t\trunNativeEffect(nativeName: $nativeName, targetType: $targetType, targetId: $targetId) {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t": typeof types.EffectRunTargetDrawerRunNativeEffectDocument,
     "\n\t\tquery EffectTimelineEditorNativeOptions {\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t\tsupportedDeviceCount\n\t\t\t}\n\t\t}\n\t": typeof types.EffectTimelineEditorNativeOptionsDocument,
     "\n\t\tquery StateHistory($filter: StateHistoryFilter!) {\n\t\t\tstateHistory(filter: $filter) {\n\t\t\t\tdeviceId\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.StateHistoryDocument,
+    "\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AggregatedStateHistoryDocument,
     "\n  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setDeviceState(deviceId: $deviceId, state: $state) {\n      id\n      state {\n        on\n        brightness\n      }\n    }\n  }\n": typeof types.GroupCommandsSetDeviceStateDocument,
     "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n": typeof types.ActiveAlarmsDocument,
     "\n  subscription AlarmEvents {\n    alarmEvent {\n      kind\n      clearedAlarmId\n      alarm {\n        id\n        latestRowId\n        severity\n        kind\n        message\n        source\n        count\n        firstRaisedAt\n        lastRaisedAt\n      }\n    }\n  }\n": typeof types.AlarmEventsDocument,
@@ -88,7 +89,7 @@ type Documents = {
     "\n  subscription DeviceAvailabilityChanged {\n    deviceAvailabilityChanged {\n      deviceId\n      available\n    }\n  }\n": typeof types.DeviceAvailabilityChangedDocument,
     "\n  subscription DeviceAdded {\n    deviceAdded {\n      id\n      name\n      source\n      type\n      capabilities {\n        name\n        type\n        values\n        valueMin\n        valueMax\n        unit\n        access\n      }\n      available\n      lastSeen\n      state {\n        on\n        brightness\n        colorTemp\n        color {\n          r\n          g\n          b\n          x\n          y\n        }\n        transition\n        temperature\n        humidity\n        pressure\n        illuminance\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": typeof types.DeviceAddedDocument,
     "\n  subscription DeviceRemoved {\n    deviceRemoved\n  }\n": typeof types.DeviceRemovedDocument,
-    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n": typeof types.MeDocument,
+    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      timeFormat\n      temperatureUnit\n      createdAt\n      mustChangePassword\n    }\n  }\n": typeof types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": typeof types.SetupStatusDocument,
     "\n\t\tquery DashboardRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardRoomsDocument,
     "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttags\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardGroupsDocument,
@@ -117,6 +118,8 @@ type Documents = {
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditEffectsDocument,
     "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditNodeActivatedDocument,
     "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t": typeof types.CompleteFirstPasswordChangeDocument,
+    "\n\t\tquery DataViewerRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.DataViewerRoomsDocument,
+    "\n\t\tquery DataViewerGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.DataViewerGroupsDocument,
     "\n\t\tmutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n\t\t\tupdateDevice(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateDeviceDocument,
     "\n\t\tquery DeviceListRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": typeof types.DeviceListRoomsDocument,
     "\n\t\tquery DeviceListGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": typeof types.DeviceListGroupsDocument,
@@ -151,7 +154,7 @@ type Documents = {
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogStreamDocument,
-    "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.ProfileUpdateCurrentUserDocument,
+    "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\ttimeFormat\n\t\t\t\ttemperatureUnit\n\t\t\t\tcreatedAt\n\t\t\t\tmustChangePassword\n\t\t\t}\n\t\t}\n\t": typeof types.ProfileUpdateCurrentUserDocument,
     "\n\t\tmutation ProfileChangePassword($input: ChangePasswordInput!) {\n\t\t\tchangePassword(input: $input)\n\t\t}\n\t": typeof types.ProfileChangePasswordDocument,
     "\n\t\tquery Rooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t\tdevice {\n\t\t\t\t\t\tid\n\t\t\t\t\t\tname\n\t\t\t\t\t\ttype\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tavailable\n\t\t\t\t\t}\n\t\t\t\t\tgroup {\n\t\t\t\t\t\tid\n\t\t\t\t\t\tname\n\t\t\t\t\t\ticon\n\t\t\t\t\t\tresolvedDevices { id }\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tresolvedDevices { id }\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.RoomsDocument,
     "\n\t\tquery RoomsPageGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": typeof types.RoomsPageGroupsDocument,
@@ -262,6 +265,7 @@ const documents: Documents = {
     "\n\t\tmutation EffectRunTargetDrawerRunNativeEffect($nativeName: String!, $targetType: String!, $targetId: ID!) {\n\t\t\trunNativeEffect(nativeName: $nativeName, targetType: $targetType, targetId: $targetId) {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t": types.EffectRunTargetDrawerRunNativeEffectDocument,
     "\n\t\tquery EffectTimelineEditorNativeOptions {\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t\tsupportedDeviceCount\n\t\t\t}\n\t\t}\n\t": types.EffectTimelineEditorNativeOptionsDocument,
     "\n\t\tquery StateHistory($filter: StateHistoryFilter!) {\n\t\t\tstateHistory(filter: $filter) {\n\t\t\t\tdeviceId\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.StateHistoryDocument,
+    "\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AggregatedStateHistoryDocument,
     "\n  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setDeviceState(deviceId: $deviceId, state: $state) {\n      id\n      state {\n        on\n        brightness\n      }\n    }\n  }\n": types.GroupCommandsSetDeviceStateDocument,
     "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n": types.ActiveAlarmsDocument,
     "\n  subscription AlarmEvents {\n    alarmEvent {\n      kind\n      clearedAlarmId\n      alarm {\n        id\n        latestRowId\n        severity\n        kind\n        message\n        source\n        count\n        firstRaisedAt\n        lastRaisedAt\n      }\n    }\n  }\n": types.AlarmEventsDocument,
@@ -270,7 +274,7 @@ const documents: Documents = {
     "\n  subscription DeviceAvailabilityChanged {\n    deviceAvailabilityChanged {\n      deviceId\n      available\n    }\n  }\n": types.DeviceAvailabilityChangedDocument,
     "\n  subscription DeviceAdded {\n    deviceAdded {\n      id\n      name\n      source\n      type\n      capabilities {\n        name\n        type\n        values\n        valueMin\n        valueMax\n        unit\n        access\n      }\n      available\n      lastSeen\n      state {\n        on\n        brightness\n        colorTemp\n        color {\n          r\n          g\n          b\n          x\n          y\n        }\n        transition\n        temperature\n        humidity\n        pressure\n        illuminance\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": types.DeviceAddedDocument,
     "\n  subscription DeviceRemoved {\n    deviceRemoved\n  }\n": types.DeviceRemovedDocument,
-    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n": types.MeDocument,
+    "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      timeFormat\n      temperatureUnit\n      createdAt\n      mustChangePassword\n    }\n  }\n": types.MeDocument,
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": types.SetupStatusDocument,
     "\n\t\tquery DashboardRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.DashboardRoomsDocument,
     "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttags\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.DashboardGroupsDocument,
@@ -299,6 +303,8 @@ const documents: Documents = {
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": types.AutomationEditEffectsDocument,
     "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t": types.AutomationEditNodeActivatedDocument,
     "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t": types.CompleteFirstPasswordChangeDocument,
+    "\n\t\tquery DataViewerRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.DataViewerRoomsDocument,
+    "\n\t\tquery DataViewerGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.DataViewerGroupsDocument,
     "\n\t\tmutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n\t\t\tupdateDevice(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.UpdateDeviceDocument,
     "\n\t\tquery DeviceListRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": types.DeviceListRoomsDocument,
     "\n\t\tquery DeviceListGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": types.DeviceListGroupsDocument,
@@ -333,7 +339,7 @@ const documents: Documents = {
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogStreamDocument,
-    "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.ProfileUpdateCurrentUserDocument,
+    "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\ttimeFormat\n\t\t\t\ttemperatureUnit\n\t\t\t\tcreatedAt\n\t\t\t\tmustChangePassword\n\t\t\t}\n\t\t}\n\t": types.ProfileUpdateCurrentUserDocument,
     "\n\t\tmutation ProfileChangePassword($input: ChangePasswordInput!) {\n\t\t\tchangePassword(input: $input)\n\t\t}\n\t": types.ProfileChangePasswordDocument,
     "\n\t\tquery Rooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t\tdevice {\n\t\t\t\t\t\tid\n\t\t\t\t\t\tname\n\t\t\t\t\t\ttype\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tavailable\n\t\t\t\t\t}\n\t\t\t\t\tgroup {\n\t\t\t\t\t\tid\n\t\t\t\t\t\tname\n\t\t\t\t\t\ticon\n\t\t\t\t\t\tresolvedDevices { id }\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tresolvedDevices { id }\n\t\t\t\tcreatedBy {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.RoomsDocument,
     "\n\t\tquery RoomsPageGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers { memberType memberId }\n\t\t\t}\n\t\t}\n\t": types.RoomsPageGroupsDocument,
@@ -659,6 +665,10 @@ export function graphql(source: "\n\t\tquery StateHistory($filter: StateHistoryF
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setDeviceState(deviceId: $deviceId, state: $state) {\n      id\n      state {\n        on\n        brightness\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setDeviceState(deviceId: $deviceId, state: $state) {\n      id\n      state {\n        on\n        brightness\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -691,7 +701,7 @@ export function graphql(source: "\n  subscription DeviceRemoved {\n    deviceRem
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n"): (typeof documents)["\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      createdAt\n      mustChangePassword\n    }\n  }\n"];
+export function graphql(source: "\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      timeFormat\n      temperatureUnit\n      createdAt\n      mustChangePassword\n    }\n  }\n"): (typeof documents)["\n  query Me {\n    me {\n      id\n      username\n      name\n      avatarPath\n      theme\n      timeFormat\n      temperatureUnit\n      createdAt\n      mustChangePassword\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -804,6 +814,14 @@ export function graphql(source: "\n\t\tsubscription AutomationEditNodeActivated(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tquery DataViewerRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery DataViewerRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tquery DataViewerGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery DataViewerGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -943,7 +961,7 @@ export function graphql(source: "\n\t\tsubscription LogStream {\n\t\t\tlogStream
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\ttimeFormat\n\t\t\t\ttemperatureUnit\n\t\t\t\tcreatedAt\n\t\t\t\tmustChangePassword\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\ttimeFormat\n\t\t\t\ttemperatureUnit\n\t\t\t\tcreatedAt\n\t\t\t\tmustChangePassword\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
