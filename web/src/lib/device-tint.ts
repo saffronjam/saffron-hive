@@ -1,5 +1,6 @@
 import type { Device, DeviceState } from "$lib/stores/devices";
 import type { ActionPayload } from "$lib/scene-editable";
+import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
 import type { Component } from "svelte";
 
@@ -270,6 +271,7 @@ export function sceneTint(
 }
 
 export interface AggregatedReading {
+  field: string;
   label: string;
   value: string;
   unit: string;
@@ -277,50 +279,54 @@ export interface AggregatedReading {
 }
 
 interface ReadingSpec {
+  field: string;
   label: string;
-  unit: string;
   icon: Component;
   read: (state: DeviceState) => number | null | undefined;
-  format: (avg: number) => string;
+  render: (avg: number, temperatureUnit: TemperatureUnit) => { value: string; unit: string };
 }
 
 const READING_SPECS: ReadingSpec[] = [
   {
+    field: "temperature",
     label: "Temperature",
-    unit: "°C",
     icon: Thermometer,
     read: (s) => s.temperature,
-    format: (n) => n.toFixed(1),
+    render: (n, unit) => formatTemperature(n, unit),
   },
   {
+    field: "humidity",
     label: "Humidity",
-    unit: "%",
     icon: Droplets,
     read: (s) => s.humidity,
-    format: (n) => n.toFixed(0),
+    render: (n) => ({ value: n.toFixed(0), unit: "%" }),
   },
   {
+    field: "pressure",
     label: "Pressure",
-    unit: "hPa",
     icon: Gauge,
     read: (s) => s.pressure,
-    format: (n) => n.toFixed(0),
+    render: (n) => ({ value: n.toFixed(0), unit: "hPa" }),
   },
   {
+    field: "illuminance",
     label: "Illuminance",
-    unit: "lx",
     icon: Sun,
     read: (s) => s.illuminance,
-    format: (n) => n.toFixed(0),
+    render: (n) => ({ value: n.toFixed(0), unit: "lx" }),
   },
 ];
 
 /**
  * Aggregates sensor readings across a device list by averaging each
- * supported field over all devices that report it. Fields with no
+ * supported field over all devices that report it. Temperature is converted
+ * into the caller's chosen unit (defaults to Celsius). Fields with no
  * contributing devices are omitted.
  */
-export function aggregateSensorReadings(devices: Device[]): AggregatedReading[] {
+export function aggregateSensorReadings(
+  devices: Device[],
+  temperatureUnit: TemperatureUnit = "celsius",
+): AggregatedReading[] {
   const result: AggregatedReading[] = [];
   for (const spec of READING_SPECS) {
     let sum = 0;
@@ -333,10 +339,12 @@ export function aggregateSensorReadings(devices: Device[]): AggregatedReading[] 
       count++;
     }
     if (count === 0) continue;
+    const rendered = spec.render(sum / count, temperatureUnit);
     result.push({
+      field: spec.field,
       label: spec.label,
-      value: spec.format(sum / count),
-      unit: spec.unit,
+      value: rendered.value,
+      unit: rendered.unit,
       icon: spec.icon,
     });
   }

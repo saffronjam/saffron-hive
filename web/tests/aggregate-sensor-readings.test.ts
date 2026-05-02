@@ -43,11 +43,34 @@ describe("aggregateSensorReadings", () => {
     expect(aggregateSensorReadings([sensor({})])).toEqual([]);
   });
 
-  it("formats a single sensor's readings", () => {
+  it("formats a single sensor's readings in Celsius by default", () => {
     const r = aggregateSensorReadings([sensor({ temperature: 23.34, humidity: 17.4 })]);
     expect(r).toEqual([
-      { label: "Temperature", value: "23.3", unit: "°C", icon: expect.anything() },
-      { label: "Humidity", value: "17", unit: "%", icon: expect.anything() },
+      {
+        field: "temperature",
+        label: "Temperature",
+        value: "23.3",
+        unit: "°C",
+        icon: expect.anything(),
+      },
+      { field: "humidity", label: "Humidity", value: "17", unit: "%", icon: expect.anything() },
+    ]);
+  });
+
+  it("converts temperature to Fahrenheit when the unit pref is set", () => {
+    const r = aggregateSensorReadings(
+      [sensor({ temperature: 23.34, humidity: 17.4 })],
+      "fahrenheit",
+    );
+    expect(r).toEqual([
+      {
+        field: "temperature",
+        label: "Temperature",
+        value: "74.0",
+        unit: "°F",
+        icon: expect.anything(),
+      },
+      { field: "humidity", label: "Humidity", value: "17", unit: "%", icon: expect.anything() },
     ]);
   });
 
