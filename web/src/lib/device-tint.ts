@@ -16,6 +16,14 @@ const CREAM: RGB = { r: 255, g: 230, b: 190 };
 const DIM: RGB = { r: 80, g: 80, b: 80 };
 const NEUTRAL: RGB = { r: 120, g: 120, b: 120 };
 
+/**
+ * Default tint hue used for plug-style devices (no color, colorTemp, or
+ * brightness state). Mirrors the warmest end of the colorTemp ramp, so a
+ * plug renders the same as a warm-white light through the standard tint
+ * pipeline.
+ */
+export const PLUG_TINT_COLOR = toCss(WARM);
+
 const MIRED_MIN = 150;
 const MIRED_MAX = 500;
 const BRIGHTNESS_MAX = 254;

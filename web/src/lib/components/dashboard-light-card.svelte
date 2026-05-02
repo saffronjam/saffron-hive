@@ -17,6 +17,7 @@
 	import {
 		groupBaseTintColors,
 		brightnessToTintStrength,
+		PLUG_TINT_COLOR,
 	} from "$lib/device-tint";
 	import type { Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
@@ -62,8 +63,21 @@
 	);
 	const isOn = $derived(onOffDevices.some((d) => d.state?.on));
 
-	const tintColors = $derived(groupBaseTintColors(devices));
+	const dimmableLights = $derived(
+		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
+	);
+	const isPlugOnly = $derived(
+		dimmableLights.length === 0 && onOffDevices.length > 0,
+	);
+
+	const tintColors = $derived.by(() => {
+		const base = groupBaseTintColors(devices);
+		if (base.length > 0) return base;
+		if (isPlugOnly) return [PLUG_TINT_COLOR];
+		return [];
+	});
 	const tintStrength = $derived.by(() => {
+		if (isPlugOnly) return 1;
 		const lit = devices.filter(
 			(d) => d.type === "light" && d.state?.on && d.state?.brightness != null,
 		);
@@ -72,10 +86,6 @@
 		for (const d of lit) sum += d.state!.brightness!;
 		return brightnessToTintStrength(sum / lit.length);
 	});
-
-	const dimmableLights = $derived(
-		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
-	);
 	const onLights = $derived(dimmableLights.filter((d) => d.state?.on));
 	const avgBrightness = $derived.by((): number => {
 		if (onLights.length === 0) return 0;
@@ -190,8 +200,6 @@
 	class={extraClass}
 >
 	{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
-		{@const showPlugOn = !hasTint && isOn}
-		{@const plugIconClass = showPlugOn ? "text-orange-400" : iconTextClass}
 		{#if hasPicker}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -211,16 +219,10 @@
 										style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
 										aria-hidden="true"
 									></div>
-								{:else}
-									<div
-										class="pointer-events-none absolute inset-0 rounded-md bg-orange-500/30 transition-opacity duration-300 ease-out"
-										style="opacity: {showPlugOn ? 1 : 0}"
-										aria-hidden="true"
-									></div>
 								{/if}
-								<AnimatedIcon icon={entity.icon} class="relative size-3.5 transition-colors duration-300 {plugIconClass}">
+								<AnimatedIcon icon={entity.icon} class="relative size-3.5 {iconTextClass}">
 									{#snippet fallback()}
-										<FallbackIcon class="relative size-3.5 transition-colors duration-300 {plugIconClass}" />
+										<FallbackIcon class="relative size-3.5 {iconTextClass}" />
 									{/snippet}
 								</AnimatedIcon>
 							</button>
@@ -247,16 +249,10 @@
 						style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
 						aria-hidden="true"
 					></div>
-				{:else}
-					<div
-						class="pointer-events-none absolute inset-0 rounded-md bg-orange-500/30 transition-opacity duration-300 ease-out"
-						style="opacity: {showPlugOn ? 1 : 0}"
-						aria-hidden="true"
-					></div>
 				{/if}
-				<AnimatedIcon icon={entity.icon} class="relative size-3.5 transition-colors duration-300 {plugIconClass}">
+				<AnimatedIcon icon={entity.icon} class="relative size-3.5 {iconTextClass}">
 					{#snippet fallback()}
-						<FallbackIcon class="relative size-3.5 transition-colors duration-300 {plugIconClass}" />
+						<FallbackIcon class="relative size-3.5 {iconTextClass}" />
 					{/snippet}
 				</AnimatedIcon>
 			</div>
