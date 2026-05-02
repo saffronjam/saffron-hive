@@ -351,6 +351,30 @@ input StateHistoryFilter {
   bucketSeconds: Int
 }
 
+type AggregatedSeries {
+  field: String!
+  points: [StateSeriesPoint!]!
+}
+
+enum AggregatedHistoryTargetType {
+  ROOM
+  GROUP
+  APARTMENT
+}
+
+input AggregatedHistoryTarget {
+  type: AggregatedHistoryTargetType!
+  id: ID
+}
+
+input AggregatedStateHistoryFilter {
+  target: AggregatedHistoryTarget!
+  fields: [String!]
+  from: DateTime
+  to: DateTime
+  bucketSeconds: Int
+}
+
 type DeviceStateEvent {
   deviceId: ID!
   state: DeviceState!
@@ -388,6 +412,16 @@ enum Theme {
   DARK
 }
 
+enum TimeFormat {
+  TWELVE_HOUR
+  TWENTY_FOUR_HOUR
+}
+
+enum TemperatureUnit {
+  CELSIUS
+  FAHRENHEIT
+}
+
 type User {
   id: ID!
   username: String!
@@ -404,6 +438,19 @@ type User {
   only populate `id`, `username`, and `name`.
   """
   theme: Theme
+  """
+  Clock format used everywhere absolute timestamps render (chart tooltips,
+  activity feed fallbacks, logs page). Date portion is fixed `YYYY-MM-DD`.
+  Present on full user loads, null on attribution references.
+  """
+  timeFormat: TimeFormat
+  """
+  Temperature unit applied at render time across sensor cards, dashboard
+  aggregates, and the state-history chart. Backend always stores Celsius;
+  conversion is purely a frontend concern. Present on full user loads, null
+  on attribution references.
+  """
+  temperatureUnit: TemperatureUnit
   """
   Timestamp the user was created; used on the profile page as "member since".
   Present on full user loads, null on attribution references.
@@ -449,6 +496,8 @@ input CreateUserInput {
 input UpdateCurrentUserInput {
   name: String
   theme: Theme
+  timeFormat: TimeFormat
+  temperatureUnit: TemperatureUnit
 }
 
 input ChangePasswordInput {
@@ -710,6 +759,7 @@ type Query {
   rooms: [Room!]! @auth
   room(id: ID!): Room @auth
   stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
+  aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
   mqttConfig: MqttConfig @auth
   settings: [Setting!]! @auth
