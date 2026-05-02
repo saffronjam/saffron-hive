@@ -219,6 +219,8 @@ type User struct {
 	AvatarPath         *string
 	Theme              string
 	MustChangePassword bool
+	TimeFormat         string
+	TemperatureUnit    string
 }
 
 type ZigbeeDevice struct {

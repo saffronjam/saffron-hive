@@ -144,7 +144,7 @@ func (q *Queries) GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) (
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
 FROM users
 WHERE id = ?
 `
@@ -156,6 +156,8 @@ type GetUserByIDRow struct {
 	PasswordHash       string
 	AvatarPath         *string
 	Theme              string
+	TimeFormat         string
+	TemperatureUnit    string
 	MustChangePassword bool
 	CreatedAt          time.Time
 }
@@ -170,6 +172,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 		&i.PasswordHash,
 		&i.AvatarPath,
 		&i.Theme,
+		&i.TimeFormat,
+		&i.TemperatureUnit,
 		&i.MustChangePassword,
 		&i.CreatedAt,
 	)
@@ -177,7 +181,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
 FROM users
 WHERE username = ?
 `
@@ -189,6 +193,8 @@ type GetUserByUsernameRow struct {
 	PasswordHash       string
 	AvatarPath         *string
 	Theme              string
+	TimeFormat         string
+	TemperatureUnit    string
 	MustChangePassword bool
 	CreatedAt          time.Time
 }
@@ -203,6 +209,8 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.PasswordHash,
 		&i.AvatarPath,
 		&i.Theme,
+		&i.TimeFormat,
+		&i.TemperatureUnit,
 		&i.MustChangePassword,
 		&i.CreatedAt,
 	)
@@ -210,7 +218,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
 FROM users
 ORDER BY created_at ASC
 `
@@ -222,6 +230,8 @@ type ListUsersRow struct {
 	PasswordHash       string
 	AvatarPath         *string
 	Theme              string
+	TimeFormat         string
+	TemperatureUnit    string
 	MustChangePassword bool
 	CreatedAt          time.Time
 }
@@ -242,6 +252,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.PasswordHash,
 			&i.AvatarPath,
 			&i.Theme,
+			&i.TimeFormat,
+			&i.TemperatureUnit,
 			&i.MustChangePassword,
 			&i.CreatedAt,
 		); err != nil {
@@ -288,17 +300,21 @@ func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPass
 
 const updateUserProfile = `-- name: UpdateUserProfile :exec
 UPDATE users SET
-    name        = COALESCE(?1,        name),
-    theme       = COALESCE(?2,       theme),
-    avatar_path = COALESCE(?3, avatar_path)
-WHERE id = ?4
+    name             = COALESCE(?1,             name),
+    theme            = COALESCE(?2,            theme),
+    avatar_path      = COALESCE(?3,      avatar_path),
+    time_format      = COALESCE(?4,      time_format),
+    temperature_unit = COALESCE(?5, temperature_unit)
+WHERE id = ?6
 `
 
 type UpdateUserProfileParams struct {
-	Name       *string
-	Theme      *string
-	AvatarPath *string
-	ID         string
+	Name            *string
+	Theme           *string
+	AvatarPath      *string
+	TimeFormat      *string
+	TemperatureUnit *string
+	ID              string
 }
 
 // Partial update of mutable profile fields. Nil narg values leave their column
@@ -310,6 +326,8 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.Name,
 		arg.Theme,
 		arg.AvatarPath,
+		arg.TimeFormat,
+		arg.TemperatureUnit,
 		arg.ID,
 	)
 	return err
