@@ -1,8 +1,28 @@
+export type TimeMode = "12h" | "24h";
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function clock(date: Date, mode: TimeMode): string {
+  const h = date.getHours();
+  const m = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+  if (mode === "12h") {
+    const suffix = h >= 12 ? "PM" : "AM";
+    const h12 = ((h + 11) % 12) + 1;
+    return `${pad(h12)}:${m}:${s} ${suffix}`;
+  }
+  return `${pad(h)}:${m}:${s}`;
+}
+
+function dateStamp(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /**
  * Format a past Date as a short relative string: "just now", "12m ago",
- * "3h ago", falling through to a HH:mm:ss clock time after a day.
+ * "3h ago", falling through to a clock time after a day.
  */
-export function formatRelative(date: Date, now: Date = new Date()): string {
+export function formatRelative(date: Date, now: Date, mode: TimeMode): string {
   const diff = now.getTime() - date.getTime();
   const seconds = Math.floor(diff / 1000);
   if (seconds < 60) return "Just now";
@@ -10,16 +30,12 @@ export function formatRelative(date: Date, now: Date = new Date()): string {
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
-  return formatTime(date);
+  return formatTime(date, mode);
 }
 
-/** HH:mm:ss in the user's locale. */
-export function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+/** Clock time in the user's chosen 12h/24h format, seconds included. */
+export function formatTime(date: Date, mode: TimeMode): string {
+  return clock(date, mode);
 }
 
 /** Full ISO-8601 timestamp for tooltips and debugging. */
@@ -27,15 +43,9 @@ export function formatFull(date: Date): string {
   return date.toISOString();
 }
 
-/** Short readable timestamp like "Apr 24, 9:47:04 AM" for chart tooltips. */
-export function formatTooltip(date: Date): string {
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+/** Full timestamp `YYYY-MM-DD HH:mm:ss` (or 12h variant) for chart tooltips. */
+export function formatTooltip(date: Date, mode: TimeMode): string {
+  return `${dateStamp(date)} ${clock(date, mode)}`;
 }
 
 /**
