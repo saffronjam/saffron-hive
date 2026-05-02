@@ -759,6 +759,14 @@ func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.Up
 		s := themeToStore(*themePtr)
 		params.Theme = &s
 	}
+	if tfPtr, ok := input.TimeFormat.ValueOK(); ok && tfPtr != nil {
+		s := timeFormatToStore(*tfPtr)
+		params.TimeFormat = &s
+	}
+	if tuPtr, ok := input.TemperatureUnit.ValueOK(); ok && tuPtr != nil {
+		s := temperatureUnitToStore(*tuPtr)
+		params.TemperatureUnit = &s
+	}
 	u, err := r.Store.UpdateUserProfile(ctx, params)
 	if err != nil {
 		return nil, err
@@ -1456,6 +1464,152 @@ func (r *queryResolver) StateHistory(ctx context.Context, filter model.StateHist
 	result := make([]*model.StateSeries, 0, len(order))
 	for _, key := range order {
 		result = append(result, seriesMap[key])
+	}
+	return result, nil
+}
+
+// AggregatedStateHistory is the resolver for the aggregatedStateHistory field.
+func (r *queryResolver) AggregatedStateHistory(ctx context.Context, filter model.AggregatedStateHistoryFilter) ([]*model.AggregatedSeries, error) {
+	if filter.Target == nil {
+		return []*model.AggregatedSeries{}, nil
+	}
+
+	to := time.Now()
+	if toPtr := filter.To.Value(); toPtr != nil {
+		to = *toPtr
+	}
+	from := to.Add(-7 * 24 * time.Hour)
+	if fromPtr := filter.From.Value(); fromPtr != nil {
+		from = *fromPtr
+	}
+	if !from.Before(to) {
+		return []*model.AggregatedSeries{}, nil
+	}
+
+	bucket := 0
+	if bPtr := filter.BucketSeconds.Value(); bPtr != nil {
+		bucket = *bPtr
+	}
+	if bucket <= 0 {
+		bucket = autoBucketSeconds(to.Sub(from))
+	}
+
+	var deviceIDs []device.DeviceID
+	switch filter.Target.Type {
+	case model.AggregatedHistoryTargetTypeRoom:
+		idPtr := filter.Target.ID.Value()
+		if idPtr == nil || *idPtr == "" {
+			return []*model.AggregatedSeries{}, nil
+		}
+		members, err := r.Store.ListRoomMembers(ctx, *idPtr)
+		if err != nil {
+			return nil, err
+		}
+		seen := make(map[string]bool)
+		devices := collectDevicesFromRoomMembers(ctx, r.StateReader, r.Store, members, seen)
+		deviceIDs = make([]device.DeviceID, 0, len(devices))
+		for _, d := range devices {
+			deviceIDs = append(deviceIDs, device.DeviceID(d.ID))
+		}
+	case model.AggregatedHistoryTargetTypeGroup:
+		idPtr := filter.Target.ID.Value()
+		if idPtr == nil || *idPtr == "" {
+			return []*model.AggregatedSeries{}, nil
+		}
+		members, err := r.Store.ListGroupMembers(ctx, *idPtr)
+		if err != nil {
+			return nil, err
+		}
+		seen := make(map[string]bool)
+		devices := collectDevicesFromGroupMembers(ctx, r.StateReader, r.Store, members, seen)
+		deviceIDs = make([]device.DeviceID, 0, len(devices))
+		for _, d := range devices {
+			deviceIDs = append(deviceIDs, device.DeviceID(d.ID))
+		}
+	case model.AggregatedHistoryTargetTypeApartment:
+		all := r.StateReader.ListDevices()
+		deviceIDs = make([]device.DeviceID, 0, len(all))
+		for _, d := range all {
+			deviceIDs = append(deviceIDs, d.ID)
+		}
+	default:
+		return []*model.AggregatedSeries{}, nil
+	}
+	if len(deviceIDs) == 0 {
+		return []*model.AggregatedSeries{}, nil
+	}
+
+	var fields []string
+	if fv := filter.Fields.Value(); len(fv) > 0 {
+		fields = make([]string, 0, len(fv))
+		for _, f := range fv {
+			if history.IsKnownField(f) {
+				fields = append(fields, f)
+			}
+		}
+	}
+
+	points, err := r.Store.QueryStateHistory(ctx, store.StateHistoryQuery{
+		DeviceIDs:     deviceIDs,
+		Fields:        fields,
+		From:          from,
+		To:            to,
+		BucketSeconds: bucket,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	type bucketKey struct {
+		field string
+		ts    int64
+	}
+	type bucketAgg struct {
+		at  time.Time
+		sum float64
+		n   int
+	}
+	aggs := make(map[bucketKey]*bucketAgg, 64)
+	fieldOrder := make([]string, 0, 8)
+	fieldSeen := make(map[string]bool, 8)
+	for _, p := range points {
+		if !fieldSeen[p.Field] {
+			fieldSeen[p.Field] = true
+			fieldOrder = append(fieldOrder, p.Field)
+		}
+		key := bucketKey{field: p.Field, ts: p.At.Unix()}
+		agg, ok := aggs[key]
+		if !ok {
+			agg = &bucketAgg{at: p.At}
+			aggs[key] = agg
+		}
+		agg.sum += p.Value
+		agg.n++
+	}
+
+	result := make([]*model.AggregatedSeries, 0, len(fieldOrder))
+	for _, f := range fieldOrder {
+		series := &model.AggregatedSeries{Field: f}
+		var bucketsForField []*bucketAgg
+		for k, a := range aggs {
+			if k.field == f {
+				bucketsForField = append(bucketsForField, a)
+			}
+		}
+		sort.Slice(bucketsForField, func(i, j int) bool {
+			return bucketsForField[i].at.Before(bucketsForField[j].at)
+		})
+		series.Points = make([]*model.StateSeriesPoint, 0, len(bucketsForField))
+		for _, b := range bucketsForField {
+			if b.n == 0 {
+				continue
+			}
+			series.Points = append(series.Points, &model.StateSeriesPoint{
+				At:    b.at,
+				Value: b.sum / float64(b.n),
+			})
+		}
+		result = append(result, series)
 	}
 	return result, nil
 }
