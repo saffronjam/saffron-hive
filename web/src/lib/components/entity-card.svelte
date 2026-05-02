@@ -107,6 +107,14 @@
 		 * surface). Default: `"default"`.
 		 */
 		size?: "default" | "sm";
+		/**
+		 * Icon block size variant for the default fallback rendering (when
+		 * `iconArea` is not provided). `"default"` is `size-10`/`size-5`;
+		 * `"sm"` is `size-7`/`size-3.5` — used by the dashboard top-level
+		 * cards to free up horizontal room. No effect when a custom `iconArea`
+		 * snippet is supplied.
+		 */
+		iconAreaSize?: "default" | "sm";
 	}
 
 	let {
@@ -134,9 +142,12 @@
 		brightnessFill = null,
 		dragOpts,
 		size = "default",
+		iconAreaSize = "default",
 	}: Props = $props();
 
 	const sizeClass = $derived(size === "sm" ? "p-3 rounded-xl" : "p-4 rounded-lg");
+	const iconBlockClass = $derived(iconAreaSize === "sm" ? "size-7" : "size-10");
+	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!onclick) return;
@@ -227,7 +238,7 @@
 			{#if iconArea}
 				{@render iconArea({ tintColors, tintInactive, iconGradient, iconTextClass, hasTint })}
 			{:else if readOnly}
-				<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
+				<div class="relative flex {iconBlockClass} shrink-0 items-center justify-center rounded-md bg-muted/50">
 					{#if hasTint}
 						<div
 							class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
@@ -235,8 +246,8 @@
 							aria-hidden="true"
 						></div>
 					{/if}
-					<AnimatedIcon icon={entity.icon} class="relative size-5 {iconTextClass}">
-						{#snippet fallback()}<Fallback class="relative size-5 {iconTextClass}" />{/snippet}
+					<AnimatedIcon icon={entity.icon} class="relative {iconInnerClass} {iconTextClass}">
+						{#snippet fallback()}<Fallback class="relative {iconInnerClass} {iconTextClass}" />{/snippet}
 					</AnimatedIcon>
 				</div>
 			{:else}
