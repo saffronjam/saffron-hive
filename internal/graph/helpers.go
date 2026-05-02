@@ -409,12 +409,16 @@ func mapUser(u store.User) *model.User {
 	theme := themeFromStore(u.Theme)
 	createdAt := u.CreatedAt
 	mustChange := u.MustChangePassword
+	timeFormat := timeFormatFromStore(u.TimeFormat)
+	tempUnit := temperatureUnitFromStore(u.TemperatureUnit)
 	return &model.User{
 		ID:                 u.ID,
 		Username:           u.Username,
 		Name:               u.Name,
 		AvatarPath:         u.AvatarPath,
 		Theme:              &theme,
+		TimeFormat:         &timeFormat,
+		TemperatureUnit:    &tempUnit,
 		CreatedAt:          &createdAt,
 		MustChangePassword: &mustChange,
 	}
@@ -442,6 +446,56 @@ func themeToStore(t model.Theme) string {
 		return "dark"
 	default:
 		return "dark"
+	}
+}
+
+// timeFormatFromStore converts the DB's string form into the GraphQL enum.
+// Unknown values fall back to 24h to match the column default.
+func timeFormatFromStore(s string) model.TimeFormat {
+	switch s {
+	case "12h":
+		return model.TimeFormatTwelveHour
+	case "24h":
+		return model.TimeFormatTwentyFourHour
+	default:
+		return model.TimeFormatTwentyFourHour
+	}
+}
+
+// timeFormatToStore converts the GraphQL enum into the DB's string form.
+func timeFormatToStore(t model.TimeFormat) string {
+	switch t {
+	case model.TimeFormatTwelveHour:
+		return "12h"
+	case model.TimeFormatTwentyFourHour:
+		return "24h"
+	default:
+		return "24h"
+	}
+}
+
+// temperatureUnitFromStore converts the DB's string form into the GraphQL
+// enum. Unknown values fall back to celsius to match the column default.
+func temperatureUnitFromStore(s string) model.TemperatureUnit {
+	switch s {
+	case "celsius":
+		return model.TemperatureUnitCelsius
+	case "fahrenheit":
+		return model.TemperatureUnitFahrenheit
+	default:
+		return model.TemperatureUnitCelsius
+	}
+}
+
+// temperatureUnitToStore converts the GraphQL enum into the DB's string form.
+func temperatureUnitToStore(t model.TemperatureUnit) string {
+	switch t {
+	case model.TemperatureUnitCelsius:
+		return "celsius"
+	case model.TemperatureUnitFahrenheit:
+		return "fahrenheit"
+	default:
+		return "celsius"
 	}
 }
 
