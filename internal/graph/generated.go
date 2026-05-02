@@ -65,6 +65,11 @@ type ComplexityRoot struct {
 		Type     func(childComplexity int) int
 	}
 
+	AggregatedSeries struct {
+		Field  func(childComplexity int) int
+		Points func(childComplexity int) int
+	}
+
 	Alarm struct {
 		Count         func(childComplexity int) int
 		FirstRaisedAt func(childComplexity int) int
@@ -316,30 +321,31 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveEffects       func(childComplexity int) int
-		Activity            func(childComplexity int, filter *model.ActivityFilter) int
-		Alarms              func(childComplexity int, filter *model.AlarmFilter) int
-		Automation          func(childComplexity int, id string) int
-		Automations         func(childComplexity int) int
-		Device              func(childComplexity int, id string) int
-		Devices             func(childComplexity int) int
-		Effect              func(childComplexity int, id string) int
-		Effects             func(childComplexity int) int
-		Group               func(childComplexity int, id string) int
-		Groups              func(childComplexity int) int
-		Logs                func(childComplexity int, search *string, limit *int) int
-		Me                  func(childComplexity int) int
-		MqttConfig          func(childComplexity int) int
-		NativeEffectOptions func(childComplexity int) int
-		Room                func(childComplexity int, id string) int
-		Rooms               func(childComplexity int) int
-		Scene               func(childComplexity int, id string) int
-		Scenes              func(childComplexity int) int
-		Settings            func(childComplexity int) int
-		SetupStatus         func(childComplexity int) int
-		StateHistory        func(childComplexity int, filter model.StateHistoryFilter) int
-		StateHistoryFields  func(childComplexity int) int
-		Users               func(childComplexity int) int
+		ActiveEffects          func(childComplexity int) int
+		Activity               func(childComplexity int, filter *model.ActivityFilter) int
+		AggregatedStateHistory func(childComplexity int, filter model.AggregatedStateHistoryFilter) int
+		Alarms                 func(childComplexity int, filter *model.AlarmFilter) int
+		Automation             func(childComplexity int, id string) int
+		Automations            func(childComplexity int) int
+		Device                 func(childComplexity int, id string) int
+		Devices                func(childComplexity int) int
+		Effect                 func(childComplexity int, id string) int
+		Effects                func(childComplexity int) int
+		Group                  func(childComplexity int, id string) int
+		Groups                 func(childComplexity int) int
+		Logs                   func(childComplexity int, search *string, limit *int) int
+		Me                     func(childComplexity int) int
+		MqttConfig             func(childComplexity int) int
+		NativeEffectOptions    func(childComplexity int) int
+		Room                   func(childComplexity int, id string) int
+		Rooms                  func(childComplexity int) int
+		Scene                  func(childComplexity int, id string) int
+		Scenes                 func(childComplexity int) int
+		Settings               func(childComplexity int) int
+		SetupStatus            func(childComplexity int) int
+		StateHistory           func(childComplexity int, filter model.StateHistoryFilter) int
+		StateHistoryFields     func(childComplexity int) int
+		Users                  func(childComplexity int) int
 	}
 
 	Room struct {
@@ -428,7 +434,9 @@ type ComplexityRoot struct {
 		ID                 func(childComplexity int) int
 		MustChangePassword func(childComplexity int) int
 		Name               func(childComplexity int) int
+		TemperatureUnit    func(childComplexity int) int
 		Theme              func(childComplexity int) int
+		TimeFormat         func(childComplexity int) int
 		Username           func(childComplexity int) int
 	}
 }
@@ -496,6 +504,7 @@ type QueryResolver interface {
 	Rooms(ctx context.Context) ([]*model.Room, error)
 	Room(ctx context.Context, id string) (*model.Room, error)
 	StateHistory(ctx context.Context, filter model.StateHistoryFilter) ([]*model.StateSeries, error)
+	AggregatedStateHistory(ctx context.Context, filter model.AggregatedStateHistoryFilter) ([]*model.AggregatedSeries, error)
 	StateHistoryFields(ctx context.Context) ([]string, error)
 	MqttConfig(ctx context.Context) (*model.MqttConfig, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
@@ -648,6 +657,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ActivitySource.Type(childComplexity), true
+
+	case "AggregatedSeries.field":
+		if e.ComplexityRoot.AggregatedSeries.Field == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AggregatedSeries.Field(childComplexity), true
+	case "AggregatedSeries.points":
+		if e.ComplexityRoot.AggregatedSeries.Points == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AggregatedSeries.Points(childComplexity), true
 
 	case "Alarm.count":
 		if e.ComplexityRoot.Alarm.Count == nil {
@@ -1986,6 +2008,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Activity(childComplexity, args["filter"].(*model.ActivityFilter)), true
+	case "Query.aggregatedStateHistory":
+		if e.ComplexityRoot.Query.AggregatedStateHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_aggregatedStateHistory_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AggregatedStateHistory(childComplexity, args["filter"].(model.AggregatedStateHistoryFilter)), true
 	case "Query.alarms":
 		if e.ComplexityRoot.Query.Alarms == nil {
 			break
@@ -2513,12 +2546,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.Name(childComplexity), true
+	case "User.temperatureUnit":
+		if e.ComplexityRoot.User.TemperatureUnit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.TemperatureUnit(childComplexity), true
 	case "User.theme":
 		if e.ComplexityRoot.User.Theme == nil {
 			break
 		}
 
 		return e.ComplexityRoot.User.Theme(childComplexity), true
+	case "User.timeFormat":
+		if e.ComplexityRoot.User.TimeFormat == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.TimeFormat(childComplexity), true
 	case "User.username":
 		if e.ComplexityRoot.User.Username == nil {
 			break
@@ -2537,6 +2582,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputActivityFilter,
 		ec.unmarshalInputAddGroupMemberInput,
 		ec.unmarshalInputAddRoomMemberInput,
+		ec.unmarshalInputAggregatedHistoryTarget,
+		ec.unmarshalInputAggregatedStateHistoryFilter,
 		ec.unmarshalInputAlarmFilter,
 		ec.unmarshalInputAutomationEdgeInput,
 		ec.unmarshalInputAutomationNodeInput,
@@ -3011,6 +3058,30 @@ input StateHistoryFilter {
   bucketSeconds: Int
 }
 
+type AggregatedSeries {
+  field: String!
+  points: [StateSeriesPoint!]!
+}
+
+enum AggregatedHistoryTargetType {
+  ROOM
+  GROUP
+  APARTMENT
+}
+
+input AggregatedHistoryTarget {
+  type: AggregatedHistoryTargetType!
+  id: ID
+}
+
+input AggregatedStateHistoryFilter {
+  target: AggregatedHistoryTarget!
+  fields: [String!]
+  from: DateTime
+  to: DateTime
+  bucketSeconds: Int
+}
+
 type DeviceStateEvent {
   deviceId: ID!
   state: DeviceState!
@@ -3048,6 +3119,16 @@ enum Theme {
   DARK
 }
 
+enum TimeFormat {
+  TWELVE_HOUR
+  TWENTY_FOUR_HOUR
+}
+
+enum TemperatureUnit {
+  CELSIUS
+  FAHRENHEIT
+}
+
 type User {
   id: ID!
   username: String!
@@ -3064,6 +3145,19 @@ type User {
   only populate ` + "`" + `id` + "`" + `, ` + "`" + `username` + "`" + `, and ` + "`" + `name` + "`" + `.
   """
   theme: Theme
+  """
+  Clock format used everywhere absolute timestamps render (chart tooltips,
+  activity feed fallbacks, logs page). Date portion is fixed ` + "`" + `YYYY-MM-DD` + "`" + `.
+  Present on full user loads, null on attribution references.
+  """
+  timeFormat: TimeFormat
+  """
+  Temperature unit applied at render time across sensor cards, dashboard
+  aggregates, and the state-history chart. Backend always stores Celsius;
+  conversion is purely a frontend concern. Present on full user loads, null
+  on attribution references.
+  """
+  temperatureUnit: TemperatureUnit
   """
   Timestamp the user was created; used on the profile page as "member since".
   Present on full user loads, null on attribution references.
@@ -3109,6 +3203,8 @@ input CreateUserInput {
 input UpdateCurrentUserInput {
   name: String
   theme: Theme
+  timeFormat: TimeFormat
+  temperatureUnit: TemperatureUnit
 }
 
 input ChangePasswordInput {
@@ -3370,6 +3466,7 @@ type Query {
   rooms: [Room!]! @auth
   room(id: ID!): Room @auth
   stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
+  aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
   mqttConfig: MqttConfig @auth
   settings: [Setting!]! @auth
@@ -4154,6 +4251,17 @@ func (ec *executionContext) field_Query_activity_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_aggregatedStateHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalNAggregatedStateHistoryFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedStateHistoryFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_alarms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4927,6 +5035,70 @@ func (ec *executionContext) fieldContext_ActivitySource_roomName(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _AggregatedSeries_field(ctx context.Context, field graphql.CollectedField, obj *model.AggregatedSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AggregatedSeries_field,
+		func(ctx context.Context) (any, error) {
+			return obj.Field, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AggregatedSeries_field(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AggregatedSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AggregatedSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.AggregatedSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AggregatedSeries_points,
+		func(ctx context.Context) (any, error) {
+			return obj.Points, nil
+		},
+		nil,
+		ec.marshalNStateSeriesPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AggregatedSeries_points(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AggregatedSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "at":
+				return ec.fieldContext_StateSeriesPoint_at(ctx, field)
+			case "value":
+				return ec.fieldContext_StateSeriesPoint_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StateSeriesPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Alarm_id(ctx context.Context, field graphql.CollectedField, obj *model.Alarm) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5358,6 +5530,10 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -5682,6 +5858,10 @@ func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Con
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -7594,6 +7774,10 @@ func (ec *executionContext) fieldContext_Effect_createdBy(_ context.Context, fie
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -8325,6 +8509,10 @@ func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -10546,6 +10734,10 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -10616,6 +10808,10 @@ func (ec *executionContext) fieldContext_Mutation_updateCurrentUser(ctx context.
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -12653,6 +12849,66 @@ func (ec *executionContext) fieldContext_Query_stateHistory(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_aggregatedStateHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_aggregatedStateHistory,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AggregatedStateHistory(ctx, fc.Args["filter"].(model.AggregatedStateHistoryFilter))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.AggregatedSeries
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAggregatedSeries2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedSeriesᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_aggregatedStateHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "field":
+				return ec.fieldContext_AggregatedSeries_field(ctx, field)
+			case "points":
+				return ec.fieldContext_AggregatedSeries_points(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AggregatedSeries", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_aggregatedStateHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_stateHistoryFields(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13070,6 +13326,10 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -13128,6 +13388,10 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -13712,6 +13976,10 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -14175,6 +14443,10 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_avatarPath(ctx, field)
 			case "theme":
 				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -15443,6 +15715,64 @@ func (ec *executionContext) fieldContext_User_theme(_ context.Context, field gra
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Theme does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_timeFormat(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_timeFormat,
+		func(ctx context.Context) (any, error) {
+			return obj.TimeFormat, nil
+		},
+		nil,
+		ec.marshalOTimeFormat2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTimeFormat,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_timeFormat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type TimeFormat does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_temperatureUnit(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_temperatureUnit,
+		func(ctx context.Context) (any, error) {
+			return obj.TemperatureUnit, nil
+		},
+		nil,
+		ec.marshalOTemperatureUnit2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTemperatureUnit,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_temperatureUnit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type TemperatureUnit does not have child fields")
 		},
 	}
 	return fc, nil
@@ -17112,6 +17442,101 @@ func (ec *executionContext) unmarshalInputAddRoomMemberInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAggregatedHistoryTarget(ctx context.Context, obj any) (model.AggregatedHistoryTarget, error) {
+	var it model.AggregatedHistoryTarget
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"type", "id"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNAggregatedHistoryTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedHistoryTargetType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAggregatedStateHistoryFilter(ctx context.Context, obj any) (model.AggregatedStateHistoryFilter, error) {
+	var it model.AggregatedStateHistoryFilter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"target", "fields", "from", "to", "bucketSeconds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "target":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("target"))
+			data, err := ec.unmarshalNAggregatedHistoryTarget2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedHistoryTarget(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Target = data
+		case "fields":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fields"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Fields = graphql.OmittableOf(data)
+		case "from":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.From = graphql.OmittableOf(data)
+		case "to":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
+			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.To = graphql.OmittableOf(data)
+		case "bucketSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bucketSeconds"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BucketSeconds = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputAlarmFilter(ctx context.Context, obj any) (model.AlarmFilter, error) {
 	var it model.AlarmFilter
 	if obj == nil {
@@ -18226,7 +18651,7 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "theme"}
+	fieldsInOrder := [...]string{"name", "theme", "timeFormat", "temperatureUnit"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18247,6 +18672,20 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 				return it, err
 			}
 			it.Theme = graphql.OmittableOf(data)
+		case "timeFormat":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timeFormat"))
+			data, err := ec.unmarshalOTimeFormat2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTimeFormat(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TimeFormat = graphql.OmittableOf(data)
+		case "temperatureUnit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("temperatureUnit"))
+			data, err := ec.unmarshalOTemperatureUnit2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTemperatureUnit(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TemperatureUnit = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -18696,6 +19135,50 @@ func (ec *executionContext) _ActivitySource(ctx context.Context, sel ast.Selecti
 			out.Values[i] = ec._ActivitySource_roomId(ctx, field, obj)
 		case "roomName":
 			out.Values[i] = ec._ActivitySource_roomName(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var aggregatedSeriesImplementors = []string{"AggregatedSeries"}
+
+func (ec *executionContext) _AggregatedSeries(ctx context.Context, sel ast.SelectionSet, obj *model.AggregatedSeries) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, aggregatedSeriesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AggregatedSeries")
+		case "field":
+			out.Values[i] = ec._AggregatedSeries_field(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "points":
+			out.Values[i] = ec._AggregatedSeries_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20694,6 +21177,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "aggregatedStateHistory":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_aggregatedStateHistory(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "stateHistoryFields":
 			field := field
 
@@ -21568,6 +22073,10 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_avatarPath(ctx, field, obj)
 		case "theme":
 			out.Values[i] = ec._User_theme(ctx, field, obj)
+		case "timeFormat":
+			out.Values[i] = ec._User_timeFormat(ctx, field, obj)
+		case "temperatureUnit":
+			out.Values[i] = ec._User_temperatureUnit(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
@@ -22007,6 +22516,52 @@ func (ec *executionContext) unmarshalNAddGroupMemberInput2githubᚗcomᚋsaffron
 
 func (ec *executionContext) unmarshalNAddRoomMemberInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAddRoomMemberInput(ctx context.Context, v any) (model.AddRoomMemberInput, error) {
 	res, err := ec.unmarshalInputAddRoomMemberInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAggregatedHistoryTarget2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedHistoryTarget(ctx context.Context, v any) (*model.AggregatedHistoryTarget, error) {
+	res, err := ec.unmarshalInputAggregatedHistoryTarget(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAggregatedHistoryTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedHistoryTargetType(ctx context.Context, v any) (model.AggregatedHistoryTargetType, error) {
+	var res model.AggregatedHistoryTargetType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAggregatedHistoryTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedHistoryTargetType(ctx context.Context, sel ast.SelectionSet, v model.AggregatedHistoryTargetType) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAggregatedSeries2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedSeriesᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AggregatedSeries) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAggregatedSeries2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedSeries(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAggregatedSeries2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedSeries(ctx context.Context, sel ast.SelectionSet, v *model.AggregatedSeries) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AggregatedSeries(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAggregatedStateHistoryFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAggregatedStateHistoryFilter(ctx context.Context, v any) (model.AggregatedStateHistoryFilter, error) {
+	res, err := ec.unmarshalInputAggregatedStateHistoryFilter(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -23903,6 +24458,22 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return res
 }
 
+func (ec *executionContext) unmarshalOTemperatureUnit2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTemperatureUnit(ctx context.Context, v any) (*model.TemperatureUnit, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.TemperatureUnit)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTemperatureUnit2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTemperatureUnit(ctx context.Context, sel ast.SelectionSet, v *model.TemperatureUnit) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) unmarshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTheme(ctx context.Context, v any) (*model.Theme, error) {
 	if v == nil {
 		return nil, nil
@@ -23913,6 +24484,22 @@ func (ec *executionContext) unmarshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffr
 }
 
 func (ec *executionContext) marshalOTheme2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTheme(ctx context.Context, sel ast.SelectionSet, v *model.Theme) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOTimeFormat2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTimeFormat(ctx context.Context, v any) (*model.TimeFormat, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.TimeFormat)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTimeFormat2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTimeFormat(ctx context.Context, sel ast.SelectionSet, v *model.TimeFormat) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

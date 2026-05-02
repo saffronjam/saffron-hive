@@ -68,6 +68,24 @@ type AddRoomMemberInput struct {
 	MemberID   string `json:"memberId"`
 }
 
+type AggregatedHistoryTarget struct {
+	Type AggregatedHistoryTargetType `json:"type"`
+	ID   graphql.Omittable[*string]  `json:"id,omitempty"`
+}
+
+type AggregatedSeries struct {
+	Field  string              `json:"field"`
+	Points []*StateSeriesPoint `json:"points"`
+}
+
+type AggregatedStateHistoryFilter struct {
+	Target        *AggregatedHistoryTarget      `json:"target"`
+	Fields        graphql.Omittable[[]string]   `json:"fields,omitempty"`
+	From          graphql.Omittable[*time.Time] `json:"from,omitempty"`
+	To            graphql.Omittable[*time.Time] `json:"to,omitempty"`
+	BucketSeconds graphql.Omittable[*int]       `json:"bucketSeconds,omitempty"`
+}
+
 // An alarm is an actionable severity-tagged signal. Rows are persisted 1:1 per
 // raise; this type is the grouped projection — multiple raises sharing the same
 // id collapse into one Alarm whose message/severity/kind come from the latest
@@ -570,8 +588,10 @@ type UpdateAutomationInput struct {
 }
 
 type UpdateCurrentUserInput struct {
-	Name  graphql.Omittable[*string] `json:"name,omitempty"`
-	Theme graphql.Omittable[*Theme]  `json:"theme,omitempty"`
+	Name            graphql.Omittable[*string]          `json:"name,omitempty"`
+	Theme           graphql.Omittable[*Theme]           `json:"theme,omitempty"`
+	TimeFormat      graphql.Omittable[*TimeFormat]      `json:"timeFormat,omitempty"`
+	TemperatureUnit graphql.Omittable[*TemperatureUnit] `json:"temperatureUnit,omitempty"`
 }
 
 type UpdateDeviceInput struct {
@@ -620,6 +640,15 @@ type User struct {
 	// `users`). Null on attribution references (e.g. `scene.createdBy`), which
 	// only populate `id`, `username`, and `name`.
 	Theme *Theme `json:"theme,omitempty"`
+	// Clock format used everywhere absolute timestamps render (chart tooltips,
+	// activity feed fallbacks, logs page). Date portion is fixed `YYYY-MM-DD`.
+	// Present on full user loads, null on attribution references.
+	TimeFormat *TimeFormat `json:"timeFormat,omitempty"`
+	// Temperature unit applied at render time across sensor cards, dashboard
+	// aggregates, and the state-history chart. Backend always stores Celsius;
+	// conversion is purely a frontend concern. Present on full user loads, null
+	// on attribution references.
+	TemperatureUnit *TemperatureUnit `json:"temperatureUnit,omitempty"`
 	// Timestamp the user was created; used on the profile page as "member since".
 	// Present on full user loads, null on attribution references.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
@@ -629,6 +658,63 @@ type User struct {
 	// flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
 	// on attribution references.
 	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
+}
+
+type AggregatedHistoryTargetType string
+
+const (
+	AggregatedHistoryTargetTypeRoom      AggregatedHistoryTargetType = "ROOM"
+	AggregatedHistoryTargetTypeGroup     AggregatedHistoryTargetType = "GROUP"
+	AggregatedHistoryTargetTypeApartment AggregatedHistoryTargetType = "APARTMENT"
+)
+
+var AllAggregatedHistoryTargetType = []AggregatedHistoryTargetType{
+	AggregatedHistoryTargetTypeRoom,
+	AggregatedHistoryTargetTypeGroup,
+	AggregatedHistoryTargetTypeApartment,
+}
+
+func (e AggregatedHistoryTargetType) IsValid() bool {
+	switch e {
+	case AggregatedHistoryTargetTypeRoom, AggregatedHistoryTargetTypeGroup, AggregatedHistoryTargetTypeApartment:
+		return true
+	}
+	return false
+}
+
+func (e AggregatedHistoryTargetType) String() string {
+	return string(e)
+}
+
+func (e *AggregatedHistoryTargetType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AggregatedHistoryTargetType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AggregatedHistoryTargetType", str)
+	}
+	return nil
+}
+
+func (e AggregatedHistoryTargetType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AggregatedHistoryTargetType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AggregatedHistoryTargetType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type AlarmEventKind string
@@ -974,6 +1060,61 @@ func (e GroupTag) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type TemperatureUnit string
+
+const (
+	TemperatureUnitCelsius    TemperatureUnit = "CELSIUS"
+	TemperatureUnitFahrenheit TemperatureUnit = "FAHRENHEIT"
+)
+
+var AllTemperatureUnit = []TemperatureUnit{
+	TemperatureUnitCelsius,
+	TemperatureUnitFahrenheit,
+}
+
+func (e TemperatureUnit) IsValid() bool {
+	switch e {
+	case TemperatureUnitCelsius, TemperatureUnitFahrenheit:
+		return true
+	}
+	return false
+}
+
+func (e TemperatureUnit) String() string {
+	return string(e)
+}
+
+func (e *TemperatureUnit) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TemperatureUnit(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TemperatureUnit", str)
+	}
+	return nil
+}
+
+func (e TemperatureUnit) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TemperatureUnit) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TemperatureUnit) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type Theme string
 
 const (
@@ -1024,6 +1165,61 @@ func (e *Theme) UnmarshalJSON(b []byte) error {
 }
 
 func (e Theme) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TimeFormat string
+
+const (
+	TimeFormatTwelveHour     TimeFormat = "TWELVE_HOUR"
+	TimeFormatTwentyFourHour TimeFormat = "TWENTY_FOUR_HOUR"
+)
+
+var AllTimeFormat = []TimeFormat{
+	TimeFormatTwelveHour,
+	TimeFormatTwentyFourHour,
+}
+
+func (e TimeFormat) IsValid() bool {
+	switch e {
+	case TimeFormatTwelveHour, TimeFormatTwentyFourHour:
+		return true
+	}
+	return false
+}
+
+func (e TimeFormat) String() string {
+	return string(e)
+}
+
+func (e *TimeFormat) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TimeFormat(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TimeFormat", str)
+	}
+	return nil
+}
+
+func (e TimeFormat) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TimeFormat) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TimeFormat) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
