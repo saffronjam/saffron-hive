@@ -24,7 +24,11 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
-	import { Theme as ThemeEnum } from "$lib/gql/graphql";
+	import {
+		Theme as ThemeEnum,
+		TimeFormat as TimeFormatEnum,
+		TemperatureUnit as TempUnitEnum,
+	} from "$lib/gql/graphql";
 	import { Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { toast } from "svelte-sonner";
@@ -39,7 +43,10 @@
 				name
 				avatarPath
 				theme
+				timeFormat
+				temperatureUnit
 				createdAt
+				mustChangePassword
 			}
 		}
 	`);
@@ -111,6 +118,38 @@
 			me.apply(result.data.updateCurrentUser);
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to update theme");
+		}
+	}
+
+	async function setTimeFormat(next: "12h" | "24h") {
+		if (me.user?.timeFormat === next) return;
+		const enumValue = next === "12h" ? TimeFormatEnum.TwelveHour : TimeFormatEnum.TwentyFourHour;
+		try {
+			const result = await client
+				.mutation(UPDATE_CURRENT_USER, { input: { timeFormat: enumValue } })
+				.toPromise();
+			if (result.error || !result.data?.updateCurrentUser) {
+				throw new Error(result.error?.message ?? "Failed to update time format");
+			}
+			me.apply(result.data.updateCurrentUser);
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Failed to update time format");
+		}
+	}
+
+	async function setTemperatureUnit(next: "celsius" | "fahrenheit") {
+		if (me.user?.temperatureUnit === next) return;
+		const enumValue = next === "fahrenheit" ? TempUnitEnum.Fahrenheit : TempUnitEnum.Celsius;
+		try {
+			const result = await client
+				.mutation(UPDATE_CURRENT_USER, { input: { temperatureUnit: enumValue } })
+				.toPromise();
+			if (result.error || !result.data?.updateCurrentUser) {
+				throw new Error(result.error?.message ?? "Failed to update temperature unit");
+			}
+			me.apply(result.data.updateCurrentUser);
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Failed to update temperature unit");
 		}
 	}
 
@@ -303,6 +342,38 @@
 				/>
 				<p class="text-xs text-muted-foreground">
 					Saved per-user. Pre-login pages follow the most recent theme on this device.
+				</p>
+			</div>
+
+			<div class="space-y-2">
+				<p class="text-sm font-medium">Time format</p>
+				<SegmentedControl
+					value={me.user?.timeFormat ?? "24h"}
+					onchange={(v) => setTimeFormat(v as "12h" | "24h")}
+					options={[
+						{ value: "24h", label: "24-hour" },
+						{ value: "12h", label: "12-hour" },
+					]}
+				/>
+				<p class="text-xs text-muted-foreground">
+					Applies to chart tooltips, the data viewer, sensor history popovers, the activity feed,
+					and the logs page. Date portion is always YYYY-MM-DD.
+				</p>
+			</div>
+
+			<div class="space-y-2">
+				<p class="text-sm font-medium">Temperature unit</p>
+				<SegmentedControl
+					value={me.user?.temperatureUnit ?? "celsius"}
+					onchange={(v) => setTemperatureUnit(v as "celsius" | "fahrenheit")}
+					options={[
+						{ value: "celsius", label: "Celsius (°C)" },
+						{ value: "fahrenheit", label: "Fahrenheit (°F)" },
+					]}
+				/>
+				<p class="text-xs text-muted-foreground">
+					Applies wherever temperature is shown. Backend stores Celsius; conversion happens at
+					render time only.
 				</p>
 			</div>
 		</CardContent>
