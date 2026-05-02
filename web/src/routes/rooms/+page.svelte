@@ -981,6 +981,7 @@
 										oncolor={(c) => commitRoomColor(room, c)}
 										ontemp={(t) => commitRoomTemp(room, t)}
 										addLabel="Add to room"
+										aggregateTarget={{ kind: "room", id: room.id }}
 									/>
 								{/each}
 							</AnimatedGrid>

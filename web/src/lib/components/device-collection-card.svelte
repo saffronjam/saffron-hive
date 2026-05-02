@@ -4,6 +4,9 @@
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
+	import SensorHistoryPopover, {
+		type SensorPopoverTarget,
+	} from "$lib/components/sensor-history-popover.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		Popover,
@@ -18,6 +21,7 @@
 		groupBaseTintColors,
 	} from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
+	import { me } from "$lib/stores/me.svelte";
 	import { Palette } from "@lucide/svelte";
 
 	interface Props {
@@ -35,6 +39,7 @@
 		oncolor?: (color: { r: number; g: number; b: number }) => void;
 		ontemp?: (mired: number) => void;
 		addLabel?: string;
+		aggregateTarget?: SensorPopoverTarget;
 	}
 
 	let {
@@ -52,6 +57,7 @@
 		oncolor,
 		ontemp,
 		addLabel,
+		aggregateTarget,
 	}: Props = $props();
 
 	let preview = $state<number | undefined>(undefined);
@@ -65,8 +71,11 @@
 		devices.some((d) => d.type === "light" && d.state?.brightness != null),
 	);
 	const sensors = $derived(devices.filter((d) => d.type === "sensor"));
-	const sensorReadings = $derived(aggregateSensorReadings(sensors));
+	const sensorReadings = $derived(
+		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius"),
+	);
 	const hasSensors = $derived(sensorReadings.length > 0);
+	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
 	const onOffDevices = $derived(
 		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
@@ -229,16 +238,39 @@
 		{#if hasLights || hasSensors}
 			<div class="mt-auto flex flex-col gap-2 pt-3">
 				{#if hasSensors}
-					<div class="flex items-center justify-end gap-3 text-sm tabular-nums">
-						{#each sensorReadings as r (r.label)}
-							<span class="flex items-center gap-1 text-muted-foreground">
-								<r.icon class="size-4" />
-								<span class="text-foreground"
-									>{r.value}<span class="ml-0.5 text-xs">{r.unit}</span></span
-								>
-							</span>
-						{/each}
-					</div>
+					{#if aggregateTarget}
+						<div class="flex justify-end">
+							<SensorHistoryPopover
+								target={aggregateTarget}
+								fields={sensorFields}
+								title={entity.name}
+								align="end"
+								triggerClass="group rounded focus-visible:outline-none"
+							>
+								<div class="flex items-center gap-3 text-sm tabular-nums">
+									{#each sensorReadings as r (r.label)}
+										<span class="flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+											<r.icon class="size-4" />
+											<span class="text-foreground"
+												>{r.value}<span class="ml-0.5 text-xs">{r.unit}</span></span
+											>
+										</span>
+									{/each}
+								</div>
+							</SensorHistoryPopover>
+						</div>
+					{:else}
+						<div class="flex items-center justify-end gap-3 text-sm tabular-nums">
+							{#each sensorReadings as r (r.label)}
+								<span class="flex items-center gap-1 text-muted-foreground">
+									<r.icon class="size-4" />
+									<span class="text-foreground"
+										>{r.value}<span class="ml-0.5 text-xs">{r.unit}</span></span
+									>
+								</span>
+							{/each}
+						</div>
+					{/if}
 				{/if}
 				{#if hasLights}
 					<BulkBrightnessSlider

@@ -1003,6 +1003,7 @@
 										oncolor={(c) => commitGroupColor(group, c)}
 										ontemp={(t) => commitGroupTemp(group, t)}
 										addLabel="Add member"
+										aggregateTarget={{ kind: "group", id: group.id }}
 									/>
 								{/each}
 							</AnimatedGrid>
