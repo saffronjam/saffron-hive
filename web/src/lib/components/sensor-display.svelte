@@ -4,6 +4,8 @@
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import { Thermometer, Droplets, Gauge, Sun, Battery } from "@lucide/svelte";
 	import type { DeviceState } from "$lib/stores/devices";
+	import { formatTemperature } from "$lib/sensor-format";
+	import { me } from "$lib/stores/me.svelte";
 
 	interface Props {
 		state: DeviceState;
@@ -21,10 +23,11 @@
 	const readings = $derived.by((): Reading[] => {
 		const result: Reading[] = [];
 		if (state.temperature != null) {
+			const t = formatTemperature(state.temperature, me.user?.temperatureUnit ?? "celsius");
 			result.push({
 				label: "Temperature",
-				value: state.temperature.toFixed(1),
-				unit: "\u00b0C",
+				value: t.value,
+				unit: t.unit,
 				icon: Thermometer,
 			});
 		}

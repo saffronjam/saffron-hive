@@ -4,6 +4,8 @@
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import { Battery, ChevronDown, Droplets, Thermometer } from "@lucide/svelte";
 	import { deviceIcon } from "$lib/utils";
+	import { formatTemperature } from "$lib/sensor-format";
+	import { me } from "$lib/stores/me.svelte";
 
 	interface CommandInput {
 		on?: boolean;
@@ -130,9 +132,13 @@
 			{:else if sensor}
 				<div class="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
 					{#if sensor.temperature != null}
+						{@const t = formatTemperature(
+							sensor.temperature,
+							me.user?.temperatureUnit ?? "celsius",
+						)}
 						<span class="flex items-center gap-1">
 							<Thermometer class="size-3.5" />
-							<span class="text-foreground">{sensor.temperature.toFixed(1)}&deg;C</span>
+							<span class="text-foreground">{t.value}{t.unit}</span>
 						</span>
 					{/if}
 					{#if sensor.humidity != null}
