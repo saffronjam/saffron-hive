@@ -228,6 +228,7 @@ func (f *effectFixture) setDeviceState(id device.DeviceID, s device.DeviceState)
 // effect device. Deactivating via drift on the static device stops the
 // effect run started for that scene activation.
 func TestWatcher_MixedStaticAndEffectActivatesBoth(t *testing.T) {
+	shrinkSettleWindow(t, 0)
 	f := newEffectFixture(t)
 	f.registerLight("static-1")
 	f.registerLight("effect-1")

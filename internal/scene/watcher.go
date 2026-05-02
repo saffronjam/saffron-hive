@@ -2,6 +2,7 @@ package scene
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,6 +14,15 @@ import (
 )
 
 var logger = logging.Named("scene")
+
+// settleWindow is how long after a scene apply the watcher tolerates state
+// mismatches before treating them as drift. Bulb transitions (z2m sends
+// `transition` to the device) plus the asynchronous nature of multi-attribute
+// state echoes mean a freshly-applied scene's device may briefly report
+// stale-merged values that don't match the snapshotted expected state. After
+// the window, mismatches deactivate as foreign drift. Exposed as a var so
+// tests can override.
+var settleWindow = 2 * time.Second
 
 // WatcherStore is the narrow subset of store methods the watcher needs.
 // *store.DB satisfies it implicitly.
@@ -73,6 +83,24 @@ type Watcher struct {
 
 	effectByScene    map[string]map[device.DeviceID]string
 	sceneByEffectRun map[string]string
+
+	// lastAppliedAt records the most recent EventSceneApplied timestamp per
+	// scene. handleDeviceStateChanged consults it to grant a settle window
+	// during which transition-stage mismatches are tolerated. Hydrated scenes
+	// have no entry — they're long settled, so the first mismatch is real
+	// drift.
+	lastAppliedAt map[string]time.Time
+
+	// settleTimers fires settleExpiredCh exactly once per apply, settleWindow
+	// after the apply timestamp. The Run loop drains settleExpiredCh and
+	// calls handleSettleExpired so re-evaluation runs in the same goroutine
+	// as every other state mutation. pendingMismatch tracks whether any
+	// in-window state event mismatched expected; only then does the
+	// post-settle re-check try to deactivate (devices that never reported
+	// during the window are left alone, not deactivated on a stale snapshot).
+	settleTimers    map[string]*time.Timer
+	settleExpiredCh chan string
+	pendingMismatch map[string]bool
 }
 
 // NewWatcher constructs a Watcher and subscribes it to the bus immediately, so
@@ -92,6 +120,10 @@ func NewWatcher(bus eventbus.EventBus, s WatcherStore, resolver device.TargetRes
 		deviceIndex:      make(map[device.DeviceID]map[string]struct{}),
 		effectByScene:    make(map[string]map[device.DeviceID]string),
 		sceneByEffectRun: make(map[string]string),
+		lastAppliedAt:    make(map[string]time.Time),
+		settleTimers:     make(map[string]*time.Timer),
+		settleExpiredCh:  make(chan string, 16),
+		pendingMismatch:  make(map[string]bool),
 	}
 	w.ch = bus.Subscribe(eventbus.EventSceneApplied, eventbus.EventDeviceStateChanged, eventbus.EventEffectEnded)
 	return w
@@ -143,6 +175,8 @@ func (w *Watcher) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		case sceneID := <-w.settleExpiredCh:
+			w.handleSettleExpired(ctx, sceneID)
 		case evt, ok := <-w.ch:
 			if !ok {
 				return
@@ -208,6 +242,7 @@ func (w *Watcher) handleSceneApplied(ctx context.Context, sceneID string, applie
 	}
 
 	w.setActive(sceneID, expected)
+	w.scheduleSettleExpiry(sceneID, appliedAt)
 	w.startSceneEffects(ctx, sceneID, plan.EffectRuns)
 
 	at := appliedAt
@@ -275,6 +310,25 @@ func (w *Watcher) handleDeviceStateChanged(ctx context.Context, deviceID device.
 		if ExpectedMatchesCurrent(exp, current) {
 			continue
 		}
+		w.mu.RLock()
+		appliedAt, hasApplied := w.lastAppliedAt[sceneID]
+		w.mu.RUnlock()
+		if hasApplied && time.Since(appliedAt) < settleWindow {
+			w.mu.Lock()
+			w.pendingMismatch[sceneID] = true
+			w.mu.Unlock()
+			logger.Debug("scene mismatch within settle window; tolerating",
+				"scene_id", sceneID,
+				"device_id", string(deviceID),
+				"since_apply", time.Since(appliedAt))
+			continue
+		}
+		logger.Info("scene drift detected; deactivating",
+			"scene_id", sceneID,
+			"device_id", string(deviceID),
+			"expected_on", boolPtrStr(exp.On), "current_on", boolPtrStr(current.On),
+			"expected_brightness", intPtrStr(exp.Brightness), "current_brightness", intPtrStr(current.Brightness),
+			"expected_color_temp", intPtrStr(exp.ColorTemp), "current_color_temp", intPtrStr(current.ColorTemp))
 		w.deactivate(ctx, sceneID)
 	}
 }
@@ -398,4 +452,90 @@ func (w *Watcher) clearActive(sceneID string) {
 		}
 	}
 	delete(w.expected, sceneID)
+	delete(w.lastAppliedAt, sceneID)
+	delete(w.pendingMismatch, sceneID)
+	if t, ok := w.settleTimers[sceneID]; ok {
+		t.Stop()
+		delete(w.settleTimers, sceneID)
+	}
+}
+
+// scheduleSettleExpiry records the apply timestamp and arms a timer that
+// posts the scene id to settleExpiredCh after settleWindow. Re-applying a
+// scene cancels the previous timer.
+func (w *Watcher) scheduleSettleExpiry(sceneID string, appliedAt time.Time) {
+	w.mu.Lock()
+	w.lastAppliedAt[sceneID] = appliedAt
+	if t, ok := w.settleTimers[sceneID]; ok {
+		t.Stop()
+	}
+	w.settleTimers[sceneID] = time.AfterFunc(settleWindow, func() {
+		// Channel is buffered; if Run is gone we'd block forever — use a
+		// non-blocking send to drop the signal in that case.
+		select {
+		case w.settleExpiredCh <- sceneID:
+		default:
+		}
+	})
+	w.mu.Unlock()
+}
+
+// handleSettleExpired re-evaluates a scene's expected vs current state once
+// its settle window has elapsed. If any device drifted during the window
+// (and the post-settle state still mismatches), the scene deactivates now —
+// catching real drift the settle window initially tolerated.
+func (w *Watcher) handleSettleExpired(ctx context.Context, sceneID string) {
+	w.mu.Lock()
+	delete(w.settleTimers, sceneID)
+	delete(w.lastAppliedAt, sceneID)
+	hadMismatch := w.pendingMismatch[sceneID]
+	delete(w.pendingMismatch, sceneID)
+	expectedForScene, present := w.expected[sceneID]
+	if !present || !hadMismatch {
+		w.mu.Unlock()
+		return
+	}
+	snapshot := make(map[device.DeviceID]store.SceneExpectedState, len(expectedForScene))
+	for did, exp := range expectedForScene {
+		snapshot[did] = exp
+	}
+	w.mu.Unlock()
+
+	for did, exp := range snapshot {
+		if w.isSceneEffectDevice(sceneID, did) {
+			continue
+		}
+		current, ok := w.reader.GetDeviceState(did)
+		if !ok {
+			continue
+		}
+		if ExpectedMatchesCurrent(exp, current) {
+			continue
+		}
+		logger.Info("post-settle drift detected; deactivating",
+			"scene_id", sceneID,
+			"device_id", string(did),
+			"expected_on", boolPtrStr(exp.On), "current_on", boolPtrStr(current.On),
+			"expected_brightness", intPtrStr(exp.Brightness), "current_brightness", intPtrStr(current.Brightness),
+			"expected_color_temp", intPtrStr(exp.ColorTemp), "current_color_temp", intPtrStr(current.ColorTemp))
+		w.deactivate(ctx, sceneID)
+		return
+	}
+}
+
+func boolPtrStr(p *bool) string {
+	if p == nil {
+		return "nil"
+	}
+	if *p {
+		return "true"
+	}
+	return "false"
+}
+
+func intPtrStr(p *int) string {
+	if p == nil {
+		return "nil"
+	}
+	return strconv.Itoa(*p)
 }

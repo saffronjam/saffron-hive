@@ -317,6 +317,7 @@ func TestWatcher_MatchingEchoDoesNotInvalidate(t *testing.T) {
 }
 
 func TestWatcher_DivergingStateDeactivates(t *testing.T) {
+	shrinkSettleWindow(t, 0)
 	f := newWatcherFixture(t)
 	f.registerLight("dev-1")
 	f.state.UpdateDeviceState("dev-1", device.DeviceState{
@@ -343,6 +344,7 @@ func TestWatcher_DivergingStateDeactivates(t *testing.T) {
 }
 
 func TestWatcher_DisjointScenesCoexistAndInvalidateIndependently(t *testing.T) {
+	shrinkSettleWindow(t, 0)
 	f := newWatcherFixture(t)
 	f.registerLight("dev-1")
 	f.registerLight("dev-2")
@@ -374,6 +376,7 @@ func TestWatcher_DisjointScenesCoexistAndInvalidateIndependently(t *testing.T) {
 }
 
 func TestWatcher_OverlappingScenes_BApplyDeactivatesA(t *testing.T) {
+	shrinkSettleWindow(t, 0)
 	f := newWatcherFixture(t)
 	f.registerLight("dev-1")
 	f.state.UpdateDeviceState("dev-1", device.DeviceState{
@@ -404,6 +407,119 @@ func TestWatcher_OverlappingScenes_BApplyDeactivatesA(t *testing.T) {
 	}
 	if !f.store.isActive("scene-B") {
 		t.Fatal("scene-B should be active")
+	}
+}
+
+// shrinkSettleWindow swaps settleWindow to d for the duration of a single
+// test. Restores the original on cleanup.
+func shrinkSettleWindow(t *testing.T, d time.Duration) {
+	t.Helper()
+	orig := settleWindow
+	settleWindow = d
+	t.Cleanup(func() { settleWindow = orig })
+}
+
+func TestWatcher_PartialEchoWithinSettleWindow_DoesNotDeactivate(t *testing.T) {
+	f := newWatcherFixture(t)
+	f.registerLight("dev-1")
+	// Pre-state: light off, no brightness/colorTemp ever reported. After apply
+	// the expected snapshot will carry the scene's commanded values; a partial
+	// echo carrying only {On:true} merges as {On:true, Brightness:nil,
+	// ColorTemp:nil} — strictly mismatching expected. Without the settle
+	// window the watcher would deactivate on this transient.
+	f.state.UpdateDeviceState("dev-1", device.DeviceState{On: device.Ptr(false)})
+	f.seedScene("scene-1", "dev-1")
+	f.store.mu.Lock()
+	f.store.payloads["scene-1"] = []store.SceneDevicePayload{
+		{SceneID: "scene-1", DeviceID: "dev-1", Payload: `{"on":true,"brightness":200,"colorTemp":153}`},
+	}
+	f.store.mu.Unlock()
+
+	f.applyScene("scene-1")
+	waitActivated(t, f, "scene-1")
+
+	f.setDeviceState("dev-1", device.DeviceState{On: device.Ptr(true)})
+	expectNoActivation(t, f)
+
+	if !f.store.isActive("scene-1") {
+		t.Fatal("scene-1 should still be active after partial echo within settle window")
+	}
+}
+
+func TestWatcher_DriftWithinSettleWindow_DeactivatesOnExpiry(t *testing.T) {
+	shrinkSettleWindow(t, 100*time.Millisecond)
+	f := newWatcherFixture(t)
+	f.registerLight("dev-1")
+	f.state.UpdateDeviceState("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(200), ColorTemp: device.Ptr(370),
+	})
+	f.seedScene("scene-1", "dev-1")
+
+	f.applyScene("scene-1")
+	waitActivated(t, f, "scene-1")
+
+	// Real drift within the settle window: tolerated immediately, but the
+	// post-settle re-check after 100ms must catch it and deactivate.
+	f.setDeviceState("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(50), ColorTemp: device.Ptr(370),
+	})
+	waitDeactivated(t, f, "scene-1")
+}
+
+func TestWatcher_DriftAfterSettleWindow_Deactivates(t *testing.T) {
+	shrinkSettleWindow(t, 50*time.Millisecond)
+	f := newWatcherFixture(t)
+	f.registerLight("dev-1")
+	f.state.UpdateDeviceState("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(200), ColorTemp: device.Ptr(370),
+	})
+	f.seedScene("scene-1", "dev-1")
+
+	f.applyScene("scene-1")
+	waitActivated(t, f, "scene-1")
+
+	time.Sleep(150 * time.Millisecond)
+
+	f.setDeviceState("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(10), ColorTemp: device.Ptr(370),
+	})
+	waitDeactivated(t, f, "scene-1")
+}
+
+func TestWatcher_DriftWithinSettleWindowOnSecondScene_StillSuppressed(t *testing.T) {
+	f := newWatcherFixture(t)
+	f.registerLight("dev-1")
+	f.state.UpdateDeviceState("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(50), ColorTemp: device.Ptr(200),
+	})
+	f.seedScene("scene-A", "dev-1")
+	f.seedScene("scene-B", "dev-1")
+	f.store.mu.Lock()
+	f.store.payloads["scene-A"] = []store.SceneDevicePayload{
+		{SceneID: "scene-A", DeviceID: "dev-1", Payload: `{"on":true,"brightness":50,"colorTemp":200}`},
+	}
+	f.store.payloads["scene-B"] = []store.SceneDevicePayload{
+		{SceneID: "scene-B", DeviceID: "dev-1", Payload: `{"on":true,"brightness":200,"colorTemp":153}`},
+	}
+	f.store.mu.Unlock()
+
+	f.applyScene("scene-A")
+	waitActivated(t, f, "scene-A")
+	f.applyScene("scene-B")
+	waitActivated(t, f, "scene-B")
+
+	// Both scenes are within their settle windows. A partial echo (just
+	// {On:true}) leaves merged state at {On:true, Brightness:50, ColorTemp:200}.
+	// scene-A's expected matches; scene-B's expected (200, 153) mismatches but
+	// the settle window suppresses deactivation.
+	f.setDeviceState("dev-1", device.DeviceState{On: device.Ptr(true)})
+	expectNoActivation(t, f)
+
+	if !f.store.isActive("scene-A") {
+		t.Fatal("scene-A should still be active (state matched its expected)")
+	}
+	if !f.store.isActive("scene-B") {
+		t.Fatal("scene-B should still be active inside its settle window")
 	}
 }
 
