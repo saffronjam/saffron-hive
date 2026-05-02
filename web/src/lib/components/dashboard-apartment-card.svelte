@@ -1,58 +1,45 @@
 <script lang="ts">
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
-	import { popoverDismissedRecently } from "$lib/popover-guard";
-	import { DoorOpen } from "@lucide/svelte";
+	import { House } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
 		brightnessToTintStrength,
 		aggregateSensorReadings,
 	} from "$lib/device-tint";
-	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
 	import type { Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
-	import { commitGroupBrightness } from "$lib/group-commands";
+	import { commitGroupBrightness, commitGroupToggle } from "$lib/group-commands";
+	import { popoverDismissedRecently } from "$lib/popover-guard";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
 	import { onDestroy } from "svelte";
 
-	interface RoomEntity {
-		id: string;
-		name: string;
-		icon?: string | null;
-	}
-
 	interface Props {
-		room: RoomLite & RoomEntity;
 		devices: Device[];
-		groups: GroupLite[];
-		rooms: RoomLite[];
 		client: Client;
-		onopen: (room: RoomEntity) => void;
 	}
 
-	let { room, devices, groups, rooms, client, onopen }: Props = $props();
+	let { devices, client }: Props = $props();
 
-	const roomDevices = $derived(
-		resolveTargetDevices({ type: "room", id: room.id }, devices, groups, rooms),
-	);
+	const apartmentEntity = { id: "apartment", name: "Apartment", icon: null };
 
 	const lights = $derived(
-		roomDevices.filter(
+		devices.filter(
 			(d) => d.type === "light" || d.capabilities.some((c) => c.name === "on_off"),
 		),
 	);
 	const onLights = $derived(lights.filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 
-	const sensors = $derived(roomDevices.filter((d) => d.type === "sensor"));
+	const sensors = $derived(devices.filter((d) => d.type === "sensor"));
 	const sensorReadings = $derived(
 		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius"),
 	);
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
-	const tintColors = $derived(groupBaseTintColors(roomDevices));
+	const tintColors = $derived(groupBaseTintColors(devices));
 	const tintStrength = $derived.by(() => {
 		const lit = onLights.filter((d) => d.state?.brightness != null);
 		if (lit.length === 0) return 0;
@@ -62,7 +49,7 @@
 	});
 
 	const dimmableLights = $derived(
-		roomDevices.filter((d) => d.type === "light" && d.state?.brightness != null),
+		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
 	);
 	const avgBrightness = $derived.by((): number => {
 		const lit = onLights.filter((d) => d.state?.brightness != null);
@@ -124,8 +111,8 @@
 </script>
 
 <EntityCard
-	entity={room}
-	fallbackIcon={DoorOpen}
+	entity={apartmentEntity}
+	fallbackIcon={House}
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	{tintStrength}
@@ -136,15 +123,16 @@
 	iconAreaSize="sm"
 	onclick={() => {
 		if (popoverDismissedRecently()) return;
-		onopen(room);
+		if (lights.length === 0) return;
+		void commitGroupToggle(client, lights, !isOn);
 	}}
 >
 	{#snippet leadingActions()}
 		{#if hasSensors}
 			<SensorHistoryPopover
-				target={{ kind: "room", id: room.id }}
+				target={{ kind: "apartment" }}
 				fields={sensorFields}
-				title={room.name}
+				title={apartmentEntity.name}
 				align="end"
 				triggerClass="group rounded focus-visible:outline-none"
 			>

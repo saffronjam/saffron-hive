@@ -9,7 +9,7 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 - `dashboard-room-card.svelte` — dashboard top-level: room icon + name + sensor readout + click-to-open-drawer + drag-for-brightness.
 - `dashboard-light-card.svelte` — drawer Section A: single light or `LIGHT`-tagged group, tap-to-toggle, drag-for-brightness, icon-popover colour picker, expand-popover member rows.
 - `dashboard-device-card.svelte` — per-device dashboard card (Connected to the legacy device dashboard surface). Has built-in expand chevron + brightness slider with throttle.
-- `dashboard-sensors-panel.svelte` — right-rail aggregated sensor readout list.
+- `dashboard-apartment-card.svelte` — dashboard top-level apartment summary: House icon + aggregated sensor readings + drag-for-brightness across all dimmable lights.
 - `room-drawer.svelte` — bottom Sheet for a room: header card + scenes + Section A light grid.
 - `device-card.svelte` — alternate device card with brightness throttle + interacting cooldown (used by some legacy surfaces).
 - `device-quick-controls.svelte` — toggle + brightness slider + colour picker for a single device, designed for the device detail view.

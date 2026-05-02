@@ -3,8 +3,8 @@
 	import { getContextClient, queryStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
+	import DashboardApartmentCard from "$lib/components/dashboard-apartment-card.svelte";
 	import DashboardRoomCard from "$lib/components/dashboard-room-card.svelte";
-	import DashboardSensorsPanel from "$lib/components/dashboard-sensors-panel.svelte";
 	import RoomDrawer from "$lib/components/room-drawer.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
@@ -118,34 +118,32 @@
 	}
 </script>
 
-<div class="flex flex-col gap-6 lg:flex-row lg:items-start">
-	<div class="min-w-0 flex-1 lg:max-w-3xl">
-		{#if $devicesHydrated && rooms.length === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No rooms configured yet.</p>
-				<p class="mt-2 text-sm text-muted-foreground">
-					Create a room on the Rooms page and add devices or light groups to it.
-				</p>
-			</div>
-		{:else}
-			<div class="flex flex-col gap-3">
-				{#each rooms as room (room.id)}
-					<DashboardRoomCard
-						{room}
-						{devices}
-						{groups}
-						{rooms}
-						{client}
-						onopen={(r) => (openRoomId = r.id)}
-					/>
-				{/each}
-			</div>
-		{/if}
-	</div>
+<div class="mx-auto flex max-w-3xl flex-col gap-3">
+	<DashboardApartmentCard {devices} {client} />
 
-	<aside class="w-full shrink-0 lg:w-72">
-		<DashboardSensorsPanel {devices} />
-	</aside>
+	{#if $devicesHydrated && rooms.length === 0}
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
+			<p class="text-muted-foreground">No rooms configured yet.</p>
+			<p class="mt-2 text-sm text-muted-foreground">
+				Create a room on the Rooms page and add devices or light groups to it.
+			</p>
+		</div>
+	{:else}
+		<div class="mt-3 flex items-center gap-3">
+			<h2 class="text-sm font-medium text-muted-foreground">Rooms</h2>
+			<div class="h-px flex-1 bg-border"></div>
+		</div>
+		{#each rooms as room (room.id)}
+			<DashboardRoomCard
+				{room}
+				{devices}
+				{groups}
+				{rooms}
+				{client}
+				onopen={(r) => (openRoomId = r.id)}
+			/>
+		{/each}
+	{/if}
 </div>
 
 <RoomDrawer
