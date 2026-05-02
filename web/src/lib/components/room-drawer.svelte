@@ -6,6 +6,7 @@
 		SheetDescription,
 	} from "$lib/components/ui/sheet/index.js";
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import DashboardLightCard from "$lib/components/dashboard-light-card.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
@@ -15,7 +16,7 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon, Palette } from "@lucide/svelte";
+	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
 		brightnessToTintStrength,
@@ -35,6 +36,7 @@
 	} from "$lib/group-commands";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
+	import { me } from "$lib/stores/me.svelte";
 	import { onDestroy } from "svelte";
 
 	interface RoomEntity {
@@ -99,8 +101,11 @@
 	const roomDeviceIds = $derived(new Set(roomDevices.map((d) => d.id)));
 
 	const sensors = $derived(roomDevices.filter((d) => d.type === "sensor"));
-	const sensorReadings = $derived(aggregateSensorReadings(sensors));
+	const sensorReadings = $derived(
+		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius"),
+	);
 	const hasSensors = $derived(sensorReadings.length > 0);
+	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
 	const lightDevices = $derived(roomDevices.filter((d) => d.type === "light"));
 	const onLights = $derived(lightDevices.filter((d) => d.state?.on));
@@ -316,26 +321,10 @@
 				}}
 			>
 				{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
-					<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
-						{#if hasTint}
-							<div
-								class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
-								style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
-								aria-hidden="true"
-							></div>
-						{/if}
-						<AnimatedIcon icon={room.icon} class="relative size-5 {iconTextClass}">
-							{#snippet fallback()}
-								<DoorOpen class="relative size-5 {iconTextClass}" />
-							{/snippet}
-						</AnimatedIcon>
-					</div>
-				{/snippet}
-				{#snippet leadingActions()}
 					{#if roomHasPicker}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<span onclick={(e: MouseEvent) => e.stopPropagation()}>
+						<span onclick={(e: MouseEvent) => e.stopPropagation()} class="shrink-0">
 							<Popover
 								bind:open={roomPickerOpen}
 								onOpenChange={(open) => {
@@ -344,17 +333,28 @@
 							>
 								<PopoverTrigger>
 									{#snippet child({ props })}
-										<Button
+										<button
+											type="button"
 											{...props}
-											variant="ghost"
-											size="icon-sm"
+											class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
 											aria-label={`Adjust ${room.name} colour`}
 										>
-											<Palette class="size-4" />
-										</Button>
+											{#if hasTint}
+												<div
+													class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+													style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+													aria-hidden="true"
+												></div>
+											{/if}
+											<AnimatedIcon icon={room.icon} class="relative size-3.5 {iconTextClass}">
+												{#snippet fallback()}
+													<DoorOpen class="relative size-3.5 {iconTextClass}" />
+												{/snippet}
+											</AnimatedIcon>
+										</button>
 									{/snippet}
 								</PopoverTrigger>
-								<PopoverContent class="w-72 p-3" align="end">
+								<PopoverContent class="w-72 p-3" align="start">
 									<LightColorPicker
 										color={roomAggregatedColor}
 										colorTemp={roomAggregatedTemp}
@@ -367,17 +367,40 @@
 								</PopoverContent>
 							</Popover>
 						</span>
-					{/if}
-					{#if hasSensors}
-						<div class="flex items-center gap-3 text-sm tabular-nums">
-							{#each sensorReadings as r (r.label)}
-								<span class="flex items-center gap-1 text-muted-foreground">
-									<r.icon class="size-4" />
-									<span class="text-foreground">{r.value}</span>
-									<span class="ml-0.5 text-xs">{r.unit}</span>
-								</span>
-							{/each}
+					{:else}
+						<div class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50">
+							{#if hasTint}
+								<div
+									class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+									style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+									aria-hidden="true"
+								></div>
+							{/if}
+							<AnimatedIcon icon={room.icon} class="relative size-3.5 {iconTextClass}">
+								{#snippet fallback()}
+									<DoorOpen class="relative size-3.5 {iconTextClass}" />
+								{/snippet}
+							</AnimatedIcon>
 						</div>
+					{/if}
+				{/snippet}
+				{#snippet leadingActions()}
+					{#if hasSensors}
+						<SensorHistoryPopover
+							target={{ kind: "room", id: room.id }}
+							fields={sensorFields}
+							title={room.name}
+							align="end"
+							triggerClass="group rounded focus-visible:outline-none"
+						>
+							<div class="grid grid-cols-[auto_auto_auto] items-center gap-x-1 gap-y-0.5 text-sm tabular-nums text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+								{#each sensorReadings as r (r.label)}
+									<r.icon class="size-4" />
+									<span class="text-right text-foreground">{r.value}</span>
+									<span class="text-xs">{r.unit}</span>
+								{/each}
+							</div>
+						</SensorHistoryPopover>
 					{/if}
 				{/snippet}
 			</EntityCard>

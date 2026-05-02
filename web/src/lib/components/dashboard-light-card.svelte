@@ -10,7 +10,7 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Lightbulb, Maximize2, Palette } from "@lucide/svelte";
+	import { Lightbulb, Maximize2 } from "@lucide/svelte";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
 	import { onDestroy } from "svelte";
@@ -192,46 +192,41 @@
 	{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
 		{@const showPlugOn = !hasTint && isOn}
 		{@const plugIconClass = showPlugOn ? "text-orange-400" : iconTextClass}
-		<div class="relative flex size-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
-			{#if hasTint}
-				<div
-					class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
-					style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
-					aria-hidden="true"
-				></div>
-			{:else}
-				<div
-					class="pointer-events-none absolute inset-0 rounded-md bg-orange-500/30 transition-opacity duration-300 ease-out"
-					style="opacity: {showPlugOn ? 1 : 0}"
-					aria-hidden="true"
-				></div>
-			{/if}
-			<AnimatedIcon icon={entity.icon} class="relative size-5 transition-colors duration-300 {plugIconClass}">
-				{#snippet fallback()}
-					<FallbackIcon class="relative size-5 transition-colors duration-300 {plugIconClass}" />
-				{/snippet}
-			</AnimatedIcon>
-		</div>
-	{/snippet}
-	{#snippet leadingActions()}
 		{#if hasPicker}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
-			<span onclick={(e: MouseEvent) => e.stopPropagation()}>
+			<span onclick={(e: MouseEvent) => e.stopPropagation()} class="shrink-0">
 				<Popover bind:open={pickerOpen} onOpenChange={onPopoverChange}>
 					<PopoverTrigger>
 						{#snippet child({ props })}
-							<Button
+							<button
+								type="button"
 								{...props}
-								variant="ghost"
-								size="icon-sm"
+								class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
 								aria-label={`Adjust ${entity.name} colour`}
 							>
-								<Palette class="size-4" />
-							</Button>
+								{#if hasTint}
+									<div
+										class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+										style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+										aria-hidden="true"
+									></div>
+								{:else}
+									<div
+										class="pointer-events-none absolute inset-0 rounded-md bg-orange-500/30 transition-opacity duration-300 ease-out"
+										style="opacity: {showPlugOn ? 1 : 0}"
+										aria-hidden="true"
+									></div>
+								{/if}
+								<AnimatedIcon icon={entity.icon} class="relative size-3.5 transition-colors duration-300 {plugIconClass}">
+									{#snippet fallback()}
+										<FallbackIcon class="relative size-3.5 transition-colors duration-300 {plugIconClass}" />
+									{/snippet}
+								</AnimatedIcon>
+							</button>
 						{/snippet}
 					</PopoverTrigger>
-					<PopoverContent class="w-72 p-3" align="end">
+					<PopoverContent class="w-72 p-3" align="start">
 						<LightColorPicker
 							color={aggregatedColor}
 							colorTemp={aggregatedTemp}
@@ -244,7 +239,30 @@
 					</PopoverContent>
 				</Popover>
 			</span>
+		{:else}
+			<div class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50">
+				{#if hasTint}
+					<div
+						class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+						style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
+						aria-hidden="true"
+					></div>
+				{:else}
+					<div
+						class="pointer-events-none absolute inset-0 rounded-md bg-orange-500/30 transition-opacity duration-300 ease-out"
+						style="opacity: {showPlugOn ? 1 : 0}"
+						aria-hidden="true"
+					></div>
+				{/if}
+				<AnimatedIcon icon={entity.icon} class="relative size-3.5 transition-colors duration-300 {plugIconClass}">
+					{#snippet fallback()}
+						<FallbackIcon class="relative size-3.5 transition-colors duration-300 {plugIconClass}" />
+					{/snippet}
+				</AnimatedIcon>
+			</div>
 		{/if}
+	{/snippet}
+	{#snippet leadingActions()}
 		{#if isGroup && devices.length > 1}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
