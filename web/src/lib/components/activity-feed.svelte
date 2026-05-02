@@ -2,6 +2,7 @@
 	import { Workflow } from "@lucide/svelte";
 	import { formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
+	import { me } from "$lib/stores/me.svelte";
 
 	interface AutomationInfo {
 		id: string;
@@ -48,7 +49,7 @@
 						</p>
 					</div>
 					<span class="shrink-0 text-xs text-muted-foreground">
-						{formatRelative(entry.timestamp, nowStore.current)}
+						{formatRelative(entry.timestamp, nowStore.current, me.user?.timeFormat ?? "24h")}
 					</span>
 				</div>
 			{/each}

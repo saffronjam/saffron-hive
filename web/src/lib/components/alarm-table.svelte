@@ -15,6 +15,7 @@
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { formatRelative, formatFull } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
+	import { me } from "$lib/stores/me.svelte";
 	import { Trash2 } from "@lucide/svelte";
 	import type { Alarm } from "$lib/stores/alarms.svelte";
 
@@ -147,7 +148,13 @@
 	<span class="text-xs text-muted-foreground">
 		<Tooltip>
 			<TooltipTrigger>
-				<span>{formatRelative(new Date(a.lastRaisedAt), nowStore.current)}</span>
+				<span
+					>{formatRelative(
+						new Date(a.lastRaisedAt),
+						nowStore.current,
+						me.user?.timeFormat ?? "24h",
+					)}</span
+				>
 			</TooltipTrigger>
 			<TooltipContent>{formatFull(new Date(a.lastRaisedAt))}</TooltipContent>
 		</Tooltip>

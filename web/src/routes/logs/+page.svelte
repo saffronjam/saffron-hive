@@ -7,6 +7,8 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Radio } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { formatTime } from "$lib/time-format";
+	import { me } from "$lib/stores/me.svelte";
 
 	interface LogEntry {
 		timestamp: string;
@@ -83,12 +85,11 @@
 
 	function formatTimestamp(ts: string): string {
 		const d = new Date(ts);
-		return d.toLocaleTimeString("en-GB", {
-			hour: "2-digit",
-			minute: "2-digit",
-			second: "2-digit",
-			fractionalSecondDigits: 3,
-		});
+		const base = formatTime(d, me.user?.timeFormat ?? "24h");
+		const ms = String(d.getMilliseconds()).padStart(3, "0");
+		const space = base.indexOf(" ");
+		if (space === -1) return `${base}.${ms}`;
+		return `${base.slice(0, space)}.${ms}${base.slice(space)}`;
 	}
 
 	function formatAttrs(attrsJson: string): string {

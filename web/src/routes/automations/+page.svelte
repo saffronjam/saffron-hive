@@ -20,6 +20,7 @@
 	import { automationNodeCounts } from "$lib/list-helpers";
 	import { formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
+	import { me } from "$lib/stores/me.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
@@ -603,7 +604,13 @@
 												&middot;&nbsp;
 												<Tooltip>
 													<TooltipTrigger>
-														<span>fired {formatRelative(new Date(automation.lastFiredAt), nowStore.current)}</span>
+														<span
+														>fired {formatRelative(
+															new Date(automation.lastFiredAt),
+															nowStore.current,
+															me.user?.timeFormat ?? "24h",
+														)}</span
+													>
 													</TooltipTrigger>
 													<TooltipContent>{formatFull(new Date(automation.lastFiredAt))}</TooltipContent>
 												</Tooltip>

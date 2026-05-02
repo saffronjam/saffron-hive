@@ -20,6 +20,7 @@
 	import { automationNodeCounts } from "$lib/list-helpers";
 	import { formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
+	import { me } from "$lib/stores/me.svelte";
 	import { GitMerge, Play, Workflow, Zap } from "@lucide/svelte";
 
 	interface AutomationNode {
@@ -193,7 +194,13 @@
 		{#if a.lastFiredAt}
 			<Tooltip>
 				<TooltipTrigger>
-					<span>{formatRelative(new Date(a.lastFiredAt), nowStore.current)}</span>
+					<span
+						>{formatRelative(
+							new Date(a.lastFiredAt),
+							nowStore.current,
+							me.user?.timeFormat ?? "24h",
+						)}</span
+					>
 				</TooltipTrigger>
 				<TooltipContent>{formatFull(new Date(a.lastFiredAt))}</TooltipContent>
 			</Tooltip>

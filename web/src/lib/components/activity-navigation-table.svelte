@@ -37,6 +37,7 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { formatRelative, formatFull } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
+	import { me } from "$lib/stores/me.svelte";
 	import {
 		Lightbulb,
 		Gauge,
@@ -209,7 +210,13 @@
 	<span class="whitespace-nowrap text-xs text-muted-foreground">
 		<Tooltip>
 			<TooltipTrigger>
-				<span>{formatRelative(new Date(event.timestamp), nowStore.current)}</span>
+				<span
+					>{formatRelative(
+						new Date(event.timestamp),
+						nowStore.current,
+						me.user?.timeFormat ?? "24h",
+					)}</span
+				>
 			</TooltipTrigger>
 			<TooltipContent>{formatFull(new Date(event.timestamp))}</TooltipContent>
 		</Tooltip>
