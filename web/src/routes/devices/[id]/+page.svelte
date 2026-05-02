@@ -612,7 +612,7 @@
 						</CardHeader>
 						<CardContent>
 							<StateHistoryChart
-								deviceIds={[device.id]}
+								sources={[{ kind: "device", id: device.id }]}
 								from={historyFrom}
 								to={historyTo}
 								bucketSeconds={historyBucketSeconds > 0 ? historyBucketSeconds : undefined}

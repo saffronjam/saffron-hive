@@ -1,8 +1,8 @@
 <script lang="ts" module>
 	export interface SeriesInfo {
 		key: string;
-		deviceId: string;
-		deviceName: string;
+		sourceKey: string;
+		sourceName: string;
 		field: string;
 		color: string;
 		label: string;
@@ -28,24 +28,41 @@
 		energy: "oklch(0.65 0.22 300)",
 	};
 	export const FALLBACK_COLOR = "oklch(0.7 0.15 280)";
-	export const DEFAULT_OFF_FIELDS = new Set(["battery"]);
+	export const PRIMARY_SENSOR_FIELDS = new Set([
+		"temperature",
+		"humidity",
+		"pressure",
+		"illuminance",
+	]);
+	export const DEVICE_DEFAULT_OFF_FIELDS = new Set(["battery"]);
 </script>
 
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import type { ResultOf } from "@graphql-typed-document-node/core";
+	import { AggregatedHistoryTargetType } from "$lib/gql/graphql";
 	import type { CombinedError } from "@urql/core";
 	import { ChartContainer, type ChartConfig } from "$lib/components/ui/chart/index.js";
 	import { LineChart, Spline, ChartClipPath, Tooltip } from "layerchart";
 	import { SvelteSet } from "svelte/reactivity";
+	import { SvelteMap } from "svelte/reactivity";
 	import { curveMonotoneX } from "d3-shape";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { formatTooltip } from "$lib/time-format";
 	import { deviceStore } from "$lib/stores/devices";
+	import { me } from "$lib/stores/me.svelte";
+	import { temperatureValue, temperatureUnitLabel } from "$lib/sensor-format";
+
+	import { sourceKey, type StateHistorySource } from "$lib/state-history-source";
+	export type { StateHistorySource } from "$lib/state-history-source";
+
+	function shouldDefaultOff(source: StateHistorySource, field: string): boolean {
+		if (source.kind === "device") return DEVICE_DEFAULT_OFF_FIELDS.has(field);
+		return !PRIMARY_SENSOR_FIELDS.has(field);
+	}
 
 	interface Props {
-		deviceIds: string[];
+		sources: StateHistorySource[];
 		fields?: string[];
 		from: Date;
 		to: Date;
@@ -57,7 +74,7 @@
 	}
 
 	let {
-		deviceIds,
+		sources,
 		fields,
 		from,
 		to,
@@ -67,6 +84,11 @@
 		disabledKeys: externalDisabled,
 		onSeriesChange,
 	}: Props = $props();
+
+	interface RawSeries {
+		field: string;
+		points: { at: string; value: number }[];
+	}
 
 	const STATE_HISTORY_QUERY = graphql(`
 		query StateHistory($filter: StateHistoryFilter!) {
@@ -81,45 +103,128 @@
 		}
 	`);
 
+	const AGGREGATED_STATE_HISTORY_QUERY = graphql(`
+		query AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {
+			aggregatedStateHistory(filter: $filter) {
+				field
+				points {
+					at
+					value
+				}
+			}
+		}
+	`);
+
 	const client = getContextClient();
 
-	let historyData = $state<ResultOf<typeof STATE_HISTORY_QUERY> | undefined>();
+	const rawSeriesBySource = new SvelteMap<string, RawSeries[]>();
 	let historyFetching = $state(true);
 	let historyError = $state<CombinedError | undefined>();
 
 	$effect(() => {
-		const variables = {
-			filter: {
-				deviceIds,
-				fields: fields ?? null,
-				from: from.toISOString(),
-				to: to.toISOString(),
-				bucketSeconds: bucketSeconds ?? null,
-			},
-		};
+		const currentSources = sources;
+		const fieldsArg = fields ?? null;
+		const fromIso = from.toISOString();
+		const toIso = to.toISOString();
+		const bucketArg = bucketSeconds ?? null;
+
 		historyFetching = true;
 		let cancelled = false;
-		client
-			.query(STATE_HISTORY_QUERY, variables)
-			.toPromise()
-			.then((result) => {
-				if (cancelled) return;
-				const items = result.data?.stateHistory ?? [];
-				for (const s of items) {
-					const key = `${s.deviceId}__${s.field}`;
-					if (!seenKeys.has(key)) {
-						seenKeys.add(key);
-						if (DEFAULT_OFF_FIELDS.has(s.field)) disabledKeys.add(key);
+
+		const queries = currentSources.map((s) => {
+			if (s.kind === "device") {
+				return client
+					.query(STATE_HISTORY_QUERY, {
+						filter: {
+							deviceIds: [s.id],
+							fields: fieldsArg,
+							from: fromIso,
+							to: toIso,
+							bucketSeconds: bucketArg,
+						},
+					})
+					.toPromise()
+					.then((result) => ({
+						source: s,
+						series: (result.data?.stateHistory ?? []).map((row) => ({
+							field: row.field,
+							points: row.points.map((p) => ({ at: p.at as string, value: p.value })),
+						})) as RawSeries[],
+						error: result.error,
+					}));
+			}
+			const target =
+				s.kind === "apartment"
+					? { type: AggregatedHistoryTargetType.Apartment }
+					: {
+							type:
+								s.kind === "room"
+									? AggregatedHistoryTargetType.Room
+									: AggregatedHistoryTargetType.Group,
+							id: s.id,
+						};
+			return client
+				.query(AGGREGATED_STATE_HISTORY_QUERY, {
+					filter: {
+						target,
+						fields: fieldsArg,
+						from: fromIso,
+						to: toIso,
+						bucketSeconds: bucketArg,
+					},
+				})
+				.toPromise()
+				.then((result) => ({
+					source: s,
+					series: (result.data?.aggregatedStateHistory ?? []).map((row) => ({
+						field: row.field,
+						points: row.points.map((p) => ({ at: p.at as string, value: p.value })),
+					})) as RawSeries[],
+					error: result.error,
+				}));
+		});
+
+		void Promise.all(queries).then((results) => {
+			if (cancelled) return;
+			const validKeys = new Set(currentSources.map(sourceKey));
+			const stale: string[] = [];
+			for (const k of rawSeriesBySource.keys()) {
+				if (!validKeys.has(k)) stale.push(k);
+			}
+			for (const k of stale) rawSeriesBySource.delete(k);
+			let firstError: CombinedError | undefined;
+			for (const r of results) {
+				const sk = sourceKey(r.source);
+				rawSeriesBySource.set(sk, r.series);
+				for (const s of r.series) {
+					const seriesKey = `${sk}__${s.field}`;
+					if (!seenKeys.has(seriesKey)) {
+						seenKeys.add(seriesKey);
+						if (shouldDefaultOff(r.source, s.field)) disabledKeys.add(seriesKey);
 					}
 				}
-				historyData = result.data;
-				historyError = result.error;
-				historyFetching = false;
-			});
+				if (!firstError && r.error) firstError = r.error;
+			}
+			historyError = firstError;
+			historyFetching = false;
+		});
+
 		return () => {
 			cancelled = true;
 		};
 	});
+
+	function sourceName(s: StateHistorySource): string {
+		switch (s.kind) {
+			case "device":
+				return $deviceStore[s.id]?.name ?? s.id;
+			case "room":
+			case "group":
+				return s.name;
+			case "apartment":
+				return "Apartment";
+		}
+	}
 
 	interface Row {
 		at: Date;
@@ -127,55 +232,66 @@
 	}
 
 	const allSeries = $derived.by<SeriesInfo[]>(() => {
-		const items = historyData?.stateHistory ?? [];
-		const allowed = new Set(deviceIds);
-		return items
-			.filter((s) => allowed.has(s.deviceId))
-			.map((s) => ({
-				key: `${s.deviceId}__${s.field}`,
-				deviceId: s.deviceId,
-				deviceName: $deviceStore[s.deviceId]?.name ?? s.deviceId,
-				field: s.field,
-				color: FIELD_COLOR[s.field] ?? FALLBACK_COLOR,
-				label: fieldLabel(s.field),
-			}));
+		const result: SeriesInfo[] = [];
+		for (const source of sources) {
+			const sk = sourceKey(source);
+			const raw = rawSeriesBySource.get(sk) ?? [];
+			const sName = sourceName(source);
+			for (const s of raw) {
+				result.push({
+					key: `${sk}__${s.field}`,
+					sourceKey: sk,
+					sourceName: sName,
+					field: s.field,
+					color: FIELD_COLOR[s.field] ?? FALLBACK_COLOR,
+					label: fieldLabel(s.field),
+				});
+			}
+		}
+		return result;
 	});
 
 	const seriesByKey = $derived(new Map(allSeries.map((s) => [s.key, s])));
 
 	interface TooltipGroup {
-		deviceId: string;
-		deviceName: string;
+		sourceKey: string;
+		sourceName: string;
 		items: { key: string; label: string; value: unknown; color?: string }[];
 	}
 
-	function formatTooltipValue(value: unknown): string {
+	function formatTooltipValue(value: unknown, seriesKey?: string): string {
 		if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "");
-		if (Number.isInteger(value)) return value.toString();
-		return (Math.round(value * 10) / 10).toString();
+		const numStr = Number.isInteger(value)
+			? value.toString()
+			: (Math.round(value * 10) / 10).toString();
+		const info = seriesKey ? seriesByKey.get(seriesKey) : undefined;
+		if (info?.field === "temperature") {
+			return `${numStr}${temperatureUnitLabel(me.user?.temperatureUnit ?? "celsius")}`;
+		}
+		return numStr;
 	}
 
 	function groupTooltipSeries(
 		visible: { key: string; label: string; value: unknown; color?: string }[],
 	): TooltipGroup[] {
 		const order: string[] = [];
-		const byDevice = new Map<string, TooltipGroup>();
+		const bySource = new Map<string, TooltipGroup>();
 		for (const item of visible) {
 			const info = seriesByKey.get(item.key);
-			const deviceId = info?.deviceId ?? "";
-			let group = byDevice.get(deviceId);
+			const sk = info?.sourceKey ?? "";
+			let group = bySource.get(sk);
 			if (!group) {
 				group = {
-					deviceId,
-					deviceName: info?.deviceName ?? deviceId,
+					sourceKey: sk,
+					sourceName: info?.sourceName ?? "",
 					items: [],
 				};
-				byDevice.set(deviceId, group);
-				order.push(deviceId);
+				bySource.set(sk, group);
+				order.push(sk);
 			}
 			group.items.push(item);
 		}
-		return order.map((id) => byDevice.get(id)!);
+		return order.map((id) => bySource.get(id)!);
 	}
 
 	const seenKeys = new Set<string>();
@@ -194,21 +310,22 @@
 	}
 
 	const rows = $derived.by<Row[]>(() => {
-		const items = historyData?.stateHistory ?? [];
-		const allowed = new Set(deviceIds);
 		const byTs = new Map<number, Row>();
-		for (const s of items) {
-			if (!allowed.has(s.deviceId)) continue;
-			const key = `${s.deviceId}__${s.field}`;
-			for (const p of s.points) {
-				const at = new Date(p.at);
-				const ts = at.getTime();
-				let row = byTs.get(ts);
-				if (!row) {
-					row = { at };
-					byTs.set(ts, row);
+		for (const source of sources) {
+			const sk = sourceKey(source);
+			const raw = rawSeriesBySource.get(sk) ?? [];
+			for (const s of raw) {
+				const seriesKey = `${sk}__${s.field}`;
+				for (const p of s.points) {
+					const at = new Date(p.at);
+					const ts = at.getTime();
+					let row = byTs.get(ts);
+					if (!row) {
+						row = { at };
+						byTs.set(ts, row);
+					}
+					row[seriesKey] = p.value;
 				}
-				row[key] = p.value;
 			}
 		}
 		const sorted = Array.from(byTs.values()).sort(
@@ -228,13 +345,23 @@
 		return sorted;
 	});
 
+	const tempUnit = $derived(me.user?.temperatureUnit ?? "celsius");
+
 	const lineSeries = $derived(
-		activeSeries.map((s) => ({
-			key: s.key,
-			label: s.label,
-			value: (d: Row) => (d[s.key] as number | undefined) ?? null,
-			color: s.color,
-		})),
+		activeSeries.map((s) => {
+			const isTemp = s.field === "temperature";
+			const unit = tempUnit;
+			return {
+				key: s.key,
+				label: s.label,
+				value: (d: Row) => {
+					const raw = d[s.key];
+					if (typeof raw !== "number") return null;
+					return isTemp ? temperatureValue(raw, unit) : raw;
+				},
+				color: s.color,
+			};
+		}),
 	);
 
 	const chartConfig = $derived.by<ChartConfig>(() => {
@@ -249,6 +376,23 @@
 	const xTickCount = $derived(
 		Math.max(2, Math.min(12, Math.floor(chartWidth / 110))),
 	);
+
+	function formatXTick(d: Date): string {
+		const mode = me.user?.timeFormat ?? "24h";
+		const h = d.getHours();
+		const m = d.getMinutes();
+		const s = d.getSeconds();
+		const pad = (n: number) => String(n).padStart(2, "0");
+		if (h === 0 && m === 0 && s === 0) {
+			return `${d.getMonth() + 1}/${d.getDate()}`;
+		}
+		if (mode === "12h") {
+			const suffix = h >= 12 ? "PM" : "AM";
+			const h12 = ((h + 11) % 12) + 1;
+			return m === 0 ? `${h12} ${suffix}` : `${h12}:${pad(m)} ${suffix}`;
+		}
+		return m === 0 ? `${pad(h)}:00` : `${pad(h)}:${pad(m)}`;
+	}
 </script>
 
 <div class="w-full {height}" bind:clientWidth={chartWidth}>
@@ -280,7 +424,7 @@
 			props={{
 				spline: { opacity: 1 },
 				highlight: { opacity: 1 },
-				xAxis: { ticks: xTickCount },
+				xAxis: { ticks: xTickCount, format: formatXTick },
 			}}
 		>
 			{#snippet marks({ context })}
@@ -295,16 +439,21 @@
 					{#snippet children({ data })}
 						{@const visible = context.tooltip.series.filter((s) => s.visible)}
 						{@const groups = groupTooltipSeries(visible)}
-						<Tooltip.Header value={context.x(data)} format={(d: Date) => formatTooltip(d)} />
-						{#each groups as g, gi (g.deviceId)}
-							<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
-								{g.deviceName}
-							</div>
+						<Tooltip.Header
+							value={context.x(data)}
+							format={(d: Date) => formatTooltip(d, me.user?.timeFormat ?? "24h")}
+						/>
+						{#each groups as g, gi (g.sourceKey)}
+							{#if g.sourceName && groups.length > 1}
+								<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
+									{g.sourceName}
+								</div>
+							{/if}
 							<Tooltip.List>
 								{#each g.items as s (s.key)}
 									<Tooltip.Item
 										label={s.label}
-										value={formatTooltipValue(s.value)}
+										value={formatTooltipValue(s.value, s.key)}
 										color={s.color}
 										valueAlign="right"
 									/>
