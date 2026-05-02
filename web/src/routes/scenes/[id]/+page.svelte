@@ -917,9 +917,7 @@
 						</Button>
 					</div>
 					<p class="mb-3 text-xs text-muted-foreground">
-						Rooms where this scene appears in the dashboard. Tag a scene
-						<span class="font-medium">Living Room</span> to make it show up in that
-						room's drawer.
+						Rooms where this scene appears in the dashboard.
 					</p>
 					{#if sceneRoomIds.length === 0}
 						<p class="text-sm text-muted-foreground">No rooms tagged.</p>

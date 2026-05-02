@@ -17,7 +17,7 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
-	import { Clapperboard, Play, Plus } from "@lucide/svelte";
+	import { Clapperboard, DoorOpen, Play, Plus } from "@lucide/svelte";
 	import { sceneTintFromPayloads } from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
 
@@ -58,6 +58,7 @@
 		onrename: (scene: SceneData, newName: string) => void;
 		oniconchange: (scene: SceneData, icon: string | null) => void;
 		onAddTo?: (scene: SceneData) => void;
+		onTagRooms?: (scene: SceneData) => void;
 	}
 
 	let {
@@ -70,6 +71,7 @@
 		onrename,
 		oniconchange,
 		onAddTo,
+		onTagRooms,
 	}: Props = $props();
 
 	const COLUMNS: ColumnDef<SceneData>[] = [
@@ -228,6 +230,21 @@
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent>Add…</TooltipContent>
+				</Tooltip>
+			{/if}
+			{#if onTagRooms}
+				<Tooltip>
+					<TooltipTrigger>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							onclick={() => onTagRooms?.(s)}
+							aria-label="Tag rooms"
+						>
+							<DoorOpen class="size-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Tag rooms</TooltipContent>
 				</Tooltip>
 			{/if}
 		{/snippet}

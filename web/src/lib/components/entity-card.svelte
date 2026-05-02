@@ -13,7 +13,7 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import { EllipsisVertical, Pencil, Plus, Trash2 } from "@lucide/svelte";
+	import { DoorOpen, EllipsisVertical, Pencil, Plus, Trash2 } from "@lucide/svelte";
 
 	interface Props {
 		entity: T;
@@ -25,9 +25,11 @@
 		onedit?: (entity: T) => void;
 		ondelete?: (entity: T) => void;
 		onAddTo?: (entity: T) => void;
+		onTagRooms?: (entity: T) => void;
 		editLabel?: string;
 		deleteLabel?: string;
 		addLabel?: string;
+		tagRoomsLabel?: string;
 		leadingActions?: Snippet;
 		tintColors?: string[] | null;
 		/**
@@ -127,9 +129,11 @@
 		onedit,
 		ondelete,
 		onAddTo,
+		onTagRooms,
 		editLabel = "Edit",
 		deleteLabel = "Delete",
 		addLabel = "Add…",
+		tagRoomsLabel = "Tag rooms",
 		leadingActions,
 		tintColors = null,
 		tintStrength = 1,
@@ -299,6 +303,12 @@
 							<DropdownMenuItem onclick={() => onAddTo?.(entity)}>
 								<Plus class="size-4" />
 								{addLabel}
+							</DropdownMenuItem>
+						{/if}
+						{#if onTagRooms}
+							<DropdownMenuItem onclick={() => onTagRooms?.(entity)}>
+								<DoorOpen class="size-4" />
+								{tagRoomsLabel}
 							</DropdownMenuItem>
 						{/if}
 						<DropdownMenuSeparator />

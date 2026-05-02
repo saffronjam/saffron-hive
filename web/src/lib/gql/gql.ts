@@ -171,7 +171,7 @@ type Documents = {
     "\n\t\tmutation ApplyScene($sceneId: ID!) {\n\t\t\tapplyScene(sceneId: $sceneId) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.ApplySceneDocument,
     "\n\t\tmutation DeleteScene($id: ID!) {\n\t\t\tdeleteScene(id: $id)\n\t\t}\n\t": typeof types.DeleteSceneDocument,
     "\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) {\n\t\t\tbatchDeleteScenes(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteScenesDocument,
-    "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": typeof types.SceneListUpdateDocument,
+    "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ticon\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.SceneListUpdateDocument,
     "\n\t\tquery ScenesPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttype\n\t\t\t\tcapabilities {\n\t\t\t\t\tname\n\t\t\t\t\taccess\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ScenesPageDevicesDocument,
     "\n\t\tquery ScenesPageGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers {\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ScenesPageGroupsDocument,
     "\n\t\tquery ScenesPageRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tresolvedDevices {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ScenesPageRoomsDocument,
@@ -356,7 +356,7 @@ const documents: Documents = {
     "\n\t\tmutation ApplyScene($sceneId: ID!) {\n\t\t\tapplyScene(sceneId: $sceneId) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.ApplySceneDocument,
     "\n\t\tmutation DeleteScene($id: ID!) {\n\t\t\tdeleteScene(id: $id)\n\t\t}\n\t": types.DeleteSceneDocument,
     "\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) {\n\t\t\tbatchDeleteScenes(ids: $ids)\n\t\t}\n\t": types.BatchDeleteScenesDocument,
-    "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t": types.SceneListUpdateDocument,
+    "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ticon\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.SceneListUpdateDocument,
     "\n\t\tquery ScenesPageDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttype\n\t\t\t\tcapabilities {\n\t\t\t\t\tname\n\t\t\t\t\taccess\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ScenesPageDevicesDocument,
     "\n\t\tquery ScenesPageGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers {\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ScenesPageGroupsDocument,
     "\n\t\tquery ScenesPageRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tresolvedDevices {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ScenesPageRoomsDocument,
@@ -1029,7 +1029,7 @@ export function graphql(source: "\n\t\tmutation BatchDeleteScenes($ids: [ID!]!) 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ticon\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation SceneListUpdate($id: ID!, $input: UpdateSceneInput!) {\n\t\t\tupdateScene(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ticon\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

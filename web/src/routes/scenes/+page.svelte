@@ -175,6 +175,11 @@
 				id
 				name
 				icon
+				rooms {
+					id
+					name
+					icon
+				}
 			}
 		}
 	`);
@@ -336,6 +341,53 @@
 	function handleAddToScene(scene: SceneData) {
 		quickAddScene = scene;
 		quickAddOpen = true;
+	}
+
+	let roomTagScene = $state<SceneData | null>(null);
+	let roomTagOpen = $state(false);
+
+	const roomTagDrawerGroups = $derived.by((): DrawerGroup<"room">[] => {
+		if (!roomTagScene) return [];
+		const tagged = new Set(roomTagScene.rooms.map((r) => r.id));
+		const available = roomsRef.filter((r) => !tagged.has(r.id));
+		if (available.length === 0) return [];
+		return [
+			{
+				heading: "Rooms",
+				items: available.map((r) => ({
+					type: "room" as const,
+					id: r.id,
+					name: r.name,
+					icon: DoorOpen,
+					iconRef: r.icon ?? null,
+				})),
+			},
+		];
+	});
+
+	function handleTagRooms(scene: SceneData) {
+		roomTagScene = scene;
+		roomTagOpen = true;
+	}
+
+	async function handleRoomTagSelect(_type: "room", roomId: string) {
+		if (!clientRef || !roomTagScene) return;
+		const scene = roomTagScene;
+		if (scene.rooms.some((r) => r.id === roomId)) return;
+		const newRoomIds = [...scene.rooms.map((r) => r.id), roomId];
+		const result = await clientRef
+			.mutation(UPDATE_SCENE_NAME, { id: scene.id, input: { roomIds: newRoomIds } })
+			.toPromise();
+		if (result.error) {
+			errors.setWithAutoDismiss(result.error.message);
+			return;
+		}
+		const updated = result.data?.updateScene;
+		if (!updated) return;
+		scenes = scenes.map((s) =>
+			s.id === scene.id ? { ...s, rooms: updated.rooms ?? [] } : s,
+		);
+		roomTagScene = { ...scene, rooms: updated.rooms ?? [] };
 	}
 
 	function handleQuickAddSelect(targetType: SceneTargetKind, targetId: string) {
@@ -752,6 +804,7 @@
 										onedit={handleEdit}
 										ondelete={(s) => (deleteConfirmScene = s)}
 										onAddTo={handleAddToScene}
+										onTagRooms={handleTagRooms}
 										addLabel="Add target"
 									>
 										{#snippet subtitleTrailing()}
@@ -788,6 +841,7 @@
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddToScene}
+								onTagRooms={handleTagRooms}
 							/>
 						{/snippet}
 					</ListView>
@@ -865,5 +919,14 @@
 		multiple
 		groups={quickAddDrawerGroups}
 		onselect={handleQuickAddSelect}
+	/>
+
+	<HiveDrawer
+		bind:open={roomTagOpen}
+		title={roomTagScene ? `Tag rooms for ${roomTagScene.name}` : "Tag rooms"}
+		description="Pick the rooms where this scene should appear on the dashboard."
+		multiple
+		groups={roomTagDrawerGroups}
+		onselect={handleRoomTagSelect}
 	/>
 </div>
