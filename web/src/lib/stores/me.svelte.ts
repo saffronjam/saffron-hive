@@ -10,11 +10,16 @@ const ME_QUERY = graphql(`
       name
       avatarPath
       theme
+      timeFormat
+      temperatureUnit
       createdAt
       mustChangePassword
     }
   }
 `);
+
+export type TimeMode = "12h" | "24h";
+export type TempUnit = "celsius" | "fahrenheit";
 
 export interface Me {
   id: string;
@@ -22,6 +27,8 @@ export interface Me {
   name: string;
   avatarPath: string | null;
   theme: Theme;
+  timeFormat: TimeMode;
+  temperatureUnit: TempUnit;
   createdAt: string;
   mustChangePassword: boolean;
 }
@@ -35,16 +42,22 @@ function createMe() {
     name: string;
     avatarPath?: string | null;
     theme?: "LIGHT" | "DARK" | null;
+    timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
+    temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
     createdAt?: string | null;
     mustChangePassword?: boolean | null;
   }) {
     const t: Theme = data.theme === "LIGHT" ? "light" : "dark";
+    const tf: TimeMode = data.timeFormat === "TWELVE_HOUR" ? "12h" : "24h";
+    const tu: TempUnit = data.temperatureUnit === "FAHRENHEIT" ? "fahrenheit" : "celsius";
     user = {
       id: data.id,
       username: data.username,
       name: data.name,
       avatarPath: data.avatarPath ?? null,
       theme: t,
+      timeFormat: tf,
+      temperatureUnit: tu,
       createdAt: data.createdAt ?? "",
       mustChangePassword: data.mustChangePassword ?? false,
     };
@@ -69,6 +82,8 @@ function createMe() {
       name: string;
       avatarPath?: string | null;
       theme?: "LIGHT" | "DARK" | null;
+      timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
+      temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
       createdAt?: string | null;
       mustChangePassword?: boolean | null;
     }) {
