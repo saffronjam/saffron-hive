@@ -420,6 +420,8 @@ type User struct {
 	PasswordHash       string
 	AvatarPath         *string
 	Theme              string
+	TimeFormat         string
+	TemperatureUnit    string
 	MustChangePassword bool
 	CreatedAt          time.Time
 }
@@ -428,10 +430,12 @@ type User struct {
 // Nil fields leave the corresponding column untouched. AvatarPath cannot clear
 // the column to NULL here — use ClearUserAvatar for that.
 type UpdateUserProfileParams struct {
-	ID         string
-	Name       *string
-	Theme      *string
-	AvatarPath *string
+	ID              string
+	Name            *string
+	Theme           *string
+	AvatarPath      *string
+	TimeFormat      *string
+	TemperatureUnit *string
 }
 
 // UserRef is the lightweight creator reference embedded into other rows via

@@ -34,6 +34,8 @@ func (s *DB) GetUserByID(ctx context.Context, id string) (User, error) {
 		PasswordHash:       row.PasswordHash,
 		AvatarPath:         row.AvatarPath,
 		Theme:              row.Theme,
+		TimeFormat:         row.TimeFormat,
+		TemperatureUnit:    row.TemperatureUnit,
 		MustChangePassword: row.MustChangePassword,
 		CreatedAt:          row.CreatedAt,
 	}, nil
@@ -52,6 +54,8 @@ func (s *DB) GetUserByUsername(ctx context.Context, username string) (User, erro
 		PasswordHash:       row.PasswordHash,
 		AvatarPath:         row.AvatarPath,
 		Theme:              row.Theme,
+		TimeFormat:         row.TimeFormat,
+		TemperatureUnit:    row.TemperatureUnit,
 		MustChangePassword: row.MustChangePassword,
 		CreatedAt:          row.CreatedAt,
 	}, nil
@@ -72,6 +76,8 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 			PasswordHash:       row.PasswordHash,
 			AvatarPath:         row.AvatarPath,
 			Theme:              row.Theme,
+			TimeFormat:         row.TimeFormat,
+			TemperatureUnit:    row.TemperatureUnit,
 			MustChangePassword: row.MustChangePassword,
 			CreatedAt:          row.CreatedAt,
 		})
@@ -93,10 +99,12 @@ func (s *DB) CountUsers(ctx context.Context) (int, error) {
 // here; use ClearUserAvatar for that.
 func (s *DB) UpdateUserProfile(ctx context.Context, params UpdateUserProfileParams) (User, error) {
 	if err := s.q.UpdateUserProfile(ctx, sqlite.UpdateUserProfileParams{
-		ID:         params.ID,
-		Name:       params.Name,
-		Theme:      params.Theme,
-		AvatarPath: params.AvatarPath,
+		ID:              params.ID,
+		Name:            params.Name,
+		Theme:           params.Theme,
+		AvatarPath:      params.AvatarPath,
+		TimeFormat:      params.TimeFormat,
+		TemperatureUnit: params.TemperatureUnit,
 	}); err != nil {
 		return User{}, fmt.Errorf("update user profile: %w", err)
 	}
