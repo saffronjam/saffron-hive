@@ -3,7 +3,11 @@
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { type Device } from "$lib/stores/devices";
-	import { brightnessToTintStrength, deviceTintBase } from "$lib/device-tint";
+	import {
+		aggregateSensorReadings,
+		brightnessToTintStrength,
+		deviceTintBase,
+	} from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
 	import { deviceIcon } from "$lib/utils";
@@ -16,11 +20,11 @@
 		DropdownMenuSeparator,
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
-	import { Popover, PopoverContent, PopoverTrigger } from "$lib/components/ui/popover/index.js";
+	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
-	import { stateSummary } from "$lib/device-state";
-	import { Battery, Droplets, EllipsisVertical, Gauge, MousePointerClick, Pencil, Plus, Sun, Thermometer } from "@lucide/svelte";
+	import { me } from "$lib/stores/me.svelte";
+	import { EllipsisVertical, MousePointerClick, Pencil, Plus } from "@lucide/svelte";
 
 	interface MembershipChip {
 		id: string;
@@ -69,7 +73,9 @@
 		device.capabilities.find((c) => c.name === "action")?.values ?? [],
 	);
 	const hasActions = $derived(actionValues.length > 0);
-	const summary = $derived(stateSummary(device.state, device.type));
+	const sensorReadings = $derived(
+		isSensor ? aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius") : [],
+	);
 	const tintDevice = $derived(
 		device.state?.brightness != null
 			? { ...device, state: { ...device.state, brightness: localBrightness } }
@@ -144,34 +150,7 @@
 		}
 	}
 
-	interface Reading {
-		label: string;
-		value: string;
-		unit: string;
-		icon: typeof Thermometer;
-	}
-
-	const sensorReadings = $derived.by<Reading[]>(() => {
-		const state = device.state;
-		if (!state) return [];
-		const result: Reading[] = [];
-		if (state.temperature != null) {
-			result.push({ label: "Temperature", value: state.temperature.toFixed(1), unit: "°C", icon: Thermometer });
-		}
-		if (state.humidity != null) {
-			result.push({ label: "Humidity", value: state.humidity.toFixed(1), unit: "%", icon: Droplets });
-		}
-		if (state.pressure != null) {
-			result.push({ label: "Pressure", value: state.pressure.toFixed(0), unit: "hPa", icon: Gauge });
-		}
-		if (state.illuminance != null) {
-			result.push({ label: "Illuminance", value: state.illuminance.toFixed(0), unit: "lx", icon: Sun });
-		}
-		if (state.battery != null) {
-			result.push({ label: "Battery", value: `${Math.round(state.battery)}`, unit: "%", icon: Battery });
-		}
-		return result;
-	});
+	const hasSensorReading = $derived(sensorReadings.length > 0);
 </script>
 
 <Card
@@ -236,29 +215,23 @@
 		{/if}
 	</CardHeader>
 	<CardContent class="mt-auto">
-		{#if isSensor && sensorReadings.length > 0}
-			<Popover>
-				<PopoverTrigger class="block w-full text-left">
-					<p class="text-sm transition-colors hover:text-foreground {mutedTextClass}">
-						{summary}
-					</p>
-				</PopoverTrigger>
-				<PopoverContent class="w-72 p-3" align="start">
-					<div class="space-y-2">
-						{#each sensorReadings as reading (reading.label)}
-							<div class="flex items-center gap-3 text-sm">
-								<reading.icon class="size-4 shrink-0 text-muted-foreground" />
-								<span class="text-muted-foreground">{reading.label}</span>
-								<span class="ml-auto font-medium tabular-nums text-foreground">
-									{reading.value}<span class="ml-0.5 text-xs text-muted-foreground"
-										>{reading.unit}</span
-									>
-								</span>
-							</div>
-						{/each}
-					</div>
-				</PopoverContent>
-			</Popover>
+		{#if hasSensorReading}
+			<SensorHistoryPopover
+				target={{ kind: "device", id: device.id }}
+				title={device.name}
+				align="end"
+				triggerClass="group block w-full rounded focus-visible:outline-none"
+			>
+				<div class="flex items-center justify-end gap-3 text-sm tabular-nums">
+					{#each sensorReadings as r (r.label)}
+						<span class="flex items-center gap-1 {mutedTextClass} transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+							<r.icon class="size-4" />
+							<span class="text-foreground">{r.value}</span>
+							<span class="ml-0.5 text-xs">{r.unit}</span>
+						</span>
+					{/each}
+				</div>
+			</SensorHistoryPopover>
 		{:else if hasBrightness || hasActions}
 			<div class="flex items-center gap-2">
 				{#if hasBrightness}

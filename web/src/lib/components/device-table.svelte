@@ -6,8 +6,7 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
-	import { Popover, PopoverContent, PopoverTrigger } from "$lib/components/ui/popover/index.js";
-	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
+	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
@@ -191,33 +190,13 @@
 	{#if row.device.type === "button" || summary === "Unknown" || summary === "—"}
 		<span class="text-sm text-muted-foreground">{summary}</span>
 	{:else}
-		<Popover>
-			<PopoverTrigger>
-				{#snippet child({ props })}
-					<button
-						type="button"
-						{...props}
-						class="rounded text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
-					>
-						{summary}
-					</button>
-				{/snippet}
-			</PopoverTrigger>
-			<PopoverContent class="w-[min(80vw,640px)] p-3" align="start">
-				<div class="mb-2 flex items-center justify-between">
-					<span class="text-sm font-medium">{row.device.name}</span>
-					<Button variant="link" size="sm" class="h-auto p-0 text-xs" href={`/data-viewer?sources=${row.device.id}`}>
-						Open in data viewer
-					</Button>
-				</div>
-				<StateHistoryChart
-					deviceIds={[row.device.id]}
-					from={new Date(Date.now() - 24 * 60 * 60 * 1000)}
-					to={new Date()}
-					height="h-56"
-				/>
-			</PopoverContent>
-		</Popover>
+		<SensorHistoryPopover
+			target={{ kind: "device", id: row.device.id }}
+			title={row.device.name}
+			triggerClass="rounded text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
+		>
+			{summary}
+		</SensorHistoryPopover>
 	{/if}
 {/snippet}
 
