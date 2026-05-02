@@ -3,17 +3,17 @@ INSERT INTO users (id, username, name, password_hash, must_change_password)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
 FROM users
 WHERE username = ?;
 
 -- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
 FROM users
 ORDER BY created_at ASC;
 
@@ -26,9 +26,11 @@ SELECT COUNT(*) FROM users;
 -- NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
 -- from "set to NULL"). theme is constrained by a CHECK in the migration.
 UPDATE users SET
-    name        = COALESCE(sqlc.narg('name'),        name),
-    theme       = COALESCE(sqlc.narg('theme'),       theme),
-    avatar_path = COALESCE(sqlc.narg('avatar_path'), avatar_path)
+    name             = COALESCE(sqlc.narg('name'),             name),
+    theme            = COALESCE(sqlc.narg('theme'),            theme),
+    avatar_path      = COALESCE(sqlc.narg('avatar_path'),      avatar_path),
+    time_format      = COALESCE(sqlc.narg('time_format'),      time_format),
+    temperature_unit = COALESCE(sqlc.narg('temperature_unit'), temperature_unit)
 WHERE id = sqlc.arg('id');
 
 -- name: ClearUserAvatar :exec
