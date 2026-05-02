@@ -433,10 +433,10 @@
 			{#if mode === "live" && deviceForRow}
 				{@render liveIndicators(deviceForRow)}
 			{/if}
-			{#if deviceForRow && mode === "edit"}
+			{#if deviceForRow && rowHasRich && mode === "edit"}
 				{@render payloadModeToggle(deviceForRow)}
 			{/if}
-			{#if deviceForRow && isEffectMode(deviceForRow) && mode === "edit"}
+			{#if deviceForRow && rowHasRich && isEffectMode(deviceForRow) && mode === "edit"}
 				{@render effectChip(deviceForRow)}
 			{:else}
 				{#if deviceForRow && rowHasRich && rowCaps}
@@ -537,10 +537,10 @@
 			{#if mode === "live"}
 				{@render liveIndicators(device)}
 			{/if}
-			{#if mode === "edit"}
+			{#if leafHasRich && mode === "edit"}
 				{@render payloadModeToggle(device)}
 			{/if}
-			{#if isEffectMode(device) && mode === "edit"}
+			{#if leafHasRich && isEffectMode(device) && mode === "edit"}
 				{@render effectChip(device)}
 			{:else}
 				{#if leafHasRich}

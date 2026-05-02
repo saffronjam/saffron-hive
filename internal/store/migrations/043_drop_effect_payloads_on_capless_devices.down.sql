@@ -1,0 +1,2 @@
+-- Irreversible: deleted invalid effect payloads on capability-poor devices.
+-- Restoring requires re-creating the rows manually from a backup.
