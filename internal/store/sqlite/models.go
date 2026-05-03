@@ -72,6 +72,14 @@ type AutomationNode struct {
 	PositionY    float64
 }
 
+type AutomationNodeState struct {
+	AutomationID string
+	NodeID       string
+	Key          string
+	Value        string
+	UpdatedAt    time.Time
+}
+
 type Device struct {
 	ID           device.DeviceID
 	Name         string

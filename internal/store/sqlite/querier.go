@@ -67,6 +67,7 @@ type Querier interface {
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
+	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
 	DeleteEffect(ctx context.Context, id string) error
@@ -83,6 +84,11 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
+	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
+	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
+	// Cascades on automation and node deletion, so graph replacement wipes state
+	// automatically.
+	GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
@@ -125,6 +131,7 @@ type Querier interface {
 	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
 	ListAllSceneRooms(ctx context.Context) ([]SceneRoom, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
+	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
@@ -172,6 +179,9 @@ type Querier interface {
 	// Mirrors group_members FK cascade for room-as-group-member; no FK because
 	// member_id is polymorphic.
 	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
+	ResolveGroupIDByName(ctx context.Context, name string) (string, error)
+	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
+	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
