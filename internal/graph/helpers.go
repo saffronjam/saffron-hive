@@ -561,6 +561,25 @@ func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphSt
 	return mg
 }
 
+// encodeNodeState marshals a node's persistent state map to a JSON string.
+// Values are stored as JSON-encoded strings already, so we marshal them as
+// raw JSON tokens to avoid double-encoding (e.g. cycle_index "1" stays a
+// number, not the string "1").
+func encodeNodeState(m map[string]string) string {
+	if len(m) == 0 {
+		return "{}"
+	}
+	out := make(map[string]json.RawMessage, len(m))
+	for k, v := range m {
+		out[k] = json.RawMessage(v)
+	}
+	encoded, err := json.Marshal(out)
+	if err != nil {
+		return "{}"
+	}
+	return string(encoded)
+}
+
 func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 	mg := &model.AutomationGraph{
 		ID:          g.Automation.ID,
@@ -573,11 +592,12 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 	mg.Nodes = make([]*model.AutomationNode, len(g.Nodes))
 	for i, n := range g.Nodes {
 		mg.Nodes[i] = &model.AutomationNode{
-			ID:        n.ID,
-			Type:      n.Type,
-			Config:    n.Config,
-			PositionX: n.PositionX,
-			PositionY: n.PositionY,
+			ID:           n.ID,
+			Type:         n.Type,
+			Config:       n.Config,
+			PositionX:    n.PositionX,
+			PositionY:    n.PositionY,
+			RuntimeState: encodeNodeState(g.NodeStates[n.ID]),
 		}
 	}
 	mg.Edges = make([]*model.AutomationEdge, len(g.Edges))
@@ -968,6 +988,12 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		if err := validateRunEffectActions(ctx, store, inputNodes); err != nil {
 			return err
 		}
+		if err := validateToggleDeviceStateActions(inputNodes); err != nil {
+			return err
+		}
+		if err := validateCycleScenesActions(ctx, store, inputNodes); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -1029,6 +1055,79 @@ func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*mo
 			if _, err := store.GetEffect(ctx, p.EffectID); err != nil {
 				return fmt.Errorf("node %s: run_effect effect_id %q not found", n.ID, p.EffectID)
 			}
+		}
+	}
+	return nil
+}
+
+// validateCycleScenesActions checks every cycle_scenes action node: the
+// payload must parse, supply at least two scene IDs, and every scene ID must
+// exist in the store at save time. Scenes deleted between save and fire are
+// filtered at fire time without breaking the automation; the save-time check
+// catches typos and stale references during editing.
+func validateCycleScenesActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var outer struct {
+			ActionType string `json:"action_type"`
+			Payload    string `json:"payload"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
+			continue
+		}
+		if outer.ActionType != automation.ActionCycleScenes {
+			continue
+		}
+		var p struct {
+			Scenes []string `json:"scenes"`
+		}
+		if err := json.Unmarshal([]byte(outer.Payload), &p); err != nil {
+			return fmt.Errorf("node %s: invalid cycle_scenes payload JSON", n.ID)
+		}
+		if len(p.Scenes) < 2 {
+			return fmt.Errorf("node %s: cycle_scenes requires at least 2 scenes", n.ID)
+		}
+		for _, sid := range p.Scenes {
+			if sid == "" {
+				return fmt.Errorf("node %s: cycle_scenes scene_id must not be empty", n.ID)
+			}
+			if _, err := store.GetScene(ctx, sid); err != nil {
+				return fmt.Errorf("node %s: cycle_scenes scene_id %q not found", n.ID, sid)
+			}
+		}
+	}
+	return nil
+}
+
+// validateToggleDeviceStateActions checks every toggle_device_state action
+// node: target_type must be one of device/group/room and target_id must be
+// non-empty. Toggle has no payload — server computes desired state from the
+// target's current aggregate at fire time.
+func validateToggleDeviceStateActions(nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var outer struct {
+			ActionType string `json:"action_type"`
+			TargetType string `json:"target_type"`
+			TargetID   string `json:"target_id"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
+			continue
+		}
+		if outer.ActionType != automation.ActionToggleDeviceState {
+			continue
+		}
+		switch automation.TargetType(outer.TargetType) {
+		case automation.TargetDevice, automation.TargetGroup, automation.TargetRoom:
+		default:
+			return fmt.Errorf("node %s: toggle_device_state target_type must be device, group, or room (got %q)", n.ID, outer.TargetType)
+		}
+		if outer.TargetID == "" {
+			return fmt.Errorf("node %s: toggle_device_state requires target_id", n.ID)
 		}
 	}
 	return nil
