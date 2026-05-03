@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -54,6 +56,19 @@ func (s *DB) GetGroup(ctx context.Context, id string) (Group, error) {
 		UpdatedAt: row.UpdatedAt,
 		CreatedBy: userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
 	}, nil
+}
+
+// ResolveGroupIDByName looks up a group ID by exact-match name. The found
+// flag is false (with a nil error) when no group has that name.
+func (s *DB) ResolveGroupIDByName(ctx context.Context, name string) (string, bool, error) {
+	id, err := s.q.ResolveGroupIDByName(ctx, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("resolve group id by name: %w", err)
+	}
+	return id, true, nil
 }
 
 // ListGroups returns all groups.

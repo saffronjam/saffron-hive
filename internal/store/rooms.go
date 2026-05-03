@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -35,6 +37,19 @@ func (s *DB) GetRoom(ctx context.Context, id string) (Room, error) {
 		UpdatedAt: row.UpdatedAt,
 		CreatedBy: userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
 	}, nil
+}
+
+// ResolveRoomIDByName looks up a room ID by exact-match name. The found
+// flag is false (with a nil error) when no room has that name.
+func (s *DB) ResolveRoomIDByName(ctx context.Context, name string) (string, bool, error) {
+	id, err := s.q.ResolveRoomIDByName(ctx, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("resolve room id by name: %w", err)
+	}
+	return id, true, nil
 }
 
 // ListRooms returns all rooms.
