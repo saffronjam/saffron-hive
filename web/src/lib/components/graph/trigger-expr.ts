@@ -508,6 +508,28 @@ export function validateActionConfig(
     }
     return null;
   }
+  if (config.actionType === "cycle_scenes") {
+    let parsed: { scenes?: unknown };
+    try {
+      parsed = JSON.parse(config.payload || "{}") as { scenes?: unknown };
+    } catch {
+      return { field: "payload", message: "Payload must be valid JSON" };
+    }
+    const scenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
+    if (scenes.length < 2) {
+      return { field: "payload", message: "Add at least two scenes" };
+    }
+    if (scenes.some((s) => typeof s !== "string" || !s)) {
+      return { field: "payload", message: "Invalid scene reference" };
+    }
+    return null;
+  }
+  if (config.actionType === "toggle_device_state") {
+    if (!config.targetType || !config.targetId) {
+      return { field: "target", message: "Pick a target" };
+    }
+    return null;
+  }
   if (!config.targetType || !config.targetId) {
     return { field: "target", message: "Pick a target" };
   }
