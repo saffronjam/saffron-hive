@@ -74,6 +74,7 @@ type GraphStore interface {
 	ListAutomationEdges(ctx context.Context, automationID string) ([]store.AutomationEdge, error)
 	ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
+	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 
 	// Groups
 	CreateGroup(ctx context.Context, params store.CreateGroupParams) (store.Group, error)

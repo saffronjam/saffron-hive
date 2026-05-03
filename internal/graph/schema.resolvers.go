@@ -404,9 +404,21 @@ func (r *mutationResolver) DeleteAutomation(ctx context.Context, id string) (boo
 
 // ToggleAutomation is the resolver for the toggleAutomation field.
 func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enabled bool) (*model.AutomationGraph, error) {
-	err := r.Store.UpdateAutomationEnabled(ctx, id, enabled)
+	prior, err := r.Store.GetAutomation(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if err := r.Store.UpdateAutomationEnabled(ctx, id, enabled); err != nil {
+		return nil, err
+	}
+
+	// Reset stateful nodes (e.g. cycle_scenes index) on disabled→enabled
+	// transition so the next fire starts from a known position. Graph saves
+	// already cascade via the FK on automation_nodes.id.
+	if enabled && !prior.Enabled {
+		if err := r.Store.DeleteAutomationNodeStateByAutomation(ctx, id); err != nil {
+			return nil, fmt.Errorf("reset automation node state: %w", err)
+		}
 	}
 
 	if r.AutomationReloader != nil {

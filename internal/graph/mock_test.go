@@ -356,6 +356,10 @@ func (m *mockStore) ListAutomationEdges(_ context.Context, automationID string) 
 	return m.automationEdges[automationID], nil
 }
 
+func (m *mockStore) DeleteAutomationNodeStateByAutomation(_ context.Context, _ string) error {
+	return nil
+}
+
 func (m *mockStore) ReplaceAutomationGraph(_ context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
