@@ -158,17 +158,19 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		return nil, fmt.Errorf("sign e2e token: %w", err)
 	}
 
+	rel := &reloader{engine: engine, ctx: appCtx}
 	resolver := &graph.Resolver{
-		StateReader:        memStore,
-		Store:              sqlStore,
-		EventBus:           bus,
-		TargetResolver:     sqlStore,
-		AutomationReloader: &reloader{engine: engine, ctx: appCtx},
-		EffectRunner:       effectRunner,
-		Alarms:             alarmSvc,
-		AlarmBuffer:        alarmBuffer,
-		ActivityBuffer:     activityBuffer,
-		Auth:               authSvc,
+		StateReader:         memStore,
+		Store:               sqlStore,
+		EventBus:            bus,
+		TargetResolver:      sqlStore,
+		AutomationReloader:  rel,
+		AutomationTriggerer: rel,
+		EffectRunner:        effectRunner,
+		Alarms:              alarmSvc,
+		AlarmBuffer:         alarmBuffer,
+		ActivityBuffer:      activityBuffer,
+		Auth:                authSvc,
 	}
 
 	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -278,6 +280,10 @@ type reloader struct {
 
 func (r *reloader) Reload() error {
 	return r.engine.Reload(r.ctx)
+}
+
+func (r *reloader) FireManualTrigger(ctx context.Context, automationID, nodeID string) error {
+	return r.engine.FireManualTrigger(ctx, automationID, automation.NodeID(nodeID))
 }
 
 type e2eTerminator struct{}

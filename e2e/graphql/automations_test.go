@@ -732,3 +732,254 @@ func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 		t.Fatal("refire past 50 ms trigger cooldown should succeed")
 	}
 }
+
+// TestAutomations_ToggleAction_Device drives a manual-trigger automation whose
+// action toggles a device's on state, then asserts the published command has
+// on=false (since the live device fixture starts on).
+func TestAutomations_ToggleAction_Device(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	onState, _ := json.Marshal(map[string]any{"state": "ON"})
+	if err := publisher.PublishDeviceState("Kitchen Light", onState); err != nil {
+		t.Fatalf("publish device on: %v", err)
+	}
+	time.Sleep(150 * time.Millisecond)
+
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "toggle_device_state",
+		"target_type": "device",
+		"target_id":   deviceID,
+		"payload":     "",
+	})
+
+	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":    "Toggle Device E2E",
+			"enabled": true,
+			"nodes": []map[string]any{
+				{"id": "tog-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "tog-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "tog-t1", "toNodeId": "tog-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
+	}
+	var ar struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data, &ar)
+	autoID := ar.CreateAutomation.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
+	})
+
+	cmdCh, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+
+	if _, err := graphqlMutation(`mutation($id: ID!, $nid: ID!) {
+		fireAutomationTrigger(automationId: $id, nodeId: $nid)
+	}`, map[string]any{"id": autoID, "nid": "tog-t1"}); err != nil {
+		t.Fatalf("fire trigger: %v", err)
+	}
+
+	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case msg := <-cmdCh:
+			if msg.Topic == "zigbee2mqtt/Kitchen Light/set" {
+				var p map[string]any
+				if err := json.Unmarshal(msg.Payload, &p); err == nil {
+					if state, ok := p["state"].(string); ok && state == "OFF" {
+						return true
+					}
+				}
+			}
+		default:
+		}
+		return false
+	})
+	if !ok {
+		t.Fatal("timed out waiting for toggle command (expected state=OFF)")
+	}
+}
+
+// TestAutomations_CycleScenes_AdvancesAndWraps creates two scenes targeting
+// different devices and a manual-trigger automation with a cycle_scenes
+// action over both. Firing twice should activate scene A then scene B; a
+// third fire wraps back to scene A.
+func TestAutomations_CycleScenes_AdvancesAndWraps(t *testing.T) {
+	deviceA, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find Kitchen Light: %v", err)
+	}
+	deviceB, err := queryDeviceIDByName("Bedroom Light")
+	if err != nil {
+		t.Fatalf("find Bedroom Light: %v", err)
+	}
+
+	mkScene := func(name, devID string) string {
+		t.Helper()
+		data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+			createScene(input: $input) { id }
+		}`, map[string]any{
+			"input": map[string]any{
+				"name": name,
+				"actions": []map[string]any{
+					{"targetType": "device", "targetId": devID},
+				},
+				"devicePayloads": []map[string]any{
+					{"deviceId": devID, "payload": `{"on":true,"brightness":100}`},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("create scene %s: %v", name, err)
+		}
+		var sc struct {
+			CreateScene struct{ ID string } `json:"createScene"`
+		}
+		_ = json.Unmarshal(data, &sc)
+		return sc.CreateScene.ID
+	}
+
+	sceneA := mkScene("Cycle Scene A", deviceA)
+	sceneB := mkScene("Cycle Scene B", deviceB)
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneA})
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneB})
+	})
+
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	cyclePayload, _ := json.Marshal(map[string]any{"scenes": []string{sceneA, sceneB}})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "cycle_scenes",
+		"target_type": "",
+		"target_id":   "",
+		"payload":     string(cyclePayload),
+	})
+
+	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":    "Cycle Scenes E2E",
+			"enabled": true,
+			"nodes": []map[string]any{
+				{"id": "cyc-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "cyc-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "cyc-t1", "toNodeId": "cyc-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
+	}
+	var ar struct {
+		CreateAutomation struct{ ID string } `json:"createAutomation"`
+	}
+	_ = json.Unmarshal(data, &ar)
+	autoID := ar.CreateAutomation.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
+	})
+
+	cmdCh, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+
+	fireAndExpect := func(expectedTopic string) {
+		t.Helper()
+		if _, err := graphqlMutation(`mutation($id: ID!, $nid: ID!) {
+			fireAutomationTrigger(automationId: $id, nodeId: $nid)
+		}`, map[string]any{"id": autoID, "nid": "cyc-t1"}); err != nil {
+			t.Fatalf("fire trigger: %v", err)
+		}
+		ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+			select {
+			case msg := <-cmdCh:
+				if msg.Topic == expectedTopic {
+					return true
+				}
+			default:
+			}
+			return false
+		})
+		if !ok {
+			t.Fatalf("timed out waiting for %s", expectedTopic)
+		}
+	}
+
+	fireAndExpect("zigbee2mqtt/Kitchen Light/set")
+	fireAndExpect("zigbee2mqtt/Bedroom Light/set")
+	fireAndExpect("zigbee2mqtt/Kitchen Light/set")
+}
+
+// TestAutomations_CycleScenes_RejectsSingleScene confirms the save-time
+// validator requires at least two scenes.
+func TestAutomations_CycleScenes_RejectsSingleScene(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Cycle Scenes Single",
+			"actions": []map[string]any{
+				{"targetType": "device", "targetId": deviceID},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create scene: %v", err)
+	}
+	var sc struct {
+		CreateScene struct{ ID string } `json:"createScene"`
+	}
+	_ = json.Unmarshal(data, &sc)
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sc.CreateScene.ID})
+	})
+
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	cyclePayload, _ := json.Marshal(map[string]any{"scenes": []string{sc.CreateScene.ID}})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "cycle_scenes",
+		"target_type": "",
+		"target_id":   "",
+		"payload":     string(cyclePayload),
+	})
+
+	if err := graphqlMutationExpectError(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":    "Cycle Single",
+			"enabled": false,
+			"nodes": []map[string]any{
+				{"id": "cs-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "cs-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "cs-t1", "toNodeId": "cs-a1"},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("expected validation error for single-scene cycle: %v", err)
+	}
+}
