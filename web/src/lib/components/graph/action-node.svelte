@@ -8,7 +8,8 @@
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Textarea } from "$lib/components/ui/textarea/index.js";
-	import { Play } from "@lucide/svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { Play, Trash2, ArrowUp, ArrowDown, X, Clapperboard } from "@lucide/svelte";
 	import { validateActionConfig } from "./trigger-expr";
 	import DeviceStateEditor from "./device-state-editor.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
@@ -43,7 +44,9 @@
 		rooms?: (RoomLite & { name: string })[];
 		scenes?: SceneRef[];
 		effects?: EffectRef[];
+		runtimeState?: string;
 		onConfigChange?: (config: ActionConfig) => void;
+		onDelete?: () => void;
 	}
 
 	function effectRefKey(ref: EffectRef): string {
@@ -78,7 +81,9 @@
 
 	const actionTypes = [
 		{ value: "set_device_state", label: "Set Device State" },
+		{ value: "toggle_device_state", label: "Toggle Device State" },
 		{ value: "activate_scene", label: "Activate Scene" },
+		{ value: "cycle_scenes", label: "Scene Cycle" },
 		{ value: "run_effect", label: "Run Effect" },
 		{ value: "raise_alarm", label: "Raise Alarm" },
 		{ value: "clear_alarm", label: "Clear Alarm" },
@@ -97,8 +102,8 @@
 
 	function handleActionTypeChange(value: string | undefined) {
 		if (!value || !data.onConfigChange) return;
-		// When switching into an alarm action, seed a sensible default payload
-		// so parsing doesn't immediately throw in the panels below.
+		// When switching into an alarm or cycle action, seed a sensible default
+		// payload so parsing doesn't immediately throw in the panels below.
 		let payload = data.config.payload;
 		if (value === "raise_alarm" && !isRaiseAlarmPayload(payload)) {
 			payload = JSON.stringify({ alarm_id: "", severity: "medium", kind: "auto", message: "" });
@@ -106,6 +111,10 @@
 			payload = JSON.stringify({ alarm_id: "" });
 		} else if (value === "run_effect" && !isRunEffectPayload(payload)) {
 			payload = JSON.stringify({});
+		} else if (value === "cycle_scenes" && !isCycleScenesPayload(payload)) {
+			payload = JSON.stringify({ scenes: [] });
+		} else if (value === "toggle_device_state") {
+			payload = "";
 		}
 		data.onConfigChange({
 			...data.config,
@@ -151,6 +160,43 @@
 		return typeof p.effect_id === "string" || typeof p.native_name === "string";
 	}
 
+	function isCycleScenesPayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return Array.isArray(p.scenes);
+	}
+
+	function cycleScenesList(): string[] {
+		const arr = parsedPayload.scenes;
+		if (!Array.isArray(arr)) return [];
+		return arr.filter((s): s is string => typeof s === "string");
+	}
+
+	function emitCycleScenes(next: string[]) {
+		if (!data.onConfigChange) return;
+		data.onConfigChange({ ...data.config, payload: JSON.stringify({ scenes: next }) });
+	}
+
+	function addCycleScene(sceneId: string) {
+		const list = cycleScenesList();
+		if (list.includes(sceneId)) return;
+		emitCycleScenes([...list, sceneId]);
+	}
+
+	function removeCycleScene(index: number) {
+		const list = cycleScenesList();
+		if (index < 0 || index >= list.length) return;
+		emitCycleScenes([...list.slice(0, index), ...list.slice(index + 1)]);
+	}
+
+	function moveCycleScene(index: number, delta: number) {
+		const list = cycleScenesList();
+		const target = index + delta;
+		if (index < 0 || index >= list.length || target < 0 || target >= list.length) return;
+		const next = [...list];
+		[next[index], next[target]] = [next[target], next[index]];
+		emitCycleScenes(next);
+	}
+
 	function updateEffectSelection(key: string) {
 		if (!data.onConfigChange) return;
 		const ref = effectsList.find((e) => effectRefKey(e) === key);
@@ -179,9 +225,10 @@
 		actionTypes.find((t) => t.value === data.config.actionType)?.label ?? "Select action",
 	);
 
-	// Inline target picker. activate_scene only picks scenes; set_device_state
-	// and run_effect pick across devices + groups + rooms (best-effort fan-out
-	// downstream).
+	// Inline target picker. activate_scene picks a single scene; cycle_scenes
+	// has no single target (its payload carries the ordered scene list);
+	// set_device_state, toggle_device_state, and run_effect pick across
+	// devices + groups + rooms (best-effort fan-out downstream).
 	const targetItemsList = $derived.by<TargetItem[]>(() => {
 		if (data.config.actionType === "activate_scene") {
 			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name }));
@@ -242,6 +289,40 @@
 	);
 	const validationError = $derived(validateActionConfig(data.config));
 	const INVALID_CLS = "border-destructive ring-2 ring-destructive/40";
+
+	const cycleSceneIds = $derived.by<string[]>(() => {
+		if (data.config.actionType !== "cycle_scenes") return [];
+		return cycleScenesList();
+	});
+	const sceneById = $derived((id: string) => (data.scenes ?? []).find((s) => s.id === id));
+	const availableCycleScenes = $derived.by<SceneRef[]>(() => {
+		const used = new Set(cycleSceneIds);
+		return (data.scenes ?? []).filter((s) => !used.has(s.id));
+	});
+	const hasMissingCycleScene = $derived.by(() => {
+		if (data.config.actionType !== "cycle_scenes") return false;
+		return cycleSceneIds.some((id) => !sceneById(id));
+	});
+
+	// activeCycleIndex is the position in the cycle list whose scene was most
+	// recently activated. The persisted `cycle_index` is the next-to-fire
+	// position, so the active one is `(stored - 1 + len) % len`. Returns -1
+	// if no fire has happened yet.
+	const activeCycleIndex = $derived.by<number>(() => {
+		if (data.config.actionType !== "cycle_scenes") return -1;
+		const len = cycleSceneIds.length;
+		if (len === 0) return -1;
+		const raw = data.runtimeState ?? "{}";
+		try {
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			const next = parsed.cycle_index;
+			if (typeof next !== "number") return -1;
+			const last = (next - 1 + len) % len;
+			return last;
+		} catch {
+			return -1;
+		}
+	});
 </script>
 
 <div
@@ -255,9 +336,26 @@
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-action/15 px-3 py-2">
 		<Play class="size-4 text-automation-action" />
 		<span class="text-sm font-medium text-automation-action">Action</span>
+		{#if data.editable}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
+				onclick={(e) => {
+					e.stopPropagation();
+					data.onDelete?.();
+				}}
+				aria-label="Delete action node"
+			>
+				<Trash2 class="size-3.5" />
+			</Button>
+		{/if}
 	</div>
 
 	<div class="space-y-2 p-3 nodrag">
+		{#if hasMissingCycleScene}
+			<Badge variant="destructive" class="text-[10px]">Missing scenes</Badge>
+		{/if}
 		{#if data.editable}
 			<Select
 				type="single"
@@ -321,6 +419,74 @@
 					class="text-xs"
 					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
 				/>
+			{:else if data.config.actionType === "cycle_scenes"}
+				<div class="space-y-1">
+					{#each cycleSceneIds as sid, i (sid + ":" + i)}
+						{@const scene = sceneById(sid)}
+						<div class="flex items-center gap-1 text-xs">
+							<span class="flex-1 truncate {scene ? '' : 'text-destructive line-through'}">
+								{scene?.name ?? `Deleted scene (${sid})`}
+							</span>
+							{#if i === activeCycleIndex}
+								<Badge class="bg-automation-action/15 text-automation-action border-automation-action/30 text-[10px] py-0">Active</Badge>
+							{/if}
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-6"
+								disabled={i === 0}
+								onclick={() => moveCycleScene(i, -1)}
+								aria-label="Move up"
+							>
+								<ArrowUp class="size-3" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-6"
+								disabled={i === cycleSceneIds.length - 1}
+								onclick={() => moveCycleScene(i, +1)}
+								aria-label="Move down"
+							>
+								<ArrowDown class="size-3" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-6"
+								onclick={() => removeCycleScene(i)}
+								aria-label="Remove"
+							>
+								<X class="size-3" />
+							</Button>
+						</div>
+					{/each}
+					{#if availableCycleScenes.length > 0}
+						<HiveSelectAutocomplete
+							items={availableCycleScenes}
+							value=""
+							getValue={(s: SceneRef) => s.id}
+							getLabel={(s: SceneRef) => s.name}
+							placeholder="Add scene"
+							size="sm"
+							class={validationError?.field === "payload" ? `text-xs ${INVALID_CLS}` : "text-xs"}
+							onchange={(v) => v && addCycleScene(v)}
+						>
+							{#snippet item(s: SceneRef)}
+								<span class="flex w-full items-center gap-1.5 overflow-hidden">
+									<Clapperboard class="size-3.5 shrink-0 text-muted-foreground" />
+									<span class="truncate">{s.name}</span>
+								</span>
+							{/snippet}
+						</HiveSelectAutocomplete>
+					{:else if cycleSceneIds.length === 0}
+						<p class="text-[11px] text-muted-foreground">No scenes available — create scenes first.</p>
+					{/if}
+					<p class="text-[10px] text-muted-foreground">Each fire activates the next scene; the index resets when the automation is saved.</p>
+				</div>
 			{:else}
 				<HiveSelectAutocomplete
 					items={targetItemsList}
@@ -371,6 +537,10 @@
 					{:else}
 						<p class="text-[11px] text-muted-foreground">Pick a target to configure state.</p>
 					{/if}
+				{:else if data.config.actionType === "toggle_device_state"}
+					<p class="text-[10px] text-muted-foreground">
+						Flips on/off. For groups and rooms: any member on → all off; all off → all on.
+					</p>
 				{:else if data.config.actionType === "run_effect"}
 					<Select
 						type="single"
@@ -411,6 +581,24 @@
 				<p class="truncate text-xs text-muted-foreground">
 					{selectedEffectName || "No effect"}
 				</p>
+			{:else if data.config.actionType === "cycle_scenes"}
+				{#if cycleSceneIds.length === 0}
+					<p class="text-xs text-muted-foreground">No scenes</p>
+				{:else}
+					<ul class="space-y-0.5">
+						{#each cycleSceneIds as sid, i (sid + ":" + i)}
+							{@const scene = sceneById(sid)}
+							<li class="flex items-center gap-1 text-xs {scene ? 'text-muted-foreground' : 'text-destructive line-through'}">
+								<span class="flex-1 truncate">{scene?.name ?? `Deleted scene (${sid})`}</span>
+								{#if i === activeCycleIndex}
+									<Badge class="bg-automation-action/15 text-automation-action border-automation-action/30 text-[10px] py-0">Active</Badge>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{:else if data.config.actionType === "toggle_device_state"}
+				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
 			{:else}
 				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
 				{#if data.config.actionType !== "activate_scene" && data.config.payload}
