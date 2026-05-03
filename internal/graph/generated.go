@@ -110,11 +110,12 @@ type ComplexityRoot struct {
 	}
 
 	AutomationNode struct {
-		Config    func(childComplexity int) int
-		ID        func(childComplexity int) int
-		PositionX func(childComplexity int) int
-		PositionY func(childComplexity int) int
-		Type      func(childComplexity int) int
+		Config       func(childComplexity int) int
+		ID           func(childComplexity int) int
+		PositionX    func(childComplexity int) int
+		PositionY    func(childComplexity int) int
+		RuntimeState func(childComplexity int) int
+		Type         func(childComplexity int) int
 	}
 
 	AutomationNodeActivationEvent struct {
@@ -844,6 +845,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationNode.PositionY(childComplexity), true
+	case "AutomationNode.runtimeState":
+		if e.ComplexityRoot.AutomationNode.RuntimeState == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNode.RuntimeState(childComplexity), true
 	case "AutomationNode.type":
 		if e.ComplexityRoot.AutomationNode.Type == nil {
 			break
@@ -2985,6 +2992,8 @@ type AutomationNode {
   config: String!
   positionX: Float!
   positionY: Float!
+  "JSON-encoded map of per-node runtime state (e.g. cycle_scenes index)."
+  runtimeState: String!
 }
 
 type AutomationEdge {
@@ -5782,6 +5791,8 @@ func (ec *executionContext) fieldContext_AutomationGraph_nodes(_ context.Context
 				return ec.fieldContext_AutomationNode_positionX(ctx, field)
 			case "positionY":
 				return ec.fieldContext_AutomationNode_positionY(ctx, field)
+			case "runtimeState":
+				return ec.fieldContext_AutomationNode_runtimeState(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationNode", field.Name)
 		},
@@ -6013,6 +6024,35 @@ func (ec *executionContext) fieldContext_AutomationNode_positionY(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNode_runtimeState(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNode_runtimeState,
+		func(ctx context.Context) (any, error) {
+			return obj.RuntimeState, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNode_runtimeState(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -19510,6 +19550,11 @@ func (ec *executionContext) _AutomationNode(ctx context.Context, sel ast.Selecti
 			}
 		case "positionY":
 			out.Values[i] = ec._AutomationNode_positionY(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runtimeState":
+			out.Values[i] = ec._AutomationNode_runtimeState(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

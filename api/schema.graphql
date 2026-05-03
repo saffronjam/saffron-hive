@@ -278,6 +278,8 @@ type AutomationNode {
   config: String!
   positionX: Float!
   positionY: Float!
+  "JSON-encoded map of per-node runtime state (e.g. cycle_scenes index)."
+  runtimeState: String!
 }
 
 type AutomationEdge {

@@ -147,6 +147,8 @@ type AutomationNode struct {
 	Config    string  `json:"config"`
 	PositionX float64 `json:"positionX"`
 	PositionY float64 `json:"positionY"`
+	// JSON-encoded map of per-node runtime state (e.g. cycle_scenes index).
+	RuntimeState string `json:"runtimeState"`
 }
 
 type AutomationNodeActivationEvent struct {
