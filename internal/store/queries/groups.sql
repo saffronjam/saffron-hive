@@ -20,6 +20,9 @@ SELECT g.id, g.name, g.icon, g.created_at, g.updated_at,
 FROM groups g
 LEFT JOIN users u ON u.id = g.created_by;
 
+-- name: ResolveGroupIDByName :one
+SELECT id FROM groups WHERE name = ? LIMIT 1;
+
 -- name: UpdateGroupName :exec
 UPDATE groups SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 

@@ -359,6 +359,17 @@ func (q *Queries) RemoveRoomMembersByGroup(ctx context.Context, memberID string)
 	return err
 }
 
+const resolveRoomIDByName = `-- name: ResolveRoomIDByName :one
+SELECT id FROM rooms WHERE name = ? LIMIT 1
+`
+
+func (q *Queries) ResolveRoomIDByName(ctx context.Context, name string) (string, error) {
+	row := q.db.QueryRowContext(ctx, resolveRoomIDByName, name)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const updateRoomIcon = `-- name: UpdateRoomIcon :exec
 UPDATE rooms SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

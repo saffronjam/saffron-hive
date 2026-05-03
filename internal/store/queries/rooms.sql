@@ -26,6 +26,9 @@ SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
 FROM rooms r
 LEFT JOIN users u ON u.id = r.created_by;
 
+-- name: ResolveRoomIDByName :one
+SELECT id FROM rooms WHERE name = ? LIMIT 1;
+
 -- name: UpdateRoomName :exec
 UPDATE rooms SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
