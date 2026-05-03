@@ -16,12 +16,16 @@ import (
 )
 
 const (
-	ActionSetDeviceState = "set_device_state"
-	ActionActivateScene  = "activate_scene"
-	ActionRaiseAlarm     = "raise_alarm"
-	ActionClearAlarm     = "clear_alarm"
-	ActionRunEffect      = "run_effect"
+	ActionSetDeviceState    = "set_device_state"
+	ActionToggleDeviceState = "toggle_device_state"
+	ActionActivateScene     = "activate_scene"
+	ActionCycleScenes       = "cycle_scenes"
+	ActionRaiseAlarm        = "raise_alarm"
+	ActionClearAlarm        = "clear_alarm"
+	ActionRunEffect         = "run_effect"
 )
+
+const cycleIndexStateKey = "cycle_index"
 
 // AlarmRaiser is the narrow surface the action executor needs to raise and
 // clear alarms. alarms.Service satisfies it.
@@ -122,8 +126,34 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 			Timestamp: time.Now(),
 			Payload:   cmd,
 		})
+	case ActionToggleDeviceState:
+		if cfg.TargetID == "" {
+			return
+		}
+		deviceID := device.DeviceID(cfg.TargetID)
+		desired := a.toggleDesired(deviceID)
+		if len(desired) == 0 {
+			return
+		}
+		if a.stateMatches(deviceID, desired) {
+			a.stateMatchSkips.Add(1)
+			logger.Debug("toggle skipped: device already matches desired state",
+				"device_id", deviceID,
+				"automation_id", cfg.AutomationID)
+			return
+		}
+		cmd := buildCommand(deviceID, desired)
+		cmd.Origin = device.OriginAutomation(cfg.AutomationID)
+		a.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventCommandRequested,
+			DeviceID:  string(deviceID),
+			Timestamp: time.Now(),
+			Payload:   cmd,
+		})
 	case ActionActivateScene:
 		a.executeActivateScene(cfg.Payload)
+	case ActionCycleScenes:
+		a.executeCycleScenes(cfg)
 	case ActionRaiseAlarm:
 		a.executeRaiseAlarm(cfg)
 	case ActionClearAlarm:
@@ -319,6 +349,36 @@ func toInt(v any) int {
 	}
 }
 
+// toggleDesired returns the desired state map for flipping a single device's
+// on/off state: {"on": !current.on}. Defaults to on=true when the device's
+// state is unknown (matches the on-by-default convention used by scene
+// payloads). The returned map is filtered to fields the device's capabilities
+// support.
+func (a *ActionExecutor) toggleDesired(deviceID device.DeviceID) map[string]any {
+	nextOn := true
+	if st, ok := a.reader.GetDeviceState(deviceID); ok && st != nil && st.On != nil && *st.On {
+		nextOn = false
+	}
+	desired := map[string]any{"on": nextOn}
+	if dev, ok := a.reader.GetDevice(deviceID); ok {
+		desired = device.FilterCommandFields(desired, dev)
+	}
+	return desired
+}
+
+// aggregateOn returns true iff at least one of the given devices currently
+// reports on=true. Devices with unknown state contribute false. Used by the
+// engine's toggle override to compute target-aggregate desired state and by
+// the expr accessor for group/room conditions.
+func aggregateOn(reader device.StateReader, ids []device.DeviceID) bool {
+	for _, id := range ids {
+		if st, ok := reader.GetDeviceState(id); ok && st != nil && st.On != nil && *st.On {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[string]any) bool {
 	st, ok := a.reader.GetDeviceState(deviceID)
 	if !ok || st == nil {
@@ -413,5 +473,55 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 					"error", err)
 			}
 		}
+	}
+}
+
+type cycleScenesPayload struct {
+	Scenes []string `json:"scenes"`
+}
+
+// executeCycleScenes advances the per-node cycle index and applies the next
+// existing scene. Scenes that no longer exist are filtered out at fire time;
+// the index counts positions in the filtered list. If every referenced scene
+// has been deleted the action is a no-op. Persists the next index back to
+// automation_node_state under cycleIndexStateKey.
+func (a *ActionExecutor) executeCycleScenes(cfg ActionConfig) {
+	var p cycleScenesPayload
+	if err := json.Unmarshal([]byte(cfg.Payload), &p); err != nil {
+		logger.Error("invalid cycle_scenes payload", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
+		return
+	}
+	if len(p.Scenes) == 0 {
+		return
+	}
+
+	ctx := a.baseCtx
+	valid := make([]string, 0, len(p.Scenes))
+	for _, sid := range p.Scenes {
+		if _, err := a.store.GetScene(ctx, sid); err == nil {
+			valid = append(valid, sid)
+		}
+	}
+	if len(valid) == 0 {
+		logger.Warn("cycle_scenes: no valid scenes remain", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID)
+		return
+	}
+
+	idx := 0
+	if raw, found, err := a.store.GetAutomationNodeState(ctx, cfg.AutomationID, string(cfg.NodeID), cycleIndexStateKey); err != nil {
+		logger.Warn("cycle_scenes: read state failed; defaulting to 0", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
+	} else if found {
+		_ = json.Unmarshal([]byte(raw), &idx)
+	}
+	if idx < 0 || idx >= len(valid) {
+		idx = 0
+	}
+
+	a.executeActivateScene(valid[idx])
+
+	next := (idx + 1) % len(valid)
+	nextRaw, _ := json.Marshal(next)
+	if err := a.store.SetAutomationNodeState(ctx, cfg.AutomationID, string(cfg.NodeID), cycleIndexStateKey, string(nextRaw)); err != nil {
+		logger.Error("cycle_scenes: write state failed", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
 	}
 }

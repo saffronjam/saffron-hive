@@ -108,15 +108,16 @@ const (
 
 // ActionConfig holds the configuration for an action node.
 //
-// AutomationID is populated by the engine before dispatch so the executor can
-// attribute side effects (e.g. alarm source strings) to the automation that
-// triggered them. Stored configs never include this field.
+// AutomationID and NodeID are populated by the engine before dispatch so the
+// executor can attribute side effects (alarm source strings, persistent node
+// state keys) to the originating node. Stored configs never include them.
 type ActionConfig struct {
 	ActionType   string
 	TargetType   TargetType
 	TargetID     string
 	Payload      string
 	AutomationID string
+	NodeID       NodeID
 }
 
 // NodeActivation is the event payload published when a node activates or

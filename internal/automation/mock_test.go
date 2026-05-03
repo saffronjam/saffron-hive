@@ -2,6 +2,7 @@ package automation
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 	"time"
 
@@ -93,7 +94,12 @@ type mockStore struct {
 	sceneActions  map[string][]store.SceneAction
 	scenePayloads map[string][]store.SceneDevicePayload
 	sceneErr      map[string]error
+	scenes        map[string]store.Scene
 	groupMembers  map[string][]store.GroupMember
+	roomMembers   map[string][]device.DeviceID
+	groupNames    map[string]string
+	roomNames     map[string]string
+	nodeState     map[string]string
 }
 
 func newMockStore() *mockStore {
@@ -103,8 +109,82 @@ func newMockStore() *mockStore {
 		sceneActions:  make(map[string][]store.SceneAction),
 		scenePayloads: make(map[string][]store.SceneDevicePayload),
 		sceneErr:      make(map[string]error),
+		scenes:        make(map[string]store.Scene),
 		groupMembers:  make(map[string][]store.GroupMember),
+		roomMembers:   make(map[string][]device.DeviceID),
+		groupNames:    make(map[string]string),
+		roomNames:     make(map[string]string),
+		nodeState:     make(map[string]string),
 	}
+}
+
+func (m *mockStore) GetScene(_ context.Context, id string) (store.Scene, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	sc, ok := m.scenes[id]
+	if !ok {
+		return store.Scene{}, sql.ErrNoRows
+	}
+	return sc, nil
+}
+
+func (m *mockStore) GetAutomationNodeState(_ context.Context, automationID, nodeID, key string) (string, bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	v, ok := m.nodeState[nodeStateKey(automationID, nodeID, key)]
+	return v, ok, nil
+}
+
+func (m *mockStore) SetAutomationNodeState(_ context.Context, automationID, nodeID, key, value string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.nodeState[nodeStateKey(automationID, nodeID, key)] = value
+	return nil
+}
+
+func (m *mockStore) setScene(id string, sc store.Scene) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	sc.ID = id
+	m.scenes[id] = sc
+}
+
+func nodeStateKey(automationID, nodeID, key string) string {
+	return automationID + "|" + nodeID + "|" + key
+}
+
+func (m *mockStore) ResolveGroupIDByName(_ context.Context, name string) (string, bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for id, n := range m.groupNames {
+		if n == name {
+			return id, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+func (m *mockStore) ResolveRoomIDByName(_ context.Context, name string) (string, bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for id, n := range m.roomNames {
+		if n == name {
+			return id, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+func (m *mockStore) setGroupName(id, name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.groupNames[id] = name
+}
+
+func (m *mockStore) setRoomName(id, name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.roomNames[id] = name
 }
 
 func (m *mockStore) ListEnabledAutomations(_ context.Context) ([]store.Automation, error) {
@@ -177,9 +257,22 @@ func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.
 			}
 		}
 		return ids
+	case device.TargetRoom:
+		m.mu.RLock()
+		ids := m.roomMembers[targetID]
+		m.mu.RUnlock()
+		out := make([]device.DeviceID, len(ids))
+		copy(out, ids)
+		return out
 	default:
 		return []device.DeviceID{device.DeviceID(targetID)}
 	}
+}
+
+func (m *mockStore) setRoomDevices(roomID string, ids []device.DeviceID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.roomMembers[roomID] = ids
 }
 
 func (m *mockStore) addAutomationGraph(a store.Automation, nodes []store.AutomationNode, edges []store.AutomationEdge) {

@@ -42,6 +42,11 @@ type automationStore interface {
 	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
 	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]store.SceneDevicePayload, error)
 	UpdateAutomationLastFired(ctx context.Context, id string, firedAt time.Time) error
+	ResolveGroupIDByName(ctx context.Context, name string) (string, bool, error)
+	ResolveRoomIDByName(ctx context.Context, name string) (string, bool, error)
+	GetScene(ctx context.Context, id string) (store.Scene, error)
+	GetAutomationNodeState(ctx context.Context, automationID, nodeID, key string) (string, bool, error)
+	SetAutomationNodeState(ctx context.Context, automationID, nodeID, key, value string) error
 }
 
 // Engine evaluates automation graphs against incoming events.
@@ -231,7 +236,7 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	e.mu.RUnlock()
 
 	now := e.now()
-	env := buildEnv(e.reader, event, now)
+	env := buildEnv(e.baseCtx, e.reader, e.resolver, e.store, event, now)
 
 	firedThisTick := make(map[string]map[NodeID]bool)
 
@@ -298,7 +303,7 @@ func (e *Engine) FireManualTrigger(_ context.Context, automationID string, nodeI
 	}
 	e.recordTriggerFired(automationID, nodeID, now)
 
-	env := buildScheduledEnv(e.reader, now)
+	env := buildScheduledEnv(e.baseCtx, e.reader, e.resolver, e.store, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
 	if e.evaluateGraph(cg, env, triggerResults) {
 		e.recordAutomationFired(automationID, now)
@@ -329,7 +334,7 @@ func (e *Engine) handleScheduledTrigger(automationID string, nodeID NodeID) {
 	}
 	e.recordTriggerFired(automationID, nodeID, now)
 
-	env := buildScheduledEnv(e.reader, now)
+	env := buildScheduledEnv(e.baseCtx, e.reader, e.resolver, e.store, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
 	if e.evaluateGraph(cg, env, triggerResults) {
 		e.recordAutomationFired(automationID, now)
@@ -526,12 +531,13 @@ func (e *Engine) executeAction(node Node, automationID string) {
 		return
 	}
 	actionCfg.AutomationID = automationID
+	actionCfg.NodeID = node.ID
 
-	// Alarm actions are not target-scoped; they fire exactly once per
-	// activation regardless of device/group/room membership. Run-effect
-	// actions are also not fanned out: the runner accepts a group/room
-	// target and re-resolves members at each iteration boundary.
-	if actionCfg.ActionType == ActionRaiseAlarm || actionCfg.ActionType == ActionClearAlarm || actionCfg.ActionType == ActionRunEffect {
+	// Alarm, run-effect, and cycle-scenes actions are not target-scoped via
+	// the resolver: alarms fire exactly once per activation; run-effect
+	// re-resolves the group/room target at each iteration boundary; cycle
+	// dispatches a single scene-apply per fire.
+	if actionCfg.ActionType == ActionRaiseAlarm || actionCfg.ActionType == ActionClearAlarm || actionCfg.ActionType == ActionRunEffect || actionCfg.ActionType == ActionCycleScenes {
 		e.executor.ExecuteGraphAction(actionCfg)
 		return
 	}
@@ -541,6 +547,25 @@ func (e *Engine) executeAction(node Node, automationID string) {
 		device.TargetType(actionCfg.TargetType),
 		actionCfg.TargetID,
 	)
+
+	if actionCfg.ActionType == ActionToggleDeviceState {
+		// Toggle on a group/room flips the aggregate, not each member: any
+		// member on => all off, all off => all on. Computing once and
+		// dispatching as set_device_state avoids per-member flipping that
+		// would scramble half-on rooms.
+		nextOn := !aggregateOn(e.reader, deviceIDs)
+		payload, _ := json.Marshal(map[string]any{"on": nextOn})
+		for _, devID := range deviceIDs {
+			e.executor.ExecuteGraphAction(ActionConfig{
+				ActionType:   ActionSetDeviceState,
+				TargetType:   TargetDevice,
+				TargetID:     string(devID),
+				Payload:      string(payload),
+				AutomationID: automationID,
+			})
+		}
+		return
+	}
 
 	for _, devID := range deviceIDs {
 		perDevice := ActionConfig{
