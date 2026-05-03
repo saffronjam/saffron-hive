@@ -15,13 +15,10 @@
 		TabsList,
 		TabsTrigger,
 	} from "$lib/components/ui/tabs/index.js";
-	import HiveDrawer from "$lib/components/hive-drawer.svelte";
-	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import { Clapperboard, Workflow } from "@lucide/svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { Workflow } from "@lucide/svelte";
 	import { isEditableTarget } from "$lib/utils/keyboard";
 	import dagre from "@dagrejs/dagre";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
@@ -45,8 +42,15 @@
 		Rows3,
 		Copy,
 		ClipboardPaste,
+		Plus,
 		X,
 	} from "@lucide/svelte";
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuTrigger,
+	} from "$lib/components/ui/dropdown-menu/index.js";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
@@ -92,6 +96,7 @@
 		config: string;
 		positionX: number;
 		positionY: number;
+		runtimeState: string;
 	}
 
 	interface AutomationEdgeData {
@@ -169,6 +174,7 @@
 					config
 					positionX
 					positionY
+					runtimeState
 				}
 				edges {
 					fromNodeId
@@ -191,6 +197,7 @@
 					config
 					positionX
 					positionY
+					runtimeState
 				}
 				edges {
 					fromNodeId
@@ -371,25 +378,11 @@
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
 
-	let pickerOpen = $state(false);
-	let pickerTargetNodeId = $state<string | null>(null);
-	let pickerActionType = $state<string>("set_device_state");
 	let devices = $state<Device[]>([]);
 	let groups = $state<GroupData[]>([]);
 	let rooms = $state<RoomData[]>([]);
 	let scenes = $state<{ id: string; name: string }[]>([]);
 	let effects = $state<EffectOption[]>([]);
-
-	const pickerGroups = $derived.by((): DrawerGroup<"device" | "group" | "room" | "scene">[] => {
-		if (pickerActionType === "activate_scene") {
-			return [{ heading: "Scenes", items: scenes.map((s) => ({ type: "scene" as const, id: s.id, name: s.name, icon: Clapperboard })) }];
-		}
-		return [
-			{ heading: "Devices", items: devices.map((d) => ({ type: "device" as const, id: d.id, name: d.name, icon: deviceIcon(d.type), iconRef: d.icon ?? null, searchValue: `${d.name} ${d.type}` })) },
-			{ heading: "Groups", items: groups.map((g) => ({ type: "group" as const, id: g.id, name: g.name, icon: Workflow })) },
-			{ heading: "Rooms", items: rooms.map((r) => ({ type: "room" as const, id: r.id, name: r.name, icon: Workflow })) },
-		];
-	});
 
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 	let unsubscribers: (() => void)[] = [];
@@ -583,19 +576,25 @@
 		return cfg;
 	}
 
-	function enrichConditionConfigWithDevice(cfg: ConditionConfig): ConditionConfig {
-		// The stored expression carries only the device name (it's what expr-lang
-		// looks up). On reload we re-derive deviceId so the UI dropdown can
-		// pre-select the correct row. Symmetric to the trigger enrichment.
-		if (cfg.mode !== "device_state" || !devices.length) return cfg;
-		if (cfg.deviceName && !cfg.deviceId) {
-			const d = devices.find((x) => x.name === cfg.deviceName);
-			if (d) return { ...cfg, deviceId: d.id };
+	function enrichConditionConfigWithTarget(cfg: ConditionConfig): ConditionConfig {
+		// The stored expression carries only the target name (the expr-lang
+		// `device(...)` lookup is overloaded server-side across devices,
+		// groups, and rooms). Resolve the live ID and target type so the UI
+		// dropdown pre-selects the correct row.
+		if (cfg.mode !== "device_state") return cfg;
+		if (!cfg.targetName) {
+			if (cfg.targetId && cfg.targetType === "device") {
+				const d = devices.find((x) => x.id === cfg.targetId);
+				if (d) return { ...cfg, targetName: d.name };
+			}
+			return cfg;
 		}
-		if (cfg.deviceId && !cfg.deviceName) {
-			const d = devices.find((x) => x.id === cfg.deviceId);
-			if (d) return { ...cfg, deviceName: d.name };
-		}
+		const dev = devices.find((x) => x.name === cfg.targetName);
+		if (dev) return { ...cfg, targetType: "device", targetId: dev.id };
+		const grp = groups.find((g) => g.name === cfg.targetName);
+		if (grp) return { ...cfg, targetType: "group", targetId: grp.id };
+		const room = rooms.find((r) => r.name === cfg.targetName);
+		if (room) return { ...cfg, targetType: "room", targetId: room.id };
 		return cfg;
 	}
 
@@ -606,7 +605,7 @@
 				return enrichTriggerConfigWithDevice(normalizeTriggerConfig(raw));
 			}
 			if (nodeType === "condition") {
-				return enrichConditionConfigWithDevice(normalizeConditionConfig(raw));
+				return enrichConditionConfigWithTarget(normalizeConditionConfig(raw));
 			}
 			if (nodeType === "operator") {
 				return { operator: ((raw.kind as string) ?? (raw.operator as string) ?? "AND").toUpperCase() };
@@ -634,12 +633,19 @@
 		return { actionType: "set_device_state", targetType: "", targetId: "", targetName: "", payload: "" };
 	}
 
+	function deleteNode(nodeId: string) {
+		flowNodes = flowNodes.filter((n) => n.id !== nodeId);
+		flowEdges = flowEdges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+		takeSnapshot();
+	}
+
 	function makeNodeData(
 		nodeType: string,
 		config: NodeConfig,
 		isEditable: boolean,
 		isActivated: boolean,
-		nodeId: string
+		nodeId: string,
+		runtimeState: string = "{}",
 	): Record<string, unknown> {
 		const onConfigChange = (newConfig: NodeConfig) => {
 			flowNodes = flowNodes.map((n) =>
@@ -648,11 +654,14 @@
 			queueMicrotask(takeSnapshot);
 		};
 
+		const onDelete = () => deleteNode(nodeId);
+
 		const base = {
 			config,
 			editable: isEditable,
 			activated: isActivated,
 			onConfigChange,
+			onDelete,
 		};
 
 		if (nodeType === "trigger") {
@@ -668,6 +677,8 @@
 			return {
 				...base,
 				devices,
+				groups,
+				rooms,
 			};
 		}
 
@@ -679,6 +690,7 @@
 				rooms,
 				scenes,
 				effects,
+				runtimeState,
 			};
 		}
 
@@ -763,7 +775,7 @@
 				id: n.id,
 				type: n.type,
 				position: { x: n.positionX, y: n.positionY },
-				data: makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id),
+				data: makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id, n.runtimeState),
 			};
 		});
 		if (!allZeroPositions) return baseNodes;
@@ -947,6 +959,7 @@
 			config: JSON.stringify(n.config),
 			positionX: typeof n.positionX === "number" ? n.positionX : 0,
 			positionY: typeof n.positionY === "number" ? n.positionY : 0,
+			runtimeState: "{}",
 		}));
 
 		const edges: AutomationEdgeData[] = (obj.edges as Record<string, unknown>[]).map((e) => ({
@@ -1031,45 +1044,6 @@
 		takeSnapshot();
 	}
 
-	function handleNodeClick(event: { node: Node; event: MouseEvent | TouchEvent }) {
-		if (!editMode || !isMobile.current) return;
-		const node = event.node;
-		if (node.type === "action") {
-			const actionConfig = (node.data as Record<string, unknown>).config as ActionConfig;
-			pickerTargetNodeId = node.id;
-			pickerActionType = actionConfig.actionType || "set_device_state";
-			pickerOpen = true;
-		}
-	}
-
-	function handleTargetSelect(memberType: "device" | "group" | "room" | "scene", memberId: string) {
-		if (!pickerTargetNodeId) return;
-
-		const selectedDevice = devices.find((d) => d.id === memberId);
-		const selectedGroup = groups.find((g) => g.id === memberId);
-		const selectedRoom = rooms.find((r) => r.id === memberId);
-		const selectedScene = scenes.find((s) => s.id === memberId);
-		const targetName =
-			selectedDevice?.name ?? selectedGroup?.name ?? selectedRoom?.name ?? selectedScene?.name ?? memberId;
-
-		flowNodes = flowNodes.map((n) => {
-			if (n.id !== pickerTargetNodeId) return n;
-			const data = n.data as Record<string, unknown>;
-			const config = data.config as ActionConfig;
-			return {
-				...n,
-				data: {
-					...data,
-					config: { ...config, targetType: memberType, targetId: memberId, targetName },
-				},
-			};
-		});
-
-		pickerOpen = false;
-		pickerTargetNodeId = null;
-		takeSnapshot();
-	}
-
 	function resolveTargetName(
 		targetType: string,
 		targetId: string,
@@ -1111,15 +1085,24 @@
 				return { ...n, data: { ...data, devices: deviceList, config: cfg } };
 			}
 			if (n.type === "condition") {
-				const cfg = enrichConditionConfigWithDevice(data.config as ConditionConfig);
-				return { ...n, data: { ...data, devices: deviceList, config: cfg } };
+				const cfg = enrichConditionConfigWithTarget(data.config as ConditionConfig);
+				return {
+					...n,
+					data: {
+						...data,
+						devices: deviceList,
+						groups: groupList,
+						rooms: roomList,
+						config: cfg,
+					},
+				};
 			}
 			if (n.type === "action") {
 				const cfg = data.config as ActionConfig;
 				// targetName isn't persisted; rehydrate it from the live lookups so
 				// reloaded automations don't display "device:0x001...". Prefer the
-				// existing name when set (it came from handleTargetSelect in the
-				// current session and we don't want to clobber typing races).
+				// existing in-memory name to avoid clobbering a value the user just
+				// picked while lookups were resolving.
 				let name = cfg.targetName;
 				if (!name) {
 					name = resolveTargetName(cfg.targetType, cfg.targetId, deviceList, groupList, roomList);
@@ -1206,6 +1189,26 @@
 		void flowEdges.reduce((acc, e) => acc + (e.selected ? 1 : 0), 0);
 		untrack(updateEdgeStyles);
 	});
+
+	function refreshRuntimeState() {
+		if (!client || !automationId) return;
+		client
+			.query<AutomationQueryResult>(AUTOMATION_QUERY, { id: automationId }, { requestPolicy: "network-only" })
+			.toPromise()
+			.then((res) => {
+				if (!res.data?.automation) return;
+				const next = new Map<string, string>(
+					res.data.automation.nodes.map((n) => [n.id, n.runtimeState] as const),
+				);
+				flowNodes = flowNodes.map((n) => {
+					const v = next.get(n.id);
+					if (v === undefined) return n;
+					const data = n.data as Record<string, unknown>;
+					if (data.runtimeState === v) return n;
+					return { ...n, data: { ...data, runtimeState: v } };
+				});
+			});
+	}
 
 	async function handleFireManual(nodeId: string) {
 		if (!client || !automationId) return;
@@ -1433,6 +1436,13 @@
 					flowNodes = flowNodes.map((n) =>
 						n.id === nodeId ? { ...n, data: { ...n.data, activated: true } } : n
 					);
+
+					// Action nodes may have advanced persistent state (e.g. the
+					// cycle_scenes index). Refetch so the "Active" chip moves
+					// to the just-fired scene.
+					if (node?.type === "action") {
+						refreshRuntimeState();
+					}
 				} else {
 					const existing = activatedNodes.get(nodeId);
 					if (existing) clearTimeout(existing);
@@ -1542,7 +1552,6 @@
 				bind:edges={flowEdges}
 				editable={editMode}
 				onconnect={handleConnect}
-				onnodeclick={handleNodeClick}
 				onnodedragstop={takeSnapshot}
 				ondelete={takeSnapshot}
 				onReady={(api) => (flowApi = api)}
@@ -1577,22 +1586,50 @@
 					<ClipboardPaste class="size-3.5" />
 				</Button>
 				<div class="mx-1 h-4 w-px bg-border"></div>
-				<Button variant="ghost" size="sm" onclick={() => addNode("trigger")} disabled={!editMode}>
-					<Zap class="size-3.5 text-automation-trigger" />
-					<span class="hidden sm:inline">Trigger</span>
-				</Button>
-				<Button variant="ghost" size="sm" onclick={() => addNode("condition")} disabled={!editMode}>
-					<ShieldCheck class="size-3.5 text-automation-condition" />
-					<span class="hidden sm:inline">Condition</span>
-				</Button>
-				<Button variant="ghost" size="sm" onclick={() => addNode("operator")} disabled={!editMode}>
-					<GitMerge class="size-3.5 text-automation-operator" />
-					<span class="hidden sm:inline">Operator</span>
-				</Button>
-				<Button variant="ghost" size="sm" onclick={() => addNode("action")} disabled={!editMode}>
-					<Play class="size-3.5 text-automation-action" />
-					<span class="hidden sm:inline">Action</span>
-				</Button>
+				{#if isMobile.current}
+					<DropdownMenu>
+						<DropdownMenuTrigger>
+							<Button variant="ghost" size="icon-sm" disabled={!editMode} aria-label="Add node">
+								<Plus class="size-3.5" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="center" class="min-w-[10rem]">
+							<DropdownMenuItem onclick={() => addNode("trigger")}>
+								<Zap class="size-3.5 text-automation-trigger" />
+								Trigger
+							</DropdownMenuItem>
+							<DropdownMenuItem onclick={() => addNode("condition")}>
+								<ShieldCheck class="size-3.5 text-automation-condition" />
+								Condition
+							</DropdownMenuItem>
+							<DropdownMenuItem onclick={() => addNode("operator")}>
+								<GitMerge class="size-3.5 text-automation-operator" />
+								Operator
+							</DropdownMenuItem>
+							<DropdownMenuItem onclick={() => addNode("action")}>
+								<Play class="size-3.5 text-automation-action" />
+								Action
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				{:else}
+					<Button variant="ghost" size="sm" onclick={() => addNode("trigger")} disabled={!editMode}>
+						<Zap class="size-3.5 text-automation-trigger" />
+						<span class="hidden sm:inline">Trigger</span>
+					</Button>
+					<Button variant="ghost" size="sm" onclick={() => addNode("condition")} disabled={!editMode}>
+						<ShieldCheck class="size-3.5 text-automation-condition" />
+						<span class="hidden sm:inline">Condition</span>
+					</Button>
+					<Button variant="ghost" size="sm" onclick={() => addNode("operator")} disabled={!editMode}>
+						<GitMerge class="size-3.5 text-automation-operator" />
+						<span class="hidden sm:inline">Operator</span>
+					</Button>
+					<Button variant="ghost" size="sm" onclick={() => addNode("action")} disabled={!editMode}>
+						<Play class="size-3.5 text-automation-action" />
+						<span class="hidden sm:inline">Action</span>
+					</Button>
+				{/if}
 				<div class="mx-1 h-4 w-px bg-border"></div>
 				<div class="flex items-center rounded-md border border-border dark:border-input">
 					<Button
@@ -1635,14 +1672,6 @@
 			{/if}
 		</div>
 	{/if}
-
-	<HiveDrawer
-		bind:open={pickerOpen}
-		title="Select Target"
-		description={pickerActionType === "activate_scene" ? "Pick a scene to activate." : "Pick a device for this action."}
-		groups={pickerGroups}
-		onselect={handleTargetSelect}
-	/>
 
 	<ConfirmDialog
 		bind:open={deleteConfirmOpen}
