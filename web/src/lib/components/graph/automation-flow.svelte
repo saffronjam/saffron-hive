@@ -23,7 +23,6 @@
 		onnodeschange?: (nodes: Node[]) => void;
 		onedgeschange?: (edges: Edge[]) => void;
 		onconnect?: (connection: Connection) => void;
-		onnodeclick?: (event: { node: Node; event: MouseEvent | TouchEvent }) => void;
 		onnodedragstop?: () => void;
 		ondelete?: () => void;
 		onReady?: (api: FlowApi) => void;
@@ -34,7 +33,6 @@
 		edges = $bindable([]),
 		editable,
 		onconnect,
-		onnodeclick,
 		onnodedragstop,
 		ondelete,
 		onReady,
@@ -91,7 +89,6 @@
 		{nodeTypes}
 		{isValidConnection}
 		onconnect={handleConnect}
-		onnodeclick={onnodeclick}
 		onnodedragstop={() => onnodedragstop?.()}
 		ondelete={() => ondelete?.()}
 		nodesDraggable={editable}

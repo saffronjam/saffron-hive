@@ -6,7 +6,8 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
-	import { GitMerge } from "@lucide/svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { GitMerge, Trash2 } from "@lucide/svelte";
 
 	interface OperatorConfig {
 		operator: string;
@@ -17,6 +18,7 @@
 		editable: boolean;
 		activated: boolean;
 		onConfigChange?: (config: OperatorConfig) => void;
+		onDelete?: () => void;
 	}
 
 	interface Props {
@@ -50,6 +52,20 @@
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-operator/15 px-3 py-2">
 		<GitMerge class="size-4 text-automation-operator" />
 		<span class="text-sm font-medium text-automation-operator">Operator</span>
+		{#if data.editable}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
+				onclick={(e) => {
+					e.stopPropagation();
+					data.onDelete?.();
+				}}
+				aria-label="Delete operator node"
+			>
+				<Trash2 class="size-3.5" />
+			</Button>
+		{/if}
 	</div>
 
 	<div class="p-3 nodrag">

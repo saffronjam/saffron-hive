@@ -12,7 +12,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
-	import { Zap } from "@lucide/svelte";
+	import { Zap, Trash2 } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
@@ -38,6 +38,7 @@
 		automationEnabled?: boolean;
 		onConfigChange?: (config: TriggerConfig) => void;
 		onFireManual?: () => void;
+		onDelete?: () => void;
 	}
 
 	interface Props {
@@ -283,6 +284,19 @@
 				variant="outline"
 				class="ml-auto text-[10px] border-automation-trigger/30 bg-automation-trigger/10 text-automation-trigger"
 			>{modeLabel}</Badge>
+		{:else}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
+				onclick={(e) => {
+					e.stopPropagation();
+					data.onDelete?.();
+				}}
+				aria-label="Delete trigger node"
+			>
+				<Trash2 class="size-3.5" />
+			</Button>
 		{/if}
 	</div>
 
