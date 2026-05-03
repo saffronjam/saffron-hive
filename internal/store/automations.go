@@ -281,9 +281,23 @@ func (s *DB) GetAutomationGraph(ctx context.Context, automationID string) (Autom
 	if err != nil {
 		return AutomationGraph{}, fmt.Errorf("get automation graph edges: %w", err)
 	}
+	stateRows, err := s.ListAutomationNodeStateByAutomation(ctx, automationID)
+	if err != nil {
+		return AutomationGraph{}, fmt.Errorf("get automation graph node state: %w", err)
+	}
+	states := make(map[string]map[string]string, len(stateRows))
+	for _, r := range stateRows {
+		m := states[r.NodeID]
+		if m == nil {
+			m = make(map[string]string)
+			states[r.NodeID] = m
+		}
+		m[r.Key] = r.Value
+	}
 	return AutomationGraph{
 		Automation: a,
 		Nodes:      nodes,
 		Edges:      edges,
+		NodeStates: states,
 	}, nil
 }

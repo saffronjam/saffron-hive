@@ -240,10 +240,13 @@ type AutomationEdge struct {
 }
 
 // AutomationGraph represents a full automation graph loaded from the database.
+// NodeStates carries persistent runtime state keyed by [nodeID][stateKey];
+// graph fetches populate it from automation_node_state in one query.
 type AutomationGraph struct {
 	Automation Automation
 	Nodes      []AutomationNode
 	Edges      []AutomationEdge
+	NodeStates map[string]map[string]string
 }
 
 // CreateGroupParams holds the parameters for creating a new group.
