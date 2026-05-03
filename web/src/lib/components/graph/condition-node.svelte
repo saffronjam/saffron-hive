@@ -11,24 +11,51 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
-	import { ShieldCheck } from "@lucide/svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { ShieldCheck, Trash2 } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
 	import {
 		type ConditionConfig,
 		type ConditionMode,
+		type ConditionTargetType,
 		generateConditionExpr,
 		validateConditionConfig,
 	} from "./condition-expr";
+	import type { GroupLite, RoomLite } from "$lib/target-resolve";
 
 	interface ConditionNodeData extends Record<string, unknown> {
 		config: ConditionConfig;
 		editable: boolean;
 		activated: boolean;
 		devices: Device[];
+		groups?: (GroupLite & { name: string })[];
+		rooms?: (RoomLite & { name: string })[];
 		onConfigChange?: (config: ConditionConfig) => void;
+		onDelete?: () => void;
 	}
+
+	interface TargetItem {
+		kind: ConditionTargetType;
+		id: string;
+		name: string;
+		deviceType?: string;
+	}
+
+	function targetKey(t: TargetItem): string {
+		return `${t.kind}:${t.id}`;
+	}
+
+	const ON_OFF_CAPABILITY: Capability = {
+		name: "on_off",
+		type: "binary",
+		access: 1,
+		values: null,
+		valueMin: null,
+		valueMax: null,
+		unit: null,
+	};
 
 	interface Props {
 		data: ConditionNodeData;
@@ -111,13 +138,16 @@
 		return capName === "on_off" ? "on" : capName;
 	}
 
-	function handleDeviceChange(value: string | undefined) {
+	function handleTargetChange(value: string | undefined) {
 		if (!value) return;
-		const dev = (data.devices ?? []).find((d) => d.id === value);
-		if (!dev) return;
+		const [kind, ...idParts] = value.split(":");
+		const id = idParts.join(":");
+		const item = targetItems.find((t) => t.kind === kind && t.id === id);
+		if (!item) return;
 		update({
-			deviceId: dev.id,
-			deviceName: dev.name,
+			targetType: kind as ConditionTargetType,
+			targetId: id,
+			targetName: item.name,
 			property: undefined,
 			comparator: undefined,
 			value: undefined,
@@ -126,7 +156,7 @@
 
 	function handlePropertyChange(value: string | undefined) {
 		if (!value) return;
-		const cap = selectedDeviceCapabilities.find(
+		const cap = availableCapabilities.find(
 			(c) => capabilityToExprProperty(c.name) === value
 		);
 		let defaultComparator = "==";
@@ -139,18 +169,43 @@
 		update({ property: value, comparator: defaultComparator, value: defaultValue });
 	}
 
-	const selectedDevice = $derived(
-		(data.devices ?? []).find((d) => d.id === data.config.deviceId)
+	const targetItems = $derived.by<TargetItem[]>(() => {
+		const items: TargetItem[] = [];
+		for (const d of data.devices ?? []) {
+			items.push({ kind: "device", id: d.id, name: d.name, deviceType: d.type });
+		}
+		for (const g of data.groups ?? []) {
+			items.push({ kind: "group", id: g.id, name: g.name });
+		}
+		for (const r of data.rooms ?? []) {
+			items.push({ kind: "room", id: r.id, name: r.name });
+		}
+		return items;
+	});
+
+	const selectedTargetKey = $derived(
+		data.config.targetId ? `${data.config.targetType ?? "device"}:${data.config.targetId}` : "",
 	);
 
-	const selectedDeviceCapabilities = $derived.by((): Capability[] => {
+	const selectedDevice = $derived.by<Device | undefined>(() => {
+		if (data.config.targetType !== "device" && data.config.targetType !== undefined) return undefined;
+		return (data.devices ?? []).find((d) => d.id === data.config.targetId);
+	});
+
+	// Devices expose every readable capability; groups/rooms expose only the
+	// binary `on_off` capability since aggregating non-binary capabilities
+	// (max? mean? any?) across a target's members has no clear semantics.
+	const availableCapabilities = $derived.by((): Capability[] => {
+		if (data.config.targetType === "group" || data.config.targetType === "room") {
+			return [ON_OFF_CAPABILITY];
+		}
 		if (!selectedDevice) return [];
 		return selectedDevice.capabilities.filter((c) => (c.access & 1) !== 0);
 	});
 
 	const selectedCapability = $derived.by((): Capability | undefined => {
-		if (!data.config.property || !selectedDevice) return undefined;
-		return selectedDevice.capabilities.find(
+		if (!data.config.property) return undefined;
+		return availableCapabilities.find(
 			(c) => capabilityToExprProperty(c.name) === data.config.property
 		);
 	});
@@ -183,7 +238,7 @@
 			}
 			case "device_state": {
 				const bits: string[] = [];
-				if (data.config.deviceName) bits.push(data.config.deviceName);
+				if (data.config.targetName) bits.push(data.config.targetName);
 				if (data.config.property) {
 					bits.push(`${data.config.property} ${data.config.comparator ?? "=="} ${data.config.value ?? ""}`);
 				}
@@ -213,6 +268,19 @@
 				variant="outline"
 				class="ml-auto text-[10px] border-automation-condition/30 bg-automation-condition/10 text-automation-condition"
 			>{modeLabel}</Badge>
+		{:else}
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
+				onclick={(e) => {
+					e.stopPropagation();
+					data.onDelete?.();
+				}}
+				aria-label="Delete condition node"
+			>
+				<Trash2 class="size-3.5" />
+			</Button>
 		{/if}
 	</div>
 
@@ -292,32 +360,38 @@
 				</div>
 			{:else if data.config.mode === "device_state"}
 				<HiveSelectAutocomplete
-					items={data.devices ?? []}
-					value={data.config.deviceId ?? ""}
-					getValue={(d) => d.id}
-					getLabel={(d) => d.name}
-					chipConfigs={deviceChipConfigs}
-					chipMatchers={deviceChipMatchers}
-					placeholder="Select device"
+					items={targetItems}
+					value={selectedTargetKey}
+					getValue={targetKey}
+					getLabel={(t) => t.name}
+					placeholder="Select target"
 					size="sm"
-					class={validationError?.field === "device" ? `text-xs ${INVALID_CLS}` : "text-xs"}
-					onchange={(v) => handleDeviceChange(v)}
+					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
+					onchange={(v) => handleTargetChange(v)}
 				>
-					{#snippet renderSelected(d: Device)}
-						<span class="truncate">{d.name}</span>
-						<HiveChip type={d.type} class="text-[10px] py-0 shrink-0" />
+					{#snippet renderSelected(t: TargetItem)}
+						<span class="truncate">{t.name}</span>
+						{#if t.kind === "device" && t.deviceType}
+							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
+						{:else}
+							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">{t.kind}</Badge>
+						{/if}
 					{/snippet}
-					{#snippet item(d: Device)}
+					{#snippet item(t: TargetItem)}
 						<span class="flex w-full items-center gap-1.5 overflow-hidden">
-							<span class="truncate">{d.name}</span>
-							<HiveChip type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
+							<span class="truncate">{t.name}</span>
+							{#if t.kind === "device" && t.deviceType}
+								<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
+							{:else}
+								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">{t.kind}</Badge>
+							{/if}
 						</span>
 					{/snippet}
 				</HiveSelectAutocomplete>
 
-				{#if data.config.deviceId}
+				{#if data.config.targetId}
 					<HiveSelectAutocomplete
-						items={selectedDeviceCapabilities}
+						items={availableCapabilities}
 						value={data.config.property ?? ""}
 						getValue={(c) => capabilityToExprProperty(c.name)}
 						getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
