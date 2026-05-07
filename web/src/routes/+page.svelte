@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { getContextClient, queryStore } from "@urql/svelte";
+	import { pushState } from "$app/navigation";
+	import { page } from "$app/state";
 	import { graphql } from "$lib/gql";
 	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
 	import DashboardApartmentCard from "$lib/components/dashboard-apartment-card.svelte";
@@ -101,10 +103,20 @@
 	const scenes = $derived($scenesQuery.data?.scenes ?? []);
 	const devices = $derived(Object.values($deviceStore));
 
-	let openRoomId = $state<string | null>(null);
+	const openRoomId = $derived<string | null>(
+		(page.state as { dashboardRoomId?: string }).dashboardRoomId ?? null,
+	);
 	let applyingSceneId = $state<string | null>(null);
 
 	const openRoom = $derived(openRoomId ? rooms.find((r) => r.id === openRoomId) ?? null : null);
+
+	function openDrawer(roomId: string) {
+		pushState("", { ...page.state, dashboardRoomId: roomId });
+	}
+
+	function closeDrawer() {
+		if (openRoomId !== null) history.back();
+	}
 
 	async function handleApplyScene(scene: { id: string; name: string }) {
 		applyingSceneId = scene.id;
@@ -140,7 +152,7 @@
 				{groups}
 				{rooms}
 				{client}
-				onopen={(r) => (openRoomId = r.id)}
+				onopen={(r) => openDrawer(r.id)}
 			/>
 		{/each}
 	{/if}
@@ -155,6 +167,6 @@
 	{scenes}
 	{client}
 	{applyingSceneId}
-	onclose={() => (openRoomId = null)}
+	onclose={closeDrawer}
 	onapplyscene={handleApplyScene}
 />
