@@ -228,7 +228,7 @@
 		: showTint
 			? tintClass
 			: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {dragOpts
-		? 'select-none touch-none'
+		? 'select-none touch-pan-y transition-transform [&[data-dragging=\'true\']]:scale-[1.05]'
 		: ''} {extraClass}"
 	style={tintStyle}
 	role={onclick ? "button" : undefined}
