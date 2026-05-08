@@ -257,7 +257,8 @@
    reads as faded against bg-card, not raw saturated), but a left → right
    linear gradient with a hard stop at --brightness-fill. The
    @property-registered --brightness-fill interpolates as a percentage, so
-   pointer-driven changes glide instead of jumping. */
+   click-to-jump glides smoothly while the dragging path drops the
+   transition so the fill pins exactly to the finger position. */
 .tint-fill-horizontal {
   background-image: linear-gradient(
     90deg,
@@ -271,6 +272,15 @@
     --tint-color 300ms ease,
     --tint-strength 300ms ease,
     --brightness-fill 280ms ease-out;
+}
+.tint-fill-horizontal[data-dragging="true"] {
+  transition:
+    --tint-color 300ms ease,
+    --tint-strength 300ms ease;
+}
+
+.scene-active {
+  background-color: color-mix(in oklch, var(--scene-glow) 28%, transparent);
 }
 
 @keyframes activity-row-flash {
