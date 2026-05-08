@@ -372,6 +372,17 @@ function dedupe(colors: RGB[]): RGB[] {
 }
 
 /**
+ * Single-colour glow tint for a scene, suitable for driving a box-shadow
+ * or solid-colour ring. Resolves the same nonSwitch / switch colour set
+ * as {@link sceneTintColors} and returns the first deduplicated hue, or
+ * a brand-token fallback when nothing resolves.
+ */
+export function sceneGlowColor(payloads: ActionPayload[]): string {
+  const colors = sceneTintColors(payloads);
+  return colors[0] ?? "var(--brand)";
+}
+
+/**
  * Scene tint derived purely from a list of `ActionPayload`s (no device
  * registry needed). Useful for scene cards/tables that only have stored
  * payloads available.
