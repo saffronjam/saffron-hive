@@ -7,8 +7,19 @@ export interface BrightnessDragOpts {
   onpreview: (v: number) => void;
   /** Final commit on pointer release. Only fires when a drag actually happened. */
   oncommit: (v: number) => void;
-  /** Minimum px of horizontal movement before a press becomes a drag. */
-  threshold?: number;
+  /**
+   * Touch / pen only: how long the user must press without significant
+   * motion before the drag is armed. Default 200 ms. Mouse input ignores
+   * this and engages on movement past `mouseThreshold`.
+   */
+  holdMs?: number;
+  /**
+   * Touch / pen only: pre-activation movement budget. Movement past this
+   * cancels the hold timer so the press can resolve as a tap or a scroll.
+   */
+  moveTolerance?: number;
+  /** Mouse only: minimum px of horizontal movement before drag engages. */
+  mouseThreshold?: number;
   /** Brightness clamp range. */
   range?: [number, number];
   /** Gate; when false, the action ignores all pointer events. */
@@ -16,24 +27,33 @@ export interface BrightnessDragOpts {
 }
 
 /**
- * Press-then-drag horizontal brightness control. A short press without
- * horizontal motion past `threshold` falls through as a normal click — the
- * host element's existing click handler runs unchanged. Once horizontal
- * motion crosses the threshold the action enters drag mode, captures the
- * pointer, emits `onpreview` continuously, and on release emits `oncommit`
- * while suppressing the synthetic click so the host's click handler does
- * not fire as well.
+ * Horizontal brightness drag, with two engagement paths chosen by pointer
+ * type at `pointerdown`. Mouse input drags immediately once horizontal
+ * motion crosses `mouseThreshold` (default 6 px) — same feel as a regular
+ * click-and-drag slider, with no hold delay. Touch and pen input require a
+ * `holdMs`-long press (default 200 ms) without significant motion before
+ * the drag is armed; on hold-activation a short `navigator.vibrate(15)`
+ * haptic pulse fires. In both modes the host receives `data-dragging="true"`
+ * for the duration of the active drag — CSS uses it to drop the
+ * brightness-fill transition (so the fill pins to the cursor / finger) and
+ * to scale the card up ~5 % in place via `transform`. A release before
+ * activation falls through as a normal click.
  */
 export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, opts) => {
   let current = opts;
 
   let pointerId: number | null = null;
+  let pointerType: string = "mouse";
   let startX = 0;
+  let startY = 0;
+  let lastClientX = 0;
+  let activationX = 0;
   let startBrightness = 0;
   let elementWidth = 0;
   let lastValue = 0;
-  let dragging = false;
-  let didDrag = false;
+  let activated = false;
+  let cancelled = false;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
 
   function clamp(v: number): number {
     const [min, max] = current.range ?? [0, 254];
@@ -47,32 +67,84 @@ export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, op
     return clamp(startBrightness + delta);
   }
 
+  function clearHoldTimer() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  }
+
+  function engageDrag(armed: boolean) {
+    if (pointerId == null) return;
+    activated = true;
+    activationX = lastClientX;
+    elementWidth = node.getBoundingClientRect().width;
+    startBrightness = current.initial();
+    lastValue = startBrightness;
+    node.setAttribute("data-dragging", "true");
+    if (armed) {
+      try {
+        navigator.vibrate?.(15);
+      } catch {
+        // navigator.vibrate is unsupported on some platforms (iOS Safari)
+      }
+    }
+    try {
+      node.setPointerCapture(pointerId);
+    } catch {
+      // pointer capture is best-effort
+    }
+  }
+
+  function activateFromHold() {
+    holdTimer = null;
+    if (cancelled) return;
+    engageDrag(true);
+  }
+
+  function clearDragAttrs() {
+    node.removeAttribute("data-dragging");
+  }
+
   function onPointerDown(e: PointerEvent) {
     if (current.enabled && !current.enabled()) return;
     if (e.button !== 0) return;
     pointerId = e.pointerId;
+    pointerType = e.pointerType || "mouse";
     startX = e.clientX;
-    startBrightness = current.initial();
-    elementWidth = node.getBoundingClientRect().width;
-    lastValue = startBrightness;
-    dragging = false;
-    didDrag = false;
+    startY = e.clientY;
+    lastClientX = e.clientX;
+    activated = false;
+    cancelled = false;
+    clearHoldTimer();
+    if (pointerType !== "mouse") {
+      const holdMs = current.holdMs ?? 200;
+      holdTimer = setTimeout(activateFromHold, holdMs);
+    }
   }
 
   function onPointerMove(e: PointerEvent) {
     if (pointerId == null || e.pointerId !== pointerId) return;
-    const deltaX = e.clientX - startX;
-    if (!dragging) {
-      const threshold = current.threshold ?? 6;
-      if (Math.abs(deltaX) < threshold) return;
-      dragging = true;
-      didDrag = true;
-      try {
-        node.setPointerCapture(pointerId);
-      } catch {
-        // pointer capture is best-effort
+    lastClientX = e.clientX;
+
+    if (!activated) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (pointerType === "mouse") {
+        const threshold = current.mouseThreshold ?? 6;
+        if (Math.abs(dx) < threshold) return;
+        engageDrag(false);
+      } else {
+        const tolerance = current.moveTolerance ?? 8;
+        if (Math.abs(dx) > tolerance || Math.abs(dy) > tolerance) {
+          cancelled = true;
+          clearHoldTimer();
+        }
+        return;
       }
     }
+
+    const deltaX = e.clientX - activationX;
     const v = compute(deltaX);
     lastValue = v;
     current.onpreview(Math.round(v));
@@ -80,21 +152,16 @@ export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, op
 
   function onPointerUp(e: PointerEvent) {
     if (pointerId == null || e.pointerId !== pointerId) return;
-    const wasDragging = dragging;
-    const dragOccurred = didDrag;
-    pointerId = null;
-    dragging = false;
-    if (wasDragging) {
+    const wasActivated = activated;
+    clearHoldTimer();
+    if (wasActivated) {
+      clearDragAttrs();
       try {
         node.releasePointerCapture(e.pointerId);
       } catch {
         // best-effort
       }
       current.oncommit(Math.round(lastValue));
-    }
-    if (dragOccurred) {
-      // Suppress the synthetic click that follows a drag so the host's
-      // onclick handler does not fire on top of our oncommit.
       const suppress = (ce: Event) => {
         ce.stopPropagation();
         ce.preventDefault();
@@ -105,13 +172,18 @@ export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, op
         node.removeEventListener("click", suppress, true);
       });
     }
+    pointerId = null;
+    activated = false;
+    cancelled = false;
   }
 
   function onPointerCancel(e: PointerEvent) {
     if (pointerId == null || e.pointerId !== pointerId) return;
+    if (activated) clearDragAttrs();
+    clearHoldTimer();
     pointerId = null;
-    dragging = false;
-    didDrag = false;
+    activated = false;
+    cancelled = false;
   }
 
   node.addEventListener("pointerdown", onPointerDown);
@@ -124,6 +196,8 @@ export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, op
       current = next;
     },
     destroy() {
+      clearHoldTimer();
+      clearDragAttrs();
       node.removeEventListener("pointerdown", onPointerDown);
       node.removeEventListener("pointermove", onPointerMove);
       node.removeEventListener("pointerup", onPointerUp);
