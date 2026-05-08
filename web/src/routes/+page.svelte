@@ -44,6 +44,8 @@
 		icon?: string | null;
 		rooms: { id: string }[];
 		actions: { targetType: string; targetId: string }[];
+		effectivePayloads: { deviceId: string; payload: string }[];
+		activatedAt?: string | null;
 	}
 
 	const ROOMS_QUERY = graphql(`
@@ -79,6 +81,17 @@
 				icon
 				rooms { id }
 				actions { targetType targetId }
+				effectivePayloads { deviceId payload }
+				activatedAt
+			}
+		}
+	`);
+
+	const SCENE_ACTIVE_SUB = graphql(`
+		subscription DashboardSceneActiveChanged {
+			sceneActiveChanged {
+				sceneId
+				activatedAt
 			}
 		}
 	`);
@@ -100,13 +113,31 @@
 
 	const rooms = $derived($roomsQuery.data?.rooms ?? []);
 	const groups = $derived($groupsQuery.data?.groups ?? []);
-	const scenes = $derived($scenesQuery.data?.scenes ?? []);
 	const devices = $derived(Object.values($deviceStore));
+
+	let scenes = $state<SceneData[]>([]);
+	$effect(() => {
+		const fresh = $scenesQuery.data?.scenes;
+		if (fresh) scenes = fresh;
+	});
+
+	let activeSubHandle: { unsubscribe: () => void } | null = null;
+	onMount(() => {
+		activeSubHandle = client.subscription(SCENE_ACTIVE_SUB, {}).subscribe((r) => {
+			const ev = r.data?.sceneActiveChanged;
+			if (!ev) return;
+			scenes = scenes.map((s) =>
+				s.id === ev.sceneId ? { ...s, activatedAt: ev.activatedAt ?? null } : s,
+			);
+		});
+	});
+	onDestroy(() => {
+		activeSubHandle?.unsubscribe();
+	});
 
 	const openRoomId = $derived<string | null>(
 		(page.state as { dashboardRoomId?: string }).dashboardRoomId ?? null,
 	);
-	let applyingSceneId = $state<string | null>(null);
 
 	const openRoom = $derived(openRoomId ? rooms.find((r) => r.id === openRoomId) ?? null : null);
 
@@ -119,12 +150,15 @@
 	}
 
 	async function handleApplyScene(scene: { id: string; name: string }) {
-		applyingSceneId = scene.id;
-		const result = await client
-			.mutation(APPLY_SCENE, { sceneId: scene.id })
-			.toPromise();
-		applyingSceneId = null;
+		const previousActivatedAt = scenes.find((s) => s.id === scene.id)?.activatedAt ?? null;
+		const optimisticAt = new Date().toISOString();
+		scenes = scenes.map((s) => (s.id === scene.id ? { ...s, activatedAt: optimisticAt } : s));
+
+		const result = await client.mutation(APPLY_SCENE, { sceneId: scene.id }).toPromise();
 		if (result.error) {
+			scenes = scenes.map((s) =>
+				s.id === scene.id ? { ...s, activatedAt: previousActivatedAt } : s,
+			);
 			console.error("Failed to apply scene:", result.error.message);
 		}
 	}
@@ -166,7 +200,6 @@
 	{rooms}
 	{scenes}
 	{client}
-	{applyingSceneId}
 	onclose={closeDrawer}
 	onapplyscene={handleApplyScene}
 />

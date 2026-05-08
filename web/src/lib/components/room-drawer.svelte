@@ -21,7 +21,9 @@
 		groupBaseTintColors,
 		brightnessToTintStrength,
 		aggregateSensorReadings,
+		sceneGlowColor,
 	} from "$lib/device-tint";
+	import { parsePayload } from "$lib/scene-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
 	import type { Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
@@ -59,12 +61,19 @@
 		targetId: string;
 	}
 
+	interface ScenePayload {
+		deviceId: string;
+		payload: string;
+	}
+
 	interface SceneInfo {
 		id: string;
 		name: string;
 		icon?: string | null;
 		rooms: { id: string }[];
 		actions: SceneAction[];
+		effectivePayloads: ScenePayload[];
+		activatedAt?: string | null;
 	}
 
 	interface Props {
@@ -75,7 +84,6 @@
 		rooms: RoomLite[];
 		scenes: SceneInfo[];
 		client: Client;
-		applyingSceneId: string | null;
 		onclose: () => void;
 		onapplyscene: (scene: { id: string; name: string }) => void;
 	}
@@ -88,7 +96,6 @@
 		rooms,
 		scenes,
 		client,
-		applyingSceneId,
 		onclose,
 		onapplyscene,
 	}: Props = $props();
@@ -296,7 +303,7 @@
 	<SheetContent
 		side="bottom"
 		showCloseButton={false}
-		class="max-h-[85vh] overflow-y-auto rounded-t-2xl bg-[color-mix(in_oklch,var(--background)_50%,var(--card))] p-4 pb-24 sm:max-w-none lg:left-1/2! lg:right-auto! lg:w-[calc(100%-3rem)] lg:max-w-3xl lg:-translate-x-1/2"
+		class="max-h-[85vh] gap-2 overflow-y-auto rounded-t-2xl bg-[color-mix(in_oklch,var(--background)_50%,var(--card))] p-4 pb-24 sm:max-w-none lg:left-1/2! lg:right-auto! lg:w-[calc(100%-3rem)] lg:max-w-3xl lg:-translate-x-1/2"
 	>
 		<SheetTitle class="sr-only">{room?.name ?? "Room"}</SheetTitle>
 		<SheetDescription class="sr-only">
@@ -406,26 +413,32 @@
 			</EntityCard>
 
 			{#if filteredScenes.length > 0}
-				<div class="mt-2 flex flex-wrap justify-center gap-2">
+				<div class="mt-1 flex flex-wrap justify-center gap-2">
 					{#each filteredScenes as scene (scene.id)}
+						{@const glow = sceneGlowColor(
+							scene.effectivePayloads.map((p) => parsePayload(p.payload)),
+						)}
+						{@const active = scene.activatedAt != null}
 						<Button
 							variant="outline"
-							size="lg"
-							class="h-12 shrink-0 gap-2 px-5 text-base"
-							disabled={applyingSceneId === scene.id}
+							size="sm"
+							class="h-8 shrink-0 gap-1.5 px-3 text-sm transition-colors duration-300 {active
+								? 'scene-active'
+								: ''}"
+							style="--scene-glow: {glow}"
 							onclick={() => onapplyscene(scene)}
 						>
-							<AnimatedIcon icon={scene.icon} class="size-5 shrink-0">
-								{#snippet fallback()}<Clapperboard class="size-5 shrink-0" />{/snippet}
+							<AnimatedIcon icon={scene.icon} class="size-4 shrink-0">
+								{#snippet fallback()}<Clapperboard class="size-4 shrink-0" />{/snippet}
 							</AnimatedIcon>
-							<span>{applyingSceneId === scene.id ? "Applying..." : scene.name}</span>
+							<span>{scene.name}</span>
 						</Button>
 					{/each}
 				</div>
 			{/if}
 
-			<section class="mt-2">
-				<div class="mb-2 flex items-center gap-3">
+			<section>
+				<div class="mb-1 flex items-center gap-3">
 					<h3 class="text-sm font-semibold text-foreground">Lights</h3>
 					<div class="h-px flex-1 bg-muted" aria-hidden="true"></div>
 				</div>
