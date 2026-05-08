@@ -93,7 +93,8 @@ type Documents = {
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": typeof types.SetupStatusDocument,
     "\n\t\tquery DashboardRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardRoomsDocument,
     "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttags\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardGroupsDocument,
-    "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardScenesDocument,
+    "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t\teffectivePayloads { deviceId payload }\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardScenesDocument,
+    "\n\t\tsubscription DashboardSceneActiveChanged {\n\t\t\tsceneActiveChanged {\n\t\t\t\tsceneId\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardSceneActiveChangedDocument,
     "\n\t\tmutation DashboardApplyScene($sceneId: ID!) {\n\t\t\tapplyScene(sceneId: $sceneId) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardApplySceneDocument,
     "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityDocument,
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityStreamDocument,
@@ -278,7 +279,8 @@ const documents: Documents = {
     "\n\t\tquery setupStatus {\n\t\t\tsetupStatus {\n\t\t\t\thasInitialUser\n\t\t\t\tmqttConfigured\n\t\t\t}\n\t\t}\n\t": types.SetupStatusDocument,
     "\n\t\tquery DashboardRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.DashboardRoomsDocument,
     "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\ttags\n\t\t\t\tmembers { memberType memberId }\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.DashboardGroupsDocument,
-    "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t}\n\t\t}\n\t": types.DashboardScenesDocument,
+    "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t\teffectivePayloads { deviceId payload }\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t": types.DashboardScenesDocument,
+    "\n\t\tsubscription DashboardSceneActiveChanged {\n\t\t\tsceneActiveChanged {\n\t\t\t\tsceneId\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t": types.DashboardSceneActiveChangedDocument,
     "\n\t\tmutation DashboardApplyScene($sceneId: ID!) {\n\t\t\tapplyScene(sceneId: $sceneId) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.DashboardApplySceneDocument,
     "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityDocument,
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityStreamDocument,
@@ -717,7 +719,11 @@ export function graphql(source: "\n\t\tquery DashboardGroups {\n\t\t\tgroups {\n
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t\teffectivePayloads { deviceId payload }\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery DashboardScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\trooms { id }\n\t\t\t\tactions { targetType targetId }\n\t\t\t\teffectivePayloads { deviceId payload }\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tsubscription DashboardSceneActiveChanged {\n\t\t\tsceneActiveChanged {\n\t\t\t\tsceneId\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tsubscription DashboardSceneActiveChanged {\n\t\t\tsceneActiveChanged {\n\t\t\t\tsceneId\n\t\t\t\tactivatedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
