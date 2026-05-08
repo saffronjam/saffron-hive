@@ -7,14 +7,25 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
-// mapDeviceState parses a zigbee2mqtt state payload into a device.DeviceState.
-// Every known field is populated independently; a single payload may report
-// light, sensor, and metering values simultaneously. Action is handled by
-// mapAction and published as a separate event.
-func mapDeviceState(raw json.RawMessage) (device.DeviceState, error) {
+// mapDeviceState parses a zigbee2mqtt state payload into a device.DeviceState
+// and the bulb's reported color_mode ("color_temp", "xy", or "" when not
+// reported). Every known field is populated independently; a single payload
+// may report light, sensor, and metering values simultaneously. Action is
+// handled by mapAction and published as a separate event.
+//
+// When color_mode is reported, the field that the bulb is no longer driving
+// from is dropped from the returned delta — Z2M still echoes the stale
+// companion value (the bulb's last commanded color_temp while in xy mode,
+// or the derived RGB while in color_temp mode), but it is not authoritative
+// and must not be allowed to overwrite a previously-cleared cached value.
+// The adapter pairs this with a ClearDeviceStateFields call so the cache
+// matches: in xy mode the cached ColorTemp goes nil, and in color_temp mode
+// the cached Color goes nil. Drift detection then naturally invalidates any
+// scene that had been tracking the now-cleared field.
+func mapDeviceState(raw json.RawMessage) (device.DeviceState, string, error) {
 	var dto z2mDeviceState
 	if err := json.Unmarshal(raw, &dto); err != nil {
-		return device.DeviceState{}, err
+		return device.DeviceState{}, "", err
 	}
 
 	var state device.DeviceState
@@ -43,6 +54,13 @@ func mapDeviceState(raw json.RawMessage) (device.DeviceState, error) {
 		state.Color = color
 	}
 
+	switch dto.ColorMode {
+	case "xy":
+		state.ColorTemp = nil
+	case "color_temp":
+		state.Color = nil
+	}
+
 	state.Temperature = dto.Temperature
 	state.Humidity = dto.Humidity
 	state.Pressure = dto.Pressure
@@ -54,7 +72,7 @@ func mapDeviceState(raw json.RawMessage) (device.DeviceState, error) {
 	state.Current = dto.Current
 	state.Energy = dto.Energy
 
-	return state, nil
+	return state, dto.ColorMode, nil
 }
 
 // xyToRGB converts CIE 1931 xy chromaticity to sRGB (D65) at the brightest

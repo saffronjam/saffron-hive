@@ -32,6 +32,7 @@ type z2mDeviceState struct {
 	Brightness *int      `json:"brightness"`
 	ColorTemp  *int      `json:"color_temp"`
 	Color      *z2mColor `json:"color"`
+	ColorMode  string    `json:"color_mode"`
 
 	Temperature *float64 `json:"temperature"`
 	Humidity    *float64 `json:"humidity"`

@@ -7,7 +7,7 @@ import (
 
 func TestMapDeviceState_LightFull(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","brightness":200,"color_temp":350,"color":{"r":255,"g":100,"b":0}}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestMapDeviceState_LightFull(t *testing.T) {
 
 func TestMapDeviceState_ColorXYOnly(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","brightness":198,"color":{"x":0.5934,"y":0.3298}}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestMapDeviceState_ColorXYOnly(t *testing.T) {
 
 func TestMapDeviceState_ColorRGBPreserved(t *testing.T) {
 	raw := json.RawMessage(`{"color":{"r":12,"g":34,"b":56,"x":0.5,"y":0.5}}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func absDiff(a, b int) int {
 
 func TestMapDeviceState_Partial(t *testing.T) {
 	raw := json.RawMessage(`{"brightness":100}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestMapDeviceState_Partial(t *testing.T) {
 
 func TestMapDeviceState_OnOff(t *testing.T) {
 	onRaw := json.RawMessage(`{"state":"ON"}`)
-	onState, err := mapDeviceState(onRaw)
+	onState, _, err := mapDeviceState(onRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestMapDeviceState_OnOff(t *testing.T) {
 	}
 
 	offRaw := json.RawMessage(`{"state":"OFF"}`)
-	offState, err := mapDeviceState(offRaw)
+	offState, _, err := mapDeviceState(offRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestMapDeviceState_OnOff(t *testing.T) {
 
 func TestMapDeviceState_SensorFields(t *testing.T) {
 	raw := json.RawMessage(`{"temperature":22.5,"humidity":45.0,"battery":91.5}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestMapDeviceState_SensorFields(t *testing.T) {
 
 func TestMapDeviceState_PlugMetering(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","power":42.5,"voltage":230.1,"current":0.18,"energy":12.3}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +189,7 @@ func TestMapAction_Absent(t *testing.T) {
 
 func TestMapDeviceState_EmptyPayload(t *testing.T) {
 	raw := json.RawMessage(`{}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,9 +208,60 @@ func TestMapDeviceState_EmptyPayload(t *testing.T) {
 	}
 }
 
+func TestMapDeviceState_ColorModeXYDropsColorTemp(t *testing.T) {
+	raw := json.RawMessage(`{"state":"ON","color_temp":350,"color":{"r":255,"g":0,"b":0,"x":0.64,"y":0.33},"color_mode":"xy"}`)
+	state, mode, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode != "xy" {
+		t.Fatalf("expected mode xy, got %q", mode)
+	}
+	if state.ColorTemp != nil {
+		t.Fatalf("expected ColorTemp nil in xy mode, got %v", *state.ColorTemp)
+	}
+	if state.Color == nil || state.Color.R != 255 {
+		t.Fatalf("expected Color preserved in xy mode, got %v", state.Color)
+	}
+}
+
+func TestMapDeviceState_ColorModeColorTempDropsColor(t *testing.T) {
+	raw := json.RawMessage(`{"state":"ON","color_temp":350,"color":{"r":255,"g":100,"b":0,"x":0.5,"y":0.4},"color_mode":"color_temp"}`)
+	state, mode, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode != "color_temp" {
+		t.Fatalf("expected mode color_temp, got %q", mode)
+	}
+	if state.Color != nil {
+		t.Fatalf("expected Color nil in color_temp mode, got %v", state.Color)
+	}
+	if state.ColorTemp == nil || *state.ColorTemp != 350 {
+		t.Fatalf("expected ColorTemp 350 in color_temp mode, got %v", state.ColorTemp)
+	}
+}
+
+func TestMapDeviceState_NoColorModePreservesBoth(t *testing.T) {
+	raw := json.RawMessage(`{"state":"ON","color_temp":350,"color":{"r":255,"g":100,"b":0}}`)
+	state, mode, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode != "" {
+		t.Fatalf("expected empty mode when not reported, got %q", mode)
+	}
+	if state.ColorTemp == nil || *state.ColorTemp != 350 {
+		t.Fatalf("expected ColorTemp preserved when no mode, got %v", state.ColorTemp)
+	}
+	if state.Color == nil || state.Color.R != 255 {
+		t.Fatalf("expected Color preserved when no mode, got %v", state.Color)
+	}
+}
+
 func TestMapDeviceState_UnknownFields(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","brightness":100,"unknown_field":"value","another":42}`)
-	state, err := mapDeviceState(raw)
+	state, _, err := mapDeviceState(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
