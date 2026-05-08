@@ -213,6 +213,26 @@ func (f *watcherFixture) setDeviceState(id device.DeviceID, s device.DeviceState
 	})
 }
 
+// setDeviceStateColorMode mirrors what the zigbee adapter does on a state
+// echo that carries a `color_mode` value: merge the delta, then clear the
+// stale companion field from the cache so cross-scene drift detection can
+// see that the bulb is no longer driving from the other axis.
+func (f *watcherFixture) setDeviceStateColorMode(id device.DeviceID, s device.DeviceState, mode string) {
+	f.state.UpdateDeviceState(id, s)
+	switch mode {
+	case "xy":
+		f.state.ClearDeviceStateFields(id, device.FieldColorTemp)
+	case "color_temp":
+		f.state.ClearDeviceStateFields(id, device.FieldColor)
+	}
+	f.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceStateChanged,
+		DeviceID:  string(id),
+		Timestamp: time.Now(),
+		Payload:   device.DeviceStateChange{State: s},
+	})
+}
+
 func (f *watcherFixture) applyScene(sceneID string) {
 	f.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventSceneApplied,
@@ -407,6 +427,87 @@ func TestWatcher_OverlappingScenes_BApplyDeactivatesA(t *testing.T) {
 	}
 	if !f.store.isActive("scene-B") {
 		t.Fatal("scene-B should be active")
+	}
+}
+
+// TestWatcher_ColorModeFlip_DeactivatesPriorOppositeModeScene reproduces the
+// "two scenes active simultaneously" bug: a colorTemp-only scene and an
+// RGB-only scene targeting the same bulb both stayed active because the
+// bulb's cached `ColorTemp` kept reporting the last commanded value even
+// after another scene flipped it into xy mode (and symmetrically). With the
+// adapter clearing the stale companion field on every color_mode echo, the
+// existing drift check fires for the prior scene as expected.
+func TestWatcher_ColorModeFlip_DeactivatesPriorOppositeModeScene(t *testing.T) {
+	shrinkSettleWindow(t, 0)
+	f := newWatcherFixture(t)
+	f.state.Register(device.Device{
+		ID:   "dev-1",
+		Name: "dev-1",
+		Type: device.Light,
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Access: 7},
+			{Name: device.CapBrightness, Access: 7},
+			{Name: device.CapColorTemp, Access: 7},
+			{Name: device.CapColor, Access: 7},
+		},
+	})
+	f.state.UpdateDeviceState("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(200), ColorTemp: device.Ptr(370),
+	})
+	f.seedScene("scene-warm", "dev-1")
+	f.seedScene("scene-rgb", "dev-1")
+	f.store.mu.Lock()
+	f.store.payloads["scene-warm"] = []store.SceneDevicePayload{
+		{SceneID: "scene-warm", DeviceID: "dev-1", Payload: `{"on":true,"brightness":200,"colorTemp":370}`},
+	}
+	f.store.payloads["scene-rgb"] = []store.SceneDevicePayload{
+		{SceneID: "scene-rgb", DeviceID: "dev-1", Payload: `{"on":true,"brightness":200,"color":{"r":128,"g":0,"b":255}}`},
+	}
+	f.store.mu.Unlock()
+
+	f.applyScene("scene-warm")
+	waitActivated(t, f, "scene-warm")
+	// Bulb echoes the warm-white state in color_temp mode; cached Color is
+	// cleared so a future xy-mode echo can't smuggle a stale value through.
+	f.setDeviceStateColorMode("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(200), ColorTemp: device.Ptr(370),
+	}, "color_temp")
+	expectNoActivation(t, f)
+	if !f.store.isActive("scene-warm") {
+		t.Fatal("scene-warm should be active after matching color_temp echo")
+	}
+
+	f.applyScene("scene-rgb")
+	waitActivated(t, f, "scene-rgb")
+	// Bulb flips to xy: the adapter-mirrored helper clears the cached
+	// ColorTemp. The watcher now sees scene-warm.expected.ColorTemp=370 vs
+	// current.ColorTemp=nil → drift → scene-warm deactivates.
+	f.setDeviceStateColorMode("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(200), Color: &device.Color{R: 128, G: 0, B: 255},
+	}, "xy")
+	waitDeactivated(t, f, "scene-warm")
+
+	if f.store.isActive("scene-warm") {
+		t.Fatal("scene-warm should be inactive after rgb scene flipped the bulb's mode")
+	}
+	if !f.store.isActive("scene-rgb") {
+		t.Fatal("scene-rgb should be active")
+	}
+
+	// Symmetric the other way: applying scene-warm again kicks scene-rgb out
+	// because the cached Color goes nil when the bulb flips back to color_temp.
+	f.applyScene("scene-warm")
+	waitActivated(t, f, "scene-warm")
+	f.setDeviceStateColorMode("dev-1", device.DeviceState{
+		On: device.Ptr(true), Brightness: device.Ptr(200), ColorTemp: device.Ptr(370),
+	}, "color_temp")
+	waitDeactivated(t, f, "scene-rgb")
+
+	if f.store.isActive("scene-rgb") {
+		t.Fatal("scene-rgb should be inactive after warm scene flipped the bulb back")
+	}
+	if !f.store.isActive("scene-warm") {
+		t.Fatal("scene-warm should be active again")
 	}
 }
 
