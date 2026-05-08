@@ -99,6 +99,36 @@ func (s *MemoryStore) UpdateDeviceState(id DeviceID, state DeviceState) {
 	s.devices[id] = d
 }
 
+// ClearDeviceStateFields nils the listed fields in the cached state for a
+// device. Used by adapters that learn a previously-cached field is no longer
+// authoritative — e.g. a colour bulb that flipped from color_temp mode into
+// xy mode invalidates its cached color_temp value, and the merge protocol on
+// its own can only overwrite, not clear. If the device is not registered or
+// has never reported state, the call is a no-op.
+func (s *MemoryStore) ClearDeviceStateFields(id DeviceID, fields ...DeviceStateField) {
+	if len(fields) == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.devices[id]; !ok {
+		return
+	}
+	cur, ok := s.states[id]
+	if !ok {
+		return
+	}
+	for _, f := range fields {
+		switch f {
+		case FieldColorTemp:
+			cur.ColorTemp = nil
+		case FieldColor:
+			cur.Color = nil
+		}
+	}
+	s.states[id] = cur
+}
+
 // SetAvailability updates the availability of a device. An "available=true"
 // transition is treated as a fresh signal from the device and refreshes
 // LastSeen; an "available=false" transition is the absence of a signal and

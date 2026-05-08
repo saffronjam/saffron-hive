@@ -304,3 +304,67 @@ func TestUpdateDeviceStateIgnoresUnknownDevice(t *testing.T) {
 		t.Fatal("expected ghost device to not be registered after state update")
 	}
 }
+
+func TestClearDeviceStateFieldsColorTemp(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "l1", Type: Light})
+	on := true
+	ct := 350
+	s.UpdateDeviceState("l1", DeviceState{On: &on, ColorTemp: &ct, Color: &Color{R: 1, G: 2, B: 3}})
+
+	s.ClearDeviceStateFields("l1", FieldColorTemp)
+
+	st, ok := s.GetDeviceState("l1")
+	if !ok {
+		t.Fatal("expected state to exist")
+	}
+	if st.ColorTemp != nil {
+		t.Fatalf("expected ColorTemp cleared, got %v", *st.ColorTemp)
+	}
+	if st.On == nil || !*st.On {
+		t.Fatal("expected On preserved")
+	}
+	if st.Color == nil || st.Color.R != 1 {
+		t.Fatal("expected Color preserved")
+	}
+}
+
+func TestClearDeviceStateFieldsColor(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "l1", Type: Light})
+	on := true
+	ct := 350
+	s.UpdateDeviceState("l1", DeviceState{On: &on, ColorTemp: &ct, Color: &Color{R: 1, G: 2, B: 3}})
+
+	s.ClearDeviceStateFields("l1", FieldColor)
+
+	st, _ := s.GetDeviceState("l1")
+	if st.Color != nil {
+		t.Fatalf("expected Color cleared, got %v", st.Color)
+	}
+	if st.ColorTemp == nil || *st.ColorTemp != 350 {
+		t.Fatal("expected ColorTemp preserved")
+	}
+}
+
+func TestClearDeviceStateFieldsUnknownDeviceNoOp(t *testing.T) {
+	s := NewMemoryStore()
+	s.ClearDeviceStateFields("ghost", FieldColorTemp)
+	if _, ok := s.GetDevice("ghost"); ok {
+		t.Fatal("expected ghost device not registered")
+	}
+}
+
+func TestClearDeviceStateFieldsBothInOneCall(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "l1", Type: Light})
+	ct := 350
+	s.UpdateDeviceState("l1", DeviceState{ColorTemp: &ct, Color: &Color{R: 1}})
+
+	s.ClearDeviceStateFields("l1", FieldColorTemp, FieldColor)
+
+	st, _ := s.GetDeviceState("l1")
+	if st.ColorTemp != nil || st.Color != nil {
+		t.Fatalf("expected both cleared, got CT=%v Color=%v", st.ColorTemp, st.Color)
+	}
+}

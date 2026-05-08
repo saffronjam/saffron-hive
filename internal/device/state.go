@@ -46,3 +46,14 @@ type DeviceState struct {
 	Current     *float64 `json:"current,omitempty"`
 	Energy      *float64 `json:"energy,omitempty"`
 }
+
+// DeviceStateField identifies a clearable field on DeviceState. Used by
+// adapters that learn a previously-cached value is no longer authoritative
+// and need to nil it out — the merge protocol on its own can only overwrite,
+// not clear, since a nil pointer in an update means "no change reported".
+type DeviceStateField int
+
+const (
+	FieldColorTemp DeviceStateField = iota
+	FieldColor
+)
