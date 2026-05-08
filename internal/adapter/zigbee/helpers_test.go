@@ -41,6 +41,24 @@ func (m *mockStateWriter) UpdateDeviceState(id device.DeviceID, state device.Dev
 	m.states[id] = device.MergeDeviceState(m.states[id], state)
 }
 
+func (m *mockStateWriter) ClearDeviceStateFields(id device.DeviceID, fields ...device.DeviceStateField) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cur, ok := m.states[id]
+	if !ok {
+		return
+	}
+	for _, f := range fields {
+		switch f {
+		case device.FieldColorTemp:
+			cur.ColorTemp = nil
+		case device.FieldColor:
+			cur.Color = nil
+		}
+	}
+	m.states[id] = cur
+}
+
 func (m *mockStateWriter) SetAvailability(id device.DeviceID, available bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

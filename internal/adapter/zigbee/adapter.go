@@ -41,6 +41,7 @@ type StateWriter interface {
 	Register(dev device.Device)
 	Remove(id device.DeviceID)
 	UpdateDeviceState(id device.DeviceID, state device.DeviceState)
+	ClearDeviceStateFields(id device.DeviceID, fields ...device.DeviceStateField)
 	SetAvailability(id device.DeviceID, available bool)
 }
 
@@ -356,7 +357,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		})
 	}
 
-	state, err := mapDeviceState(statePayload)
+	state, colorMode, err := mapDeviceState(statePayload)
 	if err != nil {
 		logger.Error("failed to map device state", "device", friendlyName, "error", err)
 		return
@@ -365,6 +366,12 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		return
 	}
 	a.stateWriter.UpdateDeviceState(id, state)
+	switch colorMode {
+	case "xy":
+		a.stateWriter.ClearDeviceStateFields(id, device.FieldColorTemp)
+	case "color_temp":
+		a.stateWriter.ClearDeviceStateFields(id, device.FieldColor)
+	}
 	origin := a.consumePendingOrigin(id)
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
