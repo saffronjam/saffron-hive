@@ -115,7 +115,7 @@ type Documents = {
     "\n\t\tquery AutomationEditDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ttype\n\t\t\t\tsource\n\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\tavailable\n\t\t\t\tlastSeen\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\ttransition\n\t\t\t\t\ttemperature\n\t\t\t\t\thumidity\n\t\t\t\t\tpressure\n\t\t\t\t\tilluminance\n\t\t\t\t\tbattery\n\t\t\t\t\tpower\n\t\t\t\t\tvoltage\n\t\t\t\t\tcurrent\n\t\t\t\t\tenergy\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditDevicesDocument,
     "\n\t\tquery AutomationEditGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditGroupsDocument,
     "\n\t\tquery AutomationEditRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditRoomsDocument,
-    "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditScenesDocument,
+    "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditScenesDocument,
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditEffectsDocument,
     "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditNodeActivatedDocument,
     "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t": typeof types.CompleteFirstPasswordChangeDocument,
@@ -301,7 +301,7 @@ const documents: Documents = {
     "\n\t\tquery AutomationEditDevices {\n\t\t\tdevices {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ttype\n\t\t\t\tsource\n\t\t\t\tcapabilities { name type values valueMin valueMax unit access }\n\t\t\t\tavailable\n\t\t\t\tlastSeen\n\t\t\t\tstate {\n\t\t\t\t\ton\n\t\t\t\t\tbrightness\n\t\t\t\t\tcolorTemp\n\t\t\t\t\tcolor { r g b x y }\n\t\t\t\t\ttransition\n\t\t\t\t\ttemperature\n\t\t\t\t\thumidity\n\t\t\t\t\tpressure\n\t\t\t\t\tilluminance\n\t\t\t\t\tbattery\n\t\t\t\t\tpower\n\t\t\t\t\tvoltage\n\t\t\t\t\tcurrent\n\t\t\t\t\tenergy\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationEditDevicesDocument,
     "\n\t\tquery AutomationEditGroups {\n\t\t\tgroups {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationEditGroupsDocument,
     "\n\t\tquery AutomationEditRooms {\n\t\t\trooms {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tresolvedDevices { id }\n\t\t\t}\n\t\t}\n\t": types.AutomationEditRoomsDocument,
-    "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t": types.AutomationEditScenesDocument,
+    "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationEditScenesDocument,
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": types.AutomationEditEffectsDocument,
     "\n\t\tsubscription AutomationEditNodeActivated($automationId: ID) {\n\t\t\tautomationNodeActivated(automationId: $automationId) {\n\t\t\t\tautomationId\n\t\t\t\tnodeId\n\t\t\t\tactive\n\t\t\t}\n\t\t}\n\t": types.AutomationEditNodeActivatedDocument,
     "\n\t\tmutation completeFirstPasswordChange($newPassword: String!) {\n\t\t\tcompleteFirstPasswordChange(newPassword: $newPassword)\n\t\t}\n\t": types.CompleteFirstPasswordChangeDocument,
@@ -807,7 +807,7 @@ export function graphql(source: "\n\t\tquery AutomationEditRooms {\n\t\t\trooms 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery AutomationEditScenes {\n\t\t\tscenes {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\trooms {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

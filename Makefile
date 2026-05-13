@@ -55,11 +55,11 @@ package:
 	docker build --build-arg HIVE_VERSION=$$version -t saffron-hive:$$version -t saffron-hive:latest .
 
 sqlc:
-	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION)). Install: brew install sqlc"; exit 1; }
+	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION))"; exit 1; }
 	sqlc generate
 
 sqlc-check:
-	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION)). Install: brew install sqlc"; exit 1; }
+	@command -v sqlc >/dev/null 2>&1 || { echo "sqlc not installed (expected v$(SQLC_VERSION))"; exit 1; }
 	@tmpdir=$$(mktemp -d); \
 	cp -R internal/store/sqlite/. $$tmpdir/; \
 	sqlc generate; \
@@ -107,11 +107,29 @@ codegen-check:
 
 e2e: e2e-go e2e-ts
 
+# Point testcontainers at the rootless Podman socket when no Docker daemon is
+# available. Starts podman.socket on first use. No-op when DOCKER_HOST is
+# already set or /var/run/docker.sock exists.
+define PODMAN_SOCKET_SETUP
+if [ -z "$$DOCKER_HOST" ] && [ ! -S /var/run/docker.sock ] && command -v podman >/dev/null 2>&1; then \
+	sock="$${XDG_RUNTIME_DIR:-/run/user/$$(id -u)}/podman/podman.sock"; \
+	if [ ! -S "$$sock" ]; then \
+		systemctl --user start podman.socket; \
+	fi; \
+	export DOCKER_HOST="unix://$$sock"; \
+	export TESTCONTAINERS_RYUK_DISABLED=true; \
+fi
+endef
+
 e2e-go:
+	@set -e; \
+	$(PODMAN_SOCKET_SETUP); \
 	go test -tags e2e ./e2e/... -v -count=1 -timeout=60s
 
 e2e-ts:
-	docker build -t saffron-hive-test .
+	@set -e; \
+	$(PODMAN_SOCKET_SETUP); \
+	docker build -t saffron-hive-test .; \
 	cd web && bun run test:e2e
 
 prepare-for-commit: deps sqlc-check gqlgen-check codegen-check format lint typecheck errcheck test

@@ -29,6 +29,7 @@
 	interface SceneRef {
 		id: string;
 		name: string;
+		rooms?: { id: string; name: string }[];
 	}
 
 	type EffectRef =
@@ -58,6 +59,7 @@
 		id: string;
 		name: string;
 		deviceType?: string;
+		rooms?: { id: string; name: string }[];
 	}
 
 	function targetKey(t: TargetItem): string {
@@ -165,6 +167,12 @@
 		return Array.isArray(p.scenes);
 	}
 
+	function sceneFilter(s: SceneRef, query: string): boolean {
+		const q = query.toLowerCase();
+		if (s.name.toLowerCase().includes(q)) return true;
+		return (s.rooms ?? []).some((r) => r.name.toLowerCase().includes(q));
+	}
+
 	function cycleScenesList(): string[] {
 		const arr = parsedPayload.scenes;
 		if (!Array.isArray(arr)) return [];
@@ -231,7 +239,7 @@
 	// devices + groups + rooms (best-effort fan-out downstream).
 	const targetItemsList = $derived.by<TargetItem[]>(() => {
 		if (data.config.actionType === "activate_scene") {
-			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name }));
+			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name, rooms: s.rooms ?? [] }));
 		}
 		const items: TargetItem[] = [];
 		for (const d of data.devices ?? []) {
@@ -427,6 +435,9 @@
 							<span class="flex-1 truncate {scene ? '' : 'text-destructive line-through'}">
 								{scene?.name ?? `Deleted scene (${sid})`}
 							</span>
+							{#each scene?.rooms ?? [] as room (room.id)}
+								<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
+							{/each}
 							{#if i === activeCycleIndex}
 								<Badge class="bg-automation-action/15 text-automation-action border-automation-action/30 text-[10px] py-0">Active</Badge>
 							{/if}
@@ -470,6 +481,7 @@
 							value=""
 							getValue={(s: SceneRef) => s.id}
 							getLabel={(s: SceneRef) => s.name}
+							filter={sceneFilter}
 							placeholder="Add scene"
 							size="sm"
 							class={validationError?.field === "payload" ? `text-xs ${INVALID_CLS}` : "text-xs"}
@@ -479,6 +491,13 @@
 								<span class="flex w-full items-center gap-1.5 overflow-hidden">
 									<Clapperboard class="size-3.5 shrink-0 text-muted-foreground" />
 									<span class="truncate">{s.name}</span>
+									{#if (s.rooms ?? []).length > 0}
+										<span class="ml-auto flex shrink-0 items-center gap-1">
+											{#each s.rooms ?? [] as room (room.id)}
+												<HiveChip type="room" label={room.name} class="text-[10px] py-0" />
+											{/each}
+										</span>
+									{/if}
 								</span>
 							{/snippet}
 						</HiveSelectAutocomplete>
@@ -502,6 +521,10 @@
 						<span class="truncate">{t.name}</span>
 						{#if t.kind === "device" && t.deviceType}
 							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
+						{:else if t.kind === "scene"}
+							{#each t.rooms ?? [] as room (room.id)}
+								<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
+							{/each}
 						{:else}
 							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">
 								{targetKindLabel[t.kind]}
@@ -513,6 +536,14 @@
 							<span class="truncate">{t.name}</span>
 							{#if t.kind === "device" && t.deviceType}
 								<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
+							{:else if t.kind === "scene"}
+								{#if (t.rooms ?? []).length > 0}
+									<span class="ml-auto flex shrink-0 items-center gap-1">
+										{#each t.rooms ?? [] as room (room.id)}
+											<HiveChip type="room" label={room.name} class="text-[10px] py-0" />
+										{/each}
+									</span>
+								{/if}
 							{:else}
 								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">
 									{targetKindLabel[t.kind]}
@@ -590,6 +621,9 @@
 							{@const scene = sceneById(sid)}
 							<li class="flex items-center gap-1 text-xs {scene ? 'text-muted-foreground' : 'text-destructive line-through'}">
 								<span class="flex-1 truncate">{scene?.name ?? `Deleted scene (${sid})`}</span>
+								{#each scene?.rooms ?? [] as room (room.id)}
+									<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
+								{/each}
 								{#if i === activeCycleIndex}
 									<Badge class="bg-automation-action/15 text-automation-action border-automation-action/30 text-[10px] py-0">Active</Badge>
 								{/if}

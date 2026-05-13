@@ -287,6 +287,10 @@
 			scenes {
 				id
 				name
+				rooms {
+					id
+					name
+				}
 			}
 		}
 	`);
@@ -305,7 +309,7 @@
 	`);
 
 	interface ScenesQueryResult {
-		scenes: { id: string; name: string }[];
+		scenes: { id: string; name: string; rooms: { id: string; name: string }[] }[];
 	}
 
 	interface EffectsQueryResult {
@@ -381,7 +385,7 @@
 	let devices = $state<Device[]>([]);
 	let groups = $state<GroupData[]>([]);
 	let rooms = $state<RoomData[]>([]);
-	let scenes = $state<{ id: string; name: string }[]>([]);
+	let scenes = $state<{ id: string; name: string; rooms: { id: string; name: string }[] }[]>([]);
 	let effects = $state<EffectOption[]>([]);
 
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
