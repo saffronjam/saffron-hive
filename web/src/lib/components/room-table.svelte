@@ -9,12 +9,17 @@
 	import CreatedByCell from "$lib/components/table-cells/created-by-cell.svelte";
 	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
 	import RowActionsCell from "$lib/components/table-cells/row-actions-cell.svelte";
+	import CollectionQuickControls from "$lib/components/collection-quick-controls.svelte";
+	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import {
 		createTableState,
 		type ColumnDef,
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
+	import { aggregateSensorReadings } from "$lib/device-tint";
+	import { me } from "$lib/stores/me.svelte";
+	import type { Device } from "$lib/stores/devices";
 	import { DoorOpen, Plus } from "@lucide/svelte";
 
 	interface RoomData {
@@ -34,6 +39,7 @@
 		onrename: (room: RoomData, newName: string) => void;
 		oniconchange: (room: RoomData, icon: string | null) => void;
 		onAddTo: (room: RoomData) => void;
+		getDevices?: (room: RoomData) => Device[];
 	}
 
 	let {
@@ -44,6 +50,7 @@
 		onrename,
 		oniconchange,
 		onAddTo,
+		getDevices,
 	}: Props = $props();
 
 	const COLUMNS: ColumnDef<RoomData>[] = [
@@ -73,6 +80,11 @@
 			label: "Devices",
 			sortValue: (r) => r.resolvedDevices.length,
 			cell: devicesCell,
+		},
+		{
+			key: "state",
+			label: "State",
+			cell: stateCell,
 		},
 		{
 			key: "createdBy",
@@ -124,8 +136,37 @@
 	</span>
 {/snippet}
 
+{#snippet stateCell(r: RoomData)}
+	{@const devices = getDevices?.(r) ?? []}
+	{@const readings = aggregateSensorReadings(
+		devices,
+		me.user?.temperatureUnit ?? "celsius",
+	)}
+	{#if readings.length === 0}
+		<span class="text-sm text-muted-foreground">—</span>
+	{:else}
+		<SensorHistoryPopover
+			target={{ kind: "room", id: r.id }}
+			fields={readings.map((rd) => rd.field)}
+			title={r.name}
+			triggerClass="group rounded focus-visible:outline-none"
+		>
+			<div class="flex items-center gap-3 text-sm tabular-nums">
+				{#each readings as rd (rd.label)}
+					<span class="flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+						<rd.icon class="size-4" />
+						<span class="text-foreground"
+							>{rd.value}<span class="ml-0.5 text-xs">{rd.unit}</span></span
+						>
+					</span>
+				{/each}
+			</div>
+		</SensorHistoryPopover>
+	{/if}
+{/snippet}
+
 {#snippet createdByCell(r: RoomData)}
-	<CreatedByCell name={r.createdBy?.name} />
+	<CreatedByCell user={r.createdBy} />
 {/snippet}
 
 {#snippet actionsHead()}<ActionsHead />{/snippet}
@@ -138,6 +179,9 @@
 		deleteLabel="Delete room"
 	>
 		{#snippet leading()}
+			{#if getDevices}
+				<CollectionQuickControls devices={getDevices(r)} name={r.name} />
+			{/if}
 			<Tooltip>
 				<TooltipTrigger>
 					<Button

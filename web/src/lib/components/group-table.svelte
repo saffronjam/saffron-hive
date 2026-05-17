@@ -9,6 +9,8 @@
 	import CreatedByCell from "$lib/components/table-cells/created-by-cell.svelte";
 	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
 	import RowActionsCell from "$lib/components/table-cells/row-actions-cell.svelte";
+	import CollectionQuickControls from "$lib/components/collection-quick-controls.svelte";
+	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import {
 		createTableState,
 		type ColumnDef,
@@ -16,6 +18,9 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { groupMemberBreakdown } from "$lib/list-helpers";
+	import { aggregateSensorReadings } from "$lib/device-tint";
+	import { me } from "$lib/stores/me.svelte";
+	import type { Device } from "$lib/stores/devices";
 	import { Group as GroupIcon, Plus } from "@lucide/svelte";
 
 	interface Props {
@@ -26,9 +31,10 @@
 		onrename: (group: G, newName: string) => void;
 		oniconchange: (group: G, icon: string | null) => void;
 		onAddTo: (group: G) => void;
+		getDevices?: (group: G) => Device[];
 	}
 
-	let { groups, selection, onedit, ondelete, onrename, oniconchange, onAddTo }: Props = $props();
+	let { groups, selection, onedit, ondelete, onrename, oniconchange, onAddTo, getDevices }: Props = $props();
 
 	const COLUMNS: ColumnDef<G>[] = [
 		{
@@ -62,6 +68,11 @@
 			key: "breakdown",
 			label: "Breakdown",
 			cell: breakdownCell,
+		},
+		{
+			key: "state",
+			label: "State",
+			cell: stateCell,
 		},
 		{
 			key: "createdBy",
@@ -123,8 +134,37 @@
 	</span>
 {/snippet}
 
+{#snippet stateCell(g: G)}
+	{@const devices = getDevices?.(g) ?? []}
+	{@const readings = aggregateSensorReadings(
+		devices,
+		me.user?.temperatureUnit ?? "celsius",
+	)}
+	{#if readings.length === 0}
+		<span class="text-sm text-muted-foreground">—</span>
+	{:else}
+		<SensorHistoryPopover
+			target={{ kind: "group", id: g.id }}
+			fields={readings.map((r) => r.field)}
+			title={g.name}
+			triggerClass="group rounded focus-visible:outline-none"
+		>
+			<div class="flex items-center gap-3 text-sm tabular-nums">
+				{#each readings as r (r.label)}
+					<span class="flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+						<r.icon class="size-4" />
+						<span class="text-foreground"
+							>{r.value}<span class="ml-0.5 text-xs">{r.unit}</span></span
+						>
+					</span>
+				{/each}
+			</div>
+		</SensorHistoryPopover>
+	{/if}
+{/snippet}
+
 {#snippet createdByCell(g: G)}
-	<CreatedByCell name={g.createdBy?.name} />
+	<CreatedByCell user={g.createdBy} />
 {/snippet}
 
 {#snippet actionsHead()}<ActionsHead />{/snippet}
@@ -137,6 +177,9 @@
 		deleteLabel="Delete group"
 	>
 		{#snippet leading()}
+			{#if getDevices}
+				<CollectionQuickControls devices={getDevices(g)} name={g.name} />
+			{/if}
 			<Tooltip>
 				<TooltipTrigger>
 					<Button

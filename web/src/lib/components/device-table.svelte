@@ -2,13 +2,13 @@
 	import { goto } from "$app/navigation";
 	import { type Device } from "$lib/stores/devices";
 	import { stateSummary } from "$lib/device-state";
-	import { deviceTint } from "$lib/device-tint";
+	import { aggregateSensorReadings } from "$lib/device-tint";
+	import { me } from "$lib/stores/me.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
-	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
@@ -72,14 +72,6 @@
 			cell: nameCell,
 		},
 		{
-			key: "color",
-			label: "",
-			hideable: false,
-			headClass: "w-8",
-			cellClass: "w-8",
-			cell: colorCell,
-		},
-		{
 			key: "type",
 			label: "Type",
 			headClass: "w-24",
@@ -134,10 +126,6 @@
 	/>
 {/snippet}
 
-{#snippet colorCell(row: Row)}
-	<HiveColorSwatch color={deviceTint(row.device)} />
-{/snippet}
-
 {#snippet typeCell(row: Row)}
 	<HiveChip type={row.device.type} />
 {/snippet}
@@ -186,17 +174,48 @@
 {/snippet}
 
 {#snippet stateCell(row: Row)}
-	{@const summary = stateSummary(row.device.state, row.device.type)}
-	{#if row.device.type === "button" || summary === "Unknown" || summary === "—"}
-		<span class="text-sm text-muted-foreground">{summary}</span>
+	{#if row.device.type === "sensor"}
+		{@const readings = aggregateSensorReadings(
+			[row.device],
+			me.user?.temperatureUnit ?? "celsius",
+		)}
+		{#if readings.length === 0}
+			<span class="text-sm text-muted-foreground">—</span>
+		{:else}
+			<SensorHistoryPopover
+				target={{ kind: "device", id: row.device.id }}
+				fields={readings.map((r) => r.field)}
+				title={row.device.name}
+				triggerClass="group rounded focus-visible:outline-none"
+			>
+				<div class="flex items-center gap-3 text-sm tabular-nums">
+					{#each readings as r (r.label)}
+						<span class="flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+							<r.icon class="size-4" />
+							<span class="text-foreground"
+								>{r.value}<span class="ml-0.5 text-xs">{r.unit}</span></span
+							>
+						</span>
+					{/each}
+				</div>
+			</SensorHistoryPopover>
+		{/if}
 	{:else}
-		<SensorHistoryPopover
-			target={{ kind: "device", id: row.device.id }}
-			title={row.device.name}
-			triggerClass="rounded text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
-		>
-			{summary}
-		</SensorHistoryPopover>
+		{@const summary = stateSummary(row.device.state, row.device.type)}
+		{#if row.device.type === "button" || summary === "Unknown" || summary === "—"}
+			<span class="text-sm text-muted-foreground">{summary}</span>
+		{:else}
+			<SensorHistoryPopover
+				target={{ kind: "device", id: row.device.id }}
+				title={row.device.name}
+				triggerClass="group rounded focus-visible:outline-none"
+			>
+				<span
+					class="text-sm text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground"
+					>{summary}</span
+				>
+			</SensorHistoryPopover>
+		{/if}
 	{/if}
 {/snippet}
 
@@ -208,7 +227,7 @@
 		editLabel="Edit device"
 	>
 		{#snippet leading()}
-			<DeviceQuickControls device={row.device} />
+			<DeviceQuickControls device={row.device} variant="swatch" />
 			<Tooltip>
 				<TooltipTrigger>
 					<Button
