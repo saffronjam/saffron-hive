@@ -2781,10 +2781,11 @@ type Scene {
   name: String!
   icon: String
   """
-  Rooms this scene is tagged to. Drives the per-room dashboard drawer's
-  scene list — the drawer for a given room shows scenes whose ` + "`" + `rooms` + "`" + `
-  contain that room. A scene can carry zero rooms (not surfaced in any
-  room drawer) or many.
+  Rooms this scene is present in, derived from device overlap. A scene
+  appears in a room iff the set of devices its actions resolve to shares
+  at least one device with the room's resolved devices. Drives the
+  per-room dashboard drawer's scene list — no explicit tagging, no
+  separate config.
   """
   rooms: [Room!]!
   actions: [SceneAction!]!
@@ -3360,7 +3361,6 @@ input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
   devicePayloads: [SceneDevicePayloadInput!]
-  roomIds: [ID!]
 }
 
 input SceneActionInput {
@@ -3395,7 +3395,6 @@ input UpdateSceneInput {
   icon: String
   actions: [SceneActionInput!]
   devicePayloads: [SceneDevicePayloadInput!]
-  roomIds: [ID!]
 }
 
 input CreateAutomationInput {
@@ -18070,7 +18069,7 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "actions", "devicePayloads", "roomIds"}
+	fieldsInOrder := [...]string{"name", "actions", "devicePayloads"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18098,13 +18097,6 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.DevicePayloads = graphql.OmittableOf(data)
-		case "roomIds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
-			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoomIds = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -18932,7 +18924,7 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "actions", "devicePayloads", "roomIds"}
+	fieldsInOrder := [...]string{"name", "icon", "actions", "devicePayloads"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18967,13 +18959,6 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.DevicePayloads = graphql.OmittableOf(data)
-		case "roomIds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
-			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.RoomIds = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -24310,42 +24295,6 @@ func (ec *executionContext) marshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaff
 		fc.Result = &v[i]
 		return ec.marshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx, sel, v[i])
 	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]string, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	for i := range v {
-		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
-	}
 
 	for _, e := range ret {
 		if e == graphql.Null {

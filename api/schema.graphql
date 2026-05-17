@@ -67,10 +67,11 @@ type Scene {
   name: String!
   icon: String
   """
-  Rooms this scene is tagged to. Drives the per-room dashboard drawer's
-  scene list — the drawer for a given room shows scenes whose `rooms`
-  contain that room. A scene can carry zero rooms (not surfaced in any
-  room drawer) or many.
+  Rooms this scene is present in, derived from device overlap. A scene
+  appears in a room iff the set of devices its actions resolve to shares
+  at least one device with the room's resolved devices. Drives the
+  per-room dashboard drawer's scene list — no explicit tagging, no
+  separate config.
   """
   rooms: [Room!]!
   actions: [SceneAction!]!
@@ -646,7 +647,6 @@ input CreateSceneInput {
   name: String!
   actions: [SceneActionInput!]!
   devicePayloads: [SceneDevicePayloadInput!]
-  roomIds: [ID!]
 }
 
 input SceneActionInput {
@@ -681,7 +681,6 @@ input UpdateSceneInput {
   icon: String
   actions: [SceneActionInput!]
   devicePayloads: [SceneDevicePayloadInput!]
-  roomIds: [ID!]
 }
 
 input CreateAutomationInput {

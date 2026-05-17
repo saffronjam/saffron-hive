@@ -78,7 +78,6 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 		DeviceID:   id,
 		On:         state.On.Value(),
 		Brightness: state.Brightness.Value(),
-		ColorTemp:  state.ColorTemp.Value(),
 		Transition: state.Transition.Value(),
 		Origin:     device.OriginUser(),
 	}
@@ -90,6 +89,9 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 			X: color.X,
 			Y: color.Y,
 		}
+	}
+	if cmd.Color == nil {
+		cmd.ColorTemp = state.ColorTemp.Value()
 	}
 
 	r.EventBus.Publish(eventbus.Event{
@@ -157,15 +159,11 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 // CreateScene is the resolver for the createScene field.
 func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error) {
 	sceneID := uuid.New().String()
-	createParams := store.CreateSceneParams{
+	_, err := r.Store.CreateScene(ctx, store.CreateSceneParams{
 		ID:        sceneID,
 		Name:      input.Name,
 		CreatedBy: currentUserID(ctx),
-	}
-	if roomIDs, ok := input.RoomIds.ValueOK(); ok {
-		createParams.Rooms = roomIDs
-	}
-	_, err := r.Store.CreateScene(ctx, createParams)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -199,11 +197,6 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 	if icon, ok := input.Icon.ValueOK(); ok {
 		params.SetIcon = true
 		params.Icon = icon
-		updateScene = true
-	}
-	if roomIDs, ok := input.RoomIds.ValueOK(); ok {
-		params.SetRooms = true
-		params.Rooms = roomIDs
 		updateScene = true
 	}
 	if updateScene {

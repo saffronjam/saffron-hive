@@ -316,14 +316,7 @@ func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolv
 		CreatedBy:   mapUserRef(sc.CreatedBy),
 		ActivatedAt: sc.ActivatedAt,
 	}
-	ms.Rooms = make([]*model.Room, 0, len(sc.Rooms))
-	for _, roomID := range sc.Rooms {
-		room, err := s.GetRoom(ctx, roomID)
-		if err != nil {
-			continue
-		}
-		ms.Rooms = append(ms.Rooms, mapSceneRoomRef(room))
-	}
+	ms.Rooms = computeScenePresentRooms(ctx, tr, s, actions)
 	ms.Actions = make([]*model.SceneAction, len(actions))
 	for i, a := range actions {
 		ms.Actions[i] = &model.SceneAction{
@@ -762,10 +755,6 @@ func mapGroupMember(ctx context.Context, sr device.StateReader, s GraphStore, m 
 	return gm
 }
 
-func resolveSceneActionTargetDevices(ctx context.Context, tr device.TargetResolver, targetType string, targetID string) []device.DeviceID {
-	return tr.ResolveTargetDeviceIDs(ctx, device.TargetType(targetType), targetID)
-}
-
 func toSceneTargetRefs(actions []*model.SceneActionInput) []store.SceneTargetRef {
 	out := make([]store.SceneTargetRef, len(actions))
 	for i, a := range actions {
@@ -872,19 +861,51 @@ func (r *mutationResolver) walkDescendants(ctx context.Context, current, target 
 	return nil
 }
 
-// mapSceneRoomRef builds a minimal Room for use as a Scene.rooms entry. Only
-// id, name, icon, and creator attribution. Members and ResolvedDevices return
-// as empty slices (the schema requires non-null arrays); consumers that need
-// the full room shape query Query.room or Query.rooms directly.
-func mapSceneRoomRef(r store.Room) *model.Room {
-	return &model.Room{
-		ID:              r.ID,
-		Name:            r.Name,
-		Icon:            r.Icon,
-		Members:         []*model.RoomMember{},
-		ResolvedDevices: []*model.Device{},
-		CreatedBy:       mapUserRef(r.CreatedBy),
+// computeScenePresentRooms returns the rooms whose resolved-device set
+// overlaps the scene's resolved-device set. The intersection uses the same
+// walker scene-apply uses (TargetResolver.ResolveTargetDeviceIDs), so a
+// scene whose actions target a single device surfaces in every room that
+// device belongs to, transitively. Returned rooms carry only id, name,
+// icon, and creator attribution — Members and ResolvedDevices are empty
+// arrays. Consumers that need the full room shape query Query.room or
+// Query.rooms directly.
+func computeScenePresentRooms(ctx context.Context, tr device.TargetResolver, s GraphStore, actions []store.SceneAction) []*model.Room {
+	sceneDevs := map[device.DeviceID]struct{}{}
+	for _, a := range actions {
+		for _, id := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
+			sceneDevs[id] = struct{}{}
+		}
 	}
+	if len(sceneDevs) == 0 {
+		return []*model.Room{}
+	}
+	rooms, err := s.ListRooms(ctx)
+	if err != nil {
+		return []*model.Room{}
+	}
+	out := make([]*model.Room, 0, len(rooms))
+	for _, r := range rooms {
+		ids := tr.ResolveTargetDeviceIDs(ctx, device.TargetRoom, r.ID)
+		overlaps := false
+		for _, id := range ids {
+			if _, ok := sceneDevs[id]; ok {
+				overlaps = true
+				break
+			}
+		}
+		if !overlaps {
+			continue
+		}
+		out = append(out, &model.Room{
+			ID:              r.ID,
+			Name:            r.Name,
+			Icon:            r.Icon,
+			Members:         []*model.RoomMember{},
+			ResolvedDevices: []*model.Device{},
+			CreatedBy:       mapUserRef(r.CreatedBy),
+		})
+	}
+	return out
 }
 
 func mapRoom(ctx context.Context, sr device.StateReader, s GraphStore, r store.Room) *model.Room {
