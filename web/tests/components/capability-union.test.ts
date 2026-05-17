@@ -4,6 +4,7 @@ import {
   capabilityUnionForTarget,
   hasCapability,
   resolveTargetDevices,
+  settableNumericCapabilities,
   type GroupLite,
   type RoomLite,
 } from "$lib/target-resolve";
@@ -80,6 +81,27 @@ describe("resolveTargetDevices", () => {
     };
     const got = resolveTargetDevices({ type: "room", id: "r1" }, [light, plug], [], [room]);
     expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
+  });
+
+  it("room target: resolvedDevices shortcut is used when members is absent", () => {
+    const room: RoomLite = {
+      id: "r1",
+      resolvedDevices: [{ id: "light-1" }, { id: "plug-1" }],
+    };
+    const got = resolveTargetDevices({ type: "room", id: "r1" }, [light, plug], [], [room]);
+    expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
+  });
+
+  it("room target: missing members does not throw", () => {
+    const room: RoomLite = { id: "r1" };
+    const got = resolveTargetDevices({ type: "room", id: "r1" }, [light, plug], [], [room]);
+    expect(got).toEqual([]);
+  });
+
+  it("group target: missing members does not throw", () => {
+    const grp: GroupLite = { id: "g1" } as unknown as GroupLite;
+    const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, plug], [grp], []);
+    expect(got).toEqual([]);
   });
 
   it("nested group: recursive resolution with dedupe", () => {
@@ -179,5 +201,31 @@ describe("capabilityUnionForTarget + hasCapability", () => {
     const u = capabilityUnionForTarget({ type: "device", id: "plug-1" }, [light, plug], [], []);
     expect(hasCapability(u, "brightness")).toBe(false);
     expect(hasCapability(u, "on_off")).toBe(true);
+  });
+});
+
+describe("settableNumericCapabilities", () => {
+  it("returns numeric capabilities that have the set-access bit", () => {
+    const caps = [
+      cap("on_off", { type: "binary", access: 7 }),
+      cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254, access: 7 }),
+      cap("color_temp", { type: "numeric", valueMin: 150, valueMax: 500, access: 7 }),
+    ];
+    const result = settableNumericCapabilities(caps);
+    expect(result.map((c) => c.name).sort()).toEqual(["brightness", "color_temp"]);
+  });
+
+  it("excludes numeric capabilities without set access (read-only sensors)", () => {
+    const caps = [
+      cap("temperature", { type: "numeric", valueMin: -40, valueMax: 80, access: 1 }),
+      cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254, access: 7 }),
+    ];
+    const result = settableNumericCapabilities(caps);
+    expect(result.map((c) => c.name)).toEqual(["brightness"]);
+  });
+
+  it("returns an empty list when no settable numeric capabilities exist", () => {
+    const caps = [cap("on_off", { type: "binary", access: 7 })];
+    expect(settableNumericCapabilities(caps)).toEqual([]);
   });
 });

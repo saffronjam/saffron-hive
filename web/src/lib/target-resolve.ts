@@ -11,7 +11,11 @@ export interface RoomLite {
   id: string;
   name?: string;
   icon?: string | null;
-  members: { memberType: string; memberId: string }[];
+  // members is the canonical room composition (mirroring GroupLite). Some
+  // pages fetch the server-flattened device list instead and supply
+  // `resolvedDevices`; either is sufficient.
+  members?: { memberType: string; memberId: string }[];
+  resolvedDevices?: { id: string }[];
 }
 
 export type TargetKind = "device" | "group" | "room";
@@ -46,7 +50,7 @@ export function resolveTargetDevices(
       seenGroups.add(id);
       const g = groupByID.get(id);
       if (!g) return;
-      for (const m of g.members) {
+      for (const m of g.members ?? []) {
         if (m.memberType === "device") walk("device", m.memberId);
         else if (m.memberType === "group") walk("group", m.memberId);
         else if (m.memberType === "room") walk("room", m.memberId);
@@ -58,7 +62,11 @@ export function resolveTargetDevices(
       seenRooms.add(id);
       const r = roomByID.get(id);
       if (!r) return;
-      for (const m of r.members) {
+      if (r.resolvedDevices) {
+        for (const d of r.resolvedDevices) walk("device", d.id);
+        return;
+      }
+      for (const m of r.members ?? []) {
         if (m.memberType === "device") walk("device", m.memberId);
         else if (m.memberType === "group") walk("group", m.memberId);
       }
@@ -109,4 +117,14 @@ export function capabilityUnionForTarget(
 
 export function hasCapability(caps: Capability[], name: string): boolean {
   return caps.some((c) => c.name === name);
+}
+
+/**
+ * Capabilities that are numeric and settable (have set-access in the access
+ * bitmask). Powers target-list filtering and field-options listing for the
+ * `change_value` automation action — adding a new numeric, settable
+ * capability in the device layer makes it eligible here automatically.
+ */
+export function settableNumericCapabilities(caps: Capability[]): Capability[] {
+  return caps.filter((c) => c.type === "numeric" && (c.access & 4) !== 0);
 }

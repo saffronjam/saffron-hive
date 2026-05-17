@@ -75,7 +75,7 @@ export function buildTargetTree(
       }
       const r = roomByID.get(i);
       if (!r) return;
-      for (const m of r.members) walk(m.memberType as TargetKind, m.memberId);
+      for (const m of r.members ?? []) walk(m.memberType as TargetKind, m.memberId);
     };
     walk(type, id);
     return out;
@@ -162,7 +162,7 @@ export function buildTargetTree(
     const nextSeen = new Set(seen);
     nextSeen.add(sk);
     if (r) {
-      folder.children = r.members
+      folder.children = (r.members ?? [])
         .map((m, i) =>
           build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
         )
