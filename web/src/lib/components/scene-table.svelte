@@ -10,6 +10,7 @@
 	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
 	import RowActionsCell from "$lib/components/table-cells/row-actions-cell.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import {
 		createTableState,
 		type ColumnDef,
@@ -17,7 +18,7 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
-	import { Clapperboard, DoorOpen, Play, Plus } from "@lucide/svelte";
+	import { Clapperboard, Play, Plus } from "@lucide/svelte";
 	import { sceneTintFromPayloads } from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
 
@@ -34,6 +35,7 @@
 	interface SceneRoomRef {
 		id: string;
 		name: string;
+		icon?: string | null;
 	}
 
 	interface SceneData {
@@ -58,7 +60,6 @@
 		onrename: (scene: SceneData, newName: string) => void;
 		oniconchange: (scene: SceneData, icon: string | null) => void;
 		onAddTo?: (scene: SceneData) => void;
-		onTagRooms?: (scene: SceneData) => void;
 	}
 
 	let {
@@ -71,7 +72,6 @@
 		onrename,
 		oniconchange,
 		onAddTo,
-		onTagRooms,
 	}: Props = $props();
 
 	const COLUMNS: ColumnDef<SceneData>[] = [
@@ -185,13 +185,19 @@
 {/snippet}
 
 {#snippet roomsCell(s: SceneData)}
-	<span class="text-sm text-muted-foreground">
-		{s.rooms.length === 0 ? "—" : s.rooms.map((r) => r.name).join(", ")}
-	</span>
+	{#if s.rooms.length === 0}
+		<span class="text-sm text-muted-foreground">—</span>
+	{:else}
+		<div class="flex flex-wrap items-center gap-1">
+			{#each s.rooms as r (r.id)}
+				<HiveChip type="room" label={r.name} iconOverride={r.icon} href={`/rooms?edit=${r.id}`} />
+			{/each}
+		</div>
+	{/if}
 {/snippet}
 
 {#snippet createdByCell(s: SceneData)}
-	<CreatedByCell name={s.createdBy?.name} />
+	<CreatedByCell user={s.createdBy} />
 {/snippet}
 
 {#snippet actionsHead()}<ActionsHead />{/snippet}
@@ -207,16 +213,21 @@
 		deleteLabel="Delete scene"
 	>
 		{#snippet leading()}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={() => onapply(s)}
-				disabled={applying || noTargets || active}
-				class="transition-opacity duration-200"
-				aria-label="Apply scene"
-			>
-				<Play class="size-4" />
-			</Button>
+			<Tooltip>
+				<TooltipTrigger>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onclick={() => onapply(s)}
+						disabled={applying || noTargets || active}
+						class="transition-opacity duration-200"
+						aria-label="Apply scene"
+					>
+						<Play class="size-4" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{active ? "Active" : noTargets ? "No targets" : "Apply scene"}</TooltipContent>
+			</Tooltip>
 			{#if onAddTo}
 				<Tooltip>
 					<TooltipTrigger>
@@ -230,21 +241,6 @@
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent>Add…</TooltipContent>
-				</Tooltip>
-			{/if}
-			{#if onTagRooms}
-				<Tooltip>
-					<TooltipTrigger>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							onclick={() => onTagRooms?.(s)}
-							aria-label="Tag rooms"
-						>
-							<DoorOpen class="size-4" />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>Tag rooms</TooltipContent>
 				</Tooltip>
 			{/if}
 		{/snippet}
