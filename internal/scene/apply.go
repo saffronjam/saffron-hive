@@ -189,9 +189,6 @@ func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired
 	if v, ok := desired["brightness"]; ok && allow(device.CapBrightness) {
 		cmd.Brightness = device.Ptr(toInt(v))
 	}
-	if v, ok := desired["colorTemp"]; ok && allow(device.CapColorTemp) {
-		cmd.ColorTemp = device.Ptr(toInt(v))
-	}
 	if v, ok := desired["color"]; ok && allow(device.CapColor) {
 		if m, ok := v.(map[string]any); ok {
 			c := &device.Color{
@@ -207,6 +204,9 @@ func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired
 			}
 			cmd.Color = c
 		}
+	}
+	if v, ok := desired["colorTemp"]; ok && cmd.Color == nil && allow(device.CapColorTemp) {
+		cmd.ColorTemp = device.Ptr(toInt(v))
 	}
 	if v, ok := desired["transition"]; ok && allow(device.CapBrightness) {
 		if f, ok := toFloat(v); ok {

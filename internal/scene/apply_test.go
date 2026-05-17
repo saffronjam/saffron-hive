@@ -157,3 +157,38 @@ func TestCommandFromDesired_FrontendPayloadShape(t *testing.T) {
 		t.Errorf("On: want true, got %v", cmd.On)
 	}
 }
+
+// TestCommandFromDesired_ColorWinsWhenBothPresent locks the invariant that a
+// stored payload carrying both `color` and `colorTemp` resolves to a colour
+// command with no colour-temperature attached. The two are mutually exclusive
+// light modes on a bulb; sending both makes zigbee2mqtt forward both and Hue
+// firmware silently honours the temperature, overriding the user-picked
+// colour. The frontend's discriminator and the 046 SQL migration both prevent
+// the both-fields-set state from being written or persisted; this guard
+// catches any straggler row at the apply edge.
+func TestCommandFromDesired_ColorWinsWhenBothPresent(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{
+		ID: "bulb",
+		Capabilities: []device.Capability{
+			writableCap(device.CapOnOff),
+			writableCap(device.CapBrightness),
+			writableCap(device.CapColor),
+			writableCap(device.CapColorTemp),
+		},
+	})
+
+	cmd := commandFromDesired(state, "bulb", map[string]any{
+		"on":         true,
+		"brightness": 254,
+		"colorTemp":  370,
+		"color":      map[string]any{"r": 202, "g": 12, "b": 255, "x": 0.2678, "y": 0.1261},
+	})
+
+	if cmd.Color == nil || cmd.Color.R != 202 || cmd.Color.G != 12 || cmd.Color.B != 255 {
+		t.Errorf("Color: want (202,12,255), got %+v", cmd.Color)
+	}
+	if cmd.ColorTemp != nil {
+		t.Errorf("ColorTemp: must be nil when Color is set, got %v", *cmd.ColorTemp)
+	}
+}
