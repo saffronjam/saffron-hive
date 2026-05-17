@@ -12,6 +12,7 @@
 		defaultScenePayload,
 		type ActionPayload,
 		type StaticActionPayload,
+		type LightMode,
 		type DevicePayloadMap,
 		type EditableTarget,
 	} from "$lib/scene-editable";
@@ -126,9 +127,20 @@
 			kind: "static",
 			on: s?.on ?? undefined,
 			brightness: s?.brightness ?? undefined,
-			colorTemp: s?.colorTemp ?? undefined,
-			color: s?.color ?? undefined,
+			light: deriveLightMode(s),
 		};
+	}
+
+	function deriveLightMode(state: DeviceState | null | undefined): LightMode | undefined {
+		if (!state) return undefined;
+		if (state.color) {
+			const { r, g, b, x, y } = state.color;
+			return { kind: "color", r, g, b, x, y };
+		}
+		if (state.colorTemp != null) {
+			return { kind: "colorTemp", mireds: state.colorTemp };
+		}
+		return undefined;
 	}
 
 	function displayValueFor(device: Device): StaticActionPayload {
@@ -203,23 +215,20 @@
 		};
 	}
 
-	function colorsEqual(
-		a: StaticActionPayload["color"] | null | undefined,
-		b: StaticActionPayload["color"] | null | undefined,
-	): boolean {
-		if (a == null && b == null) return true;
-		if (a == null || b == null) return false;
-		return a.r === b.r && a.g === b.g && a.b === b.b;
+	function lightModesEqual(a: LightMode | undefined, b: LightMode | undefined): boolean {
+		if (a === undefined && b === undefined) return true;
+		if (a === undefined || b === undefined) return false;
+		if (a.kind !== b.kind) return false;
+		if (a.kind === "colorTemp" && b.kind === "colorTemp") return a.mireds === b.mireds;
+		if (a.kind === "color" && b.kind === "color") return a.r === b.r && a.g === b.g && a.b === b.b;
+		return false;
 	}
 
 	function mergePayload(
 		base: StaticActionPayload,
 		patch: Partial<StaticActionPayload>,
 	): StaticActionPayload {
-		const next: StaticActionPayload = { ...base, ...patch, kind: "static" };
-		if (patch.color !== undefined) delete next.colorTemp;
-		if (patch.colorTemp !== undefined) delete next.color;
-		return next;
+		return { ...base, ...patch, kind: "static" };
 	}
 
 	function applyChange(device: Device, patch: Partial<StaticActionPayload>) {
@@ -241,19 +250,17 @@
 			if (!state) continue;
 			const current = payloadFor(device);
 			if (current.kind !== "static") continue;
+			const liveLight = deriveLightMode(state);
 			const next: StaticActionPayload = {
-				...current,
 				kind: "static",
 				on: state.on ?? current.on,
 				brightness: state.brightness ?? current.brightness,
-				colorTemp: state.colorTemp ?? current.colorTemp,
-				color: state.color ?? current.color,
+				light: liveLight ?? current.light,
 			};
 			if (
 				next.on === current.on &&
 				next.brightness === current.brightness &&
-				next.colorTemp === current.colorTemp &&
-				colorsEqual(next.color, current.color)
+				lightModesEqual(next.light, current.light)
 			)
 				continue;
 			onupdatedevicepayload(device.id, next);
@@ -292,8 +299,14 @@
 		payload: StaticActionPayload,
 		caps: { hasColor: boolean; hasColorTemp: boolean },
 	): string | null {
-		if (caps.hasColor && payload.color) return colorCss(payload.color);
-		if (caps.hasColorTemp && payload.colorTemp != null) return colorCss(miredToRgb(payload.colorTemp));
+		const light = payload.light;
+		if (!light) return null;
+		if (light.kind === "color" && caps.hasColor) {
+			return colorCss({ r: light.r, g: light.g, b: light.b });
+		}
+		if (light.kind === "colorTemp" && caps.hasColorTemp) {
+			return colorCss(miredToRgb(light.mireds));
+		}
 		return null;
 	}
 </script>
@@ -360,17 +373,17 @@
 		</PopoverTrigger>
 		<PopoverContent class="w-72 space-y-4 p-3" align="end">
 			<LightColorPicker
-				color={p.color ?? null}
-				colorTemp={p.colorTemp ?? null}
+				color={p.light?.kind === "color" ? { r: p.light.r, g: p.light.g, b: p.light.b } : null}
+				colorTemp={p.light?.kind === "colorTemp" ? p.light.mireds : null}
 				brightness={p.brightness ?? null}
 				hasColor={caps.hasColor}
 				hasColorTemp={caps.hasColorTemp}
 				hasBrightness={caps.hasBrightness}
 				oncolorchange={(c) => {
 					const xy = rgbToXy(c.r, c.g, c.b);
-					applyChange(device, { color: { r: c.r, g: c.g, b: c.b, x: xy.x, y: xy.y } });
+					applyChange(device, { light: { kind: "color", r: c.r, g: c.g, b: c.b, x: xy.x, y: xy.y } });
 				}}
-				ontempchange={(t) => applyChange(device, { colorTemp: t })}
+				ontempchange={(t) => applyChange(device, { light: { kind: "colorTemp", mireds: t } })}
 				onbrightnesschange={(v) => applyChange(device, { brightness: v })}
 			/>
 		</PopoverContent>

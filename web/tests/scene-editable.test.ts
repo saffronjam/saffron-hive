@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   parsePayload,
+  stringifyPayload,
+  staticFieldsOf,
   buildTargetInfo,
   sceneToEditorState,
   type SceneAction,
@@ -16,8 +18,18 @@ describe("parsePayload", () => {
     });
   });
 
-  it("parses a partial payload as-is", () => {
-    expect(parsePayload('{"colorTemp":350}')).toEqual({ kind: "static", colorTemp: 350 });
+  it("lifts a flat colorTemp into the discriminated light mode", () => {
+    expect(parsePayload('{"colorTemp":350}')).toEqual({
+      kind: "static",
+      light: { kind: "colorTemp", mireds: 350 },
+    });
+  });
+
+  it("lifts a flat color into the discriminated light mode", () => {
+    expect(parsePayload('{"color":{"r":255,"g":0,"b":128,"x":0.5,"y":0.3}}')).toEqual({
+      kind: "static",
+      light: { kind: "color", r: 255, g: 0, b: 128, x: 0.5, y: 0.3 },
+    });
   });
 
   it("falls back to empty on invalid JSON", () => {
@@ -40,6 +52,86 @@ describe("parsePayload", () => {
       kind: "native_effect",
       nativeName: "fireplace",
     });
+  });
+
+  it("heals a legacy row with both color and colorTemp by preferring color", () => {
+    const raw = JSON.stringify({
+      kind: "static",
+      on: true,
+      brightness: 254,
+      colorTemp: 370,
+      color: { r: 202, g: 12, b: 255, x: 0.2678, y: 0.1261 },
+    });
+    expect(parsePayload(raw)).toEqual({
+      kind: "static",
+      on: true,
+      brightness: 254,
+      light: { kind: "color", r: 202, g: 12, b: 255, x: 0.2678, y: 0.1261 },
+    });
+  });
+});
+
+describe("stringifyPayload", () => {
+  it("flattens a colorTemp light mode back to the on-disk shape", () => {
+    const raw = stringifyPayload({
+      kind: "static",
+      on: true,
+      brightness: 200,
+      light: { kind: "colorTemp", mireds: 350 },
+    });
+    expect(JSON.parse(raw)).toEqual({
+      kind: "static",
+      on: true,
+      brightness: 200,
+      colorTemp: 350,
+    });
+  });
+
+  it("flattens a color light mode back to the on-disk shape", () => {
+    const raw = stringifyPayload({
+      kind: "static",
+      on: true,
+      light: { kind: "color", r: 10, g: 20, b: 30, x: 0.4, y: 0.3 },
+    });
+    expect(JSON.parse(raw)).toEqual({
+      kind: "static",
+      on: true,
+      color: { r: 10, g: 20, b: 30, x: 0.4, y: 0.3 },
+    });
+  });
+
+  it("round-trips a colour payload through parse → stringify → parse", () => {
+    const original = parsePayload(
+      '{"kind":"static","on":true,"brightness":254,"color":{"r":255,"g":0,"b":128,"x":0.5,"y":0.3}}',
+    );
+    expect(parsePayload(stringifyPayload(original))).toEqual(original);
+  });
+});
+
+describe("staticFieldsOf", () => {
+  it("emits only the colorTemp sibling when light mode is colorTemp", () => {
+    const flat = staticFieldsOf({
+      kind: "static",
+      on: true,
+      brightness: 200,
+      light: { kind: "colorTemp", mireds: 370 },
+    });
+    expect(flat).toEqual({ on: true, brightness: 200, colorTemp: 370 });
+    expect("color" in flat).toBe(false);
+  });
+
+  it("emits only the color sibling when light mode is color", () => {
+    const flat = staticFieldsOf({
+      kind: "static",
+      on: true,
+      light: { kind: "color", r: 10, g: 20, b: 30, x: 0.4, y: 0.3 },
+    });
+    expect(flat).toEqual({ on: true, color: { r: 10, g: 20, b: 30, x: 0.4, y: 0.3 } });
+    expect("colorTemp" in flat).toBe(false);
+  });
+
+  it("returns an empty object for an effect payload", () => {
+    expect(staticFieldsOf({ kind: "effect", effectId: "x" })).toEqual({});
   });
 });
 

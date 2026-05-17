@@ -74,12 +74,27 @@ export interface RoomData {
   resolvedDevices: Device[];
 }
 
+/**
+ * Discriminator over a light's white-point. A bulb at any instant is either
+ * in colour-temperature mode (driven by mireds) or in colour mode (driven by
+ * RGB+xy chromaticity) — never both. Modelling the mutual exclusion in the
+ * type prevents construction sites from accidentally setting both: the bulb
+ * silently honours one and ignores the other, so a payload with both is
+ * ambiguous user intent.
+ *
+ * Absent (`light: undefined`) means the payload does not touch the bulb's
+ * white-point — useful for on/off + brightness-only commands, or for devices
+ * with no colour capability at all.
+ */
+export type LightMode =
+  | { kind: "colorTemp"; mireds: number }
+  | { kind: "color"; r: number; g: number; b: number; x: number; y: number };
+
 export interface StaticActionPayload {
   kind: "static";
   on?: boolean;
   brightness?: number;
-  colorTemp?: number;
-  color?: { r: number; g: number; b: number; x: number; y: number };
+  light?: LightMode;
 }
 
 export interface EffectActionPayload {
@@ -94,9 +109,19 @@ export interface NativeEffectActionPayload {
 
 export type ActionPayload = StaticActionPayload | EffectActionPayload | NativeEffectActionPayload;
 
-/** Stripped-down view of a static payload used by the device-state command path,
- * which does not understand the kind tag. */
-export type StaticPayloadFields = Omit<StaticActionPayload, "kind">;
+/**
+ * Flat-field shape used by the live device-command path (the GraphQL
+ * `DeviceStateInput` and the on-disk JSON in `scene_device_payloads.payload`).
+ * Mirrors the shared internal-map convention used by backend code; the nested
+ * {@link LightMode} from {@link StaticActionPayload} is flattened to `color`
+ * or `colorTemp` here via {@link staticFieldsOf} / {@link stringifyPayload}.
+ */
+export interface StaticPayloadFields {
+  on?: boolean;
+  brightness?: number;
+  colorTemp?: number;
+  color?: { r: number; g: number; b: number; x: number; y: number };
+}
 
 export type TargetKind = "device" | "group" | "room";
 
@@ -110,6 +135,14 @@ export interface EditableTarget {
 
 export type DevicePayloadMap = Map<string, ActionPayload>;
 
+/**
+ * Read a stored scene payload. The on-disk shape carries `color` / `colorTemp`
+ * as flat siblings (the lingua franca of the internal command/state map shared
+ * with backend code); this function lifts them into the discriminated
+ * {@link LightMode} the rest of the frontend uses. When a legacy row carries
+ * both — the symptom of an old write before the discriminator existed — the
+ * explicit RGB colour wins, mirroring the SQL heal migration.
+ */
 export function parsePayload(raw: string): ActionPayload {
   let obj: Record<string, unknown> = {};
   try {
@@ -131,24 +164,35 @@ export function parsePayload(raw: string): ActionPayload {
   const out: StaticActionPayload = { kind: "static" };
   if (typeof obj.on === "boolean") out.on = obj.on;
   if (typeof obj.brightness === "number") out.brightness = obj.brightness;
-  if (typeof obj.colorTemp === "number") out.colorTemp = obj.colorTemp;
-  const color = obj.color;
-  if (color && typeof color === "object" && !Array.isArray(color)) {
-    const c = color as Record<string, unknown>;
-    if (
-      typeof c.r === "number" &&
-      typeof c.g === "number" &&
-      typeof c.b === "number" &&
-      typeof c.x === "number" &&
-      typeof c.y === "number"
-    ) {
-      out.color = { r: c.r, g: c.g, b: c.b, x: c.x, y: c.y };
-    }
+  const colorMode = parseFlatColor(obj.color);
+  if (colorMode) {
+    out.light = colorMode;
+  } else if (typeof obj.colorTemp === "number") {
+    out.light = { kind: "colorTemp", mireds: obj.colorTemp };
   }
   return out;
 }
 
-/** Serialize a payload to the on-disk shape with kind tagged. */
+function parseFlatColor(raw: unknown): LightMode | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const c = raw as Record<string, unknown>;
+  if (
+    typeof c.r !== "number" ||
+    typeof c.g !== "number" ||
+    typeof c.b !== "number" ||
+    typeof c.x !== "number" ||
+    typeof c.y !== "number"
+  ) {
+    return null;
+  }
+  return { kind: "color", r: c.r, g: c.g, b: c.b, x: c.x, y: c.y };
+}
+
+/**
+ * Write a payload back to the on-disk shape. The nested `light` discriminator
+ * is flattened to the `color` / `colorTemp` siblings the storage layer
+ * (`scene_device_payloads.payload`) and backend `commandFromDesired` consume.
+ */
 export function stringifyPayload(payload: ActionPayload): string {
   if (payload.kind === "effect") {
     return JSON.stringify({ kind: "effect", effect_id: payload.effectId });
@@ -156,17 +200,32 @@ export function stringifyPayload(payload: ActionPayload): string {
   if (payload.kind === "native_effect") {
     return JSON.stringify({ kind: "native_effect", native_name: payload.nativeName });
   }
-  const { kind: _kind, ...rest } = payload;
-  return JSON.stringify({ kind: "static", ...rest });
+  return JSON.stringify({ kind: "static", ...flattenStaticPayload(payload) });
 }
 
-/** Static-only fields for the live device-command path; throws for effect payloads. */
+function flattenStaticPayload(payload: StaticActionPayload): StaticPayloadFields {
+  const flat: StaticPayloadFields = {};
+  if (payload.on !== undefined) flat.on = payload.on;
+  if (payload.brightness !== undefined) flat.brightness = payload.brightness;
+  if (payload.light?.kind === "color") {
+    const { r, g, b, x, y } = payload.light;
+    flat.color = { r, g, b, x, y };
+  } else if (payload.light?.kind === "colorTemp") {
+    flat.colorTemp = payload.light.mireds;
+  }
+  return flat;
+}
+
+/**
+ * Flat-field view of a static payload, matching the GraphQL `DeviceStateInput`
+ * shape used by the live device-command path. Effect payloads return an empty
+ * object — they carry no per-field state.
+ */
 export function staticFieldsOf(payload: ActionPayload): StaticPayloadFields {
   if (payload.kind !== "static") {
     return {};
   }
-  const { kind: _kind, ...rest } = payload;
-  return rest;
+  return flattenStaticPayload(payload);
 }
 
 export function buildTargetInfo(action: SceneAction): EditableTarget {
@@ -200,6 +259,6 @@ export function defaultScenePayload(device: Device | undefined): StaticActionPay
   const payload: StaticActionPayload = { kind: "static" };
   if (caps.hasOnOff) payload.on = true;
   if (caps.hasBrightness) payload.brightness = 200;
-  if (caps.hasColorTemp) payload.colorTemp = 370;
+  if (caps.hasColorTemp) payload.light = { kind: "colorTemp", mireds: 370 };
   return payload;
 }

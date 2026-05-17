@@ -1,5 +1,5 @@
 import type { Device, DeviceState } from "$lib/stores/devices";
-import type { ActionPayload } from "$lib/scene-editable";
+import type { ActionPayload, StaticActionPayload } from "$lib/scene-editable";
 import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
 import type { Component } from "svelte";
@@ -63,6 +63,29 @@ interface TintInput {
   color?: { r: number; g: number; b: number } | null;
   colorTemp?: number | null;
   brightness?: number | null;
+}
+
+/**
+ * Per-payload view used for tint computation: the flat-field projection of the
+ * payload's discriminated {@link StaticActionPayload.light}. Callers that
+ * already operate on flat device state (`Device.state.color` /
+ * `.colorTemp`) skip this and build a {@link TintInput} directly.
+ */
+function staticPayloadTintInput(payload: StaticActionPayload, deviceType?: string): TintInput {
+  return {
+    type: deviceType,
+    on: payload.on,
+    color:
+      payload.light?.kind === "color"
+        ? { r: payload.light.r, g: payload.light.g, b: payload.light.b }
+        : null,
+    colorTemp: payload.light?.kind === "colorTemp" ? payload.light.mireds : null,
+    brightness: payload.brightness,
+  };
+}
+
+function staticPayloadIsSwitchOnly(payload: StaticActionPayload): boolean {
+  return payload.light === undefined && payload.brightness == null;
 }
 
 function resolveTintRgb(input: TintInput): RGB {
@@ -144,14 +167,8 @@ export function sceneTintColors(payloads: ActionPayload[]): string[] {
   for (const payload of payloads) {
     if (payload.kind !== "static") continue;
     if (!payload.on) continue;
-    const rgb = resolveTintRgb({
-      on: true,
-      color: payload.color,
-      colorTemp: payload.colorTemp,
-      brightness: payload.brightness,
-    });
-    const isSwitchOnly = !payload.color && payload.colorTemp == null && payload.brightness == null;
-    if (isSwitchOnly) switchColors.push(rgb);
+    const rgb = resolveTintRgb(staticPayloadTintInput(payload));
+    if (staticPayloadIsSwitchOnly(payload)) switchColors.push(rgb);
     else nonSwitchColors.push(rgb);
   }
   const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
@@ -239,15 +256,8 @@ function payloadTintRgb(
   if (payload.kind !== "static") {
     return { rgb: NEUTRAL, isSwitchOnly: false, on: false };
   }
-  const rgb = resolveTintRgb({
-    type: device?.type,
-    on: payload.on,
-    color: payload.color,
-    colorTemp: payload.colorTemp,
-    brightness: payload.brightness,
-  });
-  const isSwitchOnly = !payload.color && payload.colorTemp == null && payload.brightness == null;
-  return { rgb, isSwitchOnly, on: payload.on === true };
+  const rgb = resolveTintRgb(staticPayloadTintInput(payload, device?.type));
+  return { rgb, isSwitchOnly: staticPayloadIsSwitchOnly(payload), on: payload.on === true };
 }
 
 /**
@@ -393,14 +403,8 @@ export function sceneTintFromPayloads(payloads: ActionPayload[]): string {
   for (const payload of payloads) {
     if (payload.kind !== "static") continue;
     if (!payload.on) continue;
-    const rgb = resolveTintRgb({
-      on: payload.on,
-      color: payload.color,
-      colorTemp: payload.colorTemp,
-      brightness: payload.brightness,
-    });
-    const isSwitchOnly = !payload.color && payload.colorTemp == null && payload.brightness == null;
-    if (isSwitchOnly) switchColors.push(rgb);
+    const rgb = resolveTintRgb(staticPayloadTintInput(payload));
+    if (staticPayloadIsSwitchOnly(payload)) switchColors.push(rgb);
     else nonSwitchColors.push(rgb);
   }
   const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
