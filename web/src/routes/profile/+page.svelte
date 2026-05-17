@@ -98,7 +98,6 @@
 				throw new Error(result.error?.message ?? "Failed to update name");
 			}
 			me.apply(result.data.updateCurrentUser);
-			toast.success("Display name updated");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to update name");
 		} finally {
@@ -172,7 +171,6 @@
 				throw new Error(msg || `Upload failed (${res.status})`);
 			}
 			await me.refresh(client);
-			toast.success("Avatar updated");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to upload avatar");
 		} finally {
@@ -194,7 +192,6 @@
 				throw new Error(msg || `Clear failed (${res.status})`);
 			}
 			await me.refresh(client);
-			toast.success("Avatar removed");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to clear avatar");
 		} finally {
@@ -236,7 +233,6 @@
 				throw new Error(result.error?.message ?? "Failed to change password");
 			}
 			passwordOpen = false;
-			toast.success("Password changed");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to change password");
 		} finally {
