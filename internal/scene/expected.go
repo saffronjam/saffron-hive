@@ -16,6 +16,23 @@ import (
 // far below any deliberate user colour change.
 const colorMatchDeltaE = 3.0
 
+// colorTempMatchMireds is the absolute mired tolerance between expected and
+// reported colour temperature. The same xy round-trip that motivates
+// colorMatchDeltaE also affects colour temperature on xy-internal bulbs (Hue
+// and similar): a commanded mired value is stored as xy chromaticity and
+// reported back via xy → mired, introducing ±1–2 mireds of rounding noise.
+// The mired scale is perceptually uniform by construction, so a fixed
+// absolute tolerance is correct here (a percentage would over-tolerate at
+// warm/high-mired values). 3 mireds sits well above bulb round-trip noise
+// and well below the human white-point JND (~5–10 mireds).
+const colorTempMatchMireds = 3
+
+// brightnessMatchAbsolute is the tolerance on the 0–254 brightness scale.
+// Real bulbs pass brightness through faithfully, so this is mostly a safety
+// margin against future hardware that rounds. ~1 % of the scale, far below
+// the perceptible threshold for a dimming step.
+const brightnessMatchAbsolute = 3
+
 // BuildExpected snapshots the scene-relevant state of a device at the moment a
 // scene is applied. Each field is either:
 //
@@ -71,18 +88,27 @@ func BuildExpected(sceneID string, cmd device.Command, current *device.DeviceSta
 // "don't care" and always match — this is what lets a scene that commanded
 // `colorTemp` tolerate the bulb's derived colour drifting.
 //
-// For non-nil expected fields the rule is strict: current must be non-nil
-// and equal. A device that stops reporting a field it was reporting at
-// apply time counts as drift.
+// Per-field comparison rules:
 //
-// The set of compared fields is fixed to on, brightness, colorTemp, and
-// color (RGB only, ignoring xy since devices round xy differently — an
-// exact RGB match is what "same colour" means for scene-active detection).
-// Sensor fields (temperature, humidity, battery, …) are never scene-relevant.
+//   - On: strict equality. A boolean has no meaningful tolerance.
+//   - Brightness: absolute tolerance of brightnessMatchAbsolute on the 0–254
+//     scale. Guards against hardware that rounds; real bulbs pass through.
+//   - ColorTemp: absolute mired tolerance of colorTempMatchMireds. Hue-style
+//     bulbs round-trip mired → xy → mired and report values ±1–2 off the
+//     commanded one; mireds are perceptually uniform so a fixed tolerance is
+//     the right shape (not a percentage).
+//   - Color (RGB only): perceptual ΔE ≤ colorMatchDeltaE (CIE76). xy round-
+//     trip drift can shift each channel by ±1–2. xy itself is ignored — every
+//     vendor rounds it differently.
+//
+// A non-nil expected field with a nil current still counts as drift: a
+// device that stops reporting a field it was reporting at apply time has
+// genuinely diverged. Sensor fields (temperature, humidity, battery, …) are
+// never scene-relevant.
 func ExpectedMatchesCurrent(exp store.SceneExpectedState, current *device.DeviceState) bool {
 	return boolFieldMatches(exp.On, currentOn(current)) &&
-		intFieldMatches(exp.Brightness, currentInt(current, fieldBrightness)) &&
-		intFieldMatches(exp.ColorTemp, currentInt(current, fieldColorTemp)) &&
+		brightnessFieldMatches(exp.Brightness, currentInt(current, fieldBrightness)) &&
+		colorTempFieldMatches(exp.ColorTemp, currentInt(current, fieldColorTemp)) &&
 		colorFieldMatches(exp, current)
 }
 
@@ -101,14 +127,26 @@ func boolFieldMatches(expected, current *bool) bool {
 	return *expected == *current
 }
 
-func intFieldMatches(expected, current *int) bool {
+func brightnessFieldMatches(expected, current *int) bool {
+	return intFieldWithinTolerance(expected, current, brightnessMatchAbsolute)
+}
+
+func colorTempFieldMatches(expected, current *int) bool {
+	return intFieldWithinTolerance(expected, current, colorTempMatchMireds)
+}
+
+func intFieldWithinTolerance(expected, current *int, tol int) bool {
 	if expected == nil {
 		return true
 	}
 	if current == nil {
 		return false
 	}
-	return *expected == *current
+	d := *expected - *current
+	if d < 0 {
+		d = -d
+	}
+	return d <= tol
 }
 
 func colorFieldMatches(exp store.SceneExpectedState, current *device.DeviceState) bool {

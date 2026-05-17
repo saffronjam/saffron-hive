@@ -200,6 +200,67 @@ func TestExpectedMatchesCurrent_DeliberateColourChange(t *testing.T) {
 	}
 }
 
+// TestExpectedMatchesCurrent_TolerateColorTempRoundtripDrift covers Hue-style
+// bulbs that store colour internally as CIE xy and convert mired → xy → mired
+// on report. The round-trip introduces ±1–2 mired noise that must not
+// invalidate the scene — the bulb is honouring the command, only the reported
+// value rounds.
+func TestExpectedMatchesCurrent_TolerateColorTempRoundtripDrift(t *testing.T) {
+	exp := store.SceneExpectedState{
+		On:        device.Ptr(true),
+		ColorTemp: device.Ptr(151),
+	}
+	current := &device.DeviceState{
+		On:        device.Ptr(true),
+		ColorTemp: device.Ptr(153),
+	}
+	if !ExpectedMatchesCurrent(exp, current) {
+		t.Fatal("2-mired ColorTemp drift should still match (bulb roundtrip noise)")
+	}
+}
+
+// TestExpectedMatchesCurrent_ColorTempToleranceBoundary checks the inclusive
+// edge: exactly colorTempMatchMireds away still matches; one beyond does not.
+func TestExpectedMatchesCurrent_ColorTempToleranceBoundary(t *testing.T) {
+	exp := store.SceneExpectedState{ColorTemp: device.Ptr(200)}
+
+	atEdge := &device.DeviceState{ColorTemp: device.Ptr(203)}
+	if !ExpectedMatchesCurrent(exp, atEdge) {
+		t.Fatal("ColorTemp drift of exactly +3 should match (inclusive boundary)")
+	}
+	beyondEdge := &device.DeviceState{ColorTemp: device.Ptr(204)}
+	if ExpectedMatchesCurrent(exp, beyondEdge) {
+		t.Fatal("ColorTemp drift of +4 should not match (beyond tolerance)")
+	}
+}
+
+// TestExpectedMatchesCurrent_BrightnessToleranceBoundary mirrors the colour-
+// temp boundary check on the brightness scale.
+func TestExpectedMatchesCurrent_BrightnessToleranceBoundary(t *testing.T) {
+	exp := store.SceneExpectedState{Brightness: device.Ptr(100)}
+
+	withinPos := &device.DeviceState{Brightness: device.Ptr(103)}
+	if !ExpectedMatchesCurrent(exp, withinPos) {
+		t.Fatal("Brightness drift of +3 should match (inclusive boundary)")
+	}
+	withinNeg := &device.DeviceState{Brightness: device.Ptr(97)}
+	if !ExpectedMatchesCurrent(exp, withinNeg) {
+		t.Fatal("Brightness drift of -3 should match")
+	}
+	beyondEdge := &device.DeviceState{Brightness: device.Ptr(104)}
+	if ExpectedMatchesCurrent(exp, beyondEdge) {
+		t.Fatal("Brightness drift of +4 should not match (beyond tolerance)")
+	}
+}
+
+// TestExpectedMatchesCurrent_OnStaysStrict locks in that On has no tolerance.
+func TestExpectedMatchesCurrent_OnStaysStrict(t *testing.T) {
+	exp := store.SceneExpectedState{On: device.Ptr(true)}
+	if ExpectedMatchesCurrent(exp, &device.DeviceState{On: device.Ptr(false)}) {
+		t.Fatal("On=true vs On=false must always mismatch")
+	}
+}
+
 func TestExpectedMatchesCurrent_NilExpectedIsDontCare(t *testing.T) {
 	exp := store.SceneExpectedState{On: device.Ptr(true)}
 
