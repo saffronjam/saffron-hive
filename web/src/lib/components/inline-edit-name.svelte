@@ -64,6 +64,9 @@
 			bind:this={inputEl}
 			bind:value={editValue}
 			class="absolute inset-0 w-full min-w-0 truncate bg-transparent px-0 py-0 font-medium text-card-foreground outline-none border-b-2 border-ring"
+			spellcheck="false"
+			autocorrect="off"
+			autocapitalize="off"
 			onblur={commit}
 			onkeydown={handleKeydown}
 		/>

@@ -42,6 +42,9 @@
 			className
 		)}
 		{type}
+		spellcheck="false"
+		autocorrect="off"
+		autocapitalize="off"
 		bind:value
 		{...restProps}
 	/>

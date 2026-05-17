@@ -337,6 +337,8 @@
 						)}
 						autocomplete="off"
 						spellcheck="false"
+						autocorrect="off"
+						autocapitalize="off"
 						oninput={onInput}
 						onfocus={onFocus}
 						onblur={onBlur}
