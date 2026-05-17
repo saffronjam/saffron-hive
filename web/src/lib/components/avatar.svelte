@@ -68,7 +68,7 @@
 
 <div class="relative {sizeClasses[size]} {klass}">
   <span
-    class="absolute inset-0 inline-flex items-center justify-center rounded-full font-semibold text-white transition-opacity duration-300 {sizeClasses[
+    class="absolute inset-0 inline-flex items-center justify-center rounded-full font-semibold leading-none text-white transition-opacity duration-300 {sizeClasses[
       size
     ]}"
     style="background-color: {bg}; opacity: {initialsOpacity}"
