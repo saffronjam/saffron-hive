@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import ColorPicker from "$lib/components/color-picker.svelte";
 	import TempWheel from "$lib/components/temp-wheel.svelte";
@@ -58,6 +59,10 @@
 		onmodechange?.(m);
 	}
 
+	onMount(() => {
+		if (colorTemp != null && color == null && hasColorTemp) mode = "temp";
+	});
+
 	$effect(() => {
 		if (mode === "color" && !hasColor && hasColorTemp) mode = "temp";
 		if (mode === "temp" && !hasColorTemp && hasColor) mode = "color";
@@ -74,8 +79,6 @@
 
 	let brightnessEl: HTMLDivElement | null = $state(null);
 	let brightnessDragging = $state(false);
-	let brightnessFocused = $state(false);
-	const brightnessExpanded = $derived(brightnessDragging || brightnessFocused);
 
 	function brightnessFromClientX(clientX: number): number {
 		const el = brightnessEl;
@@ -202,9 +205,7 @@
 			{#if hasBrightness}
 				<div
 					bind:this={brightnessEl}
-					class="relative ml-auto h-8 overflow-hidden rounded-full bg-muted transition-[width] duration-300 ease-out select-none touch-none"
-					class:w-48={brightnessExpanded}
-					class:w-24={!brightnessExpanded}
+					class="relative ml-auto h-8 w-24 overflow-hidden rounded-full bg-muted select-none touch-none"
 					class:opacity-50={disabled}
 					role="slider"
 					aria-label="Brightness"
@@ -214,12 +215,10 @@
 					tabindex={disabled ? -1 : 0}
 					onmousedown={handleBrightnessDown}
 					ontouchstart={handleBrightnessDown}
-					onfocus={() => (brightnessFocused = true)}
-					onblur={() => (brightnessFocused = false)}
 					onkeydown={handleBrightnessKey}
 				>
 					<div
-						class="absolute inset-y-0 left-0 bg-primary/30 transition-[width] duration-150"
+						class="absolute inset-y-0 left-0 bg-primary/30"
 						style:width="{brightnessPct()}%"
 					></div>
 					<div class="relative flex h-full items-center gap-1.5 px-3 text-xs">
