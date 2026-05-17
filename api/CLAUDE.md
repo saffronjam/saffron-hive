@@ -12,7 +12,7 @@ GraphQL schema — the single source of truth for the API contract.
 From this schema, two things are generated:
 
 1. **Go** (via gqlgen) — resolver interfaces and GraphQL DTO types into `internal/graph/`
-2. **TypeScript** (via graphql-codegen) — typed query/mutation/subscription hooks into `web/src/lib/graphql/`
+2. **TypeScript** (via graphql-codegen) — typed query/mutation/subscription hooks into `web/src/lib/gql/`
 
 Both generators read the same `schema.graphql`. The schema is the contract — if it changes, both sides update.
 
