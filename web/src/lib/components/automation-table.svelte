@@ -103,13 +103,6 @@
 			cell: createdByCell,
 		},
 		{
-			key: "enabled",
-			label: "Enabled",
-			headClass: "w-20",
-			sortValue: (a) => a.enabled,
-			cell: enabledCell,
-		},
-		{
 			key: "actions",
 			label: "",
 			hideable: false,
@@ -211,14 +204,7 @@
 {/snippet}
 
 {#snippet createdByCell(a: AutomationData)}
-	<CreatedByCell name={a.createdBy?.name} />
-{/snippet}
-
-{#snippet enabledCell(a: AutomationData)}
-	<Switch
-		checked={a.enabled}
-		onCheckedChange={(checked) => ontoggle(a, checked)}
-	/>
+	<CreatedByCell user={a.createdBy} />
 {/snippet}
 
 {#snippet actionsHead()}<ActionsHead />{/snippet}
@@ -229,7 +215,20 @@
 		ondelete={() => ondelete(a)}
 		editLabel="Edit automation"
 		deleteLabel="Delete automation"
-	/>
+	>
+		{#snippet leading()}
+			<Tooltip>
+				<TooltipTrigger class="inline-flex h-8 items-center">
+					<Switch
+						checked={a.enabled}
+						onCheckedChange={(checked) => ontoggle(a, checked)}
+						aria-label={a.enabled ? `Disable ${a.name}` : `Enable ${a.name}`}
+					/>
+				</TooltipTrigger>
+				<TooltipContent>{a.enabled ? "Disable" : "Enable"}</TooltipContent>
+			</Tooltip>
+		{/snippet}
+	</RowActionsCell>
 {/snippet}
 
 <HiveDataTable

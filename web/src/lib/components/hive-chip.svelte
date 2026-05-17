@@ -139,7 +139,7 @@
 			: typeClass(type),
 	);
 	const interactiveClasses = $derived(
-		onclick ? "cursor-pointer hover:opacity-80" : "",
+		onclick ? "transition-colors hover:bg-muted" : "",
 	);
 </script>
 

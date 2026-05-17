@@ -10,9 +10,15 @@
 	} from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, sentenceCase } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
+	import {
+		Tooltip,
+		TooltipContent,
+		TooltipProvider,
+		TooltipTrigger,
+	} from "$lib/components/ui/tooltip/index.js";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
@@ -179,6 +185,37 @@
 			</div>
 			<div class="flex shrink-0 items-center gap-1">
 				<DeviceQuickControls {device} />
+				{#if hasActions}
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger>
+								{#snippet child({ props })}
+									<span {...props} class="inline-flex">
+										<DropdownMenu>
+											<DropdownMenuTrigger class="inline-flex h-8 items-center">
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													aria-label={`Trigger ${device.name} event`}
+												>
+													<MousePointerClick class="size-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" class="max-h-80 overflow-y-auto">
+												{#each actionValues as action (action)}
+													<DropdownMenuItem onclick={() => handleActionClick(action)}>
+														{sentenceCase(action)}
+													</DropdownMenuItem>
+												{/each}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</span>
+								{/snippet}
+							</TooltipTrigger>
+							<TooltipContent>Trigger event</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
+				{/if}
 				<DropdownMenu>
 					<DropdownMenuTrigger class="inline-flex h-8 items-center">
 						<Button variant="ghost" size="icon-sm" aria-label="Device actions">
@@ -202,12 +239,12 @@
 		{#if roomChips.length > 0 || groupChips.length > 0}
 			<div class="flex flex-wrap gap-x-2 text-xs {mutedTextClass}">
 				{#each roomChips as chip (chip.id)}
-					<a href={`/rooms?edit=${chip.id}`} class="transition-colors hover:text-foreground">
+					<a href={`/rooms?edit=${chip.id}`} class="cursor-default transition-colors hover:text-foreground">
 						{chip.name}
 					</a>
 				{/each}
 				{#each groupChips as chip (chip.id)}
-					<a href={`/groups?edit=${chip.id}`} class="transition-colors hover:text-foreground">
+					<a href={`/groups?edit=${chip.id}`} class="cursor-default transition-colors hover:text-foreground">
 						{chip.name}
 					</a>
 				{/each}
@@ -232,45 +269,17 @@
 					{/each}
 				</div>
 			</SensorHistoryPopover>
-		{:else if hasBrightness || hasActions}
-			<div class="flex items-center gap-2">
-				{#if hasBrightness}
-					<div class="min-w-0 flex-1">
-						<Slider
-							type="single"
-							value={localBrightness}
-							min={0}
-							max={254}
-							step={1}
-							onValueChange={handleBrightnessChange}
-							disabled={!device.available}
-							aria-label={`${device.name} brightness`}
-						/>
-					</div>
-				{/if}
-				{#if hasActions}
-					<div class="{hasBrightness ? 'ml-auto' : 'ml-auto'} shrink-0">
-						<DropdownMenu>
-							<DropdownMenuTrigger>
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									aria-label={`Simulate ${device.name} action`}
-								>
-									<MousePointerClick class="size-4" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" class="max-h-80 overflow-y-auto">
-								{#each actionValues as action (action)}
-									<DropdownMenuItem onclick={() => handleActionClick(action)}>
-										{action}
-									</DropdownMenuItem>
-								{/each}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</div>
-				{/if}
-			</div>
+		{:else if hasBrightness}
+			<Slider
+				type="single"
+				value={localBrightness}
+				min={0}
+				max={254}
+				step={1}
+				onValueChange={handleBrightnessChange}
+				disabled={!device.available}
+				aria-label={`${device.name} brightness`}
+			/>
 		{/if}
 	</CardContent>
 </Card>

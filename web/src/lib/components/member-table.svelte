@@ -17,6 +17,8 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Plus, X, Search } from "@lucide/svelte";
+	import { flip } from "svelte/animate";
+	import { slide } from "svelte/transition";
 
 	interface RelatedItem {
 		id: string;
@@ -109,7 +111,13 @@
 			</TableHeader>
 			<TableBody>
 				{#each filteredRows as row (row.id)}
-					<TableRow>
+					<tr
+						data-slot="table-row"
+						class="even:bg-muted/40 hover:bg-muted/70 data-[state=selected]:bg-muted transition-colors"
+						animate:flip={{ duration: 200 }}
+						in:slide|local={{ duration: 200 }}
+						out:slide|local={{ duration: 200 }}
+					>
 						<TableCell>
 							<HiveChip type={row.type} />
 						</TableCell>
@@ -179,7 +187,7 @@
 								<X class="size-4" />
 							</Button>
 						</TableCell>
-					</TableRow>
+					</tr>
 				{/each}
 			</TableBody>
 		</Table>
