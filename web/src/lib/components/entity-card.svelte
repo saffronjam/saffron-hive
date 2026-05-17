@@ -169,6 +169,13 @@
 		return "";
 	});
 
+	const fillClass = $derived.by(() => {
+		const n = tintColors?.length ?? 0;
+		if (n >= 3) return "tint-fill-horizontal-3";
+		if (n === 2) return "tint-fill-horizontal-2";
+		return "tint-fill-horizontal-1";
+	});
+
 	const hasTint = $derived(!!tintColors && tintColors.length > 0);
 	// The tint-N gradient only renders when the card is active. When the card
 	// is inactive the class is dropped entirely and bg-card shows through.
@@ -224,7 +231,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	class="relative flex flex-col overflow-hidden shadow-card bg-card transition-all {sizeClass} {useFill
-		? 'tint-fill-horizontal'
+		? fillClass
 		: showTint
 			? tintClass
 			: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {dragOpts
