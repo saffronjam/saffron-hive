@@ -83,6 +83,10 @@
 		groups: GroupData[];
 	}
 
+	interface GroupByIdResult {
+		group: GroupData | null;
+	}
+
 	interface CreateGroupResult {
 		createGroup: GroupData;
 	}
@@ -205,6 +209,99 @@
 				name
 				resolvedDevices { id name }
 				members { memberType memberId }
+			}
+		}
+	`);
+
+	const GROUP_BY_ID = graphql(`
+		query GroupsPageGroupById($id: ID!) {
+			group(id: $id) {
+				id
+				name
+				icon
+				tags
+				members {
+					id
+					memberType
+					memberId
+					device {
+						id
+						name
+						type
+						capabilities { name type values valueMin valueMax unit access }
+						source
+						available
+						lastSeen
+						state {
+							on
+							brightness
+							colorTemp
+							color { r g b x y }
+							transition
+							temperature
+							humidity
+							pressure
+							illuminance
+							battery
+							power
+							voltage
+							current
+							energy
+						}
+					}
+					group {
+						id
+						name
+						members {
+							id
+							memberType
+							memberId
+							device {
+								id
+								name
+								type
+								source
+								available
+								lastSeen
+								state {
+									on
+									brightness
+									colorTemp
+									color { r g b x y }
+									transition
+									temperature
+									humidity
+									pressure
+									illuminance
+									battery
+									power
+									voltage
+									current
+									energy
+								}
+							}
+							group {
+								id
+								name
+								members {
+									id
+									memberType
+									memberId
+								}
+							}
+						}
+					}
+					room {
+						id
+						name
+						resolvedDevices { id name }
+					}
+				}
+				createdBy {
+					id
+					username
+					name
+				}
 			}
 		}
 	`);
@@ -528,8 +625,8 @@
 	const urlEditId = $derived(page.url.searchParams.get("edit"));
 
 	$effect(() => {
-		if (editingGroupFresh) {
-			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroupFresh.name }];
+		if (editingGroup) {
+			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroup.name }];
 			pageHeader.actions = [
 				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
 				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
@@ -624,6 +721,7 @@
 
 	async function handleSaveGroup() {
 		if (!editingGroup) return;
+		const groupId = editingGroup.id;
 		editLoading = true;
 		errors.clear();
 
@@ -634,7 +732,7 @@
 			if (editIconDirty) input.icon = editIcon;
 			if (editTagsDirty) input.tags = editTags;
 			const result = await client
-				.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: editingGroup.id, input })
+				.mutation<UpdateGroupResult>(UPDATE_GROUP, { id: groupId, input })
 				.toPromise();
 			if (result.error) {
 				editLoading = false;
@@ -658,7 +756,7 @@
 			const result = await client
 				.mutation<AddGroupMemberResult>(ADD_GROUP_MEMBER, {
 					input: {
-						groupId: editingGroup.id,
+						groupId,
 						memberType: add.memberType,
 						memberId: add.memberId,
 					},
@@ -671,12 +769,26 @@
 			}
 		}
 
-		editLoading = false;
+		const fresh = await client
+			.query<GroupByIdResult>(GROUP_BY_ID, { id: groupId }, { requestPolicy: "network-only" })
+			.toPromise();
+		if (fresh.error || !fresh.data?.group) {
+			editLoading = false;
+			errors.setWithAutoDismiss(fresh.error?.message ?? "Failed to load group after save");
+			return;
+		}
+
+		const freshGroup = fresh.data.group;
+		editingGroup = freshGroup;
+		editName = freshGroup.name;
+		editIcon = freshGroup.icon ?? null;
+		editTags = [...(freshGroup.tags ?? [])];
 		editNameDirty = false;
 		editIconDirty = false;
 		editTagsDirty = false;
 		pendingAdds = [];
 		pendingRemovals = new Set();
+		editLoading = false;
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
@@ -777,13 +889,9 @@
 		groupsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	const editingGroupFresh = $derived(
-		editingGroup ? groups.find((g) => g.id === editingGroup?.id) ?? editingGroup : null
-	);
-
 	const effectiveMembers = $derived.by((): GroupMember[] => {
-		if (!editingGroupFresh) return [];
-		const serverMembers = editingGroupFresh.members.filter(
+		if (!editingGroup) return [];
+		const serverMembers = editingGroup.members.filter(
 			(m) => !pendingRemovals.has(m.id)
 		);
 		const pendingAsMember: GroupMember[] = pendingAdds.map((a, i) => ({
@@ -865,7 +973,7 @@
 		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
-	{#if editingGroupFresh}
+	{#if editingGroup}
 		<div in:fly={{ y: -4, duration: 150 }}>
 
 			<div class="space-y-6">
@@ -1017,6 +1125,7 @@
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddToGroup}
+								getDevices={flattenGroupDevices}
 							/>
 						{/snippet}
 					</ListView>

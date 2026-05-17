@@ -129,6 +129,40 @@
 		}
 	`);
 
+	const ROOM_BY_ID = graphql(`
+		query RoomsPageRoomById($id: ID!) {
+			room(id: $id) {
+				id
+				name
+				icon
+				members {
+					id
+					memberType
+					memberId
+					device {
+						id
+						name
+						type
+						source
+						available
+					}
+					group {
+						id
+						name
+						icon
+						resolvedDevices { id }
+					}
+				}
+				resolvedDevices { id }
+				createdBy {
+					id
+					username
+					name
+				}
+			}
+		}
+	`);
+
 	const CREATE_ROOM = graphql(`
 		mutation CreateRoom($input: CreateRoomInput!) {
 			createRoom(input: $input) {
@@ -471,18 +505,14 @@
 
 	onDestroy(() => pageHeader.reset());
 
-	const editingRoomFresh = $derived(
-		editingRoom ? rooms.find((r) => r.id === editingRoom?.id) ?? editingRoom : null
-	);
-
 	type EffectiveMember =
 		| { rowKey: string; kind: "device"; deviceId: string; pending: boolean; memberId?: string }
 		| { rowKey: string; kind: "group"; groupId: string; pending: boolean; memberId?: string };
 
 	const effectiveMembers = $derived.by((): EffectiveMember[] => {
-		if (!editingRoomFresh) return [];
+		if (!editingRoom) return [];
 		const out: EffectiveMember[] = [];
-		for (const m of editingRoomFresh.members) {
+		for (const m of editingRoom.members) {
 			if (pendingMemberRemovals.has(m.id)) continue;
 			if (m.memberType === "device") {
 				out.push({
@@ -530,8 +560,8 @@
 	const urlEditId = $derived(page.url.searchParams.get("edit"));
 
 	$effect(() => {
-		if (editingRoomFresh) {
-			pageHeader.breadcrumbs = [{ label: "Rooms", onclick: stopEditing }, { label: editingRoomFresh.name }];
+		if (editingRoom) {
+			pageHeader.breadcrumbs = [{ label: "Rooms", onclick: stopEditing }, { label: editingRoom.name }];
 			pageHeader.actions = [
 				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
 				{ label: "Save", saving: editLoading, onclick: handleSaveRoom, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
@@ -700,6 +730,7 @@
 
 	async function handleSaveRoom() {
 		if (!editingRoom) return;
+		const roomId = editingRoom.id;
 		editLoading = true;
 		errors.clear();
 
@@ -709,7 +740,7 @@
 			if (nameDirty) input.name = editName.trim();
 			if (editIconDirty) input.icon = editIcon;
 			const result = await client
-				.mutation(UPDATE_ROOM, { id: editingRoom.id, input })
+				.mutation(UPDATE_ROOM, { id: roomId, input })
 				.toPromise();
 			if (result.error) {
 				editLoading = false;
@@ -734,7 +765,7 @@
 			const memberId = add.kind === "device" ? add.device.id : add.group.id;
 			const result = await client
 				.mutation(ADD_ROOM_MEMBER, {
-					input: { roomId: editingRoom.id, memberType, memberId },
+					input: { roomId, memberType, memberId },
 				})
 				.toPromise();
 			if (result.error) {
@@ -744,11 +775,24 @@
 			}
 		}
 
-		editLoading = false;
+		const fresh = await client
+			.query<{ room: RoomData | null }>(ROOM_BY_ID, { id: roomId }, { requestPolicy: "network-only" })
+			.toPromise();
+		if (fresh.error || !fresh.data?.room) {
+			editLoading = false;
+			errors.setWithAutoDismiss(fresh.error?.message ?? "Failed to load room after save");
+			return;
+		}
+
+		const freshRoom = fresh.data.room;
+		editingRoom = freshRoom;
+		editName = freshRoom.name;
+		editIcon = freshRoom.icon ?? null;
 		editNameDirty = false;
 		editIconDirty = false;
 		pendingMemberAdds = [];
 		pendingMemberRemovals = new Set();
+		editLoading = false;
 		roomsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
@@ -861,7 +905,7 @@
 		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
-	{#if editingRoomFresh}
+	{#if editingRoom}
 		<div class="space-y-6" in:fly={{ y: -4, duration: 150 }}>
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="room-name">
@@ -995,6 +1039,7 @@
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddToRoom}
+								getDevices={roomDevices}
 							/>
 						{/snippet}
 					</ListView>
