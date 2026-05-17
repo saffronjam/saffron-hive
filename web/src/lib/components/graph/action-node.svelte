@@ -12,10 +12,17 @@
 	import { Play, Trash2, ArrowUp, ArrowDown, X, Clapperboard } from "@lucide/svelte";
 	import { validateActionConfig } from "./trigger-expr";
 	import DeviceStateEditor from "./device-state-editor.svelte";
+	import ChangeValueEditor from "./change-value-editor.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
-	import type { GroupLite, RoomLite, TargetKind } from "$lib/target-resolve";
+	import {
+		capabilityUnionForTarget,
+		settableNumericCapabilities,
+		type GroupLite,
+		type RoomLite,
+		type TargetKind,
+	} from "$lib/target-resolve";
 	import type { Device } from "$lib/gql/graphql";
 
 	interface ActionConfig {
@@ -82,8 +89,9 @@
 	let { data, id, selected = false }: Props = $props();
 
 	const actionTypes = [
-		{ value: "set_device_state", label: "Set Device State" },
-		{ value: "toggle_device_state", label: "Toggle Device State" },
+		{ value: "set_device_state", label: "Set State" },
+		{ value: "toggle_device_state", label: "Toggle State" },
+		{ value: "change_value", label: "Change Value" },
 		{ value: "activate_scene", label: "Activate Scene" },
 		{ value: "cycle_scenes", label: "Scene Cycle" },
 		{ value: "run_effect", label: "Run Effect" },
@@ -115,6 +123,8 @@
 			payload = JSON.stringify({});
 		} else if (value === "cycle_scenes" && !isCycleScenesPayload(payload)) {
 			payload = JSON.stringify({ scenes: [] });
+		} else if (value === "change_value" && !isChangeValuePayload(payload)) {
+			payload = JSON.stringify({ field: "", delta: 0, mode: "percent" });
 		} else if (value === "toggle_device_state") {
 			payload = "";
 		}
@@ -165,6 +175,11 @@
 	function isCycleScenesPayload(raw: string): boolean {
 		const p = safeParse(raw);
 		return Array.isArray(p.scenes);
+	}
+
+	function isChangeValuePayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return typeof p.field === "string" && typeof p.delta === "number";
 	}
 
 	function sceneFilter(s: SceneRef, query: string): boolean {
@@ -237,18 +252,32 @@
 	// has no single target (its payload carries the ordered scene list);
 	// set_device_state, toggle_device_state, and run_effect pick across
 	// devices + groups + rooms (best-effort fan-out downstream).
+	// change_value restricts the list to targets whose capability union
+	// exposes at least one settable numeric field — picking a plug would
+	// otherwise yield an editor with no available fields.
 	const targetItemsList = $derived.by<TargetItem[]>(() => {
 		if (data.config.actionType === "activate_scene") {
 			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name, rooms: s.rooms ?? [] }));
 		}
+		const allDevices = data.devices ?? [];
+		const allGroups = data.groups ?? [];
+		const allRooms = data.rooms ?? [];
+		const isChangeValue = data.config.actionType === "change_value";
+		const supportsChangeValue = (kind: "device" | "group" | "room", id: string) =>
+			settableNumericCapabilities(
+				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms),
+			).length > 0;
 		const items: TargetItem[] = [];
-		for (const d of data.devices ?? []) {
+		for (const d of allDevices) {
+			if (isChangeValue && !supportsChangeValue("device", d.id)) continue;
 			items.push({ kind: "device", id: d.id, name: d.name, deviceType: d.type });
 		}
-		for (const g of data.groups ?? []) {
+		for (const g of allGroups) {
+			if (isChangeValue && !supportsChangeValue("group", g.id)) continue;
 			items.push({ kind: "group", id: g.id, name: g.name });
 		}
-		for (const r of data.rooms ?? []) {
+		for (const r of allRooms) {
+			if (isChangeValue && !supportsChangeValue("room", r.id)) continue;
 			items.push({ kind: "room", id: r.id, name: r.name });
 		}
 		return items;
@@ -572,6 +601,21 @@
 					<p class="text-[10px] text-muted-foreground">
 						Flips on/off. For groups and rooms: any member on → all off; all off → all on.
 					</p>
+				{:else if data.config.actionType === "change_value"}
+					{#if data.config.targetType && data.config.targetId}
+						<ChangeValueEditor
+							target={{ type: data.config.targetType as TargetKind, id: data.config.targetId }}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={!data.editable}
+						/>
+					{:else}
+						<p class="text-[11px] text-muted-foreground">Pick a target to configure delta.</p>
+					{/if}
 				{:else if data.config.actionType === "run_effect"}
 					<Select
 						type="single"
@@ -633,6 +677,16 @@
 				{/if}
 			{:else if data.config.actionType === "toggle_device_state"}
 				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
+			{:else if data.config.actionType === "change_value"}
+				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
+				{#if typeof parsedPayload.field === "string" && parsedPayload.field !== ""}
+					{@const delta = typeof parsedPayload.delta === "number" ? parsedPayload.delta : 0}
+					{@const mode = parsedPayload.mode === "absolute" ? "" : "%"}
+					{@const sign = delta > 0 ? "+" : ""}
+					<p class="truncate text-xs text-muted-foreground">
+						{sign}{delta}{mode} {parsedPayload.field}
+					</p>
+				{/if}
 			{:else}
 				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
 				{#if data.config.actionType !== "activate_scene" && data.config.payload}

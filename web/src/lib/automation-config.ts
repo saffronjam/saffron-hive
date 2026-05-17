@@ -43,16 +43,16 @@ export function actionKind(node: AutomationNodeLike): string | null {
 }
 
 /**
- * Device IDs referenced by an action node. Only `set_device_state` actions
- * with a device-targeted config contribute. Trigger nodes reference devices
- * via expression strings (filter_expr) which are not deterministically
- * parseable — they return no IDs here.
+ * Device IDs referenced by an action node. `set_device_state` and
+ * `change_value` actions with a device-targeted config contribute. Trigger
+ * nodes reference devices via expression strings (filter_expr) which are not
+ * deterministically parseable — they return no IDs here.
  */
 export function referencedDeviceIds(node: AutomationNodeLike): string[] {
   if (node.type !== "action") return [];
   const raw = safeParseJSON(node.config);
   if (!isRecord(raw)) return [];
-  if (raw.action_type !== "set_device_state") return [];
+  if (raw.action_type !== "set_device_state" && raw.action_type !== "change_value") return [];
   if (raw.target_type !== "device") return [];
   const id = raw.target_id;
   return typeof id === "string" && id !== "" ? [id] : [];

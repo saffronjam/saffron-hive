@@ -530,6 +530,31 @@ export function validateActionConfig(
     }
     return null;
   }
+  if (config.actionType === "change_value") {
+    if (!config.targetType || !config.targetId) {
+      return { field: "target", message: "Pick a target" };
+    }
+    let parsed: { field?: unknown; delta?: unknown; mode?: unknown };
+    try {
+      parsed = JSON.parse(config.payload || "{}") as {
+        field?: unknown;
+        delta?: unknown;
+        mode?: unknown;
+      };
+    } catch {
+      return { field: "payload", message: "Payload must be valid JSON" };
+    }
+    if (typeof parsed.field !== "string" || parsed.field.trim() === "") {
+      return { field: "payload", message: "Pick a field" };
+    }
+    if (typeof parsed.delta !== "number" || !Number.isFinite(parsed.delta) || parsed.delta === 0) {
+      return { field: "payload", message: "Set a non-zero delta" };
+    }
+    if (parsed.mode !== undefined && parsed.mode !== "absolute" && parsed.mode !== "percent") {
+      return { field: "payload", message: "Mode must be absolute or percent" };
+    }
+    return null;
+  }
   if (!config.targetType || !config.targetId) {
     return { field: "target", message: "Pick a target" };
   }

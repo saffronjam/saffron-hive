@@ -152,6 +152,34 @@ describe("referencedDeviceIds", () => {
       }),
     ).toEqual([]);
   });
+
+  it("extracts the target_id for a device-targeted change_value action", () => {
+    expect(
+      referencedDeviceIds({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "change_value",
+          target_type: "device",
+          target_id: "light-7",
+          payload: JSON.stringify({ field: "brightness", delta: 25, mode: "absolute" }),
+        }),
+      }),
+    ).toEqual(["light-7"]);
+  });
+
+  it("skips change_value actions that target a group or room", () => {
+    expect(
+      referencedDeviceIds({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "change_value",
+          target_type: "group",
+          target_id: "group-1",
+          payload: JSON.stringify({ field: "brightness", delta: 25, mode: "absolute" }),
+        }),
+      }),
+    ).toEqual([]);
+  });
 });
 
 describe("referencedSceneIds", () => {
