@@ -176,10 +176,23 @@
 		return { x: e.clientX, y: e.clientY };
 	}
 
+	function pointInsideWheel(clientX: number, clientY: number): boolean {
+		const canvas = canvasEl;
+		if (!canvas) return false;
+		const rect = canvas.getBoundingClientRect();
+		const cx = rect.width / 2;
+		const cy = rect.height / 2;
+		const radius = Math.min(cx, cy);
+		const dx = clientX - rect.left - cx;
+		const dy = clientY - rect.top - cy;
+		return Math.sqrt(dx * dx + dy * dy) <= radius;
+	}
+
 	function handleDown(e: MouseEvent | TouchEvent) {
 		if (disabled) return;
-		pointerDown = true;
 		const p = pointerCoords(e);
+		if (!pointInsideWheel(p.x, p.y)) return;
+		pointerDown = true;
 		handlePoint(p.x, p.y);
 	}
 
