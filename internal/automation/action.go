@@ -18,6 +18,7 @@ import (
 const (
 	ActionSetDeviceState    = "set_device_state"
 	ActionToggleDeviceState = "toggle_device_state"
+	ActionChangeValue       = "change_value"
 	ActionActivateScene     = "activate_scene"
 	ActionCycleScenes       = "cycle_scenes"
 	ActionRaiseAlarm        = "raise_alarm"
@@ -150,6 +151,8 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 			Timestamp: time.Now(),
 			Payload:   cmd,
 		})
+	case ActionChangeValue:
+		a.executeChangeValue(cfg)
 	case ActionActivateScene:
 		a.executeActivateScene(cfg.Payload)
 	case ActionCycleScenes:
@@ -161,6 +164,149 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 	case ActionRunEffect:
 		a.executeRunEffect(cfg)
 	}
+}
+
+type changeValuePayload struct {
+	Field string  `json:"field"`
+	Delta float64 `json:"delta"`
+	Mode  string  `json:"mode"`
+}
+
+// numericFieldDef ties a settable numeric capability (by capability name) to
+// the command-payload key buildCommand understands and a reader for the
+// current value in DeviceState. New numeric fields are added by appending an
+// entry here (and, if not already present, an arm in buildCommand and
+// commandFieldCapabilities).
+type numericFieldDef struct {
+	capName  string
+	cmdField string
+	read     func(*device.DeviceState) (float64, bool)
+}
+
+var numericFields = []numericFieldDef{
+	{
+		capName:  device.CapBrightness,
+		cmdField: "brightness",
+		read: func(st *device.DeviceState) (float64, bool) {
+			if st == nil || st.Brightness == nil {
+				return 0, false
+			}
+			return float64(*st.Brightness), true
+		},
+	},
+}
+
+func numericFieldByCap(name string) (numericFieldDef, bool) {
+	for _, f := range numericFields {
+		if f.capName == name {
+			return f, true
+		}
+	}
+	return numericFieldDef{}, false
+}
+
+// executeChangeValue applies a signed delta to a numeric, settable capability
+// on a single device. Mode "percent" interprets Delta as a percentage of the
+// device's own (valueMax-valueMin) range; mode "absolute" (default for any
+// other value) takes Delta as raw units. The resulting value is clamped to
+// the capability's range and dispatched as an absolute set command, so loop
+// prevention via stateMatches still applies.
+func (a *ActionExecutor) executeChangeValue(cfg ActionConfig) {
+	if cfg.TargetID == "" {
+		return
+	}
+	deviceID := device.DeviceID(cfg.TargetID)
+
+	var p changeValuePayload
+	if err := json.Unmarshal([]byte(cfg.Payload), &p); err != nil {
+		logger.Error("invalid change_value payload",
+			"automation_id", cfg.AutomationID, "device_id", deviceID, "error", err)
+		return
+	}
+	if p.Field == "" {
+		return
+	}
+	if p.Delta == 0 {
+		return
+	}
+
+	def, ok := numericFieldByCap(p.Field)
+	if !ok {
+		logger.Debug("change_value: unsupported field",
+			"automation_id", cfg.AutomationID, "field", p.Field)
+		return
+	}
+
+	dev, ok := a.reader.GetDevice(deviceID)
+	if !ok {
+		logger.Debug("change_value: unknown device",
+			"automation_id", cfg.AutomationID, "device_id", deviceID)
+		return
+	}
+	var capability device.Capability
+	capFound := false
+	for _, c := range dev.Capabilities {
+		if c.Name == p.Field {
+			capability = c
+			capFound = true
+			break
+		}
+	}
+	if !capFound || capability.Type != "numeric" || capability.Access&4 == 0 || capability.ValueMin == nil || capability.ValueMax == nil {
+		logger.Debug("change_value: device does not expose settable numeric field",
+			"automation_id", cfg.AutomationID, "device_id", deviceID, "field", p.Field)
+		return
+	}
+
+	st, ok := a.reader.GetDeviceState(deviceID)
+	if !ok {
+		logger.Debug("change_value: no current state",
+			"automation_id", cfg.AutomationID, "device_id", deviceID, "field", p.Field)
+		return
+	}
+	current, ok := def.read(st)
+	if !ok {
+		logger.Debug("change_value: field not currently reported",
+			"automation_id", cfg.AutomationID, "device_id", deviceID, "field", p.Field)
+		return
+	}
+
+	minV := *capability.ValueMin
+	maxV := *capability.ValueMax
+	var effective float64
+	if p.Mode == "percent" {
+		effective = (p.Delta / 100.0) * (maxV - minV)
+	} else {
+		effective = p.Delta
+	}
+	next := current + effective
+	if next < minV {
+		next = minV
+	}
+	if next > maxV {
+		next = maxV
+	}
+
+	desired := map[string]any{def.cmdField: next}
+	desired = device.FilterCommandFields(desired, dev)
+	if len(desired) == 0 {
+		return
+	}
+	if a.stateMatches(deviceID, desired) {
+		a.stateMatchSkips.Add(1)
+		logger.Debug("change_value skipped: device already matches desired state",
+			"device_id", deviceID, "automation_id", cfg.AutomationID, "field", p.Field)
+		return
+	}
+
+	cmd := buildCommand(deviceID, desired)
+	cmd.Origin = device.OriginAutomation(cfg.AutomationID)
+	a.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventCommandRequested,
+		DeviceID:  string(deviceID),
+		Timestamp: time.Now(),
+		Payload:   cmd,
+	})
 }
 
 type runEffectPayload struct {
