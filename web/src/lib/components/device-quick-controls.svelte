@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import type { Device } from "$lib/stores/devices";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import {
 		Popover,
@@ -11,14 +10,18 @@
 	} from "$lib/components/ui/popover/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
+	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { deviceTint } from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
 	import { Palette } from "@lucide/svelte";
 
 	interface Props {
 		device: Device;
+		variant?: "palette" | "swatch";
 	}
 
-	let { device }: Props = $props();
+	let { device, variant = "palette" }: Props = $props();
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
@@ -36,15 +39,14 @@
 
 	const client = getContextClient();
 
-	const hasOnOff = $derived(device.state?.on != null);
-	const hasBrightness = $derived(device.state?.brightness != null);
-	const hasColor = $derived(device.state?.color != null);
-	const hasColorTemp = $derived(device.state?.colorTemp != null);
-	const hasPopover = $derived(hasBrightness || hasColor || hasColorTemp);
+	const caps = $derived(deviceSceneCapabilities(device));
+	const hasOnOff = $derived(caps.hasOnOff);
+	const hasColor = $derived(caps.hasColor);
+	const hasColorTemp = $derived(caps.hasColorTemp);
+	const hasPopover = $derived(hasColor || hasColorTemp);
 
 	interface CommandInput {
 		on?: boolean;
-		brightness?: number;
 		colorTemp?: number;
 		color?: { r: number; g: number; b: number; x: number; y: number };
 	}
@@ -57,25 +59,11 @@
 		send({ on: checked });
 	}
 
-	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 	const colorTempThrottle: Throttle = { lastSent: 0, trailing: null };
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 
-	let localBrightness = $state(127);
-
-	$effect(() => {
-		if (!brightnessThrottle.trailing && device.state?.brightness != null) {
-			localBrightness = device.state.brightness;
-		}
-	});
-
 	function autoOn(): { on: true } | Record<string, never> {
 		return device.state?.on ? {} : { on: true };
-	}
-
-	function handleBrightnessChange(val: number) {
-		localBrightness = val;
-		throttle(brightnessThrottle, () => send({ ...autoOn(), brightness: val }));
 	}
 
 	function handleColorTempChange(val: number) {
@@ -132,34 +120,40 @@
 		<PopoverTrigger class="inline-flex h-8 items-center">
 			<Tooltip>
 				<TooltipTrigger class="inline-flex h-8 items-center">
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						aria-label={`Adjust ${device.name}`}
-						disabled={!device.available}
-					>
-						<Palette class="size-4" />
-					</Button>
+					{#if variant === "swatch"}
+						<button
+							type="button"
+							aria-label={`Adjust ${device.name}`}
+							disabled={!device.available}
+							class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+						>
+							<HiveColorSwatch color={deviceTint(device)} />
+						</button>
+					{:else}
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label={`Adjust ${device.name}`}
+							disabled={!device.available}
+						>
+							<Palette class="size-4" />
+						</Button>
+					{/if}
 				</TooltipTrigger>
 				<TooltipContent>Adjust</TooltipContent>
 			</Tooltip>
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-4" align="end">
-			{#if hasBrightness || hasColor || hasColorTemp}
-				<div class="space-y-2">
-					<LightColorPicker
-						color={device.state?.color ?? null}
-						colorTemp={device.state?.colorTemp ?? null}
-						brightness={localBrightness}
-						{hasColor}
-						{hasColorTemp}
-						{hasBrightness}
-						oncolorchange={handleColorChange}
-						ontempchange={handleColorTempChange}
-						onbrightnesschange={handleBrightnessChange}
-					/>
-				</div>
-			{/if}
+			<div class="space-y-2">
+				<LightColorPicker
+					color={device.state?.color ?? null}
+					colorTemp={device.state?.colorTemp ?? null}
+					{hasColor}
+					{hasColorTemp}
+					oncolorchange={handleColorChange}
+					ontempchange={handleColorTempChange}
+				/>
+			</div>
 		</PopoverContent>
 	</Popover>
 {/if}
