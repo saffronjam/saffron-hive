@@ -8,11 +8,11 @@ import (
 
 func TestClientIPMiddlewareTrustsProxyHeaders(t *testing.T) {
 	cases := []struct {
-		name    string
-		realIP  string
-		fwd     string
-		remote  string
-		want    string
+		name   string
+		realIP string
+		fwd    string
+		remote string
+		want   string
 	}{
 		{name: "x-real-ip wins", realIP: "203.0.113.5", fwd: "10.0.0.1", remote: "127.0.0.1:443", want: "203.0.113.5"},
 		{name: "leftmost x-forwarded-for", fwd: "198.51.100.42, 10.0.0.1, 10.0.0.2", remote: "127.0.0.1:443", want: "198.51.100.42"},
