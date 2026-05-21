@@ -90,9 +90,11 @@ func deleteUserForTest(t *testing.T, id string) {
 
 // clearForcedChangeForTest completes the forced first-login password change for
 // the user holding the given token, setting their password to newPassword and
-// clearing the must_change_password flag. Use after createUserForTest +
-// loginForTest in tests that exercise behaviour beyond the forced-change flow.
-func clearForcedChangeForTest(t *testing.T, token, newPassword string) {
+// clearing the must_change_password flag. Returns a freshly-signed token —
+// completeFirstPasswordChange bumps the user's token_version (Unit 5 / M1),
+// so the input token is invalidated by the mutation it just performed and
+// callers must re-login to keep operating.
+func clearForcedChangeForTest(t *testing.T, username, token, newPassword string) string {
 	t.Helper()
 	gr, _ := rawPost(t, token,
 		`mutation($p: String!) { completeFirstPasswordChange(newPassword: $p) }`,
@@ -101,6 +103,7 @@ func clearForcedChangeForTest(t *testing.T, token, newPassword string) {
 	if len(gr.Errors) > 0 {
 		t.Fatalf("clearForcedChange: %v", gr.Errors)
 	}
+	return loginForTest(t, username, newPassword)
 }
 
 func TestCreateUserRequiresAuth(t *testing.T) {
@@ -127,8 +130,10 @@ func TestChangePasswordFlow(t *testing.T) {
 
 	tok := loginForTest(t, "cpw", "Original123x")
 	// Admin-created users start with must_change_password set; complete that
-	// flow first so the regular changePassword mutation is reachable.
-	clearForcedChangeForTest(t, tok, "Original123x")
+	// flow first so the regular changePassword mutation is reachable. The
+	// helper returns a fresh token because completeFirstPasswordChange bumps
+	// token_version.
+	tok = clearForcedChangeForTest(t, "cpw", tok, "Original123x")
 
 	// Wrong old password fails.
 	gr, _ := rawPost(t, tok,
@@ -245,7 +250,7 @@ func TestDeletedUserCannotLogin(t *testing.T) {
 func TestCreatedByPreservedAsNullAfterDelete(t *testing.T) {
 	creator := createUserForTest(t, "creator1", "The Creator", "CreatorPw123")
 	creatorTok := loginForTest(t, "creator1", "CreatorPw123")
-	clearForcedChangeForTest(t, creatorTok, "CreatorPw123")
+	creatorTok = clearForcedChangeForTest(t, "creator1", creatorTok, "CreatorPw123")
 
 	// Creator creates a scene; createdBy should reference creator.
 	data, _ := rawPost(t, creatorTok,
@@ -372,6 +377,11 @@ func TestCompleteFirstPasswordChangeClearsFlag(t *testing.T) {
 	if len(gr.Errors) > 0 {
 		t.Fatalf("completeFirstPasswordChange: %v", gr.Errors)
 	}
+
+	// completeFirstPasswordChange bumps token_version (Unit 5 / M1), so the
+	// pre-change token is now revoked. Re-login with the new password to keep
+	// exercising authenticated paths.
+	tok = loginForTest(t, "mcpw3", "NewPassword999")
 
 	if meMustChangePasswordForToken(t, tok) {
 		t.Fatal("mustChangePassword should be cleared after completeFirstPasswordChange")
