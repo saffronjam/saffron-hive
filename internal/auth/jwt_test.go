@@ -8,7 +8,7 @@ import (
 
 func TestSignParseRoundtrip(t *testing.T) {
 	svc := NewService([]byte("test-secret"), time.Hour)
-	tok, err := svc.Sign("user-1", "alice", "Alice")
+	tok, err := svc.Sign("user-1", "alice", "Alice", 0)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestSignParseRoundtrip(t *testing.T) {
 
 func TestParseRejectsExpired(t *testing.T) {
 	svc := NewService([]byte("s"), -time.Hour)
-	tok, err := svc.Sign("u", "u", "U")
+	tok, err := svc.Sign("u", "u", "U", 0)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -38,10 +38,25 @@ func TestParseRejectsExpired(t *testing.T) {
 	}
 }
 
+func TestSignParsePreservesTokenVersion(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	tok, err := svc.Sign("u-1", "alice", "Alice", 7)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	claims, err := svc.Parse(tok)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if claims.TokenVersion != 7 {
+		t.Errorf("TokenVersion = %d, want 7", claims.TokenVersion)
+	}
+}
+
 func TestParseRejectsTamperedSignature(t *testing.T) {
 	svcA := NewService([]byte("secret-a"), time.Hour)
 	svcB := NewService([]byte("secret-b"), time.Hour)
-	tok, err := svcA.Sign("u", "u", "U")
+	tok, err := svcA.Sign("u", "u", "U", 0)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}

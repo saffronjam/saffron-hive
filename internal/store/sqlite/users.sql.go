@@ -23,6 +23,20 @@ func (q *Queries) BatchDeleteUsers(ctx context.Context, idsJson string) (int64, 
 	return result.RowsAffected()
 }
 
+const bumpUserTokenVersion = `-- name: BumpUserTokenVersion :exec
+UPDATE users SET token_version = token_version + 1 WHERE id = ?
+`
+
+// Invalidates every JWT previously issued for this user by incrementing the
+// token_version column. The auth middleware refuses tokens whose embedded
+// version no longer matches the row, so existing sessions are revoked the
+// next time they hit the API. Bumped automatically on password change /
+// reset, and exposed via forceLogoutAllSessions for explicit revocation.
+func (q *Queries) BumpUserTokenVersion(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, bumpUserTokenVersion, id)
+	return err
+}
+
 const clearUserAvatar = `-- name: ClearUserAvatar :exec
 UPDATE users SET avatar_path = NULL WHERE id = ?
 `
@@ -144,7 +158,7 @@ func (q *Queries) GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) (
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
 FROM users
 WHERE id = ?
 `
@@ -159,6 +173,7 @@ type GetUserByIDRow struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	MustChangePassword bool
+	TokenVersion       int64
 	CreatedAt          time.Time
 }
 
@@ -175,13 +190,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 		&i.TimeFormat,
 		&i.TemperatureUnit,
 		&i.MustChangePassword,
+		&i.TokenVersion,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
 FROM users
 WHERE username = ?
 `
@@ -196,6 +212,7 @@ type GetUserByUsernameRow struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	MustChangePassword bool
+	TokenVersion       int64
 	CreatedAt          time.Time
 }
 
@@ -212,13 +229,14 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.TimeFormat,
 		&i.TemperatureUnit,
 		&i.MustChangePassword,
+		&i.TokenVersion,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
 FROM users
 ORDER BY created_at ASC
 `
@@ -233,6 +251,7 @@ type ListUsersRow struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	MustChangePassword bool
+	TokenVersion       int64
 	CreatedAt          time.Time
 }
 
@@ -255,6 +274,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.TimeFormat,
 			&i.TemperatureUnit,
 			&i.MustChangePassword,
+			&i.TokenVersion,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

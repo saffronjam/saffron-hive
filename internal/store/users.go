@@ -37,6 +37,7 @@ func (s *DB) GetUserByID(ctx context.Context, id string) (User, error) {
 		TimeFormat:         row.TimeFormat,
 		TemperatureUnit:    row.TemperatureUnit,
 		MustChangePassword: row.MustChangePassword,
+		TokenVersion:       row.TokenVersion,
 		CreatedAt:          row.CreatedAt,
 	}, nil
 }
@@ -57,6 +58,7 @@ func (s *DB) GetUserByUsername(ctx context.Context, username string) (User, erro
 		TimeFormat:         row.TimeFormat,
 		TemperatureUnit:    row.TemperatureUnit,
 		MustChangePassword: row.MustChangePassword,
+		TokenVersion:       row.TokenVersion,
 		CreatedAt:          row.CreatedAt,
 	}, nil
 }
@@ -79,10 +81,21 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 			TimeFormat:         row.TimeFormat,
 			TemperatureUnit:    row.TemperatureUnit,
 			MustChangePassword: row.MustChangePassword,
+			TokenVersion:       row.TokenVersion,
 			CreatedAt:          row.CreatedAt,
 		})
 	}
 	return users, nil
+}
+
+// BumpUserTokenVersion increments the user's token_version, invalidating every
+// JWT previously issued for them. The auth middleware compares the version
+// embedded in the token against this column on each request.
+func (s *DB) BumpUserTokenVersion(ctx context.Context, id string) error {
+	if err := s.q.BumpUserTokenVersion(ctx, id); err != nil {
+		return fmt.Errorf("bump user token version: %w", err)
+	}
+	return nil
 }
 
 // CountUsers returns the total number of users.

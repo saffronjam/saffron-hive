@@ -22,6 +22,12 @@ type Querier interface {
 	BatchDeleteRooms(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
+	// Invalidates every JWT previously issued for this user by incrementing the
+	// token_version column. The auth middleware refuses tokens whose embedded
+	// version no longer matches the row, so existing sessions are revoked the
+	// next time they hit the API. Bumped automatically on password change /
+	// reset, and exposed via forceLogoutAllSessions for explicit revocation.
+	BumpUserTokenVersion(ctx context.Context, id string) error
 	ClearAutomationIcon(ctx context.Context, id string) error
 	ClearDeviceIcon(ctx context.Context, id device.DeviceID) error
 	ClearEffectIcon(ctx context.Context, id string) error

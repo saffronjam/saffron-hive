@@ -169,3 +169,43 @@ func TestCreatedByJoinOnScene(t *testing.T) {
 		t.Errorf("expected nil CreatedBy for NULL creator, got %+v", scNoOwner.CreatedBy)
 	}
 }
+
+func TestBumpUserTokenVersion(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u, err := s.CreateUser(ctx, CreateUserParams{
+		ID: "u-1", Username: "alice", Name: "Alice", PasswordHash: "h",
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	if u.TokenVersion != 0 {
+		t.Errorf("fresh user token_version = %d, want 0", u.TokenVersion)
+	}
+
+	if err := s.BumpUserTokenVersion(ctx, u.ID); err != nil {
+		t.Fatalf("first bump: %v", err)
+	}
+	if err := s.BumpUserTokenVersion(ctx, u.ID); err != nil {
+		t.Fatalf("second bump: %v", err)
+	}
+
+	got, err := s.GetUserByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("get after bumps: %v", err)
+	}
+	if got.TokenVersion != 2 {
+		t.Errorf("token_version after two bumps = %d, want 2", got.TokenVersion)
+	}
+
+	other, err := s.CreateUser(ctx, CreateUserParams{
+		ID: "u-2", Username: "bob", Name: "Bob", PasswordHash: "h",
+	})
+	if err != nil {
+		t.Fatalf("create second user: %v", err)
+	}
+	if other.TokenVersion != 0 {
+		t.Errorf("second user token_version = %d, want 0 (bump is per-user)", other.TokenVersion)
+	}
+}

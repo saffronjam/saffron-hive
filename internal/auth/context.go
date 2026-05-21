@@ -13,6 +13,7 @@ type CtxUser struct {
 	Username           string
 	Name               string
 	MustChangePassword bool
+	TokenVersion       int64
 }
 
 type ctxKey struct{}

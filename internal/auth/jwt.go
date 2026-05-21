@@ -14,10 +14,16 @@ var ErrInvalidToken = errors.New("invalid token")
 // Claims carries the authenticated user's identity across the JWT boundary.
 // Username and Name are denormalized into the token so resolvers and the
 // frontend can render attribution without an extra DB lookup on every request.
+//
+// TokenVersion is compared against the user row's token_version column on
+// every authenticated request. Bumping the column (e.g. on password change or
+// force-logout) invalidates every token previously issued for that user, since
+// their embedded version no longer matches.
 type Claims struct {
-	UserID   string `json:"sub"`
-	Username string `json:"username"`
-	Name     string `json:"name"`
+	UserID       string `json:"sub"`
+	Username     string `json:"username"`
+	Name         string `json:"name"`
+	TokenVersion int64  `json:"tv"`
 	jwt.RegisteredClaims
 }
 
@@ -35,13 +41,16 @@ func NewService(secret []byte, ttl time.Duration) *Service {
 // TTL returns the token lifetime currently configured on the service.
 func (s *Service) TTL() time.Duration { return s.ttl }
 
-// Sign produces a signed JWT for the given user.
-func (s *Service) Sign(userID, username, name string) (string, error) {
+// Sign produces a signed JWT for the given user. tokenVersion must match the
+// user row's current token_version, so middleware can reject tokens whose
+// version has been bumped (password change, force-logout).
+func (s *Service) Sign(userID, username, name string, tokenVersion int64) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID:   userID,
-		Username: username,
-		Name:     name,
+		UserID:       userID,
+		Username:     username,
+		Name:         name,
+		TokenVersion: tokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),

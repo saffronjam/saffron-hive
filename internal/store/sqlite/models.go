@@ -224,6 +224,7 @@ type User struct {
 	MustChangePassword bool
 	TimeFormat         string
 	TemperatureUnit    string
+	TokenVersion       int64
 }
 
 type ZigbeeDevice struct {

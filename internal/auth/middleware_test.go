@@ -129,7 +129,7 @@ func TestMiddlewarePassesThroughInvalidToken(t *testing.T) {
 
 func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
-	tok, err := svc.Sign("u-1", "alice", "Alice")
+	tok, err := svc.Sign("u-1", "alice", "Alice", 0)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -169,6 +169,40 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	}
 }
 
+// TestMiddlewareRejectsStaleTokenVersion pins the M1 revocation behaviour:
+// once a user's token_version is bumped (password change, force-logout), any
+// JWT signed against the old version is treated like no token at all — the
+// request falls through with no user attached, and the @auth directive
+// rejects whatever protected field was asked for.
+func TestMiddlewareRejectsStaleTokenVersion(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	// Token claims version 0; user row is on version 1.
+	tok, err := svc.Sign("u-1", "alice", "Alice", 0)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	h := &testHandler{}
+	wrapped := Middleware(svc, lookupWith(store.User{
+		ID: "u-1", Username: "alice", Name: "Alice", TokenVersion: 1,
+	}))(h)
+
+	req := gqlRequest(t, "scenes")
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, req)
+
+	if !h.called {
+		t.Fatal("downstream handler must run for the directive to reject")
+	}
+	if h.hasUser {
+		t.Error("stale-version token must not attach a user")
+	}
+	if rec.Header().Get(RefreshedTokenHeader) != "" {
+		t.Error("stale-version token must not be refreshed")
+	}
+}
+
 // TestMiddlewareDeletedUserPassesThroughWithoutUser pins the deleted-user
 // behaviour to the new model: a token whose user no longer exists in the DB
 // is treated as no token at all — the request flows through, no user is
@@ -176,7 +210,7 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 // asked for.
 func TestMiddlewareDeletedUserPassesThroughWithoutUser(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
-	tok, err := svc.Sign("u-gone", "alice", "Alice")
+	tok, err := svc.Sign("u-gone", "alice", "Alice", 0)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}

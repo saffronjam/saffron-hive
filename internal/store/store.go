@@ -408,7 +408,9 @@ type CreateUserParams struct {
 	MustChangePassword bool
 }
 
-// User represents a user row.
+// User represents a user row. TokenVersion is bumped on password change,
+// password reset, or explicit force-logout — the auth middleware compares it
+// against the value embedded in the JWT and refuses mismatched tokens.
 type User struct {
 	ID                 string
 	Username           string
@@ -419,6 +421,7 @@ type User struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	MustChangePassword bool
+	TokenVersion       int64
 	CreatedAt          time.Time
 }
 

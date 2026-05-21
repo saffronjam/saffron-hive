@@ -3,17 +3,17 @@ INSERT INTO users (id, username, name, password_hash, must_change_password)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
 FROM users
 WHERE username = ?;
 
 -- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
 FROM users
 ORDER BY created_at ASC;
 
@@ -64,3 +64,11 @@ SELECT avatar_path FROM users WHERE id = ?;
 -- name: GetUserAvatarPathsByIDs :many
 SELECT id, avatar_path FROM users
 WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
+-- name: BumpUserTokenVersion :exec
+-- Invalidates every JWT previously issued for this user by incrementing the
+-- token_version column. The auth middleware refuses tokens whose embedded
+-- version no longer matches the row, so existing sessions are revoked the
+-- next time they hit the API. Bumped automatically on password change /
+-- reset, and exposed via forceLogoutAllSessions for explicit revocation.
+UPDATE users SET token_version = token_version + 1 WHERE id = ?;

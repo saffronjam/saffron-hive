@@ -49,7 +49,7 @@ func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler
 				return
 			}
 
-			if fresh, signErr := svc.Sign(user.ID, user.Username, user.Name); signErr == nil {
+			if fresh, signErr := svc.Sign(user.ID, user.Username, user.Name, user.TokenVersion); signErr == nil {
 				w.Header().Set(RefreshedTokenHeader, fresh)
 				w.Header().Add("Access-Control-Expose-Headers", RefreshedTokenHeader)
 			}
@@ -89,11 +89,15 @@ func authenticate(r *http.Request, svc *Service, lookup UserLookup) (CtxUser, er
 	if err != nil {
 		return CtxUser{}, errStr("user not found")
 	}
+	if claims.TokenVersion != u.TokenVersion {
+		return CtxUser{}, errStr("session revoked")
+	}
 	return CtxUser{
 		ID:                 u.ID,
 		Username:           u.Username,
 		Name:               u.Name,
 		MustChangePassword: u.MustChangePassword,
+		TokenVersion:       u.TokenVersion,
 	}, nil
 }
 
