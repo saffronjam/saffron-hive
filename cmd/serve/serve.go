@@ -11,12 +11,15 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/gorilla/websocket"
 	"github.com/google/uuid"
 	"os"
 
@@ -80,6 +83,18 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("load jwt secret: %w", err)
 	}
 	authSvc := auth.NewService(secret, auth.LoadTTL(ctx, sqlStore))
+	loginLimiter := auth.NewLoginLimiter(auth.LoginLimiterConfig{})
+
+	bootstrapTokenStore := NewBootstrapTokenStore(filepath.Join(cfg.DataDir, "bootstrap.token"))
+	if userCount, err := sqlStore.CountUsers(ctx); err != nil {
+		serveLogger.Warn("count users for bootstrap token check failed", "error", err)
+	} else if userCount == 0 {
+		if tok, err := bootstrapTokenStore.EnsureGenerated(); err != nil {
+			serveLogger.Error("generate bootstrap token failed", "error", err)
+		} else {
+			serveLogger.Info("bootstrap token", "token", tok, "path", filepath.Join(cfg.DataDir, "bootstrap.token"))
+		}
+	}
 
 	mqttCfg, err := sqlStore.GetMQTTConfig(ctx)
 	if err != nil {
@@ -143,6 +158,7 @@ func Run(ctx context.Context) error {
 	)
 	spawn("history.recorder", func() { history.RunRecorder(ctx, bus, sqlStore) })
 	spawn("device.persister", func() { runDevicePersister(ctx, bus, deviceCh, sqlStore) })
+	spawn("auth.login_limiter", func() { loginLimiter.Run(ctx) })
 
 	activityBuffer := activity.NewBuffer()
 	roomCache := activity.NewRoomCache(sqlStore)
@@ -214,6 +230,8 @@ func Run(ctx context.Context) error {
 		Reconnector:         mgr,
 		EffectRunner:        effectRunner,
 		Auth:                authSvc,
+		LoginLimiter:        loginLimiter,
+		BootstrapToken:      bootstrapTokenStore,
 		AvatarDir:           avatarDir,
 	}
 
@@ -227,10 +245,23 @@ func Run(ctx context.Context) error {
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{
 		InitFunc: wsInitFunc(authSvc, sqlStore),
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: originChecker(cfg.AllowedOrigins),
+		},
 	})
+	gqlSrv.Use(extension.FixedComplexityLimit(MaxQueryComplexity))
+	gqlSrv.Use(OperationLimitsExtension{
+		MaxAliasesPerOperation:   MaxAliasesPerOperation,
+		MaxOperationsPerDocument: MaxOperationsPerDocument,
+	})
+	gqlSrv.SetErrorPresenter(graph.ErrorPresenter)
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", auth.Middleware(authSvc, sqlStore)(gqlSrv))
+	mux.Handle("/graphql", auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(
+		auth.RequestGuard(auth.MaxGraphQLRequestBytes)(
+			auth.Middleware(authSvc, sqlStore)(gqlSrv),
+		),
+	))
 	mux.Handle("/api/avatars", auth.RequireAuth(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
 	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -247,9 +278,18 @@ func Run(ctx context.Context) error {
 	}
 	mux.Handle("/", spaFallbackHandler(staticFS))
 
+	var indexHTML []byte
+	if b, err := fs.ReadFile(staticFS, "index.html"); err == nil {
+		indexHTML = b
+	}
+	inlineScriptHashes := computeInlineScriptHashes(indexHTML)
+	if len(inlineScriptHashes) == 0 {
+		serveLogger.Warn("no inline script hashes computed for CSP — strict CSP will block the SPA bootstrap")
+	}
+
 	srv := &http.Server{
 		Addr:    cfg.ListenAddr,
-		Handler: mux,
+		Handler: SecurityHeaders(inlineScriptHashes)(mux),
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx
 		},
@@ -334,11 +374,15 @@ func wsInitFunc(svc *auth.Service, lookup auth.UserLookup) transport.WebsocketIn
 		if err != nil {
 			return ctx, nil, errors.New("user not found")
 		}
+		if claims.TokenVersion != u.TokenVersion {
+			return ctx, nil, errors.New("session revoked")
+		}
 		authedCtx := auth.WithUser(ctx, auth.CtxUser{
 			ID:                 u.ID,
 			Username:           u.Username,
 			Name:               u.Name,
 			MustChangePassword: u.MustChangePassword,
+			TokenVersion:       u.TokenVersion,
 		})
 		return authedCtx, nil, nil
 	}
