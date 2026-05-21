@@ -31,6 +31,14 @@ type MQTTReconnector interface {
 	Reconnect(ctx context.Context) error
 }
 
+// BootstrapTokenChecker guards the first-boot createInitialUser flow. Implemented
+// by serve.BootstrapTokenStore; declared here as a narrow interface so the graph
+// package does not depend on cmd/.
+type BootstrapTokenChecker interface {
+	Read() (string, error)
+	ConsumeAndDelete() error
+}
+
 // EffectRunner is the narrow interface the GraphQL layer uses to start and
 // stop effect runs. *effect.Runner satisfies it implicitly.
 type EffectRunner interface {
@@ -134,6 +142,7 @@ type GraphStore interface {
 	BatchDeleteUsers(ctx context.Context, ids []string) (int64, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
 	GetUserAvatarPathsByIDs(ctx context.Context, ids []string) (map[string]string, error)
+	BumpUserTokenVersion(ctx context.Context, id string) error
 }
 
 // Resolver is the root resolver that holds all dependencies required by the
@@ -153,6 +162,8 @@ type Resolver struct {
 	Reconnector         MQTTReconnector
 	EffectRunner        EffectRunner
 	Auth                *auth.Service
+	LoginLimiter        *auth.LoginLimiter
+	BootstrapToken      BootstrapTokenChecker
 	// AvatarDir is the filesystem directory where per-user avatar files live.
 	// Used by deleteUser to remove the file alongside the row.
 	AvatarDir string

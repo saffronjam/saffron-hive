@@ -826,6 +826,18 @@ func (m *mockStore) SetUserMustChangePassword(_ context.Context, id string, flag
 	return nil
 }
 
+func (m *mockStore) BumpUserTokenVersion(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[id]
+	if !ok {
+		return fmt.Errorf("user %q not found", id)
+	}
+	u.TokenVersion++
+	m.users[id] = u
+	return nil
+}
+
 func (m *mockStore) DeleteUser(_ context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

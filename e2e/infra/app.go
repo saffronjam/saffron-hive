@@ -150,7 +150,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("create e2e user: %w", err)
 	}
-	token, err := authSvc.Sign(seedUserID, "e2e", "E2E")
+	token, err := authSvc.Sign(seedUserID, "e2e", "E2E", 0)
 	if err != nil {
 		adapter.Stop()
 		cancel()

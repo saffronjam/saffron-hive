@@ -488,6 +488,13 @@ input CreateInitialUserInput {
   username: String!
   name: String!
   password: String!
+  """
+  Bootstrap token generated on first boot and written to
+  `<data dir>/bootstrap.token` (also logged to stdout). Required so a stranger
+  who happens to hit the URL before the operator finishes setup cannot claim
+  the initial admin account.
+  """
+  bootstrapToken: String!
 }
 
 input CreateUserInput {
@@ -827,6 +834,15 @@ type Mutation {
   """
   completeFirstPasswordChange(newPassword: String!): Boolean! @auth
   resetUserPassword(id: ID!, newPassword: String!): Boolean! @auth
+  """
+  Invalidates every JWT issued for the given user by bumping their
+  token_version. When userId is null the caller's own tokens are
+  invalidated, which logs them out of every device — useful when a session
+  may have been compromised. The current request still completes; the
+  next API call from any device (including this one) returns
+  UNAUTHENTICATED and forces a fresh login.
+  """
+  forceLogoutAllSessions(userId: ID): Boolean! @auth
   deleteUser(id: ID!): Boolean! @auth
   raiseAlarm(input: RaiseAlarmInput!): Alarm! @auth
   deleteAlarm(alarmId: ID!): Boolean! @auth

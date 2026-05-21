@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -630,12 +631,29 @@ func (r *mutationResolver) RemoveRoomMember(ctx context.Context, id string) (boo
 	return true, nil
 }
 
-// UpdateMqttConfig is the resolver for the updateMqttConfig field.
+// UpdateMqttConfig persists a new broker configuration. When the incoming
+// password is the redacted sentinel the existing stored password is preserved
+// — the read-side MqttConfig resolver returns the sentinel whenever a
+// password is set, so the frontend can submit the form without forcing the
+// user to retype the password they cannot see.
 func (r *mutationResolver) UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error) {
+	password := input.Password
+	if password == redactedPasswordSentinel {
+		existing, err := r.Store.GetMQTTConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			password = existing.Password
+		} else {
+			password = ""
+		}
+	}
+
 	if err := r.Store.UpsertMQTTConfig(ctx, store.MQTTConfig{
 		Broker:   input.Broker,
 		Username: input.Username,
-		Password: input.Password,
+		Password: password,
 		UseWSS:   input.UseWss,
 	}); err != nil {
 		return nil, err
@@ -645,20 +663,38 @@ func (r *mutationResolver) UpdateMqttConfig(ctx context.Context, input model.Mqt
 		return nil, fmt.Errorf("saved config but failed to reconnect: %w", err)
 	}
 
+	masked := ""
+	if password != "" {
+		masked = redactedPasswordSentinel
+	}
 	return &model.MqttConfig{
 		Broker:   input.Broker,
 		Username: input.Username,
-		Password: input.Password,
+		Password: masked,
 		UseWss:   input.UseWss,
 	}, nil
 }
 
-// TestMqttConnection is the resolver for the testMqttConnection field.
+// TestMqttConnection is the resolver for the testMqttConnection field. Treats
+// the redacted-password sentinel the same as updateMqttConfig: substitute the
+// stored value so the user can verify a config without retyping the password.
 func (r *mutationResolver) TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error) {
+	password := input.Password
+	if password == redactedPasswordSentinel {
+		existing, err := r.Store.GetMQTTConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			password = existing.Password
+		} else {
+			password = ""
+		}
+	}
 	client := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   input.Broker,
 		Username: input.Username,
-		Password: input.Password,
+		Password: password,
 		UseWSS:   input.UseWss,
 		ClientID: "saffron-hive-test",
 	})
@@ -698,21 +734,47 @@ func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value 
 	return &model.Setting{Key: key, Value: value}, nil
 }
 
-// Login is the resolver for the login field.
+// Login is the resolver for the login field. Every attempt passes through the
+// per-(ip, username) LoginLimiter before any DB or bcrypt work — this defeats
+// the alias-batching brute-force where one HTTP request packs many login
+// mutations. The no-such-user branch deliberately spends bcrypt time against a
+// dummy hash so request duration cannot leak whether a username exists.
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error) {
-	u, err := r.Store.GetUserByUsername(ctx, strings.TrimSpace(input.Username))
+	ip := auth.ClientIPFromContext(ctx)
+	username := strings.TrimSpace(input.Username)
+	now := time.Now()
+
+	if r.LoginLimiter != nil {
+		if ok, retry := r.LoginLimiter.Allow(ip, username, now); !ok {
+			return nil, fmt.Errorf("too many login attempts; try again in %s", retry.Round(time.Second))
+		}
+	}
+
+	u, err := r.Store.GetUserByUsername(ctx, username)
 	if err != nil {
+		_ = auth.VerifyPassword(auth.DummyBcryptHash, input.Password)
+		if r.LoginLimiter != nil {
+			r.LoginLimiter.RecordFailure(ip, username, now)
+		}
 		return nil, fmt.Errorf("invalid username or password")
 	}
 	if err := auth.VerifyPassword(u.PasswordHash, input.Password); err != nil {
+		if r.LoginLimiter != nil {
+			r.LoginLimiter.RecordFailure(ip, username, now)
+		}
 		return nil, fmt.Errorf("invalid username or password")
+	}
+	if r.LoginLimiter != nil {
+		r.LoginLimiter.RecordSuccess(ip, username)
 	}
 	return signAuthPayload(r.Auth, u)
 }
 
 // CreateInitialUser is the resolver for the createInitialUser field. It is
-// allowed only when the users table is empty — this is the first-boot
-// bootstrap path reached via /setup.
+// allowed only when the users table is empty and the caller presents the
+// bootstrap token that was generated on first boot. Without the token the
+// public createInitialUser endpoint would be a first-stranger-to-the-URL
+// land-grab on any internet-exposed deploy.
 func (r *mutationResolver) CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error) {
 	count, err := r.Store.CountUsers(ctx)
 	if err != nil {
@@ -721,9 +783,22 @@ func (r *mutationResolver) CreateInitialUser(ctx context.Context, input model.Cr
 	if count > 0 {
 		return nil, fmt.Errorf("initial user already exists")
 	}
+	if r.BootstrapToken == nil {
+		return nil, fmt.Errorf("bootstrap token store unavailable")
+	}
+	expected, err := r.BootstrapToken.Read()
+	if err != nil {
+		return nil, fmt.Errorf("bootstrap token unavailable")
+	}
+	if subtle.ConstantTimeCompare([]byte(input.BootstrapToken), []byte(expected)) != 1 {
+		return nil, fmt.Errorf("invalid bootstrap token")
+	}
 	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password, false)
 	if err != nil {
 		return nil, err
+	}
+	if err := r.BootstrapToken.ConsumeAndDelete(); err != nil {
+		graphLogger.Warn("failed to delete consumed bootstrap token", "error", err)
 	}
 	return signAuthPayload(r.Auth, u)
 }
@@ -804,6 +879,9 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 	if err := r.Store.UpdateUserPasswordHash(ctx, cu.ID, hash); err != nil {
 		return false, err
 	}
+	if err := r.Store.BumpUserTokenVersion(ctx, cu.ID); err != nil {
+		return false, fmt.Errorf("invalidate prior sessions: %w", err)
+	}
 	return true, nil
 }
 
@@ -825,6 +903,11 @@ func (r *mutationResolver) CompleteFirstPasswordChange(ctx context.Context, newP
 	n, err := r.Store.CompleteFirstPasswordChange(ctx, cu.ID, hash)
 	if err != nil {
 		return false, err
+	}
+	if n > 0 {
+		if err := r.Store.BumpUserTokenVersion(ctx, cu.ID); err != nil {
+			return false, fmt.Errorf("invalidate prior sessions: %w", err)
+		}
 	}
 	return n > 0, nil
 }
@@ -853,6 +936,32 @@ func (r *mutationResolver) ResetUserPassword(ctx context.Context, id string, new
 		return false, err
 	}
 	if err := r.Store.SetUserMustChangePassword(ctx, id, true); err != nil {
+		return false, err
+	}
+	if err := r.Store.BumpUserTokenVersion(ctx, id); err != nil {
+		return false, fmt.Errorf("invalidate prior sessions: %w", err)
+	}
+	return true, nil
+}
+
+// ForceLogoutAllSessions bumps a user's token_version so every previously
+// issued JWT for them is rejected by the auth middleware. When userID is nil
+// the caller's own tokens are invalidated. With roles still pending, any
+// authenticated caller can force-logout any user — matching the project's
+// "all auth = admin" posture; revisit when role gating lands.
+func (r *mutationResolver) ForceLogoutAllSessions(ctx context.Context, userID *string) (bool, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return false, fmt.Errorf("authentication required")
+	}
+	target := cu.ID
+	if userID != nil && *userID != "" {
+		if _, err := r.Store.GetUserByID(ctx, *userID); err != nil {
+			return false, fmt.Errorf("load target user: %w", err)
+		}
+		target = *userID
+	}
+	if err := r.Store.BumpUserTokenVersion(ctx, target); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -1626,7 +1735,11 @@ func (r *queryResolver) StateHistoryFields(ctx context.Context) ([]string, error
 	return out, nil
 }
 
-// MqttConfig is the resolver for the mqttConfig field.
+// MqttConfig returns the persisted broker configuration. The password is
+// redacted to a sentinel so a leaked session token cannot pivot into broker
+// credentials by reading this query — the frontend treats the field as
+// write-only, only including a new value in updateMqttConfig when the user
+// has actually typed one.
 func (r *queryResolver) MqttConfig(ctx context.Context) (*model.MqttConfig, error) {
 	cfg, err := r.Store.GetMQTTConfig(ctx)
 	if err != nil {
@@ -1635,10 +1748,14 @@ func (r *queryResolver) MqttConfig(ctx context.Context) (*model.MqttConfig, erro
 	if cfg == nil {
 		return nil, nil
 	}
+	masked := ""
+	if cfg.Password != "" {
+		masked = redactedPasswordSentinel
+	}
 	return &model.MqttConfig{
 		Broker:   cfg.Broker,
 		Username: cfg.Username,
-		Password: cfg.Password,
+		Password: masked,
 		UseWss:   cfg.UseWSS,
 	}, nil
 }

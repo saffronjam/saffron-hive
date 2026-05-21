@@ -191,7 +191,7 @@ func createUserRow(ctx context.Context, s GraphStore, username, name, password s
 }
 
 func signAuthPayload(svc *auth.Service, u store.User) (*model.AuthPayload, error) {
-	token, err := svc.Sign(u.ID, u.Username, u.Name)
+	token, err := svc.Sign(u.ID, u.Username, u.Name, u.TokenVersion)
 	if err != nil {
 		return nil, fmt.Errorf("sign token: %w", err)
 	}
@@ -492,11 +492,40 @@ func temperatureUnitToStore(t model.TemperatureUnit) string {
 	}
 }
 
-// validatePassword enforces the minimum-length rule shared by every path that
-// accepts a new password (createUser, changePassword, resetUserPassword).
+// MinPasswordLen is the minimum length for any password accepted by the
+// password-setting mutations. Mirrored on the frontend setup form; bump both
+// sides together.
+const MinPasswordLen = 10
+
+// redactedPasswordSentinel is the literal that MqttConfig returns in place of
+// the stored broker password. The updateMqttConfig mutation accepts it as
+// "leave the existing value alone" so the frontend can submit the form
+// without forcing a re-entry of a password the user cannot see.
+const redactedPasswordSentinel = "********"
+
+// validatePassword enforces length and basic complexity rules shared by every
+// path that accepts a new password (createUser, changePassword,
+// resetUserPassword, completeFirstPasswordChange). Length 12 with at least
+// one upper, lower, and digit is the household-deployment baseline — strong
+// enough to defeat dictionary attacks once the login rate-limiter is in place,
+// while still typeable by a non-expert family member.
 func validatePassword(pw string) error {
-	if len(pw) < 6 {
-		return fmt.Errorf("password must be at least 6 characters")
+	if len(pw) < MinPasswordLen {
+		return fmt.Errorf("password must be at least %d characters", MinPasswordLen)
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, r := range pw {
+		switch {
+		case 'A' <= r && r <= 'Z':
+			hasUpper = true
+		case 'a' <= r && r <= 'z':
+			hasLower = true
+		case '0' <= r && r <= '9':
+			hasDigit = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return fmt.Errorf("password must include uppercase, lowercase, and a digit")
 	}
 	return nil
 }

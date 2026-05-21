@@ -292,6 +292,7 @@ type ComplexityRoot struct {
 		DeleteScene                 func(childComplexity int, id string) int
 		DeleteUser                  func(childComplexity int, id string) int
 		FireAutomationTrigger       func(childComplexity int, automationID string, nodeID string) int
+		ForceLogoutAllSessions      func(childComplexity int, userID *string) int
 		Login                       func(childComplexity int, input model.LoginInput) int
 		RaiseAlarm                  func(childComplexity int, input model.RaiseAlarmInput) int
 		RemoveGroupMember           func(childComplexity int, id string) int
@@ -475,6 +476,7 @@ type MutationResolver interface {
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error)
 	CompleteFirstPasswordChange(ctx context.Context, newPassword string) (bool, error)
 	ResetUserPassword(ctx context.Context, id string, newPassword string) (bool, error)
+	ForceLogoutAllSessions(ctx context.Context, userID *string) (bool, error)
 	DeleteUser(ctx context.Context, id string) (bool, error)
 	RaiseAlarm(ctx context.Context, input model.RaiseAlarmInput) (*model.Alarm, error)
 	DeleteAlarm(ctx context.Context, alarmID string) (bool, error)
@@ -1747,6 +1749,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.FireAutomationTrigger(childComplexity, args["automationId"].(string), args["nodeId"].(string)), true
+	case "Mutation.forceLogoutAllSessions":
+		if e.ComplexityRoot.Mutation.ForceLogoutAllSessions == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_forceLogoutAllSessions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ForceLogoutAllSessions(childComplexity, args["userId"].(*string)), true
 	case "Mutation.login":
 		if e.ComplexityRoot.Mutation.Login == nil {
 			break
@@ -3202,6 +3215,13 @@ input CreateInitialUserInput {
   username: String!
   name: String!
   password: String!
+  """
+  Bootstrap token generated on first boot and written to
+  ` + "`" + `<data dir>/bootstrap.token` + "`" + ` (also logged to stdout). Required so a stranger
+  who happens to hit the URL before the operator finishes setup cannot claim
+  the initial admin account.
+  """
+  bootstrapToken: String!
 }
 
 input CreateUserInput {
@@ -3541,6 +3561,15 @@ type Mutation {
   """
   completeFirstPasswordChange(newPassword: String!): Boolean! @auth
   resetUserPassword(id: ID!, newPassword: String!): Boolean! @auth
+  """
+  Invalidates every JWT issued for the given user by bumping their
+  token_version. When userId is null the caller's own tokens are
+  invalidated, which logs them out of every device — useful when a session
+  may have been compromised. The current request still completes; the
+  next API call from any device (including this one) returns
+  UNAUTHENTICATED and forces a fresh login.
+  """
+  forceLogoutAllSessions(userId: ID): Boolean! @auth
   deleteUser(id: ID!): Boolean! @auth
   raiseAlarm(input: RaiseAlarmInput!): Alarm! @auth
   deleteAlarm(alarmId: ID!): Boolean! @auth
@@ -3928,6 +3957,17 @@ func (ec *executionContext) field_Mutation_fireAutomationTrigger_args(ctx contex
 		return nil, err
 	}
 	args["nodeId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_forceLogoutAllSessions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "userId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["userId"] = arg0
 	return args, nil
 }
 
@@ -11035,6 +11075,60 @@ func (ec *executionContext) fieldContext_Mutation_resetUserPassword(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_forceLogoutAllSessions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_forceLogoutAllSessions,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ForceLogoutAllSessions(ctx, fc.Args["userId"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_forceLogoutAllSessions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_forceLogoutAllSessions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_deleteUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -17995,7 +18089,7 @@ func (ec *executionContext) unmarshalInputCreateInitialUserInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"username", "name", "password"}
+	fieldsInOrder := [...]string{"username", "name", "password", "bootstrapToken"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18023,6 +18117,13 @@ func (ec *executionContext) unmarshalInputCreateInitialUserInput(ctx context.Con
 				return it, err
 			}
 			it.Password = data
+		case "bootstrapToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bootstrapToken"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BootstrapToken = data
 		}
 	}
 	return it, nil
@@ -20766,6 +20867,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "resetUserPassword":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_resetUserPassword(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "forceLogoutAllSessions":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_forceLogoutAllSessions(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

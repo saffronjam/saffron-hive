@@ -227,6 +227,11 @@ type CreateInitialUserInput struct {
 	Username string `json:"username"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
+	// Bootstrap token generated on first boot and written to
+	// `<data dir>/bootstrap.token` (also logged to stdout). Required so a stranger
+	// who happens to hit the URL before the operator finishes setup cannot claim
+	// the initial admin account.
+	BootstrapToken string `json:"bootstrapToken"`
 }
 
 type CreateRoomInput struct {

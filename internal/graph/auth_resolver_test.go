@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http/httptest"
 	"testing"
@@ -15,10 +16,30 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
+// mockBootstrapToken is an in-memory BootstrapTokenChecker so resolver tests
+// can exercise the createInitialUser gate without touching the filesystem.
+type mockBootstrapToken struct {
+	value    string
+	consumed bool
+}
+
+func (m *mockBootstrapToken) Read() (string, error) {
+	if m.consumed {
+		return "", errors.New("token consumed")
+	}
+	return m.value, nil
+}
+
+func (m *mockBootstrapToken) ConsumeAndDelete() error {
+	m.consumed = true
+	return nil
+}
+
 // rebuildWithAuth stands up a second httptest server sharing the given mockStore
-// and wires an Auth service on the Resolver — needed because the default
-// newTestEnv does not attach auth, and the auth resolvers (login,
-// createInitialUser) dereference Resolver.Auth.
+// and wires an Auth service plus a fixed bootstrap token onto the Resolver —
+// needed because the default newTestEnv does not attach auth, and the auth
+// resolvers (login, createInitialUser) dereference Resolver.Auth /
+// Resolver.BootstrapToken.
 func rebuildWithAuth(t *testing.T, st *mockStore, svc *auth.Service) *testEnv {
 	t.Helper()
 	sr := newMockStateReader()
@@ -34,6 +55,7 @@ func rebuildWithAuth(t *testing.T, st *mockStore, svc *auth.Service) *testEnv {
 		LogBuffer:          logging.NewBuffer(),
 		LevelVar:           levelVar,
 		Auth:               svc,
+		BootstrapToken:     &mockBootstrapToken{value: testBootstrapToken},
 	}
 	srv := handler.New(NewExecutableSchema(Config{
 		Resolvers:  resolver,
@@ -46,6 +68,8 @@ func rebuildWithAuth(t *testing.T, st *mockStore, svc *auth.Service) *testEnv {
 
 	return &testEnv{server: ts, store: st, stateReader: sr}
 }
+
+const testBootstrapToken = "test-bootstrap-token"
 
 func TestSetupStatusResolver(t *testing.T) {
 	te := newTestEnv(t)
@@ -99,7 +123,12 @@ func TestCreateInitialUserAndLogin(t *testing.T) {
 		createInitialUser(input: $input) { token user { id username name } }
 	}`
 	resp := te2.query(t, createQ, map[string]any{
-		"input": map[string]any{"username": "alice", "name": "Alice", "password": "hunter22"},
+		"input": map[string]any{
+			"username":       "alice",
+			"name":           "Alice",
+			"password":       "Hunter22-passes",
+			"bootstrapToken": testBootstrapToken,
+		},
 	})
 	if len(resp.Errors) != 0 {
 		t.Fatalf("createInitialUser errors: %v", resp.Errors)
@@ -132,7 +161,12 @@ func TestCreateInitialUserAndLogin(t *testing.T) {
 
 	// A second createInitialUser must be rejected — users table is no longer empty.
 	resp = te2.query(t, createQ, map[string]any{
-		"input": map[string]any{"username": "bob", "name": "Bob", "password": "hunter22"},
+		"input": map[string]any{
+			"username":       "bob",
+			"name":           "Bob",
+			"password":       "Hunter22-passes",
+			"bootstrapToken": testBootstrapToken,
+		},
 	})
 	if len(resp.Errors) == 0 {
 		t.Error("expected createInitialUser to fail when a user already exists")
@@ -143,7 +177,7 @@ func TestCreateInitialUserAndLogin(t *testing.T) {
 		login(input: $input) { token user { username } }
 	}`
 	resp = te2.query(t, loginQ, map[string]any{
-		"input": map[string]any{"username": "alice", "password": "hunter22"},
+		"input": map[string]any{"username": "alice", "password": "Hunter22-passes"},
 	})
 	if len(resp.Errors) != 0 {
 		t.Fatalf("login errors: %v", resp.Errors)
@@ -162,10 +196,64 @@ func TestCreateInitialUserAndLogin(t *testing.T) {
 
 	// Wrong password rejected.
 	resp = te2.query(t, loginQ, map[string]any{
-		"input": map[string]any{"username": "alice", "password": "wrong-password"},
+		"input": map[string]any{"username": "alice", "password": "WrongPw0000123"},
 	})
 	if len(resp.Errors) == 0 {
 		t.Error("expected login with wrong password to fail")
+	}
+}
+
+// TestCreateInitialUserRequiresBootstrapToken pins the L3/L4 fix: the first-
+// boot setup mutation refuses callers who do not present the matching
+// bootstrap token, blocking the public-deploy land-grab where the first
+// stranger to hit the URL would otherwise claim the admin account.
+func TestCreateInitialUserRequiresBootstrapToken(t *testing.T) {
+	te := newTestEnv(t)
+	svc := auth.NewService([]byte("s"), time.Hour)
+	te2 := rebuildWithAuth(t, te.store, svc)
+
+	createQ := `mutation createInitialUser($input: CreateInitialUserInput!) {
+		createInitialUser(input: $input) { token }
+	}`
+
+	resp := te2.query(t, createQ, map[string]any{
+		"input": map[string]any{
+			"username":       "intruder",
+			"name":           "Intruder",
+			"password":       "Hunter22-passes",
+			"bootstrapToken": "not-the-token",
+		},
+	})
+	if len(resp.Errors) == 0 {
+		t.Fatal("wrong bootstrap token must be rejected")
+	}
+
+	// Right token succeeds.
+	resp = te2.query(t, createQ, map[string]any{
+		"input": map[string]any{
+			"username":       "owner",
+			"name":           "Owner",
+			"password":       "Hunter22-passes",
+			"bootstrapToken": testBootstrapToken,
+		},
+	})
+	if len(resp.Errors) != 0 {
+		t.Fatalf("correct token rejected: %v", resp.Errors)
+	}
+
+	// Token has now been consumed — a second call with the same token must
+	// fail (initial user already exists check fires first, but the token
+	// store would also have been wiped).
+	resp = te2.query(t, createQ, map[string]any{
+		"input": map[string]any{
+			"username":       "another",
+			"name":           "Another",
+			"password":       "Hunter22-passes",
+			"bootstrapToken": testBootstrapToken,
+		},
+	})
+	if len(resp.Errors) == 0 {
+		t.Error("second createInitialUser must be rejected once an admin exists")
 	}
 }
 
