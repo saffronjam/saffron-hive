@@ -106,7 +106,7 @@ func clearForcedChangeForTest(t *testing.T, token, newPassword string) {
 func TestCreateUserRequiresAuth(t *testing.T) {
 	err := graphqlMutationExpectError(
 		`mutation($input: CreateUserInput!) { createUser(input: $input) { id } }`,
-		map[string]any{"input": map[string]any{"username": "noauth", "name": "No Auth", "password": "secret123"}},
+		map[string]any{"input": map[string]any{"username": "noauth", "name": "No Auth", "password": "Secret123-foo"}},
 	)
 	// The HTTP middleware rejects unauth'd callers before the resolver, so
 	// transport-level error is also acceptable; check either path.
@@ -114,7 +114,7 @@ func TestCreateUserRequiresAuth(t *testing.T) {
 		// Fallback: request may have returned 401 (transport) rather than a
 		// GraphQL error envelope. Repeat with raw and confirm non-200.
 		gr, status := rawPost(t, "", `mutation($input: CreateUserInput!) { createUser(input: $input) { id } }`,
-			map[string]any{"input": map[string]any{"username": "noauth2", "name": "No Auth", "password": "secret123"}})
+			map[string]any{"input": map[string]any{"username": "noauth2", "name": "No Auth", "password": "Secret123-foo"}})
 		if status == http.StatusOK && len(gr.Errors) == 0 {
 			t.Fatal("createUser succeeded without auth")
 		}
@@ -122,18 +122,18 @@ func TestCreateUserRequiresAuth(t *testing.T) {
 }
 
 func TestChangePasswordFlow(t *testing.T) {
-	u := createUserForTest(t, "cpw", "Change Password User", "original123")
+	u := createUserForTest(t, "cpw", "Change Password User", "Original123x")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
-	tok := loginForTest(t, "cpw", "original123")
+	tok := loginForTest(t, "cpw", "Original123x")
 	// Admin-created users start with must_change_password set; complete that
 	// flow first so the regular changePassword mutation is reachable.
-	clearForcedChangeForTest(t, tok, "original123")
+	clearForcedChangeForTest(t, tok, "Original123x")
 
 	// Wrong old password fails.
 	gr, _ := rawPost(t, tok,
 		`mutation($input: ChangePasswordInput!) { changePassword(input: $input) }`,
-		map[string]any{"input": map[string]any{"oldPassword": "WRONG", "newPassword": "newpassword123"}},
+		map[string]any{"input": map[string]any{"oldPassword": "WRONG", "newPassword": "NewPassword123"}},
 	)
 	if len(gr.Errors) == 0 {
 		t.Fatal("expected error on wrong old password")
@@ -142,7 +142,7 @@ func TestChangePasswordFlow(t *testing.T) {
 	// Correct flow succeeds.
 	gr, _ = rawPost(t, tok,
 		`mutation($input: ChangePasswordInput!) { changePassword(input: $input) }`,
-		map[string]any{"input": map[string]any{"oldPassword": "original123", "newPassword": "newpassword123"}},
+		map[string]any{"input": map[string]any{"oldPassword": "Original123x", "newPassword": "NewPassword123"}},
 	)
 	if len(gr.Errors) > 0 {
 		t.Fatalf("changePassword: %v", gr.Errors)
@@ -151,20 +151,20 @@ func TestChangePasswordFlow(t *testing.T) {
 	// Old password no longer logs in; new one does.
 	if err := graphqlMutationExpectError(
 		`mutation($input: LoginInput!) { login(input: $input) { token } }`,
-		map[string]any{"input": map[string]any{"username": "cpw", "password": "original123"}},
+		map[string]any{"input": map[string]any{"username": "cpw", "password": "Original123x"}},
 	); err != nil {
 		t.Fatalf("old password should have been rejected: %v", err)
 	}
-	_ = loginForTest(t, "cpw", "newpassword123")
+	_ = loginForTest(t, "cpw", "NewPassword123")
 }
 
 func TestResetUserPasswordByAdmin(t *testing.T) {
-	u := createUserForTest(t, "resetme", "Reset Target", "oldpw12345")
+	u := createUserForTest(t, "resetme", "Reset Target", "OldPw12345xx")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
 	data, err := graphqlMutation(
 		`mutation($id: ID!, $p: String!) { resetUserPassword(id: $id, newPassword: $p) }`,
-		map[string]any{"id": u.ID, "p": "brandnew999"},
+		map[string]any{"id": u.ID, "p": "BrandNew999xx"},
 	)
 	if err != nil {
 		t.Fatalf("resetUserPassword: %v", err)
@@ -177,7 +177,7 @@ func TestResetUserPasswordByAdmin(t *testing.T) {
 	}
 
 	// New password works.
-	_ = loginForTest(t, "resetme", "brandnew999")
+	_ = loginForTest(t, "resetme", "BrandNew999xx")
 }
 
 func TestDeleteUserRejectsSelf(t *testing.T) {
@@ -191,8 +191,8 @@ func TestDeleteUserRejectsSelf(t *testing.T) {
 }
 
 func TestDeletedUserTokenLosesAccess(t *testing.T) {
-	u := createUserForTest(t, "willbedeleted", "Soon Gone", "initialpw1")
-	tok := loginForTest(t, "willbedeleted", "initialpw1")
+	u := createUserForTest(t, "willbedeleted", "Soon Gone", "InitialPw123")
+	tok := loginForTest(t, "willbedeleted", "InitialPw123")
 
 	// As the seed admin, delete the new user.
 	deleteUserForTest(t, u.ID)
@@ -231,21 +231,21 @@ func TestDeletedUserTokenLosesAccess(t *testing.T) {
 }
 
 func TestDeletedUserCannotLogin(t *testing.T) {
-	u := createUserForTest(t, "gonesoon", "Gone Soon", "pw123456")
-	_ = loginForTest(t, "gonesoon", "pw123456")
+	u := createUserForTest(t, "gonesoon", "Gone Soon", "Pw12345678xx")
+	_ = loginForTest(t, "gonesoon", "Pw12345678xx")
 	deleteUserForTest(t, u.ID)
 	if err := graphqlMutationExpectError(
 		`mutation($input: LoginInput!) { login(input: $input) { token } }`,
-		map[string]any{"input": map[string]any{"username": "gonesoon", "password": "pw123456"}},
+		map[string]any{"input": map[string]any{"username": "gonesoon", "password": "Pw12345678xx"}},
 	); err != nil {
 		t.Fatalf("login should fail for deleted user: %v", err)
 	}
 }
 
 func TestCreatedByPreservedAsNullAfterDelete(t *testing.T) {
-	creator := createUserForTest(t, "creator1", "The Creator", "creatorpw1")
-	creatorTok := loginForTest(t, "creator1", "creatorpw1")
-	clearForcedChangeForTest(t, creatorTok, "creatorpw1")
+	creator := createUserForTest(t, "creator1", "The Creator", "CreatorPw123")
+	creatorTok := loginForTest(t, "creator1", "CreatorPw123")
+	clearForcedChangeForTest(t, creatorTok, "CreatorPw123")
 
 	// Creator creates a scene; createdBy should reference creator.
 	data, _ := rawPost(t, creatorTok,
@@ -317,20 +317,20 @@ func meMustChangePasswordForToken(t *testing.T, token string) bool {
 }
 
 func TestCreateUserSetsMustChangePassword(t *testing.T) {
-	u := createUserForTest(t, "mcpw1", "Must Change User", "initialpw1")
+	u := createUserForTest(t, "mcpw1", "Must Change User", "InitialPw123")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
-	tok := loginForTest(t, "mcpw1", "initialpw1")
+	tok := loginForTest(t, "mcpw1", "InitialPw123")
 	if !meMustChangePasswordForToken(t, tok) {
 		t.Fatal("admin-created user should have mustChangePassword=true on first login")
 	}
 }
 
 func TestForcedChangeUserBlockedFromOtherOps(t *testing.T) {
-	u := createUserForTest(t, "mcpw2", "Blocked User", "initialpw1")
+	u := createUserForTest(t, "mcpw2", "Blocked User", "InitialPw123")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
-	tok := loginForTest(t, "mcpw2", "initialpw1")
+	tok := loginForTest(t, "mcpw2", "InitialPw123")
 
 	// Any @auth-protected operation other than `completeFirstPasswordChange`
 	// must be rejected with PASSWORD_CHANGE_REQUIRED. Pick a query that always
@@ -360,14 +360,14 @@ func TestForcedChangeUserBlockedFromOtherOps(t *testing.T) {
 }
 
 func TestCompleteFirstPasswordChangeClearsFlag(t *testing.T) {
-	u := createUserForTest(t, "mcpw3", "Clearing User", "initialpw1")
+	u := createUserForTest(t, "mcpw3", "Clearing User", "InitialPw123")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
-	tok := loginForTest(t, "mcpw3", "initialpw1")
+	tok := loginForTest(t, "mcpw3", "InitialPw123")
 
 	gr, _ := rawPost(t, tok,
 		`mutation($p: String!) { completeFirstPasswordChange(newPassword: $p) }`,
-		map[string]any{"p": "newpassword999"},
+		map[string]any{"p": "NewPassword999"},
 	)
 	if len(gr.Errors) > 0 {
 		t.Fatalf("completeFirstPasswordChange: %v", gr.Errors)
@@ -386,22 +386,22 @@ func TestCompleteFirstPasswordChangeClearsFlag(t *testing.T) {
 	// Old password no longer logs in; new one does.
 	if err := graphqlMutationExpectError(
 		`mutation($input: LoginInput!) { login(input: $input) { token } }`,
-		map[string]any{"input": map[string]any{"username": "mcpw3", "password": "initialpw1"}},
+		map[string]any{"input": map[string]any{"username": "mcpw3", "password": "InitialPw123"}},
 	); err != nil {
 		t.Fatalf("old password should have been rejected: %v", err)
 	}
-	_ = loginForTest(t, "mcpw3", "newpassword999")
+	_ = loginForTest(t, "mcpw3", "NewPassword999")
 }
 
 func TestResetUserPasswordReArmsMustChange(t *testing.T) {
-	u := createUserForTest(t, "mcpw4", "ReArm User", "initialpw1")
+	u := createUserForTest(t, "mcpw4", "ReArm User", "InitialPw123")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
 	// Clear the flag by completing the forced-change flow.
-	tok := loginForTest(t, "mcpw4", "initialpw1")
+	tok := loginForTest(t, "mcpw4", "InitialPw123")
 	gr, _ := rawPost(t, tok,
 		`mutation($p: String!) { completeFirstPasswordChange(newPassword: $p) }`,
-		map[string]any{"p": "newpassword999"},
+		map[string]any{"p": "NewPassword999"},
 	)
 	if len(gr.Errors) > 0 {
 		t.Fatalf("completeFirstPasswordChange: %v", gr.Errors)
@@ -413,12 +413,12 @@ func TestResetUserPasswordReArmsMustChange(t *testing.T) {
 	// Admin resets the user's password — flag must come back.
 	if _, err := graphqlMutation(
 		`mutation($id: ID!, $p: String!) { resetUserPassword(id: $id, newPassword: $p) }`,
-		map[string]any{"id": u.ID, "p": "adminreset123"},
+		map[string]any{"id": u.ID, "p": "AdminReset123"},
 	); err != nil {
 		t.Fatalf("resetUserPassword: %v", err)
 	}
 
-	tok2 := loginForTest(t, "mcpw4", "adminreset123")
+	tok2 := loginForTest(t, "mcpw4", "AdminReset123")
 	if !meMustChangePasswordForToken(t, tok2) {
 		t.Fatal("admin reset should re-arm mustChangePassword")
 	}
