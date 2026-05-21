@@ -14,6 +14,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/vektah/gqlparser/v2 v2.5.32
 	golang.org/x/crypto v0.50.0
+	golang.org/x/time v0.15.0
 	modernc.org/sqlite v1.48.2
 )
 
