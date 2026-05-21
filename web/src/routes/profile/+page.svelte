@@ -24,6 +24,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
+	import { validateNewPassword } from "$lib/password";
 	import {
 		Theme as ThemeEnum,
 		TimeFormat as TimeFormatEnum,
@@ -32,6 +33,7 @@
 	import { Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { toast } from "svelte-sonner";
+	import { goto } from "$app/navigation";
 
 	const client = getContextClient();
 
@@ -54,6 +56,12 @@
 	const CHANGE_PASSWORD = graphql(`
 		mutation ProfileChangePassword($input: ChangePasswordInput!) {
 			changePassword(input: $input)
+		}
+	`);
+
+	const FORCE_LOGOUT_ALL = graphql(`
+		mutation ProfileForceLogoutAll {
+			forceLogoutAllSessions
 		}
 	`);
 
@@ -214,8 +222,9 @@
 
 	async function submitPassword(e: SubmitEvent) {
 		e.preventDefault();
-		if (newPw.length < 6) {
-			toast.error("New password must be at least 6 characters");
+		const pwErr = validateNewPassword(newPw);
+		if (pwErr) {
+			toast.error(pwErr);
 			return;
 		}
 		if (newPw !== confirmPw) {
@@ -233,10 +242,31 @@
 				throw new Error(result.error?.message ?? "Failed to change password");
 			}
 			passwordOpen = false;
+			toast.info("Please log in again with your new password.");
+			auth.clearToken();
+			await goto("/login");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to change password");
 		} finally {
 			pwSaving = false;
+		}
+	}
+
+	let signingOutAll = $state(false);
+	async function forceLogoutAll() {
+		signingOutAll = true;
+		try {
+			const result = await client.mutation(FORCE_LOGOUT_ALL, {}).toPromise();
+			if (result.error || !result.data?.forceLogoutAllSessions) {
+				throw new Error(result.error?.message ?? "Failed to sign out everywhere");
+			}
+			toast.success("Signed out of every device. Please log in again.");
+			auth.clearToken();
+			goto("/login");
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Failed to sign out everywhere");
+		} finally {
+			signingOutAll = false;
 		}
 	}
 
@@ -312,8 +342,16 @@
 					<p class="text-sm">{createdLabel}</p>
 				</div>
 
-				<div>
+				<div class="flex flex-wrap gap-2">
 					<Button variant="outline" onclick={openPasswordDialog}>Change password</Button>
+					<Button
+						variant="outline"
+						disabled={signingOutAll}
+						onclick={forceLogoutAll}
+						title="Invalidate every signed-in session for this account, including this one."
+					>
+						{signingOutAll ? "Signing out…" : "Sign out everywhere"}
+					</Button>
 				</div>
 			{:else if loader.visible}
 				<p class="text-sm text-muted-foreground">Loading…</p>

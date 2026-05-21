@@ -44,6 +44,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
+	import { validateNewPassword } from "$lib/password";
 	import { EllipsisVertical, KeyRound, Plus, Trash2 } from "@lucide/svelte";
 	import { onDestroy, onMount } from "svelte";
 	import { toast } from "svelte-sonner";
@@ -198,8 +199,9 @@
 
 	async function submitCreate(e: SubmitEvent) {
 		e.preventDefault();
-		if (createPassword.length < 6) {
-			toast.error("Password must be at least 6 characters");
+		const createPwErr = validateNewPassword(createPassword);
+		if (createPwErr) {
+			toast.error(createPwErr);
 			return;
 		}
 		if (createPassword !== createConfirm) {
@@ -240,8 +242,9 @@
 	async function submitReset(e: SubmitEvent) {
 		e.preventDefault();
 		if (!resetTarget) return;
-		if (resetPw.length < 6) {
-			toast.error("Password must be at least 6 characters");
+		const resetPwErr = validateNewPassword(resetPw);
+		if (resetPwErr) {
+			toast.error(resetPwErr);
 			return;
 		}
 		if (resetPw !== resetConfirm) {

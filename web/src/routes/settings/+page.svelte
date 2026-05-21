@@ -87,15 +87,17 @@
 
 	const client = getContextClient();
 
+	const REDACTED_PASSWORD = "********";
+
 	let broker = $state("");
 	let username = $state("");
 	let password = $state("");
 	let useWss = $state(false);
 	let mqttLoaded = $state(false);
+	let hasStoredPassword = $state(false);
 
 	let origBroker = $state("");
 	let origUsername = $state("");
-	let origPassword = $state("");
 	let origUseWss = $state(false);
 
 	let logLevel = $state("INFO");
@@ -112,7 +114,7 @@
 	const mqttDirty = $derived(
 		broker !== origBroker ||
 			username !== origUsername ||
-			password !== origPassword ||
+			password !== "" ||
 			useWss !== origUseWss
 	);
 
@@ -139,7 +141,8 @@
 			const cfg = mqttResult.data.mqttConfig;
 			broker = origBroker = cfg.broker;
 			username = origUsername = cfg.username;
-			password = origPassword = cfg.password;
+			hasStoredPassword = cfg.password === REDACTED_PASSWORD;
+			password = "";
 			useWss = origUseWss = cfg.useWss;
 			mqttLoaded = true;
 		}
@@ -171,9 +174,11 @@
 
 		try {
 			if (mqttDirty) {
+				const passwordToSend =
+					password === "" && hasStoredPassword ? REDACTED_PASSWORD : password;
 				const result = await client
 					.mutation(UPDATE_MQTT_CONFIG, {
-						input: { broker, username, password, useWss },
+						input: { broker, username, password: passwordToSend, useWss },
 					})
 					.toPromise();
 				if (result.error) {
@@ -182,7 +187,8 @@
 				}
 				origBroker = broker;
 				origUsername = username;
-				origPassword = password;
+				hasStoredPassword = passwordToSend !== "";
+				password = "";
 				origUseWss = useWss;
 			}
 
@@ -230,7 +236,13 @@
 				.mutation<{
 					testMqttConnection: { success: boolean; message: string };
 				}>(TEST_MQTT_CONNECTION, {
-					input: { broker, username, password, useWss },
+					input: {
+						broker,
+						username,
+						password:
+							password === "" && hasStoredPassword ? REDACTED_PASSWORD : password,
+						useWss,
+					},
 				})
 				.toPromise();
 			if (result.data) {
@@ -283,7 +295,9 @@
 					id="mqtt-password"
 					type="password"
 					bind:value={password}
-					placeholder="Optional"
+					placeholder={hasStoredPassword
+						? "Password set — leave blank to keep"
+						: "Optional"}
 				/>
 			</div>
 			<div class="flex items-center gap-3 min-h-[18.4px]">

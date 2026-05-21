@@ -11,6 +11,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
+	import { validateNewPassword } from "$lib/password";
 
 	const SETUP_STATUS = graphql(`
 		query setupStatus {
@@ -61,6 +62,7 @@
 	let name = $state("");
 	let password = $state("");
 	let confirmPassword = $state("");
+	let bootstrapToken = $state("");
 	let submittingUser = $state(false);
 
 	// Phase 2 state
@@ -99,15 +101,16 @@
 			error = "Passwords do not match.";
 			return;
 		}
-		if (password.length < 6) {
-			error = "Password must be at least 6 characters.";
+		const pwErr = validateNewPassword(password);
+		if (pwErr) {
+			error = pwErr + ".";
 			return;
 		}
 		submittingUser = true;
 		try {
 			const result = await client
 				.mutation<{ createInitialUser: { token: string } }>(CREATE_INITIAL_USER, {
-					input: { username, name, password },
+					input: { username, name, password, bootstrapToken },
 				})
 				.toPromise();
 			if (result.error || !result.data) {
@@ -211,6 +214,14 @@
 						autocomplete="new-password"
 						required
 					/>
+				</div>
+				<div class="grid gap-1.5">
+					<label for="setup-bootstrap" class="text-sm font-medium">Bootstrap token</label>
+					<Input id="setup-bootstrap" bind:value={bootstrapToken} required />
+					<p class="text-xs text-muted-foreground">
+						Printed to the server logs on first boot, or read
+						<code>$HIVE_DATA_DIR/bootstrap.token</code> on the host.
+					</p>
 				</div>
 				{#if error}
 					<p class="text-sm text-red-600 dark:text-red-400">{error}</p>

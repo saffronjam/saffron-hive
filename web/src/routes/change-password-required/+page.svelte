@@ -9,6 +9,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { toast } from "svelte-sonner";
+	import { validateNewPassword } from "$lib/password";
 
 	const COMPLETE_FIRST_PASSWORD_CHANGE = graphql(`
 		mutation completeFirstPasswordChange($newPassword: String!) {
@@ -31,8 +32,9 @@
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
-		if (newPassword.length < 6) {
-			error = "Password must be at least 6 characters";
+		const pwErr = validateNewPassword(newPassword);
+		if (pwErr) {
+			error = pwErr;
 			return;
 		}
 		if (newPassword !== confirmPassword) {
