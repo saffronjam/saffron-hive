@@ -13,6 +13,18 @@ import { graphql } from "$lib/gql";
 const FIXTURES_DIR = resolve(import.meta.dirname, "../../e2e/fixtures");
 const _PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
+// The server's WebSocket upgrader checks the Origin header against
+// HIVE_ALLOWED_ORIGINS. graphql-ws constructs the socket with only (url,
+// protocols), so the subclass below injects a matching Origin on the upgrade
+// request; the same value is passed to the app container as its allowed origin.
+const E2E_ORIGIN = "http://localhost";
+
+class OriginWebSocket extends ws {
+  constructor(address: string, protocols?: string | string[]) {
+    super(address, protocols, { origin: E2E_ORIGIN });
+  }
+}
+
 interface E2EContext {
   network: StartedNetwork;
   mosquitto: StartedTestContainer;
@@ -115,7 +127,7 @@ export async function waitForDevices(expectedCount: number, timeoutMs: number): 
 function createTestGraphQLClient(httpUrl: string, wsUrl: string, token: string): Client {
   const wsClient = createWSClient({
     url: wsUrl,
-    webSocketImpl: ws,
+    webSocketImpl: OriginWebSocket,
     connectionParams: () => ({ authToken: token }),
   });
 
@@ -208,6 +220,7 @@ export async function setupE2E(): Promise<void> {
       HIVE_DB_PATH: "/tmp/test.db",
       HIVE_INIT_USER: "e2e",
       HIVE_INIT_PASSWORD: "e2e-password",
+      HIVE_ALLOWED_ORIGINS: E2E_ORIGIN,
     })
     .withWaitStrategy(Wait.forListeningPorts())
     .withStartupTimeout(30_000)

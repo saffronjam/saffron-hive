@@ -55,7 +55,7 @@ describe("users", () => {
 
     const created = await graphqlClient
       .mutation(CREATE_USER, {
-        input: { username: "ts-user-a", name: "TS User A", password: "secret123" },
+        input: { username: "ts-user-a", name: "TS User A", password: "Secret123-foo" },
       })
       .toPromise();
     expect(created.error).toBeUndefined();
@@ -103,13 +103,13 @@ describe("users", () => {
     const { graphqlClient } = getContext();
     const created = await graphqlClient
       .mutation(CREATE_USER, {
-        input: { username: "ts-reset", name: "TS Reset", password: "oldpass1" },
+        input: { username: "ts-reset", name: "TS Reset", password: "OldPass123x" },
       })
       .toPromise();
     expect(created.error).toBeUndefined();
 
     const reset = await graphqlClient
-      .mutation(RESET_PASSWORD, { id: created.data!.createUser.id, p: "newpass2" })
+      .mutation(RESET_PASSWORD, { id: created.data!.createUser.id, p: "NewPass123x" })
       .toPromise();
     expect(reset.error).toBeUndefined();
     expect(reset.data?.resetUserPassword).toBe(true);
