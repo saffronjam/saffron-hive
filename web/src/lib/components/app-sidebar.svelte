@@ -34,6 +34,7 @@
 		Sparkles,
 		Wrench,
 		ChevronUp,
+		PlugZap,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -81,6 +82,7 @@
 	];
 
 	const adminItems: NavItem[] = [
+		{ href: "/integrations", label: "Integrations", icon: PlugZap },
 		{ href: "/users", label: "Users", icon: Users },
 		{ href: "/logs", label: "Logs", icon: ScrollText },
 		{ href: "/settings", label: "Settings", icon: Settings },
