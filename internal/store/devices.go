@@ -27,8 +27,8 @@ func (s *DB) CreateDevice(ctx context.Context, params CreateDeviceParams) (devic
 	return s.GetDevice(ctx, params.ID)
 }
 
-// UpsertDevice inserts a device or updates its name, source, type, and capabilities if it already exists.
-// It also clears the removed flag on conflict so re-discovered devices become active again.
+// UpsertDevice inserts a device or refreshes its adapter-owned fields if it already exists.
+// It also clears the removed flag on conflict so devices become active when seen again.
 func (s *DB) UpsertDevice(ctx context.Context, params CreateDeviceParams) error {
 	capsJSON, err := marshalCapabilities(params.Capabilities)
 	if err != nil {

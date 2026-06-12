@@ -1,17 +1,15 @@
 -- Capabilities is stored as a JSON TEXT blob; the Go wrapper marshals it
--- before hitting these queries and unmarshals on read (with a legacy format
--- fallback preserved in mapper.go).
+-- before hitting these queries and unmarshals on read.
 
 -- name: CreateDevice :exec
 INSERT INTO devices (id, name, source, type, capabilities, available, removed)
 VALUES (?, ?, ?, ?, ?, false, false);
 
 -- name: UpsertDevice :exec
--- Clears the removed flag on conflict so re-discovered devices become active.
+-- Keeps the user-owned name and clears the removed flag when a device appears.
 INSERT INTO devices (id, name, source, type, capabilities, available, removed)
 VALUES (?, ?, ?, ?, ?, false, false)
 ON CONFLICT(id) DO UPDATE SET
-    name         = excluded.name,
     source       = excluded.source,
     type         = excluded.type,
     capabilities = excluded.capabilities,

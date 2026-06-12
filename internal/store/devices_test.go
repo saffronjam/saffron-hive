@@ -171,6 +171,63 @@ func TestUpdateDevice(t *testing.T) {
 	}
 }
 
+func TestUpsertDevicePreservesName(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	_, err := s.CreateDevice(ctx, CreateDeviceParams{
+		ID:     "dev-1",
+		Name:   "User Name",
+		Source: "zigbee",
+		Type:   device.Light,
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	_, err = s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:      "dev-1",
+		Name:    "User Name",
+		Removed: true,
+	})
+	if err != nil {
+		t.Fatalf("mark removed: %v", err)
+	}
+
+	err = s.UpsertDevice(ctx, CreateDeviceParams{
+		ID:     "dev-1",
+		Name:   "Adapter Name",
+		Source: "tuya",
+		Type:   device.Climate,
+		Capabilities: []device.Capability{
+			{Name: device.CapOnOff, Type: "binary", Access: 7},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upsert device: %v", err)
+	}
+
+	d, err := s.GetDevice(ctx, "dev-1")
+	if err != nil {
+		t.Fatalf("get device: %v", err)
+	}
+	if d.Name != "User Name" {
+		t.Fatalf("got name %q, want User Name", d.Name)
+	}
+	if d.Source != "tuya" {
+		t.Fatalf("got source %q, want tuya", d.Source)
+	}
+	if d.Type != device.Climate {
+		t.Fatalf("got type %q, want %q", d.Type, device.Climate)
+	}
+	if d.Removed {
+		t.Fatal("expected device to be active")
+	}
+	if len(d.Capabilities) != 1 || d.Capabilities[0].Name != device.CapOnOff {
+		t.Fatalf("got capabilities %#v, want on_off", d.Capabilities)
+	}
+}
+
 func TestSoftDeleteDevice(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
