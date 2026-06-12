@@ -213,6 +213,14 @@ type Setting struct {
 	Value string
 }
 
+type TuyaConfig struct {
+	ID           int64
+	AccessID     string
+	AccessSecret string
+	Region       string
+	Enabled      bool
+}
+
 type User struct {
 	ID                 string
 	Username           string

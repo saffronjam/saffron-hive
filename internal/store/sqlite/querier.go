@@ -50,8 +50,7 @@ type Querier interface {
 	CreateAutomationEdge(ctx context.Context, arg CreateAutomationEdgeParams) error
 	CreateAutomationNode(ctx context.Context, arg CreateAutomationNodeParams) error
 	// Capabilities is stored as a JSON TEXT blob; the Go wrapper marshals it
-	// before hitting these queries and unmarshals on read (with a legacy format
-	// fallback preserved in mapper.go).
+	// before hitting these queries and unmarshals on read.
 	CreateDevice(ctx context.Context, arg CreateDeviceParams) error
 	CreateEffect(ctx context.Context, arg CreateEffectParams) error
 	CreateEffectClip(ctx context.Context, arg CreateEffectClipParams) error
@@ -86,6 +85,7 @@ type Querier interface {
 	DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error
 	DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error)
 	DeleteSceneExpectedStatesByScene(ctx context.Context, sceneID string) error
+	DeleteTuyaConfig(ctx context.Context) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
@@ -101,6 +101,7 @@ type Querier interface {
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
+	GetTuyaConfig(ctx context.Context) (GetTuyaConfigRow, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
 	GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) ([]GetUserAvatarPathsByIDsRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
@@ -217,12 +218,13 @@ type Querier interface {
 	// from "set to NULL"). theme is constrained by a CHECK in the migration.
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
-	// Clears the removed flag on conflict so re-discovered devices become active.
+	// Keeps the user-owned name and clears the removed flag when a device appears.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertMQTTConfig(ctx context.Context, arg UpsertMQTTConfigParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
+	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
 	UpsertZigbeeDevice(ctx context.Context, arg UpsertZigbeeDeviceParams) error
 }
 

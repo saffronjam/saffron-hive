@@ -335,6 +335,14 @@ type MQTTConfig struct {
 	UseWSS   bool
 }
 
+// TuyaConfig represents the singleton Tuya cloud integration configuration.
+type TuyaConfig struct {
+	AccessID     string
+	AccessSecret string
+	Region       string
+	Enabled      bool
+}
+
 // Setting represents a key-value setting row.
 type Setting struct {
 	Key   string
