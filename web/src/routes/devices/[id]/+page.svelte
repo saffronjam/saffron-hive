@@ -18,6 +18,7 @@
 		TooltipProvider,
 	} from "$lib/components/ui/tooltip/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { Input } from "$lib/components/ui/input/index.js";
 	import LightControls from "$lib/components/light-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
@@ -31,7 +32,7 @@
 	import { membershipRowsForDevice } from "$lib/memberships";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { sentenceCase } from "$lib/utils";
-	import { ArrowLeft, Copy, Check, DoorOpen, Group as GroupIcon } from "@lucide/svelte";
+	import { ArrowLeft, Copy, Check, DoorOpen, Group as GroupIcon, Save } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { getContextClient } from "@urql/svelte";
@@ -40,6 +41,14 @@
 
 	let device = $state<Device | null>(null);
 	let loading = $state(true);
+	let metadataName = $state("");
+	let savedMetadataName = $state("");
+	let metadataIcon = $state<string | null>(null);
+	let savedMetadataIcon = $state<string | null>(null);
+	let savingMetadata = $state(false);
+	const metadataDirty = $derived(
+		metadataName.trim() !== savedMetadataName || metadataIcon !== savedMetadataIcon
+	);
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: "Device" }];
@@ -50,6 +59,18 @@
 		if (device) {
 			pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: device.name }];
 		}
+		pageHeader.actions = device
+			? [
+					{
+						label: "Save",
+						icon: Save,
+						onclick: saveMetadata,
+						disabled: !metadataDirty || savingMetadata,
+						saving: savingMetadata,
+						hideLabelOnMobile: true,
+					},
+				]
+			: [];
 	});
 	let error = $state<string | null>(null);
 	let copied = $state(false);
@@ -102,6 +123,10 @@
 					voltage
 					current
 					energy
+					targetTemperature
+					hvacMode
+					fanMode
+					swing
 				}
 			}
 		}
@@ -196,6 +221,10 @@
 					voltage
 					current
 					energy
+					targetTemperature
+					hvacMode
+					fanMode
+					swing
 				}
 			}
 		}
@@ -364,15 +393,39 @@
 		}
 	}
 
-	async function handleIconChange(icon: string | null) {
-		if (!device) return;
-		device = { ...device, icon };
-		deviceStore.updateIcon(device.id, icon);
-		const result = await clientRef.mutation(UPDATE_DEVICE, { id: device.id, input: { icon } }).toPromise();
+	async function saveMetadata() {
+		if (!clientRef || !device) return;
+		const name = metadataName.trim();
+		if (!name) {
+			error = "Name is required.";
+			return;
+		}
+
+		savingMetadata = true;
+		error = null;
+		const input: { name?: string; icon?: string | null } = {};
+		if (name !== savedMetadataName) input.name = name;
+		if (metadataIcon !== savedMetadataIcon) input.icon = metadataIcon;
+		const result = await clientRef
+			.mutation(UPDATE_DEVICE, { id: device.id, input })
+			.toPromise();
+		savingMetadata = false;
+
+		if (result.error) {
+			error = result.error.message;
+			return;
+		}
+
 		if (result.data?.updateDevice) {
-			const next = result.data.updateDevice.icon ?? null;
-			device = { ...device, icon: next };
-			deviceStore.updateIcon(device.id, next);
+			const updatedName = result.data.updateDevice.name;
+			const updatedIcon = result.data.updateDevice.icon ?? null;
+			device = { ...device, name: updatedName, icon: updatedIcon };
+			metadataName = updatedName;
+			savedMetadataName = updatedName;
+			metadataIcon = updatedIcon;
+			savedMetadataIcon = updatedIcon;
+			deviceStore.updateName(device.id, updatedName);
+			deviceStore.updateIcon(device.id, updatedIcon);
 		}
 	}
 
@@ -382,6 +435,10 @@
 		colorTemp?: number;
 		color?: { r: number; g: number; b: number; x: number; y: number };
 		transition?: number;
+		targetTemperature?: number;
+		hvacMode?: string;
+		fanMode?: string;
+		swing?: string;
 	}
 
 	function handleDeviceCommand(input: CommandInput) {
@@ -399,6 +456,10 @@
 				loading = false;
 				if (result.data?.device) {
 					device = result.data.device;
+					metadataName = result.data.device.name;
+					savedMetadataName = result.data.device.name;
+					metadataIcon = result.data.device.icon ?? null;
+					savedMetadataIcon = result.data.device.icon ?? null;
 				} else {
 					error = "Device not found";
 				}
@@ -472,8 +533,35 @@
 			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>
 		</div>
 	{:else if device}
-		<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]" in:fly={{ y: -4, duration: 150 }}>
-			<div class="space-y-6">
+		<div class="space-y-6" in:fly={{ y: -4, duration: 150 }}>
+			<div class="rounded-lg shadow-card bg-card p-4">
+				<label class="mb-2 block text-sm font-medium text-foreground" for="device-name">
+					Device Name
+				</label>
+				<div class="flex items-center gap-3">
+					<IconCell
+						value={metadataIcon}
+						onselect={(icon) => (metadataIcon = icon)}
+						fallback={deviceIcon(device.type)}
+						size="lg"
+						iconClass="size-5 text-muted-foreground"
+					/>
+					<Input
+						id="device-name"
+						bind:value={metadataName}
+						disabled={savingMetadata}
+						placeholder="Device name"
+						onkeydown={(event) => {
+							if (event.key === "Enter" && metadataDirty && !savingMetadata) {
+								void saveMetadata();
+							}
+						}}
+					/>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
+				<div class="space-y-6">
 				<Card>
 					<CardHeader>
 						<div class="flex items-center justify-between">
@@ -528,18 +616,6 @@
 							</div>
 
 							<div class="flex items-center justify-between">
-								<dt class="text-sm text-muted-foreground">Icon</dt>
-								<dd>
-									<IconCell
-										value={device.icon}
-										onselect={handleIconChange}
-										fallback={deviceIcon(device.type)}
-										size="sm"
-									/>
-								</dd>
-							</div>
-
-							<div class="flex items-center justify-between">
 								<dt class="text-sm text-muted-foreground">Source</dt>
 								<dd>
 									<Badge variant="outline">{sentenceCase(device.source)}</Badge>
@@ -582,7 +658,7 @@
 				</Card>
 			</div>
 
-			<div class="flex flex-col gap-4">
+				<div class="flex flex-col gap-4">
 				{#if light}
 					<LightControls lightState={light} oncommand={handleDeviceCommand} />
 				{:else if plug}
@@ -620,6 +696,7 @@
 						</CardContent>
 					</Card>
 				{/if}
+			</div>
 			</div>
 		</div>
 	{:else}

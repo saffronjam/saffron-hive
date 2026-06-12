@@ -4,6 +4,7 @@
 	import { sentenceCase } from "$lib/utils.js";
 	import {
 		Activity,
+		AirVent,
 		Battery,
 		BatteryCharging,
 		Droplets,
@@ -49,6 +50,8 @@
 				return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30";
 			case "sensor":
 				return "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30";
+			case "climate":
+				return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30";
 			case "button":
 				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
 			case "plug":
@@ -89,6 +92,8 @@
 				return Lightbulb;
 			case "sensor":
 				return Gauge;
+			case "climate":
+				return AirVent;
 			case "button":
 				return MousePointerClick;
 			case "plug":

@@ -21,6 +21,10 @@ function statesEqual(
     a.on === b.on &&
     a.brightness === b.brightness &&
     a.colorTemp === b.colorTemp &&
+    a.targetTemperature === b.targetTemperature &&
+    a.hvacMode === b.hvacMode &&
+    a.fanMode === b.fanMode &&
+    a.swing === b.swing &&
     a.transition === b.transition &&
     a.temperature === b.temperature &&
     a.humidity === b.humidity &&
@@ -62,6 +66,10 @@ const DEVICES_QUERY = graphql(`
         on
         brightness
         colorTemp
+        targetTemperature
+        hvacMode
+        fanMode
+        swing
         color {
           r
           g
@@ -85,13 +93,17 @@ const DEVICES_QUERY = graphql(`
 `);
 
 const DEVICE_STATE_CHANGED = graphql(`
-  subscription DeviceStateChanged {
+  subscription DeviceStoreStateChanged {
     deviceStateChanged {
       deviceId
       state {
         on
         brightness
         colorTemp
+        targetTemperature
+        hvacMode
+        fanMode
+        swing
         color {
           r
           g
@@ -145,6 +157,10 @@ const DEVICE_ADDED = graphql(`
         on
         brightness
         colorTemp
+        targetTemperature
+        hvacMode
+        fanMode
+        swing
         color {
           r
           g
@@ -207,7 +223,19 @@ function createDeviceStore() {
   }
 
   function addDevice(device: Device) {
-    set({ ...current, [device.id]: device });
+    const existing = current[device.id];
+    if (!existing) {
+      set({ ...current, [device.id]: device });
+      return;
+    }
+    set({
+      ...current,
+      [device.id]: {
+        ...device,
+        name: existing.name,
+        icon: existing.icon ?? null,
+      },
+    });
   }
 
   function updateName(deviceId: string, name: string) {
