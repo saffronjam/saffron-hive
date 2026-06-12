@@ -45,6 +45,66 @@ func TestMutationSetDeviceState(t *testing.T) {
 	}
 }
 
+func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
+	env := newTestEnv(t)
+	now := time.Now().Truncate(time.Second)
+	env.stateReader.addDevice(device.Device{
+		ID:        "ac",
+		Name:      "Cloud Name",
+		Source:    "tuya",
+		Type:      device.Climate,
+		Available: true,
+		LastSeen:  now,
+	})
+	env.store.putDevice(device.Device{
+		ID:        "ac",
+		Name:      "Mobile Air Conditioner",
+		Source:    "tuya",
+		Type:      device.Climate,
+		Available: true,
+		LastSeen:  now,
+	})
+
+	resp := env.query(t, `mutation($id: ID!, $input: UpdateDeviceInput!) {
+		updateDevice(id: $id, input: $input) { id name }
+	}`, map[string]any{
+		"id":    "ac",
+		"input": map[string]any{"name": "AC"},
+	})
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", resp.Errors)
+	}
+	var data struct {
+		UpdateDevice struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"updateDevice"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if data.UpdateDevice.Name != "AC" {
+		t.Fatalf("got mutation name %q, want AC", data.UpdateDevice.Name)
+	}
+
+	resp = env.query(t, `query { devices { id name } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", resp.Errors)
+	}
+	var listData struct {
+		Devices []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"devices"`
+	}
+	if err := json.Unmarshal(resp.Data, &listData); err != nil {
+		t.Fatalf("unmarshal list: %v", err)
+	}
+	if len(listData.Devices) != 1 || listData.Devices[0].Name != "AC" {
+		t.Fatalf("got devices %#v, want AC", listData.Devices)
+	}
+}
+
 func TestMutationApplyScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["scene1"] = store.Scene{ID: "scene1", Name: "Evening"}

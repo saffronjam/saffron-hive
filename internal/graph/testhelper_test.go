@@ -35,6 +35,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
 	sr := newMockStateReader()
 	st := newMockStore()
+	sr.mirror = st.putDevice
 	bus := eventbus.NewChannelBus()
 	rl := &mockReloader{}
 	er := newMockEffectRunner(st)

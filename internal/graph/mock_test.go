@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ type mockStateReader struct {
 	mu      sync.RWMutex
 	devices []device.Device
 	states  map[device.DeviceID]*device.DeviceState
+	mirror  func(device.Device)
 }
 
 func newMockStateReader() *mockStateReader {
@@ -63,6 +65,9 @@ func (m *mockStateReader) addDevice(d device.Device) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.devices = append(m.devices, d)
+	if m.mirror != nil {
+		m.mirror(d)
+	}
 }
 
 func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceState) {
@@ -84,8 +89,10 @@ type mockStore struct {
 	stateSamples    []store.StateHistoryPoint
 	activityEvents  []store.ActivityEvent
 	activityCounter int64
+	devices         map[device.DeviceID]device.Device
 	users           map[string]store.User // keyed by id
 	mqttConfig      *store.MQTTConfig
+	tuyaConfig      *store.TuyaConfig
 	effects         map[string]store.Effect
 	activeEffects   map[string]effect.ActiveEffectRecord
 
@@ -108,22 +115,66 @@ func newMockStore() *mockStore {
 		automationEdges: make(map[string][]store.AutomationEdge),
 		groups:          make(map[string]store.Group),
 		groupMembers:    make(map[string][]store.GroupMember),
+		devices:         make(map[device.DeviceID]device.Device),
 		users:           make(map[string]store.User),
 		effects:         make(map[string]store.Effect),
 		activeEffects:   make(map[string]effect.ActiveEffectRecord),
 	}
 }
 
-func (m *mockStore) GetDevice(_ context.Context, _ device.DeviceID) (device.Device, error) {
-	return device.Device{}, nil
+func (m *mockStore) GetDevice(_ context.Context, id device.DeviceID) (device.Device, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	d, ok := m.devices[id]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	return d, nil
 }
 
-func (m *mockStore) UpdateDevice(_ context.Context, _ store.UpdateDeviceParams) (device.Device, error) {
-	return device.Device{}, nil
+func (m *mockStore) putDevice(d device.Device) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.devices[d.ID] = d
 }
 
-func (m *mockStore) UpdateDeviceIcon(_ context.Context, _ store.UpdateDeviceIconParams) (device.Device, error) {
-	return device.Device{}, nil
+func (m *mockStore) ListDevices(_ context.Context) ([]device.Device, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]device.Device, 0, len(m.devices))
+	for _, d := range m.devices {
+		out = append(out, d)
+	}
+	return out, nil
+}
+
+func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDeviceParams) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[params.ID]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	d.Name = params.Name
+	d.Available = params.Available
+	d.Removed = params.Removed
+	d.LastSeen = params.LastSeen
+	m.devices[params.ID] = d
+	return d, nil
+}
+
+func (m *mockStore) UpdateDeviceIcon(_ context.Context, params store.UpdateDeviceIconParams) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[params.ID]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	if params.SetIcon {
+		d.Icon = params.Icon
+	}
+	m.devices[params.ID] = d
+	return d, nil
 }
 
 func (m *mockStore) CreateScene(_ context.Context, params store.CreateSceneParams) (store.Scene, error) {
@@ -638,6 +689,19 @@ func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) 
 }
 
 func (m *mockStore) UpsertMQTTConfig(_ context.Context, _ store.MQTTConfig) error {
+	return nil
+}
+
+func (m *mockStore) GetTuyaConfig(_ context.Context) (*store.TuyaConfig, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.tuyaConfig, nil
+}
+
+func (m *mockStore) UpsertTuyaConfig(_ context.Context, cfg store.TuyaConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.tuyaConfig = &cfg
 	return nil
 }
 
