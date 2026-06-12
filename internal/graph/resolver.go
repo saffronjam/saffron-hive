@@ -31,6 +31,14 @@ type MQTTReconnector interface {
 	Reconnect(ctx context.Context) error
 }
 
+// TuyaController manages the optional Tuya cloud integration.
+type TuyaController interface {
+	ReconnectTuya(ctx context.Context) error
+	TestTuya(ctx context.Context, cfg store.TuyaConfig) error
+	SyncTuya(ctx context.Context) ([]device.Device, error)
+	TuyaConnected() bool
+}
+
 // BootstrapTokenChecker guards the first-boot createInitialUser flow. Implemented
 // by serve.BootstrapTokenStore; declared here as a narrow interface so the graph
 // package does not depend on cmd/.
@@ -53,6 +61,7 @@ type EffectRunner interface {
 type GraphStore interface {
 	// Devices
 	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
+	ListDevices(ctx context.Context) ([]device.Device, error)
 	UpdateDevice(ctx context.Context, params store.UpdateDeviceParams) (device.Device, error)
 	UpdateDeviceIcon(ctx context.Context, params store.UpdateDeviceIconParams) (device.Device, error)
 
@@ -126,6 +135,8 @@ type GraphStore interface {
 	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	GetMQTTConfig(ctx context.Context) (*store.MQTTConfig, error)
 	UpsertMQTTConfig(ctx context.Context, cfg store.MQTTConfig) error
+	GetTuyaConfig(ctx context.Context) (*store.TuyaConfig, error)
+	UpsertTuyaConfig(ctx context.Context, cfg store.TuyaConfig) error
 	ListSettings(ctx context.Context) ([]store.Setting, error)
 	UpsertSetting(ctx context.Context, key, value string) error
 	CreateUser(ctx context.Context, params store.CreateUserParams) (store.User, error)
@@ -160,6 +171,7 @@ type Resolver struct {
 	AlarmBuffer         *alarms.Buffer
 	LevelVar            *slog.LevelVar
 	Reconnector         MQTTReconnector
+	Tuya                TuyaController
 	EffectRunner        EffectRunner
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter

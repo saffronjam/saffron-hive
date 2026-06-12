@@ -76,11 +76,15 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 	}
 
 	cmd := device.Command{
-		DeviceID:   id,
-		On:         state.On.Value(),
-		Brightness: state.Brightness.Value(),
-		Transition: state.Transition.Value(),
-		Origin:     device.OriginUser(),
+		DeviceID:          id,
+		On:                state.On.Value(),
+		Brightness:        state.Brightness.Value(),
+		Transition:        state.Transition.Value(),
+		TargetTemperature: state.TargetTemperature.Value(),
+		HvacMode:          state.HvacMode.Value(),
+		FanMode:           state.FanMode.Value(),
+		Swing:             state.Swing.Value(),
+		Origin:            device.OriginUser(),
 	}
 	if color := state.Color.Value(); color != nil {
 		cmd.Color = &device.Color{
@@ -709,8 +713,82 @@ func (r *mutationResolver) TestMqttConnection(ctx context.Context, input model.M
 
 	return &model.ConnectionTestResult{
 		Success: true,
-		Message: "connected successfully",
+		Message: "Connected successfully",
 	}, nil
+}
+
+// UpdateTuyaConfig is the resolver for the updateTuyaConfig field.
+func (r *mutationResolver) UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error) {
+	secret := input.AccessSecret
+	if secret == redactedPasswordSentinel {
+		existing, err := r.Store.GetTuyaConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			secret = existing.AccessSecret
+		} else {
+			secret = ""
+		}
+	}
+	cfg := store.TuyaConfig{
+		AccessID:     strings.TrimSpace(input.AccessID),
+		AccessSecret: secret,
+		Region:       strings.TrimSpace(input.Region),
+		Enabled:      input.Enabled,
+	}
+	if err := r.Store.UpsertTuyaConfig(ctx, cfg); err != nil {
+		return nil, err
+	}
+	if r.Tuya != nil {
+		if err := r.Tuya.ReconnectTuya(ctx); err != nil {
+			return nil, fmt.Errorf("saved config but failed to reconnect Tuya: %w", err)
+		}
+	}
+	return mapTuyaConfig(cfg), nil
+}
+
+// TestTuyaConnection is the resolver for the testTuyaConnection field.
+func (r *mutationResolver) TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error) {
+	if r.Tuya == nil {
+		return &model.ConnectionTestResult{Success: false, Message: "Tuya integration is not configured"}, nil
+	}
+	secret := input.AccessSecret
+	if secret == redactedPasswordSentinel {
+		existing, err := r.Store.GetTuyaConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			secret = existing.AccessSecret
+		}
+	}
+	cfg := store.TuyaConfig{
+		AccessID:     strings.TrimSpace(input.AccessID),
+		AccessSecret: secret,
+		Region:       strings.TrimSpace(input.Region),
+		Enabled:      input.Enabled,
+	}
+	if err := r.Tuya.TestTuya(ctx, cfg); err != nil {
+		return &model.ConnectionTestResult{Success: false, Message: err.Error()}, nil
+	}
+	return &model.ConnectionTestResult{Success: true, Message: "Connected successfully"}, nil
+}
+
+// SyncTuyaDevices is the resolver for the syncTuyaDevices field.
+func (r *mutationResolver) SyncTuyaDevices(ctx context.Context) ([]*model.Device, error) {
+	if r.Tuya == nil {
+		return nil, errors.New("Tuya integration is not configured")
+	}
+	devices, err := r.Tuya.SyncTuya(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.Device, len(devices))
+	for i, d := range devices {
+		result[i] = mapDeviceFromReader(r.StateReader, d)
+	}
+	return result, nil
 }
 
 // UpdateSetting is the resolver for the updateSetting field. Server-internal
@@ -1362,7 +1440,10 @@ func (r *mutationResolver) StopEffect(ctx context.Context, targetType string, ta
 
 // Devices is the resolver for the devices field.
 func (r *queryResolver) Devices(ctx context.Context) ([]*model.Device, error) {
-	devices := r.StateReader.ListDevices()
+	devices, err := r.Store.ListDevices(ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]*model.Device, len(devices))
 	for i, d := range devices {
 		result[i] = mapDeviceFromReader(r.StateReader, d)
@@ -1372,9 +1453,12 @@ func (r *queryResolver) Devices(ctx context.Context) ([]*model.Device, error) {
 
 // Device is the resolver for the device field.
 func (r *queryResolver) Device(ctx context.Context, id string) (*model.Device, error) {
-	d, ok := r.StateReader.GetDevice(device.DeviceID(id))
-	if !ok {
+	d, err := r.Store.GetDevice(ctx, device.DeviceID(id))
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 	return mapDeviceFromReader(r.StateReader, d), nil
 }
@@ -1758,6 +1842,36 @@ func (r *queryResolver) MqttConfig(ctx context.Context) (*model.MqttConfig, erro
 		Password: masked,
 		UseWss:   cfg.UseWSS,
 	}, nil
+}
+
+// Integrations is the resolver for the integrations field.
+func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration, error) {
+	cfg, err := r.Store.GetTuyaConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	configured := cfg != nil && cfg.AccessID != "" && cfg.AccessSecret != "" && cfg.Region != ""
+	enabled := configured && cfg.Enabled
+	connected := enabled && r.Tuya != nil && r.Tuya.TuyaConnected()
+	return []*model.Integration{{
+		Provider:   "tuya",
+		Name:       "Tuya",
+		Configured: configured,
+		Enabled:    enabled,
+		Connected:  connected,
+	}}, nil
+}
+
+// TuyaConfig is the resolver for the tuyaConfig field.
+func (r *queryResolver) TuyaConfig(ctx context.Context) (*model.TuyaConfig, error) {
+	cfg, err := r.Store.GetTuyaConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		return nil, nil
+	}
+	return mapTuyaConfig(*cfg), nil
 }
 
 // Settings is the resolver for the settings field. Server-internal keys

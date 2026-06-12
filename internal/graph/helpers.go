@@ -273,6 +273,19 @@ func mapCapabilities(caps []device.Capability) []*model.Capability {
 	return result
 }
 
+func mapTuyaConfig(cfg store.TuyaConfig) *model.TuyaConfig {
+	secret := ""
+	if cfg.AccessSecret != "" {
+		secret = redactedPasswordSentinel
+	}
+	return &model.TuyaConfig{
+		AccessID:     cfg.AccessID,
+		AccessSecret: secret,
+		Region:       cfg.Region,
+		Enabled:      cfg.Enabled,
+	}
+}
+
 // resolveDeviceStateFromReader copies a device.DeviceState into its GraphQL
 // model. Returns nil for unknown devices; optional fields pass through as nil
 // when the device has not reported them.
@@ -282,19 +295,23 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 		return nil
 	}
 	out := &model.DeviceState{
-		On:          ds.On,
-		Brightness:  ds.Brightness,
-		ColorTemp:   ds.ColorTemp,
-		Transition:  ds.Transition,
-		Temperature: ds.Temperature,
-		Humidity:    ds.Humidity,
-		Pressure:    ds.Pressure,
-		Illuminance: ds.Illuminance,
-		Battery:     ds.Battery,
-		Power:       ds.Power,
-		Voltage:     ds.Voltage,
-		Current:     ds.Current,
-		Energy:      ds.Energy,
+		On:                ds.On,
+		Brightness:        ds.Brightness,
+		ColorTemp:         ds.ColorTemp,
+		Transition:        ds.Transition,
+		Temperature:       ds.Temperature,
+		Humidity:          ds.Humidity,
+		Pressure:          ds.Pressure,
+		Illuminance:       ds.Illuminance,
+		Battery:           ds.Battery,
+		Power:             ds.Power,
+		Voltage:           ds.Voltage,
+		Current:           ds.Current,
+		Energy:            ds.Energy,
+		TargetTemperature: ds.TargetTemperature,
+		HvacMode:          ds.HvacMode,
+		FanMode:           ds.FanMode,
+		Swing:             ds.Swing,
 	}
 	if ds.Color != nil {
 		out.Color = &model.Color{
