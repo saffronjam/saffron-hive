@@ -119,7 +119,14 @@ func BuildApplyCommands(
 // a transition-only command isn't useful on its own and doesn't make a device
 // "controllable" by itself.
 func isEmptyCommand(c device.Command) bool {
-	return c.On == nil && c.Brightness == nil && c.ColorTemp == nil && c.Color == nil
+	return c.On == nil &&
+		c.Brightness == nil &&
+		c.ColorTemp == nil &&
+		c.Color == nil &&
+		c.TargetTemperature == nil &&
+		c.HvacMode == nil &&
+		c.FanMode == nil &&
+		c.Swing == nil
 }
 
 // DefaultScenePayload produces the warm-white "on" command a scene sends to a
@@ -173,6 +180,18 @@ func CommandToDesired(cmd device.Command) map[string]any {
 	if cmd.Transition != nil {
 		out["transition"] = *cmd.Transition
 	}
+	if cmd.TargetTemperature != nil {
+		out["targetTemperature"] = *cmd.TargetTemperature
+	}
+	if cmd.HvacMode != nil {
+		out["hvacMode"] = *cmd.HvacMode
+	}
+	if cmd.FanMode != nil {
+		out["fanMode"] = *cmd.FanMode
+	}
+	if cmd.Swing != nil {
+		out["swing"] = *cmd.Swing
+	}
 	return out
 }
 
@@ -214,6 +233,26 @@ func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired
 		}
 	} else if allow(device.CapBrightness) {
 		cmd.Transition = device.Ptr(DefaultTransitionSeconds)
+	}
+	if v, ok := desired["targetTemperature"]; ok && allow(device.CapTargetTemperature) {
+		if f, ok := toFloat(v); ok {
+			cmd.TargetTemperature = device.Ptr(f)
+		}
+	}
+	if v, ok := desired["hvacMode"]; ok && allow(device.CapHvacMode) {
+		if s, ok := v.(string); ok {
+			cmd.HvacMode = device.Ptr(s)
+		}
+	}
+	if v, ok := desired["fanMode"]; ok && allow(device.CapFanMode) {
+		if s, ok := v.(string); ok {
+			cmd.FanMode = device.Ptr(s)
+		}
+	}
+	if v, ok := desired["swing"]; ok && allow(device.CapSwing) {
+		if s, ok := v.(string); ok {
+			cmd.Swing = device.Ptr(s)
+		}
 	}
 	return cmd
 }
