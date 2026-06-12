@@ -52,6 +52,10 @@ type DeviceState {
   voltage: Float
   current: Float
   energy: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
 }
 
 type Color {
@@ -522,6 +526,22 @@ type MqttConfig {
   useWss: Boolean!
 }
 
+type Integration {
+  provider: String!
+  name: String!
+  configured: Boolean!
+  enabled: Boolean!
+  connected: Boolean!
+  message: String
+}
+
+type TuyaConfig {
+  accessId: String!
+  accessSecret: String!
+  region: String!
+  enabled: Boolean!
+}
+
 type ConnectionTestResult {
   success: Boolean!
   message: String!
@@ -629,12 +649,23 @@ input MqttConfigInput {
   useWss: Boolean!
 }
 
+input TuyaConfigInput {
+  accessId: String!
+  accessSecret: String!
+  region: String!
+  enabled: Boolean!
+}
+
 input DeviceStateInput {
   on: Boolean
   brightness: Int
   colorTemp: Int
   color: ColorInput
   transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
 }
 
 input ColorInput {
@@ -770,6 +801,8 @@ type Query {
   aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
   mqttConfig: MqttConfig @auth
+  integrations: [Integration!]! @auth
+  tuyaConfig: TuyaConfig @auth
   settings: [Setting!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
   activity(filter: ActivityFilter): [ActivityEvent!]! @auth
@@ -819,6 +852,9 @@ type Mutation {
   removeRoomMember(id: ID!): Boolean! @auth
   updateMqttConfig(input: MqttConfigInput!): MqttConfig! @auth
   testMqttConnection(input: MqttConfigInput!): ConnectionTestResult! @auth
+  updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
+  testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
+  syncTuyaDevices: [Device!]! @auth
   updateSetting(key: String!, value: String!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!

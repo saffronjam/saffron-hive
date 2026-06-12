@@ -171,20 +171,24 @@ type ComplexityRoot struct {
 	}
 
 	DeviceState struct {
-		Battery     func(childComplexity int) int
-		Brightness  func(childComplexity int) int
-		Color       func(childComplexity int) int
-		ColorTemp   func(childComplexity int) int
-		Current     func(childComplexity int) int
-		Energy      func(childComplexity int) int
-		Humidity    func(childComplexity int) int
-		Illuminance func(childComplexity int) int
-		On          func(childComplexity int) int
-		Power       func(childComplexity int) int
-		Pressure    func(childComplexity int) int
-		Temperature func(childComplexity int) int
-		Transition  func(childComplexity int) int
-		Voltage     func(childComplexity int) int
+		Battery           func(childComplexity int) int
+		Brightness        func(childComplexity int) int
+		Color             func(childComplexity int) int
+		ColorTemp         func(childComplexity int) int
+		Current           func(childComplexity int) int
+		Energy            func(childComplexity int) int
+		FanMode           func(childComplexity int) int
+		Humidity          func(childComplexity int) int
+		HvacMode          func(childComplexity int) int
+		Illuminance       func(childComplexity int) int
+		On                func(childComplexity int) int
+		Power             func(childComplexity int) int
+		Pressure          func(childComplexity int) int
+		Swing             func(childComplexity int) int
+		TargetTemperature func(childComplexity int) int
+		Temperature       func(childComplexity int) int
+		Transition        func(childComplexity int) int
+		Voltage           func(childComplexity int) int
 	}
 
 	DeviceStateEvent struct {
@@ -249,6 +253,15 @@ type ComplexityRoot struct {
 		Room       func(childComplexity int) int
 	}
 
+	Integration struct {
+		Configured func(childComplexity int) int
+		Connected  func(childComplexity int) int
+		Enabled    func(childComplexity int) int
+		Message    func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Provider   func(childComplexity int) int
+	}
+
 	LogEntry struct {
 		Attrs     func(childComplexity int) int
 		Level     func(childComplexity int) int
@@ -303,7 +316,9 @@ type ComplexityRoot struct {
 		SetDeviceState              func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
+		SyncTuyaDevices             func(childComplexity int) int
 		TestMqttConnection          func(childComplexity int, input model.MqttConfigInput) int
+		TestTuyaConnection          func(childComplexity int, input model.TuyaConfigInput) int
 		ToggleAutomation            func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
 		UpdateCurrentUser           func(childComplexity int, input model.UpdateCurrentUserInput) int
@@ -314,6 +329,7 @@ type ComplexityRoot struct {
 		UpdateRoom                  func(childComplexity int, id string, input model.UpdateRoomInput) int
 		UpdateScene                 func(childComplexity int, id string, input model.UpdateSceneInput) int
 		UpdateSetting               func(childComplexity int, key string, value string) int
+		UpdateTuyaConfig            func(childComplexity int, input model.TuyaConfigInput) int
 	}
 
 	NativeEffectOption struct {
@@ -335,6 +351,7 @@ type ComplexityRoot struct {
 		Effects                func(childComplexity int) int
 		Group                  func(childComplexity int, id string) int
 		Groups                 func(childComplexity int) int
+		Integrations           func(childComplexity int) int
 		Logs                   func(childComplexity int, search *string, limit *int) int
 		Me                     func(childComplexity int) int
 		MqttConfig             func(childComplexity int) int
@@ -347,6 +364,7 @@ type ComplexityRoot struct {
 		SetupStatus            func(childComplexity int) int
 		StateHistory           func(childComplexity int, filter model.StateHistoryFilter) int
 		StateHistoryFields     func(childComplexity int) int
+		TuyaConfig             func(childComplexity int) int
 		Users                  func(childComplexity int) int
 	}
 
@@ -430,6 +448,13 @@ type ComplexityRoot struct {
 		SceneActiveChanged        func(childComplexity int) int
 	}
 
+	TuyaConfig struct {
+		AccessID     func(childComplexity int) int
+		AccessSecret func(childComplexity int) int
+		Enabled      func(childComplexity int) int
+		Region       func(childComplexity int) int
+	}
+
 	User struct {
 		AvatarPath         func(childComplexity int) int
 		CreatedAt          func(childComplexity int) int
@@ -468,6 +493,9 @@ type MutationResolver interface {
 	RemoveRoomMember(ctx context.Context, id string) (bool, error)
 	UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error)
 	TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error)
+	UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error)
+	TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error)
+	SyncTuyaDevices(ctx context.Context) ([]*model.Device, error)
 	UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error)
@@ -510,6 +538,8 @@ type QueryResolver interface {
 	AggregatedStateHistory(ctx context.Context, filter model.AggregatedStateHistoryFilter) ([]*model.AggregatedSeries, error)
 	StateHistoryFields(ctx context.Context) ([]string, error)
 	MqttConfig(ctx context.Context) (*model.MqttConfig, error)
+	Integrations(ctx context.Context) ([]*model.Integration, error)
+	TuyaConfig(ctx context.Context) (*model.TuyaConfig, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
 	Activity(ctx context.Context, filter *model.ActivityFilter) ([]*model.ActivityEvent, error)
@@ -1089,12 +1119,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceState.Energy(childComplexity), true
+	case "DeviceState.fanMode":
+		if e.ComplexityRoot.DeviceState.FanMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.FanMode(childComplexity), true
 	case "DeviceState.humidity":
 		if e.ComplexityRoot.DeviceState.Humidity == nil {
 			break
 		}
 
 		return e.ComplexityRoot.DeviceState.Humidity(childComplexity), true
+	case "DeviceState.hvacMode":
+		if e.ComplexityRoot.DeviceState.HvacMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.HvacMode(childComplexity), true
 	case "DeviceState.illuminance":
 		if e.ComplexityRoot.DeviceState.Illuminance == nil {
 			break
@@ -1119,6 +1161,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceState.Pressure(childComplexity), true
+	case "DeviceState.swing":
+		if e.ComplexityRoot.DeviceState.Swing == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.Swing(childComplexity), true
+	case "DeviceState.targetTemperature":
+		if e.ComplexityRoot.DeviceState.TargetTemperature == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.TargetTemperature(childComplexity), true
 	case "DeviceState.temperature":
 		if e.ComplexityRoot.DeviceState.Temperature == nil {
 			break
@@ -1390,6 +1444,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.GroupMember.Room(childComplexity), true
+
+	case "Integration.configured":
+		if e.ComplexityRoot.Integration.Configured == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Configured(childComplexity), true
+	case "Integration.connected":
+		if e.ComplexityRoot.Integration.Connected == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Connected(childComplexity), true
+	case "Integration.enabled":
+		if e.ComplexityRoot.Integration.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Enabled(childComplexity), true
+	case "Integration.message":
+		if e.ComplexityRoot.Integration.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Message(childComplexity), true
+	case "Integration.name":
+		if e.ComplexityRoot.Integration.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Name(childComplexity), true
+	case "Integration.provider":
+		if e.ComplexityRoot.Integration.Provider == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Provider(childComplexity), true
 
 	case "LogEntry.attrs":
 		if e.ComplexityRoot.LogEntry.Attrs == nil {
@@ -1870,6 +1961,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.StopEffect(childComplexity, args["targetType"].(string), args["targetId"].(string)), true
+	case "Mutation.syncTuyaDevices":
+		if e.ComplexityRoot.Mutation.SyncTuyaDevices == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.SyncTuyaDevices(childComplexity), true
 	case "Mutation.testMqttConnection":
 		if e.ComplexityRoot.Mutation.TestMqttConnection == nil {
 			break
@@ -1881,6 +1978,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.TestMqttConnection(childComplexity, args["input"].(model.MqttConfigInput)), true
+	case "Mutation.testTuyaConnection":
+		if e.ComplexityRoot.Mutation.TestTuyaConnection == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_testTuyaConnection_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.TestTuyaConnection(childComplexity, args["input"].(model.TuyaConfigInput)), true
 	case "Mutation.toggleAutomation":
 		if e.ComplexityRoot.Mutation.ToggleAutomation == nil {
 			break
@@ -1991,6 +2099,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateSetting(childComplexity, args["key"].(string), args["value"].(string)), true
+	case "Mutation.updateTuyaConfig":
+		if e.ComplexityRoot.Mutation.UpdateTuyaConfig == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateTuyaConfig_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateTuyaConfig(childComplexity, args["input"].(model.TuyaConfigInput)), true
 
 	case "NativeEffectOption.displayName":
 		if e.ComplexityRoot.NativeEffectOption.DisplayName == nil {
@@ -2118,6 +2237,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Groups(childComplexity), true
+	case "Query.integrations":
+		if e.ComplexityRoot.Query.Integrations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Integrations(childComplexity), true
 
 	case "Query.logs":
 		if e.ComplexityRoot.Query.Logs == nil {
@@ -2211,6 +2336,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.StateHistoryFields(childComplexity), true
+	case "Query.tuyaConfig":
+		if e.ComplexityRoot.Query.TuyaConfig == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.TuyaConfig(childComplexity), true
 	case "Query.users":
 		if e.ComplexityRoot.Query.Users == nil {
 			break
@@ -2536,6 +2667,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Subscription.SceneActiveChanged(childComplexity), true
 
+	case "TuyaConfig.accessId":
+		if e.ComplexityRoot.TuyaConfig.AccessID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfig.AccessID(childComplexity), true
+	case "TuyaConfig.accessSecret":
+		if e.ComplexityRoot.TuyaConfig.AccessSecret == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfig.AccessSecret(childComplexity), true
+	case "TuyaConfig.enabled":
+		if e.ComplexityRoot.TuyaConfig.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfig.Enabled(childComplexity), true
+	case "TuyaConfig.region":
+		if e.ComplexityRoot.TuyaConfig.Region == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfig.Region(childComplexity), true
+
 	case "User.avatarPath":
 		if e.ComplexityRoot.User.AvatarPath == nil {
 			break
@@ -2626,6 +2782,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputSceneDevicePayloadInput,
 		ec.unmarshalInputStateHistoryFilter,
+		ec.unmarshalInputTuyaConfigInput,
 		ec.unmarshalInputUpdateAutomationInput,
 		ec.unmarshalInputUpdateCurrentUserInput,
 		ec.unmarshalInputUpdateDeviceInput,
@@ -2779,6 +2936,10 @@ type DeviceState {
   voltage: Float
   current: Float
   energy: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
 }
 
 type Color {
@@ -3249,6 +3410,22 @@ type MqttConfig {
   useWss: Boolean!
 }
 
+type Integration {
+  provider: String!
+  name: String!
+  configured: Boolean!
+  enabled: Boolean!
+  connected: Boolean!
+  message: String
+}
+
+type TuyaConfig {
+  accessId: String!
+  accessSecret: String!
+  region: String!
+  enabled: Boolean!
+}
+
 type ConnectionTestResult {
   success: Boolean!
   message: String!
@@ -3356,12 +3533,23 @@ input MqttConfigInput {
   useWss: Boolean!
 }
 
+input TuyaConfigInput {
+  accessId: String!
+  accessSecret: String!
+  region: String!
+  enabled: Boolean!
+}
+
 input DeviceStateInput {
   on: Boolean
   brightness: Int
   colorTemp: Int
   color: ColorInput
   transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
 }
 
 input ColorInput {
@@ -3497,6 +3685,8 @@ type Query {
   aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
   mqttConfig: MqttConfig @auth
+  integrations: [Integration!]! @auth
+  tuyaConfig: TuyaConfig @auth
   settings: [Setting!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
   activity(filter: ActivityFilter): [ActivityEvent!]! @auth
@@ -3546,6 +3736,9 @@ type Mutation {
   removeRoomMember(id: ID!): Boolean! @auth
   updateMqttConfig(input: MqttConfigInput!): MqttConfig! @auth
   testMqttConnection(input: MqttConfigInput!): ConnectionTestResult! @auth
+  updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
+  testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
+  syncTuyaDevices: [Device!]! @auth
   updateSetting(key: String!, value: String!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
@@ -4132,6 +4325,17 @@ func (ec *executionContext) field_Mutation_testMqttConnection_args(ctx context.C
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_testTuyaConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_toggleAutomation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4274,6 +4478,17 @@ func (ec *executionContext) field_Mutation_updateSetting_args(ctx context.Contex
 		return nil, err
 	}
 	args["value"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateTuyaConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -6890,6 +7105,14 @@ func (ec *executionContext) fieldContext_Device_state(_ context.Context, field g
 				return ec.fieldContext_DeviceState_current(ctx, field)
 			case "energy":
 				return ec.fieldContext_DeviceState_energy(ctx, field)
+			case "targetTemperature":
+				return ec.fieldContext_DeviceState_targetTemperature(ctx, field)
+			case "hvacMode":
+				return ec.fieldContext_DeviceState_hvacMode(ctx, field)
+			case "fanMode":
+				return ec.fieldContext_DeviceState_fanMode(ctx, field)
+			case "swing":
+				return ec.fieldContext_DeviceState_swing(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeviceState", field.Name)
 		},
@@ -7460,6 +7683,122 @@ func (ec *executionContext) fieldContext_DeviceState_energy(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _DeviceState_targetTemperature(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_targetTemperature,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetTemperature, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_targetTemperature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_hvacMode(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_hvacMode,
+		func(ctx context.Context) (any, error) {
+			return obj.HvacMode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_hvacMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_fanMode(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_fanMode,
+		func(ctx context.Context) (any, error) {
+			return obj.FanMode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_fanMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_swing(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_swing,
+		func(ctx context.Context) (any, error) {
+			return obj.Swing, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_swing(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DeviceStateEvent_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.DeviceStateEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7541,6 +7880,14 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 				return ec.fieldContext_DeviceState_current(ctx, field)
 			case "energy":
 				return ec.fieldContext_DeviceState_energy(ctx, field)
+			case "targetTemperature":
+				return ec.fieldContext_DeviceState_targetTemperature(ctx, field)
+			case "hvacMode":
+				return ec.fieldContext_DeviceState_hvacMode(ctx, field)
+			case "fanMode":
+				return ec.fieldContext_DeviceState_fanMode(ctx, field)
+			case "swing":
+				return ec.fieldContext_DeviceState_swing(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeviceState", field.Name)
 		},
@@ -8822,6 +9169,180 @@ func (ec *executionContext) fieldContext_GroupMember_room(_ context.Context, fie
 				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Integration_provider(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_provider,
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Integration_name(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Integration_configured(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_configured,
+		func(ctx context.Context) (any, error) {
+			return obj.Configured, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_configured(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Integration_enabled(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Integration_connected(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_connected,
+		func(ctx context.Context) (any, error) {
+			return obj.Connected, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_connected(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Integration_message(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_message,
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10607,6 +11128,192 @@ func (ec *executionContext) fieldContext_Mutation_testMqttConnection(ctx context
 	if fc.Args, err = ec.field_Mutation_testMqttConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateTuyaConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateTuyaConfig,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateTuyaConfig(ctx, fc.Args["input"].(model.TuyaConfigInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.TuyaConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateTuyaConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accessId":
+				return ec.fieldContext_TuyaConfig_accessId(ctx, field)
+			case "accessSecret":
+				return ec.fieldContext_TuyaConfig_accessSecret(ctx, field)
+			case "region":
+				return ec.fieldContext_TuyaConfig_region(ctx, field)
+			case "enabled":
+				return ec.fieldContext_TuyaConfig_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TuyaConfig", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateTuyaConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_testTuyaConnection(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_testTuyaConnection,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().TestTuyaConnection(ctx, fc.Args["input"].(model.TuyaConfigInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_testTuyaConnection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
+			case "message":
+				return ec.fieldContext_ConnectionTestResult_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_testTuyaConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_syncTuyaDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_syncTuyaDevices,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().SyncTuyaDevices(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDevice2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "capabilities":
+				return ec.fieldContext_Device_capabilities(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -13131,6 +13838,114 @@ func (ec *executionContext) fieldContext_Query_mqttConfig(_ context.Context, fie
 				return ec.fieldContext_MqttConfig_useWss(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MqttConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_integrations(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_integrations,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Integrations(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Integration
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNIntegration2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegrationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_integrations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "provider":
+				return ec.fieldContext_Integration_provider(ctx, field)
+			case "name":
+				return ec.fieldContext_Integration_name(ctx, field)
+			case "configured":
+				return ec.fieldContext_Integration_configured(ctx, field)
+			case "enabled":
+				return ec.fieldContext_Integration_enabled(ctx, field)
+			case "connected":
+				return ec.fieldContext_Integration_connected(ctx, field)
+			case "message":
+				return ec.fieldContext_Integration_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Integration", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_tuyaConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_tuyaConfig,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().TuyaConfig(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.TuyaConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_tuyaConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accessId":
+				return ec.fieldContext_TuyaConfig_accessId(ctx, field)
+			case "accessSecret":
+				return ec.fieldContext_TuyaConfig_accessSecret(ctx, field)
+			case "region":
+				return ec.fieldContext_TuyaConfig_region(ctx, field)
+			case "enabled":
+				return ec.fieldContext_TuyaConfig_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TuyaConfig", field.Name)
 		},
 	}
 	return fc, nil
@@ -15708,6 +16523,122 @@ func (ec *executionContext) fieldContext_Subscription_effectStepActivated(ctx co
 	return fc, nil
 }
 
+func (ec *executionContext) _TuyaConfig_accessId(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfig_accessId,
+		func(ctx context.Context) (any, error) {
+			return obj.AccessID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfig_accessId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TuyaConfig_accessSecret(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfig_accessSecret,
+		func(ctx context.Context) (any, error) {
+			return obj.AccessSecret, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfig_accessSecret(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TuyaConfig_region(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfig_region,
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfig_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TuyaConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfig_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_id(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -18258,7 +19189,7 @@ func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"on", "brightness", "colorTemp", "color", "transition"}
+	fieldsInOrder := [...]string{"on", "brightness", "colorTemp", "color", "transition", "targetTemperature", "hvacMode", "fanMode", "swing"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18300,6 +19231,34 @@ func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, 
 				return it, err
 			}
 			it.Transition = graphql.OmittableOf(data)
+		case "targetTemperature":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetTemperature"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetTemperature = graphql.OmittableOf(data)
+		case "hvacMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hvacMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HvacMode = graphql.OmittableOf(data)
+		case "fanMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fanMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FanMode = graphql.OmittableOf(data)
+		case "swing":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("swing"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Swing = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -18710,6 +19669,57 @@ func (ec *executionContext) unmarshalInputStateHistoryFilter(ctx context.Context
 				return it, err
 			}
 			it.BucketSeconds = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputTuyaConfigInput(ctx context.Context, obj any) (model.TuyaConfigInput, error) {
+	var it model.TuyaConfigInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"accessId", "accessSecret", "region", "enabled"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "accessId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("accessId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AccessID = data
+		case "accessSecret":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("accessSecret"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AccessSecret = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
 		}
 	}
 	return it, nil
@@ -20078,6 +21088,14 @@ func (ec *executionContext) _DeviceState(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = ec._DeviceState_current(ctx, field, obj)
 		case "energy":
 			out.Values[i] = ec._DeviceState_energy(ctx, field, obj)
+		case "targetTemperature":
+			out.Values[i] = ec._DeviceState_targetTemperature(ctx, field, obj)
+		case "hvacMode":
+			out.Values[i] = ec._DeviceState_hvacMode(ctx, field, obj)
+		case "fanMode":
+			out.Values[i] = ec._DeviceState_fanMode(ctx, field, obj)
+		case "swing":
+			out.Values[i] = ec._DeviceState_swing(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20520,6 +21538,67 @@ func (ec *executionContext) _GroupMember(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var integrationImplementors = []string{"Integration"}
+
+func (ec *executionContext) _Integration(ctx context.Context, sel ast.SelectionSet, obj *model.Integration) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, integrationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Integration")
+		case "provider":
+			out.Values[i] = ec._Integration_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Integration_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "configured":
+			out.Values[i] = ec._Integration_configured(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._Integration_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "connected":
+			out.Values[i] = ec._Integration_connected(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._Integration_message(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var logEntryImplementors = []string{"LogEntry"}
 
 func (ec *executionContext) _LogEntry(ctx context.Context, sel ast.SelectionSet, obj *model.LogEntry) graphql.Marshaler {
@@ -20811,6 +21890,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "testMqttConnection":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_testMqttConnection(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateTuyaConfig":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateTuyaConfig(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "testTuyaConnection":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_testTuyaConnection(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "syncTuyaDevices":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_syncTuyaDevices(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -21369,6 +22469,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_mqttConfig(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "integrations":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_integrations(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "tuyaConfig":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_tuyaConfig(ctx, field)
 				return res
 			}
 
@@ -22179,6 +23320,60 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
+}
+
+var tuyaConfigImplementors = []string{"TuyaConfig"}
+
+func (ec *executionContext) _TuyaConfig(ctx context.Context, sel ast.SelectionSet, obj *model.TuyaConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, tuyaConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TuyaConfig")
+		case "accessId":
+			out.Values[i] = ec._TuyaConfig_accessId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "accessSecret":
+			out.Values[i] = ec._TuyaConfig_accessSecret(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._TuyaConfig_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._TuyaConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
 }
 
 var userImplementors = []string{"User"}
@@ -23461,6 +24656,32 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
+func (ec *executionContext) marshalNIntegration2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegrationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Integration) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNIntegration2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegration(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNIntegration2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegration(ctx context.Context, sel ast.SelectionSet, v *model.Integration) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Integration(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNLogEntry2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLogEntry(ctx context.Context, sel ast.SelectionSet, v model.LogEntry) graphql.Marshaler {
 	return ec._LogEntry(ctx, sel, &v)
 }
@@ -23902,6 +25123,25 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalNTuyaConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v model.TuyaConfig) graphql.Marshaler {
+	return ec._TuyaConfig(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v *model.TuyaConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TuyaConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput(ctx context.Context, v any) (model.TuyaConfigInput, error) {
+	res, err := ec.unmarshalInputTuyaConfigInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput(ctx context.Context, v any) (model.UpdateAutomationInput, error) {
@@ -24606,6 +25846,13 @@ func (ec *executionContext) marshalOTimeFormat2ᚖgithubᚗcomᚋsaffronjamᚋsa
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v *model.TuyaConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._TuyaConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {

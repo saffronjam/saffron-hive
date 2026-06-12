@@ -280,20 +280,24 @@ type DeviceAvailabilityEvent struct {
 // value. Clients typically branch on Device.type to decide which fields to
 // display, but any field may be present on any device.
 type DeviceState struct {
-	On          *bool    `json:"on,omitempty"`
-	Brightness  *int     `json:"brightness,omitempty"`
-	ColorTemp   *int     `json:"colorTemp,omitempty"`
-	Color       *Color   `json:"color,omitempty"`
-	Transition  *float64 `json:"transition,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
-	Humidity    *float64 `json:"humidity,omitempty"`
-	Pressure    *float64 `json:"pressure,omitempty"`
-	Illuminance *float64 `json:"illuminance,omitempty"`
-	Battery     *float64 `json:"battery,omitempty"`
-	Power       *float64 `json:"power,omitempty"`
-	Voltage     *float64 `json:"voltage,omitempty"`
-	Current     *float64 `json:"current,omitempty"`
-	Energy      *float64 `json:"energy,omitempty"`
+	On                *bool    `json:"on,omitempty"`
+	Brightness        *int     `json:"brightness,omitempty"`
+	ColorTemp         *int     `json:"colorTemp,omitempty"`
+	Color             *Color   `json:"color,omitempty"`
+	Transition        *float64 `json:"transition,omitempty"`
+	Temperature       *float64 `json:"temperature,omitempty"`
+	Humidity          *float64 `json:"humidity,omitempty"`
+	Pressure          *float64 `json:"pressure,omitempty"`
+	Illuminance       *float64 `json:"illuminance,omitempty"`
+	Battery           *float64 `json:"battery,omitempty"`
+	Power             *float64 `json:"power,omitempty"`
+	Voltage           *float64 `json:"voltage,omitempty"`
+	Current           *float64 `json:"current,omitempty"`
+	Energy            *float64 `json:"energy,omitempty"`
+	TargetTemperature *float64 `json:"targetTemperature,omitempty"`
+	HvacMode          *string  `json:"hvacMode,omitempty"`
+	FanMode           *string  `json:"fanMode,omitempty"`
+	Swing             *string  `json:"swing,omitempty"`
 }
 
 type DeviceStateEvent struct {
@@ -302,11 +306,15 @@ type DeviceStateEvent struct {
 }
 
 type DeviceStateInput struct {
-	On         graphql.Omittable[*bool]       `json:"on,omitempty"`
-	Brightness graphql.Omittable[*int]        `json:"brightness,omitempty"`
-	ColorTemp  graphql.Omittable[*int]        `json:"colorTemp,omitempty"`
-	Color      graphql.Omittable[*ColorInput] `json:"color,omitempty"`
-	Transition graphql.Omittable[*float64]    `json:"transition,omitempty"`
+	On                graphql.Omittable[*bool]       `json:"on,omitempty"`
+	Brightness        graphql.Omittable[*int]        `json:"brightness,omitempty"`
+	ColorTemp         graphql.Omittable[*int]        `json:"colorTemp,omitempty"`
+	Color             graphql.Omittable[*ColorInput] `json:"color,omitempty"`
+	Transition        graphql.Omittable[*float64]    `json:"transition,omitempty"`
+	TargetTemperature graphql.Omittable[*float64]    `json:"targetTemperature,omitempty"`
+	HvacMode          graphql.Omittable[*string]     `json:"hvacMode,omitempty"`
+	FanMode           graphql.Omittable[*string]     `json:"fanMode,omitempty"`
+	Swing             graphql.Omittable[*string]     `json:"swing,omitempty"`
 }
 
 type Effect struct {
@@ -405,6 +413,15 @@ type GroupMember struct {
 	Device     *Device `json:"device,omitempty"`
 	Group      *Group  `json:"group,omitempty"`
 	Room       *Room   `json:"room,omitempty"`
+}
+
+type Integration struct {
+	Provider   string  `json:"provider"`
+	Name       string  `json:"name"`
+	Configured bool    `json:"configured"`
+	Enabled    bool    `json:"enabled"`
+	Connected  bool    `json:"connected"`
+	Message    *string `json:"message,omitempty"`
 }
 
 type LogEntry struct {
@@ -584,6 +601,20 @@ type StateSeriesPoint struct {
 }
 
 type Subscription struct {
+}
+
+type TuyaConfig struct {
+	AccessID     string `json:"accessId"`
+	AccessSecret string `json:"accessSecret"`
+	Region       string `json:"region"`
+	Enabled      bool   `json:"enabled"`
+}
+
+type TuyaConfigInput struct {
+	AccessID     string `json:"accessId"`
+	AccessSecret string `json:"accessSecret"`
+	Region       string `json:"region"`
+	Enabled      bool   `json:"enabled"`
 }
 
 type UpdateAutomationInput struct {
