@@ -245,9 +245,20 @@ func (a *ZigbeeAdapter) commandLoop() {
 			if !ok {
 				continue
 			}
+			if !a.acceptsCommand(cmd.DeviceID) {
+				continue
+			}
 			a.handleCommand(cmd)
 		}
 	}
+}
+
+func (a *ZigbeeAdapter) acceptsCommand(deviceID device.DeviceID) bool {
+	dev, found := a.stateReader.GetDevice(deviceID)
+	if !found {
+		return true
+	}
+	return dev.Source == "" || dev.Source == device.Source("zigbee")
 }
 
 func (a *ZigbeeAdapter) nativeEffectLoop() {
