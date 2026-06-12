@@ -62,6 +62,7 @@ func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
 		{FieldOn, boolToFloat(ds.On), ds.On != nil},
 		{FieldBrightness, ptrIntToFloat(ds.Brightness), ds.Brightness != nil},
 		{FieldColorTemp, ptrIntToFloat(ds.ColorTemp), ds.ColorTemp != nil},
+		{FieldTargetTemp, ptrFloat(ds.TargetTemperature), ds.TargetTemperature != nil},
 		{FieldTemperature, ptrFloat(ds.Temperature), ds.Temperature != nil},
 		{FieldHumidity, ptrFloat(ds.Humidity), ds.Humidity != nil},
 		{FieldPressure, ptrFloat(ds.Pressure), ds.Pressure != nil},

@@ -11,6 +11,7 @@ const (
 	FieldOn          = "on"
 	FieldBrightness  = "brightness"
 	FieldColorTemp   = "colorTemp"
+	FieldTargetTemp  = "targetTemperature"
 	FieldTemperature = "temperature"
 	FieldHumidity    = "humidity"
 	FieldPressure    = "pressure"
@@ -29,6 +30,7 @@ var AllFields = []string{
 	FieldOn,
 	FieldBrightness,
 	FieldColorTemp,
+	FieldTargetTemp,
 	FieldTemperature,
 	FieldHumidity,
 	FieldPressure,
