@@ -104,6 +104,18 @@ func lookupDeviceByName(reader device.StateReader, name string) (map[string]any,
 	if st.Temperature != nil {
 		result["temperature"] = *st.Temperature
 	}
+	if st.TargetTemperature != nil {
+		result["targetTemperature"] = *st.TargetTemperature
+	}
+	if st.HvacMode != nil {
+		result["hvacMode"] = *st.HvacMode
+	}
+	if st.FanMode != nil {
+		result["fanMode"] = *st.FanMode
+	}
+	if st.Swing != nil {
+		result["swing"] = *st.Swing
+	}
 	if st.Humidity != nil {
 		result["humidity"] = *st.Humidity
 	}

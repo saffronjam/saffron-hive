@@ -194,6 +194,16 @@ var numericFields = []numericFieldDef{
 			return float64(*st.Brightness), true
 		},
 	},
+	{
+		capName:  device.CapTargetTemperature,
+		cmdField: "targetTemperature",
+		read: func(st *device.DeviceState) (float64, bool) {
+			if st == nil || st.TargetTemperature == nil {
+				return 0, false
+			}
+			return *st.TargetTemperature, true
+		},
+	},
 }
 
 func numericFieldByCap(name string) (numericFieldDef, bool) {
@@ -440,6 +450,26 @@ func buildCommand(deviceID device.DeviceID, desired map[string]any) device.Comma
 			cmd.Transition = device.Ptr(f)
 		}
 	}
+	if v, ok := desired["targetTemperature"]; ok {
+		if f, ok := toFloat(v); ok {
+			cmd.TargetTemperature = device.Ptr(f)
+		}
+	}
+	if v, ok := desired["hvacMode"]; ok {
+		if s, ok := v.(string); ok {
+			cmd.HvacMode = device.Ptr(s)
+		}
+	}
+	if v, ok := desired["fanMode"]; ok {
+		if s, ok := v.(string); ok {
+			cmd.FanMode = device.Ptr(s)
+		}
+	}
+	if v, ok := desired["swing"]; ok {
+		if s, ok := v.(string); ok {
+			cmd.Swing = device.Ptr(s)
+		}
+	}
 	return cmd
 }
 
@@ -544,6 +574,26 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 			}
 		case "colorTemp":
 			if st.ColorTemp == nil || *st.ColorTemp != toInt(val) {
+				return false
+			}
+		case "targetTemperature":
+			want, ok := toFloat(val)
+			if !ok || st.TargetTemperature == nil || *st.TargetTemperature != want {
+				return false
+			}
+		case "hvacMode":
+			want, ok := val.(string)
+			if !ok || st.HvacMode == nil || *st.HvacMode != want {
+				return false
+			}
+		case "fanMode":
+			want, ok := val.(string)
+			if !ok || st.FanMode == nil || *st.FanMode != want {
+				return false
+			}
+		case "swing":
+			want, ok := val.(string)
+			if !ok || st.Swing == nil || *st.Swing != want {
 				return false
 			}
 		case "color":
