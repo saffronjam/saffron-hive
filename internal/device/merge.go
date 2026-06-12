@@ -49,5 +49,17 @@ func MergeDeviceState(current, update DeviceState) DeviceState {
 	if update.Energy != nil {
 		current.Energy = update.Energy
 	}
+	if update.TargetTemperature != nil {
+		current.TargetTemperature = update.TargetTemperature
+	}
+	if update.HvacMode != nil {
+		current.HvacMode = update.HvacMode
+	}
+	if update.FanMode != nil {
+		current.FanMode = update.FanMode
+	}
+	if update.Swing != nil {
+		current.Swing = update.Swing
+	}
 	return current
 }

@@ -31,20 +31,24 @@ type DeviceStateChange struct {
 // Button presses are carried by eventbus.EventDeviceActionFired (payload
 // device.Action), not by this struct.
 type DeviceState struct {
-	On          *bool    `json:"on,omitempty"`
-	Brightness  *int     `json:"brightness,omitempty"`
-	ColorTemp   *int     `json:"colorTemp,omitempty"`
-	Color       *Color   `json:"color,omitempty"`
-	Transition  *float64 `json:"transition,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
-	Humidity    *float64 `json:"humidity,omitempty"`
-	Pressure    *float64 `json:"pressure,omitempty"`
-	Illuminance *float64 `json:"illuminance,omitempty"`
-	Battery     *float64 `json:"battery,omitempty"`
-	Power       *float64 `json:"power,omitempty"`
-	Voltage     *float64 `json:"voltage,omitempty"`
-	Current     *float64 `json:"current,omitempty"`
-	Energy      *float64 `json:"energy,omitempty"`
+	On                *bool    `json:"on,omitempty"`
+	Brightness        *int     `json:"brightness,omitempty"`
+	ColorTemp         *int     `json:"colorTemp,omitempty"`
+	Color             *Color   `json:"color,omitempty"`
+	Transition        *float64 `json:"transition,omitempty"`
+	Temperature       *float64 `json:"temperature,omitempty"`
+	Humidity          *float64 `json:"humidity,omitempty"`
+	Pressure          *float64 `json:"pressure,omitempty"`
+	Illuminance       *float64 `json:"illuminance,omitempty"`
+	Battery           *float64 `json:"battery,omitempty"`
+	Power             *float64 `json:"power,omitempty"`
+	Voltage           *float64 `json:"voltage,omitempty"`
+	Current           *float64 `json:"current,omitempty"`
+	Energy            *float64 `json:"energy,omitempty"`
+	TargetTemperature *float64 `json:"targetTemperature,omitempty"`
+	HvacMode          *string  `json:"hvacMode,omitempty"`
+	FanMode           *string  `json:"fanMode,omitempty"`
+	Swing             *string  `json:"swing,omitempty"`
 }
 
 // DeviceStateField identifies a clearable field on DeviceState. Used by

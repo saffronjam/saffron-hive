@@ -5,10 +5,14 @@ package device
 // (e.g. "transition") are treated as protocol-level modifiers and always
 // pass through.
 var commandFieldCapabilities = map[string]string{
-	"on":         CapOnOff,
-	"brightness": CapBrightness,
-	"colorTemp":  CapColorTemp,
-	"color":      CapColor,
+	"on":                CapOnOff,
+	"brightness":        CapBrightness,
+	"colorTemp":         CapColorTemp,
+	"color":             CapColor,
+	"targetTemperature": CapTargetTemperature,
+	"hvacMode":          CapHvacMode,
+	"fanMode":           CapFanMode,
+	"swing":             CapSwing,
 }
 
 // FilterCommandFields returns a copy of fields containing only those entries

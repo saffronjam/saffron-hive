@@ -22,6 +22,8 @@ const (
 	// Plug represents a switchable outlet, usually with on/off control and
 	// often with power metering (power, voltage, current, energy).
 	Plug DeviceType = "plug"
+	// Climate represents a heating/cooling device with thermostat-like controls.
+	Climate DeviceType = "climate"
 	// Speaker represents an audio output device.
 	Speaker DeviceType = "speaker"
 	// Unknown represents a device whose type could not be determined.
@@ -30,21 +32,25 @@ const (
 
 // Capability constants for known device capabilities.
 const (
-	CapOnOff       = "on_off"
-	CapBrightness  = "brightness"
-	CapColorTemp   = "color_temp"
-	CapColor       = "color"
-	CapTemperature = "temperature"
-	CapHumidity    = "humidity"
-	CapPressure    = "pressure"
-	CapIlluminance = "illuminance"
-	CapBattery     = "battery"
-	CapAction      = "action"
-	CapEffect      = "effect"
-	CapPower       = "power"
-	CapVoltage     = "voltage"
-	CapCurrent     = "current"
-	CapEnergy      = "energy"
+	CapOnOff             = "on_off"
+	CapBrightness        = "brightness"
+	CapColorTemp         = "color_temp"
+	CapColor             = "color"
+	CapTemperature       = "temperature"
+	CapHumidity          = "humidity"
+	CapPressure          = "pressure"
+	CapIlluminance       = "illuminance"
+	CapBattery           = "battery"
+	CapAction            = "action"
+	CapEffect            = "effect"
+	CapPower             = "power"
+	CapVoltage           = "voltage"
+	CapCurrent           = "current"
+	CapEnergy            = "energy"
+	CapTargetTemperature = "target_temperature"
+	CapHvacMode          = "hvac_mode"
+	CapFanMode           = "fan_mode"
+	CapSwing             = "swing"
 )
 
 // Capability describes a single device capability with optional rich metadata

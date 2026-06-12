@@ -13,11 +13,15 @@ package device
 // the resulting EventDeviceStateChanged echo so consumers can match echoes
 // back to their producing source.
 type Command struct {
-	DeviceID   DeviceID      `json:"deviceId"`
-	On         *bool         `json:"on,omitempty"`
-	Brightness *int          `json:"brightness,omitempty"`
-	ColorTemp  *int          `json:"colorTemp,omitempty"`
-	Color      *Color        `json:"color,omitempty"`
-	Transition *float64      `json:"transition,omitempty"`
-	Origin     CommandOrigin `json:"origin,omitzero"`
+	DeviceID          DeviceID      `json:"deviceId"`
+	On                *bool         `json:"on,omitempty"`
+	Brightness        *int          `json:"brightness,omitempty"`
+	ColorTemp         *int          `json:"colorTemp,omitempty"`
+	Color             *Color        `json:"color,omitempty"`
+	Transition        *float64      `json:"transition,omitempty"`
+	TargetTemperature *float64      `json:"targetTemperature,omitempty"`
+	HvacMode          *string       `json:"hvacMode,omitempty"`
+	FanMode           *string       `json:"fanMode,omitempty"`
+	Swing             *string       `json:"swing,omitempty"`
+	Origin            CommandOrigin `json:"origin,omitzero"`
 }
