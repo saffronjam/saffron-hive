@@ -24,6 +24,7 @@ import (
 	"os"
 
 	"github.com/saffronjam/saffron-hive/internal/activity"
+	"github.com/saffronjam/saffron-hive/internal/adapter/tuya"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
@@ -201,6 +202,9 @@ func Run(ctx context.Context) error {
 	} else {
 		serveLogger.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
 	}
+	if err := mgr.ReconnectTuya(ctx); err != nil {
+		serveLogger.Warn("Tuya integration did not start", "error", err)
+	}
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc, effectRunner)
 	spawn("automation.engine", func() {
@@ -228,6 +232,7 @@ func Run(ctx context.Context) error {
 		AlarmBuffer:         alarmBuffer,
 		LevelVar:            levelVar,
 		Reconnector:         mgr,
+		Tuya:                mgr,
 		EffectRunner:        effectRunner,
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
@@ -443,6 +448,7 @@ type adapterManager struct {
 	mu       sync.Mutex
 	client   zigbee.MQTTClient
 	adapter  *zigbee.ZigbeeAdapter
+	tuya     *tuya.Adapter
 	store    *store.DB
 	bus      eventbus.EventBus
 	memStore *device.MemoryStore
@@ -467,6 +473,10 @@ func (m *adapterManager) Stop() {
 	if m.adapter != nil {
 		m.adapter.Stop()
 		m.adapter = nil
+	}
+	if m.tuya != nil {
+		m.tuya.Stop()
+		m.tuya = nil
 	}
 }
 
@@ -512,6 +522,88 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 
 	serveLogger.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
 	return nil
+}
+
+func (m *adapterManager) ReconnectTuya(ctx context.Context) error {
+	cfg, err := m.store.GetTuyaConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("read tuya config: %w", err)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.tuya != nil {
+		m.tuya.Stop()
+		m.tuya = nil
+	}
+	if cfg == nil || !cfg.Enabled || cfg.AccessID == "" || cfg.AccessSecret == "" || cfg.Region == "" {
+		return nil
+	}
+
+	client, err := tuya.NewCloudClient(tuya.Config{
+		AccessID:     cfg.AccessID,
+		AccessSecret: cfg.AccessSecret,
+		Region:       cfg.Region,
+		Enabled:      cfg.Enabled,
+	})
+	if err != nil {
+		return err
+	}
+	adapter := tuya.NewAdapter(client, m.bus, m.memStore)
+	if err := adapter.Start(ctx); err != nil {
+		adapter.Stop()
+		return fmt.Errorf("start tuya adapter: %w", err)
+	}
+	m.tuya = adapter
+	serveLogger.Info("Tuya integration connected", "region", cfg.Region)
+	return nil
+}
+
+func (m *adapterManager) TestTuya(ctx context.Context, cfg store.TuyaConfig) error {
+	client, err := tuya.NewCloudClient(tuya.Config{
+		AccessID:     cfg.AccessID,
+		AccessSecret: cfg.AccessSecret,
+		Region:       cfg.Region,
+		Enabled:      cfg.Enabled,
+	})
+	if err != nil {
+		return err
+	}
+	return client.Test(ctx)
+}
+
+func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) {
+	m.mu.Lock()
+	adapter := m.tuya
+	m.mu.Unlock()
+	if adapter != nil {
+		return adapter.Sync(ctx)
+	}
+
+	cfg, err := m.store.GetTuyaConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read tuya config: %w", err)
+	}
+	if cfg == nil || !cfg.Enabled || cfg.AccessID == "" || cfg.AccessSecret == "" || cfg.Region == "" {
+		return nil, errors.New("Tuya integration is not configured")
+	}
+	client, err := tuya.NewCloudClient(tuya.Config{
+		AccessID:     cfg.AccessID,
+		AccessSecret: cfg.AccessSecret,
+		Region:       cfg.Region,
+		Enabled:      cfg.Enabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return tuya.NewAdapter(client, m.bus, m.memStore).Sync(ctx)
+}
+
+func (m *adapterManager) TuyaConnected() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.tuya != nil
 }
 
 // zigbeeTerminator wraps the package-level zigbee.TerminatorFor lookup so it
