@@ -1,6 +1,45 @@
-.PHONY: deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version mqttprint package sqlc sqlc-check codegen codegen-check gqlgen gqlgen-check prepare-for-commit
+.PHONY: help deps lint format typecheck errcheck test e2e e2e-go web api migrate-up migrate-up-n migrate-down-n migrate-version mqttprint package sqlc sqlc-check codegen codegen-check gqlgen gqlgen-check prepare-for-commit
 
 SQLC_VERSION := 1.31.0
+
+help:
+	@printf '%s\n' 'Saffron Hive make targets'
+	@printf '%s\n' ''
+	@printf '%s\n' 'Setup:'
+	@printf '  %-22s %s\n' 'deps' 'Install/update Go and web dependencies'
+	@printf '%s\n' ''
+	@printf '%s\n' 'Development:'
+	@printf '  %-22s %s\n' 'web' 'Run the Svelte dev server'
+	@printf '  %-22s %s\n' 'api' 'Run the Go API using .env'
+	@printf '  %-22s %s\n' 'mqttprint TOPIC=...' 'Print MQTT messages for a topic'
+	@printf '%s\n' ''
+	@printf '%s\n' 'Checks:'
+	@printf '  %-22s %s\n' 'lint' 'Run go vet and oxlint'
+	@printf '  %-22s %s\n' 'format' 'Format Go and web source'
+	@printf '  %-22s %s\n' 'typecheck' 'Build Go packages and run svelte-check'
+	@printf '  %-22s %s\n' 'errcheck' 'Run errcheck on Go packages'
+	@printf '  %-22s %s\n' 'test' 'Run Go race tests and web tests'
+	@printf '  %-22s %s\n' 'e2e' 'Run Go and browser end-to-end tests'
+	@printf '  %-22s %s\n' 'e2e-go' 'Run Go end-to-end tests'
+	@printf '  %-22s %s\n' 'e2e-ts' 'Run browser end-to-end tests'
+	@printf '%s\n' ''
+	@printf '%s\n' 'Code generation:'
+	@printf '  %-22s %s\n' 'sqlc' 'Generate SQLite query code'
+	@printf '  %-22s %s\n' 'sqlc-check' 'Verify committed sqlc output'
+	@printf '  %-22s %s\n' 'gqlgen' 'Generate Go GraphQL code'
+	@printf '  %-22s %s\n' 'gqlgen-check' 'Verify committed gqlgen output'
+	@printf '  %-22s %s\n' 'codegen' 'Generate frontend GraphQL types'
+	@printf '  %-22s %s\n' 'codegen-check' 'Verify committed frontend GraphQL types'
+	@printf '%s\n' ''
+	@printf '%s\n' 'Database:'
+	@printf '  %-22s %s\n' 'migrate-up' 'Run all pending migrations'
+	@printf '  %-22s %s\n' 'migrate-up-n N=1' 'Run N migrations up'
+	@printf '  %-22s %s\n' 'migrate-down-n N=1' 'Run N migrations down'
+	@printf '  %-22s %s\n' 'migrate-version' 'Print migration version'
+	@printf '%s\n' ''
+	@printf '%s\n' 'Release:'
+	@printf '  %-22s %s\n' 'package' 'Build Docker image'
+	@printf '  %-22s %s\n' 'prepare-for-commit' 'Run generation checks, format, lint, typecheck, errcheck, and tests'
 
 deps:
 	go mod tidy
