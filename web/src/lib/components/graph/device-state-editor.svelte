@@ -2,10 +2,18 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import {
+		Select,
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+	} from "$lib/components/ui/select/index.js";
 	import ColorPicker from "$lib/components/color-picker.svelte";
+	import NumberInput from "$lib/components/number-input.svelte";
 	import TempWheel from "$lib/components/temp-wheel.svelte";
 	import { capabilityUnionForTarget, hasCapability, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
 	import type { Capability, Device } from "$lib/gql/graphql";
+	import { sentenceCase } from "$lib/utils";
 	import { X } from "@lucide/svelte";
 
 	interface Props {
@@ -23,7 +31,11 @@
 	interface Payload {
 		on?: boolean;
 		brightness?: number;
-		color_temp?: number;
+		colorTemp?: number;
+		targetTemperature?: number;
+		hvacMode?: string;
+		fanMode?: string;
+		swing?: string;
 		color?: { r: number; g: number; b: number };
 	}
 
@@ -42,7 +54,11 @@
 		const clean: Payload = {};
 		if (next.on !== undefined) clean.on = next.on;
 		if (next.brightness !== undefined) clean.brightness = next.brightness;
-		if (next.color_temp !== undefined) clean.color_temp = next.color_temp;
+		if (next.colorTemp !== undefined) clean.colorTemp = next.colorTemp;
+		if (next.targetTemperature !== undefined) clean.targetTemperature = next.targetTemperature;
+		if (next.hvacMode !== undefined) clean.hvacMode = next.hvacMode;
+		if (next.fanMode !== undefined) clean.fanMode = next.fanMode;
+		if (next.swing !== undefined) clean.swing = next.swing;
 		if (next.color !== undefined) clean.color = next.color;
 		onchange(JSON.stringify(clean));
 	}
@@ -56,19 +72,36 @@
 	const showBrightness = $derived(hasCapability(caps, "brightness"));
 	const showColorTemp = $derived(hasCapability(caps, "color_temp"));
 	const showColor = $derived(hasCapability(caps, "color"));
+	const showTargetTemperature = $derived(hasCapability(caps, "target_temperature"));
+	const showHvacMode = $derived(hasCapability(caps, "hvac_mode"));
+	const showFanMode = $derived(hasCapability(caps, "fan_mode"));
+	const showSwing = $derived(hasCapability(caps, "swing"));
 
 	const brightnessCap = $derived(caps.find((c) => c.name === "brightness"));
 	const colorTempCap = $derived(caps.find((c) => c.name === "color_temp"));
+	const targetTemperatureCap = $derived(caps.find((c) => c.name === "target_temperature"));
+	const hvacModeCap = $derived(caps.find((c) => c.name === "hvac_mode"));
+	const fanModeCap = $derived(caps.find((c) => c.name === "fan_mode"));
+	const swingCap = $derived(caps.find((c) => c.name === "swing"));
+	const hvacModeValues = $derived(hvacModeCap?.values ?? []);
+	const fanModeValues = $derived(fanModeCap?.values ?? []);
+	const swingValues = $derived(swingCap?.values && swingCap.values.length > 0 ? swingCap.values : ["off", "on"]);
 
 	const brightnessMin = $derived(brightnessCap?.valueMin ?? 0);
 	const brightnessMax = $derived(brightnessCap?.valueMax ?? 254);
 	const colorTempMin = $derived(colorTempCap?.valueMin ?? 150);
 	const colorTempMax = $derived(colorTempCap?.valueMax ?? 500);
+	const targetTemperatureMin = $derived(targetTemperatureCap?.valueMin ?? 16);
+	const targetTemperatureMax = $derived(targetTemperatureCap?.valueMax ?? 31);
 
 	const onSet = $derived(parsed.on !== undefined);
 	const brightnessSet = $derived(parsed.brightness !== undefined);
-	const colorTempSet = $derived(parsed.color_temp !== undefined);
+	const colorTempSet = $derived(parsed.colorTemp !== undefined);
 	const colorSet = $derived(parsed.color !== undefined);
+	const targetTemperatureSet = $derived(parsed.targetTemperature !== undefined);
+	const hvacModeSet = $derived(parsed.hvacMode !== undefined);
+	const fanModeSet = $derived(parsed.fanMode !== undefined);
+	const swingSet = $derived(parsed.swing !== undefined);
 
 	function toggleOnActive() {
 		emit(onSet ? { ...parsed, on: undefined } : { ...parsed, on: false });
@@ -83,10 +116,10 @@
 		emit({ ...parsed, brightness: v });
 	}
 	function toggleColorTempActive() {
-		emit(colorTempSet ? { ...parsed, color_temp: undefined } : { ...parsed, color_temp: Math.round((colorTempMin + colorTempMax) / 2) });
+		emit(colorTempSet ? { ...parsed, colorTemp: undefined } : { ...parsed, colorTemp: Math.round((colorTempMin + colorTempMax) / 2) });
 	}
 	function setColorTempValue(v: number) {
-		emit({ ...parsed, color_temp: v });
+		emit({ ...parsed, colorTemp: v });
 	}
 	function toggleColorActive() {
 		emit(colorSet ? { ...parsed, color: undefined } : { ...parsed, color: { r: 255, g: 255, b: 255 } });
@@ -94,8 +127,39 @@
 	function setColorValue(c: { r: number; g: number; b: number }) {
 		emit({ ...parsed, color: c });
 	}
+	function toggleTargetTemperatureActive() {
+		emit(targetTemperatureSet ? { ...parsed, targetTemperature: undefined } : { ...parsed, targetTemperature: Math.round((targetTemperatureMin + targetTemperatureMax) / 2) });
+	}
+	function setTargetTemperatureValue(v: number | null) {
+		if (v == null) return;
+		emit({ ...parsed, targetTemperature: v });
+	}
+	function toggleHvacModeActive() {
+		const first = hvacModeValues[0] ?? "";
+		emit(hvacModeSet ? { ...parsed, hvacMode: undefined } : { ...parsed, hvacMode: first });
+	}
+	function setHvacModeValue(v: string | undefined) {
+		if (!v) return;
+		emit({ ...parsed, hvacMode: v });
+	}
+	function toggleFanModeActive() {
+		const first = fanModeValues[0] ?? "";
+		emit(fanModeSet ? { ...parsed, fanMode: undefined } : { ...parsed, fanMode: first });
+	}
+	function setFanModeValue(v: string | undefined) {
+		if (!v) return;
+		emit({ ...parsed, fanMode: v });
+	}
+	function toggleSwingActive() {
+		const first = swingValues[0] ?? "on";
+		emit(swingSet ? { ...parsed, swing: undefined } : { ...parsed, swing: first });
+	}
+	function setSwingValue(v: string | undefined) {
+		if (!v) return;
+		emit({ ...parsed, swing: v });
+	}
 
-	const anyFieldAvailable = $derived(showOn || showBrightness || showColorTemp || showColor);
+	const anyFieldAvailable = $derived(showOn || showBrightness || showColorTemp || showColor || showTargetTemperature || showHvacMode || showFanMode || showSwing);
 </script>
 
 {#if !target}
@@ -159,7 +223,7 @@
 					<span class="text-xs font-medium">Color temp</span>
 					{#if colorTempSet}
 						<div class="flex items-center gap-1">
-							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.color_temp}</span>
+							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.colorTemp}</span>
 							<Button variant="ghost" size="icon-sm" onclick={toggleColorTempActive} {disabled} aria-label="Clear color temp">
 								<X class="size-3" />
 							</Button>
@@ -170,7 +234,7 @@
 				</div>
 				{#if colorTempSet}
 					<TempWheel
-						value={parsed.color_temp ?? null}
+						value={parsed.colorTemp ?? null}
 						min={colorTempMin}
 						max={colorTempMax}
 						onchange={setColorTempValue}
@@ -200,6 +264,110 @@
 						onchange={setColorValue}
 						{disabled}
 					/>
+				{/if}
+			</div>
+		{/if}
+
+		{#if showTargetTemperature}
+			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-medium">Target temp</span>
+					{#if targetTemperatureSet}
+						<div class="flex items-center gap-1">
+							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.targetTemperature}</span>
+							<Button variant="ghost" size="icon-sm" onclick={toggleTargetTemperatureActive} {disabled} aria-label="Clear target temp">
+								<X class="size-3" />
+							</Button>
+						</div>
+					{:else}
+						<Button variant="outline" size="sm" onclick={toggleTargetTemperatureActive} {disabled}>Set</Button>
+					{/if}
+				</div>
+				{#if targetTemperatureSet}
+					<NumberInput
+						value={parsed.targetTemperature ?? null}
+						min={targetTemperatureMin}
+						max={targetTemperatureMax}
+						allowDecimal
+						ariaLabel="Target temperature"
+						{disabled}
+						onValueChange={setTargetTemperatureValue}
+					/>
+				{/if}
+			</div>
+		{/if}
+
+		{#if showHvacMode && hvacModeCap && hvacModeValues.length > 0}
+			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-medium">Mode</span>
+					{#if hvacModeSet}
+						<Button variant="ghost" size="icon-sm" onclick={toggleHvacModeActive} {disabled} aria-label="Clear mode">
+							<X class="size-3" />
+						</Button>
+					{:else}
+						<Button variant="outline" size="sm" onclick={toggleHvacModeActive} {disabled}>Set</Button>
+					{/if}
+				</div>
+				{#if hvacModeSet}
+					<Select type="single" value={parsed.hvacMode ?? ""} onValueChange={setHvacModeValue}>
+						<SelectTrigger class="w-full text-xs">{parsed.hvacMode ? sentenceCase(parsed.hvacMode) : "Select mode"}</SelectTrigger>
+						<SelectContent>
+							{#each hvacModeValues as v (v)}
+								<SelectItem value={v}>{sentenceCase(v)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{/if}
+			</div>
+		{/if}
+
+		{#if showFanMode && fanModeCap && fanModeValues.length > 0}
+			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-medium">Fan</span>
+					{#if fanModeSet}
+						<Button variant="ghost" size="icon-sm" onclick={toggleFanModeActive} {disabled} aria-label="Clear fan">
+							<X class="size-3" />
+						</Button>
+					{:else}
+						<Button variant="outline" size="sm" onclick={toggleFanModeActive} {disabled}>Set</Button>
+					{/if}
+				</div>
+				{#if fanModeSet}
+					<Select type="single" value={parsed.fanMode ?? ""} onValueChange={setFanModeValue}>
+						<SelectTrigger class="w-full text-xs">{parsed.fanMode ? sentenceCase(parsed.fanMode) : "Select fan"}</SelectTrigger>
+						<SelectContent>
+							{#each fanModeValues as v (v)}
+								<SelectItem value={v}>{sentenceCase(v)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{/if}
+			</div>
+		{/if}
+
+		{#if showSwing && swingCap}
+			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-medium">Swing</span>
+					{#if swingSet}
+						<Button variant="ghost" size="icon-sm" onclick={toggleSwingActive} {disabled} aria-label="Clear swing">
+							<X class="size-3" />
+						</Button>
+					{:else}
+						<Button variant="outline" size="sm" onclick={toggleSwingActive} {disabled}>Set</Button>
+					{/if}
+				</div>
+				{#if swingSet}
+					<Select type="single" value={parsed.swing ?? ""} onValueChange={setSwingValue}>
+						<SelectTrigger class="w-full text-xs">{parsed.swing ? sentenceCase(parsed.swing) : "Select swing"}</SelectTrigger>
+						<SelectContent>
+							{#each swingValues as v (v)}
+								<SelectItem value={v}>{sentenceCase(v)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
 				{/if}
 			</div>
 		{/if}

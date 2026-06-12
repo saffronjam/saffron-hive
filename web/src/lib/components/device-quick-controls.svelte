@@ -12,9 +12,17 @@
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { Slider } from "$lib/components/ui/slider/index.js";
+	import {
+		Select,
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+	} from "$lib/components/ui/select/index.js";
 	import { deviceTint } from "$lib/device-tint";
+	import { sentenceCase } from "$lib/utils";
 	import { throttle, type Throttle } from "$lib/throttle";
-	import { Palette } from "@lucide/svelte";
+	import { Palette, Thermometer } from "@lucide/svelte";
 
 	interface Props {
 		device: Device;
@@ -31,6 +39,10 @@
 					on
 					brightness
 					colorTemp
+					targetTemperature
+					hvacMode
+					fanMode
+					swing
 					color { r g b x y }
 				}
 			}
@@ -44,10 +56,24 @@
 	const hasColor = $derived(caps.hasColor);
 	const hasColorTemp = $derived(caps.hasColorTemp);
 	const hasPopover = $derived(hasColor || hasColorTemp);
+	const targetTempCap = $derived(device.capabilities.find((c) => c.name === "target_temperature"));
+	const hvacCap = $derived(device.capabilities.find((c) => c.name === "hvac_mode"));
+	const fanCap = $derived(device.capabilities.find((c) => c.name === "fan_mode"));
+	const swingCap = $derived(device.capabilities.find((c) => c.name === "swing"));
+	const targetTempMin = $derived(targetTempCap?.valueMin ?? 16);
+	const targetTempMax = $derived(targetTempCap?.valueMax ?? 31);
+	const hvacValues = $derived(hvacCap?.values ?? []);
+	const fanValues = $derived(fanCap?.values ?? []);
+	const swingValues = $derived(swingCap?.values && swingCap.values.length > 0 ? swingCap.values : ["off", "on"]);
+	const hasClimatePopover = $derived(Boolean(targetTempCap || hvacCap || fanCap || swingCap));
 
 	interface CommandInput {
 		on?: boolean;
 		colorTemp?: number;
+		targetTemperature?: number;
+		hvacMode?: string;
+		fanMode?: string;
+		swing?: string;
 		color?: { r: number; g: number; b: number; x: number; y: number };
 	}
 
@@ -61,6 +87,18 @@
 
 	const colorTempThrottle: Throttle = { lastSent: 0, trailing: null };
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
+	const targetTemperatureThrottle: Throttle = { lastSent: 0, trailing: null };
+	let selectedTargetTemperature = $state(0);
+	let selectedHvacMode = $state("");
+	let selectedFanMode = $state("");
+	let selectedSwing = $state("");
+
+	$effect(() => {
+		selectedTargetTemperature = device.state?.targetTemperature ?? Math.round((targetTempMin + targetTempMax) / 2);
+		selectedHvacMode = device.state?.hvacMode ?? "";
+		selectedFanMode = device.state?.fanMode ?? "";
+		selectedSwing = device.state?.swing ?? "";
+	});
 
 	function autoOn(): { on: true } | Record<string, never> {
 		return device.state?.on ? {} : { on: true };
@@ -98,6 +136,29 @@
 		});
 	}
 
+	function handleTargetTemperatureChange(value: number) {
+		selectedTargetTemperature = value;
+		throttle(targetTemperatureThrottle, () => send({ targetTemperature: value }));
+	}
+
+	function handleHvacModeChange(value: string | undefined) {
+		if (!value) return;
+		selectedHvacMode = value;
+		send({ hvacMode: value });
+	}
+
+	function handleFanModeChange(value: string | undefined) {
+		if (!value) return;
+		selectedFanMode = value;
+		send({ fanMode: value });
+	}
+
+	function handleSwingChange(value: string | undefined) {
+		if (!value) return;
+		selectedSwing = value;
+		send({ swing: value });
+	}
+
 	const isOn = $derived(device.state?.on ?? false);
 </script>
 
@@ -113,6 +174,111 @@
 		</TooltipTrigger>
 		<TooltipContent>{isOn ? "Turn off" : "Turn on"}</TooltipContent>
 	</Tooltip>
+{/if}
+
+{#if hasClimatePopover}
+	<Popover>
+		<PopoverTrigger class="inline-flex h-8 items-center">
+			<Tooltip>
+				<TooltipTrigger class="inline-flex h-8 items-center">
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						aria-label={`Adjust ${device.name} climate`}
+						disabled={!device.available}
+					>
+						<Thermometer class="size-4" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>Climate</TooltipContent>
+			</Tooltip>
+		</PopoverTrigger>
+		<PopoverContent class="w-72 p-3 space-y-3" align="end">
+			{#if targetTempCap}
+				<div class="space-y-1.5">
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-xs font-medium">Target</span>
+						<span class="text-[10px] tabular-nums text-muted-foreground">
+							{selectedTargetTemperature}{targetTempCap.unit ?? ""}
+						</span>
+					</div>
+					<Slider
+						type="single"
+						value={selectedTargetTemperature}
+						min={targetTempMin}
+						max={targetTempMax}
+						step={1}
+						aria-label="Target temperature"
+						disabled={!device.available}
+						onValueChange={handleTargetTemperatureChange}
+					/>
+				</div>
+			{/if}
+
+			{#if hvacCap && hvacValues.length > 0}
+				<div class="space-y-1.5">
+					<span class="text-xs font-medium">Mode</span>
+					<Select
+						type="single"
+						bind:value={selectedHvacMode}
+						onValueChange={handleHvacModeChange}
+						disabled={!device.available}
+					>
+						<SelectTrigger class="w-full text-xs">
+							{selectedHvacMode ? sentenceCase(selectedHvacMode) : "Select mode"}
+						</SelectTrigger>
+						<SelectContent>
+							{#each hvacValues as value (value)}
+								<SelectItem value={value}>{sentenceCase(value)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				</div>
+			{/if}
+
+			{#if fanCap && fanValues.length > 0}
+				<div class="space-y-1.5">
+					<span class="text-xs font-medium">Fan</span>
+					<Select
+						type="single"
+						bind:value={selectedFanMode}
+						onValueChange={handleFanModeChange}
+						disabled={!device.available}
+					>
+						<SelectTrigger class="w-full text-xs">
+							{selectedFanMode ? sentenceCase(selectedFanMode) : "Select fan"}
+						</SelectTrigger>
+						<SelectContent>
+							{#each fanValues as value (value)}
+								<SelectItem value={value}>{sentenceCase(value)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				</div>
+			{/if}
+
+			{#if swingCap}
+				<div class="space-y-1.5">
+					<span class="text-xs font-medium">Swing</span>
+					<Select
+						type="single"
+						bind:value={selectedSwing}
+						onValueChange={handleSwingChange}
+						disabled={!device.available}
+					>
+						<SelectTrigger class="w-full text-xs">
+							{selectedSwing ? sentenceCase(selectedSwing) : "Select swing"}
+						</SelectTrigger>
+						<SelectContent>
+							{#each swingValues as value (value)}
+								<SelectItem value={value}>{sentenceCase(value)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				</div>
+			{/if}
+		</PopoverContent>
+	</Popover>
 {/if}
 
 {#if hasPopover}

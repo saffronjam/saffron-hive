@@ -30,5 +30,23 @@ export function stateSummary(state: DeviceState | null | undefined, type: string
     return "No data";
   }
 
+  if (type === "climate") {
+    if (state.on === false) return "Off";
+
+    const parts: string[] = [];
+    if (state.temperature != null) parts.push(`${state.temperature.toFixed(1)}\u00b0C`);
+    if (state.targetTemperature != null)
+      parts.push(`Target ${state.targetTemperature.toFixed(0)}\u00b0C`);
+    if (state.hvacMode) parts.push(formatMode(state.hvacMode));
+    if (parts.length > 0) return parts.join(" / ");
+    if (state.on) return "On";
+    return "No data";
+  }
+
   return "Unknown";
+}
+
+function formatMode(value: string): string {
+  const words = value.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
