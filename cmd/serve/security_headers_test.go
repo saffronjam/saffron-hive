@@ -80,6 +80,15 @@ func TestOriginCheckerRejectsMissingOrigin(t *testing.T) {
 	}
 }
 
+func TestOriginCheckerAllowsSameOrigin(t *testing.T) {
+	check := originChecker([]string{"https://hive.saffronbun.com"})
+	req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/graphql", nil)
+	req.Header.Set("Origin", "http://localhost:8080")
+	if !check(req) {
+		t.Error("same origin rejected")
+	}
+}
+
 func TestOriginCheckerAllowsListedOrigin(t *testing.T) {
 	check := originChecker([]string{"https://hive.saffronbun.com", "https://other.example"})
 	req := httptest.NewRequest(http.MethodGet, "/graphql", nil)

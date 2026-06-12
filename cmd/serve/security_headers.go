@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -76,10 +77,7 @@ func computeInlineScriptHashes(indexHTML []byte) []string {
 	return hashes
 }
 
-// originChecker returns a gorilla/websocket-compatible Origin check that
-// allows only the configured exact-match origins. Missing or empty Origin is
-// rejected so non-browser clients holding idle connections without an auth
-// payload cannot slip past the upgrade.
+// originChecker returns a gorilla/websocket-compatible Origin check.
 func originChecker(allowed []string) func(*http.Request) bool {
 	set := make(map[string]struct{}, len(allowed))
 	for _, o := range allowed {
@@ -90,7 +88,21 @@ func originChecker(allowed []string) func(*http.Request) bool {
 		if origin == "" {
 			return false
 		}
+		if sameOrigin(r, origin) {
+			return true
+		}
 		_, ok := set[origin]
 		return ok
 	}
+}
+
+func sameOrigin(r *http.Request, origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }
