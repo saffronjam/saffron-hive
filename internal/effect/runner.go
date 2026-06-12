@@ -608,6 +608,18 @@ func commandToFields(cmd device.Command) map[string]any {
 	if cmd.Transition != nil {
 		out["transition"] = *cmd.Transition
 	}
+	if cmd.TargetTemperature != nil {
+		out["targetTemperature"] = *cmd.TargetTemperature
+	}
+	if cmd.HvacMode != nil {
+		out["hvacMode"] = *cmd.HvacMode
+	}
+	if cmd.FanMode != nil {
+		out["fanMode"] = *cmd.FanMode
+	}
+	if cmd.Swing != nil {
+		out["swing"] = *cmd.Swing
+	}
 	return out
 }
 
@@ -637,6 +649,26 @@ func fieldsToCommand(fields map[string]any) device.Command {
 	if v, ok := fields["transition"]; ok {
 		if f, ok := v.(float64); ok {
 			cmd.Transition = &f
+		}
+	}
+	if v, ok := fields["targetTemperature"]; ok {
+		if f, ok := v.(float64); ok {
+			cmd.TargetTemperature = &f
+		}
+	}
+	if v, ok := fields["hvacMode"]; ok {
+		if s, ok := v.(string); ok {
+			cmd.HvacMode = &s
+		}
+	}
+	if v, ok := fields["fanMode"]; ok {
+		if s, ok := v.(string); ok {
+			cmd.FanMode = &s
+		}
+	}
+	if v, ok := fields["swing"]; ok {
+		if s, ok := v.(string); ok {
+			cmd.Swing = &s
 		}
 	}
 	return cmd
