@@ -121,6 +121,16 @@ func commandsFor(cmd device.Command) []Command {
 	return out
 }
 
+func stateFromCommand(cmd device.Command) device.DeviceState {
+	return device.DeviceState{
+		On:                cmd.On,
+		TargetTemperature: cmd.TargetTemperature,
+		HvacMode:          cmd.HvacMode,
+		FanMode:           cmd.FanMode,
+		Swing:             cmd.Swing,
+	}
+}
+
 func numericSpec(raw string) (*float64, *float64, string) {
 	var spec valueSpec
 	if err := json.Unmarshal([]byte(raw), &spec); err != nil {

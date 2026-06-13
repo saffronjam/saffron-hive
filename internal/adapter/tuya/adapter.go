@@ -16,6 +16,7 @@ type Adapter struct {
 	client *CloudClient
 	bus    eventbus.EventBus
 	reader device.StateReader
+	writer device.StateWriter
 
 	pollInterval time.Duration
 	stopCh       chan struct{}
@@ -23,11 +24,12 @@ type Adapter struct {
 	wg           sync.WaitGroup
 }
 
-func NewAdapter(client *CloudClient, bus eventbus.EventBus, reader device.StateReader) *Adapter {
+func NewAdapter(client *CloudClient, bus eventbus.EventBus, store device.StateStore) *Adapter {
 	return &Adapter{
 		client:       client,
 		bus:          bus,
-		reader:       reader,
+		reader:       store,
+		writer:       store,
 		pollInterval: 30 * time.Second,
 		stopCh:       make(chan struct{}),
 	}
@@ -66,6 +68,7 @@ func (a *Adapter) Sync(ctx context.Context) ([]device.Device, error) {
 		}
 		dev := mapDevice(info, functions)
 		out = append(out, dev)
+		a.writer.Register(dev)
 		a.bus.Publish(eventbus.Event{
 			Type:      eventbus.EventDeviceAdded,
 			DeviceID:  string(dev.ID),
@@ -110,12 +113,7 @@ func (a *Adapter) commandLoop(ctx context.Context) {
 				logger.Error("failed to send tuya command", "device_id", cmd.DeviceID, "error", err)
 				continue
 			}
-			status, err := a.client.DeviceStatus(ctx, string(cmd.DeviceID))
-			if err != nil {
-				logger.Warn("failed to refresh tuya state after command", "device_id", cmd.DeviceID, "error", err)
-				continue
-			}
-			a.publishState(string(cmd.DeviceID), mapState(status))
+			a.publishStateChange(string(cmd.DeviceID), stateFromCommand(cmd), cmd.Origin)
 		}
 	}
 }
@@ -145,6 +143,7 @@ func (a *Adapter) poll(ctx context.Context) {
 		status, err := a.client.DeviceStatus(ctx, string(dev.ID))
 		if err != nil {
 			logger.Warn("failed to poll tuya device", "device_id", dev.ID, "error", err)
+			a.writer.SetAvailability(dev.ID, false)
 			a.bus.Publish(eventbus.Event{
 				Type:      eventbus.EventDeviceAvailabilityChanged,
 				DeviceID:  string(dev.ID),
@@ -153,6 +152,7 @@ func (a *Adapter) poll(ctx context.Context) {
 			})
 			continue
 		}
+		a.writer.SetAvailability(dev.ID, true)
 		a.bus.Publish(eventbus.Event{
 			Type:      eventbus.EventDeviceAvailabilityChanged,
 			DeviceID:  string(dev.ID),
@@ -164,12 +164,18 @@ func (a *Adapter) poll(ctx context.Context) {
 }
 
 func (a *Adapter) publishState(deviceID string, state device.DeviceState) {
+	a.publishStateChange(deviceID, state, device.CommandOrigin{})
+}
+
+func (a *Adapter) publishStateChange(deviceID string, state device.DeviceState, origin device.CommandOrigin) {
+	a.writer.UpdateDeviceState(device.DeviceID(deviceID), state)
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  deviceID,
 		Timestamp: time.Now(),
 		Payload: device.DeviceStateChange{
-			State: state,
+			State:  state,
+			Origin: origin,
 		},
 	})
 }
