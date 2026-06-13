@@ -1,7 +1,13 @@
 import { writable } from "svelte/store";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
-import { DeviceTag, type Capability, type Color, type Device, type DeviceState } from "$lib/gql/graphql";
+import {
+  DeviceTag,
+  type Capability,
+  type Color,
+  type Device,
+  type DeviceState,
+} from "$lib/gql/graphql";
 
 export type { Capability, Device, DeviceState };
 
@@ -266,7 +272,8 @@ function createDeviceStore() {
   function updateTags(deviceId: string, tags: Device["tags"]) {
     const device = current[deviceId];
     if (!device) return;
-    if (device.tags.length === tags.length && device.tags.every((tag, i) => tag === tags[i])) return;
+    if (device.tags.length === tags.length && device.tags.every((tag, i) => tag === tags[i]))
+      return;
     set({ ...current, [deviceId]: { ...device, tags } });
   }
 
