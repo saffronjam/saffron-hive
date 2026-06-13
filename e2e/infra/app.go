@@ -76,6 +76,11 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	memStore.RunAsync(appCtx, bus)
 
 	sqlStore := store.New(db)
+	deviceCh := bus.Subscribe(
+		eventbus.EventDeviceAdded,
+		eventbus.EventDeviceRemoved,
+	)
+	go runDevicePersister(appCtx, bus, deviceCh, sqlStore)
 
 	mqttClient := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   brokerURL,
