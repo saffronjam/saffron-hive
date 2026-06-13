@@ -22,6 +22,7 @@
 		subtitleTrailing?: Snippet;
 		onrename?: (entity: T, newName: string) => void;
 		oniconchange?: (entity: T, icon: string | null) => void;
+		iconEditable?: boolean;
 		onedit?: (entity: T) => void;
 		ondelete?: (entity: T) => void;
 		onAddTo?: (entity: T) => void;
@@ -126,6 +127,7 @@
 		subtitleTrailing,
 		onrename,
 		oniconchange,
+		iconEditable = true,
 		onedit,
 		ondelete,
 		onAddTo,
@@ -152,6 +154,7 @@
 	const sizeClass = $derived(size === "sm" ? "p-3 rounded-xl" : "p-4 rounded-lg");
 	const iconBlockClass = $derived(iconAreaSize === "sm" ? "size-7" : "size-10");
 	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
+	const canEditIcon = $derived(iconEditable && !!oniconchange && !readOnly);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!onclick) return;
@@ -248,7 +251,7 @@
 		<div class="flex flex-1 min-w-0 items-center gap-3">
 			{#if iconArea}
 				{@render iconArea({ tintColors, tintInactive, iconGradient, iconTextClass, hasTint })}
-			{:else if readOnly}
+			{:else if !canEditIcon}
 				<div class="relative flex {iconBlockClass} shrink-0 items-center justify-center rounded-md bg-muted/50">
 					{#if hasTint}
 						<div

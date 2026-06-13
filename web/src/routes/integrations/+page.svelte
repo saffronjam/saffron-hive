@@ -120,6 +120,7 @@
 					subtitle={statusLabel(integration)}
 					onedit={() => openProvider(integration.provider)}
 					editLabel="Configure"
+					iconEditable={false}
 					readOnly={false}
 					class="min-h-32"
 				/>
