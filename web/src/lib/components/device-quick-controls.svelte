@@ -21,15 +21,17 @@
 	} from "$lib/components/ui/select/index.js";
 	import { deviceTint } from "$lib/device-tint";
 	import { sentenceCase } from "$lib/utils";
-	import { throttle, type Throttle } from "$lib/throttle";
+	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { Palette, Thermometer } from "@lucide/svelte";
+	import { onDestroy } from "svelte";
 
 	interface Props {
 		device: Device;
 		variant?: "palette" | "swatch";
+		showOnOff?: boolean;
 	}
 
-	let { device, variant = "palette" }: Props = $props();
+	let { device, variant = "palette", showOnOff = true }: Props = $props();
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
@@ -92,12 +94,34 @@
 	let selectedHvacMode = $state("");
 	let selectedFanMode = $state("");
 	let selectedSwing = $state("");
+	let targetTemperatureInteracting = $state(false);
+	let targetTemperatureInteractTimer: ReturnType<typeof setTimeout> | null = null;
+	const TARGET_TEMPERATURE_INTERACT_COOLDOWN_MS = 1500;
 
 	$effect(() => {
-		selectedTargetTemperature = device.state?.targetTemperature ?? Math.round((targetTempMin + targetTempMax) / 2);
+		if (!targetTemperatureInteracting) {
+			selectedTargetTemperature = device.state?.targetTemperature ?? Math.round((targetTempMin + targetTempMax) / 2);
+		}
+	});
+
+	$effect(() => {
 		selectedHvacMode = device.state?.hvacMode ?? "";
 		selectedFanMode = device.state?.fanMode ?? "";
 		selectedSwing = device.state?.swing ?? "";
+	});
+
+	function noteTargetTemperatureInteract() {
+		targetTemperatureInteracting = true;
+		if (targetTemperatureInteractTimer) clearTimeout(targetTemperatureInteractTimer);
+		targetTemperatureInteractTimer = setTimeout(() => {
+			targetTemperatureInteractTimer = null;
+			targetTemperatureInteracting = false;
+		}, TARGET_TEMPERATURE_INTERACT_COOLDOWN_MS);
+	}
+
+	onDestroy(() => {
+		if (targetTemperatureInteractTimer) clearTimeout(targetTemperatureInteractTimer);
+		flushThrottle(targetTemperatureThrottle);
 	});
 
 	function autoOn(): { on: true } | Record<string, never> {
@@ -138,7 +162,15 @@
 
 	function handleTargetTemperatureChange(value: number) {
 		selectedTargetTemperature = value;
+		noteTargetTemperatureInteract();
 		throttle(targetTemperatureThrottle, () => send({ targetTemperature: value }));
+	}
+
+	function handleTargetTemperatureCommit(value: number) {
+		selectedTargetTemperature = value;
+		flushThrottle(targetTemperatureThrottle);
+		send({ targetTemperature: value });
+		noteTargetTemperatureInteract();
 	}
 
 	function handleHvacModeChange(value: string | undefined) {
@@ -162,7 +194,7 @@
 	const isOn = $derived(device.state?.on ?? false);
 </script>
 
-{#if hasOnOff}
+{#if showOnOff && hasOnOff}
 	<Tooltip>
 		<TooltipTrigger class="inline-flex h-8 items-center">
 			<Switch
@@ -211,6 +243,7 @@
 						aria-label="Target temperature"
 						disabled={!device.available}
 						onValueChange={handleTargetTemperatureChange}
+						onValueCommit={handleTargetTemperatureCommit}
 					/>
 				</div>
 			{/if}
