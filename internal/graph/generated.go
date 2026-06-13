@@ -156,6 +156,7 @@ type ComplexityRoot struct {
 		Name         func(childComplexity int) int
 		Source       func(childComplexity int) int
 		State        func(childComplexity int) int
+		Tags         func(childComplexity int) int
 		Type         func(childComplexity int) int
 	}
 
@@ -1044,6 +1045,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.State(childComplexity), true
+	case "Device.tags":
+		if e.ComplexityRoot.Device.Tags == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Tags(childComplexity), true
 	case "Device.type":
 		if e.ComplexityRoot.Device.Type == nil {
 			break
@@ -2909,10 +2916,15 @@ type Device {
   icon: String
   source: String!
   type: String!
+  tags: [DeviceTag!]!
   capabilities: [Capability!]!
   available: Boolean!
   lastSeen: DateTime
   state: DeviceState
+}
+
+enum DeviceTag {
+  LIGHT
 }
 
 """
@@ -3563,6 +3575,7 @@ input ColorInput {
 input UpdateDeviceInput {
   name: String
   icon: String
+  tags: [DeviceTag!]
 }
 
 input CreateSceneInput {
@@ -6950,6 +6963,35 @@ func (ec *executionContext) fieldContext_Device_type(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _Device_tags(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_tags,
+		func(ctx context.Context) (any, error) {
+			return obj.Tags, nil
+		},
+		nil,
+		ec.marshalNDeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_tags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DeviceTag does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Device_capabilities(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8886,6 +8928,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -9071,6 +9115,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -9628,6 +9674,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -9702,6 +9750,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -11303,6 +11353,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -13018,6 +13070,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -13081,6 +13135,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -14875,6 +14931,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -15060,6 +15118,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -16122,6 +16182,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -19845,7 +19907,7 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon"}
+	fieldsInOrder := [...]string{"name", "icon", "tags"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -19866,6 +19928,13 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 				return it, err
 			}
 			it.Icon = graphql.OmittableOf(data)
+		case "tags":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
+			data, err := ec.unmarshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tags = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -20916,6 +20985,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "type":
 			out.Values[i] = ec._Device_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tags":
+			out.Values[i] = ec._Device_tags(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -24321,6 +24395,47 @@ func (ec *executionContext) unmarshalNDeviceStateInput2githubᚗcomᚋsaffronjam
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx context.Context, v any) (model.DeviceTag, error) {
+	var res model.DeviceTag
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx context.Context, sel ast.SelectionSet, v model.DeviceTag) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNDeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, v any) ([]model.DeviceTag, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.DeviceTag, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNDeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DeviceTag) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNEffect2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v model.Effect) graphql.Marshaler {
 	return ec._Effect(ctx, sel, &v)
 }
@@ -25565,6 +25680,43 @@ func (ec *executionContext) marshalODeviceState2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._DeviceState(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, v any) ([]model.DeviceTag, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.DeviceTag, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DeviceTag) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v *model.Effect) graphql.Marshaler {

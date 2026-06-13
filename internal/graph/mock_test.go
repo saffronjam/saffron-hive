@@ -159,6 +159,9 @@ func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDevicePar
 	d.Available = params.Available
 	d.Removed = params.Removed
 	d.LastSeen = params.LastSeen
+	if params.SetTags {
+		d.Tags = params.Tags
+	}
 	m.devices[params.ID] = d
 	return d, nil
 }

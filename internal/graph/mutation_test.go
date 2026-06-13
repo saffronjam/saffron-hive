@@ -66,18 +66,19 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	})
 
 	resp := env.query(t, `mutation($id: ID!, $input: UpdateDeviceInput!) {
-		updateDevice(id: $id, input: $input) { id name }
+		updateDevice(id: $id, input: $input) { id name tags }
 	}`, map[string]any{
 		"id":    "ac",
-		"input": map[string]any{"name": "AC"},
+		"input": map[string]any{"name": "AC", "tags": []any{"LIGHT"}},
 	})
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 	var data struct {
 		UpdateDevice struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+			ID   string   `json:"id"`
+			Name string   `json:"name"`
+			Tags []string `json:"tags"`
 		} `json:"updateDevice"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -86,15 +87,19 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	if data.UpdateDevice.Name != "AC" {
 		t.Fatalf("got mutation name %q, want AC", data.UpdateDevice.Name)
 	}
+	if len(data.UpdateDevice.Tags) != 1 || data.UpdateDevice.Tags[0] != "LIGHT" {
+		t.Fatalf("got mutation tags %#v, want [LIGHT]", data.UpdateDevice.Tags)
+	}
 
-	resp = env.query(t, `query { devices { id name } }`, nil)
+	resp = env.query(t, `query { devices { id name tags } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 	var listData struct {
 		Devices []struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+			ID   string   `json:"id"`
+			Name string   `json:"name"`
+			Tags []string `json:"tags"`
 		} `json:"devices"`
 	}
 	if err := json.Unmarshal(resp.Data, &listData); err != nil {
@@ -102,6 +107,55 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	}
 	if len(listData.Devices) != 1 || listData.Devices[0].Name != "AC" {
 		t.Fatalf("got devices %#v, want AC", listData.Devices)
+	}
+	if len(listData.Devices[0].Tags) != 1 || listData.Devices[0].Tags[0] != "LIGHT" {
+		t.Fatalf("got devices %#v, want LIGHT tag", listData.Devices)
+	}
+}
+
+func TestQueryDeviceUsesLiveAvailability(t *testing.T) {
+	env := newTestEnv(t)
+	now := time.Now().Truncate(time.Second)
+	env.stateReader.addDevice(device.Device{
+		ID:        "ac",
+		Name:      "Cloud Name",
+		Source:    "tuya",
+		Type:      device.Climate,
+		Available: true,
+		LastSeen:  now,
+	})
+	env.store.putDevice(device.Device{
+		ID:        "ac",
+		Name:      "AC",
+		Source:    "tuya",
+		Type:      device.Climate,
+		Available: false,
+		LastSeen:  time.Time{},
+	})
+
+	resp := env.query(t, `query { device(id: "ac") { id name available lastSeen } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", resp.Errors)
+	}
+	var data struct {
+		Device struct {
+			ID        string    `json:"id"`
+			Name      string    `json:"name"`
+			Available bool      `json:"available"`
+			LastSeen  time.Time `json:"lastSeen"`
+		} `json:"device"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if data.Device.Name != "AC" {
+		t.Fatalf("got name %q, want AC", data.Device.Name)
+	}
+	if !data.Device.Available {
+		t.Fatal("expected live availability true")
+	}
+	if !data.Device.LastSeen.Equal(now) {
+		t.Fatalf("got lastSeen %s, want %s", data.Device.LastSeen, now)
 	}
 }
 

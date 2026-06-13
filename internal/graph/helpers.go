@@ -236,15 +236,23 @@ func currentUserID(ctx context.Context) *string {
 }
 
 func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
+	live, liveFound := sr.GetDevice(d.ID)
+	available := d.Available
+	lastSeen := d.LastSeen
+	if liveFound {
+		available = live.Available
+		lastSeen = live.LastSeen
+	}
 	md := &model.Device{
 		ID:           string(d.ID),
 		Name:         d.Name,
 		Icon:         d.Icon,
 		Source:       string(d.Source),
 		Type:         string(d.Type),
+		Tags:         deviceTagsToModel(d.Tags),
 		Capabilities: mapCapabilities(d.Capabilities),
-		Available:    d.Available,
-		LastSeen:     &d.LastSeen,
+		Available:    available,
+		LastSeen:     &lastSeen,
 	}
 	md.State = resolveDeviceStateFromReader(sr, d.ID)
 	return md
@@ -271,6 +279,28 @@ func mapCapabilities(caps []device.Capability) []*model.Capability {
 		}
 	}
 	return result
+}
+
+func deviceTagsToModel(tags []device.DeviceTag) []model.DeviceTag {
+	out := make([]model.DeviceTag, 0, len(tags))
+	for _, t := range tags {
+		switch t {
+		case device.DeviceTagLight:
+			out = append(out, model.DeviceTagLight)
+		}
+	}
+	return out
+}
+
+func deviceTagsFromModel(tags []model.DeviceTag) []device.DeviceTag {
+	out := make([]device.DeviceTag, 0, len(tags))
+	for _, t := range tags {
+		switch t {
+		case model.DeviceTagLight:
+			out = append(out, device.DeviceTagLight)
+		}
+	}
+	return out
 }
 
 func mapTuyaConfig(cfg store.TuyaConfig) *model.TuyaConfig {

@@ -256,6 +256,7 @@ type Device struct {
 	Icon         *string       `json:"icon,omitempty"`
 	Source       string        `json:"source"`
 	Type         string        `json:"type"`
+	Tags         []DeviceTag   `json:"tags"`
 	Capabilities []*Capability `json:"capabilities"`
 	Available    bool          `json:"available"`
 	LastSeen     *time.Time    `json:"lastSeen,omitempty"`
@@ -633,8 +634,9 @@ type UpdateCurrentUserInput struct {
 }
 
 type UpdateDeviceInput struct {
-	Name graphql.Omittable[*string] `json:"name,omitempty"`
-	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
+	Name graphql.Omittable[*string]     `json:"name,omitempty"`
+	Icon graphql.Omittable[*string]     `json:"icon,omitempty"`
+	Tags graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
 }
 
 type UpdateEffectInput struct {
@@ -916,6 +918,59 @@ func (e *AlarmSeverity) UnmarshalJSON(b []byte) error {
 }
 
 func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DeviceTag string
+
+const (
+	DeviceTagLight DeviceTag = "LIGHT"
+)
+
+var AllDeviceTag = []DeviceTag{
+	DeviceTagLight,
+}
+
+func (e DeviceTag) IsValid() bool {
+	switch e {
+	case DeviceTagLight:
+		return true
+	}
+	return false
+}
+
+func (e DeviceTag) String() string {
+	return string(e)
+}
+
+func (e *DeviceTag) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DeviceTag(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DeviceTag", str)
+	}
+	return nil
+}
+
+func (e DeviceTag) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DeviceTag) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DeviceTag) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -50,6 +50,8 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 		Available: d.Available,
 		Removed:   d.Removed,
 		LastSeen:  d.LastSeen,
+		SetTags:   input.Tags.IsSet(),
+		Tags:      deviceTagsFromModel(input.Tags.Value()),
 	})
 	if err != nil {
 		return nil, err

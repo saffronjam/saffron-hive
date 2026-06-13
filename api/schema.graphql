@@ -25,10 +25,15 @@ type Device {
   icon: String
   source: String!
   type: String!
+  tags: [DeviceTag!]!
   capabilities: [Capability!]!
   available: Boolean!
   lastSeen: DateTime
   state: DeviceState
+}
+
+enum DeviceTag {
+  LIGHT
 }
 
 """
@@ -679,6 +684,7 @@ input ColorInput {
 input UpdateDeviceInput {
   name: String
   icon: String
+  tags: [DeviceTag!]
 }
 
 input CreateSceneInput {
