@@ -34,6 +34,7 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     name: id,
     source: "zigbee",
     type: "light",
+    tags: [],
     available: true,
     lastSeen: null,
     capabilities: caps,

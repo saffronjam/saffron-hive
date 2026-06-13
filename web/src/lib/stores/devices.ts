@@ -1,9 +1,17 @@
 import { writable } from "svelte/store";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
-import type { Capability, Color, Device, DeviceState } from "$lib/gql/graphql";
+import { DeviceTag, type Capability, type Color, type Device, type DeviceState } from "$lib/gql/graphql";
 
 export type { Capability, Device, DeviceState };
+
+export function isLightControlDevice(device: Device): boolean {
+  return device.type === "light" || device.tags.includes(DeviceTag.Light);
+}
+
+export function isApplianceDevice(device: Device): boolean {
+  return !isLightControlDevice(device) && (device.type === "climate" || device.type === "plug");
+}
 
 function colorsEqual(a: Color | null | undefined, b: Color | null | undefined): boolean {
   if (a === b) return true;
@@ -51,6 +59,7 @@ const DEVICES_QUERY = graphql(`
       icon
       source
       type
+      tags
       capabilities {
         name
         type
@@ -142,6 +151,7 @@ const DEVICE_ADDED = graphql(`
       name
       source
       type
+      tags
       capabilities {
         name
         type
@@ -234,6 +244,7 @@ function createDeviceStore() {
         ...device,
         name: existing.name,
         icon: existing.icon ?? null,
+        tags: existing.tags,
       },
     });
   }
@@ -252,6 +263,13 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, icon } });
   }
 
+  function updateTags(deviceId: string, tags: Device["tags"]) {
+    const device = current[deviceId];
+    if (!device) return;
+    if (device.tags.length === tags.length && device.tags.every((tag, i) => tag === tags[i])) return;
+    set({ ...current, [deviceId]: { ...device, tags } });
+  }
+
   function removeDevice(deviceId: string) {
     if (!(deviceId in current)) return;
     const { [deviceId]: _, ...rest } = current;
@@ -266,6 +284,7 @@ function createDeviceStore() {
     addDevice,
     updateName,
     updateIcon,
+    updateTags,
     removeDevice,
 
     async start(client: Client) {

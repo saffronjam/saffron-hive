@@ -51,6 +51,7 @@ function makeDevice(
     name,
     source: "zigbee",
     type,
+    tags: [],
     capabilities: [],
     available: true,
     lastSeen: "2026-01-01T00:00:00Z",

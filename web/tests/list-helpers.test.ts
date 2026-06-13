@@ -13,6 +13,7 @@ function device(id: string, name: string): Device {
     name,
     source: "zigbee",
     type: "light",
+    tags: [],
     capabilities: [],
     available: true,
     lastSeen: "",
