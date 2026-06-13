@@ -58,6 +58,7 @@
 				name
 				source
 				type
+				tags
 				capabilities { name type values valueMin valueMax unit access }
 				available
 				lastSeen

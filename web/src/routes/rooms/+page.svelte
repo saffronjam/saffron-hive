@@ -40,7 +40,7 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { deviceStore, isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { deviceIcon } from "$lib/utils";
 	import { rgbToXy } from "$lib/color";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
@@ -277,9 +277,7 @@
 	}
 
 	async function commitRoomToggle(room: RoomData, on: boolean) {
-		const targets = roomDevices(room).filter((d) =>
-			d.capabilities.some((c) => c.name === "on_off"),
-		);
+		const targets = roomDevices(room).filter(isLightControlDevice);
 		if (targets.length === 0) return;
 		await Promise.all(
 			targets.map((d) =>

@@ -1,4 +1,4 @@
-import type { Device, DeviceState } from "$lib/stores/devices";
+import { isLightControlDevice, type Device, type DeviceState } from "$lib/stores/devices";
 import type { ActionPayload, StaticActionPayload } from "$lib/scene-editable";
 import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
@@ -23,6 +23,7 @@ const NEUTRAL: RGB = { r: 120, g: 120, b: 120 };
  * pipeline.
  */
 export const PLUG_TINT_COLOR = toCss(WARM);
+export const APPLIANCE_TINT_COLOR = "rgb(96, 165, 250)";
 
 const MIRED_MIN = 150;
 const MIRED_MAX = 500;
@@ -183,11 +184,12 @@ export function sceneTintColors(payloads: ActionPayload[]): string[] {
  * transitions smoothly to plain card colour as strength → 0.
  */
 export function deviceTintBase(device: Device): string | null {
-  const state: DeviceState | null | undefined = device.state;
-  if (!state) return null;
-  if (state.color == null && state.colorTemp == null && state.brightness == null) {
-    return null;
-  }
+	const state: DeviceState | null | undefined = device.state;
+	if (!state) return null;
+	if (state.color == null && state.colorTemp == null && state.brightness == null) {
+		if (isLightControlDevice(device)) return PLUG_TINT_COLOR;
+		return null;
+	}
   return toCss(
     resolveTintRgb({
       type: device.type,
@@ -206,11 +208,14 @@ export function deviceTintBase(device: Device): string | null {
  */
 export function groupBaseTintColors(devices: Device[]): string[] {
   const colors: RGB[] = [];
-  for (const device of devices) {
-    const state = device.state;
-    if (!state) continue;
-    if (state.color == null && state.colorTemp == null && state.brightness == null) continue;
-    colors.push(
+	for (const device of devices) {
+		const state = device.state;
+		if (!state) continue;
+		if (state.color == null && state.colorTemp == null && state.brightness == null) {
+			if (isLightControlDevice(device)) colors.push(WARM);
+			continue;
+		}
+		colors.push(
       resolveTintRgb({
         type: device.type,
         on: true,

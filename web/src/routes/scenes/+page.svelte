@@ -191,6 +191,7 @@
 				name
 				icon
 				type
+				tags
 				capabilities {
 					name
 					access

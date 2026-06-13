@@ -167,6 +167,7 @@
 				name
 				icon
 				type
+				tags
 				source
 				available
 				lastSeen

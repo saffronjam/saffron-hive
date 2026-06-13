@@ -234,6 +234,7 @@
 				id
 				name
 				type
+				tags
 				source
 				capabilities { name type values valueMin valueMax unit access }
 				available

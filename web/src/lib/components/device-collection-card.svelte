@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name: string; icon?: string | null }">
 	import type { Component } from "svelte";
-	import type { Device } from "$lib/stores/devices";
+	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
@@ -77,9 +77,7 @@
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
-	const onOffDevices = $derived(
-		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
-	);
+	const onOffDevices = $derived(devices.filter(isLightControlDevice));
 	const hasOnOff = $derived(onOffDevices.length > 0);
 	const isOn = $derived.by(() => {
 		if (togglePending === "off") return false;
@@ -110,7 +108,7 @@
 	const effectiveDevices = $derived.by((): Device[] => {
 		if (togglePending === null && (!userTouched || preview === undefined)) return devices;
 		return devices.map((d) => {
-			const isOnOffCap = d.capabilities.some((c) => c.name === "on_off");
+			const isOnOffCap = isLightControlDevice(d);
 			const isDimmable = d.type === "light" && d.state?.brightness != null;
 			if (!isOnOffCap && !isDimmable) return d;
 			let on: boolean = d.state?.on ?? false;

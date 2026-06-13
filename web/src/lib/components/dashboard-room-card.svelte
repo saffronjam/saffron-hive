@@ -9,7 +9,7 @@
 		aggregateSensorReadings,
 	} from "$lib/device-tint";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
-	import type { Device } from "$lib/stores/devices";
+	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { commitGroupBrightness } from "$lib/group-commands";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
@@ -37,11 +37,7 @@
 		resolveTargetDevices({ type: "room", id: room.id }, devices, groups, rooms),
 	);
 
-	const lights = $derived(
-		roomDevices.filter(
-			(d) => d.type === "light" || d.capabilities.some((c) => c.name === "on_off"),
-		),
-	);
+	const lights = $derived(roomDevices.filter(isLightControlDevice));
 	const onLights = $derived(lights.filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 

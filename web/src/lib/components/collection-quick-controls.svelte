@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
-	import type { Device } from "$lib/stores/devices";
+	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import {
 		Popover,
@@ -29,9 +29,7 @@
 	const client = getContextClient();
 
 	const caps = $derived(capabilityUnion(devices));
-	const onOffDevices = $derived(
-		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
-	);
+	const onOffDevices = $derived(devices.filter(isLightControlDevice));
 	const hasOnOff = $derived(onOffDevices.length > 0);
 	const hasColor = $derived(hasCapability(caps, "color"));
 	const hasColorTemp = $derived(hasCapability(caps, "color_temp"));

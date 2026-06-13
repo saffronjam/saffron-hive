@@ -19,7 +19,7 @@
 		brightnessToTintStrength,
 		PLUG_TINT_COLOR,
 	} from "$lib/device-tint";
-	import type { Device } from "$lib/stores/devices";
+	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { commitGroupBrightness, commitGroupColor, commitGroupTemp } from "$lib/group-commands";
@@ -66,18 +66,18 @@
 	const dimmableLights = $derived(
 		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
 	);
-	const isPlugOnly = $derived(
-		dimmableLights.length === 0 && onOffDevices.length > 0,
+	const isSwitchOnlyLight = $derived(
+		dimmableLights.length === 0 && onOffDevices.some(isLightControlDevice),
 	);
 
 	const tintColors = $derived.by(() => {
 		const base = groupBaseTintColors(devices);
 		if (base.length > 0) return base;
-		if (isPlugOnly) return [PLUG_TINT_COLOR];
+		if (isSwitchOnlyLight) return [PLUG_TINT_COLOR];
 		return [];
 	});
 	const tintStrength = $derived.by(() => {
-		if (isPlugOnly) return 1;
+		if (isSwitchOnlyLight) return 1;
 		const lit = devices.filter(
 			(d) => d.type === "light" && d.state?.on && d.state?.brightness != null,
 		);

@@ -7,7 +7,7 @@
 		brightnessToTintStrength,
 		aggregateSensorReadings,
 	} from "$lib/device-tint";
-	import type { Device } from "$lib/stores/devices";
+	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { commitGroupBrightness, commitGroupToggle } from "$lib/group-commands";
 	import { popoverDismissedRecently } from "$lib/popover-guard";
@@ -24,11 +24,7 @@
 
 	const apartmentEntity = { id: "apartment", name: "Apartment", icon: null };
 
-	const lights = $derived(
-		devices.filter(
-			(d) => d.type === "light" || d.capabilities.some((c) => c.name === "on_off"),
-		),
-	);
+	const lights = $derived(devices.filter(isLightControlDevice));
 	const onLights = $derived(lights.filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 

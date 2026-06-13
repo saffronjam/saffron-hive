@@ -1,7 +1,7 @@
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { rgbToXy } from "$lib/color";
-import type { Device } from "$lib/stores/devices";
+import { isLightControlDevice, type Device } from "$lib/stores/devices";
 
 export interface GroupMemberRef {
   memberType: string;
@@ -96,7 +96,7 @@ export async function commitGroupToggle(
   devices: Device[],
   on: boolean,
 ): Promise<void> {
-  const targets = devices.filter((d) => d.capabilities.some((c) => c.name === "on_off"));
+  const targets = devices.filter(isLightControlDevice);
   if (targets.length === 0) return;
   await Promise.all(
     targets.map((d) =>
