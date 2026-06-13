@@ -15,8 +15,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+const tuyaTokenInvalidCode = 1010
+
+var errTokenInvalid = errors.New("tuya token invalid")
 
 type Config struct {
 	AccessID     string
@@ -26,10 +31,11 @@ type Config struct {
 }
 
 type CloudClient struct {
-	cfg   Config
-	host  string
-	http  *http.Client
-	token string
+	cfg     Config
+	host    string
+	http    *http.Client
+	tokenMu sync.Mutex
+	token   string
 }
 
 type DeviceInfo struct {
@@ -146,6 +152,17 @@ func (c *CloudClient) SendCommands(ctx context.Context, deviceID string, command
 }
 
 func (c *CloudClient) do(ctx context.Context, method, path string, body []byte, out any) error {
+	for attempt := 0; attempt < 2; attempt++ {
+		err := c.doOnce(ctx, method, path, body, out)
+		if !errors.Is(err, errTokenInvalid) {
+			return err
+		}
+		c.clearToken()
+	}
+	return errTokenInvalid
+}
+
+func (c *CloudClient) doOnce(ctx context.Context, method, path string, body []byte, out any) error {
 	token, err := c.getToken(ctx)
 	if err != nil {
 		return err
@@ -169,10 +186,19 @@ func (c *CloudClient) do(ctx context.Context, method, path string, body []byte, 
 	if err := json.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("decode tuya response: %w", err)
 	}
+	var envelope struct {
+		Success bool `json:"success"`
+		Code    int  `json:"code"`
+	}
+	if err := json.Unmarshal(data, &envelope); err == nil && !envelope.Success && envelope.Code == tuyaTokenInvalidCode {
+		return errTokenInvalid
+	}
 	return nil
 }
 
 func (c *CloudClient) getToken(ctx context.Context) (string, error) {
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
 	if c.token != "" {
 		return c.token, nil
 	}
@@ -205,6 +231,12 @@ func (c *CloudClient) getToken(ctx context.Context) (string, error) {
 	}
 	c.token = out.Result.AccessToken
 	return c.token, nil
+}
+
+func (c *CloudClient) clearToken() {
+	c.tokenMu.Lock()
+	c.token = ""
+	c.tokenMu.Unlock()
 }
 
 func (c *CloudClient) newSignedRequest(ctx context.Context, method, path string, body []byte, token string) (*http.Request, error) {
