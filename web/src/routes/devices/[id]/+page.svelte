@@ -27,6 +27,7 @@
 	import DateRangePicker from "$lib/components/date-range-picker.svelte";
 	import PlugDisplay from "$lib/components/plug-display.svelte";
 	import MemberTable from "$lib/components/member-table.svelte";
+	import DeviceTagsSelect, { type DeviceTag } from "$lib/components/device-tags-select.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { membershipRowsForDevice } from "$lib/memberships";
@@ -45,9 +46,16 @@
 	let savedMetadataName = $state("");
 	let metadataIcon = $state<string | null>(null);
 	let savedMetadataIcon = $state<string | null>(null);
+	let metadataTags = $state<DeviceTag[]>([]);
+	let savedMetadataTags = $state<DeviceTag[]>([]);
 	let savingMetadata = $state(false);
+	function tagsEqual(a: DeviceTag[], b: DeviceTag[]): boolean {
+		return a.length === b.length && a.every((tag, i) => tag === b[i]);
+	}
 	const metadataDirty = $derived(
-		metadataName.trim() !== savedMetadataName || metadataIcon !== savedMetadataIcon
+		metadataName.trim() !== savedMetadataName ||
+			metadataIcon !== savedMetadataIcon ||
+			!tagsEqual(metadataTags, savedMetadataTags)
 	);
 
 	onMount(() => {
@@ -103,6 +111,7 @@
 				id
 				name
 				icon
+				tags
 				source
 				type
 				capabilities { name type values valueMin valueMax unit access }
@@ -198,6 +207,7 @@
 				id
 				name
 				icon
+				tags
 			}
 		}
 	`);
@@ -403,11 +413,13 @@
 
 		savingMetadata = true;
 		error = null;
-		const input: { name?: string; icon?: string | null } = {};
+		const currentDeviceId = device.id;
+		const input: { name?: string; icon?: string | null; tags?: DeviceTag[] } = {};
 		if (name !== savedMetadataName) input.name = name;
 		if (metadataIcon !== savedMetadataIcon) input.icon = metadataIcon;
+		if (!tagsEqual(metadataTags, savedMetadataTags)) input.tags = metadataTags;
 		const result = await clientRef
-			.mutation(UPDATE_DEVICE, { id: device.id, input })
+			.mutation(UPDATE_DEVICE, { id: currentDeviceId, input })
 			.toPromise();
 		savingMetadata = false;
 
@@ -419,13 +431,17 @@
 		if (result.data?.updateDevice) {
 			const updatedName = result.data.updateDevice.name;
 			const updatedIcon = result.data.updateDevice.icon ?? null;
-			device = { ...device, name: updatedName, icon: updatedIcon };
+			const updatedTags = [...result.data.updateDevice.tags] as DeviceTag[];
+			device = { ...device, name: updatedName, icon: updatedIcon, tags: updatedTags };
 			metadataName = updatedName;
 			savedMetadataName = updatedName;
 			metadataIcon = updatedIcon;
 			savedMetadataIcon = updatedIcon;
-			deviceStore.updateName(device.id, updatedName);
-			deviceStore.updateIcon(device.id, updatedIcon);
+			metadataTags = [...updatedTags];
+			savedMetadataTags = [...updatedTags];
+			deviceStore.updateName(currentDeviceId, updatedName);
+			deviceStore.updateIcon(currentDeviceId, updatedIcon);
+			deviceStore.updateTags(currentDeviceId, updatedTags);
 		}
 	}
 
@@ -460,6 +476,8 @@
 					savedMetadataName = result.data.device.name;
 					metadataIcon = result.data.device.icon ?? null;
 					savedMetadataIcon = result.data.device.icon ?? null;
+					metadataTags = [...result.data.device.tags] as DeviceTag[];
+					savedMetadataTags = [...result.data.device.tags] as DeviceTag[];
 				} else {
 					error = "Device not found";
 				}
@@ -556,6 +574,14 @@
 								void saveMetadata();
 							}
 						}}
+					/>
+				</div>
+				<div class="mt-4 flex items-center gap-3">
+					<span class="w-12 text-sm font-medium text-foreground">Tags</span>
+					<DeviceTagsSelect
+						value={metadataTags}
+						onchange={(next) => (metadataTags = next)}
+						disabled={savingMetadata}
 					/>
 				</div>
 			</div>
