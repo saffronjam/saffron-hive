@@ -171,6 +171,55 @@ func TestUpdateDevice(t *testing.T) {
 	}
 }
 
+func TestUpdateDeviceTags(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	_, err := s.CreateDevice(ctx, CreateDeviceParams{
+		ID:     "dev-1",
+		Name:   "Lava lamp",
+		Source: "zigbee",
+		Type:   device.Plug,
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	updated, err := s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:        "dev-1",
+		Name:      "Lava lamp",
+		Available: true,
+		SetTags:   true,
+		Tags:      []device.DeviceTag{device.DeviceTagLight, device.DeviceTagLight, device.DeviceTag("BAD")},
+	})
+	if err != nil {
+		t.Fatalf("set tags: %v", err)
+	}
+	if len(updated.Tags) != 1 || updated.Tags[0] != device.DeviceTagLight {
+		t.Fatalf("got tags %#v, want [LIGHT]", updated.Tags)
+	}
+
+	listed, err := s.ListDevices(ctx)
+	if err != nil {
+		t.Fatalf("list devices: %v", err)
+	}
+	if len(listed) != 1 || len(listed[0].Tags) != 1 || listed[0].Tags[0] != device.DeviceTagLight {
+		t.Fatalf("listed tags %#v, want [LIGHT]", listed)
+	}
+
+	updated, err = s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:      "dev-1",
+		Name:    "Lava lamp",
+		SetTags: true,
+	})
+	if err != nil {
+		t.Fatalf("clear tags: %v", err)
+	}
+	if len(updated.Tags) != 0 {
+		t.Fatalf("got tags %#v, want none", updated.Tags)
+	}
+}
+
 func TestUpsertDevicePreservesName(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()

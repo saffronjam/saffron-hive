@@ -30,6 +30,23 @@ const (
 	Unknown DeviceType = "unknown"
 )
 
+// DeviceTag marks user-owned device roles that supplement the adapter-detected type.
+type DeviceTag string
+
+const (
+	DeviceTagLight DeviceTag = "LIGHT"
+)
+
+// IsValidDeviceTag reports whether t is a supported device tag.
+func IsValidDeviceTag(t DeviceTag) bool {
+	switch t {
+	case DeviceTagLight:
+		return true
+	default:
+		return false
+	}
+}
+
 // Capability constants for known device capabilities.
 const (
 	CapOnOff             = "on_off"
@@ -72,6 +89,7 @@ type Device struct {
 	Icon         *string      `json:"icon,omitempty"`
 	Source       Source       `json:"source"`
 	Type         DeviceType   `json:"type"`
+	Tags         []DeviceTag  `json:"tags"`
 	Capabilities []Capability `json:"capabilities"`
 	Available    bool         `json:"available"`
 	Removed      bool         `json:"removed"`

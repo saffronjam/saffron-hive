@@ -11,6 +11,7 @@ func TestDeviceTypeConstants(t *testing.T) {
 		{Sensor, "sensor"},
 		{Button, "button"},
 		{Plug, "plug"},
+		{Climate, "climate"},
 		{Speaker, "speaker"},
 		{Unknown, "unknown"},
 	}
@@ -18,6 +19,15 @@ func TestDeviceTypeConstants(t *testing.T) {
 		if string(tt.dt) != tt.want {
 			t.Errorf("DeviceType %q != %q", tt.dt, tt.want)
 		}
+	}
+}
+
+func TestDeviceTagValidation(t *testing.T) {
+	if !IsValidDeviceTag(DeviceTagLight) {
+		t.Fatal("LIGHT should be a valid device tag")
+	}
+	if IsValidDeviceTag(DeviceTag("UNKNOWN")) {
+		t.Fatal("UNKNOWN should not be a valid device tag")
 	}
 }
 

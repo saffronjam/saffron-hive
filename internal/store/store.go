@@ -27,6 +27,8 @@ type UpdateDeviceParams struct {
 	Available bool
 	Removed   bool
 	LastSeen  time.Time
+	SetTags   bool
+	Tags      []device.DeviceTag
 }
 
 // UpdateDeviceIconParams holds the parameters for updating a device's icon.

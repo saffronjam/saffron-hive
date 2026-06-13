@@ -75,6 +75,7 @@ type Querier interface {
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
+	DeleteDeviceTags(ctx context.Context, deviceID string) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
 	DeleteGroup(ctx context.Context, id string) error
@@ -126,11 +127,13 @@ type Querier interface {
 	// Deletion is by alarm_id, removing every row belonging to a logical alarm
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
+	InsertDeviceTag(ctx context.Context, arg InsertDeviceTagParams) error
 	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
+	ListAllDeviceTags(ctx context.Context) ([]DeviceTag, error)
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
 	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
 	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
@@ -138,6 +141,7 @@ type Querier interface {
 	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
+	ListDeviceTags(ctx context.Context, deviceID string) ([]string, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
 	ListEffectClips(ctx context.Context, trackID string) ([]EffectClip, error)

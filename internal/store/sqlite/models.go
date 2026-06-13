@@ -100,6 +100,11 @@ type DeviceStateSample struct {
 	RecordedAt time.Time
 }
 
+type DeviceTag struct {
+	DeviceID string
+	Tag      string
+}
+
 type Effect struct {
 	ID         string
 	Name       string
