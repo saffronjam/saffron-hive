@@ -8,6 +8,7 @@
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import DashboardLightCard from "$lib/components/dashboard-light-card.svelte";
+	import DashboardApplianceCard from "$lib/components/dashboard-appliance-card.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -25,7 +26,11 @@
 	} from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
-	import type { Device } from "$lib/stores/devices";
+	import {
+		isApplianceDevice,
+		isLightControlDevice,
+		type Device,
+	} from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { deviceIcon } from "$lib/utils";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
@@ -114,7 +119,15 @@
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
-	const lightDevices = $derived(roomDevices.filter((d) => d.type === "light"));
+	const lightDevices = $derived(roomDevices.filter(isLightControlDevice));
+	const applianceDevices = $derived(
+		roomDevices.filter(isApplianceDevice).toSorted((a, b) => a.name.localeCompare(b.name)),
+	);
+	const fullWidthApplianceId = $derived(
+		applianceDevices.length % 2 === 1
+			? applianceDevices[applianceDevices.length - 1]?.id
+			: null,
+	);
 	const onLights = $derived(lightDevices.filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 	const tintColors = $derived(groupBaseTintColors(roomDevices));
@@ -236,7 +249,7 @@
 				devices,
 				groups,
 				rooms,
-			).filter((d) => d.type === "light" || d.capabilities.some((c) => c.name === "on_off"));
+			).filter(isLightControlDevice);
 			if (groupDevs.length === 0) continue;
 			for (const d of groupDevs) claimedDeviceIds.add(d.id);
 			entries.push({
@@ -253,9 +266,7 @@
 			if (claimedDeviceIds.has(m.memberId)) continue;
 			const dev = devices.find((d) => d.id === m.memberId);
 			if (!dev) continue;
-			const isLightLike =
-				dev.type === "light" || dev.capabilities.some((c) => c.name === "on_off");
-			if (!isLightLike) continue;
+			if (!isLightControlDevice(dev)) continue;
 			entries.push({
 				key: `device:${dev.id}`,
 				entity: { id: dev.id, name: dev.name, icon: dev.icon ?? null },
@@ -459,6 +470,23 @@
 					</div>
 				{/if}
 			</section>
+
+			{#if applianceDevices.length > 0}
+				<section>
+					<div class="mb-1 flex items-center gap-3">
+						<h3 class="text-sm font-semibold text-foreground">Appliances</h3>
+						<div class="h-px flex-1 bg-muted" aria-hidden="true"></div>
+					</div>
+					<div class="grid grid-cols-2 gap-3">
+						{#each applianceDevices as device (device.id)}
+							<DashboardApplianceCard
+								{device}
+								class={device.id === fullWidthApplianceId ? "col-span-2" : ""}
+							/>
+						{/each}
+					</div>
+				</section>
+			{/if}
 		{/if}
 	</SheetContent>
 </Sheet>
