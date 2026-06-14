@@ -600,6 +600,39 @@ func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) 
 	return tuya.NewAdapter(client, m.bus, m.memStore).Sync(ctx)
 }
 
+func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string) (int, error) {
+	if provider != "tuya" {
+		return 0, fmt.Errorf("unknown integration %q", provider)
+	}
+
+	m.mu.Lock()
+	if m.tuya != nil {
+		m.tuya.Stop()
+		m.tuya = nil
+	}
+	m.mu.Unlock()
+
+	devices, err := m.store.ListDevicesBySource(ctx, tuya.Source)
+	if err != nil {
+		return 0, err
+	}
+	if err := m.store.DeleteTuyaConfig(ctx); err != nil {
+		return 0, err
+	}
+	for _, dev := range devices {
+		if err := m.store.DeleteDevice(ctx, dev.ID); err != nil {
+			return 0, err
+		}
+		m.memStore.Remove(dev.ID)
+		m.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventDeviceRemoved,
+			DeviceID:  string(dev.ID),
+			Timestamp: time.Now(),
+		})
+	}
+	return len(devices), nil
+}
+
 func (m *adapterManager) TuyaConnected() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()

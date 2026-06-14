@@ -36,6 +36,7 @@ type TuyaController interface {
 	ReconnectTuya(ctx context.Context) error
 	TestTuya(ctx context.Context, cfg store.TuyaConfig) error
 	SyncTuya(ctx context.Context) ([]device.Device, error)
+	DeleteIntegration(ctx context.Context, provider string) (int, error)
 	TuyaConnected() bool
 }
 
@@ -62,8 +63,10 @@ type GraphStore interface {
 	// Devices
 	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
 	ListDevices(ctx context.Context) ([]device.Device, error)
+	ListDevicesBySource(ctx context.Context, source device.Source) ([]device.Device, error)
 	UpdateDevice(ctx context.Context, params store.UpdateDeviceParams) (device.Device, error)
 	UpdateDeviceIcon(ctx context.Context, params store.UpdateDeviceIconParams) (device.Device, error)
+	DeleteDevice(ctx context.Context, id device.DeviceID) error
 
 	// Scenes
 	CreateScene(ctx context.Context, params store.CreateSceneParams) (store.Scene, error)
@@ -137,6 +140,7 @@ type GraphStore interface {
 	UpsertMQTTConfig(ctx context.Context, cfg store.MQTTConfig) error
 	GetTuyaConfig(ctx context.Context) (*store.TuyaConfig, error)
 	UpsertTuyaConfig(ctx context.Context, cfg store.TuyaConfig) error
+	DeleteTuyaConfig(ctx context.Context) error
 	ListSettings(ctx context.Context) ([]store.Setting, error)
 	UpsertSetting(ctx context.Context, key, value string) error
 	CreateUser(ctx context.Context, params store.CreateUserParams) (store.User, error)

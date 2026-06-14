@@ -255,12 +255,13 @@ type ComplexityRoot struct {
 	}
 
 	Integration struct {
-		Configured func(childComplexity int) int
-		Connected  func(childComplexity int) int
-		Enabled    func(childComplexity int) int
-		Message    func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Provider   func(childComplexity int) int
+		Configured  func(childComplexity int) int
+		Connected   func(childComplexity int) int
+		DeviceCount func(childComplexity int) int
+		Enabled     func(childComplexity int) int
+		Message     func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Provider    func(childComplexity int) int
 	}
 
 	LogEntry struct {
@@ -302,6 +303,7 @@ type ComplexityRoot struct {
 		DeleteAutomation            func(childComplexity int, id string) int
 		DeleteEffect                func(childComplexity int, id string) int
 		DeleteGroup                 func(childComplexity int, id string) int
+		DeleteIntegration           func(childComplexity int, provider string) int
 		DeleteRoom                  func(childComplexity int, id string) int
 		DeleteScene                 func(childComplexity int, id string) int
 		DeleteUser                  func(childComplexity int, id string) int
@@ -497,6 +499,7 @@ type MutationResolver interface {
 	UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error)
 	TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error)
 	SyncTuyaDevices(ctx context.Context) ([]*model.Device, error)
+	DeleteIntegration(ctx context.Context, provider string) (int, error)
 	UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error)
@@ -1464,6 +1467,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Integration.Connected(childComplexity), true
+	case "Integration.deviceCount":
+		if e.ComplexityRoot.Integration.DeviceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.DeviceCount(childComplexity), true
 	case "Integration.enabled":
 		if e.ComplexityRoot.Integration.Enabled == nil {
 			break
@@ -1803,6 +1812,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteGroup(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteIntegration":
+		if e.ComplexityRoot.Mutation.DeleteIntegration == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteIntegration_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteIntegration(childComplexity, args["provider"].(string)), true
 	case "Mutation.deleteRoom":
 		if e.ComplexityRoot.Mutation.DeleteRoom == nil {
 			break
@@ -3428,6 +3448,7 @@ type Integration {
   configured: Boolean!
   enabled: Boolean!
   connected: Boolean!
+  deviceCount: Int!
   message: String
 }
 
@@ -3752,6 +3773,7 @@ type Mutation {
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
+  deleteIntegration(provider: String!): Int! @auth
   updateSetting(key: String!, value: String!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
@@ -4114,6 +4136,17 @@ func (ec *executionContext) field_Mutation_deleteGroup_args(ctx context.Context,
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteIntegration_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "provider", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["provider"] = arg0
 	return args, nil
 }
 
@@ -9365,6 +9398,35 @@ func (ec *executionContext) fieldContext_Integration_connected(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Integration_deviceCount(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_deviceCount,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_deviceCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Integration_message(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11366,6 +11428,60 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteIntegration(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteIntegration,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteIntegration(ctx, fc.Args["provider"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteIntegration(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteIntegration_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -13946,6 +14062,8 @@ func (ec *executionContext) fieldContext_Query_integrations(_ context.Context, f
 				return ec.fieldContext_Integration_enabled(ctx, field)
 			case "connected":
 				return ec.fieldContext_Integration_connected(ctx, field)
+			case "deviceCount":
+				return ec.fieldContext_Integration_deviceCount(ctx, field)
 			case "message":
 				return ec.fieldContext_Integration_message(ctx, field)
 			}
@@ -21648,6 +21766,11 @@ func (ec *executionContext) _Integration(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "deviceCount":
+			out.Values[i] = ec._Integration_deviceCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "message":
 			out.Values[i] = ec._Integration_message(ctx, field, obj)
 		default:
@@ -21985,6 +22108,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "syncTuyaDevices":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_syncTuyaDevices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteIntegration":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteIntegration(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

@@ -537,6 +537,7 @@ type Integration {
   configured: Boolean!
   enabled: Boolean!
   connected: Boolean!
+  deviceCount: Int!
   message: String
 }
 
@@ -861,6 +862,7 @@ type Mutation {
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
+  deleteIntegration(provider: String!): Int! @auth
   updateSetting(key: String!, value: String!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!

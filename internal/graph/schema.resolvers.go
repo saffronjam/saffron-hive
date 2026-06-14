@@ -793,6 +793,14 @@ func (r *mutationResolver) SyncTuyaDevices(ctx context.Context) ([]*model.Device
 	return result, nil
 }
 
+// DeleteIntegration is the resolver for the deleteIntegration field.
+func (r *mutationResolver) DeleteIntegration(ctx context.Context, provider string) (int, error) {
+	if r.Tuya == nil {
+		return 0, errors.New("integration manager is not configured")
+	}
+	return r.Tuya.DeleteIntegration(ctx, provider)
+}
+
 // UpdateSetting is the resolver for the updateSetting field. Server-internal
 // keys (auth.IsInternalSettingKey) are rejected so a caller cannot overwrite
 // secrets that the public settings surface intentionally hides — see the doc
@@ -1852,15 +1860,20 @@ func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration,
 	if err != nil {
 		return nil, err
 	}
+	tuyaDevices, err := r.Store.ListDevicesBySource(ctx, "tuya")
+	if err != nil {
+		return nil, err
+	}
 	configured := cfg != nil && cfg.AccessID != "" && cfg.AccessSecret != "" && cfg.Region != ""
 	enabled := configured && cfg.Enabled
 	connected := enabled && r.Tuya != nil && r.Tuya.TuyaConnected()
 	return []*model.Integration{{
-		Provider:   "tuya",
-		Name:       "Tuya",
-		Configured: configured,
-		Enabled:    enabled,
-		Connected:  connected,
+		Provider:    "tuya",
+		Name:        "Tuya",
+		Configured:  configured,
+		Enabled:     enabled,
+		Connected:   connected,
+		DeviceCount: len(tuyaDevices),
 	}}, nil
 }
 

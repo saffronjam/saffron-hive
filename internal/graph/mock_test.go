@@ -148,6 +148,18 @@ func (m *mockStore) ListDevices(_ context.Context) ([]device.Device, error) {
 	return out, nil
 }
 
+func (m *mockStore) ListDevicesBySource(_ context.Context, source device.Source) ([]device.Device, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]device.Device, 0, len(m.devices))
+	for _, d := range m.devices {
+		if d.Source == source {
+			out = append(out, d)
+		}
+	}
+	return out, nil
+}
+
 func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDeviceParams) (device.Device, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -164,6 +176,13 @@ func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDevicePar
 	}
 	m.devices[params.ID] = d
 	return d, nil
+}
+
+func (m *mockStore) DeleteDevice(_ context.Context, id device.DeviceID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.devices, id)
+	return nil
 }
 
 func (m *mockStore) UpdateDeviceIcon(_ context.Context, params store.UpdateDeviceIconParams) (device.Device, error) {
@@ -705,6 +724,13 @@ func (m *mockStore) UpsertTuyaConfig(_ context.Context, cfg store.TuyaConfig) er
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.tuyaConfig = &cfg
+	return nil
+}
+
+func (m *mockStore) DeleteTuyaConfig(_ context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.tuyaConfig = nil
 	return nil
 }
 

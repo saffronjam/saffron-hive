@@ -417,12 +417,13 @@ type GroupMember struct {
 }
 
 type Integration struct {
-	Provider   string  `json:"provider"`
-	Name       string  `json:"name"`
-	Configured bool    `json:"configured"`
-	Enabled    bool    `json:"enabled"`
-	Connected  bool    `json:"connected"`
-	Message    *string `json:"message,omitempty"`
+	Provider    string  `json:"provider"`
+	Name        string  `json:"name"`
+	Configured  bool    `json:"configured"`
+	Enabled     bool    `json:"enabled"`
+	Connected   bool    `json:"connected"`
+	DeviceCount int     `json:"deviceCount"`
+	Message     *string `json:"message,omitempty"`
 }
 
 type LogEntry struct {
