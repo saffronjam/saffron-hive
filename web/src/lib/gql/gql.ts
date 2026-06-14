@@ -154,7 +154,8 @@ type Documents = {
     "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t": typeof types.BatchDeleteGroupsDocument,
     "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t": typeof types.AddGroupMemberDocument,
     "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\t\t\tremoveGroupMember(id: $id)\n\t\t}\n\t": typeof types.RemoveGroupMemberDocument,
-    "\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": typeof types.IntegrationsPageDocument,
+    "\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tdeviceCount\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": typeof types.IntegrationsPageDocument,
+    "\n\t\tmutation DeleteIntegration($provider: String!) {\n\t\t\tdeleteIntegration(provider: $provider)\n\t\t}\n\t": typeof types.DeleteIntegrationDocument,
     "\n\t\tquery TuyaConfigPage {\n\t\t\ttuyaConfig {\n\t\t\t\taccessId\n\t\t\t\taccessSecret\n\t\t\t\tregion\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": typeof types.TuyaConfigPageDocument,
     "\n\t\tmutation UpdateTuyaConfig($input: TuyaConfigInput!) {\n\t\t\tupdateTuyaConfig(input: $input) {\n\t\t\t\taccessId\n\t\t\t\taccessSecret\n\t\t\t\tregion\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateTuyaConfigDocument,
     "\n\t\tmutation TestTuyaConnection($input: TuyaConfigInput!) {\n\t\t\ttestTuyaConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": typeof types.TestTuyaConnectionDocument,
@@ -349,7 +350,8 @@ const documents: Documents = {
     "\n\t\tmutation BatchDeleteGroups($ids: [ID!]!) {\n\t\t\tbatchDeleteGroups(ids: $ids)\n\t\t}\n\t": types.BatchDeleteGroupsDocument,
     "\n\t\tmutation AddGroupMember($input: AddGroupMemberInput!) {\n\t\t\taddGroupMember(input: $input) {\n\t\t\t\tid\n\t\t\t\tmemberType\n\t\t\t\tmemberId\n\t\t\t}\n\t\t}\n\t": types.AddGroupMemberDocument,
     "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\t\t\tremoveGroupMember(id: $id)\n\t\t}\n\t": types.RemoveGroupMemberDocument,
-    "\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": types.IntegrationsPageDocument,
+    "\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tdeviceCount\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": types.IntegrationsPageDocument,
+    "\n\t\tmutation DeleteIntegration($provider: String!) {\n\t\t\tdeleteIntegration(provider: $provider)\n\t\t}\n\t": types.DeleteIntegrationDocument,
     "\n\t\tquery TuyaConfigPage {\n\t\t\ttuyaConfig {\n\t\t\t\taccessId\n\t\t\t\taccessSecret\n\t\t\t\tregion\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": types.TuyaConfigPageDocument,
     "\n\t\tmutation UpdateTuyaConfig($input: TuyaConfigInput!) {\n\t\t\tupdateTuyaConfig(input: $input) {\n\t\t\t\taccessId\n\t\t\t\taccessSecret\n\t\t\t\tregion\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": types.UpdateTuyaConfigDocument,
     "\n\t\tmutation TestTuyaConnection($input: TuyaConfigInput!) {\n\t\t\ttestTuyaConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": types.TestTuyaConnectionDocument,
@@ -981,7 +983,11 @@ export function graphql(source: "\n\t\tmutation RemoveGroupMember($id: ID!) {\n\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tdeviceCount\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery IntegrationsPage {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tname\n\t\t\t\tconfigured\n\t\t\t\tenabled\n\t\t\t\tconnected\n\t\t\t\tdeviceCount\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation DeleteIntegration($provider: String!) {\n\t\t\tdeleteIntegration(provider: $provider)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeleteIntegration($provider: String!) {\n\t\t\tdeleteIntegration(provider: $provider)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

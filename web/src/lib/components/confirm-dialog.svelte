@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from "svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		Dialog,
@@ -12,7 +13,8 @@
 	interface Props {
 		open: boolean;
 		title: string;
-		description: string;
+		description?: string;
+		children?: Snippet;
 		confirmLabel?: string;
 		cancelLabel?: string;
 		variant?: "destructive" | "default";
@@ -25,6 +27,7 @@
 		open = $bindable(false),
 		title,
 		description,
+		children,
 		confirmLabel = "Confirm",
 		cancelLabel = "Cancel",
 		variant = "destructive",
@@ -38,8 +41,11 @@
 	<DialogContent>
 		<DialogHeader>
 			<DialogTitle>{title}</DialogTitle>
-			<DialogDescription>{description}</DialogDescription>
+			{#if description}
+				<DialogDescription>{description}</DialogDescription>
+			{/if}
 		</DialogHeader>
+		{@render children?.()}
 		<DialogFooter>
 			<Button variant="outline" onclick={oncancel}>{cancelLabel}</Button>
 			<Button {variant} onclick={onconfirm} disabled={loading}>

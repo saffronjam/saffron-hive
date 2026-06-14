@@ -5,6 +5,7 @@
 	import { graphql } from "$lib/gql";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
@@ -27,8 +28,15 @@
 				configured
 				enabled
 				connected
+				deviceCount
 				message
 			}
+		}
+	`);
+
+	const DELETE_INTEGRATION = graphql(`
+		mutation DeleteIntegration($provider: String!) {
+			deleteIntegration(provider: $provider)
 		}
 	`);
 
@@ -38,6 +46,7 @@
 		configured: boolean;
 		enabled: boolean;
 		connected: boolean;
+		deviceCount: number;
 		message?: string | null;
 	};
 
@@ -47,6 +56,8 @@
 	let integrations = $state<Integration[]>([]);
 	let loading = $state(true);
 	let addDialogOpen = $state(false);
+	let deleteConfirmIntegration = $state<Integration | null>(null);
+	let deleteLoading = $state(false);
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 
 	const configuredIntegrations = $derived(integrations.filter((i) => i.configured));
@@ -56,6 +67,7 @@
 		if (!q) return availableProviders;
 		return availableProviders.filter((i) => i.name.toLowerCase().includes(q));
 	});
+	const deleteDeviceCount = $derived(deleteConfirmIntegration?.deviceCount ?? 0);
 
 	async function loadIntegrations() {
 		loading = true;
@@ -75,6 +87,21 @@
 	function openProvider(provider: string) {
 		addDialogOpen = false;
 		void goto(`/integrations/${provider}`);
+	}
+
+	async function handleDeleteIntegration() {
+		if (!deleteConfirmIntegration) return;
+		deleteLoading = true;
+		try {
+			const result = await client
+				.mutation(DELETE_INTEGRATION, { provider: deleteConfirmIntegration.provider })
+				.toPromise();
+			if (result.error) throw result.error;
+			deleteConfirmIntegration = null;
+			await loadIntegrations();
+		} finally {
+			deleteLoading = false;
+		}
 	}
 
 	function statusLabel(integration: Integration): string {
@@ -119,7 +146,9 @@
 					fallbackIcon={TuyaIcon}
 					subtitle={statusLabel(integration)}
 					onedit={() => openProvider(integration.provider)}
+					ondelete={() => (deleteConfirmIntegration = integration)}
 					editLabel="Configure"
+					deleteLabel="Delete integration"
 					iconEditable={false}
 					readOnly={false}
 					class="min-h-32"
@@ -172,3 +201,18 @@
 		</div>
 	</DialogContent>
 </Dialog>
+
+<ConfirmDialog
+	bind:open={() => deleteConfirmIntegration !== null, (v) => { if (!v) deleteConfirmIntegration = null; }}
+	title="Delete Integration"
+	description="Deleting this integration removes its configuration and all devices connected through it. This cannot be undone."
+	confirmLabel="Delete"
+	loading={deleteLoading}
+	onconfirm={handleDeleteIntegration}
+	oncancel={() => (deleteConfirmIntegration = null)}
+>
+	<div class="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+		<span>This will delete </span>
+		<strong>{deleteDeviceCount} device{deleteDeviceCount === 1 ? "" : "s"}</strong>
+	</div>
+</ConfirmDialog>

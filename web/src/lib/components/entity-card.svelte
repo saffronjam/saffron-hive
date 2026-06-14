@@ -321,11 +321,13 @@
 								{tagRoomsLabel}
 							</DropdownMenuItem>
 						{/if}
-						<DropdownMenuSeparator />
-						<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(entity)}>
-							<Trash2 class="size-4" />
-							{deleteLabel}
-						</DropdownMenuItem>
+						{#if ondelete}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(entity)}>
+								<Trash2 class="size-4" />
+								{deleteLabel}
+							</DropdownMenuItem>
+						{/if}
 					</DropdownMenuContent>
 				</DropdownMenu>
 			{/if}
