@@ -11,6 +11,7 @@
 	} from "@xyflow/svelte";
 	import "@xyflow/svelte/dist/style.css";
 	import FlowBridge, { type FlowApi } from "./flow-bridge.svelte";
+	import NodeTouchDrag from "./node-touch-drag.svelte";
 	import TriggerNode from "./trigger-node.svelte";
 	import ConditionNode from "./condition-node.svelte";
 	import OperatorNode from "./operator-node.svelte";
@@ -107,5 +108,6 @@
 		<Controls />
 		<Background />
 		<FlowBridge {nodes} {onReady} />
+		<NodeTouchDrag bind:nodes {editable} {onnodedragstop} />
 	</SvelteFlow>
 </div>
