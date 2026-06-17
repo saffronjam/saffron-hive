@@ -131,7 +131,7 @@
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Effects" }];
 		pageHeader.actions = [
-			{ label: "Create Effect", icon: Plus, onclick: () => (createDialogOpen = true) },
+			{ label: "Create Effect", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) },
 		];
 		fetchEffects();
 	});

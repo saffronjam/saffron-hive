@@ -638,7 +638,7 @@
 			pageHeader.viewToggle = null;
 		} else {
 			pageHeader.breadcrumbs = [{ label: "Groups" }];
-			pageHeader.actions = [{ label: "Create Group", icon: Plus, onclick: () => (createDialogOpen = true) }];
+			pageHeader.actions = [{ label: "Create Group", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
 			pageHeader.viewToggle = {
 				value: view,
 				onchange: (v) => {

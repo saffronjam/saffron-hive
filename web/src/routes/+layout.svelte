@@ -174,6 +174,7 @@
 							{:else}
 								<SmoothButton
 									label={action.label}
+									mobileLabel={action.mobileLabel}
 									icon={action.icon}
 									iconClass={action.iconClass ?? ""}
 									variant={action.variant ?? "default"}

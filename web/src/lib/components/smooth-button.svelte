@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { untrack, type Component } from "svelte";
 
 	interface Props {
@@ -12,6 +13,7 @@
 		onclick: () => void;
 		minDisplayMs?: number;
 		hideLabelOnMobile?: boolean;
+		mobileLabel?: string;
 	}
 
 	let {
@@ -24,9 +26,13 @@
 		onclick,
 		minDisplayMs = 600,
 		hideLabelOnMobile = false,
+		mobileLabel,
 	}: Props = $props();
 
-	let displayedLabel = $state(untrack(() => label));
+	const isMobile = new IsMobile();
+	const effectiveLabel = $derived(mobileLabel && isMobile.current ? mobileLabel : label);
+
+	let displayedLabel = $state(untrack(() => effectiveLabel));
 	let pendingLabel = $state<string | null>(null);
 	let showTime = $state(Date.now());
 	let timer: ReturnType<typeof setTimeout> | null = null;
@@ -51,7 +57,7 @@
 	}
 
 	$effect(() => {
-		if (label === displayedLabel) {
+		if (effectiveLabel === displayedLabel) {
 			pendingLabel = null;
 			return;
 		}
@@ -61,9 +67,9 @@
 		const remaining = Math.max(0, minDisplayMs - elapsed);
 
 		if (remaining === 0) {
-			applyLabel(label);
+			applyLabel(effectiveLabel);
 		} else {
-			pendingLabel = label;
+			pendingLabel = effectiveLabel;
 			if (timer) clearTimeout(timer);
 			timer = setTimeout(() => {
 				if (pendingLabel !== null) {

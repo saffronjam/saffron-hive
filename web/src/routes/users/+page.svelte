@@ -182,7 +182,7 @@
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Users" }];
 		pageHeader.actions = [
-			{ label: "Create user", icon: Plus, onclick: () => (createOpen = true) },
+			{ label: "Create user", mobileLabel: "Create", icon: Plus, onclick: () => (createOpen = true) },
 		];
 	});
 	$effect(() => {
