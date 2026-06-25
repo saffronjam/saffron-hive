@@ -65,11 +65,38 @@ func (s *MemoryStore) ListDevices() []Device {
 	return result
 }
 
-// Register adds or replaces a device in the store.
+// Register inserts a device, or merges adapter-owned fields into an existing
+// one. Name, Icon, and Tags are user-owned: once a device is known, a
+// re-registration from an adapter (re-discovery, periodic sync) keeps those
+// values and updates only the adapter-owned fields (Source, Type, Capabilities,
+// Available, LastSeen). This mirrors the UpsertDevice query so the in-memory
+// store and the database agree on which fields a re-sync may overwrite.
 func (s *MemoryStore) Register(d Device) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if existing, ok := s.devices[d.ID]; ok {
+		d.Name = existing.Name
+		d.Icon = existing.Icon
+		d.Tags = existing.Tags
+	}
 	s.devices[d.ID] = d
+}
+
+// UpdateUserFields overwrites a device's user-owned metadata (name, icon, tags)
+// in response to a rename/edit, leaving runtime state (availability, last seen,
+// reported state) untouched. If the device is not registered, the call is a
+// no-op.
+func (s *MemoryStore) UpdateUserFields(id DeviceID, name string, icon *string, tags []DeviceTag) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d, ok := s.devices[id]
+	if !ok {
+		return
+	}
+	d.Name = name
+	d.Icon = icon
+	d.Tags = tags
+	s.devices[id] = d
 }
 
 // Remove soft-deletes a device by setting its Removed flag.

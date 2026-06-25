@@ -31,14 +31,75 @@ func TestRegisterAndGetDevice(t *testing.T) {
 	}
 }
 
-func TestRegisterOverwritesExisting(t *testing.T) {
+func TestRegisterPreservesUserOwnedFieldsOnReRegister(t *testing.T) {
 	s := NewMemoryStore()
-	s.Register(Device{ID: "light-1", Name: "Old Name", Type: Light})
-	s.Register(Device{ID: "light-1", Name: "New Name", Type: Light})
+	icon := "lamp"
+	s.Register(Device{
+		ID:   "light-1",
+		Name: "Desk Lamp",
+		Icon: &icon,
+		Tags: []DeviceTag{DeviceTagLight},
+		Type: Light,
+	})
+
+	s.Register(Device{
+		ID:           "light-1",
+		Name:         "0x00124b00",
+		Type:         Light,
+		Capabilities: []Capability{{Name: CapBrightness}},
+		Available:    true,
+	})
+
+	got, _ := s.GetDevice("light-1")
+	if got.Name != "Desk Lamp" {
+		t.Fatalf("re-register clobbered user name: got %q, want %q", got.Name, "Desk Lamp")
+	}
+	if got.Icon == nil || *got.Icon != "lamp" {
+		t.Fatalf("re-register clobbered icon: got %v", got.Icon)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != DeviceTagLight {
+		t.Fatalf("re-register clobbered tags: got %v", got.Tags)
+	}
+	if len(got.Capabilities) != 1 || got.Capabilities[0].Name != CapBrightness {
+		t.Fatalf("re-register did not update capabilities: got %v", got.Capabilities)
+	}
+	if !got.Available {
+		t.Fatal("re-register did not update availability")
+	}
+}
+
+func TestUpdateUserFields(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "light-1", Name: "Old Name", Type: Light, Available: true})
+	s.SetAvailability("light-1", true)
+	before, _ := s.GetDevice("light-1")
+
+	icon := "bulb"
+	s.UpdateUserFields("light-1", "New Name", &icon, []DeviceTag{DeviceTagLight})
 
 	got, _ := s.GetDevice("light-1")
 	if got.Name != "New Name" {
-		t.Fatalf("expected overwritten name, got %s", got.Name)
+		t.Fatalf("name not updated: got %q", got.Name)
+	}
+	if got.Icon == nil || *got.Icon != "bulb" {
+		t.Fatalf("icon not updated: got %v", got.Icon)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != DeviceTagLight {
+		t.Fatalf("tags not updated: got %v", got.Tags)
+	}
+	if !got.Available {
+		t.Fatal("availability should be left intact")
+	}
+	if !got.LastSeen.Equal(before.LastSeen) {
+		t.Fatalf("last seen should be left intact: got %v, want %v", got.LastSeen, before.LastSeen)
+	}
+}
+
+func TestUpdateUserFieldsUnknownDevice(t *testing.T) {
+	s := NewMemoryStore()
+	s.UpdateUserFields("nope", "x", nil, nil)
+	if _, ok := s.GetDevice("nope"); ok {
+		t.Fatal("update on unknown device should not register it")
 	}
 }
 
