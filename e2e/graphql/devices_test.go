@@ -248,13 +248,23 @@ func TestDevices_SetDeviceState(t *testing.T) {
 }
 
 func TestDevices_UpdateDeviceName(t *testing.T) {
-	// KNOWN BUG: updateDevice updates DB but mapDeviceFromReader reads name from
-	// in-memory StateReader which still has the old name. Same class as group-target bugs.
-	t.Skip("KNOWN BUG: updateDevice response reads from memory store, not DB")
 	deviceID, err := queryDeviceIDByName("Bedroom Light")
 	if err != nil {
 		t.Fatalf("find device: %v", err)
 	}
+
+	rename := func(name string) {
+		t.Helper()
+		if _, err := graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
+			updateDevice(id: $id, input: $input) { id name }
+		}`, map[string]any{
+			"id":    deviceID,
+			"input": map[string]any{"name": name},
+		}); err != nil {
+			t.Fatalf("rename to %q: %v", name, err)
+		}
+	}
+	defer rename("Bedroom Light")
 
 	data, err := graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
 		updateDevice(id: $id, input: $input) { id name }
@@ -268,7 +278,6 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 
 	var updateResult struct {
 		UpdateDevice struct {
-			ID   string `json:"id"`
 			Name string `json:"name"`
 		} `json:"updateDevice"`
 	}
@@ -276,16 +285,15 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if updateResult.UpdateDevice.Name != "Renamed Bedroom Light" {
-		t.Errorf("name=%q, want %q", updateResult.UpdateDevice.Name, "Renamed Bedroom Light")
+		t.Errorf("mutation response name=%q, want %q", updateResult.UpdateDevice.Name, "Renamed Bedroom Light")
 	}
 
 	queryData, err := graphqlQuery(`query($id: ID!) {
-		device(id: $id) { id name }
+		device(id: $id) { name }
 	}`, map[string]any{"id": deviceID})
 	if err != nil {
 		t.Fatalf("query device: %v", err)
 	}
-
 	var queryResult struct {
 		Device struct {
 			Name string `json:"name"`
@@ -298,14 +306,44 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 		t.Errorf("persisted name=%q, want %q", queryResult.Device.Name, "Renamed Bedroom Light")
 	}
 
-	_, err = graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
-		updateDevice(id: $id, input: $input) { id name }
-	}`, map[string]any{
-		"id":    deviceID,
-		"input": map[string]any{"name": "Bedroom Light"},
-	})
+	lightState, err := infra.LoadLightState()
 	if err != nil {
-		t.Fatalf("restore name: %v", err)
+		t.Fatalf("load light fixture: %v", err)
+	}
+	if err := publisher.PublishDeviceState("Bedroom Light", lightState); err != nil {
+		t.Fatalf("publish state: %v", err)
+	}
+
+	ok := pollUntil(5*time.Second, 100*time.Millisecond, func() bool {
+		data, err := graphqlQuery(`{
+			activity(filter: {limit: 20}) {
+				source { id name }
+			}
+		}`, nil)
+		if err != nil {
+			return false
+		}
+		var result struct {
+			Activity []struct {
+				Source struct {
+					ID   *string `json:"id"`
+					Name *string `json:"name"`
+				} `json:"source"`
+			} `json:"activity"`
+		}
+		if json.Unmarshal(data, &result) != nil {
+			return false
+		}
+		for _, row := range result.Activity {
+			if row.Source.ID != nil && *row.Source.ID == deviceID &&
+				row.Source.Name != nil && *row.Source.Name == "Renamed Bedroom Light" {
+				return true
+			}
+		}
+		return false
+	})
+	if !ok {
+		t.Fatal("timed out waiting for activity entry with renamed device name")
 	}
 }
 

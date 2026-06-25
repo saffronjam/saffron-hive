@@ -66,6 +66,12 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 			return nil, err
 		}
 	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceUpdated,
+		DeviceID:  string(d.ID),
+		Timestamp: time.Now(),
+		Payload:   d,
+	})
 	return mapDeviceFromReader(r.StateReader, d), nil
 }
 

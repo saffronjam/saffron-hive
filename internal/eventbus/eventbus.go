@@ -10,14 +10,19 @@ const (
 	EventDeviceActionFired         EventType = "device.action_fired"
 	EventDeviceAvailabilityChanged EventType = "device.availability_changed"
 	EventDeviceAdded               EventType = "device.added"
-	EventDeviceRemoved             EventType = "device.removed"
-	EventCommandRequested          EventType = "command.requested"
-	EventNativeEffectRequested     EventType = "native_effect.requested"
-	EventSceneApplied              EventType = "scene.applied"
-	EventSceneActivated            EventType = "scene.activated"
-	EventSceneDeactivated          EventType = "scene.deactivated"
-	EventAutomationTriggered       EventType = "automation.triggered"
-	EventAutomationNodeActivated   EventType = "automation.node_activated"
+	// EventDeviceUpdated signals a change to a device's user-owned metadata
+	// (name, icon, tags) — distinct from runtime state or availability. It
+	// carries the updated device.Device; subscribers refresh their cached
+	// view of those fields.
+	EventDeviceUpdated           EventType = "device.updated"
+	EventDeviceRemoved           EventType = "device.removed"
+	EventCommandRequested        EventType = "command.requested"
+	EventNativeEffectRequested   EventType = "native_effect.requested"
+	EventSceneApplied            EventType = "scene.applied"
+	EventSceneActivated          EventType = "scene.activated"
+	EventSceneDeactivated        EventType = "scene.deactivated"
+	EventAutomationTriggered     EventType = "automation.triggered"
+	EventAutomationNodeActivated EventType = "automation.node_activated"
 	// EventEffectStepActivated is emitted by the effect runner around each
 	// step it processes (Active=true on enter, Active=false on exit). The
 	// frontend live view uses it to highlight the running step inside an

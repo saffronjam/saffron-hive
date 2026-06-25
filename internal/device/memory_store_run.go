@@ -13,6 +13,7 @@ func (s *MemoryStore) Run(ctx context.Context, bus eventbus.EventBus) {
 		eventbus.EventDeviceStateChanged,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
+		eventbus.EventDeviceUpdated,
 		eventbus.EventDeviceRemoved,
 	)
 	defer bus.Unsubscribe(ch)
@@ -34,6 +35,7 @@ func (s *MemoryStore) RunAsync(ctx context.Context, bus eventbus.EventBus) {
 		eventbus.EventDeviceStateChanged,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
+		eventbus.EventDeviceUpdated,
 		eventbus.EventDeviceRemoved,
 	)
 
@@ -57,6 +59,10 @@ func (s *MemoryStore) handleEvent(evt eventbus.Event) {
 	case eventbus.EventDeviceAdded:
 		if d, ok := evt.Payload.(Device); ok {
 			s.Register(d)
+		}
+	case eventbus.EventDeviceUpdated:
+		if d, ok := evt.Payload.(Device); ok {
+			s.UpdateUserFields(d.ID, d.Name, d.Icon, d.Tags)
 		}
 	case eventbus.EventDeviceRemoved:
 		s.Remove(id)
