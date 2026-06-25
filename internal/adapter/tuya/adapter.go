@@ -143,24 +143,29 @@ func (a *Adapter) poll(ctx context.Context) {
 		status, err := a.client.DeviceStatus(ctx, string(dev.ID))
 		if err != nil {
 			logger.Warn("failed to poll tuya device", "device_id", dev.ID, "error", err)
-			a.writer.SetAvailability(dev.ID, false)
-			a.bus.Publish(eventbus.Event{
-				Type:      eventbus.EventDeviceAvailabilityChanged,
-				DeviceID:  string(dev.ID),
-				Timestamp: time.Now(),
-				Payload:   false,
-			})
+			a.setAvailability(dev, false)
 			continue
 		}
-		a.writer.SetAvailability(dev.ID, true)
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceAvailabilityChanged,
-			DeviceID:  string(dev.ID),
-			Timestamp: time.Now(),
-			Payload:   true,
-		})
+		a.setAvailability(dev, true)
 		a.publishState(string(dev.ID), mapState(status))
 	}
+}
+
+// setAvailability records the polled availability and publishes an
+// availability-changed event only on a transition. Polling reports the same
+// availability every cycle; emitting an event each time would flood the
+// activity log with redundant "came online" entries.
+func (a *Adapter) setAvailability(dev device.Device, online bool) {
+	a.writer.SetAvailability(dev.ID, online)
+	if dev.Available == online {
+		return
+	}
+	a.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceAvailabilityChanged,
+		DeviceID:  string(dev.ID),
+		Timestamp: time.Now(),
+		Payload:   online,
+	})
 }
 
 func (a *Adapter) publishState(deviceID string, state device.DeviceState) {

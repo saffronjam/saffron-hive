@@ -12,6 +12,85 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
+func TestPollPublishesAvailabilityOnlyOnTransition(t *testing.T) {
+	var online bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1.0/devices/ac-1/status" {
+			http.NotFound(w, r)
+			return
+		}
+		if !online {
+			http.Error(w, "offline", http.StatusBadGateway)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"result": []map[string]any{
+				{"code": "switch", "value": false},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	bus := eventbus.NewChannelBus()
+	store := device.NewMemoryStore()
+	store.Register(device.Device{
+		ID:        "ac-1",
+		Name:      "AC",
+		Source:    Source,
+		Type:      device.Climate,
+		Available: false,
+	})
+
+	adapter := NewAdapter(&CloudClient{
+		cfg:   Config{AccessID: "id", AccessSecret: "secret", Region: "eu", Enabled: true},
+		host:  srv.URL,
+		http:  srv.Client(),
+		token: "token",
+	}, bus, store)
+
+	availCh := bus.Subscribe(eventbus.EventDeviceAvailabilityChanged)
+	defer bus.Unsubscribe(availCh)
+
+	drainAvail := func() []bool {
+		var got []bool
+		for {
+			select {
+			case evt := <-availCh:
+				avail, ok := evt.Payload.(bool)
+				if !ok {
+					t.Fatalf("availability payload type = %T, want bool", evt.Payload)
+				}
+				got = append(got, avail)
+			default:
+				return got
+			}
+		}
+	}
+
+	online = true
+	adapter.poll(context.Background())
+	if got := drainAvail(); len(got) != 1 || !got[0] {
+		t.Fatalf("first poll availability events = %v, want [true]", got)
+	}
+
+	adapter.poll(context.Background())
+	if got := drainAvail(); len(got) != 0 {
+		t.Fatalf("steady-online poll availability events = %v, want none", got)
+	}
+
+	online = false
+	adapter.poll(context.Background())
+	if got := drainAvail(); len(got) != 1 || got[0] {
+		t.Fatalf("offline transition availability events = %v, want [false]", got)
+	}
+
+	adapter.poll(context.Background())
+	if got := drainAvail(); len(got) != 0 {
+		t.Fatalf("steady-offline poll availability events = %v, want none", got)
+	}
+}
+
 func TestCommandLoopPublishesCommandedStateWithoutStatusRefresh(t *testing.T) {
 	var statusCalls int
 	var commandCalls int
