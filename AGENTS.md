@@ -30,6 +30,7 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `device.action_fired` — momentary action (button press, sensor occupancy edge) — distinct from a persistent state change
 - `device.availability_changed` — device online/offline
 - `device.added` / `device.removed` — device registry changes
+- `device.updated` — a device's user-owned metadata (name, icon, tags) changed; carries the updated device so caches (in-memory store) refresh those fields
 - `command.requested` — user or automation wants to set a device state
 - `native_effect.requested` — a request to start a named external effect program on a device
 - `scene.applied` — a scene was applied (commands fanned out)
