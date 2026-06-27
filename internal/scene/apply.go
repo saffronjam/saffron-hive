@@ -65,7 +65,13 @@ func BuildApplyCommands(
 	seen := make(map[device.DeviceID]struct{})
 	var order []device.DeviceID
 	for _, a := range actions {
-		for _, did := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
+		var ids []device.DeviceID
+		if a.TargetType == string(device.TargetExpression) {
+			ids = device.EvaluateExpression(ctx, sr, tr, a.Expression)
+		} else {
+			ids = tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID)
+		}
+		for _, did := range ids {
 			if _, ok := seen[did]; ok {
 				continue
 			}

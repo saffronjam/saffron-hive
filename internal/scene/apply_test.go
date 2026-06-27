@@ -53,6 +53,45 @@ func TestBuildApplyCommands_DropsButtonWithStrayPayload(t *testing.T) {
 	}
 }
 
+// TestBuildApplyCommands_ExpressionTargetNarrowsByType confirms an
+// expression-typed scene action (room is X AND device_type is light) resolves to
+// only the room's lights, dropping the plug.
+func TestBuildApplyCommands_ExpressionTargetNarrowsByType(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{
+		ID:           "light-1",
+		Type:         device.Light,
+		Capabilities: []device.Capability{writableCap(device.CapOnOff)},
+	})
+	state.Register(device.Device{
+		ID:           "plug-1",
+		Type:         device.Plug,
+		Capabilities: []device.Capability{writableCap(device.CapOnOff)},
+	})
+
+	resolver := &fakeResolver{groups: map[string][]device.DeviceID{
+		"room-1": {"light-1", "plug-1"},
+	}}
+
+	actions := []store.SceneAction{{
+		SceneID:    "s1",
+		TargetType: string(device.TargetExpression),
+		Expression: []device.Clause{
+			{Subject: device.SubjectRoom, Op: device.OpIs, Values: []string{"room-1"}},
+			{Connector: device.ConnectorAnd, Subject: device.SubjectDeviceType, Op: device.OpIs, Values: []string{"light"}},
+		},
+	}}
+
+	plan := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, nil)
+
+	if len(plan.Commands) != 1 {
+		t.Fatalf("expected 1 command, got %d: %+v", len(plan.Commands), plan.Commands)
+	}
+	if plan.Commands[0].DeviceID != "light-1" {
+		t.Fatalf("expected light-1, got %s", plan.Commands[0].DeviceID)
+	}
+}
+
 // TestBuildApplyCommands_NativeEffectPayloadEmitsEffectRun confirms that a
 // per-device payload tagged kind=native_effect produces an EffectRun carrying
 // NativeName (and no EffectID) instead of a static command.
