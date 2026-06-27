@@ -366,10 +366,16 @@ func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolv
 	ms.Rooms = computeScenePresentRooms(ctx, tr, s, actions)
 	ms.Actions = make([]*model.SceneAction, len(actions))
 	for i, a := range actions {
+		var target model.SceneTarget
+		if a.TargetType != string(device.TargetExpression) {
+			target = resolveSceneTarget(ctx, sr, s, a.TargetType, a.TargetID)
+		}
 		ms.Actions[i] = &model.SceneAction{
 			TargetType: a.TargetType,
 			TargetID:   a.TargetID,
-			Target:     resolveSceneTarget(ctx, sr, s, a.TargetType, a.TargetID),
+			Target:     target,
+			Expression: clausesToModel(a.Expression),
+			Name:       a.Name,
 		}
 	}
 	ms.DevicePayloads = make([]*model.SceneDevicePayload, len(payloads))
@@ -831,10 +837,68 @@ func mapGroupMember(ctx context.Context, sr device.StateReader, s GraphStore, m 
 	return gm
 }
 
+func clausesToModel(expr []device.Clause) []*model.TargetClause {
+	out := make([]*model.TargetClause, len(expr))
+	for i, c := range expr {
+		var connector *string
+		if c.Connector != "" {
+			s := string(c.Connector)
+			connector = &s
+		}
+		out[i] = &model.TargetClause{
+			Connector: connector,
+			Subject:   string(c.Subject),
+			Op:        string(c.Op),
+			Values:    c.Values,
+		}
+	}
+	return out
+}
+
+func clausesFromInput(inputs []*model.TargetClauseInput) []device.Clause {
+	out := make([]device.Clause, len(inputs))
+	for i, c := range inputs {
+		var connector device.Connector
+		if v := c.Connector.Value(); v != nil {
+			connector = device.Connector(*v)
+		}
+		out[i] = device.Clause{
+			Connector: connector,
+			Subject:   device.ClauseSubject(c.Subject),
+			Op:        device.ClauseOp(c.Op),
+			Values:    c.Values,
+		}
+	}
+	return out
+}
+
+// validateSceneTargetExpressions rejects any expression-typed target whose
+// expression is malformed.
+func validateSceneTargetExpressions(targets []store.SceneTargetRef) error {
+	for _, t := range targets {
+		if t.TargetType != string(device.TargetExpression) {
+			continue
+		}
+		if err := device.ValidateExpression(t.Expression); err != nil {
+			return fmt.Errorf("scene target expression: %w", err)
+		}
+	}
+	return nil
+}
+
 func toSceneTargetRefs(actions []*model.SceneActionInput) []store.SceneTargetRef {
 	out := make([]store.SceneTargetRef, len(actions))
 	for i, a := range actions {
-		out[i] = store.SceneTargetRef{TargetType: a.TargetType, TargetID: a.TargetID}
+		name := ""
+		if v := a.Name.Value(); v != nil {
+			name = *v
+		}
+		out[i] = store.SceneTargetRef{
+			TargetType: a.TargetType,
+			TargetID:   a.TargetID,
+			Expression: clausesFromInput(a.Expression.Value()),
+			Name:       name,
+		}
 	}
 	return out
 }
@@ -1091,6 +1155,9 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		if err := validateCycleScenesActions(ctx, store, inputNodes); err != nil {
 			return err
 		}
+		if err := validateActionExpressions(inputNodes); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -1152,6 +1219,30 @@ func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*mo
 			if _, err := store.GetEffect(ctx, p.EffectID); err != nil {
 				return fmt.Errorf("node %s: run_effect effect_id %q not found", n.ID, p.EffectID)
 			}
+		}
+	}
+	return nil
+}
+
+// validateActionExpressions checks that every action node with an
+// expression-typed target carries a well-formed target_expr.
+func validateActionExpressions(nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var outer struct {
+			TargetType string          `json:"target_type"`
+			TargetExpr []device.Clause `json:"target_expr"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
+			continue
+		}
+		if outer.TargetType != string(device.TargetExpression) {
+			continue
+		}
+		if err := device.ValidateExpression(outer.TargetExpr); err != nil {
+			return fmt.Errorf("node %s: %w", n.ID, err)
 		}
 	}
 	return nil
@@ -1327,10 +1418,11 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 		return automation.OperatorConfig{Kind: automation.OperatorKind(raw.Kind)}
 	case automation.NodeAction:
 		var raw struct {
-			ActionType string `json:"action_type"`
-			TargetType string `json:"target_type"`
-			TargetID   string `json:"target_id"`
-			Payload    string `json:"payload"`
+			ActionType string          `json:"action_type"`
+			TargetType string          `json:"target_type"`
+			TargetID   string          `json:"target_id"`
+			TargetExpr []device.Clause `json:"target_expr"`
+			Payload    string          `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			return automation.ActionConfig{}
@@ -1339,6 +1431,7 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 			ActionType: raw.ActionType,
 			TargetType: automation.TargetType(raw.TargetType),
 			TargetID:   raw.TargetID,
+			TargetExpr: raw.TargetExpr,
 			Payload:    raw.Payload,
 		}
 	default:

@@ -182,6 +182,9 @@ func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSc
 	}
 
 	targets := toSceneTargetRefs(input.Actions)
+	if err := validateSceneTargetExpressions(targets); err != nil {
+		return nil, err
+	}
 	payloads := toSceneDevicePayloads(sceneID, input.DevicePayloads.Value())
 	if err := r.Store.SaveSceneContent(ctx, store.SaveSceneContentParams{
 		SceneID:  sceneID,
@@ -232,7 +235,7 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 			}
 			targets = make([]store.SceneTargetRef, len(existing))
 			for i, a := range existing {
-				targets[i] = store.SceneTargetRef{TargetType: a.TargetType, TargetID: a.TargetID}
+				targets[i] = store.SceneTargetRef{TargetType: a.TargetType, TargetID: a.TargetID, Expression: a.Expression, Name: a.Name}
 			}
 		}
 		if payloadsGiven {
@@ -243,6 +246,9 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 				return nil, err
 			}
 			payloads = existing
+		}
+		if err := validateSceneTargetExpressions(targets); err != nil {
+			return nil, err
 		}
 		if err := r.Store.SaveSceneContent(ctx, store.SaveSceneContentParams{
 			SceneID:  id,
