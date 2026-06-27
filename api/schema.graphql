@@ -111,10 +111,27 @@ type Scene {
 
 union SceneTarget = Device | Group | Room
 
+"""
+A single rule in a target expression. connector is null on the first clause and
+"and"/"or" on subsequent clauses (evaluated left-to-right). subject is one of
+room/group/device/device_type/device_role; op is is/is_one_of/is_not/is_not_one_of.
+"""
+type TargetClause {
+  connector: String
+  subject: String!
+  op: String!
+  values: [String!]!
+}
+
 type SceneAction {
   targetType: String!
   targetId: ID!
-  target: SceneTarget!
+  """Null when targetType is "expression"; otherwise the direct device/group/room."""
+  target: SceneTarget
+  """Populated when targetType is "expression"; empty for direct targets."""
+  expression: [TargetClause!]!
+  """Optional user label for an expression (Selector) target; empty otherwise."""
+  name: String!
 }
 
 type SceneDevicePayload {
@@ -694,9 +711,18 @@ input CreateSceneInput {
   devicePayloads: [SceneDevicePayloadInput!]
 }
 
+input TargetClauseInput {
+  connector: String
+  subject: String!
+  op: String!
+  values: [String!]!
+}
+
 input SceneActionInput {
   targetType: String!
   targetId: ID!
+  expression: [TargetClauseInput!]
+  name: String
 }
 
 """

@@ -530,14 +530,21 @@ type Scene struct {
 }
 
 type SceneAction struct {
-	TargetType string      `json:"targetType"`
-	TargetID   string      `json:"targetId"`
-	Target     SceneTarget `json:"target"`
+	TargetType string `json:"targetType"`
+	TargetID   string `json:"targetId"`
+	// Null when targetType is "expression"; otherwise the direct device/group/room.
+	Target SceneTarget `json:"target,omitempty"`
+	// Populated when targetType is "expression"; empty for direct targets.
+	Expression []*TargetClause `json:"expression"`
+	// Optional user label for an expression (Selector) target; empty otherwise.
+	Name string `json:"name"`
 }
 
 type SceneActionInput struct {
-	TargetType string `json:"targetType"`
-	TargetID   string `json:"targetId"`
+	TargetType string                                  `json:"targetType"`
+	TargetID   string                                  `json:"targetId"`
+	Expression graphql.Omittable[[]*TargetClauseInput] `json:"expression,omitempty"`
+	Name       graphql.Omittable[*string]              `json:"name,omitempty"`
 }
 
 // Emitted whenever a scene's activation state flips. activatedAt is non-null
@@ -603,6 +610,23 @@ type StateSeriesPoint struct {
 }
 
 type Subscription struct {
+}
+
+// A single rule in a target expression. connector is null on the first clause and
+// "and"/"or" on subsequent clauses (evaluated left-to-right). subject is one of
+// room/group/device/device_type/device_role; op is is/is_one_of/is_not/is_not_one_of.
+type TargetClause struct {
+	Connector *string  `json:"connector,omitempty"`
+	Subject   string   `json:"subject"`
+	Op        string   `json:"op"`
+	Values    []string `json:"values"`
+}
+
+type TargetClauseInput struct {
+	Connector graphql.Omittable[*string] `json:"connector,omitempty"`
+	Subject   string                     `json:"subject"`
+	Op        string                     `json:"op"`
+	Values    []string                   `json:"values"`
 }
 
 type TuyaConfig struct {

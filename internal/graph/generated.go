@@ -401,6 +401,8 @@ type ComplexityRoot struct {
 	}
 
 	SceneAction struct {
+		Expression func(childComplexity int) int
+		Name       func(childComplexity int) int
 		Target     func(childComplexity int) int
 		TargetID   func(childComplexity int) int
 		TargetType func(childComplexity int) int
@@ -449,6 +451,13 @@ type ComplexityRoot struct {
 		EffectStepActivated       func(childComplexity int, runID *string) int
 		LogStream                 func(childComplexity int) int
 		SceneActiveChanged        func(childComplexity int) int
+	}
+
+	TargetClause struct {
+		Connector func(childComplexity int) int
+		Op        func(childComplexity int) int
+		Subject   func(childComplexity int) int
+		Values    func(childComplexity int) int
 	}
 
 	TuyaConfig struct {
@@ -2499,6 +2508,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Scene.Rooms(childComplexity), true
 
+	case "SceneAction.expression":
+		if e.ComplexityRoot.SceneAction.Expression == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAction.Expression(childComplexity), true
+	case "SceneAction.name":
+		if e.ComplexityRoot.SceneAction.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAction.Name(childComplexity), true
 	case "SceneAction.target":
 		if e.ComplexityRoot.SceneAction.Target == nil {
 			break
@@ -2694,6 +2715,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Subscription.SceneActiveChanged(childComplexity), true
 
+	case "TargetClause.connector":
+		if e.ComplexityRoot.TargetClause.Connector == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TargetClause.Connector(childComplexity), true
+	case "TargetClause.op":
+		if e.ComplexityRoot.TargetClause.Op == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TargetClause.Op(childComplexity), true
+	case "TargetClause.subject":
+		if e.ComplexityRoot.TargetClause.Subject == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TargetClause.Subject(childComplexity), true
+	case "TargetClause.values":
+		if e.ComplexityRoot.TargetClause.Values == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TargetClause.Values(childComplexity), true
+
 	case "TuyaConfig.accessId":
 		if e.ComplexityRoot.TuyaConfig.AccessID == nil {
 			break
@@ -2809,6 +2855,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSceneActionInput,
 		ec.unmarshalInputSceneDevicePayloadInput,
 		ec.unmarshalInputStateHistoryFilter,
+		ec.unmarshalInputTargetClauseInput,
 		ec.unmarshalInputTuyaConfigInput,
 		ec.unmarshalInputUpdateAutomationInput,
 		ec.unmarshalInputUpdateCurrentUserInput,
@@ -3022,10 +3069,27 @@ type Scene {
 
 union SceneTarget = Device | Group | Room
 
+"""
+A single rule in a target expression. connector is null on the first clause and
+"and"/"or" on subsequent clauses (evaluated left-to-right). subject is one of
+room/group/device/device_type/device_role; op is is/is_one_of/is_not/is_not_one_of.
+"""
+type TargetClause {
+  connector: String
+  subject: String!
+  op: String!
+  values: [String!]!
+}
+
 type SceneAction {
   targetType: String!
   targetId: ID!
-  target: SceneTarget!
+  """Null when targetType is "expression"; otherwise the direct device/group/room."""
+  target: SceneTarget
+  """Populated when targetType is "expression"; empty for direct targets."""
+  expression: [TargetClause!]!
+  """Optional user label for an expression (Selector) target; empty otherwise."""
+  name: String!
 }
 
 type SceneDevicePayload {
@@ -3605,9 +3669,18 @@ input CreateSceneInput {
   devicePayloads: [SceneDevicePayloadInput!]
 }
 
+input TargetClauseInput {
+  connector: String
+  subject: String!
+  op: String!
+  values: [String!]!
+}
+
 input SceneActionInput {
   targetType: String!
   targetId: ID!
+  expression: [TargetClauseInput!]
+  name: String
 }
 
 """
@@ -15458,6 +15531,10 @@ func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field 
 				return ec.fieldContext_SceneAction_targetId(ctx, field)
 			case "target":
 				return ec.fieldContext_SceneAction_target(ctx, field)
+			case "expression":
+				return ec.fieldContext_SceneAction_expression(ctx, field)
+			case "name":
+				return ec.fieldContext_SceneAction_name(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SceneAction", field.Name)
 		},
@@ -15681,9 +15758,9 @@ func (ec *executionContext) _SceneAction_target(ctx context.Context, field graph
 			return obj.Target, nil
 		},
 		nil,
-		ec.marshalNSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget,
+		ec.marshalOSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -15695,6 +15772,74 @@ func (ec *executionContext) fieldContext_SceneAction_target(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type SceneTarget does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAction_expression(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAction_expression,
+		func(ctx context.Context) (any, error) {
+			return obj.Expression, nil
+		},
+		nil,
+		ec.marshalNTargetClause2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAction_expression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "connector":
+				return ec.fieldContext_TargetClause_connector(ctx, field)
+			case "subject":
+				return ec.fieldContext_TargetClause_subject(ctx, field)
+			case "op":
+				return ec.fieldContext_TargetClause_op(ctx, field)
+			case "values":
+				return ec.fieldContext_TargetClause_values(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TargetClause", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAction_name(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAction_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAction_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16699,6 +16844,122 @@ func (ec *executionContext) fieldContext_Subscription_effectStepActivated(ctx co
 	if fc.Args, err = ec.field_Subscription_effectStepActivated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TargetClause_connector(ctx context.Context, field graphql.CollectedField, obj *model.TargetClause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TargetClause_connector,
+		func(ctx context.Context) (any, error) {
+			return obj.Connector, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_TargetClause_connector(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TargetClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TargetClause_subject(ctx context.Context, field graphql.CollectedField, obj *model.TargetClause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TargetClause_subject,
+		func(ctx context.Context) (any, error) {
+			return obj.Subject, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TargetClause_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TargetClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TargetClause_op(ctx context.Context, field graphql.CollectedField, obj *model.TargetClause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TargetClause_op,
+		func(ctx context.Context) (any, error) {
+			return obj.Op, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TargetClause_op(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TargetClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TargetClause_values(ctx context.Context, field graphql.CollectedField, obj *model.TargetClause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TargetClause_values,
+		func(ctx context.Context) (any, error) {
+			return obj.Values, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TargetClause_values(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TargetClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -19733,7 +19994,7 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"targetType", "targetId"}
+	fieldsInOrder := [...]string{"targetType", "targetId", "expression", "name"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -19754,6 +20015,20 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 				return it, err
 			}
 			it.TargetID = data
+		case "expression":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expression"))
+			data, err := ec.unmarshalOTargetClauseInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Expression = graphql.OmittableOf(data)
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -19849,6 +20124,57 @@ func (ec *executionContext) unmarshalInputStateHistoryFilter(ctx context.Context
 				return it, err
 			}
 			it.BucketSeconds = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputTargetClauseInput(ctx context.Context, obj any) (model.TargetClauseInput, error) {
+	var it model.TargetClauseInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"connector", "subject", "op", "values"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "connector":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("connector"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Connector = graphql.OmittableOf(data)
+		case "subject":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subject"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Subject = data
+		case "op":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("op"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Op = data
+		case "values":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("values"))
+			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Values = data
 		}
 	}
 	return it, nil
@@ -23194,6 +23520,13 @@ func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionS
 			}
 		case "target":
 			out.Values[i] = ec._SceneAction_target(ctx, field, obj)
+		case "expression":
+			out.Values[i] = ec._SceneAction_expression(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._SceneAction_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -23524,6 +23857,57 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
+}
+
+var targetClauseImplementors = []string{"TargetClause"}
+
+func (ec *executionContext) _TargetClause(ctx context.Context, sel ast.SelectionSet, obj *model.TargetClause) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, targetClauseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TargetClause")
+		case "connector":
+			out.Values[i] = ec._TargetClause_connector(ctx, field, obj)
+		case "subject":
+			out.Values[i] = ec._TargetClause_subject(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "op":
+			out.Values[i] = ec._TargetClause_op(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "values":
+			out.Values[i] = ec._TargetClause_values(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
 }
 
 var tuyaConfigImplementors = []string{"TuyaConfig"}
@@ -25213,16 +25597,6 @@ func (ec *executionContext) unmarshalNSceneDevicePayloadInput2ᚖgithubᚗcomᚋ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget(ctx context.Context, sel ast.SelectionSet, v model.SceneTarget) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._SceneTarget(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNSetting2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetting(ctx context.Context, sel ast.SelectionSet, v model.Setting) graphql.Marshaler {
 	return ec._Setting(ctx, sel, &v)
 }
@@ -25368,6 +25742,37 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalNTargetClause2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TargetClause) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNTargetClause2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClause(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNTargetClause2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClause(ctx context.Context, sel ast.SelectionSet, v *model.TargetClause) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TargetClause(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNTargetClauseInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInput(ctx context.Context, v any) (*model.TargetClauseInput, error) {
+	res, err := ec.unmarshalInputTargetClauseInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNTuyaConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v model.TuyaConfig) graphql.Marshaler {
@@ -26028,6 +26433,13 @@ func (ec *executionContext) unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcom
 	return res, nil
 }
 
+func (ec *executionContext) marshalOSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget(ctx context.Context, sel ast.SelectionSet, v model.SceneTarget) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SceneTarget(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
 	if v == nil {
 		return nil, nil
@@ -26080,6 +26492,24 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOTargetClauseInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInputᚄ(ctx context.Context, v any) ([]*model.TargetClauseInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.TargetClauseInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNTargetClauseInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOTemperatureUnit2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTemperatureUnit(ctx context.Context, v any) (*model.TemperatureUnit, error) {
