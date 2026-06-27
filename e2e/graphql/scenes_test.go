@@ -122,6 +122,90 @@ func TestScenes_CreateWithGroupTarget(t *testing.T) {
 	})
 }
 
+func TestScenes_ExpressionTargetRoundTrip(t *testing.T) {
+	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) {
+			id
+			actions { targetType name expression { connector subject op values } }
+		}
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Expression Scene",
+			"actions": []map[string]any{
+				{
+					"targetType": "expression",
+					"targetId":   "",
+					"name":       "All lights",
+					"expression": []map[string]any{
+						{"subject": "device_type", "op": "is", "values": []string{"light"}},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create scene: %v", err)
+	}
+
+	var result struct {
+		CreateScene struct {
+			ID      string
+			Actions []struct {
+				TargetType string `json:"targetType"`
+				Name       string `json:"name"`
+				Expression []struct {
+					Connector *string  `json:"connector"`
+					Subject   string   `json:"subject"`
+					Op        string   `json:"op"`
+					Values    []string `json:"values"`
+				} `json:"expression"`
+			}
+		} `json:"createScene"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": result.CreateScene.ID})
+	})
+	if len(result.CreateScene.Actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(result.CreateScene.Actions))
+	}
+	a := result.CreateScene.Actions[0]
+	if a.TargetType != "expression" {
+		t.Fatalf("targetType=%q, want expression", a.TargetType)
+	}
+	if a.Name != "All lights" {
+		t.Fatalf("name=%q, want %q", a.Name, "All lights")
+	}
+	if len(a.Expression) != 1 || a.Expression[0].Subject != "device_type" || a.Expression[0].Op != "is" {
+		t.Fatalf("expression did not round-trip: %+v", a.Expression)
+	}
+	if len(a.Expression[0].Values) != 1 || a.Expression[0].Values[0] != "light" {
+		t.Fatalf("expression values=%v, want [light]", a.Expression[0].Values)
+	}
+
+	err = graphqlMutationExpectError(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Bad Expression Scene",
+			"actions": []map[string]any{
+				{
+					"targetType": "expression",
+					"targetId":   "",
+					"expression": []map[string]any{
+						{"subject": "bogus", "op": "is", "values": []string{"x"}},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected createScene with invalid expression to be rejected: %v", err)
+	}
+}
+
 func TestScenes_ApplyScene(t *testing.T) {
 	deviceID, err := queryDeviceIDByName("Bedroom Light")
 	if err != nil {
