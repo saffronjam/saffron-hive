@@ -23,10 +23,13 @@
 		devices: Device[];
 		groups: GroupLite[];
 		rooms: RoomLite[];
+		// capabilities overrides the target-derived capability union; used when
+		// the target is an expression resolving to a device set.
+		capabilities?: Capability[];
 		disabled?: boolean;
 	}
 
-	let { target, value, onchange, devices, groups, rooms, disabled = false }: Props = $props();
+	let { target, value, onchange, devices, groups, rooms, capabilities, disabled = false }: Props = $props();
 
 	interface Payload {
 		on?: boolean;
@@ -67,7 +70,7 @@
 
 	const parsed = $derived(parsePayload(value));
 	const caps = $derived<Capability[]>(
-		target ? capabilityUnionForTarget(target, devices, groups, rooms) : [],
+		capabilities ?? (target ? capabilityUnionForTarget(target, devices, groups, rooms) : []),
 	);
 
 	const showOn = $derived(hasCapability(caps, "on_off"));

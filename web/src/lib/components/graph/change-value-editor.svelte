@@ -14,6 +14,7 @@
 		type RoomLite,
 		type TargetKind,
 	} from "$lib/target-resolve";
+	import { sentenceCase } from "$lib/utils.js";
 	import type { Capability, Device } from "$lib/gql/graphql";
 
 	interface Props {
@@ -23,10 +24,11 @@
 		devices: Device[];
 		groups: GroupLite[];
 		rooms: RoomLite[];
+		capabilities?: Capability[];
 		disabled?: boolean;
 	}
 
-	let { target, value, onchange, devices, groups, rooms, disabled = false }: Props = $props();
+	let { target, value, onchange, devices, groups, rooms, capabilities, disabled = false }: Props = $props();
 
 	type Mode = "percent" | "absolute";
 
@@ -57,19 +59,15 @@
 	const parsed = $derived(parsePayload(value));
 
 	const settableCaps = $derived<Capability[]>(
-		target ? settableNumericCapabilities(capabilityUnionForTarget(target, devices, groups, rooms)) : [],
+		capabilities
+			? settableNumericCapabilities(capabilities)
+			: target
+				? settableNumericCapabilities(capabilityUnionForTarget(target, devices, groups, rooms))
+				: [],
 	);
 
-	// Friendly labels for known capability names. Falls back to the raw name
-	// so a future numeric capability still renders something sensible until
-	// somebody adds a nicer label here.
-	const capLabels: Record<string, string> = {
-		brightness: "Brightness",
-		color_temp: "Color Temp",
-	};
-
 	function fieldLabel(name: string): string {
-		return capLabels[name] ?? name;
+		return sentenceCase(name);
 	}
 
 	const selectedCap = $derived(settableCaps.find((c) => c.name === parsed.field) ?? null);
