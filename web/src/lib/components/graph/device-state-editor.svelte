@@ -37,6 +37,7 @@
 		fanMode?: string;
 		swing?: string;
 		color?: { r: number; g: number; b: number };
+		transition?: number;
 	}
 
 	function parsePayload(raw: string): Payload {
@@ -60,6 +61,7 @@
 		if (next.fanMode !== undefined) clean.fanMode = next.fanMode;
 		if (next.swing !== undefined) clean.swing = next.swing;
 		if (next.color !== undefined) clean.color = next.color;
+		if (next.transition !== undefined) clean.transition = next.transition;
 		onchange(JSON.stringify(clean));
 	}
 
@@ -102,6 +104,9 @@
 	const hvacModeSet = $derived(parsed.hvacMode !== undefined);
 	const fanModeSet = $derived(parsed.fanMode !== undefined);
 	const swingSet = $derived(parsed.swing !== undefined);
+	const transitionSet = $derived(parsed.transition !== undefined);
+
+	const showTransition = $derived(showBrightness || showColorTemp || showColor);
 
 	function toggleOnActive() {
 		emit(onSet ? { ...parsed, on: undefined } : { ...parsed, on: false });
@@ -157,6 +162,13 @@
 	function setSwingValue(v: string | undefined) {
 		if (!v) return;
 		emit({ ...parsed, swing: v });
+	}
+	function toggleTransitionActive() {
+		emit(transitionSet ? { ...parsed, transition: undefined } : { ...parsed, transition: 1 });
+	}
+	function setTransitionValue(v: number | null) {
+		if (v == null) return;
+		emit({ ...parsed, transition: v });
 	}
 
 	const anyFieldAvailable = $derived(showOn || showBrightness || showColorTemp || showColor || showTargetTemperature || showHvacMode || showFanMode || showSwing);
@@ -368,6 +380,34 @@
 							{/each}
 						</SelectContent>
 					</Select>
+				{/if}
+			</div>
+		{/if}
+
+		{#if showTransition}
+			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-medium">Transition</span>
+					{#if transitionSet}
+						<div class="flex items-center gap-1">
+							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.transition}s</span>
+							<Button variant="ghost" size="icon-sm" onclick={toggleTransitionActive} {disabled} aria-label="Clear transition">
+								<X class="size-3" />
+							</Button>
+						</div>
+					{:else}
+						<Button variant="outline" size="sm" onclick={toggleTransitionActive} {disabled}>Set</Button>
+					{/if}
+				</div>
+				{#if transitionSet}
+					<NumberInput
+						value={parsed.transition ?? null}
+						min={0}
+						allowDecimal
+						ariaLabel="Transition seconds"
+						{disabled}
+						onValueChange={setTransitionValue}
+					/>
 				{/if}
 			</div>
 		{/if}

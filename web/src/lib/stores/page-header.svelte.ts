@@ -10,6 +10,7 @@ interface HeaderAction {
   disabled?: boolean;
   saving?: boolean;
   hideLabelOnMobile?: boolean;
+  mobileLabel?: string;
 }
 
 interface Breadcrumb {

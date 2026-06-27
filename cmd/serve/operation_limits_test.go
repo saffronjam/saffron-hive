@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -40,7 +41,7 @@ func runExtension(t *testing.T, ext OperationLimitsExtension, query string) stri
 	t.Helper()
 	doc := parseDoc(t, query)
 	opCtx := &graphql.OperationContext{Doc: doc}
-	err := ext.MutateOperationContext(nil, opCtx)
+	err := ext.MutateOperationContext(context.Background(), opCtx)
 	if err == nil {
 		return ""
 	}
@@ -99,15 +100,16 @@ func TestOperationLimitsAllowsSmallQueries(t *testing.T) {
 	}
 }
 
-func TestOperationLimitsCountsNestedFields(t *testing.T) {
+func TestOperationLimitsIgnoresNestedDepth(t *testing.T) {
 	ext := OperationLimitsExtension{
-		MaxAliasesPerOperation:   2,
+		MaxAliasesPerOperation:   1,
 		MaxOperationsPerDocument: 5,
 	}
-	// `me` + `id` + `name` = 3 fields total; should breach a limit of 2.
-	msg := runExtension(t, ext, "query { me { id name } }")
-	if msg == "" {
-		t.Fatal("nested field count not enforced")
+	// One top-level field (`me`) with nested selections (`id`, `name`). Only the
+	// top-level fanout counts, so this passes a limit of 1 even though the total
+	// field count is higher.
+	if msg := runExtension(t, ext, "query { me { id name } }"); msg != "" {
+		t.Errorf("nested depth wrongly counted toward fanout limit: %q", msg)
 	}
 }
 

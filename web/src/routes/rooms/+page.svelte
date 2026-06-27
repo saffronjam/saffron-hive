@@ -571,7 +571,7 @@
 			pageHeader.viewToggle = null;
 		} else {
 			pageHeader.breadcrumbs = [{ label: "Rooms" }];
-			pageHeader.actions = [{ label: "Create Room", icon: Plus, onclick: () => (createDialogOpen = true) }];
+			pageHeader.actions = [{ label: "Create Room", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
 			pageHeader.viewToggle = {
 				value: view,
 				onchange: (v) => {

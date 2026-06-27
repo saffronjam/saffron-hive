@@ -111,7 +111,7 @@
 	}
 
 	$effect(() => {
-		pageHeader.actions = [{ label: "Add Integration", icon: Plus, onclick: openAddDialog }];
+		pageHeader.actions = [{ label: "Add Integration", mobileLabel: "Add", icon: Plus, onclick: openAddDialog }];
 		pageHeader.viewToggle = null;
 	});
 

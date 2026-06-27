@@ -363,7 +363,7 @@
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Automations" }];
-		pageHeader.actions = [{ label: "Create Automation", icon: Plus, onclick: () => (createDialogOpen = true) }];
+		pageHeader.actions = [{ label: "Create Automation", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
 	});
 	onDestroy(() => pageHeader.reset());
 

@@ -20,8 +20,10 @@ import (
 //   - The fanout limit gives a hard, low-noise ceiling on the alias-batching
 //     pattern — `query { a1: login(...) a2: login(...) ... aN: login(...) }`
 //     would otherwise let a single HTTP request invoke a resolver N times.
-//     We cap N independently of overall complexity so the policy stays easy to
-//     reason about even if MaxQueryComplexity is later raised.
+//     Only the operation's top-level selections are counted, so deep but
+//     narrow queries are bounded by MaxQueryComplexity rather than this cap,
+//     keeping the policy easy to reason about even if MaxQueryComplexity is
+//     later raised.
 const (
 	MaxQueryComplexity       = 1000
 	MaxAliasesPerOperation   = 50
@@ -31,8 +33,8 @@ const (
 const operationLimitErrorCode = "OPERATION_LIMIT_EXCEEDED"
 
 // OperationLimitsExtension rejects documents that bundle too many operations
-// or any operation whose selection-set fanout (counting every field node,
-// including aliases) exceeds the configured maximum.
+// or any operation whose top-level selection fanout (counting each top-level
+// field, including aliases) exceeds the configured maximum.
 type OperationLimitsExtension struct {
 	MaxAliasesPerOperation   int
 	MaxOperationsPerDocument int
@@ -70,7 +72,7 @@ func (e OperationLimitsExtension) MutateOperationContext(
 	}
 	if e.MaxAliasesPerOperation > 0 {
 		for _, op := range opCtx.Doc.Operations {
-			if count := countFields(op.SelectionSet); count > e.MaxAliasesPerOperation {
+			if count := countTopLevelFields(op.SelectionSet); count > e.MaxAliasesPerOperation {
 				err := gqlerror.Errorf(
 					"operation contains %d fields, which exceeds the limit of %d",
 					count,
@@ -84,22 +86,23 @@ func (e OperationLimitsExtension) MutateOperationContext(
 	return nil
 }
 
-// countFields recursively totals every *ast.Field reachable from a selection
-// set, including those inside inline fragments and (resolved) fragment
-// spreads. Each alias of the same underlying field counts independently —
-// that is exactly the fanout we want to bound.
-func countFields(set ast.SelectionSet) int {
+// countTopLevelFields totals the top-level *ast.Field selections of an
+// operation. Inline fragments and (resolved) fragment spreads are expanded in
+// place so they cannot smuggle extra top-level fields, but nested field
+// selection sets are not descended into — query depth is bounded by the
+// complexity limit, not here. Each alias of the same underlying field counts
+// independently, which is exactly the fanout we want to bound.
+func countTopLevelFields(set ast.SelectionSet) int {
 	var n int
 	for _, sel := range set {
 		switch s := sel.(type) {
 		case *ast.Field:
 			n++
-			n += countFields(s.SelectionSet)
 		case *ast.InlineFragment:
-			n += countFields(s.SelectionSet)
+			n += countTopLevelFields(s.SelectionSet)
 		case *ast.FragmentSpread:
 			if s.Definition != nil {
-				n += countFields(s.Definition.SelectionSet)
+				n += countTopLevelFields(s.Definition.SelectionSet)
 			}
 		}
 	}

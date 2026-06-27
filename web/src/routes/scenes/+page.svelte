@@ -377,7 +377,7 @@
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Scenes" }];
-		pageHeader.actions = [{ label: "Create Scene", icon: Plus, onclick: () => (createDialogOpen = true) }];
+		pageHeader.actions = [{ label: "Create Scene", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
 	});
 	onDestroy(() => pageHeader.reset());
 
