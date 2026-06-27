@@ -59,18 +59,26 @@ func (q *Queries) CreateScene(ctx context.Context, arg CreateSceneParams) error 
 }
 
 const createSceneAction = `-- name: CreateSceneAction :exec
-INSERT INTO scene_actions (scene_id, target_type, target_id)
-VALUES (?, ?, ?)
+INSERT INTO scene_actions (scene_id, target_type, target_id, expression, name)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type CreateSceneActionParams struct {
 	SceneID    string
 	TargetType device.TargetType
 	TargetID   string
+	Expression *string
+	Name       *string
 }
 
 func (q *Queries) CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error {
-	_, err := q.db.ExecContext(ctx, createSceneAction, arg.SceneID, arg.TargetType, arg.TargetID)
+	_, err := q.db.ExecContext(ctx, createSceneAction,
+		arg.SceneID,
+		arg.TargetType,
+		arg.TargetID,
+		arg.Expression,
+		arg.Name,
+	)
 	return err
 }
 
@@ -192,7 +200,7 @@ func (q *Queries) ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, 
 }
 
 const listSceneActions = `-- name: ListSceneActions :many
-SELECT scene_id, target_type, target_id
+SELECT scene_id, target_type, target_id, expression, name
 FROM scene_actions
 WHERE scene_id = ?
 `
@@ -206,7 +214,13 @@ func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]Scene
 	var items []SceneAction
 	for rows.Next() {
 		var i SceneAction
-		if err := rows.Scan(&i.SceneID, &i.TargetType, &i.TargetID); err != nil {
+		if err := rows.Scan(
+			&i.SceneID,
+			&i.TargetType,
+			&i.TargetID,
+			&i.Expression,
+			&i.Name,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

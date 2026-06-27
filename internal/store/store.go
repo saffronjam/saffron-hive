@@ -112,20 +112,30 @@ type CreateSceneActionParams struct {
 	SceneID    string
 	TargetType string
 	TargetID   string
+	Expression []device.Clause
+	Name       string
 }
 
-// SceneAction represents a scene action row.
+// SceneAction represents a scene action row. When TargetType is "expression"
+// the target is the Expression rule set; otherwise it is the direct
+// (TargetType, TargetID) device/group/room. Name is an optional user label,
+// only meaningful for expression (Selector) targets.
 type SceneAction struct {
 	SceneID    string
 	TargetType string
 	TargetID   string
+	Expression []device.Clause
+	Name       string
 }
 
 // SceneTargetRef is a logical membership entry in a scene's target list.
-// TargetType is one of "device", "group", or "room".
+// TargetType is "device", "group", "room", or "expression" (with Expression set).
+// Name is an optional user label, only meaningful for expression targets.
 type SceneTargetRef struct {
 	TargetType string
 	TargetID   string
+	Expression []device.Clause
+	Name       string
 }
 
 // SceneDevicePayload is the per-device payload associated with a scene.

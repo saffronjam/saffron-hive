@@ -44,11 +44,11 @@ DELETE FROM scenes
 WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
 
 -- name: CreateSceneAction :exec
-INSERT INTO scene_actions (scene_id, target_type, target_id)
-VALUES (?, ?, ?);
+INSERT INTO scene_actions (scene_id, target_type, target_id, expression, name)
+VALUES (?, ?, ?, ?, ?);
 
 -- name: ListSceneActions :many
-SELECT scene_id, target_type, target_id
+SELECT scene_id, target_type, target_id, expression, name
 FROM scene_actions
 WHERE scene_id = ?;
 

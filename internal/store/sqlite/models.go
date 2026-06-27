@@ -194,6 +194,8 @@ type SceneAction struct {
 	SceneID    string
 	TargetType device.TargetType
 	TargetID   string
+	Expression *string
+	Name       *string
 }
 
 type SceneDevicePayload struct {

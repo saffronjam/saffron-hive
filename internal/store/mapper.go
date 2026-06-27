@@ -7,6 +7,50 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+// optionalText maps an empty string to NULL for a nullable TEXT column.
+func optionalText(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// textValue maps a nullable TEXT column to a string ("" when NULL).
+func textValue(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// marshalExpression encodes a scene action's target expression for the
+// nullable scene_actions.expression column. An empty expression is stored as
+// NULL (the action is a direct target).
+func marshalExpression(expr []device.Clause) (*string, error) {
+	if len(expr) == 0 {
+		return nil, nil
+	}
+	b, err := json.Marshal(expr)
+	if err != nil {
+		return nil, fmt.Errorf("marshal scene action expression: %w", err)
+	}
+	s := string(b)
+	return &s, nil
+}
+
+// unmarshalExpression decodes the nullable scene_actions.expression column.
+// NULL or invalid JSON yields no expression.
+func unmarshalExpression(raw *string) []device.Clause {
+	if raw == nil || *raw == "" {
+		return nil
+	}
+	var out []device.Clause
+	if err := json.Unmarshal([]byte(*raw), &out); err != nil {
+		return nil
+	}
+	return out
+}
+
 // userRefFromPtrs assembles a *UserRef from three nullable columns returned by
 // a LEFT JOIN onto users. Returns nil when the creator id is NULL — which is the
 // case for rows created before the users table existed, or whose creator has

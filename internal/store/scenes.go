@@ -165,10 +165,16 @@ func (s *DB) BatchDeleteScenes(ctx context.Context, ids []string) (int64, error)
 
 // CreateSceneAction inserts a new scene action.
 func (s *DB) CreateSceneAction(ctx context.Context, params CreateSceneActionParams) (SceneAction, error) {
+	expr, err := marshalExpression(params.Expression)
+	if err != nil {
+		return SceneAction{}, err
+	}
 	if err := s.q.CreateSceneAction(ctx, sqlite.CreateSceneActionParams{
 		SceneID:    params.SceneID,
 		TargetType: device.TargetType(params.TargetType),
 		TargetID:   params.TargetID,
+		Expression: expr,
+		Name:       optionalText(params.Name),
 	}); err != nil {
 		return SceneAction{}, fmt.Errorf("create scene action: %w", err)
 	}
@@ -176,6 +182,8 @@ func (s *DB) CreateSceneAction(ctx context.Context, params CreateSceneActionPara
 		SceneID:    params.SceneID,
 		TargetType: params.TargetType,
 		TargetID:   params.TargetID,
+		Expression: params.Expression,
+		Name:       params.Name,
 	}, nil
 }
 
@@ -191,6 +199,8 @@ func (s *DB) ListSceneActions(ctx context.Context, sceneID string) ([]SceneActio
 			SceneID:    r.SceneID,
 			TargetType: string(r.TargetType),
 			TargetID:   r.TargetID,
+			Expression: unmarshalExpression(r.Expression),
+			Name:       textValue(r.Name),
 		})
 	}
 	return actions, nil
@@ -333,10 +343,16 @@ func (s *DB) SaveSceneContent(ctx context.Context, params SaveSceneContentParams
 			return fmt.Errorf("delete scene device payloads: %w", err)
 		}
 		for _, t := range params.Targets {
+			expr, err := marshalExpression(t.Expression)
+			if err != nil {
+				return err
+			}
 			if err := q.CreateSceneAction(ctx, sqlite.CreateSceneActionParams{
 				SceneID:    params.SceneID,
 				TargetType: device.TargetType(t.TargetType),
 				TargetID:   t.TargetID,
+				Expression: expr,
+				Name:       optionalText(t.Name),
 			}); err != nil {
 				return fmt.Errorf("insert scene action: %w", err)
 			}
