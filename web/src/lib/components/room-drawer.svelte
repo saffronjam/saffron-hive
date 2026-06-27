@@ -243,7 +243,6 @@
 			if (m.memberType !== "group") continue;
 			const group = groupsById.get(m.memberId);
 			if (!group) continue;
-			if (!group.tags?.includes("LIGHT")) continue;
 			const groupDevs = resolveTargetDevices(
 				{ type: "group", id: group.id },
 				devices,
