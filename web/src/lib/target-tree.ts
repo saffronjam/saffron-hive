@@ -55,6 +55,10 @@ export function buildTargetTree(
   const groupByID = new Map(groupsLite.map((g) => [g.id, g]));
   const roomByID = new Map(roomsLite.map((r) => [r.id, r]));
 
+  const nodeName = (n: TargetTreeNode) => (n.kind === "device" ? n.device.name : n.name);
+  const byName = (a: TargetTreeNode, b: TargetTreeNode) =>
+    nodeName(a).localeCompare(nodeName(b), undefined, { numeric: true });
+
   function reachableDeviceIds(type: TargetKind, id: string): Set<string> {
     const out = new Set<string>();
     const seen = new Set<string>();
@@ -135,7 +139,8 @@ export function buildTargetTree(
               nextSeen,
             ),
           )
-          .filter((c): c is TargetTreeNode => c !== null);
+          .filter((c): c is TargetTreeNode => c !== null)
+          .sort(byName);
       }
       return folder;
     }
@@ -166,7 +171,8 @@ export function buildTargetTree(
         .map((m, i) =>
           build(`${folder.key}:${i}`, m.memberType as TargetKind, m.memberId, depth + 1, nextSeen),
         )
-        .filter((c): c is TargetTreeNode => c !== null);
+        .filter((c): c is TargetTreeNode => c !== null)
+        .sort(byName);
     }
     return folder;
   }

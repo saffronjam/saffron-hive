@@ -17,8 +17,6 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Plus, X, Search } from "@lucide/svelte";
-	import { flip } from "svelte/animate";
-	import { slide } from "svelte/transition";
 
 	interface RelatedItem {
 		id: string;
@@ -61,9 +59,12 @@
 	const MAX_CHIPS = 3;
 
 	const filteredRows = $derived.by(() => {
-		if (!search) return rows;
+		const sorted = [...rows].sort((a, b) =>
+			a.name.localeCompare(b.name, undefined, { numeric: true })
+		);
+		if (!search) return sorted;
 		const q = search.toLowerCase();
-		return rows.filter(
+		return sorted.filter(
 			(r) =>
 				r.name.toLowerCase().includes(q) ||
 				r.type.toLowerCase().includes(q) ||
@@ -114,9 +115,6 @@
 					<tr
 						data-slot="table-row"
 						class="even:bg-muted/40 hover:bg-muted/70 data-[state=selected]:bg-muted transition-colors"
-						animate:flip={{ duration: 200 }}
-						in:slide|local={{ duration: 200 }}
-						out:slide|local={{ duration: 200 }}
 					>
 						<TableCell>
 							<HiveChip type={row.type} />
