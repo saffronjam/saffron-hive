@@ -1,6 +1,10 @@
 package automation
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/saffronjam/saffron-hive/internal/device"
+)
 
 // ValidateTriggerTiming rejects negative grace and cooldown values. Zero is
 // allowed and means "immediate" (no memory, no throttle). Non-zero values are
@@ -115,6 +119,7 @@ type ActionConfig struct {
 	ActionType   string
 	TargetType   TargetType
 	TargetID     string
+	TargetExpr   []device.Clause
 	Payload      string
 	AutomationID string
 	NodeID       NodeID

@@ -542,11 +542,16 @@ func (e *Engine) executeAction(node Node, automationID string) {
 		return
 	}
 
-	deviceIDs := e.resolver.ResolveTargetDeviceIDs(
-		e.baseCtx,
-		device.TargetType(actionCfg.TargetType),
-		actionCfg.TargetID,
-	)
+	var deviceIDs []device.DeviceID
+	if actionCfg.TargetType == TargetType(device.TargetExpression) {
+		deviceIDs = device.EvaluateExpression(e.baseCtx, e.reader, e.resolver, actionCfg.TargetExpr)
+	} else {
+		deviceIDs = e.resolver.ResolveTargetDeviceIDs(
+			e.baseCtx,
+			device.TargetType(actionCfg.TargetType),
+			actionCfg.TargetID,
+		)
+	}
 
 	if actionCfg.ActionType == ActionToggleDeviceState {
 		// Toggle on a group/room flips the aggregate, not each member: any
@@ -815,10 +820,11 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 		return OperatorConfig{Kind: OperatorKind(raw.Kind)}
 	case NodeAction:
 		var raw struct {
-			ActionType string `json:"action_type"`
-			TargetType string `json:"target_type"`
-			TargetID   string `json:"target_id"`
-			Payload    string `json:"payload"`
+			ActionType string          `json:"action_type"`
+			TargetType string          `json:"target_type"`
+			TargetID   string          `json:"target_id"`
+			TargetExpr []device.Clause `json:"target_expr"`
+			Payload    string          `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			logger.Error("failed to parse action config", "error", err)
@@ -832,6 +838,7 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			ActionType: raw.ActionType,
 			TargetType: tt,
 			TargetID:   raw.TargetID,
+			TargetExpr: raw.TargetExpr,
 			Payload:    raw.Payload,
 		}
 	default:
