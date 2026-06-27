@@ -1,10 +1,13 @@
 import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
+import type { Clause } from "$lib/target-resolve";
 
 export interface SceneAction {
   targetType: string;
   targetId: string;
-  target: SceneTargetData;
+  target: SceneTargetData | null;
   payload: string;
+  expression?: Clause[];
+  name?: string;
 }
 
 export interface SceneTargetData {
@@ -123,7 +126,7 @@ export interface StaticPayloadFields {
   color?: { r: number; g: number; b: number; x: number; y: number };
 }
 
-export type TargetKind = "device" | "group" | "room";
+export type TargetKind = "device" | "group" | "room" | "expression";
 
 export interface EditableTarget {
   type: TargetKind;
@@ -131,6 +134,7 @@ export interface EditableTarget {
   name: string;
   icon?: string | null;
   deviceType?: string;
+  expression?: Clause[];
 }
 
 export type DevicePayloadMap = Map<string, ActionPayload>;
@@ -229,14 +233,22 @@ export function staticFieldsOf(payload: ActionPayload): StaticPayloadFields {
 }
 
 export function buildTargetInfo(action: SceneAction): EditableTarget {
+  if (action.targetType === "expression") {
+    return {
+      type: "expression",
+      id: "",
+      name: action.name || "Selector",
+      expression: action.expression ?? [],
+    };
+  }
   const t = action.target;
-  if (t.__typename === "Group") {
+  if (t?.__typename === "Group") {
     return { type: "group", id: t.id, name: t.name, icon: t.icon ?? null };
   }
-  if (t.__typename === "Room") {
+  if (t?.__typename === "Room") {
     return { type: "room", id: t.id, name: t.name, icon: t.icon ?? null };
   }
-  return { type: "device", id: t.id, name: t.name, deviceType: t.type };
+  return { type: "device", id: t?.id ?? "", name: t?.name ?? "", deviceType: t?.type };
 }
 
 export interface EditorState {

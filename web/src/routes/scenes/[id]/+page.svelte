@@ -34,7 +34,13 @@
 	} from "$lib/scene-editable";
 	import { effectSummary, nativeOptionLabel, type EffectSummary } from "$lib/effect-editable";
 	import { EffectKind } from "$lib/gql/graphql";
-	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
+	import {
+		resolveTargetDevices,
+		evaluateExpression,
+		type Clause,
+		type GroupLite,
+		type RoomLite,
+	} from "$lib/target-resolve";
 
 	const sceneId = $derived($page.params.id);
 
@@ -47,6 +53,13 @@
 				actions {
 					targetType
 					targetId
+					name
+					expression {
+						connector
+						subject
+						op
+						values
+					}
 					target {
 						... on Device {
 							__typename
@@ -350,6 +363,13 @@
 				actions {
 					targetType
 					targetId
+					name
+					expression {
+						connector
+						subject
+						op
+						values
+					}
 					target {
 						... on Device {
 							__typename
@@ -712,7 +732,10 @@
 	function reachableDeviceIds(): Set<string> {
 		const ids = new Set<string>();
 		for (const t of targets) {
-			const resolved = resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
+			const resolved =
+				t.type === "expression"
+					? evaluateExpression(t.expression ?? [], allDevices, groupsLite, roomsLite)
+					: resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
 			for (const d of resolved) {
 				if (isSceneTarget(d)) ids.add(d.id);
 			}
@@ -728,6 +751,18 @@
 			if (stillReachable.has(did)) next.set(did, p);
 		}
 		payloadsByDevice = next;
+	}
+
+	function handleAddExpression() {
+		targets = [...targets, { type: "expression", id: "", name: "Selector", expression: [] }];
+	}
+
+	function handleTargetExpressionChange(index: number, expression: Clause[]) {
+		targets = targets.map((t, i) => (i === index ? { ...t, expression } : t));
+	}
+
+	function handleTargetNameChange(index: number, name: string) {
+		targets = targets.map((t, i) => (i === index ? { ...t, name: name || "Selector" } : t));
 	}
 
 	function handleAddTarget(memberType: TargetKind, memberId: string) {
@@ -754,10 +789,16 @@
 		saving = true;
 		errors.clear();
 
-		const actions = targets.map((t) => ({
-			targetType: t.type,
-			targetId: t.id,
-		}));
+		const actions = targets.map((t) =>
+			t.type === "expression"
+				? {
+						targetType: "expression",
+						targetId: "",
+						expression: t.expression ?? [],
+						name: t.name && t.name !== "Selector" ? t.name : "",
+					}
+				: { targetType: t.type, targetId: t.id },
+		);
 		const devicePayloads = Array.from(payloadsByDevice.entries())
 			.filter(([deviceId]) => {
 				const d = devicesById.get(deviceId);
@@ -960,6 +1001,9 @@
 				onsendcommand={sendDeviceCommand}
 				onremovetarget={handleTargetRemove}
 				onaddtarget={() => (pickerOpen = true)}
+				onaddexpression={handleAddExpression}
+				onupdatetargetexpression={handleTargetExpressionChange}
+				onupdatetargetname={handleTargetNameChange}
 			/>
 		</div>
 	{:else}

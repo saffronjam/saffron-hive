@@ -6,7 +6,7 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import HiveIcon from "$lib/components/hive-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
-	import { ChevronDown, ChevronRight, Eye, Palette, Pencil, Plus, Sparkles, Trash2 } from "@lucide/svelte";
+	import { ChevronDown, ChevronRight, Eye, Filter, Palette, Pencil, Plus, Sparkles, Trash2 } from "@lucide/svelte";
 	import { deviceSceneCapabilities, deviceHasCapability, isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
 	import {
 		defaultScenePayload,
@@ -20,8 +20,29 @@
 	import type { EffectPickerSelection } from "$lib/components/effect-picker-drawer.svelte";
 	import { EffectKind } from "$lib/gql/graphql";
 	import type { EffectSummary } from "$lib/effect-editable";
-	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
+	import {
+		resolveTargetDevices,
+		evaluateExpression,
+		type Clause,
+		type GroupLite,
+		type RoomLite,
+	} from "$lib/target-resolve";
 	import { buildTargetTree, type TargetTreeNode } from "$lib/target-tree";
+	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
+	import { Input } from "$lib/components/ui/input/index.js";
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuTrigger,
+	} from "$lib/components/ui/dropdown-menu/index.js";
+	import {
+		Dialog,
+		DialogContent,
+		DialogFooter,
+		DialogHeader,
+		DialogTitle,
+	} from "$lib/components/ui/dialog/index.js";
 
 	interface Props {
 		targets: EditableTarget[];
@@ -34,6 +55,9 @@
 		onsendcommand: (deviceId: string, payload: ActionPayload) => void;
 		onremovetarget: (index: number) => void;
 		onaddtarget: () => void;
+		onaddexpression: () => void;
+		onupdatetargetexpression: (index: number, expression: Clause[]) => void;
+		onupdatetargetname: (index: number, name: string) => void;
 	}
 
 	let {
@@ -47,7 +71,34 @@
 		onsendcommand,
 		onremovetarget,
 		onaddtarget,
+		onaddexpression,
+		onupdatetargetexpression,
+		onupdatetargetname,
 	}: Props = $props();
+
+	let editingIndex = $state<number | null>(null);
+	let editName = $state("");
+	let editExpr = $state<Clause[]>([]);
+
+	function openSelectorEdit(index: number, name: string, expression: Clause[]) {
+		editingIndex = index;
+		editName = name === "Selector" ? "" : name;
+		editExpr = expression;
+	}
+
+	function addSelector() {
+		const newIndex = targets.length;
+		onaddexpression();
+		openSelectorEdit(newIndex, "Selector", []);
+	}
+
+	function saveSelectorEdit() {
+		if (editingIndex !== null) {
+			onupdatetargetexpression(editingIndex, editExpr);
+			onupdatetargetname(editingIndex, editName.trim());
+		}
+		editingIndex = null;
+	}
 
 	let effectPicker = $state<{ deviceId: string; caps: string[] } | null>(null);
 
@@ -61,30 +112,42 @@
 		target: EditableTarget;
 		targetIndex: number;
 		devices: Device[];
-		root: TargetTreeNode;
+		root: TargetTreeNode | null;
 	}
 
 	const tree = $derived.by<TopTreeNode[]>(() => {
-		return targets.map((t, index) => {
-			const rootKey = `${t.type}:${t.id}:${index}`;
-			const resolved = resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
-			const devices = resolved.filter(isSceneTarget);
-			const root = buildTargetTree(
-				rootKey,
-				{ type: t.type, id: t.id },
-				devicesById,
-				groupsLite,
-				roomsLite,
-				{ deviceFilter: isSceneTarget },
-			);
-			return {
-				key: rootKey,
-				target: t,
-				targetIndex: index,
-				devices,
-				root,
-			};
-		});
+		return targets
+			.map((t, index) => ({ t, index }))
+			.sort((a, b) => a.t.name.localeCompare(b.t.name, undefined, { numeric: true }))
+			.map(({ t, index }) => {
+				const rootKey = `${t.type}:${t.id}:${index}`;
+				if (t.type === "expression") {
+					const devices = evaluateExpression(
+						t.expression ?? [],
+						allDevices,
+						groupsLite,
+						roomsLite,
+					).filter(isSceneTarget);
+					return { key: rootKey, target: t, targetIndex: index, devices, root: null };
+				}
+				const resolved = resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
+				const devices = resolved.filter(isSceneTarget);
+				const root = buildTargetTree(
+					rootKey,
+					{ type: t.type, id: t.id },
+					devicesById,
+					groupsLite,
+					roomsLite,
+					{ deviceFilter: isSceneTarget },
+				);
+				return {
+					key: rootKey,
+					target: t,
+					targetIndex: index,
+					devices,
+					root,
+				};
+			});
 	});
 
 	const reachableDevices = $derived.by<Device[]>(() => {
@@ -614,10 +677,26 @@
 					<span class="hidden sm:inline">Live</span>
 				</Button>
 			</div>
-			<Button variant="outline" size="sm" onclick={onaddtarget}>
-				<Plus class="size-3.5" />
-				<span class="hidden sm:inline">Add</span>
-			</Button>
+			<DropdownMenu>
+				<DropdownMenuTrigger>
+					{#snippet child({ props })}
+						<Button {...props} variant="outline" size="sm">
+							<Plus class="size-3.5" />
+							<span class="hidden sm:inline">Add</span>
+						</Button>
+					{/snippet}
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" class="min-w-44">
+					<DropdownMenuItem class="whitespace-nowrap" onclick={onaddtarget}>
+						<Plus class="size-4" />
+						Simple target
+					</DropdownMenuItem>
+					<DropdownMenuItem class="whitespace-nowrap" onclick={addSelector}>
+						<Filter class="size-4" />
+						Selector
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 		</div>
 	</div>
 
@@ -628,11 +707,67 @@
 			<div class="flex flex-col gap-1">
 				{#each tree as node (node.key)}
 					<div class="flex flex-col" transition:slide={{ duration: 200 }}>
-						{@render topLevelRow(node)}
-						{#if node.root.kind !== "device" && isExpanded(node.key)}
-							<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
-								{@render folderChildren(node.root)}
+						{#if node.target.type === "expression"}
+							<div
+								class="flex items-center gap-1 rounded-md p-2 transition-colors hover:bg-muted/60"
+								role="button"
+								tabindex={0}
+								onclick={() => toggleExpanded(node.key)}
+								onkeydown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										toggleExpanded(node.key);
+									}
+								}}
+							>
+								{#if isExpanded(node.key)}
+									<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
+								{:else}
+									<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+								{/if}
+								<Filter class="size-4 shrink-0 text-muted-foreground" />
+								<span class="truncate text-sm font-medium">{node.target.name || "Selector"}</span>
+								<span class="shrink-0 text-xs text-muted-foreground">{node.devices.length}</span>
+								<span class="flex-1"></span>
+								{#if mode === "edit"}
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										onclick={(e) => {
+											e.stopPropagation();
+											openSelectorEdit(node.targetIndex, node.target.name, node.target.expression ?? []);
+										}}
+										aria-label="Edit selector"
+									>
+										<Pencil class="size-4" />
+									</Button>
+								{/if}
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									onclick={(e) => {
+										e.stopPropagation();
+										onremovetarget(node.targetIndex);
+									}}
+									aria-label="Remove target"
+								>
+									<Trash2 class="size-4" />
+								</Button>
 							</div>
+							{#if isExpanded(node.key)}
+								<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
+									{#each node.devices as d (d.id)}
+										{@render deviceLeaf(d)}
+									{/each}
+								</div>
+							{/if}
+						{:else}
+							{@render topLevelRow(node)}
+							{#if node.root && node.root.kind !== "device" && isExpanded(node.key)}
+								<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
+									{@render folderChildren(node.root)}
+								</div>
+							{/if}
 						{/if}
 					</div>
 				{/each}
@@ -648,3 +783,36 @@
 	onclose={() => (effectPicker = null)}
 	onselect={handleEffectPick}
 />
+
+<Dialog
+	open={editingIndex !== null}
+	onOpenChange={(o) => {
+		if (!o) editingIndex = null;
+	}}
+>
+	<DialogContent class="sm:max-w-lg">
+		<DialogHeader>
+			<DialogTitle>Edit selector</DialogTitle>
+		</DialogHeader>
+		<div class="flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<span class="text-xs font-medium text-muted-foreground">Name (optional)</span>
+				<Input bind:value={editName} placeholder="Selector" class="h-8 text-sm" />
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<span class="text-xs font-medium text-muted-foreground">Rules</span>
+				<TargetSelectorField
+					value={editExpr}
+					onchange={(expr) => (editExpr = expr)}
+					devices={allDevices}
+					groups={groupsLite}
+					rooms={roomsLite}
+				/>
+			</div>
+		</div>
+		<DialogFooter>
+			<Button variant="ghost" size="sm" onclick={() => (editingIndex = null)}>Cancel</Button>
+			<Button variant="default" size="sm" onclick={saveSelectorEdit}>Done</Button>
+		</DialogFooter>
+	</DialogContent>
+</Dialog>
