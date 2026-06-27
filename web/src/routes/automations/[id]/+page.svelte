@@ -20,6 +20,7 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { Workflow } from "@lucide/svelte";
 	import { isEditableTarget } from "$lib/utils/keyboard";
+	import type { Clause } from "$lib/target-resolve";
 	import dagre from "@dagrejs/dagre";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
 	import type { FlowApi } from "$lib/components/graph/flow-bridge.svelte";
@@ -85,6 +86,7 @@
 		targetType: string;
 		targetId: string;
 		targetName: string;
+		targetExpr?: Clause[];
 		payload: string;
 	}
 
@@ -621,6 +623,7 @@
 					targetType: (raw.target_type as string) ?? (raw.targetType as string) ?? "",
 					targetId: (raw.target_id as string) ?? (raw.targetId as string) ?? "",
 					targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
+					targetExpr: (raw.target_expr as Clause[]) ?? (raw.targetExpr as Clause[]) ?? [],
 					payload: (raw.payload as string) ?? "",
 				};
 			}
@@ -1499,6 +1502,9 @@
 			</IconPicker>
 			<Input
 				bind:value={automationName}
+				oninput={() => {
+					if (editMode) queueMicrotask(takeSnapshot);
+				}}
 				class="h-8 w-48 text-sm font-medium"
 				placeholder="Automation name"
 				disabled={!editMode}

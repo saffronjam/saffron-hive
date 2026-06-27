@@ -394,12 +394,14 @@ export function serializeActionConfig(config: {
   actionType: string;
   targetType: string;
   targetId: string;
+  targetExpr?: { connector?: string; subject: string; op: string; values: string[] }[];
   payload: string;
 }): string {
   return JSON.stringify({
     action_type: config.actionType,
     target_type: config.targetType,
     target_id: config.targetId,
+    target_expr: config.targetExpr ?? [],
     payload: config.payload,
   });
 }
@@ -466,7 +468,24 @@ export interface ActionConfigShape {
   actionType: string;
   targetType: string;
   targetId: string;
+  targetExpr?: { connector?: string; subject: string; op: string; values: string[] }[];
   payload: string;
+}
+
+/**
+ * A fanout action's target is valid when it is either a direct device/group/room
+ * or an expression with at least one rule.
+ */
+function targetSelected(config: ActionConfigShape): boolean {
+  if (config.targetType === "expression") return (config.targetExpr?.length ?? 0) > 0;
+  return !!config.targetType && !!config.targetId;
+}
+
+function targetError(config: ActionConfigShape): ValidationError<ActionField> {
+  return {
+    field: "target",
+    message: config.targetType === "expression" ? "Add at least one rule" : "Pick a target",
+  };
 }
 
 export type ActionField = "actionType" | "target" | "payload";
@@ -525,15 +544,11 @@ export function validateActionConfig(
     return null;
   }
   if (config.actionType === "toggle_device_state") {
-    if (!config.targetType || !config.targetId) {
-      return { field: "target", message: "Pick a target" };
-    }
+    if (!targetSelected(config)) return targetError(config);
     return null;
   }
   if (config.actionType === "change_value") {
-    if (!config.targetType || !config.targetId) {
-      return { field: "target", message: "Pick a target" };
-    }
+    if (!targetSelected(config)) return targetError(config);
     let parsed: { field?: unknown; delta?: unknown; mode?: unknown };
     try {
       parsed = JSON.parse(config.payload || "{}") as {
@@ -555,8 +570,6 @@ export function validateActionConfig(
     }
     return null;
   }
-  if (!config.targetType || !config.targetId) {
-    return { field: "target", message: "Pick a target" };
-  }
+  if (!targetSelected(config)) return targetError(config);
   return null;
 }

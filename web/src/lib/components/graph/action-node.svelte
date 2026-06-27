@@ -18,11 +18,15 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import {
 		capabilityUnionForTarget,
+		capabilityUnion,
+		evaluateExpression,
 		settableNumericCapabilities,
+		type Clause,
 		type GroupLite,
 		type RoomLite,
 		type TargetKind,
 	} from "$lib/target-resolve";
+	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
 	import type { Device } from "$lib/gql/graphql";
 
 	interface ActionConfig {
@@ -30,8 +34,11 @@
 		targetType: string;
 		targetId: string;
 		targetName: string;
+		targetExpr?: Clause[];
 		payload: string;
 	}
+
+	const FANOUT_ACTIONS = ["set_device_state", "toggle_device_state", "change_value"];
 
 	interface SceneRef {
 		id: string;
@@ -318,6 +325,39 @@
 		data.config.targetName || (data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "No target"),
 	);
 
+	const isFanoutAction = $derived(FANOUT_ACTIONS.includes(data.config.actionType));
+	const advanced = $derived(data.config.targetType === "expression");
+	const exprDevices = $derived(
+		evaluateExpression(
+			data.config.targetExpr ?? [],
+			data.devices ?? [],
+			data.groups ?? [],
+			data.rooms ?? [],
+		),
+	);
+	const exprCaps = $derived(capabilityUnion(exprDevices));
+
+	function setTargetMode(mode: "simple" | "advanced") {
+		if (!data.onConfigChange) return;
+		if (mode === "advanced") {
+			data.onConfigChange({
+				...data.config,
+				targetType: "expression",
+				targetId: "",
+				targetName: "",
+				targetExpr: data.config.targetExpr ?? [],
+			});
+		} else {
+			data.onConfigChange({
+				...data.config,
+				targetType: "",
+				targetId: "",
+				targetName: "",
+				targetExpr: [],
+			});
+		}
+	}
+
 	const severityLabel = $derived(
 		SEVERITIES.find((s) => s.value === parsedPayload.severity)?.label ?? "Severity",
 	);
@@ -536,6 +576,37 @@
 					<p class="text-[10px] text-muted-foreground">Each fire activates the next scene; the index resets when the automation is saved.</p>
 				</div>
 			{:else}
+				{#if isFanoutAction}
+					<div class="flex items-center rounded-md border border-border dark:border-input">
+						<Button
+							variant={!advanced ? "secondary" : "ghost"}
+							size="xs"
+							class="rounded-r-none border-0"
+							onclick={() => setTargetMode("simple")}
+							aria-pressed={!advanced}
+						>
+							Simple
+						</Button>
+						<Button
+							variant={advanced ? "secondary" : "ghost"}
+							size="xs"
+							class="rounded-l-none border-0"
+							onclick={() => setTargetMode("advanced")}
+							aria-pressed={advanced}
+						>
+							Advanced
+						</Button>
+					</div>
+				{/if}
+				{#if advanced}
+					<TargetSelectorField
+						value={data.config.targetExpr ?? []}
+						onchange={(targetExpr) => data.onConfigChange?.({ ...data.config, targetExpr })}
+						devices={data.devices ?? []}
+						groups={data.groups ?? []}
+						rooms={data.rooms ?? []}
+					/>
+				{:else}
 				<HiveSelectAutocomplete
 					items={targetItemsList}
 					value={selectedTargetKey}
@@ -581,9 +652,22 @@
 						</span>
 					{/snippet}
 				</HiveSelectAutocomplete>
+				{/if}
 
 				{#if data.config.actionType === "set_device_state"}
-					{#if data.config.targetType && data.config.targetId}
+					{#if advanced}
+						<DeviceStateEditor
+							target={null}
+							capabilities={exprCaps}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={!data.editable}
+						/>
+					{:else if data.config.targetType && data.config.targetId}
 						<DeviceStateEditor
 							target={{ type: data.config.targetType as TargetKind, id: data.config.targetId }}
 							value={data.config.payload}
@@ -602,7 +686,19 @@
 						Flips on/off. For groups and rooms: any member on → all off; all off → all on.
 					</p>
 				{:else if data.config.actionType === "change_value"}
-					{#if data.config.targetType && data.config.targetId}
+					{#if advanced}
+						<ChangeValueEditor
+							target={null}
+							capabilities={exprCaps}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={!data.editable}
+						/>
+					{:else if data.config.targetType && data.config.targetId}
 						<ChangeValueEditor
 							target={{ type: data.config.targetType as TargetKind, id: data.config.targetId }}
 							value={data.config.payload}
