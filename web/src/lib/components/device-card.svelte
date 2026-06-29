@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { type Device } from "$lib/stores/devices";
@@ -223,9 +222,13 @@
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem onclick={() => goto(`/devices/${device.id}`)}>
-							<Pencil class="size-4" />
-							Edit
+						<DropdownMenuItem>
+							{#snippet child({ props })}
+								<a href={`/devices/${device.id}`} {...props}>
+									<Pencil class="size-4" />
+									Edit
+								</a>
+							{/snippet}
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem onclick={() => onAddTo(device)}>

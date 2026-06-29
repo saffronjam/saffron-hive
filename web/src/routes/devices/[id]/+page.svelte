@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from "$app/stores";
-	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
 	import type { Device, DeviceState } from "$lib/stores/devices";
@@ -293,10 +292,10 @@
 			name: row.name,
 			type: row.kind,
 			related: [] as [],
-			onclick:
+			href:
 				row.kind === "room"
-					? () => goto(`/rooms?edit=${row.roomId}`)
-					: () => goto(`/groups?edit=${row.groupId}`),
+					? `/rooms?edit=${row.roomId}`
+					: `/groups?edit=${row.groupId}`,
 		}))
 	);
 

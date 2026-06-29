@@ -29,7 +29,7 @@
 		name: string;
 		type: string;
 		related: RelatedItem[];
-		onclick?: () => void;
+		href?: string;
 	}
 
 	interface Props {
@@ -120,14 +120,10 @@
 							<HiveChip type={row.type} />
 						</TableCell>
 						<TableCell>
-							{#if row.onclick}
-								<button
-									type="button"
-									class="text-left hover:underline"
-									onclick={row.onclick}
-								>
+							{#if row.href}
+								<a href={row.href} class="text-left hover:underline">
 									<span class="truncate">{row.name}</span>
-								</button>
+								</a>
 							{:else}
 								<span class="truncate">{row.name}</span>
 							{/if}
