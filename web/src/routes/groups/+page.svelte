@@ -947,21 +947,19 @@
 					r.members.some((rm) => rm.memberType === "device" && rm.memberId === m.memberId),
 				)
 				.map((r) => ({ id: r.id, name: r.name, href: `/rooms?edit=${r.id}` }));
-			const onclick = (() => {
+			const href = (() => {
 				switch (m.memberType) {
 					case "device":
-						return () => goto(`/devices/${m.memberId}`);
+						return `/devices/${m.memberId}`;
 					case "group":
-						return () =>
-							goto(`/groups?edit=${m.memberId}`, { keepFocus: true, noScroll: true });
+						return `/groups?edit=${m.memberId}`;
 					case "room":
-						return () =>
-							goto(`/rooms?edit=${m.memberId}`, { keepFocus: true, noScroll: true });
+						return `/rooms?edit=${m.memberId}`;
 					default:
 						return undefined;
 				}
 			})();
-			return { id: m.id, name, type, related, onclick };
+			return { id: m.id, name, type, related, href };
 		})
 	);
 </script>
@@ -1101,7 +1099,7 @@
 										devices={flattenGroupDevices(group)}
 										fallbackIcon={GroupIcon}
 										subtitle="{group.members.length} member{group.members.length === 1 ? '' : 's'}{group.members.length > 0 ? ' · ' + groupMemberBreakdown(group.members) : ''}"
-										onedit={startEditing}
+										editHref={`/groups?edit=${encodeURIComponent(group.id)}`}
 										ondelete={(g) => (deleteConfirmGroup = g)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
@@ -1120,7 +1118,6 @@
 							<GroupTable
 								groups={filteredGroups}
 								{selection}
-								onedit={startEditing}
 								ondelete={(g) => (deleteConfirmGroup = g)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}

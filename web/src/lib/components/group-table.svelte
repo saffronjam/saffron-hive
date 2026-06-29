@@ -26,7 +26,6 @@
 	interface Props {
 		groups: G[];
 		selection: TableSelection;
-		onedit: (group: G) => void;
 		ondelete: (group: G) => void;
 		onrename: (group: G, newName: string) => void;
 		oniconchange: (group: G, icon: string | null) => void;
@@ -34,7 +33,7 @@
 		getDevices?: (group: G) => Device[];
 	}
 
-	let { groups, selection, onedit, ondelete, onrename, oniconchange, onAddTo, getDevices }: Props = $props();
+	let { groups, selection, ondelete, onrename, oniconchange, onAddTo, getDevices }: Props = $props();
 
 	const COLUMNS: ColumnDef<G>[] = [
 		{
@@ -171,7 +170,7 @@
 
 {#snippet actionsCell(g: G)}
 	<RowActionsCell
-		onedit={() => onedit(g)}
+		editHref={`/groups?edit=${g.id}`}
 		ondelete={() => ondelete(g)}
 		editLabel="Edit group"
 		deleteLabel="Delete group"
