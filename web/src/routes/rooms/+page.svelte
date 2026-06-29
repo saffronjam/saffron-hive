@@ -646,7 +646,7 @@
 					name: dev?.name ?? m.deviceId,
 					type: dev?.type ?? "device",
 					related,
-					onclick: () => goto(`/devices/${m.deviceId}`),
+					href: `/devices/${m.deviceId}`,
 				};
 			}
 			const grp = allGroups.find((g) => g.id === m.groupId);
@@ -655,7 +655,7 @@
 				name: grp?.name ?? m.groupId,
 				type: "group",
 				related: [],
-				onclick: () => goto(`/groups?edit=${m.groupId}`),
+				href: `/groups?edit=${m.groupId}`,
 			};
 		}),
 	);
@@ -1013,7 +1013,7 @@
 										devices={roomDevices(room)}
 										fallbackIcon={DoorOpen}
 										subtitle="{room.resolvedDevices.length} device{room.resolvedDevices.length === 1 ? '' : 's'}"
-										onedit={startEditing}
+										editHref={`/rooms?edit=${encodeURIComponent(room.id)}`}
 										ondelete={(r) => (deleteConfirmRoom = r)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
@@ -1032,7 +1032,6 @@
 							<RoomTable
 								rooms={filteredRooms}
 								{selection}
-								onedit={startEditing}
 								ondelete={(r) => (deleteConfirmRoom = r)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}

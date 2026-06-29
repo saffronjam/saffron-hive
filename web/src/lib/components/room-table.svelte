@@ -34,7 +34,6 @@
 	interface Props {
 		rooms: RoomData[];
 		selection: TableSelection;
-		onedit: (room: RoomData) => void;
 		ondelete: (room: RoomData) => void;
 		onrename: (room: RoomData, newName: string) => void;
 		oniconchange: (room: RoomData, icon: string | null) => void;
@@ -45,7 +44,6 @@
 	let {
 		rooms,
 		selection,
-		onedit,
 		ondelete,
 		onrename,
 		oniconchange,
@@ -173,7 +171,7 @@
 
 {#snippet actionsCell(r: RoomData)}
 	<RowActionsCell
-		onedit={() => onedit(r)}
+		editHref={`/rooms?edit=${r.id}`}
 		ondelete={() => ondelete(r)}
 		editLabel="Edit room"
 		deleteLabel="Delete room"
