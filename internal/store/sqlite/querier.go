@@ -161,6 +161,7 @@ type Querier interface {
 	ListSceneExpectedStates(ctx context.Context, sceneID string) ([]SceneExpectedState, error)
 	ListScenes(ctx context.Context) ([]ListScenesRow, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
+	ListTuyaDevices(ctx context.Context) ([]TuyaDevice, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
@@ -229,6 +230,7 @@ type Querier interface {
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
+	UpsertTuyaDevice(ctx context.Context, arg UpsertTuyaDeviceParams) error
 	UpsertZigbeeDevice(ctx context.Context, arg UpsertZigbeeDeviceParams) error
 }
 

@@ -228,6 +228,14 @@ type TuyaConfig struct {
 	Enabled      bool
 }
 
+type TuyaDevice struct {
+	DeviceID        string
+	LocalKey        string
+	ProtocolVersion string
+	LanIp           string
+	ProductID       string
+}
+
 type User struct {
 	ID                 string
 	Username           string
