@@ -129,12 +129,23 @@ export interface StaticPayloadFields {
 export type TargetKind = "device" | "group" | "room" | "expression";
 
 export interface EditableTarget {
+  /**
+   * Stable client-side identity, preserved across edits/reorders so keyed list
+   * rendering can track a target by identity rather than array position. Not
+   * persisted — the save path maps target fields explicitly.
+   */
+  uid: string;
   type: TargetKind;
   id: string;
   name: string;
   icon?: string | null;
   deviceType?: string;
   expression?: Clause[];
+}
+
+/** Mint a stable client-side identity for a freshly created editable target. */
+export function newTargetUid(): string {
+  return crypto.randomUUID();
 }
 
 export type DevicePayloadMap = Map<string, ActionPayload>;
@@ -235,6 +246,7 @@ export function staticFieldsOf(payload: ActionPayload): StaticPayloadFields {
 export function buildTargetInfo(action: SceneAction): EditableTarget {
   if (action.targetType === "expression") {
     return {
+      uid: newTargetUid(),
       type: "expression",
       id: "",
       name: action.name || "Selector",
@@ -243,12 +255,18 @@ export function buildTargetInfo(action: SceneAction): EditableTarget {
   }
   const t = action.target;
   if (t?.__typename === "Group") {
-    return { type: "group", id: t.id, name: t.name, icon: t.icon ?? null };
+    return { uid: newTargetUid(), type: "group", id: t.id, name: t.name, icon: t.icon ?? null };
   }
   if (t?.__typename === "Room") {
-    return { type: "room", id: t.id, name: t.name, icon: t.icon ?? null };
+    return { uid: newTargetUid(), type: "room", id: t.id, name: t.name, icon: t.icon ?? null };
   }
-  return { type: "device", id: t?.id ?? "", name: t?.name ?? "", deviceType: t?.type };
+  return {
+    uid: newTargetUid(),
+    type: "device",
+    id: t?.id ?? "",
+    name: t?.name ?? "",
+    deviceType: t?.type,
+  };
 }
 
 export interface EditorState {

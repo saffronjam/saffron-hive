@@ -31,6 +31,7 @@
 		type EditableTarget,
 		type TargetKind,
 		type DevicePayloadMap,
+		newTargetUid,
 	} from "$lib/scene-editable";
 	import { effectSummary, nativeOptionLabel, type EffectSummary } from "$lib/effect-editable";
 	import { EffectKind } from "$lib/gql/graphql";
@@ -632,10 +633,16 @@
 		);
 	}
 
+	// Dirty tracking compares target content, not client-only identity, so
+	// removing and re-adding the same target does not register as a change.
+	function serializeTargets(ts: EditableTarget[]): string {
+		return JSON.stringify(ts, (k, v) => (k === "uid" ? undefined : v));
+	}
+
 	const isDirty = $derived(
 		sceneName !== savedSceneName ||
 		sceneIcon !== savedSceneIcon ||
-		JSON.stringify(targets) !== savedTargetsJson ||
+		serializeTargets(targets) !== savedTargetsJson ||
 		serializePayloads(payloadsByDevice) !== savedPayloadsJson,
 	);
 
@@ -754,7 +761,10 @@
 	}
 
 	function handleAddExpression() {
-		targets = [...targets, { type: "expression", id: "", name: "Selector", expression: [] }];
+		targets = [
+			...targets,
+			{ uid: newTargetUid(), type: "expression", id: "", name: "Selector", expression: [] },
+		];
 	}
 
 	function handleTargetExpressionChange(index: number, expression: Clause[]) {
@@ -771,16 +781,28 @@
 			if (!d) return;
 			targets = [
 				...targets,
-				{ type: "device", id: d.id, name: d.name, deviceType: d.type },
+				{ uid: newTargetUid(), type: "device", id: d.id, name: d.name, deviceType: d.type },
 			];
 		} else if (memberType === "group") {
 			const g = allGroups.find((x) => x.id === memberId);
 			if (!g) return;
-			targets = [...targets, { type: "group", id: g.id, name: g.name, icon: (g as unknown as { icon?: string | null }).icon ?? null }];
+			targets = [
+				...targets,
+				{
+					uid: newTargetUid(),
+					type: "group",
+					id: g.id,
+					name: g.name,
+					icon: (g as unknown as { icon?: string | null }).icon ?? null,
+				},
+			];
 		} else {
 			const r = allRooms.find((x) => x.id === memberId);
 			if (!r) return;
-			targets = [...targets, { type: "room", id: r.id, name: r.name, icon: r.icon ?? null }];
+			targets = [
+				...targets,
+				{ uid: newTargetUid(), type: "room", id: r.id, name: r.name, icon: r.icon ?? null },
+			];
 		}
 	}
 
@@ -832,13 +854,10 @@
 		scene = updated;
 		sceneName = updated.name;
 		sceneIcon = updated.icon ?? null;
-		const editorState = sceneToEditorState(updated);
-		targets = editorState.targets;
-		payloadsByDevice = editorState.payloads;
 
 		savedSceneName = sceneName;
 		savedSceneIcon = sceneIcon;
-		savedTargetsJson = JSON.stringify(targets);
+		savedTargetsJson = serializeTargets(targets);
 		savedPayloadsJson = serializePayloads(payloadsByDevice);
 	}
 
@@ -876,7 +895,7 @@
 					payloadsByDevice = state.payloads;
 					savedSceneName = sceneName;
 					savedSceneIcon = sceneIcon;
-					savedTargetsJson = JSON.stringify(targets);
+					savedTargetsJson = serializeTargets(targets);
 					savedPayloadsJson = serializePayloads(payloadsByDevice);
 				} else {
 					errors.message = "Scene not found";

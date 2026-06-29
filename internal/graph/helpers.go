@@ -397,9 +397,10 @@ func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolv
 }
 
 // resolveEffectiveScenePayloads returns one entry per unique device reached by
-// the scene's action targets (rooms, groups, or direct devices). Devices with
-// an explicit per-device override carry that payload; other devices get the
-// capability-filtered warm-white default serialised as the same JSON shape.
+// the scene's action targets (rooms, groups, direct devices, or selector
+// expressions). Devices with an explicit per-device override carry that payload;
+// other devices get the capability-filtered warm-white default serialised as the
+// same JSON shape.
 func resolveEffectiveScenePayloads(
 	ctx context.Context,
 	sr device.StateReader,
@@ -414,7 +415,13 @@ func resolveEffectiveScenePayloads(
 	seen := make(map[device.DeviceID]struct{})
 	var out []store.SceneDevicePayload
 	for _, a := range actions {
-		for _, did := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
+		var ids []device.DeviceID
+		if a.TargetType == string(device.TargetExpression) {
+			ids = device.EvaluateExpression(ctx, sr, tr, a.Expression)
+		} else {
+			ids = tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID)
+		}
+		for _, did := range ids {
 			if _, ok := seen[did]; ok {
 				continue
 			}

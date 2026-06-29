@@ -120,7 +120,7 @@
 			.map((t, index) => ({ t, index }))
 			.sort((a, b) => a.t.name.localeCompare(b.t.name, undefined, { numeric: true }))
 			.map(({ t, index }) => {
-				const rootKey = `${t.type}:${t.id}:${index}`;
+				const rootKey = t.uid;
 				if (t.type === "expression") {
 					const devices = evaluateExpression(
 						t.expression ?? [],
