@@ -20,6 +20,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import LightControls from "$lib/components/light-controls.svelte";
+	import ClimateControls from "$lib/components/climate-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
 	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
@@ -281,6 +282,7 @@
 	const light = $derived(device?.type === "light" ? device.state : null);
 	const plug = $derived(device?.type === "plug" ? device.state : null);
 	const sensor = $derived(device?.type === "sensor" ? device.state : null);
+	const climate = $derived(device?.type === "climate" ? device.state : null);
 	const isButton = $derived(device?.type === "button");
 
 	const membershipData = $derived(membershipRowsForDevice(deviceId, rooms, groups));
@@ -687,6 +689,8 @@
 				<div class="flex flex-col gap-4">
 				{#if light}
 					<LightControls lightState={light} oncommand={handleDeviceCommand} />
+				{:else if climate}
+					<ClimateControls deviceState={climate} capabilities={device.capabilities} oncommand={handleDeviceCommand} />
 				{:else if plug}
 					<PlugDisplay state={plug} oncommand={handleDeviceCommand} />
 				{:else if sensor}
