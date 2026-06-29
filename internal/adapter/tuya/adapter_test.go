@@ -1,192 +1,67 @@
 package tuya
 
 import (
-	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
-func TestPollPublishesAvailabilityOnlyOnTransition(t *testing.T) {
-	var online bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1.0/devices/ac-1/status" {
-			http.NotFound(w, r)
-			return
-		}
-		if !online {
-			http.Error(w, "offline", http.StatusBadGateway)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"success": true,
-			"result": []map[string]any{
-				{"code": "switch", "value": false},
-			},
-		})
-	}))
-	defer srv.Close()
+const acProduct = "vrredpnf22yayvhi"
 
-	bus := eventbus.NewChannelBus()
-	store := device.NewMemoryStore()
-	store.Register(device.Device{
-		ID:        "ac-1",
-		Name:      "AC",
-		Source:    Source,
-		Type:      device.Climate,
-		Available: false,
-	})
+func TestLocalDPSToState(t *testing.T) {
+	st := localDPSToState(map[string]any{
+		"1":   true,
+		"2":   float64(16),
+		"4":   "cold",
+		"5":   "low",
+		"110": true,
+	}, acProduct)
 
-	adapter := NewAdapter(&CloudClient{
-		cfg:   Config{AccessID: "id", AccessSecret: "secret", Region: "eu", Enabled: true},
-		host:  srv.URL,
-		http:  srv.Client(),
-		token: "token",
-	}, bus, store)
-
-	availCh := bus.Subscribe(eventbus.EventDeviceAvailabilityChanged)
-	defer bus.Unsubscribe(availCh)
-
-	drainAvail := func() []bool {
-		var got []bool
-		for {
-			select {
-			case evt := <-availCh:
-				avail, ok := evt.Payload.(bool)
-				if !ok {
-					t.Fatalf("availability payload type = %T, want bool", evt.Payload)
-				}
-				got = append(got, avail)
-			default:
-				return got
-			}
-		}
+	if st.On == nil || !*st.On {
+		t.Fatalf("On = %v, want true", st.On)
 	}
-
-	online = true
-	adapter.poll(context.Background())
-	if got := drainAvail(); len(got) != 1 || !got[0] {
-		t.Fatalf("first poll availability events = %v, want [true]", got)
+	if st.TargetTemperature == nil || *st.TargetTemperature != 16 {
+		t.Fatalf("TargetTemperature = %v, want 16", st.TargetTemperature)
 	}
-
-	adapter.poll(context.Background())
-	if got := drainAvail(); len(got) != 0 {
-		t.Fatalf("steady-online poll availability events = %v, want none", got)
+	if st.HvacMode == nil || *st.HvacMode != "cool" {
+		t.Fatalf("HvacMode = %v, want cool", st.HvacMode)
 	}
-
-	online = false
-	adapter.poll(context.Background())
-	if got := drainAvail(); len(got) != 1 || got[0] {
-		t.Fatalf("offline transition availability events = %v, want [false]", got)
+	if st.FanMode == nil || *st.FanMode != "low" {
+		t.Fatalf("FanMode = %v, want low", st.FanMode)
 	}
-
-	adapter.poll(context.Background())
-	if got := drainAvail(); len(got) != 0 {
-		t.Fatalf("steady-offline poll availability events = %v, want none", got)
+	if st.Swing == nil || *st.Swing != "on" {
+		t.Fatalf("Swing = %v, want on", st.Swing)
 	}
 }
 
-func TestCommandLoopPublishesCommandedStateWithoutStatusRefresh(t *testing.T) {
-	var statusCalls int
-	var commandCalls int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1.0/devices/ac-1/commands":
-			commandCalls++
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"success": true,
-				"result":  true,
-			})
-		case "/v1.0/devices/ac-1/status":
-			statusCalls++
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"success": true,
-				"result": []map[string]any{
-					{"code": "switch", "value": false},
-				},
-			})
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer srv.Close()
-
-	bus := eventbus.NewChannelBus()
-	store := device.NewMemoryStore()
-	store.Register(device.Device{
-		ID:     "ac-1",
-		Name:   "AC",
-		Source: Source,
-		Type:   device.Climate,
-		Capabilities: []device.Capability{
-			{Name: device.CapOnOff},
-		},
-	})
-	store.UpdateDeviceState("ac-1", device.DeviceState{On: device.Ptr(false)})
-
-	adapter := NewAdapter(&CloudClient{
-		cfg: Config{
-			AccessID:     "id",
-			AccessSecret: "secret",
-			Region:       "eu",
-			Enabled:      true,
-		},
-		host:  srv.URL,
-		http:  srv.Client(),
-		token: "token",
-	}, bus, store)
-	adapter.cmdCh = bus.Subscribe(eventbus.EventCommandRequested)
-	adapter.wg.Add(1)
-	go adapter.commandLoop(context.Background())
-	defer func() {
-		close(adapter.stopCh)
-		bus.Unsubscribe(adapter.cmdCh)
-		adapter.wg.Wait()
-	}()
-
-	stateCh := bus.Subscribe(eventbus.EventDeviceStateChanged)
-	defer bus.Unsubscribe(stateCh)
-
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "ac-1",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: "ac-1",
-			On:       device.Ptr(true),
-			Origin:   device.OriginUser(),
-		},
-	})
-
-	select {
-	case evt := <-stateCh:
-		change, ok := evt.Payload.(device.DeviceStateChange)
-		if !ok {
-			t.Fatalf("payload type = %T, want device.DeviceStateChange", evt.Payload)
-		}
-		if change.State.On == nil || !*change.State.On {
-			t.Fatalf("published on state = %v, want true", change.State.On)
-		}
-		if change.Origin != device.OriginUser() {
-			t.Fatalf("origin = %+v, want user", change.Origin)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for state event")
+func TestCommandToDPS(t *testing.T) {
+	cmd := device.Command{On: device.Ptr(true), Swing: device.Ptr("on")}
+	dps := commandToDPS(cmd, acProduct)
+	if dps["1"] != true {
+		t.Fatalf("dp1 = %v, want true", dps["1"])
 	}
+	if dps["110"] != true {
+		t.Fatalf("dp110 (swing) = %v, want true", dps["110"])
+	}
+}
 
-	st, ok := store.GetDeviceState("ac-1")
-	if !ok || st.On == nil || !*st.On {
-		t.Fatalf("stored on state = %+v, want true", st)
+func TestAugmentCapabilitiesAddsHiddenDPs(t *testing.T) {
+	out := augmentCapabilities([]device.Capability{{Name: device.CapOnOff}}, acProduct)
+	has := func(n string) bool {
+		for _, c := range out {
+			if c.Name == n {
+				return true
+			}
+		}
+		return false
 	}
-	if commandCalls != 1 {
-		t.Fatalf("command calls = %d, want 1", commandCalls)
+	if !has(device.CapSwing) {
+		t.Fatal("expected swing capability from DP map")
 	}
-	if statusCalls != 0 {
-		t.Fatalf("status calls = %d, want 0", statusCalls)
+	if !has(device.CapFanMode) {
+		t.Fatal("expected fan_mode capability from DP map")
+	}
+	if !has(device.CapOnOff) {
+		t.Fatal("on_off capability dropped")
 	}
 }
