@@ -191,6 +191,13 @@ If you find yourself wanting a third spelling for the same concept, you're on th
 
 ## Formatting and linting
 
+### Gate
+Run `make prepare-for-commit` once a feature or change is complete, and fix
+anything it reports before considering the work done. It is the authoritative
+gate: it runs deps, `sqlc-check`, `gqlgen-check`, `codegen-check`, `format`,
+`lint`, `typecheck`, `errcheck`, and `test`. CI runs the same checks, so a
+clean run here is what a green CI looks like.
+
 ### Go
 - **gofmt** — formatting (standard, no config)
 - **go vet** — static analysis (standard)
