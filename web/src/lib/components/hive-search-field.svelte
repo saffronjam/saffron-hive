@@ -108,6 +108,12 @@
 		liveChip ? liveChip.options(liveValue) : [],
 	);
 
+	const hasSuggestions = $derived(
+		(suggestionMode === "keyword" && keywordSuggestions.length > 0) ||
+			(suggestionMode === "value" && valueSuggestions.length > 0) ||
+			(suggestionMode === "item" && items.length > 0 && !!getKey && !!getLabel),
+	);
+
 	$effect(() => {
 		suggestionIdx = 0;
 	});
@@ -169,6 +175,15 @@
 		});
 	}
 
+	function removeLastCommitted() {
+		if (committed.length === 0) return;
+		const next = [...tokens.slice(0, -2), tokens[tokens.length - 1]];
+		tokens = next;
+		open = false;
+		onchipcommit?.(next);
+		tick().then(() => inputRef?.focus());
+	}
+
 	function onInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		const newText = liveChip ? `${liveChip.keyword}:${input.value}` : input.value;
@@ -207,7 +222,12 @@
 			}
 			if (committed.length > 0) {
 				e.preventDefault();
-				reopenLastCommitted();
+				const last = committed[committed.length - 1];
+				if (chipConfigForText(last.text)) {
+					removeLastCommitted();
+				} else {
+					reopenLastCommitted();
+				}
 				return;
 			}
 			return;
@@ -327,7 +347,7 @@
 						type="text"
 						bind:this={inputRef}
 						value={liveChip ? liveValue : liveText}
-						{placeholder}
+						placeholder={liveChip ? "" : placeholder}
 						{disabled}
 						size={liveChip ? Math.max(liveValue.length + 1, 3) : size}
 						class={cn(
@@ -352,18 +372,18 @@
 			</div>
 		{/snippet}
 	</PopoverTrigger>
-	{#if open}
-		{#if suggestionMode === "keyword" && keywordSuggestions.length > 0}
-			<PopoverContent
-				class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
-				align="start"
-				sideOffset={4}
-				trapFocus={false}
-				onOpenAutoFocus={(e) => e.preventDefault()}
-				onCloseAutoFocus={(e) => e.preventDefault()}
-				onInteractOutside={handleInteractOutside}
-			>
-				<ul role="listbox" class="py-1">
+	{#if open && hasSuggestions}
+		<PopoverContent
+			class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
+			align="start"
+			sideOffset={4}
+			trapFocus={false}
+			onOpenAutoFocus={(e) => e.preventDefault()}
+			onCloseAutoFocus={(e) => e.preventDefault()}
+			onInteractOutside={handleInteractOutside}
+		>
+			<ul role="listbox" class="py-1">
+				{#if suggestionMode === "keyword"}
 					<li class="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
 						Filters
 					</li>
@@ -386,19 +406,7 @@
 							{opt.label}
 						</li>
 					{/each}
-				</ul>
-			</PopoverContent>
-		{:else if suggestionMode === "value" && valueSuggestions.length > 0}
-			<PopoverContent
-				class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
-				align="start"
-				sideOffset={4}
-				trapFocus={false}
-				onOpenAutoFocus={(e) => e.preventDefault()}
-				onCloseAutoFocus={(e) => e.preventDefault()}
-				onInteractOutside={handleInteractOutside}
-			>
-				<ul role="listbox" class="py-1">
+				{:else if suggestionMode === "value"}
 					{#each valueSuggestions as opt, i (opt.value)}
 						<li
 							role="option"
@@ -418,19 +426,7 @@
 							{opt.label}
 						</li>
 					{/each}
-				</ul>
-			</PopoverContent>
-		{:else if suggestionMode === "item" && items.length > 0 && getKey && getLabel}
-			<PopoverContent
-				class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
-				align="start"
-				sideOffset={4}
-				trapFocus={false}
-				onOpenAutoFocus={(e) => e.preventDefault()}
-				onCloseAutoFocus={(e) => e.preventDefault()}
-				onInteractOutside={handleInteractOutside}
-			>
-				<ul role="listbox" class="py-1">
+				{:else if suggestionMode === "item" && getKey && getLabel}
 					{#each items as o, i (getKey(o))}
 						<li
 							role="option"
@@ -454,8 +450,8 @@
 							{/if}
 						</li>
 					{/each}
-				</ul>
-			</PopoverContent>
-		{/if}
+				{/if}
+			</ul>
+		</PopoverContent>
 	{/if}
 </Popover>

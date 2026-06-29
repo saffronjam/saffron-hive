@@ -55,7 +55,6 @@
 		selection: TableSelection;
 		applyingId: string | null;
 		onapply: (scene: SceneData) => void;
-		onedit: (scene: SceneData) => void;
 		ondelete: (scene: SceneData) => void;
 		onrename: (scene: SceneData, newName: string) => void;
 		oniconchange: (scene: SceneData, icon: string | null) => void;
@@ -67,7 +66,6 @@
 		selection,
 		applyingId,
 		onapply,
-		onedit,
 		ondelete,
 		onrename,
 		oniconchange,
@@ -107,7 +105,7 @@
 		{
 			key: "targets",
 			label: "Targets",
-			sortValue: (s) => s.actions.length,
+			sortValue: (s) => s.effectivePayloads.length,
 			cell: targetsCell,
 		},
 		{
@@ -174,7 +172,11 @@
 
 {#snippet targetsCell(s: SceneData)}
 	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{s.actions.length} target{s.actions.length === 1 ? "" : "s"}
+		{#if s.effectivePayloads.length === 0}
+			No targets
+		{:else}
+			{s.effectivePayloads.length} target{s.effectivePayloads.length === 1 ? "" : "s"}
+		{/if}
 	</span>
 {/snippet}
 
@@ -203,11 +205,11 @@
 {#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(s: SceneData)}
-	{@const noTargets = s.actions.length === 0}
+	{@const noTargets = s.effectivePayloads.length === 0}
 	{@const applying = applyingId === s.id}
 	{@const active = s.activatedAt != null}
 	<RowActionsCell
-		onedit={() => onedit(s)}
+		editHref={`/scenes/${s.id}`}
 		ondelete={() => ondelete(s)}
 		editLabel="Edit scene"
 		deleteLabel="Delete scene"

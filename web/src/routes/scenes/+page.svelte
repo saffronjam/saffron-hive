@@ -549,10 +549,6 @@
 		fetchScenes();
 	}
 
-	function handleEdit(scene: SceneData) {
-		goto(`/scenes/${scene.id}`);
-	}
-
 	async function fetchDevices() {
 		if (!clientRef) return;
 		const result = await clientRef.query<DevicesQueryResult>(DEVICES_QUERY, {}).toPromise();
@@ -608,6 +604,18 @@
 			},
 		},
 		{
+			keyword: "room",
+			label: "Room",
+			variant: "secondary",
+			options: (input: string) => {
+				const q = input.toLowerCase();
+				return roomsRef
+					.filter((r) => !q || r.name.toLowerCase().includes(q))
+					.map((r) => ({ value: r.id, label: r.name }));
+			},
+			resolveLabel: (value: string) => roomsRef.find((r) => r.id === value)?.name ?? null,
+		},
+		{
 			keyword: "empty",
 			label: "Empty",
 			variant: "secondary",
@@ -621,6 +629,7 @@
 			.filter((c) => c.keyword === "device")
 			.map((c) => c.value.toLowerCase());
 		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const roomValues = searchState.chips.filter((c) => c.keyword === "room").map((c) => c.value);
 		const query = searchState.freeText.toLowerCase();
 
 		const deviceIdByNameLower = new Map<string, string>();
@@ -644,6 +653,8 @@
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
+			if (roomValues.length > 0 && !s.rooms.some((r) => roomValues.includes(r.id)))
+				return false;
 			if (query && !s.name.toLowerCase().includes(query)) return false;
 			return true;
 		});
@@ -743,19 +754,19 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredScenes as scene (scene.id)}
-									{@const noTargets = scene.actions.length === 0}
+									{@const noTargets = scene.effectivePayloads.length === 0}
 									{@const applying = applyingId === scene.id}
 									{@const active = scene.activatedAt != null}
 									{@const tintColors = sceneTintColors(scene.effectivePayloads.map((p) => parsePayload(p.payload)))}
 									<EntityCard
 										entity={scene}
 										fallbackIcon={Clapperboard}
-										subtitle="{scene.actions.length} target{scene.actions.length === 1 ? '' : 's'}{scene.actions.length > 0 ? ' · ' + sceneTargetBreakdown(scene.actions) : ''}"
+										subtitle="{scene.effectivePayloads.length} target{scene.effectivePayloads.length === 1 ? '' : 's'}{scene.effectivePayloads.length > 0 ? ' · ' + sceneTargetBreakdown(scene.actions) : ''}"
 										tintColors={tintColors.length > 0 ? tintColors : null}
 										tintInactive={tintColors.length > 0 ? !active : null}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
-										onedit={handleEdit}
+										editHref={`/scenes/${scene.id}`}
 										ondelete={(s) => (deleteConfirmScene = s)}
 										onAddTo={handleAddToScene}
 										addLabel="Add target"
@@ -789,7 +800,6 @@
 								{selection}
 								{applyingId}
 								onapply={handleApply}
-								onedit={handleEdit}
 								ondelete={(s) => (deleteConfirmScene = s)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}

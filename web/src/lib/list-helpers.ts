@@ -65,19 +65,27 @@ export interface SceneActionLike {
 }
 
 /**
- * Human-readable breakdown of a scene's targets.
- * Examples: "3 devices", "1 device, 2 groups". Empty input → "No targets".
+ * Human-readable breakdown of a scene's targets by target kind.
+ * Counts device, group, room, and expression (selector) targets.
+ * Examples: "3 devices", "1 device, 2 groups", "1 room, 3 selectors".
+ * Empty input → "No targets".
  */
 export function sceneTargetBreakdown(actions: SceneActionLike[]): string {
   let d = 0;
   let g = 0;
+  let r = 0;
+  let e = 0;
   for (const a of actions) {
     if (a.targetType === "device") d++;
     else if (a.targetType === "group") g++;
+    else if (a.targetType === "room") r++;
+    else if (a.targetType === "expression") e++;
   }
   const parts: string[] = [];
   if (d > 0) parts.push(`${d} device${d === 1 ? "" : "s"}`);
   if (g > 0) parts.push(`${g} group${g === 1 ? "" : "s"}`);
+  if (r > 0) parts.push(`${r} room${r === 1 ? "" : "s"}`);
+  if (e > 0) parts.push(`${e} selector${e === 1 ? "" : "s"}`);
   if (parts.length === 0) return "No targets";
   return parts.join(", ");
 }
