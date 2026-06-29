@@ -144,6 +144,7 @@ describe("buildTargetInfo", () => {
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
+      uid: expect.any(String),
       type: "group",
       id: "g1",
       name: "Living Room Lights",
@@ -159,6 +160,7 @@ describe("buildTargetInfo", () => {
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
+      uid: expect.any(String),
       type: "room",
       id: "r1",
       name: "Kitchen",
@@ -174,6 +176,7 @@ describe("buildTargetInfo", () => {
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
+      uid: expect.any(String),
       type: "device",
       id: "d1",
       name: "Desk lamp",
