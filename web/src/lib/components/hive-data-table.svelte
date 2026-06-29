@@ -228,6 +228,20 @@
 		return flip(node, rect, params);
 	}
 
+	// Body cells flip only while a column drag is reordering them. Outside a
+	// drag the same directive would also animate vertical movement when rows
+	// are deleted or re-sorted, producing an unwanted translate.
+	function flipDuringColumnDrag(
+		node: Element,
+		rect: { from: DOMRect; to: DOMRect },
+		params: Parameters<typeof flip>[2],
+	) {
+		if (dragVisualOrder === null) {
+			return { duration: 0 };
+		}
+		return flip(node, rect, params);
+	}
+
 	function onSortClick(key: string) {
 		if (dragKey !== null || suppressSortClick) return;
 		tableState.toggleSort(key);
@@ -305,7 +319,7 @@
 				<TableRow {...extra}>
 					{#each visibleColumns as col (col.key)}
 						<td
-							animate:flip={FLIP_OPTS}
+							animate:flipDuringColumnDrag={FLIP_OPTS}
 							data-col-key={col.key}
 							class={cn(
 								"px-2 py-1.5 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0",
