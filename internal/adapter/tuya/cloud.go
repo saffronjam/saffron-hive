@@ -113,6 +113,28 @@ func (c *CloudClient) DeviceStatus(ctx context.Context, deviceID string) ([]Stat
 	return out.Result, nil
 }
 
+// DeviceLocalKey fetches the device's LAN local key from the cloud. The key is
+// required for local (direct) control and is not exposed by the device's own
+// UDP broadcast; it changes if the device is re-paired.
+func (c *CloudClient) DeviceLocalKey(ctx context.Context, deviceID string) (localKey, productID string, err error) {
+	var out struct {
+		Success bool   `json:"success"`
+		Code    int    `json:"code"`
+		Msg     string `json:"msg"`
+		Result  struct {
+			LocalKey  string `json:"local_key"`
+			ProductID string `json:"product_id"`
+		} `json:"result"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v1.0/devices/"+url.PathEscape(deviceID), nil, &out); err != nil {
+		return "", "", err
+	}
+	if !out.Success {
+		return "", "", fmt.Errorf("get tuya device: code=%d msg=%s", out.Code, out.Msg)
+	}
+	return out.Result.LocalKey, out.Result.ProductID, nil
+}
+
 func (c *CloudClient) DeviceFunctions(ctx context.Context, deviceID string) ([]Function, error) {
 	var out struct {
 		Success bool   `json:"success"`
