@@ -550,7 +550,7 @@ func (m *adapterManager) ReconnectTuya(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	adapter := tuya.NewAdapter(client, m.bus, m.memStore)
+	adapter := tuya.NewAdapter(client, m.bus, m.memStore, m.store)
 	if err := adapter.Start(ctx); err != nil {
 		adapter.Stop()
 		return fmt.Errorf("start tuya adapter: %w", err)
@@ -597,7 +597,7 @@ func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) 
 	if err != nil {
 		return nil, err
 	}
-	return tuya.NewAdapter(client, m.bus, m.memStore).Sync(ctx)
+	return tuya.NewAdapter(client, m.bus, m.memStore, m.store).Sync(ctx)
 }
 
 func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string) (int, error) {
