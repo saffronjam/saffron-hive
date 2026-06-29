@@ -449,10 +449,6 @@
 		automationsQuery.reexecute({ requestPolicy: "network-only" });
 	}
 
-	function handleCardClick(a: AutomationData) {
-		goto(`/automations/${a.id}`);
-	}
-
 	function requestDelete(a: AutomationData) {
 		deleteConfirmId = a.id;
 		deleteConfirmName = a.name;
@@ -596,7 +592,7 @@
 										subtitle="{automation.nodes.length} node{automation.nodes.length === 1 ? '' : 's'}"
 										onrename={handleRename}
 										oniconchange={handleIconChange}
-										onedit={handleCardClick}
+										editHref={`/automations/${automation.id}`}
 										ondelete={requestDelete}
 									>
 										{#snippet subtitleTrailing()}

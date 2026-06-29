@@ -192,10 +192,6 @@
 		fetchEffects();
 	}
 
-	function handleEdit(effect: EffectRow) {
-		goto(`/effects/${effect.id}`);
-	}
-
 	async function handleCreate(options: { keepOpen?: boolean } = {}) {
 		if (!clientRef || !newEffectName.trim()) return;
 		createLoading = true;
@@ -370,7 +366,7 @@
 								subtitle={`${effect.loop ? "Loop" : "Once"} · ${trackCount} track${trackCount === 1 ? "" : "s"} · ${clipCount} clip${clipCount === 1 ? "" : "s"}`}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
-								onedit={handleEdit}
+								editHref={`/effects/${effect.id}`}
 								ondelete={(e) => (deleteConfirm = e)}
 							>
 								{#snippet leadingActions()}
@@ -385,7 +381,7 @@
 									<Button
 										variant="ghost"
 										size="icon-sm"
-										onclick={() => handleEdit(effect)}
+										href={`/effects/${effect.id}`}
 										aria-label="Edit effect"
 									>
 										<Pencil class="size-4" />

@@ -5,7 +5,7 @@
 	import { Pencil, Trash2 } from "@lucide/svelte";
 
 	interface Props {
-		onedit?: () => void;
+		editHref?: string;
 		ondelete?: () => void;
 		editLabel?: string;
 		deleteLabel?: string;
@@ -15,7 +15,7 @@
 	}
 
 	let {
-		onedit,
+		editHref,
 		ondelete,
 		editLabel = "Edit",
 		deleteLabel = "Delete",
@@ -27,10 +27,10 @@
 
 <div class="flex items-center justify-end gap-1">
 	{@render leading?.()}
-	{#if onedit}
+	{#if editHref}
 		<Tooltip>
 			<TooltipTrigger>
-				<Button variant="ghost" size="icon-sm" onclick={onedit} aria-label={editLabel}>
+				<Button variant="ghost" size="icon-sm" href={editHref} aria-label={editLabel}>
 					<Pencil class="size-4" />
 				</Button>
 			</TooltipTrigger>

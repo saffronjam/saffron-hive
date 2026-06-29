@@ -23,7 +23,7 @@
 		onrename?: (entity: T, newName: string) => void;
 		oniconchange?: (entity: T, icon: string | null) => void;
 		iconEditable?: boolean;
-		onedit?: (entity: T) => void;
+		editHref?: string;
 		ondelete?: (entity: T) => void;
 		onAddTo?: (entity: T) => void;
 		onTagRooms?: (entity: T) => void;
@@ -128,7 +128,7 @@
 		onrename,
 		oniconchange,
 		iconEditable = true,
-		onedit,
+		editHref,
 		ondelete,
 		onAddTo,
 		onTagRooms,
@@ -305,10 +305,16 @@
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" class="w-44">
-						<DropdownMenuItem onclick={() => onedit?.(entity)}>
-							<Pencil class="size-4" />
-							{editLabel}
-						</DropdownMenuItem>
+						{#if editHref}
+							<DropdownMenuItem>
+								{#snippet child({ props })}
+									<a href={editHref} {...props}>
+										<Pencil class="size-4" />
+										{editLabel}
+									</a>
+								{/snippet}
+							</DropdownMenuItem>
+						{/if}
 						{#if onAddTo}
 							<DropdownMenuItem onclick={() => onAddTo?.(entity)}>
 								<Plus class="size-4" />

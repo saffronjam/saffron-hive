@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
@@ -211,7 +210,7 @@
 
 {#snippet actionsCell(a: AutomationData)}
 	<RowActionsCell
-		onedit={() => goto(`/automations/${a.id}`)}
+		editHref={`/automations/${a.id}`}
 		ondelete={() => ondelete(a)}
 		editLabel="Edit automation"
 		deleteLabel="Delete automation"

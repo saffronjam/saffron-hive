@@ -31,7 +31,7 @@
 		subtitle?: string;
 		onrename?: (entity: T, newName: string) => void;
 		oniconchange?: (entity: T, icon: string | null) => void;
-		onedit?: (entity: T) => void;
+		editHref?: string;
 		ondelete?: (entity: T) => void;
 		onAddTo?: (entity: T) => void;
 		onbrightness?: (val: number) => void;
@@ -49,7 +49,7 @@
 		subtitle,
 		onrename,
 		oniconchange,
-		onedit,
+		editHref,
 		ondelete,
 		onAddTo,
 		onbrightness,
@@ -181,7 +181,7 @@
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	{tintStrength}
-	{onedit}
+	{editHref}
 	{ondelete}
 	{onrename}
 	{oniconchange}

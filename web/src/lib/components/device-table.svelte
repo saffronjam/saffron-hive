@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { type Device } from "$lib/stores/devices";
 	import { stateSummary } from "$lib/device-state";
 	import { aggregateSensorReadings } from "$lib/device-tint";
@@ -223,7 +222,7 @@
 
 {#snippet actionsCell(row: Row)}
 	<RowActionsCell
-		onedit={() => goto(`/devices/${row.device.id}`)}
+		editHref={`/devices/${row.device.id}`}
 		editLabel="Edit device"
 	>
 		{#snippet leading()}

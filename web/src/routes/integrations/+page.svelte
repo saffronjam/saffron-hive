@@ -145,7 +145,7 @@
 					entity={{ id: integration.provider, name: integration.name, icon: null }}
 					fallbackIcon={TuyaIcon}
 					subtitle={statusLabel(integration)}
-					onedit={() => openProvider(integration.provider)}
+					editHref={`/integrations/${integration.provider}`}
 					ondelete={() => (deleteConfirmIntegration = integration)}
 					editLabel="Configure"
 					deleteLabel="Delete integration"
