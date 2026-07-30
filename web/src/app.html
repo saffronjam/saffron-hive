@@ -7,14 +7,25 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Hive</title>
     <script>
       (function () {
         var theme = localStorage.getItem("saffron-hive-theme");
+        var dark = true;
         if (theme === "light") {
-          document.documentElement.classList.remove("dark");
+          dark = false;
         } else if (!theme && !window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          dark = false;
+        }
+        if (!dark) {
           document.documentElement.classList.remove("dark");
+        }
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+          meta.setAttribute("content", dark ? "#09090b" : "#ffffff");
         }
       })();
     </script>
