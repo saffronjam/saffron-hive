@@ -16,6 +16,10 @@ web/node_modules/
 cmd/serve/webdist/*
 !cmd/serve/webdist/index.html
 
+# Local design sketches and implementation plans — scratch space, not part of
+# the repository's record of current state.
+/plans/
+
 # IDE
 .idea/
 .vscode/
