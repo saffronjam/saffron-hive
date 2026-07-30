@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -281,7 +280,11 @@ func Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	mux.Handle("/", spaFallbackHandler(staticFS))
+	staticSrv, err := newStaticHandler(staticFS)
+	if err != nil {
+		return err
+	}
+	mux.Handle("/", staticSrv)
 
 	var indexHTML []byte
 	if b, err := fs.ReadFile(staticFS, "index.html"); err == nil {
@@ -332,28 +335,6 @@ func Run(ctx context.Context) error {
 	}
 
 	return listenErr
-}
-
-// spaFallbackHandler serves static frontend assets and falls back to index.html
-// for any path whose file doesn't exist — required because SvelteKit runs as an
-// SPA with client-side routing (ssr=false), so URLs like /scenes must be
-// rewritten to index.html and the app takes over from there.
-func spaFallbackHandler(fsys fs.FS) http.Handler {
-	fileServer := http.FileServerFS(fsys)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-		if _, err := fs.Stat(fsys, path); err != nil {
-			r2 := r.Clone(r.Context())
-			r2.URL.Path = "/"
-			fileServer.ServeHTTP(w, r2)
-			return
-		}
-		fileServer.ServeHTTP(w, r)
-	})
 }
 
 // wsInitFunc validates the authToken sent via graphql-ws connectionParams and
