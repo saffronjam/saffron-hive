@@ -109,7 +109,6 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - `internal/` — all Go application code. See `internal/CLAUDE.md` for the per-package breakdown.
 - `web/` — Svelte frontend. See `web/CLAUDE.md`.
 - `e2e/` — in-process end-to-end tests (Go side). Frontend e2e lives under `web/tests/`.
-- `plans/` — design sketches and implementation plans organised into layers (`layer-0/` through `layer-6/`). Not checked against for drift; treat as documentation of intent rather than current state.
 - `resources/` — project brand assets (`brand.md`, `icon.svg`).
 
 ## Code style
