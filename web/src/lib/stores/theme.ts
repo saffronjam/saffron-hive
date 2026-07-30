@@ -17,6 +17,9 @@ const TRANSITION_CLASS = "theme-transitioning";
 const TRANSITION_MS = 280;
 let transitionTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Status bar tint in the installed app, matching `--background` per theme. */
+const THEME_COLORS: Record<Theme, string> = { dark: "#09090b", light: "#ffffff" };
+
 function applyTheme(theme: Theme, animate = false): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -30,6 +33,7 @@ function applyTheme(theme: Theme, animate = false): void {
     }, TRANSITION_MS);
   }
   root.classList.toggle("dark", theme === "dark");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
 }
 
 function createThemeStore() {
