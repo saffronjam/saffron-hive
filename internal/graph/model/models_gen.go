@@ -259,8 +259,14 @@ type Device struct {
 	Tags         []DeviceTag   `json:"tags"`
 	Capabilities []*Capability `json:"capabilities"`
 	Available    bool          `json:"available"`
-	LastSeen     *time.Time    `json:"lastSeen,omitempty"`
-	State        *DeviceState  `json:"state,omitempty"`
+	// When true the device is excluded from every path that commands or watches it:
+	// scene apply, automation and effect fan-out, target selectors, and the
+	// unavailable / low-battery health checks. setDeviceState rejects it outright.
+	// Its row, detail page, live subscriptions and state history are unaffected, and
+	// it still renders as a member of the rooms, groups and scenes it belongs to.
+	Disabled bool         `json:"disabled"`
+	LastSeen *time.Time   `json:"lastSeen,omitempty"`
+	State    *DeviceState `json:"state,omitempty"`
 }
 
 func (Device) IsSceneTarget() {}
@@ -438,20 +444,6 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
-type MqttConfig struct {
-	Broker   string `json:"broker"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	UseWss   bool   `json:"useWss"`
-}
-
-type MqttConfigInput struct {
-	Broker   string `json:"broker"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	UseWss   bool   `json:"useWss"`
-}
-
 type Mutation struct {
 }
 
@@ -587,7 +579,6 @@ type Setting struct {
 
 type SetupStatus struct {
 	HasInitialUser bool `json:"hasInitialUser"`
-	MqttConfigured bool `json:"mqttConfigured"`
 }
 
 type StateHistoryFilter struct {
@@ -659,9 +650,10 @@ type UpdateCurrentUserInput struct {
 }
 
 type UpdateDeviceInput struct {
-	Name graphql.Omittable[*string]     `json:"name,omitempty"`
-	Icon graphql.Omittable[*string]     `json:"icon,omitempty"`
-	Tags graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
+	Name     graphql.Omittable[*string]     `json:"name,omitempty"`
+	Icon     graphql.Omittable[*string]     `json:"icon,omitempty"`
+	Tags     graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
+	Disabled graphql.Omittable[*bool]       `json:"disabled,omitempty"`
 }
 
 type UpdateEffectInput struct {
@@ -722,6 +714,22 @@ type User struct {
 	// flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
 	// on attribution references.
 	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
+}
+
+type Zigbee2MqttConfig struct {
+	Broker   string `json:"broker"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	UseWss   bool   `json:"useWss"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type Zigbee2MqttConfigInput struct {
+	Broker   string `json:"broker"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	UseWss   bool   `json:"useWss"`
+	Enabled  bool   `json:"enabled"`
 }
 
 type AggregatedHistoryTargetType string

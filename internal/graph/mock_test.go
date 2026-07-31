@@ -70,6 +70,24 @@ func (m *mockStateReader) addDevice(d device.Device) {
 	}
 }
 
+// applyUserFields mirrors device.MemoryStore.UpdateUserFields: it refreshes the
+// user-owned metadata a device.updated event carries and leaves runtime state
+// alone.
+func (m *mockStateReader) applyUserFields(d device.Device) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.devices {
+		if m.devices[i].ID != d.ID {
+			continue
+		}
+		m.devices[i].Name = d.Name
+		m.devices[i].Icon = d.Icon
+		m.devices[i].Tags = d.Tags
+		m.devices[i].Disabled = d.Disabled
+		return
+	}
+}
+
 func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -91,7 +109,7 @@ type mockStore struct {
 	activityCounter int64
 	devices         map[device.DeviceID]device.Device
 	users           map[string]store.User // keyed by id
-	mqttConfig      *store.MQTTConfig
+	zigbee2mqttCfg  *store.Zigbee2MQTTConfig
 	tuyaConfig      *store.TuyaConfig
 	effects         map[string]store.Effect
 	activeEffects   map[string]effect.ActiveEffectRecord
@@ -196,6 +214,18 @@ func (m *mockStore) UpdateDeviceIcon(_ context.Context, params store.UpdateDevic
 		d.Icon = params.Icon
 	}
 	m.devices[params.ID] = d
+	return d, nil
+}
+
+func (m *mockStore) SetDeviceDisabled(_ context.Context, id device.DeviceID, disabled bool) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[id]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	d.Disabled = disabled
+	m.devices[id] = d
 	return d, nil
 }
 
@@ -704,13 +734,23 @@ func (m *mockStore) PruneActivityEventsOlderThan(_ context.Context, cutoff time.
 	return pruned, nil
 }
 
-func (m *mockStore) GetMQTTConfig(_ context.Context) (*store.MQTTConfig, error) {
+func (m *mockStore) GetZigbee2MQTTConfig(_ context.Context) (*store.Zigbee2MQTTConfig, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.mqttConfig, nil
+	return m.zigbee2mqttCfg, nil
 }
 
-func (m *mockStore) UpsertMQTTConfig(_ context.Context, _ store.MQTTConfig) error {
+func (m *mockStore) UpsertZigbee2MQTTConfig(_ context.Context, cfg store.Zigbee2MQTTConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.zigbee2mqttCfg = &cfg
+	return nil
+}
+
+func (m *mockStore) DeleteZigbee2MQTTConfig(_ context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.zigbee2mqttCfg = nil
 	return nil
 }
 

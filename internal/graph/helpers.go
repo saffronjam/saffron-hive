@@ -252,6 +252,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		Tags:         deviceTagsToModel(d.Tags),
 		Capabilities: mapCapabilities(d.Capabilities),
 		Available:    available,
+		Disabled:     d.Disabled,
 		LastSeen:     &lastSeen,
 	}
 	md.State = resolveDeviceStateFromReader(sr, d.ID)
@@ -301,6 +302,36 @@ func deviceTagsFromModel(tags []model.DeviceTag) []device.DeviceTag {
 		}
 	}
 	return out
+}
+
+// zigbee2MQTTPassword substitutes the stored broker password when the caller
+// echoes back the redaction sentinel instead of a real value.
+func zigbee2MQTTPassword(ctx context.Context, s GraphStore, input string) (string, error) {
+	if input != redactedPasswordSentinel {
+		return input, nil
+	}
+	existing, err := s.GetZigbee2MQTTConfig(ctx)
+	if err != nil {
+		return "", err
+	}
+	if existing == nil {
+		return "", nil
+	}
+	return existing.Password, nil
+}
+
+func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig) *model.Zigbee2MqttConfig {
+	password := ""
+	if cfg.Password != "" {
+		password = redactedPasswordSentinel
+	}
+	return &model.Zigbee2MqttConfig{
+		Broker:   cfg.Broker,
+		Username: cfg.Username,
+		Password: password,
+		UseWss:   cfg.UseWSS,
+		Enabled:  cfg.Enabled,
+	}
 }
 
 func mapTuyaConfig(cfg store.TuyaConfig) *model.TuyaConfig {
@@ -363,7 +394,7 @@ func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolv
 		CreatedBy:   mapUserRef(sc.CreatedBy),
 		ActivatedAt: sc.ActivatedAt,
 	}
-	ms.Rooms = computeScenePresentRooms(ctx, tr, s, actions)
+	ms.Rooms = computeScenePresentRooms(ctx, sr, tr, s, actions)
 	ms.Actions = make([]*model.SceneAction, len(actions))
 	for i, a := range actions {
 		var target model.SceneTarget
@@ -557,10 +588,10 @@ func temperatureUnitToStore(t model.TemperatureUnit) string {
 // sides together.
 const MinPasswordLen = 10
 
-// redactedPasswordSentinel is the literal that MqttConfig returns in place of
-// the stored broker password. The updateMqttConfig mutation accepts it as
-// "leave the existing value alone" so the frontend can submit the form
-// without forcing a re-entry of a password the user cannot see.
+// redactedPasswordSentinel is the literal returned in place of a stored
+// integration secret. The matching update mutations accept it back as "leave the
+// existing value alone" so the frontend can submit a form without forcing
+// re-entry of a secret the user cannot see.
 const redactedPasswordSentinel = "********"
 
 // validatePassword enforces length and basic complexity rules shared by every
@@ -1009,17 +1040,28 @@ func (r *mutationResolver) walkDescendants(ctx context.Context, current, target 
 }
 
 // computeScenePresentRooms returns the rooms whose resolved-device set
-// overlaps the scene's resolved-device set. The intersection uses the same
-// walker scene-apply uses (TargetResolver.ResolveTargetDeviceIDs), so a
-// scene whose actions target a single device surfaces in every room that
-// device belongs to, transitively. Returned rooms carry only id, name,
-// icon, and creator attribution — Members and ResolvedDevices are empty
-// arrays. Consumers that need the full room shape query Query.room or
-// Query.rooms directly.
-func computeScenePresentRooms(ctx context.Context, tr device.TargetResolver, s GraphStore, actions []store.SceneAction) []*model.Room {
+// overlaps the scene's resolved-device set. The intersection resolves actions
+// exactly as scene-apply does, expression targets included, so a scene whose
+// actions target a single device surfaces in every room that device belongs to,
+// transitively. Returned rooms carry only id, name, icon, and creator
+// attribution — Members and ResolvedDevices are empty arrays. Consumers that
+// need the full room shape query Query.room or Query.rooms directly.
+// sceneRoomLister is the only store surface computeScenePresentRooms needs.
+// *store.DB and GraphStore both satisfy it structurally.
+type sceneRoomLister interface {
+	ListRooms(ctx context.Context) ([]store.Room, error)
+}
+
+func computeScenePresentRooms(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s sceneRoomLister, actions []store.SceneAction) []*model.Room {
 	sceneDevs := map[device.DeviceID]struct{}{}
 	for _, a := range actions {
-		for _, id := range tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID) {
+		var ids []device.DeviceID
+		if a.TargetType == string(device.TargetExpression) {
+			ids = device.EvaluateExpression(ctx, sr, tr, a.Expression)
+		} else {
+			ids = tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID)
+		}
+		for _, id := range ids {
 			sceneDevs[id] = struct{}{}
 		}
 	}

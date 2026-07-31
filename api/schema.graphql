@@ -28,6 +28,14 @@ type Device {
   tags: [DeviceTag!]!
   capabilities: [Capability!]!
   available: Boolean!
+  """
+  When true the device is excluded from every path that commands or watches it:
+  scene apply, automation and effect fan-out, target selectors, and the
+  unavailable / low-battery health checks. setDeviceState rejects it outright.
+  Its row, detail page, live subscriptions and state history are unaffected, and
+  it still renders as a member of the rooms, groups and scenes it belongs to.
+  """
+  disabled: Boolean!
   lastSeen: DateTime
   state: DeviceState
 }
@@ -502,7 +510,6 @@ type AuthPayload {
 
 type SetupStatus {
   hasInitialUser: Boolean!
-  mqttConfigured: Boolean!
 }
 
 input LoginInput {
@@ -541,11 +548,12 @@ input ChangePasswordInput {
   newPassword: String!
 }
 
-type MqttConfig {
+type Zigbee2MqttConfig {
   broker: String!
   username: String!
   password: String!
   useWss: Boolean!
+  enabled: Boolean!
 }
 
 type Integration {
@@ -665,11 +673,12 @@ input RaiseAlarmInput {
   source: String
 }
 
-input MqttConfigInput {
+input Zigbee2MqttConfigInput {
   broker: String!
   username: String!
   password: String!
   useWss: Boolean!
+  enabled: Boolean!
 }
 
 input TuyaConfigInput {
@@ -703,6 +712,7 @@ input UpdateDeviceInput {
   name: String
   icon: String
   tags: [DeviceTag!]
+  disabled: Boolean
 }
 
 input CreateSceneInput {
@@ -833,8 +843,8 @@ type Query {
   stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
   aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
-  mqttConfig: MqttConfig @auth
   integrations: [Integration!]! @auth
+  zigbee2MqttConfig: Zigbee2MqttConfig @auth
   tuyaConfig: TuyaConfig @auth
   settings: [Setting!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
@@ -883,8 +893,8 @@ type Mutation {
   deleteRoom(id: ID!): Boolean! @auth
   addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
   removeRoomMember(id: ID!): Boolean! @auth
-  updateMqttConfig(input: MqttConfigInput!): MqttConfig! @auth
-  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult! @auth
+  updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
+  testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth

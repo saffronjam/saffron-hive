@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
@@ -66,6 +65,12 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 			return nil, err
 		}
 	}
+	if disabled, ok := input.Disabled.ValueOK(); ok && disabled != nil {
+		d, err = r.Store.SetDeviceDisabled(ctx, deviceID, *disabled)
+		if err != nil {
+			return nil, err
+		}
+	}
 	r.EventBus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceUpdated,
 		DeviceID:  string(d.ID),
@@ -81,6 +86,9 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 	d, ok := r.StateReader.GetDevice(id)
 	if !ok {
 		return nil, fmt.Errorf("device %q not found", deviceID)
+	}
+	if d.Disabled {
+		return nil, fmt.Errorf("device %q is disabled; enable it before sending commands", d.Name)
 	}
 
 	cmd := device.Command{
@@ -649,86 +657,54 @@ func (r *mutationResolver) RemoveRoomMember(ctx context.Context, id string) (boo
 	return true, nil
 }
 
-// UpdateMqttConfig persists a new broker configuration. When the incoming
-// password is the redacted sentinel the existing stored password is preserved
-// — the read-side MqttConfig resolver returns the sentinel whenever a
-// password is set, so the frontend can submit the form without forcing the
-// user to retype the password they cannot see.
-func (r *mutationResolver) UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error) {
-	password := input.Password
-	if password == redactedPasswordSentinel {
-		existing, err := r.Store.GetMQTTConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
-			password = existing.Password
-		} else {
-			password = ""
-		}
-	}
-
-	if err := r.Store.UpsertMQTTConfig(ctx, store.MQTTConfig{
-		Broker:   input.Broker,
-		Username: input.Username,
-		Password: password,
-		UseWSS:   input.UseWss,
-	}); err != nil {
+// UpdateZigbee2MqttConfig is the resolver for the updateZigbee2MqttConfig field.
+// Saving always reapplies the configuration to the adapter, so a reachable
+// broker connects immediately. The row is persisted even when the reconnect
+// fails; the error reports that the connection did not come up, not that the
+// save was lost.
+func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error) {
+	password, err := zigbee2MQTTPassword(ctx, r.Store, input.Password)
+	if err != nil {
 		return nil, err
 	}
-
-	if err := r.Reconnector.Reconnect(ctx); err != nil {
-		return nil, fmt.Errorf("saved config but failed to reconnect: %w", err)
-	}
-
-	masked := ""
-	if password != "" {
-		masked = redactedPasswordSentinel
-	}
-	return &model.MqttConfig{
-		Broker:   input.Broker,
-		Username: input.Username,
-		Password: masked,
-		UseWss:   input.UseWss,
-	}, nil
-}
-
-// TestMqttConnection is the resolver for the testMqttConnection field. Treats
-// the redacted-password sentinel the same as updateMqttConfig: substitute the
-// stored value so the user can verify a config without retyping the password.
-func (r *mutationResolver) TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error) {
-	password := input.Password
-	if password == redactedPasswordSentinel {
-		existing, err := r.Store.GetMQTTConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
-			password = existing.Password
-		} else {
-			password = ""
-		}
-	}
-	client := zigbee.NewPahoClient(zigbee.PahoConfig{
-		Broker:   input.Broker,
-		Username: input.Username,
+	cfg := store.Zigbee2MQTTConfig{
+		Broker:   strings.TrimSpace(input.Broker),
+		Username: strings.TrimSpace(input.Username),
 		Password: password,
 		UseWSS:   input.UseWss,
-		ClientID: "saffron-hive-test",
-	})
-
-	if err := client.Connect(); err != nil {
-		return &model.ConnectionTestResult{
-			Success: false,
-			Message: err.Error(),
-		}, nil
+		Enabled:  input.Enabled,
 	}
-	client.Disconnect(250)
+	if err := r.Store.UpsertZigbee2MQTTConfig(ctx, cfg); err != nil {
+		return nil, err
+	}
+	if r.Zigbee2MQTT != nil {
+		if err := r.Zigbee2MQTT.ReconnectZigbee2MQTT(ctx); err != nil {
+			return nil, fmt.Errorf("saved config but failed to reconnect Zigbee2MQTT: %w", err)
+		}
+	}
+	return mapZigbee2MQTTConfig(cfg), nil
+}
 
-	return &model.ConnectionTestResult{
-		Success: true,
-		Message: "Connected successfully",
-	}, nil
+// TestZigbee2MqttConnection is the resolver for the testZigbee2MqttConnection field.
+func (r *mutationResolver) TestZigbee2MqttConnection(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.ConnectionTestResult, error) {
+	if r.Zigbee2MQTT == nil {
+		return &model.ConnectionTestResult{Success: false, Message: "Zigbee2MQTT integration is unavailable"}, nil
+	}
+	password, err := zigbee2MQTTPassword(ctx, r.Store, input.Password)
+	if err != nil {
+		return nil, err
+	}
+	cfg := store.Zigbee2MQTTConfig{
+		Broker:   strings.TrimSpace(input.Broker),
+		Username: strings.TrimSpace(input.Username),
+		Password: password,
+		UseWSS:   input.UseWss,
+		Enabled:  input.Enabled,
+	}
+	if err := r.Zigbee2MQTT.TestZigbee2MQTT(ctx, cfg); err != nil {
+		return &model.ConnectionTestResult{Success: false, Message: err.Error()}, nil
+	}
+	return &model.ConnectionTestResult{Success: true, Message: "Connected successfully"}, nil
 }
 
 // UpdateTuyaConfig is the resolver for the updateTuyaConfig field.
@@ -807,10 +783,10 @@ func (r *mutationResolver) SyncTuyaDevices(ctx context.Context) ([]*model.Device
 
 // DeleteIntegration is the resolver for the deleteIntegration field.
 func (r *mutationResolver) DeleteIntegration(ctx context.Context, provider string) (int, error) {
-	if r.Tuya == nil {
+	if r.Integrations == nil {
 		return 0, errors.New("integration manager is not configured")
 	}
-	return r.Tuya.DeleteIntegration(ctx, provider)
+	return r.Integrations.DeleteIntegration(ctx, provider)
 }
 
 // UpdateSetting is the resolver for the updateSetting field. Server-internal
@@ -1841,52 +1817,64 @@ func (r *queryResolver) StateHistoryFields(ctx context.Context) ([]string, error
 	return out, nil
 }
 
-// MqttConfig returns the persisted broker configuration. The password is
-// redacted to a sentinel so a leaked session token cannot pivot into broker
-// credentials by reading this query — the frontend treats the field as
-// write-only, only including a new value in updateMqttConfig when the user
-// has actually typed one.
-func (r *queryResolver) MqttConfig(ctx context.Context) (*model.MqttConfig, error) {
-	cfg, err := r.Store.GetMQTTConfig(ctx)
+// Integrations is the resolver for the integrations field. Device counts come
+// from a single pass over the device list bucketed by source, so adding a
+// provider costs no extra query.
+func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration, error) {
+	devices, err := r.Store.ListDevices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	countBySource := make(map[device.Source]int, 2)
+	for _, d := range devices {
+		countBySource[d.Source]++
+	}
+
+	z2m, err := r.Store.GetZigbee2MQTTConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tuyaCfg, err := r.Store.GetTuyaConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	z2mConfigured := z2m != nil && z2m.Broker != ""
+	z2mEnabled := z2mConfigured && z2m.Enabled
+	tuyaConfigured := tuyaCfg != nil && tuyaCfg.AccessID != "" && tuyaCfg.AccessSecret != "" && tuyaCfg.Region != ""
+	tuyaEnabled := tuyaConfigured && tuyaCfg.Enabled
+
+	return []*model.Integration{
+		{
+			Provider:    string(device.SourceZigbee2MQTT),
+			Name:        "Zigbee2MQTT",
+			Configured:  z2mConfigured,
+			Enabled:     z2mEnabled,
+			Connected:   z2mEnabled && r.Zigbee2MQTT != nil && r.Zigbee2MQTT.Zigbee2MQTTConnected(),
+			DeviceCount: countBySource[device.SourceZigbee2MQTT],
+		},
+		{
+			Provider:    string(device.SourceTuya),
+			Name:        "Tuya",
+			Configured:  tuyaConfigured,
+			Enabled:     tuyaEnabled,
+			Connected:   tuyaEnabled && r.Tuya != nil && r.Tuya.TuyaConnected(),
+			DeviceCount: countBySource[device.SourceTuya],
+		},
+	}, nil
+}
+
+// Zigbee2MqttConfig is the resolver for the zigbee2MqttConfig field. Returns nil
+// when the integration has not been configured.
+func (r *queryResolver) Zigbee2MqttConfig(ctx context.Context) (*model.Zigbee2MqttConfig, error) {
+	cfg, err := r.Store.GetZigbee2MQTTConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if cfg == nil {
 		return nil, nil
 	}
-	masked := ""
-	if cfg.Password != "" {
-		masked = redactedPasswordSentinel
-	}
-	return &model.MqttConfig{
-		Broker:   cfg.Broker,
-		Username: cfg.Username,
-		Password: masked,
-		UseWss:   cfg.UseWSS,
-	}, nil
-}
-
-// Integrations is the resolver for the integrations field.
-func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration, error) {
-	cfg, err := r.Store.GetTuyaConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	tuyaDevices, err := r.Store.ListDevicesBySource(ctx, "tuya")
-	if err != nil {
-		return nil, err
-	}
-	configured := cfg != nil && cfg.AccessID != "" && cfg.AccessSecret != "" && cfg.Region != ""
-	enabled := configured && cfg.Enabled
-	connected := enabled && r.Tuya != nil && r.Tuya.TuyaConnected()
-	return []*model.Integration{{
-		Provider:    "tuya",
-		Name:        "Tuya",
-		Configured:  configured,
-		Enabled:     enabled,
-		Connected:   connected,
-		DeviceCount: len(tuyaDevices),
-	}}, nil
+	return mapZigbee2MQTTConfig(*cfg), nil
 }
 
 // TuyaConfig is the resolver for the tuyaConfig field.
@@ -2057,14 +2045,7 @@ func (r *queryResolver) SetupStatus(ctx context.Context) (*model.SetupStatus, er
 	if err != nil {
 		return nil, err
 	}
-	mqtt, err := r.Store.GetMQTTConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &model.SetupStatus{
-		HasInitialUser: count > 0,
-		MqttConfigured: mqtt != nil && mqtt.Broker != "",
-	}, nil
+	return &model.SetupStatus{HasInitialUser: count > 0}, nil
 }
 
 // Me is the resolver for the me field. Returns nil when unauthenticated. The

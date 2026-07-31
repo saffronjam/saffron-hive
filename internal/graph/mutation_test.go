@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ func TestMutationSetDeviceState(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
-	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: "zigbee", Type: device.Light, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
 	env.stateReader.setDeviceState("d1", &device.DeviceState{On: device.Ptr(false), Brightness: device.Ptr(0)})
 
 	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
@@ -391,5 +392,90 @@ func TestMutationToggleAutomation(t *testing.T) {
 	}
 	if !env.reloader.wasCalled() {
 		t.Error("expected reload called")
+	}
+}
+
+// TestMutationDisableDeviceBlocksCommands covers the two halves of the disable
+// contract at the API edge: updateDevice persists the flag and reports it back,
+// and setDeviceState then refuses rather than publishing a command that would
+// silently go nowhere.
+func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
+	env := newTestEnv(t)
+	now := time.Now().Truncate(time.Second)
+	env.stateReader.addDevice(device.Device{
+		ID:        "ac",
+		Name:      "Portable AC",
+		Source:    device.SourceTuya,
+		Type:      device.Climate,
+		Available: true,
+		LastSeen:  now,
+	})
+
+	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
+	defer env.bus.Unsubscribe(ch)
+	updates := env.bus.Subscribe(eventbus.EventDeviceUpdated)
+	defer env.bus.Unsubscribe(updates)
+
+	resp := env.query(t, `mutation { updateDevice(id: "ac", input: {disabled: true}) { id disabled } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors disabling: %v", resp.Errors)
+	}
+	var disabledOut struct {
+		UpdateDevice struct {
+			ID       string `json:"id"`
+			Disabled bool   `json:"disabled"`
+		} `json:"updateDevice"`
+	}
+	if err := json.Unmarshal(resp.Data, &disabledOut); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !disabledOut.UpdateDevice.Disabled {
+		t.Fatal("updateDevice did not report the device as disabled")
+	}
+	drainDeviceUpdate(t, updates, env.stateReader)
+
+	resp = env.query(t, `mutation { setDeviceState(deviceId: "ac", state: {on: true}) { id } }`, nil)
+	if len(resp.Errors) == 0 {
+		t.Fatal("expected setDeviceState to reject a disabled device")
+	}
+	if !strings.Contains(resp.Errors[0].Message, "disabled") {
+		t.Errorf("error should name the reason, got %q", resp.Errors[0].Message)
+	}
+	select {
+	case evt := <-ch:
+		t.Fatalf("a command was published for a disabled device: %+v", evt)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	resp = env.query(t, `mutation { updateDevice(id: "ac", input: {disabled: false}) { id disabled } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors re-enabling: %v", resp.Errors)
+	}
+	drainDeviceUpdate(t, updates, env.stateReader)
+	resp = env.query(t, `mutation { setDeviceState(deviceId: "ac", state: {on: true}) { id } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("re-enabled device still rejects commands: %v", resp.Errors)
+	}
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for the command after re-enabling")
+	}
+}
+
+// drainDeviceUpdate applies one device.updated event to the state reader the way
+// device.MemoryStore does in production, so a test can assert on what the
+// command gate sees after a metadata mutation.
+func drainDeviceUpdate(t *testing.T, ch <-chan eventbus.Event, sr *mockStateReader) {
+	t.Helper()
+	select {
+	case evt := <-ch:
+		d, ok := evt.Payload.(device.Device)
+		if !ok {
+			t.Fatalf("device.updated payload is not a Device: %T", evt.Payload)
+		}
+		sr.applyUserFields(d)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for device.updated")
 	}
 }

@@ -150,6 +150,7 @@ type ComplexityRoot struct {
 	Device struct {
 		Available    func(childComplexity int) int
 		Capabilities func(childComplexity int) int
+		Disabled     func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Icon         func(childComplexity int) int
 		LastSeen     func(childComplexity int) int
@@ -271,13 +272,6 @@ type ComplexityRoot struct {
 		Timestamp func(childComplexity int) int
 	}
 
-	MqttConfig struct {
-		Broker   func(childComplexity int) int
-		Password func(childComplexity int) int
-		UseWss   func(childComplexity int) int
-		Username func(childComplexity int) int
-	}
-
 	Mutation struct {
 		AddGroupMember              func(childComplexity int, input model.AddGroupMemberInput) int
 		AddRoomMember               func(childComplexity int, input model.AddRoomMemberInput) int
@@ -320,19 +314,19 @@ type ComplexityRoot struct {
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
 		SyncTuyaDevices             func(childComplexity int) int
-		TestMqttConnection          func(childComplexity int, input model.MqttConfigInput) int
 		TestTuyaConnection          func(childComplexity int, input model.TuyaConfigInput) int
+		TestZigbee2MqttConnection   func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 		ToggleAutomation            func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
 		UpdateCurrentUser           func(childComplexity int, input model.UpdateCurrentUserInput) int
 		UpdateDevice                func(childComplexity int, id string, input model.UpdateDeviceInput) int
 		UpdateEffect                func(childComplexity int, input model.UpdateEffectInput) int
 		UpdateGroup                 func(childComplexity int, id string, input model.UpdateGroupInput) int
-		UpdateMqttConfig            func(childComplexity int, input model.MqttConfigInput) int
 		UpdateRoom                  func(childComplexity int, id string, input model.UpdateRoomInput) int
 		UpdateScene                 func(childComplexity int, id string, input model.UpdateSceneInput) int
 		UpdateSetting               func(childComplexity int, key string, value string) int
 		UpdateTuyaConfig            func(childComplexity int, input model.TuyaConfigInput) int
+		UpdateZigbee2MqttConfig     func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 	}
 
 	NativeEffectOption struct {
@@ -357,7 +351,6 @@ type ComplexityRoot struct {
 		Integrations           func(childComplexity int) int
 		Logs                   func(childComplexity int, search *string, limit *int) int
 		Me                     func(childComplexity int) int
-		MqttConfig             func(childComplexity int) int
 		NativeEffectOptions    func(childComplexity int) int
 		Room                   func(childComplexity int, id string) int
 		Rooms                  func(childComplexity int) int
@@ -369,6 +362,7 @@ type ComplexityRoot struct {
 		StateHistoryFields     func(childComplexity int) int
 		TuyaConfig             func(childComplexity int) int
 		Users                  func(childComplexity int) int
+		Zigbee2MqttConfig      func(childComplexity int) int
 	}
 
 	Room struct {
@@ -425,7 +419,6 @@ type ComplexityRoot struct {
 
 	SetupStatus struct {
 		HasInitialUser func(childComplexity int) int
-		MqttConfigured func(childComplexity int) int
 	}
 
 	StateSeries struct {
@@ -478,6 +471,14 @@ type ComplexityRoot struct {
 		TimeFormat         func(childComplexity int) int
 		Username           func(childComplexity int) int
 	}
+
+	Zigbee2MqttConfig struct {
+		Broker   func(childComplexity int) int
+		Enabled  func(childComplexity int) int
+		Password func(childComplexity int) int
+		UseWss   func(childComplexity int) int
+		Username func(childComplexity int) int
+	}
 }
 
 type MutationResolver interface {
@@ -503,8 +504,8 @@ type MutationResolver interface {
 	DeleteRoom(ctx context.Context, id string) (bool, error)
 	AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.RoomMember, error)
 	RemoveRoomMember(ctx context.Context, id string) (bool, error)
-	UpdateMqttConfig(ctx context.Context, input model.MqttConfigInput) (*model.MqttConfig, error)
-	TestMqttConnection(ctx context.Context, input model.MqttConfigInput) (*model.ConnectionTestResult, error)
+	UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error)
+	TestZigbee2MqttConnection(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.ConnectionTestResult, error)
 	UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error)
 	TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error)
 	SyncTuyaDevices(ctx context.Context) ([]*model.Device, error)
@@ -550,8 +551,8 @@ type QueryResolver interface {
 	StateHistory(ctx context.Context, filter model.StateHistoryFilter) ([]*model.StateSeries, error)
 	AggregatedStateHistory(ctx context.Context, filter model.AggregatedStateHistoryFilter) ([]*model.AggregatedSeries, error)
 	StateHistoryFields(ctx context.Context) ([]string, error)
-	MqttConfig(ctx context.Context) (*model.MqttConfig, error)
 	Integrations(ctx context.Context) ([]*model.Integration, error)
+	Zigbee2MqttConfig(ctx context.Context) (*model.Zigbee2MqttConfig, error)
 	TuyaConfig(ctx context.Context) (*model.TuyaConfig, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
@@ -1021,6 +1022,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Capabilities(childComplexity), true
+	case "Device.disabled":
+		if e.ComplexityRoot.Device.Disabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Disabled(childComplexity), true
 	case "Device.id":
 		if e.ComplexityRoot.Device.ID == nil {
 			break
@@ -1532,31 +1539,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.LogEntry.Timestamp(childComplexity), true
 
-	case "MqttConfig.broker":
-		if e.ComplexityRoot.MqttConfig.Broker == nil {
-			break
-		}
-
-		return e.ComplexityRoot.MqttConfig.Broker(childComplexity), true
-	case "MqttConfig.password":
-		if e.ComplexityRoot.MqttConfig.Password == nil {
-			break
-		}
-
-		return e.ComplexityRoot.MqttConfig.Password(childComplexity), true
-	case "MqttConfig.useWss":
-		if e.ComplexityRoot.MqttConfig.UseWss == nil {
-			break
-		}
-
-		return e.ComplexityRoot.MqttConfig.UseWss(childComplexity), true
-	case "MqttConfig.username":
-		if e.ComplexityRoot.MqttConfig.Username == nil {
-			break
-		}
-
-		return e.ComplexityRoot.MqttConfig.Username(childComplexity), true
-
 	case "Mutation.addGroupMember":
 		if e.ComplexityRoot.Mutation.AddGroupMember == nil {
 			break
@@ -2003,17 +1985,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SyncTuyaDevices(childComplexity), true
-	case "Mutation.testMqttConnection":
-		if e.ComplexityRoot.Mutation.TestMqttConnection == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_testMqttConnection_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.TestMqttConnection(childComplexity, args["input"].(model.MqttConfigInput)), true
 	case "Mutation.testTuyaConnection":
 		if e.ComplexityRoot.Mutation.TestTuyaConnection == nil {
 			break
@@ -2025,6 +1996,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.TestTuyaConnection(childComplexity, args["input"].(model.TuyaConfigInput)), true
+	case "Mutation.testZigbee2MqttConnection":
+		if e.ComplexityRoot.Mutation.TestZigbee2MqttConnection == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_testZigbee2MqttConnection_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.TestZigbee2MqttConnection(childComplexity, args["input"].(model.Zigbee2MqttConfigInput)), true
 	case "Mutation.toggleAutomation":
 		if e.ComplexityRoot.Mutation.ToggleAutomation == nil {
 			break
@@ -2091,17 +2073,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateGroup(childComplexity, args["id"].(string), args["input"].(model.UpdateGroupInput)), true
-	case "Mutation.updateMqttConfig":
-		if e.ComplexityRoot.Mutation.UpdateMqttConfig == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateMqttConfig_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.UpdateMqttConfig(childComplexity, args["input"].(model.MqttConfigInput)), true
 	case "Mutation.updateRoom":
 		if e.ComplexityRoot.Mutation.UpdateRoom == nil {
 			break
@@ -2146,6 +2117,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateTuyaConfig(childComplexity, args["input"].(model.TuyaConfigInput)), true
+	case "Mutation.updateZigbee2MqttConfig":
+		if e.ComplexityRoot.Mutation.UpdateZigbee2MqttConfig == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateZigbee2MqttConfig_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateZigbee2MqttConfig(childComplexity, args["input"].(model.Zigbee2MqttConfigInput)), true
 
 	case "NativeEffectOption.displayName":
 		if e.ComplexityRoot.NativeEffectOption.DisplayName == nil {
@@ -2297,12 +2279,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
-	case "Query.mqttConfig":
-		if e.ComplexityRoot.Query.MqttConfig == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Query.MqttConfig(childComplexity), true
 	case "Query.nativeEffectOptions":
 		if e.ComplexityRoot.Query.NativeEffectOptions == nil {
 			break
@@ -2384,6 +2360,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Users(childComplexity), true
+	case "Query.zigbee2MqttConfig":
+		if e.ComplexityRoot.Query.Zigbee2MqttConfig == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Zigbee2MqttConfig(childComplexity), true
 
 	case "Room.createdBy":
 		if e.ComplexityRoot.Room.CreatedBy == nil {
@@ -2584,12 +2566,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SetupStatus.HasInitialUser(childComplexity), true
-	case "SetupStatus.mqttConfigured":
-		if e.ComplexityRoot.SetupStatus.MqttConfigured == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SetupStatus.MqttConfigured(childComplexity), true
 
 	case "StateSeries.deviceId":
 		if e.ComplexityRoot.StateSeries.DeviceID == nil {
@@ -2820,6 +2796,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.User.Username(childComplexity), true
 
+	case "Zigbee2MqttConfig.broker":
+		if e.ComplexityRoot.Zigbee2MqttConfig.Broker == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.Broker(childComplexity), true
+	case "Zigbee2MqttConfig.enabled":
+		if e.ComplexityRoot.Zigbee2MqttConfig.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.Enabled(childComplexity), true
+	case "Zigbee2MqttConfig.password":
+		if e.ComplexityRoot.Zigbee2MqttConfig.Password == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.Password(childComplexity), true
+	case "Zigbee2MqttConfig.useWss":
+		if e.ComplexityRoot.Zigbee2MqttConfig.UseWss == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.UseWss(childComplexity), true
+	case "Zigbee2MqttConfig.username":
+		if e.ComplexityRoot.Zigbee2MqttConfig.Username == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.Username(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -2849,7 +2856,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputEffectClipInput,
 		ec.unmarshalInputEffectTrackInput,
 		ec.unmarshalInputLoginInput,
-		ec.unmarshalInputMqttConfigInput,
 		ec.unmarshalInputRaiseAlarmInput,
 		ec.unmarshalInputRoomMemberInput,
 		ec.unmarshalInputSceneActionInput,
@@ -2864,6 +2870,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateGroupInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateSceneInput,
+		ec.unmarshalInputZigbee2MqttConfigInput,
 	)
 	first := true
 
@@ -2986,6 +2993,14 @@ type Device {
   tags: [DeviceTag!]!
   capabilities: [Capability!]!
   available: Boolean!
+  """
+  When true the device is excluded from every path that commands or watches it:
+  scene apply, automation and effect fan-out, target selectors, and the
+  unavailable / low-battery health checks. setDeviceState rejects it outright.
+  Its row, detail page, live subscriptions and state history are unaffected, and
+  it still renders as a member of the rooms, groups and scenes it belongs to.
+  """
+  disabled: Boolean!
   lastSeen: DateTime
   state: DeviceState
 }
@@ -3460,7 +3475,6 @@ type AuthPayload {
 
 type SetupStatus {
   hasInitialUser: Boolean!
-  mqttConfigured: Boolean!
 }
 
 input LoginInput {
@@ -3499,11 +3513,12 @@ input ChangePasswordInput {
   newPassword: String!
 }
 
-type MqttConfig {
+type Zigbee2MqttConfig {
   broker: String!
   username: String!
   password: String!
   useWss: Boolean!
+  enabled: Boolean!
 }
 
 type Integration {
@@ -3623,11 +3638,12 @@ input RaiseAlarmInput {
   source: String
 }
 
-input MqttConfigInput {
+input Zigbee2MqttConfigInput {
   broker: String!
   username: String!
   password: String!
   useWss: Boolean!
+  enabled: Boolean!
 }
 
 input TuyaConfigInput {
@@ -3661,6 +3677,7 @@ input UpdateDeviceInput {
   name: String
   icon: String
   tags: [DeviceTag!]
+  disabled: Boolean
 }
 
 input CreateSceneInput {
@@ -3791,8 +3808,8 @@ type Query {
   stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
   aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
-  mqttConfig: MqttConfig @auth
   integrations: [Integration!]! @auth
+  zigbee2MqttConfig: Zigbee2MqttConfig @auth
   tuyaConfig: TuyaConfig @auth
   settings: [Setting!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
@@ -3841,8 +3858,8 @@ type Mutation {
   deleteRoom(id: ID!): Boolean! @auth
   addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
   removeRoomMember(id: ID!): Boolean! @auth
-  updateMqttConfig(input: MqttConfigInput!): MqttConfig! @auth
-  testMqttConnection(input: MqttConfigInput!): ConnectionTestResult! @auth
+  updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
+  testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
@@ -4433,10 +4450,10 @@ func (ec *executionContext) field_Mutation_stopEffect_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_testMqttConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_testTuyaConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfigInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4444,10 +4461,10 @@ func (ec *executionContext) field_Mutation_testMqttConnection_args(ctx context.C
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_testTuyaConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_testZigbee2MqttConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNZigbee2MqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -4541,17 +4558,6 @@ func (ec *executionContext) field_Mutation_updateGroup_args(ctx context.Context,
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_updateMqttConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfigInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_updateRoom_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4604,6 +4610,17 @@ func (ec *executionContext) field_Mutation_updateTuyaConfig_args(ctx context.Con
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateZigbee2MqttConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNZigbee2MqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7172,6 +7189,35 @@ func (ec *executionContext) fieldContext_Device_available(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Device_disabled(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_disabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Disabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_disabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Device_lastSeen(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9040,6 +9086,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -9227,6 +9275,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -9645,122 +9695,6 @@ func (ec *executionContext) fieldContext_LogEntry_attrs(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _MqttConfig_broker(ctx context.Context, field graphql.CollectedField, obj *model.MqttConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MqttConfig_broker,
-		func(ctx context.Context) (any, error) {
-			return obj.Broker, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MqttConfig_broker(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MqttConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MqttConfig_username(ctx context.Context, field graphql.CollectedField, obj *model.MqttConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MqttConfig_username,
-		func(ctx context.Context) (any, error) {
-			return obj.Username, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MqttConfig_username(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MqttConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MqttConfig_password(ctx context.Context, field graphql.CollectedField, obj *model.MqttConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MqttConfig_password,
-		func(ctx context.Context) (any, error) {
-			return obj.Password, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MqttConfig_password(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MqttConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MqttConfig_useWss(ctx context.Context, field graphql.CollectedField, obj *model.MqttConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MqttConfig_useWss,
-		func(ctx context.Context) (any, error) {
-			return obj.UseWss, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MqttConfig_useWss(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MqttConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_updateDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9815,6 +9749,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -9891,6 +9827,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -11193,22 +11131,22 @@ func (ec *executionContext) fieldContext_Mutation_removeRoomMember(ctx context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateMqttConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_updateZigbee2MqttConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_updateMqttConfig,
+		ec.fieldContext_Mutation_updateZigbee2MqttConfig,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateMqttConfig(ctx, fc.Args["input"].(model.MqttConfigInput))
+			return ec.Resolvers.Mutation().UpdateZigbee2MqttConfig(ctx, fc.Args["input"].(model.Zigbee2MqttConfigInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.Auth == nil {
-					var zeroVal *model.MqttConfig
+					var zeroVal *model.Zigbee2MqttConfig
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0)
@@ -11217,13 +11155,13 @@ func (ec *executionContext) _Mutation_updateMqttConfig(ctx context.Context, fiel
 			next = directive1
 			return next
 		},
-		ec.marshalNMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig,
+		ec.marshalNZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_updateMqttConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateZigbee2MqttConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11232,15 +11170,17 @@ func (ec *executionContext) fieldContext_Mutation_updateMqttConfig(ctx context.C
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "broker":
-				return ec.fieldContext_MqttConfig_broker(ctx, field)
+				return ec.fieldContext_Zigbee2MqttConfig_broker(ctx, field)
 			case "username":
-				return ec.fieldContext_MqttConfig_username(ctx, field)
+				return ec.fieldContext_Zigbee2MqttConfig_username(ctx, field)
 			case "password":
-				return ec.fieldContext_MqttConfig_password(ctx, field)
+				return ec.fieldContext_Zigbee2MqttConfig_password(ctx, field)
 			case "useWss":
-				return ec.fieldContext_MqttConfig_useWss(ctx, field)
+				return ec.fieldContext_Zigbee2MqttConfig_useWss(ctx, field)
+			case "enabled":
+				return ec.fieldContext_Zigbee2MqttConfig_enabled(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type MqttConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
 		},
 	}
 	defer func() {
@@ -11250,22 +11190,22 @@ func (ec *executionContext) fieldContext_Mutation_updateMqttConfig(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateMqttConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateZigbee2MqttConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_testMqttConnection(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_testZigbee2MqttConnection(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_testMqttConnection,
+		ec.fieldContext_Mutation_testZigbee2MqttConnection,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().TestMqttConnection(ctx, fc.Args["input"].(model.MqttConfigInput))
+			return ec.Resolvers.Mutation().TestZigbee2MqttConnection(ctx, fc.Args["input"].(model.Zigbee2MqttConfigInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -11287,7 +11227,7 @@ func (ec *executionContext) _Mutation_testMqttConnection(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_testMqttConnection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_testZigbee2MqttConnection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -11310,7 +11250,7 @@ func (ec *executionContext) fieldContext_Mutation_testMqttConnection(ctx context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_testMqttConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_testZigbee2MqttConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11494,6 +11434,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -13265,6 +13207,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -13330,6 +13274,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -14036,58 +13982,6 @@ func (ec *executionContext) fieldContext_Query_stateHistoryFields(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_mqttConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_mqttConfig,
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Query().MqttConfig(ctx)
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Auth == nil {
-					var zeroVal *model.MqttConfig
-					return zeroVal, errors.New("directive auth is not implemented")
-				}
-				return ec.Directives.Auth(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
-		ec.marshalOMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_mqttConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "broker":
-				return ec.fieldContext_MqttConfig_broker(ctx, field)
-			case "username":
-				return ec.fieldContext_MqttConfig_username(ctx, field)
-			case "password":
-				return ec.fieldContext_MqttConfig_password(ctx, field)
-			case "useWss":
-				return ec.fieldContext_MqttConfig_useWss(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type MqttConfig", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_integrations(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14141,6 +14035,60 @@ func (ec *executionContext) fieldContext_Query_integrations(_ context.Context, f
 				return ec.fieldContext_Integration_message(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Integration", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_zigbee2MqttConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_zigbee2MqttConfig,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Zigbee2MqttConfig(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Zigbee2MqttConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_zigbee2MqttConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "broker":
+				return ec.fieldContext_Zigbee2MqttConfig_broker(ctx, field)
+			case "username":
+				return ec.fieldContext_Zigbee2MqttConfig_username(ctx, field)
+			case "password":
+				return ec.fieldContext_Zigbee2MqttConfig_password(ctx, field)
+			case "useWss":
+				return ec.fieldContext_Zigbee2MqttConfig_useWss(ctx, field)
+			case "enabled":
+				return ec.fieldContext_Zigbee2MqttConfig_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
 		},
 	}
 	return fc, nil
@@ -14478,8 +14426,6 @@ func (ec *executionContext) fieldContext_Query_setupStatus(_ context.Context, fi
 			switch field.Name {
 			case "hasInitialUser":
 				return ec.fieldContext_SetupStatus_hasInitialUser(ctx, field)
-			case "mqttConfigured":
-				return ec.fieldContext_SetupStatus_mqttConfigured(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SetupStatus", field.Name)
 		},
@@ -15128,6 +15074,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -15315,6 +15263,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -16048,35 +15998,6 @@ func (ec *executionContext) fieldContext_SetupStatus_hasInitialUser(_ context.Co
 	return fc, nil
 }
 
-func (ec *executionContext) _SetupStatus_mqttConfigured(ctx context.Context, field graphql.CollectedField, obj *model.SetupStatus) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SetupStatus_mqttConfigured,
-		func(ctx context.Context) (any, error) {
-			return obj.MqttConfigured, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SetupStatus_mqttConfigured(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SetupStatus",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _StateSeries_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.StateSeries) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16451,6 +16372,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
 				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -17331,6 +17254,151 @@ func (ec *executionContext) _User_mustChangePassword(ctx context.Context, field 
 func (ec *executionContext) fieldContext_User_mustChangePassword(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_broker(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_broker,
+		func(ctx context.Context) (any, error) {
+			return obj.Broker, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_broker(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_username(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_username,
+		func(ctx context.Context) (any, error) {
+			return obj.Username, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_username(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_password(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_password,
+		func(ctx context.Context) (any, error) {
+			return obj.Password, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_password(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_useWss(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_useWss,
+		func(ctx context.Context) (any, error) {
+			return obj.UseWss, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_useWss(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -19837,57 +19905,6 @@ func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj an
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputMqttConfigInput(ctx context.Context, obj any) (model.MqttConfigInput, error) {
-	var it model.MqttConfigInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"broker", "username", "password", "useWss"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "broker":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("broker"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Broker = data
-		case "username":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Username = data
-		case "password":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Password = data
-		case "useWss":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("useWss"))
-			data, err := ec.unmarshalNBoolean2bool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.UseWss = data
-		}
-	}
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputRaiseAlarmInput(ctx context.Context, obj any) (model.RaiseAlarmInput, error) {
 	var it model.RaiseAlarmInput
 	if obj == nil {
@@ -20351,7 +20368,7 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "tags"}
+	fieldsInOrder := [...]string{"name", "icon", "tags", "disabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -20379,6 +20396,13 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 				return it, err
 			}
 			it.Tags = graphql.OmittableOf(data)
+		case "disabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Disabled = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -20583,6 +20607,64 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.DevicePayloads = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputZigbee2MqttConfigInput(ctx context.Context, obj any) (model.Zigbee2MqttConfigInput, error) {
+	var it model.Zigbee2MqttConfigInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"broker", "username", "password", "useWss", "enabled"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "broker":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("broker"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Broker = data
+		case "username":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Username = data
+		case "password":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Password = data
+		case "useWss":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("useWss"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.UseWss = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
 		}
 	}
 	return it, nil
@@ -21447,6 +21529,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "disabled":
+			out.Values[i] = ec._Device_disabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "lastSeen":
 			out.Values[i] = ec._Device_lastSeen(ctx, field, obj)
 		case "state":
@@ -22176,60 +22263,6 @@ func (ec *executionContext) _LogEntry(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
-var mqttConfigImplementors = []string{"MqttConfig"}
-
-func (ec *executionContext) _MqttConfig(ctx context.Context, sel ast.SelectionSet, obj *model.MqttConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, mqttConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("MqttConfig")
-		case "broker":
-			out.Values[i] = ec._MqttConfig_broker(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "username":
-			out.Values[i] = ec._MqttConfig_username(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "password":
-			out.Values[i] = ec._MqttConfig_password(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "useWss":
-			out.Values[i] = ec._MqttConfig_useWss(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -22403,16 +22436,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "updateMqttConfig":
+		case "updateZigbee2MqttConfig":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateMqttConfig(ctx, field)
+				return ec._Mutation_updateZigbee2MqttConfig(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "testMqttConnection":
+		case "testZigbee2MqttConnection":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_testMqttConnection(ctx, field)
+				return ec._Mutation_testZigbee2MqttConnection(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -22989,25 +23022,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "mqttConfig":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_mqttConfig(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "integrations":
 			field := field
 
@@ -23021,6 +23035,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "zigbee2MqttConfig":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_zigbee2MqttConfig(ctx, field)
 				return res
 			}
 
@@ -23698,11 +23731,6 @@ func (ec *executionContext) _SetupStatus(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "mqttConfigured":
-			out.Values[i] = ec._SetupStatus_mqttConfigured(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -24002,6 +24030,65 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
 			out.Values[i] = ec._User_mustChangePassword(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var zigbee2MqttConfigImplementors = []string{"Zigbee2MqttConfig"}
+
+func (ec *executionContext) _Zigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Zigbee2MqttConfig")
+		case "broker":
+			out.Values[i] = ec._Zigbee2MqttConfig_broker(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "username":
+			out.Values[i] = ec._Zigbee2MqttConfig_username(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "password":
+			out.Values[i] = ec._Zigbee2MqttConfig_password(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "useWss":
+			out.Values[i] = ec._Zigbee2MqttConfig_useWss(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._Zigbee2MqttConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -25346,25 +25433,6 @@ func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋsaffronjamᚋsaf
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNMqttConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig(ctx context.Context, sel ast.SelectionSet, v model.MqttConfig) graphql.Marshaler {
-	return ec._MqttConfig(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.MqttConfig) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._MqttConfig(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNMqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfigInput(ctx context.Context, v any) (model.MqttConfigInput, error) {
-	res, err := ec.unmarshalInputMqttConfigInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNNativeEffectOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NativeEffectOption) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -25857,6 +25925,25 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNZigbee2MqttConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v model.Zigbee2MqttConfig) graphql.Marshaler {
+	return ec._Zigbee2MqttConfig(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Zigbee2MqttConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNZigbee2MqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigInput(ctx context.Context, v any) (model.Zigbee2MqttConfigInput, error) {
+	res, err := ec.unmarshalInputZigbee2MqttConfigInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -26376,13 +26463,6 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
-func (ec *executionContext) marshalOMqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐMqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.MqttConfig) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._MqttConfig(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalORoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom(ctx context.Context, sel ast.SelectionSet, v *model.Room) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -26572,6 +26652,13 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Zigbee2MqttConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

@@ -75,14 +75,13 @@ func TestSetupStatusResolver(t *testing.T) {
 	te := newTestEnv(t)
 
 	// Pre-populate nothing — setup is incomplete.
-	resp := te.query(t, `query setupStatus { setupStatus { hasInitialUser mqttConfigured } }`, nil)
+	resp := te.query(t, `query setupStatus { setupStatus { hasInitialUser } }`, nil)
 	if len(resp.Errors) != 0 {
 		t.Fatalf("query errors: %v", resp.Errors)
 	}
 	var body struct {
 		SetupStatus struct {
 			HasInitialUser bool `json:"hasInitialUser"`
-			MqttConfigured bool `json:"mqttConfigured"`
 		} `json:"setupStatus"`
 	}
 	if err := json.Unmarshal(resp.Data, &body); err != nil {
@@ -91,23 +90,15 @@ func TestSetupStatusResolver(t *testing.T) {
 	if body.SetupStatus.HasInitialUser {
 		t.Error("hasInitialUser should be false on empty users table")
 	}
-	if body.SetupStatus.MqttConfigured {
-		t.Error("mqttConfigured should be false without DB config")
-	}
 
-	// Seed a user and an MQTT config, then re-query.
 	te.store.users["u-1"] = store.User{ID: "u-1", Username: "alice", Name: "Alice"}
-	te.store.mqttConfig = &store.MQTTConfig{Broker: "mqtt.local:1883"}
 
-	resp = te.query(t, `query setupStatus { setupStatus { hasInitialUser mqttConfigured } }`, nil)
+	resp = te.query(t, `query setupStatus { setupStatus { hasInitialUser } }`, nil)
 	if err := json.Unmarshal(resp.Data, &body); err != nil {
 		t.Fatalf("unmarshal 2: %v", err)
 	}
 	if !body.SetupStatus.HasInitialUser {
 		t.Error("hasInitialUser should be true after seeding a user")
-	}
-	if !body.SetupStatus.MqttConfigured {
-		t.Error("mqttConfigured should be true after DB config set")
 	}
 }
 

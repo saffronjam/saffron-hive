@@ -26,9 +26,18 @@ type AutomationTriggerer interface {
 	FireManualTrigger(ctx context.Context, automationID, nodeID string) error
 }
 
-// MQTTReconnector reconnects the MQTT adapter with the latest DB config.
-type MQTTReconnector interface {
-	Reconnect(ctx context.Context) error
+// Zigbee2MQTTController manages the Zigbee2MQTT integration: the MQTT broker
+// connection and the Zigbee adapter that rides on it.
+type Zigbee2MQTTController interface {
+	// ReconnectZigbee2MQTT applies the persisted configuration, stopping any
+	// running adapter first. An unconfigured or disabled integration is not an
+	// error; the adapter simply stays down.
+	ReconnectZigbee2MQTT(ctx context.Context) error
+	// TestZigbee2MQTT opens a throwaway broker connection with the given
+	// credentials without disturbing the running adapter.
+	TestZigbee2MQTT(ctx context.Context, cfg store.Zigbee2MQTTConfig) error
+	Zigbee2MQTTConnected() bool
+	Zigbee2MQTTEnabled() bool
 }
 
 // TuyaController manages the optional Tuya cloud integration.
@@ -36,8 +45,14 @@ type TuyaController interface {
 	ReconnectTuya(ctx context.Context) error
 	TestTuya(ctx context.Context, cfg store.TuyaConfig) error
 	SyncTuya(ctx context.Context) ([]device.Device, error)
-	DeleteIntegration(ctx context.Context, provider string) (int, error)
 	TuyaConnected() bool
+}
+
+// IntegrationManager owns the provider-agnostic integration lifecycle.
+type IntegrationManager interface {
+	// DeleteIntegration removes a provider's configuration and returns the
+	// number of devices removed alongside it.
+	DeleteIntegration(ctx context.Context, provider string) (int, error)
 }
 
 // BootstrapTokenChecker guards the first-boot createInitialUser flow. Implemented
@@ -66,6 +81,7 @@ type GraphStore interface {
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]device.Device, error)
 	UpdateDevice(ctx context.Context, params store.UpdateDeviceParams) (device.Device, error)
 	UpdateDeviceIcon(ctx context.Context, params store.UpdateDeviceIconParams) (device.Device, error)
+	SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error)
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
 
 	// Scenes
@@ -132,12 +148,13 @@ type GraphStore interface {
 	LoadEffect(ctx context.Context, id string) (effect.Effect, error)
 	ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord, error)
 
-	// State history, activity, settings, mqtt, users
+	// State history, activity, settings, integrations, users
 	QueryStateHistory(ctx context.Context, query store.StateHistoryQuery) ([]store.StateHistoryPoint, error)
 	QueryActivityEvents(ctx context.Context, query store.ActivityQuery) ([]store.ActivityEvent, error)
 	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
-	GetMQTTConfig(ctx context.Context) (*store.MQTTConfig, error)
-	UpsertMQTTConfig(ctx context.Context, cfg store.MQTTConfig) error
+	GetZigbee2MQTTConfig(ctx context.Context) (*store.Zigbee2MQTTConfig, error)
+	UpsertZigbee2MQTTConfig(ctx context.Context, cfg store.Zigbee2MQTTConfig) error
+	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	GetTuyaConfig(ctx context.Context) (*store.TuyaConfig, error)
 	UpsertTuyaConfig(ctx context.Context, cfg store.TuyaConfig) error
 	DeleteTuyaConfig(ctx context.Context) error
@@ -174,8 +191,9 @@ type Resolver struct {
 	Alarms              *alarms.Service
 	AlarmBuffer         *alarms.Buffer
 	LevelVar            *slog.LevelVar
-	Reconnector         MQTTReconnector
+	Zigbee2MQTT         Zigbee2MQTTController
 	Tuya                TuyaController
+	Integrations        IntegrationManager
 	EffectRunner        EffectRunner
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter
