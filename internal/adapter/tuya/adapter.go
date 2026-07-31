@@ -287,7 +287,7 @@ func (a *Adapter) commandLoop(ctx context.Context) {
 				continue
 			}
 			dev, found := a.reader.GetDevice(cmd.DeviceID)
-			if !found || dev.Source != Source {
+			if !found || dev.Disabled || dev.Source != device.SourceTuya {
 				continue
 			}
 			a.mu.Lock()

@@ -542,7 +542,10 @@ func (r *Runner) sampleTransitionMs(c Clip) int {
 func (r *Runner) resolveMembers(ctx context.Context, run *activeRun) []device.DeviceID {
 	var devices []device.DeviceID
 	if run.target.Type == device.TargetDevice {
-		devices = []device.DeviceID{device.DeviceID(run.target.ID)}
+		did := device.DeviceID(run.target.ID)
+		if dev, ok := r.reader.GetDevice(did); !ok || !dev.Disabled {
+			devices = []device.DeviceID{did}
+		}
 	} else {
 		devices = r.targets.ResolveTargetDeviceIDs(ctx, run.target.Type, run.target.ID)
 	}

@@ -258,7 +258,10 @@ func (a *ZigbeeAdapter) acceptsCommand(deviceID device.DeviceID) bool {
 	if !found {
 		return true
 	}
-	return dev.Source == "" || dev.Source == device.Source("zigbee")
+	if dev.Disabled {
+		return false
+	}
+	return dev.Source == device.SourceZigbee2MQTT
 }
 
 func (a *ZigbeeAdapter) nativeEffectLoop() {

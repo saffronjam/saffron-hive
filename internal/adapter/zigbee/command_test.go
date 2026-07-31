@@ -100,6 +100,7 @@ func TestCommandTranslation_BrightnessZeroBecomesOff(t *testing.T) {
 	dev := device.Device{
 		ID:        id,
 		Name:      "ceiling_light",
+		Source:    device.SourceZigbee2MQTT,
 		Type:      device.Light,
 		Available: true,
 		Capabilities: []device.Capability{
@@ -155,6 +156,7 @@ func TestCommandTranslation_BrightnessZeroPreservedWithoutOnOff(t *testing.T) {
 	dev := device.Device{
 		ID:        id,
 		Name:      "dim_only",
+		Source:    device.SourceZigbee2MQTT,
 		Type:      device.Light,
 		Available: true,
 		Capabilities: []device.Capability{
