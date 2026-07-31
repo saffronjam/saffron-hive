@@ -27,12 +27,16 @@ func (f *fakeReader) ListGroups() []device.Group                           { ret
 func (f *fakeReader) ListGroupMembers(device.GroupID) []device.GroupMember { return nil }
 func (f *fakeReader) ResolveGroupDevices(device.GroupID) []device.DeviceID { return nil }
 
-type fakeProbe struct{ connected bool }
+type fakeProbe struct {
+	enabled   bool
+	connected bool
+}
 
-func (p *fakeProbe) MQTTConnected() bool { return p.connected }
+func (p *fakeProbe) Zigbee2MQTTEnabled() bool   { return p.enabled }
+func (p *fakeProbe) Zigbee2MQTTConnected() bool { return p.connected }
 
 // healthyChecks returns stubs that represent a perfectly healthy system: no
-// disk, memory, MQTT, or device issues. Tests that want to exercise a single
+// disk, memory, broker, or device issues. Tests that want to exercise a single
 // failure override exactly one of the returned callables.
 func healthyChecks() (diskFn func(string) (float64, error), heapFn func() uint64) {
 	return func(string) (float64, error) { return 0.5, nil }, func() uint64 { return 10 * 1024 * 1024 }
@@ -44,7 +48,7 @@ func TestEvaluateAndApplyRaisesAndClears(t *testing.T) {
 	svc := NewService(s, NewBuffer())
 
 	reader := &fakeReader{}
-	probe := &fakeProbe{connected: false} // mqtt down → should raise
+	probe := &fakeProbe{enabled: true, connected: false} // broker down → should raise
 	diskFn, heapFn := healthyChecks()
 
 	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
@@ -55,7 +59,7 @@ func TestEvaluateAndApplyRaisesAndClears(t *testing.T) {
 	}
 	var sawMQTT bool
 	for _, a := range list {
-		if a.ID == "system.mqtt_disconnected" {
+		if a.ID == "system.zigbee2mqtt_disconnected" {
 			sawMQTT = true
 			if a.Source != MonitorSource {
 				t.Fatalf("expected source %q, got %q", MonitorSource, a.Source)
@@ -63,7 +67,7 @@ func TestEvaluateAndApplyRaisesAndClears(t *testing.T) {
 		}
 	}
 	if !sawMQTT {
-		t.Fatalf("expected system.mqtt_disconnected to be raised, got %+v", list)
+		t.Fatalf("expected system.zigbee2mqtt_disconnected to be raised, got %+v", list)
 	}
 
 	probe.connected = true
@@ -74,10 +78,63 @@ func TestEvaluateAndApplyRaisesAndClears(t *testing.T) {
 		t.Fatalf("list after recover: %v", err)
 	}
 	for _, a := range list {
-		if a.ID == "system.mqtt_disconnected" {
-			t.Fatalf("mqtt alarm still active after recovery: %+v", a)
+		if a.ID == "system.zigbee2mqtt_disconnected" {
+			t.Fatalf("zigbee2mqtt alarm still active after recovery: %+v", a)
 		}
 	}
+}
+
+// TestEvaluateAndApplySkipsDisabledIntegration pins the rule that keeps an
+// install which never added the Zigbee2MQTT integration off the alarms page: a
+// disconnected broker only matters while the integration is enabled. Disabling
+// it must also clear a standing alarm, which the clear loop does for free
+// because the check is omitted rather than reported inactive.
+func TestEvaluateAndApplySkipsDisabledIntegration(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	svc := NewService(s, NewBuffer())
+
+	reader := &fakeReader{}
+	probe := &fakeProbe{enabled: false, connected: false}
+	diskFn, heapFn := healthyChecks()
+
+	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
+
+	list, err := svc.ListActive(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	for _, a := range list {
+		if a.ID == "system.zigbee2mqtt_disconnected" {
+			t.Fatalf("disabled integration must not raise a connectivity alarm, got %+v", a)
+		}
+	}
+
+	probe.enabled = true
+	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
+	if !hasAlarm(t, ctx, svc, "system.zigbee2mqtt_disconnected") {
+		t.Fatal("enabling a disconnected integration must raise the alarm")
+	}
+
+	probe.enabled = false
+	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
+	if hasAlarm(t, ctx, svc, "system.zigbee2mqtt_disconnected") {
+		t.Fatal("disabling the integration must clear a standing alarm")
+	}
+}
+
+func hasAlarm(t *testing.T, ctx context.Context, svc *Service, id string) bool {
+	t.Helper()
+	list, err := svc.ListActive(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	for _, a := range list {
+		if a.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // TestMonitorNeverBumpsCounter locks in the invariant at the heart of this
@@ -91,7 +148,7 @@ func TestMonitorNeverBumpsCounter(t *testing.T) {
 	svc := NewService(s, NewBuffer())
 
 	reader := &fakeReader{}
-	probe := &fakeProbe{connected: false}
+	probe := &fakeProbe{enabled: true, connected: false}
 	diskFn, heapFn := healthyChecks()
 
 	const ticks = 25
@@ -105,12 +162,12 @@ func TestMonitorNeverBumpsCounter(t *testing.T) {
 	}
 	var found *Alarm
 	for i := range list {
-		if list[i].ID == "system.mqtt_disconnected" {
+		if list[i].ID == "system.zigbee2mqtt_disconnected" {
 			found = &list[i]
 		}
 	}
 	if found == nil {
-		t.Fatalf("expected mqtt alarm to be present after %d ticks, got %+v", ticks, list)
+		t.Fatalf("expected zigbee2mqtt alarm to be present after %d ticks, got %+v", ticks, list)
 	}
 	if found.Count != 1 {
 		t.Fatalf("expected Count=1 after %d ticks with same condition, got %d", ticks, found.Count)
@@ -138,7 +195,7 @@ func TestMonitorDoesNotTouchOneShotAlarms(t *testing.T) {
 	}
 
 	reader := &fakeReader{}
-	probe := &fakeProbe{connected: true} // healthy everything
+	probe := &fakeProbe{enabled: true, connected: true} // healthy everything
 	diskFn, heapFn := healthyChecks()
 
 	for i := 0; i < 5; i++ {
@@ -185,7 +242,7 @@ func TestMonitorDoesNotTouchAPIAlarms(t *testing.T) {
 	}
 
 	reader := &fakeReader{}
-	probe := &fakeProbe{connected: true}
+	probe := &fakeProbe{enabled: true, connected: true}
 	diskFn, heapFn := healthyChecks()
 
 	for i := 0; i < 5; i++ {
@@ -232,7 +289,7 @@ func TestMonitorClearsOnlyOwnedAlarms(t *testing.T) {
 	}
 
 	reader := &fakeReader{}
-	probe := &fakeProbe{connected: false} // raise mqtt alarm
+	probe := &fakeProbe{enabled: true, connected: false} // raise zigbee2mqtt alarm
 	diskFn, heapFn := healthyChecks()
 
 	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
@@ -249,7 +306,7 @@ func TestMonitorClearsOnlyOwnedAlarms(t *testing.T) {
 		if a.ID == "automation.tripped" {
 			sawForeign = true
 		}
-		if a.ID == "system.mqtt_disconnected" {
+		if a.ID == "system.zigbee2mqtt_disconnected" {
 			sawMonitor = true
 		}
 	}
@@ -257,7 +314,7 @@ func TestMonitorClearsOnlyOwnedAlarms(t *testing.T) {
 		t.Fatalf("foreign alarm was cleared by monitor; remaining: %+v", list)
 	}
 	if sawMonitor {
-		t.Fatalf("monitor-owned mqtt alarm should have cleared; remaining: %+v", list)
+		t.Fatalf("monitor-owned zigbee2mqtt alarm should have cleared; remaining: %+v", list)
 	}
 }
 
@@ -272,7 +329,7 @@ func TestMonitorReRaisesAfterUserDelete(t *testing.T) {
 
 	s := newTestStore(t)
 	svc := NewService(s, NewBuffer())
-	probe := &fakeProbe{connected: false} // mqtt stays down throughout
+	probe := &fakeProbe{enabled: true, connected: false} // broker stays down throughout
 
 	cfg := MonitorConfig{
 		TickInterval:  10 * time.Millisecond,
@@ -287,7 +344,7 @@ func TestMonitorReRaisesAfterUserDelete(t *testing.T) {
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		list, _ := svc.ListActive(ctx)
-		if len(list) == 1 && list[0].ID == "system.mqtt_disconnected" {
+		if len(list) == 1 && list[0].ID == "system.zigbee2mqtt_disconnected" {
 			break
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -297,14 +354,14 @@ func TestMonitorReRaisesAfterUserDelete(t *testing.T) {
 		t.Fatalf("expected initial raise, got %d alarms", len(list))
 	}
 
-	if _, err := svc.DeleteByAlarmID(ctx, "system.mqtt_disconnected"); err != nil {
+	if _, err := svc.DeleteByAlarmID(ctx, "system.zigbee2mqtt_disconnected"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 
 	deadline = time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		list, _ := svc.ListActive(ctx)
-		if len(list) == 1 && list[0].ID == "system.mqtt_disconnected" {
+		if len(list) == 1 && list[0].ID == "system.zigbee2mqtt_disconnected" {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -334,7 +391,7 @@ func TestMonitorLoopPreservesOneShotAcrossManyTicks(t *testing.T) {
 		t.Fatalf("seed one-shot: %v", err)
 	}
 
-	probe := &fakeProbe{connected: false} // keep monitor busy raising+holding mqtt alarm
+	probe := &fakeProbe{enabled: true, connected: false} // keep monitor busy raising+holding the zigbee2mqtt alarm
 	cfg := MonitorConfig{
 		TickInterval:  5 * time.Millisecond,
 		StartupSettle: 1 * time.Millisecond,
@@ -399,7 +456,7 @@ func TestDeviceUnavailableRequiresBothSignals(t *testing.T) {
 					{ID: "d1", Name: "Gaming room ceiling", Type: device.Light, Available: tc.available, LastSeen: tc.lastSeen},
 				},
 			}
-			probe := &fakeProbe{connected: true}
+			probe := &fakeProbe{enabled: true, connected: true}
 			diskFn, heapFn := healthyChecks()
 
 			evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
@@ -436,7 +493,7 @@ func TestEvaluateAndApplyBatteryLowPerDevice(t *testing.T) {
 			"sensor-1": {Battery: &lowBattery},
 		},
 	}
-	probe := &fakeProbe{connected: true}
+	probe := &fakeProbe{enabled: true, connected: true}
 	diskFn, heapFn := healthyChecks()
 
 	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
@@ -456,5 +513,51 @@ func TestEvaluateAndApplyBatteryLowPerDevice(t *testing.T) {
 	}
 	if found.Severity != store.AlarmSeverityLow {
 		t.Fatalf("expected low severity, got %s", found.Severity)
+	}
+}
+
+// TestEvaluateAndApplyClearsAlarmsForDisabledDevice checks a disabled device
+// raises neither the unavailable nor the low-battery alarm, and that disabling
+// one that had already alarmed clears the standing alarms. Seasonal hardware
+// left unplugged should go quiet without the user acknowledging anything.
+func TestEvaluateAndApplyClearsAlarmsForDisabledDevice(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	svc := NewService(s, NewBuffer())
+
+	lowBattery := 5.0
+	reader := &fakeReader{
+		devices: []device.Device{
+			{ID: "ac-1", Name: "Portable AC", Type: device.Climate, LastSeen: time.Now().Add(-2 * DeviceStaleAfter)},
+		},
+		states: map[device.DeviceID]*device.DeviceState{
+			"ac-1": {Battery: &lowBattery},
+		},
+	}
+	probe := &fakeProbe{enabled: true, connected: true}
+	diskFn, heapFn := healthyChecks()
+
+	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
+	if !hasAlarm(t, ctx, svc, "system.device_unavailable.ac-1") {
+		t.Fatal("expected an unavailable alarm while the device is enabled")
+	}
+	if !hasAlarm(t, ctx, svc, "system.battery_low.ac-1") {
+		t.Fatal("expected a battery alarm while the device is enabled")
+	}
+
+	reader.devices[0].Disabled = true
+	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
+
+	if hasAlarm(t, ctx, svc, "system.device_unavailable.ac-1") {
+		t.Error("unavailable alarm survived disabling the device")
+	}
+	if hasAlarm(t, ctx, svc, "system.battery_low.ac-1") {
+		t.Error("battery alarm survived disabling the device")
+	}
+
+	reader.devices[0].Disabled = false
+	evaluateAndApply(ctx, svc, reader, probe, ".", diskFn, heapFn)
+	if !hasAlarm(t, ctx, svc, "system.device_unavailable.ac-1") {
+		t.Error("re-enabling did not restore the unavailable alarm")
 	}
 }

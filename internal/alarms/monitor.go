@@ -29,10 +29,16 @@ const (
 // one-shots or API-raised alarms) is invisible to the monitor's clear loop.
 const MonitorSource = "system.monitor"
 
-// ConnectivityProbe reports the liveness of external dependencies the monitor
-// watches. adapterManager in cmd/serve satisfies this.
+// ConnectivityProbe reports the health of the integrations the monitor watches.
+// adapterManager in cmd/serve satisfies this.
 type ConnectivityProbe interface {
-	MQTTConnected() bool
+	// Zigbee2MQTTEnabled reports whether the integration is configured and
+	// switched on. Broker connectivity is not evaluated at all while it is off,
+	// so an install that never adds the integration never sees a connectivity
+	// alarm.
+	Zigbee2MQTTEnabled() bool
+	// Zigbee2MQTTConnected reports live broker connectivity.
+	Zigbee2MQTTConnected() bool
 }
 
 // MonitorConfig lets callers override the default thresholds or paths for
@@ -196,15 +202,18 @@ func collectChecks(
 		},
 	})
 
-	if probe != nil {
+	// Omitting the check when the integration is off is what clears a standing
+	// alarm: evaluateAndApply deletes every monitor-owned alarm absent from this
+	// tick's active set.
+	if probe != nil && probe.Zigbee2MQTTEnabled() {
 		checks = append(checks, check{
-			alarmID: "system.mqtt_disconnected",
-			active:  !probe.MQTTConnected(),
+			alarmID: "system.zigbee2mqtt_disconnected",
+			active:  !probe.Zigbee2MQTTConnected(),
 			raise: RaiseParams{
-				AlarmID:  "system.mqtt_disconnected",
+				AlarmID:  "system.zigbee2mqtt_disconnected",
 				Severity: store.AlarmSeverityHigh,
 				Kind:     store.AlarmKindAuto,
-				Message:  "MQTT broker is disconnected",
+				Message:  "Zigbee2MQTT broker is disconnected",
 				Source:   MonitorSource,
 			},
 		})
@@ -212,10 +221,7 @@ func collectChecks(
 
 	if reader != nil {
 		now := time.Now()
-		for _, d := range reader.ListDevices() {
-			if d.Removed {
-				continue
-			}
+		for _, d := range device.EnabledDevices(reader.ListDevices()) {
 			// Raise only when both signals agree: zigbee2mqtt's availability
 			// ping has failed AND we have not received any state from the
 			// device recently. Either on its own is too noisy — an idle
