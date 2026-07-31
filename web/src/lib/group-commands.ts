@@ -73,12 +73,23 @@ export function flattenGroupDevices(
   return out;
 }
 
+/**
+ * Commandable subset of a device list. Disabled devices are dropped here rather
+ * than in flattenGroupDevices so a group's member list still renders them
+ * (greyed), while every fan-out below skips them. The server rejects them too.
+ */
+function commandable(devices: Device[]): Device[] {
+  return devices.filter((d) => !d.disabled);
+}
+
 export async function commitGroupBrightness(
   client: Client,
   devices: Device[],
   brightness: number,
 ): Promise<void> {
-  const lights = devices.filter((d) => d.type === "light" && d.state?.brightness != null);
+  const lights = commandable(devices).filter(
+    (d) => d.type === "light" && d.state?.brightness != null,
+  );
   if (lights.length === 0) return;
   await Promise.all(
     lights.map((d) => {
@@ -96,7 +107,7 @@ export async function commitGroupToggle(
   devices: Device[],
   on: boolean,
 ): Promise<void> {
-  const targets = devices.filter(isLightControlDevice);
+  const targets = commandable(devices).filter(isLightControlDevice);
   if (targets.length === 0) return;
   await Promise.all(
     targets.map((d) =>
@@ -112,7 +123,9 @@ export async function commitGroupColor(
   devices: Device[],
   color: { r: number; g: number; b: number },
 ): Promise<void> {
-  const targets = devices.filter((d) => d.capabilities.some((c) => c.name === "color"));
+  const targets = commandable(devices).filter((d) =>
+    d.capabilities.some((c) => c.name === "color"),
+  );
   if (targets.length === 0) return;
   const xy = rgbToXy(color.r, color.g, color.b);
   await Promise.all(
@@ -134,7 +147,9 @@ export async function commitGroupTemp(
   devices: Device[],
   mired: number,
 ): Promise<void> {
-  const targets = devices.filter((d) => d.capabilities.some((c) => c.name === "color_temp"));
+  const targets = commandable(devices).filter((d) =>
+    d.capabilities.some((c) => c.name === "color_temp"),
+  );
   if (targets.length === 0) return;
   await Promise.all(
     targets.map((d) => {

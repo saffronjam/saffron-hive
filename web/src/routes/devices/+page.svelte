@@ -45,6 +45,11 @@
 		{ value: "switch", label: "Switch" },
 	];
 
+	const enabledOptions = [
+		{ value: "yes", label: "Yes" },
+		{ value: "no", label: "No" },
+	];
+
 	const searchChipConfigs: ChipConfig[] = [
 		{
 			keyword: "type",
@@ -54,6 +59,18 @@
 				const q = input.toLowerCase();
 				if (!q) return deviceTypeOptions;
 				return deviceTypeOptions.filter(
+					(o) => o.value.includes(q) || o.label.toLowerCase().includes(q)
+				);
+			},
+		},
+		{
+			keyword: "enabled",
+			label: "Enabled",
+			variant: "secondary",
+			options: (input) => {
+				const q = input.toLowerCase();
+				if (!q) return enabledOptions;
+				return enabledOptions.filter(
 					(o) => o.value.includes(q) || o.label.toLowerCase().includes(q)
 				);
 			},
@@ -68,10 +85,16 @@
 		const typeValues = searchState.chips
 			.filter((c) => c.keyword === "type")
 			.map((c) => c.value);
+		const enabledValues = searchState.chips
+			.filter((c) => c.keyword === "enabled")
+			.map((c) => c.value);
 		const query = searchState.freeText.toLowerCase();
 
 		return allDevices.filter((d) => {
 			if (typeValues.length > 0 && !typeValues.includes(d.type)) return false;
+			if (enabledValues.length > 0 && !enabledValues.includes(d.disabled ? "no" : "yes")) {
+				return false;
+			}
 			if (query) {
 				const matches =
 					d.name.toLowerCase().includes(query) ||
@@ -96,6 +119,7 @@
 				name
 				icon
 				tags
+				disabled
 			}
 		}
 	`);
@@ -258,6 +282,19 @@
 		}
 	}
 
+	async function handleToggleEnabled(device: Device) {
+		const next = !device.disabled;
+		deviceStore.updateDisabled(device.id, next);
+		const result = await client
+			.mutation(UPDATE_DEVICE, { id: device.id, input: { disabled: next } })
+			.toPromise();
+		if (result.data) {
+			deviceStore.updateDisabled(device.id, result.data.updateDevice.disabled);
+		} else {
+			deviceStore.updateDisabled(device.id, device.disabled);
+		}
+	}
+
 	onMount(() => {
 		void refreshMemberships();
 	});
@@ -291,7 +328,7 @@
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<p class="text-muted-foreground">No devices discovered yet.</p>
 				<p class="mt-2 text-sm text-muted-foreground">
-					Devices will appear here once the backend connects to your MQTT broker.
+					Devices appear here once an integration is connected.
 				</p>
 			</div>
 		{:else if filteredDevices.length === 0}
@@ -311,6 +348,7 @@
 								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddTo}
+								ontoggleenabled={handleToggleEnabled}
 							/>
 						{/each}
 					</AnimatedGrid>
@@ -325,6 +363,7 @@
 						onrename={handleRename}
 						oniconchange={handleIconChange}
 						onAddTo={handleAddTo}
+						ontoggleenabled={handleToggleEnabled}
 					/>
 				{/snippet}
 			</ListView>

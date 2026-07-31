@@ -6,7 +6,7 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import HiveIcon from "$lib/components/hive-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
-	import { ChevronDown, ChevronRight, Eye, Filter, Palette, Pencil, Plus, Sparkles, Trash2 } from "@lucide/svelte";
+	import { Ban, ChevronDown, ChevronRight, Eye, Filter, Palette, Pencil, Plus, Sparkles, Trash2 } from "@lucide/svelte";
 	import { deviceSceneCapabilities, deviceHasCapability, isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
 	import {
 		defaultScenePayload,
@@ -127,10 +127,17 @@
 						allDevices,
 						groupsLite,
 						roomsLite,
+						{ includeDisabled: true },
 					).filter(isSceneTarget);
 					return { key: rootKey, target: t, targetIndex: index, devices, root: null };
 				}
-				const resolved = resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
+				const resolved = resolveTargetDevices(
+					{ type: t.type, id: t.id },
+					allDevices,
+					groupsLite,
+					roomsLite,
+					{ includeDisabled: true },
+				);
 				const devices = resolved.filter(isSceneTarget);
 				const root = buildTargetTree(
 					rootKey,
@@ -601,9 +608,16 @@
 	{@const leafCaps = deviceSceneCapabilities(device)}
 	{@const leafHasRich =
 		leafCaps.hasBrightness || leafCaps.hasColor || leafCaps.hasColorTemp}
-	<div class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60">
+	<div
+		class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60 {device.disabled
+			? 'opacity-50'
+			: ''}"
+	>
 		<HiveIcon type={device.type} class="size-4 shrink-0 text-muted-foreground" />
 		<span class="truncate text-sm">{device.name}</span>
+		{#if device.disabled}
+			<Ban class="size-3.5 shrink-0 text-muted-foreground" title="Disabled" aria-label="Disabled" />
+		{/if}
 		<span class="flex-1"></span>
 		<div
 			class="flex items-center gap-2"

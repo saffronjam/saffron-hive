@@ -44,7 +44,7 @@
 
 	let {
 		entity,
-		devices,
+		devices: allDevices,
 		fallbackIcon,
 		subtitle,
 		onrename,
@@ -59,6 +59,10 @@
 		addLabel,
 		aggregateTarget,
 	}: Props = $props();
+
+	// A room or group card aggregates and commands only its enabled members; the
+	// disabled ones stay visible on their own detail page instead.
+	const devices = $derived(allDevices.filter((d) => !d.disabled));
 
 	let preview = $state<number | undefined>(undefined);
 	let userTouched = $state(false);

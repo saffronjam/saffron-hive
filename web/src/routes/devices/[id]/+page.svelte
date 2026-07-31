@@ -18,6 +18,7 @@
 	} from "$lib/components/ui/tooltip/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { Switch } from "$lib/components/ui/switch/index.js";
 	import LightControls from "$lib/components/light-controls.svelte";
 	import ClimateControls from "$lib/components/climate-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
@@ -33,7 +34,7 @@
 	import { membershipRowsForDevice } from "$lib/memberships";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { sentenceCase } from "$lib/utils";
-	import { ArrowLeft, Copy, Check, DoorOpen, Group as GroupIcon, Save } from "@lucide/svelte";
+	import { ArrowLeft, Ban, Copy, Check, DoorOpen, Group as GroupIcon, Save } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { getContextClient } from "@urql/svelte";
@@ -48,6 +49,8 @@
 	let savedMetadataIcon = $state<string | null>(null);
 	let metadataTags = $state<DeviceTag[]>([]);
 	let savedMetadataTags = $state<DeviceTag[]>([]);
+	let metadataDisabled = $state(false);
+	let savedMetadataDisabled = $state(false);
 	let savingMetadata = $state(false);
 	function tagsEqual(a: DeviceTag[], b: DeviceTag[]): boolean {
 		return a.length === b.length && a.every((tag, i) => tag === b[i]);
@@ -55,6 +58,7 @@
 	const metadataDirty = $derived(
 		metadataName.trim() !== savedMetadataName ||
 			metadataIcon !== savedMetadataIcon ||
+			metadataDisabled !== savedMetadataDisabled ||
 			!tagsEqual(metadataTags, savedMetadataTags)
 	);
 
@@ -116,6 +120,7 @@
 				type
 				capabilities { name type values valueMin valueMax unit access }
 				available
+				disabled
 				lastSeen
 				state {
 					on
@@ -208,6 +213,7 @@
 				name
 				icon
 				tags
+				disabled
 			}
 		}
 	`);
@@ -415,10 +421,16 @@
 		savingMetadata = true;
 		error = null;
 		const currentDeviceId = device.id;
-		const input: { name?: string; icon?: string | null; tags?: DeviceTag[] } = {};
+		const input: {
+			name?: string;
+			icon?: string | null;
+			tags?: DeviceTag[];
+			disabled?: boolean;
+		} = {};
 		if (name !== savedMetadataName) input.name = name;
 		if (metadataIcon !== savedMetadataIcon) input.icon = metadataIcon;
 		if (!tagsEqual(metadataTags, savedMetadataTags)) input.tags = metadataTags;
+		if (metadataDisabled !== savedMetadataDisabled) input.disabled = metadataDisabled;
 		const result = await clientRef
 			.mutation(UPDATE_DEVICE, { id: currentDeviceId, input })
 			.toPromise();
@@ -433,16 +445,26 @@
 			const updatedName = result.data.updateDevice.name;
 			const updatedIcon = result.data.updateDevice.icon ?? null;
 			const updatedTags = [...result.data.updateDevice.tags] as DeviceTag[];
-			device = { ...device, name: updatedName, icon: updatedIcon, tags: updatedTags };
+			const updatedDisabled = result.data.updateDevice.disabled;
+			device = {
+				...device,
+				name: updatedName,
+				icon: updatedIcon,
+				tags: updatedTags,
+				disabled: updatedDisabled,
+			};
 			metadataName = updatedName;
 			savedMetadataName = updatedName;
 			metadataIcon = updatedIcon;
 			savedMetadataIcon = updatedIcon;
 			metadataTags = [...updatedTags];
 			savedMetadataTags = [...updatedTags];
+			metadataDisabled = updatedDisabled;
+			savedMetadataDisabled = updatedDisabled;
 			deviceStore.updateName(currentDeviceId, updatedName);
 			deviceStore.updateIcon(currentDeviceId, updatedIcon);
 			deviceStore.updateTags(currentDeviceId, updatedTags);
+			deviceStore.updateDisabled(currentDeviceId, updatedDisabled);
 		}
 	}
 
@@ -479,6 +501,8 @@
 					savedMetadataIcon = result.data.device.icon ?? null;
 					metadataTags = [...result.data.device.tags] as DeviceTag[];
 					savedMetadataTags = [...result.data.device.tags] as DeviceTag[];
+					metadataDisabled = result.data.device.disabled;
+					savedMetadataDisabled = result.data.device.disabled;
 				} else {
 					error = "Device not found";
 				}
@@ -578,10 +602,21 @@
 					/>
 				</div>
 				<div class="mt-4 flex items-center gap-3">
-					<span class="w-12 text-sm font-medium text-foreground">Tags</span>
+					<span class="w-16 text-sm font-medium text-foreground">Tags</span>
 					<DeviceTagsSelect
 						value={metadataTags}
 						onchange={(next) => (metadataTags = next)}
+						disabled={savingMetadata}
+					/>
+				</div>
+				<div class="mt-4 flex items-center gap-3">
+					<label class="w-16 text-sm font-medium text-foreground" for="device-enabled">
+						Enabled
+					</label>
+					<Switch
+						id="device-enabled"
+						checked={!metadataDisabled}
+						onCheckedChange={(v) => (metadataDisabled = !v)}
 						disabled={savingMetadata}
 					/>
 				</div>
@@ -593,12 +628,19 @@
 					<CardHeader>
 						<div class="flex items-center justify-between">
 							<CardTitle>Device Info</CardTitle>
-							<span
-								class="inline-flex items-center gap-1.5 text-sm {device.available ? 'text-status-online' : 'text-status-offline'}"
-							>
-								<span class="h-2 w-2 rounded-full {device.available ? 'bg-status-online' : 'bg-status-offline'}"></span>
-								{device.available ? "Online" : "Offline"}
-							</span>
+							{#if device.disabled}
+								<span class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+									<Ban class="size-3.5" />
+									Disabled
+								</span>
+							{:else}
+								<span
+									class="inline-flex items-center gap-1.5 text-sm {device.available ? 'text-status-online' : 'text-status-offline'}"
+								>
+									<span class="h-2 w-2 rounded-full {device.available ? 'bg-status-online' : 'bg-status-offline'}"></span>
+									{device.available ? "Online" : "Offline"}
+								</span>
+							{/if}
 						</div>
 					</CardHeader>
 					<CardContent>

@@ -741,8 +741,12 @@
 		for (const t of targets) {
 			const resolved =
 				t.type === "expression"
-					? evaluateExpression(t.expression ?? [], allDevices, groupsLite, roomsLite)
-					: resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
+					? evaluateExpression(t.expression ?? [], allDevices, groupsLite, roomsLite, {
+							includeDisabled: true,
+						})
+					: resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite, {
+							includeDisabled: true,
+						});
 			for (const d of resolved) {
 				if (isSceneTarget(d)) ids.add(d.id);
 			}

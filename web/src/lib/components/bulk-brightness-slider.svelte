@@ -20,8 +20,10 @@
 		ariaLabel = "Brightness",
 	}: Props = $props();
 
+	// Disabled devices are excluded: the slider must show, and average, only what
+	// it can actually command.
 	const dimmable = $derived(
-		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
+		devices.filter((d) => !d.disabled && d.type === "light" && d.state?.brightness != null),
 	);
 	const hasLights = $derived(dimmable.length > 0);
 

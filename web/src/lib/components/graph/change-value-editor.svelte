@@ -62,7 +62,9 @@
 		capabilities
 			? settableNumericCapabilities(capabilities)
 			: target
-				? settableNumericCapabilities(capabilityUnionForTarget(target, devices, groups, rooms))
+				? settableNumericCapabilities(
+						capabilityUnionForTarget(target, devices, groups, rooms, { includeDisabled: true }),
+					)
 				: [],
 	);
 

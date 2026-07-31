@@ -29,7 +29,14 @@
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
 	import { me } from "$lib/stores/me.svelte";
-	import { EllipsisVertical, MousePointerClick, Pencil, Plus } from "@lucide/svelte";
+	import {
+		Ban,
+		CircleCheck,
+		EllipsisVertical,
+		MousePointerClick,
+		Pencil,
+		Plus,
+	} from "@lucide/svelte";
 
 	interface MembershipChip {
 		id: string;
@@ -44,6 +51,7 @@
 		onrename: (id: string, newName: string) => void;
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
+		ontoggleenabled: (device: Device) => void;
 	}
 
 	let {
@@ -53,6 +61,7 @@
 		onrename,
 		oniconchange,
 		onAddTo,
+		ontoggleenabled,
 	}: Props = $props();
 
 	let localBrightness = $state(0);
@@ -86,7 +95,7 @@
 			? { ...device, state: { ...device.state, brightness: localBrightness } }
 			: device,
 	);
-	const tintColor = $derived(deviceTintBase(tintDevice));
+	const tintColor = $derived(device.disabled ? null : deviceTintBase(tintDevice));
 	const tintStrength = $derived.by(() => {
 		if (!device.state?.on) return 0;
 		return hasBrightness ? brightnessToTintStrength(localBrightness) : 1;
@@ -160,7 +169,9 @@
 
 <Card
 	size="sm"
-	class="h-full min-h-28 transition-all hover:shadow-card-hover {tintColor ? 'tint-1' : ''}"
+	class="h-full min-h-28 transition-all hover:shadow-card-hover {tintColor
+		? 'tint-1'
+		: ''} {device.disabled ? 'opacity-60' : ''}"
 	style={cardStyle}
 >
 	<CardHeader>
@@ -174,7 +185,13 @@
 					iconClass="size-4 {mutedTextClass}"
 				/>
 				<InlineEditName name={device.name} onsave={(newName) => onrename(device.id, newName)} />
-				{#if !device.available}
+				{#if device.disabled}
+					<Ban
+						class="size-3.5 shrink-0 text-muted-foreground"
+						title="Disabled"
+						aria-label="Disabled"
+					/>
+				{:else if !device.available}
 					<span
 						class="size-2.5 shrink-0 rounded-full bg-status-offline"
 						title="Offline"
@@ -183,8 +200,10 @@
 				{/if}
 			</div>
 			<div class="flex shrink-0 items-center gap-1">
-				<DeviceQuickControls {device} />
-				{#if hasActions}
+				{#if !device.disabled}
+					<DeviceQuickControls {device} />
+				{/if}
+				{#if hasActions && !device.disabled}
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger>
@@ -235,6 +254,15 @@
 							<Plus class="size-4" />
 							Add to
 						</DropdownMenuItem>
+						<DropdownMenuItem onclick={() => ontoggleenabled(device)}>
+							{#if device.disabled}
+								<CircleCheck class="size-4" />
+								Enable
+							{:else}
+								<Ban class="size-4" />
+								Disable
+							{/if}
+						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
@@ -280,7 +308,7 @@
 				max={254}
 				step={1}
 				onValueChange={handleBrightnessChange}
-				disabled={!device.available}
+				disabled={!device.available || device.disabled}
 				aria-label={`${device.name} brightness`}
 			/>
 		{/if}

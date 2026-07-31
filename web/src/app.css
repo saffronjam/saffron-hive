@@ -39,6 +39,8 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --color-brand: var(--brand);
+  --color-status-online: var(--status-online);
+  --color-status-offline: var(--status-offline);
   --color-automation-trigger: var(--automation-trigger);
   --color-automation-condition: var(--automation-condition);
   --color-automation-operator: var(--automation-operator);
@@ -92,6 +94,8 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
+  --status-online: oklch(0.723 0.219 149.579);
+  --status-offline: oklch(0.712 0.015 286.067);
   --automation-trigger: oklch(0.623 0.214 259.815);
   --automation-condition: oklch(0.704 0.14 182.503);
   --automation-operator: oklch(0.795 0.184 86.047);
@@ -134,6 +138,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
+  --status-online: oklch(0.792 0.209 151.711);
+  --status-offline: oklch(0.552 0.016 285.938);
   --automation-trigger: oklch(0.707 0.165 254.624);
   --automation-condition: oklch(0.777 0.152 181.912);
   --automation-operator: oklch(0.852 0.199 91.936);

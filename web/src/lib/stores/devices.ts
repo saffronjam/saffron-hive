@@ -76,6 +76,7 @@ const DEVICES_QUERY = graphql(`
         access
       }
       available
+      disabled
       lastSeen
       state {
         on
@@ -251,6 +252,7 @@ function createDeviceStore() {
         name: existing.name,
         icon: existing.icon ?? null,
         tags: existing.tags,
+        disabled: existing.disabled,
       },
     });
   }
@@ -277,6 +279,13 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, tags } });
   }
 
+  function updateDisabled(deviceId: string, disabled: boolean) {
+    const device = current[deviceId];
+    if (!device) return;
+    if (device.disabled === disabled) return;
+    set({ ...current, [deviceId]: { ...device, disabled } });
+  }
+
   function removeDevice(deviceId: string) {
     if (!(deviceId in current)) return;
     const { [deviceId]: _, ...rest } = current;
@@ -292,6 +301,7 @@ function createDeviceStore() {
     updateName,
     updateIcon,
     updateTags,
+    updateDisabled,
     removeDevice,
 
     async start(client: Client) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   capabilityUnion,
   capabilityUnionForTarget,
+  evaluateExpression,
   hasCapability,
   resolveTargetDevices,
   settableNumericCapabilities,
@@ -32,10 +33,11 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     __typename: "Device" as const,
     id,
     name: id,
-    source: "zigbee",
+    source: "zigbee2mqtt",
     type: "light",
     tags: [],
     available: true,
+  disabled: false,
     lastSeen: null,
     capabilities: caps,
     state: null,
@@ -228,5 +230,51 @@ describe("settableNumericCapabilities", () => {
   it("returns an empty list when no settable numeric capabilities exist", () => {
     const caps = [cap("on_off", { type: "binary", access: 7 })];
     expect(settableNumericCapabilities(caps)).toEqual([]);
+  });
+});
+
+describe("disabled devices", () => {
+  // dev() stamps every fixture as type "light"; the expression case needs a
+  // second type to have anything to complement against.
+  const offPlug = { ...plug, type: "plug", disabled: true };
+  const grp: GroupLite = {
+    id: "g1",
+    members: [
+      { memberType: "device", memberId: "light-1" },
+      { memberType: "device", memberId: "plug-1" },
+    ],
+  };
+
+  it("are dropped from a resolved target by default", () => {
+    const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, offPlug], [grp], []);
+    expect(got.map((d) => d.id)).toEqual(["light-1"]);
+  });
+
+  it("are dropped when targeted directly", () => {
+    const got = resolveTargetDevices({ type: "device", id: "plug-1" }, [light, offPlug], [], []);
+    expect(got).toEqual([]);
+  });
+
+  it("are kept when includeDisabled is set, so editors can grey them", () => {
+    const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, offPlug], [grp], [], {
+      includeDisabled: true,
+    });
+    expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
+  });
+
+  it("leave the expression universe, so is_not cannot resurrect them", () => {
+    const notLight = [{ subject: "device_type", op: "is_not", values: ["light"] }];
+    expect(evaluateExpression(notLight, [light, offPlug], [], [])).toEqual([]);
+    expect(
+      evaluateExpression(notLight, [light, offPlug], [], [], { includeDisabled: true }).map(
+        (d) => d.id,
+      ),
+    ).toEqual(["plug-1"]);
+  });
+
+  it("do not contribute capabilities to a target union", () => {
+    const caps = capabilityUnionForTarget({ type: "group", id: "g1" }, [light, offPlug], [grp], []);
+    expect(hasCapability(caps, "power")).toBe(false);
+    expect(hasCapability(caps, "color")).toBe(true);
   });
 });

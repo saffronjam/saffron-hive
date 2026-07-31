@@ -23,7 +23,7 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { deviceIcon, sentenceCase } from "$lib/utils";
-	import { DoorOpen, Group as GroupIcon, Plus } from "@lucide/svelte";
+	import { Ban, CircleCheck, DoorOpen, Group as GroupIcon, Plus } from "@lucide/svelte";
 
 	interface MembershipChip {
 		id: string;
@@ -43,9 +43,11 @@
 		onrename: (id: string, newName: string) => void;
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
+		ontoggleenabled: (device: Device) => void;
 	}
 
-	let { rows, selection, onrename, oniconchange, onAddTo }: Props = $props();
+	let { rows, selection, onrename, oniconchange, onAddTo, ontoggleenabled }: Props =
+		$props();
 
 	const COLUMNS: ColumnDef<Row>[] = [
 		{
@@ -143,7 +145,13 @@
 			name={row.device.name}
 			onsave={(newName) => onrename(row.device.id, newName)}
 		/>
-		{#if !row.device.available}
+		{#if row.device.disabled}
+			<Ban
+				class="size-3.5 shrink-0 text-muted-foreground"
+				title="Disabled"
+				aria-label="Disabled"
+			/>
+		{:else if !row.device.available}
 			<span
 				class="size-2.5 shrink-0 rounded-full bg-status-offline"
 				title="Offline"
@@ -239,6 +247,23 @@
 					</Button>
 				</TooltipTrigger>
 				<TooltipContent>Add to…</TooltipContent>
+			</Tooltip>
+			<Tooltip>
+				<TooltipTrigger>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onclick={() => ontoggleenabled(row.device)}
+						aria-label={row.device.disabled ? "Enable device" : "Disable device"}
+					>
+						{#if row.device.disabled}
+							<CircleCheck class="size-4" />
+						{:else}
+							<Ban class="size-4" />
+						{/if}
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{row.device.disabled ? "Enable" : "Disable"}</TooltipContent>
 			</Tooltip>
 		{/snippet}
 	</RowActionsCell>

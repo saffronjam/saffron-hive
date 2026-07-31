@@ -70,7 +70,10 @@
 
 	const parsed = $derived(parsePayload(value));
 	const caps = $derived<Capability[]>(
-		capabilities ?? (target ? capabilityUnionForTarget(target, devices, groups, rooms) : []),
+		capabilities ??
+			(target
+				? capabilityUnionForTarget(target, devices, groups, rooms, { includeDisabled: true })
+				: []),
 	);
 
 	const showOn = $derived(hasCapability(caps, "on_off"));

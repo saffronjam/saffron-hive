@@ -25,7 +25,7 @@ function sensor(partial: Partial<DeviceState>, id = "s"): Device {
   return {
     id,
     name: id,
-    source: "zigbee",
+    source: "zigbee2mqtt",
     type: "sensor",
     capabilities: [],
     available: true,
