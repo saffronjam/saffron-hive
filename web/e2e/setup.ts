@@ -185,6 +185,51 @@ async function loginForE2E(graphqlUrl: string): Promise<string> {
   throw new Error("Timed out waiting for login during e2e setup");
 }
 
+// Integrations are opt-in, so the app boots with no protocol adapter. This is the
+// same mutation the Integrations page calls, and it reconnects synchronously —
+// so once it returns the adapter is subscribed and retained fixtures will land.
+// Failing loudly here beats letting waitForDevices time out with no explanation.
+async function configureZigbee2MQTT(graphqlUrl: string, token: string): Promise<void> {
+  const query = `mutation E2EConfigureZigbee2Mqtt($input: Zigbee2MqttConfigInput!) {
+    updateZigbee2MqttConfig(input: $input) { broker }
+  }`;
+  const res = await fetch(graphqlUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      operationName: "E2EConfigureZigbee2Mqtt",
+      query,
+      variables: {
+        input: {
+          broker: "mosquitto:1883",
+          username: "",
+          password: "",
+          useWss: false,
+          enabled: true,
+        },
+      },
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Configuring the Zigbee2MQTT integration failed: HTTP ${res.status}`);
+  }
+  const json = (await res.json()) as {
+    data?: { updateZigbee2MqttConfig?: { broker: string } };
+    errors?: Array<{ message: string }>;
+  };
+  if (json.errors?.length) {
+    throw new Error(
+      `Configuring the Zigbee2MQTT integration failed: ${json.errors.map((e) => e.message).join("; ")}`,
+    );
+  }
+  if (!json.data?.updateZigbee2MqttConfig?.broker) {
+    throw new Error("Configuring the Zigbee2MQTT integration returned no broker");
+  }
+}
+
 export async function setupE2E(): Promise<void> {
   const network = await new Network().start();
 
@@ -215,7 +260,6 @@ export async function setupE2E(): Promise<void> {
     .withEntrypoint(["/bin/sh", "-c"])
     .withCommand(["saffron-hive migrate up && saffron-hive serve"])
     .withEnvironment({
-      HIVE_MQTT_ADDRESS: "mosquitto:1883",
       HIVE_LISTEN_ADDR: ":8080",
       HIVE_DB_PATH: "/tmp/test.db",
       HIVE_INIT_USER: "e2e",
@@ -234,6 +278,7 @@ export async function setupE2E(): Promise<void> {
   const mqttClient = await connectAsync(`mqtt://${mosquittoHost}:${mosquittoPort}`);
 
   const token = await loginForE2E(graphqlUrl);
+  await configureZigbee2MQTT(graphqlUrl, token);
   const graphqlClient = createTestGraphQLClient(graphqlUrl, wsUrl, token);
 
   ctx = {

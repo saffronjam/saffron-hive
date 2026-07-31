@@ -8,10 +8,6 @@ import (
 func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
-		"HIVE_MQTT_ADDRESS",
-		"HIVE_MQTT_USER",
-		"HIVE_MQTT_PASSWORD",
-		"HIVE_MQTT_USE_WSS",
 		"HIVE_INIT_USER",
 		"HIVE_INIT_PASSWORD",
 		"HIVE_DB_PATH",
@@ -25,10 +21,6 @@ func clearEnv(t *testing.T) {
 
 func TestConfigFromEnv(t *testing.T) {
 	clearEnv(t)
-	t.Setenv("HIVE_MQTT_ADDRESS", "mqtt.example.com:1883")
-	t.Setenv("HIVE_MQTT_USER", "user")
-	t.Setenv("HIVE_MQTT_PASSWORD", "pass")
-	t.Setenv("HIVE_MQTT_USE_WSS", "true")
 	t.Setenv("HIVE_INIT_USER", "admin")
 	t.Setenv("HIVE_INIT_PASSWORD", "hunter2")
 	t.Setenv("HIVE_DB_PATH", "/data/test.db")
@@ -36,18 +28,6 @@ func TestConfigFromEnv(t *testing.T) {
 
 	cfg := Parse()
 
-	if cfg.MQTTAddress != "mqtt.example.com:1883" {
-		t.Errorf("MQTTAddress = %q, want %q", cfg.MQTTAddress, "mqtt.example.com:1883")
-	}
-	if cfg.MQTTUser != "user" {
-		t.Errorf("MQTTUser = %q, want %q", cfg.MQTTUser, "user")
-	}
-	if cfg.MQTTPassword != "pass" {
-		t.Errorf("MQTTPassword = %q, want %q", cfg.MQTTPassword, "pass")
-	}
-	if !cfg.MQTTUseWSS {
-		t.Error("MQTTUseWSS = false, want true")
-	}
 	if cfg.InitUser != "admin" {
 		t.Errorf("InitUser = %q, want %q", cfg.InitUser, "admin")
 	}
@@ -65,35 +45,8 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 }
 
-func TestConfigOptionalMQTT(t *testing.T) {
-	clearEnv(t)
-
-	cfg := Parse()
-	if cfg.MQTTAddress != "" {
-		t.Errorf("MQTTAddress = %q, want empty", cfg.MQTTAddress)
-	}
-	if cfg.HasMQTTConfig() {
-		t.Error("HasMQTTConfig() = true, want false when address is empty")
-	}
-	if cfg.HasInitUser() {
-		t.Error("HasInitUser() = true, want false when init envs are empty")
-	}
-}
-
-func TestConfigAnonymousMQTT(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("HIVE_MQTT_ADDRESS", "mqtt.example.com:1883")
-
-	cfg := Parse()
-
-	if !cfg.HasMQTTConfig() {
-		t.Error("HasMQTTConfig() = false, want true when only address is set (anonymous)")
-	}
-}
-
 func TestConfigDefaults(t *testing.T) {
 	clearEnv(t)
-	t.Setenv("HIVE_MQTT_ADDRESS", "mqtt.example.com:1883")
 
 	cfg := Parse()
 
@@ -103,10 +56,13 @@ func TestConfigDefaults(t *testing.T) {
 	if cfg.ListenAddr != ":8080" {
 		t.Errorf("ListenAddr = %q, want default %q", cfg.ListenAddr, ":8080")
 	}
-	if cfg.MQTTUseWSS {
-		t.Error("MQTTUseWSS = true, want false by default")
+	if cfg.DataDir != "." {
+		t.Errorf("DataDir = %q, want default %q", cfg.DataDir, ".")
 	}
-	if !cfg.HasMQTTConfig() {
-		t.Error("HasMQTTConfig() = false, want true when address is set")
+	if !cfg.TrustProxyHeaders {
+		t.Error("TrustProxyHeaders = false, want true by default")
+	}
+	if cfg.HasInitUser() {
+		t.Error("HasInitUser() = true, want false when init envs are empty")
 	}
 }

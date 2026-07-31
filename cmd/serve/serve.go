@@ -71,9 +71,6 @@ func Run(ctx context.Context) error {
 
 	sqlStore := store.New(db)
 
-	if err := seedMQTTConfig(ctx, cfg, sqlStore); err != nil {
-		return err
-	}
 	if err := seedInitialUser(ctx, cfg, sqlStore); err != nil {
 		return err
 	}
@@ -94,11 +91,6 @@ func Run(ctx context.Context) error {
 		} else {
 			serveLogger.Info("bootstrap token", "token", tok, "path", filepath.Join(cfg.DataDir, "bootstrap.token"))
 		}
-	}
-
-	mqttCfg, err := sqlStore.GetMQTTConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to read mqtt config: %w", err)
 	}
 
 	if setting, err := sqlStore.GetSetting(ctx, "log_level"); err == nil {
@@ -186,20 +178,8 @@ func Run(ctx context.Context) error {
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
 	spawn("alarms.monitor", func() { alarms.RunMonitor(ctx, alarmSvc, memStore, mgr) })
 
-	if mqttCfg != nil && mqttCfg.Broker != "" {
-		mgr.client = zigbee.NewPahoClient(zigbee.PahoConfig{
-			Broker:   mqttCfg.Broker,
-			Username: mqttCfg.Username,
-			Password: mqttCfg.Password,
-			UseWSS:   mqttCfg.UseWSS,
-			ClientID: "saffron-hive",
-		})
-		mgr.adapter = zigbee.NewZigbeeAdapter(mgr.client, bus, memStore, memStore)
-		if err := mgr.adapter.Start(); err != nil {
-			return err
-		}
-	} else {
-		serveLogger.Warn("MQTT not configured, starting without a protocol adapter — complete /setup to connect")
+	if err := mgr.ReconnectZigbee2MQTT(ctx); err != nil {
+		serveLogger.Warn("Zigbee2MQTT integration did not start", "error", err)
 	}
 	if err := mgr.ReconnectTuya(ctx); err != nil {
 		serveLogger.Warn("Tuya integration did not start", "error", err)
@@ -230,8 +210,9 @@ func Run(ctx context.Context) error {
 		Alarms:              alarmSvc,
 		AlarmBuffer:         alarmBuffer,
 		LevelVar:            levelVar,
-		Reconnector:         mgr,
+		Zigbee2MQTT:         mgr,
 		Tuya:                mgr,
+		Integrations:        mgr,
 		EffectRunner:        effectRunner,
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
@@ -374,26 +355,6 @@ func wsInitFunc(svc *auth.Service, lookup auth.UserLookup) transport.WebsocketIn
 	}
 }
 
-func seedMQTTConfig(ctx context.Context, cfg config.Config, s *store.DB) error {
-	if !cfg.HasMQTTConfig() {
-		return nil
-	}
-	existing, err := s.GetMQTTConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("check mqtt config: %w", err)
-	}
-	if existing != nil {
-		return nil
-	}
-	serveLogger.Info("seeding MQTT config from environment variables")
-	return s.UpsertMQTTConfig(ctx, store.MQTTConfig{
-		Broker:   cfg.MQTTAddress,
-		Username: cfg.MQTTUser,
-		Password: cfg.MQTTPassword,
-		UseWSS:   cfg.MQTTUseWSS,
-	})
-}
-
 // seedInitialUser creates the first user from HIVE_INIT_USER / HIVE_INIT_PASSWORD
 // when the users table is empty. Safe to run on every startup — if any user
 // exists, this is a no-op.
@@ -426,25 +387,35 @@ func seedInitialUser(ctx context.Context, cfg config.Config, s *store.DB) error 
 }
 
 type adapterManager struct {
-	mu       sync.Mutex
-	client   zigbee.MQTTClient
-	adapter  *zigbee.ZigbeeAdapter
-	tuya     *tuya.Adapter
-	store    *store.DB
-	bus      eventbus.EventBus
-	memStore *device.MemoryStore
+	mu                 sync.Mutex
+	client             zigbee.MQTTClient
+	adapter            *zigbee.ZigbeeAdapter
+	zigbee2mqttEnabled bool
+	tuya               *tuya.Adapter
+	store              *store.DB
+	bus                eventbus.EventBus
+	memStore           *device.MemoryStore
 }
 
-// MQTTConnected reports whether the managed MQTT client is currently
-// connected. Returns false when no client has been configured yet (e.g.
-// before /setup is complete).
-func (m *adapterManager) MQTTConnected() bool {
+// Zigbee2MQTTConnected reports whether the managed broker client is currently
+// connected. False whenever the integration is unconfigured, disabled, or its
+// adapter failed to start.
+func (m *adapterManager) Zigbee2MQTTConnected() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.client == nil {
 		return false
 	}
 	return m.client.IsConnected()
+}
+
+// Zigbee2MQTTEnabled reports whether the integration is configured and switched
+// on. The alarm monitor uses this to skip the connectivity check entirely on
+// installs that never added the integration.
+func (m *adapterManager) Zigbee2MQTTEnabled() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.zigbee2mqttEnabled
 }
 
 // Stop shuts down the current adapter if one is running.
@@ -461,16 +432,16 @@ func (m *adapterManager) Stop() {
 	}
 }
 
-// Reconnect stops the current MQTT adapter (if any), reads config from the
-// database, and starts a fresh connection. Also serves as the first-time start
-// when the app booted without an MQTT config and the user completes /setup.
-func (m *adapterManager) Reconnect(ctx context.Context) error {
-	mqttCfg, err := m.store.GetMQTTConfig(ctx)
+// ReconnectZigbee2MQTT applies the persisted Zigbee2MQTT configuration: it stops
+// any running adapter, then starts a fresh one when the integration is
+// configured and enabled. An unconfigured or disabled integration is not an
+// error; the adapter simply stays down. This is the only path through which
+// persisted config reaches the manager, so zigbee2mqttEnabled cannot drift from
+// the database.
+func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
+	cfg, err := m.store.GetZigbee2MQTTConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("read mqtt config: %w", err)
-	}
-	if mqttCfg == nil || mqttCfg.Broker == "" {
-		return fmt.Errorf("no MQTT configuration in database")
+		return fmt.Errorf("read zigbee2mqtt config: %w", err)
 	}
 
 	m.mu.Lock()
@@ -479,14 +450,21 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 	if m.adapter != nil {
 		m.adapter.Stop()
 		m.adapter = nil
-		m.client = nil
+	}
+	m.client = nil
+
+	// Set before attempting Start so a configured integration whose broker is
+	// unreachable still counts as enabled, and the connectivity alarm fires.
+	m.zigbee2mqttEnabled = cfg != nil && cfg.Enabled && cfg.Broker != ""
+	if !m.zigbee2mqttEnabled {
+		return nil
 	}
 
 	client := zigbee.NewPahoClient(zigbee.PahoConfig{
-		Broker:   mqttCfg.Broker,
-		Username: mqttCfg.Username,
-		Password: mqttCfg.Password,
-		UseWSS:   mqttCfg.UseWSS,
+		Broker:   cfg.Broker,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		UseWSS:   cfg.UseWSS,
 		ClientID: "saffron-hive",
 	})
 
@@ -496,12 +474,29 @@ func (m *adapterManager) Reconnect(ctx context.Context) error {
 		// and leave the manager in a clean "not connected" state so a retry
 		// doesn't try to Stop() a half-initialised adapter.
 		adapter.Stop()
-		return fmt.Errorf("start adapter with new config: %w", err)
+		return fmt.Errorf("start zigbee2mqtt adapter: %w", err)
 	}
 	m.client = client
 	m.adapter = adapter
 
-	serveLogger.Info("MQTT reconnected with new configuration", "broker", mqttCfg.Broker)
+	serveLogger.Info("Zigbee2MQTT connected", "broker", cfg.Broker)
+	return nil
+}
+
+// TestZigbee2MQTT opens a throwaway broker connection with the given credentials
+// and reports whether it succeeded, leaving the running adapter untouched.
+func (m *adapterManager) TestZigbee2MQTT(_ context.Context, cfg store.Zigbee2MQTTConfig) error {
+	client := zigbee.NewPahoClient(zigbee.PahoConfig{
+		Broker:   cfg.Broker,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		UseWSS:   cfg.UseWSS,
+		ClientID: "saffron-hive-test",
+	})
+	if err := client.Connect(); err != nil {
+		return err
+	}
+	client.Disconnect(250)
 	return nil
 }
 
@@ -581,23 +576,55 @@ func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) 
 	return tuya.NewAdapter(client, m.bus, m.memStore, m.store).Sync(ctx)
 }
 
+// DeleteIntegration removes a provider's configuration and stops its adapter,
+// returning the number of devices removed alongside it.
+//
+// Zigbee2MQTT keeps its device rows. Device ids are IEEE addresses, so
+// reconfiguring the integration recovers every device onto its original row with
+// its name, icon, tags, room and scene references intact; deleting them would
+// instead orphan those references. Tuya purges, because its cloud ids are
+// re-derived on every sync.
 func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string) (int, error) {
-	if provider != "tuya" {
+	switch device.Source(provider) {
+	case device.SourceZigbee2MQTT:
+		m.mu.Lock()
+		if m.adapter != nil {
+			m.adapter.Stop()
+			m.adapter = nil
+		}
+		m.client = nil
+		m.zigbee2mqttEnabled = false
+		m.mu.Unlock()
+
+		if err := m.store.DeleteZigbee2MQTTConfig(ctx); err != nil {
+			return 0, err
+		}
+		m.markSourceUnavailable(ctx, device.SourceZigbee2MQTT)
+		return 0, nil
+
+	case device.SourceTuya:
+		m.mu.Lock()
+		if m.tuya != nil {
+			m.tuya.Stop()
+			m.tuya = nil
+		}
+		m.mu.Unlock()
+
+		if err := m.store.DeleteTuyaConfig(ctx); err != nil {
+			return 0, err
+		}
+		return m.purgeDevicesForSource(ctx, device.SourceTuya)
+
+	default:
 		return 0, fmt.Errorf("unknown integration %q", provider)
 	}
+}
 
-	m.mu.Lock()
-	if m.tuya != nil {
-		m.tuya.Stop()
-		m.tuya = nil
-	}
-	m.mu.Unlock()
-
-	devices, err := m.store.ListDevicesBySource(ctx, tuya.Source)
+// purgeDevicesForSource deletes every device belonging to a source and reports
+// how many rows went away.
+func (m *adapterManager) purgeDevicesForSource(ctx context.Context, source device.Source) (int, error) {
+	devices, err := m.store.ListDevicesBySource(ctx, source)
 	if err != nil {
-		return 0, err
-	}
-	if err := m.store.DeleteTuyaConfig(ctx); err != nil {
 		return 0, err
 	}
 	for _, dev := range devices {
@@ -612,6 +639,25 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 		})
 	}
 	return len(devices), nil
+}
+
+// markSourceUnavailable flags a source's devices offline so the dashboard stops
+// showing stale online state once its adapter has stopped.
+func (m *adapterManager) markSourceUnavailable(ctx context.Context, source device.Source) {
+	devices, err := m.store.ListDevicesBySource(ctx, source)
+	if err != nil {
+		serveLogger.Warn("failed to list devices to mark unavailable", "source", source, "error", err)
+		return
+	}
+	for _, dev := range devices {
+		m.memStore.SetAvailability(dev.ID, false)
+		m.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventDeviceAvailabilityChanged,
+			DeviceID:  string(dev.ID),
+			Timestamp: time.Now(),
+			Payload:   false,
+		})
+	}
 }
 
 func (m *adapterManager) TuyaConnected() bool {
@@ -670,7 +716,7 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 					devicePersisterLogger.Error("failed to upsert device", "device_id", d.ID, "error", err)
 					continue
 				}
-				if d.Source == "zigbee" {
+				if d.Source == device.SourceZigbee2MQTT {
 					err = s.UpsertZigbeeDevice(ctx, store.RegisterZigbeeDeviceParams{
 						DeviceID:     d.ID,
 						IEEEAddress:  string(d.ID),
