@@ -81,11 +81,14 @@ var selectableKinds = map[string]struct{}{
 // room/group/device clauses resolve through the TargetResolver; device_type and
 // device_role clauses match against the in-memory device list. An empty
 // expression matches nothing.
+//
+// Disabled devices are excluded from the universe, so they are matched by
+// neither an including clause nor the complement an is_not clause builds.
 func EvaluateExpression(ctx context.Context, reader StateReader, resolver TargetResolver, expr Expression) []DeviceID {
 	if len(expr) == 0 {
 		return nil
 	}
-	universe := reader.ListDevices()
+	universe := EnabledDevices(reader.ListDevices())
 	var acc map[DeviceID]struct{}
 	for i, c := range expr {
 		set := clauseSet(ctx, resolver, universe, c)

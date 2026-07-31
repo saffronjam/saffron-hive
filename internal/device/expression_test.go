@@ -121,3 +121,37 @@ func TestValidateExpression(t *testing.T) {
 		}
 	}
 }
+
+// TestEvaluateExpression_DisabledExcludedFromUniverse checks a disabled device
+// is matched by neither an including clause nor the complement an is_not clause
+// builds. Filtering only one of the two would let is_not resurrect it.
+func TestEvaluateExpression_DisabledExcludedFromUniverse(t *testing.T) {
+	s, res := evalFixture()
+	setDisabled(t, s, "fan", true)
+
+	role := Expression{{Subject: SubjectDeviceRole, Op: OpIsOneOf, Values: []string{"plug"}}}
+	if got := EvaluateExpression(context.Background(), s, res, role); !reflect.DeepEqual(got, []DeviceID{"lamp-plug"}) {
+		t.Errorf("is_one_of plug: got %v, want [lamp-plug]", got)
+	}
+
+	notLight := Expression{{Subject: SubjectDeviceType, Op: OpIsNot, Values: []string{"light"}}}
+	if got := EvaluateExpression(context.Background(), s, res, notLight); !reflect.DeepEqual(got, []DeviceID{"lamp-plug", "temp"}) {
+		t.Errorf("is_not light: got %v, want [lamp-plug temp]", got)
+	}
+
+	setDisabled(t, s, "fan", false)
+	if got := EvaluateExpression(context.Background(), s, res, role); !reflect.DeepEqual(got, []DeviceID{"fan", "lamp-plug"}) {
+		t.Errorf("after re-enable: got %v, want [fan lamp-plug]", got)
+	}
+}
+
+// setDisabled flips a device's disabled flag through the same path the
+// device.updated event takes, so the test exercises the production mechanism.
+func setDisabled(t *testing.T, s *MemoryStore, id DeviceID, disabled bool) {
+	t.Helper()
+	d, ok := s.GetDevice(id)
+	if !ok {
+		t.Fatalf("device %s not registered", id)
+	}
+	s.UpdateUserFields(d.ID, d.Name, d.Icon, d.Tags, disabled)
+}

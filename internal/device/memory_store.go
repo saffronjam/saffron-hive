@@ -66,7 +66,7 @@ func (s *MemoryStore) ListDevices() []Device {
 }
 
 // Register inserts a device, or merges adapter-owned fields into an existing
-// one. Name, Icon, and Tags are user-owned: once a device is known, a
+// one. Name, Icon, Tags, and Disabled are user-owned: once a device is known, a
 // re-registration from an adapter (re-discovery, periodic sync) keeps those
 // values and updates only the adapter-owned fields (Source, Type, Capabilities,
 // Available, LastSeen). This mirrors the UpsertDevice query so the in-memory
@@ -78,15 +78,16 @@ func (s *MemoryStore) Register(d Device) {
 		d.Name = existing.Name
 		d.Icon = existing.Icon
 		d.Tags = existing.Tags
+		d.Disabled = existing.Disabled
 	}
 	s.devices[d.ID] = d
 }
 
-// UpdateUserFields overwrites a device's user-owned metadata (name, icon, tags)
-// in response to a rename/edit, leaving runtime state (availability, last seen,
-// reported state) untouched. If the device is not registered, the call is a
-// no-op.
-func (s *MemoryStore) UpdateUserFields(id DeviceID, name string, icon *string, tags []DeviceTag) {
+// UpdateUserFields overwrites a device's user-owned metadata (name, icon, tags,
+// disabled) in response to a rename/edit, leaving runtime state (availability,
+// last seen, reported state) untouched. If the device is not registered, the
+// call is a no-op.
+func (s *MemoryStore) UpdateUserFields(id DeviceID, name string, icon *string, tags []DeviceTag, disabled bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, ok := s.devices[id]
@@ -96,6 +97,7 @@ func (s *MemoryStore) UpdateUserFields(id DeviceID, name string, icon *string, t
 	d.Name = name
 	d.Icon = icon
 	d.Tags = tags
+	d.Disabled = disabled
 	s.devices[id] = d
 }
 

@@ -19,7 +19,7 @@ func TestMemoryStoreImplementsStateWriter(t *testing.T) {
 
 func TestRegisterAndGetDevice(t *testing.T) {
 	s := NewMemoryStore()
-	d := Device{ID: "light-1", Name: "Desk Lamp", Source: "zigbee", Type: Light, Available: true}
+	d := Device{ID: "light-1", Name: "Desk Lamp", Source: SourceZigbee2MQTT, Type: Light, Available: true}
 	s.Register(d)
 
 	got, ok := s.GetDevice("light-1")
@@ -35,11 +35,12 @@ func TestRegisterPreservesUserOwnedFieldsOnReRegister(t *testing.T) {
 	s := NewMemoryStore()
 	icon := "lamp"
 	s.Register(Device{
-		ID:   "light-1",
-		Name: "Desk Lamp",
-		Icon: &icon,
-		Tags: []DeviceTag{DeviceTagLight},
-		Type: Light,
+		ID:       "light-1",
+		Name:     "Desk Lamp",
+		Icon:     &icon,
+		Tags:     []DeviceTag{DeviceTagLight},
+		Type:     Light,
+		Disabled: true,
 	})
 
 	s.Register(Device{
@@ -51,6 +52,9 @@ func TestRegisterPreservesUserOwnedFieldsOnReRegister(t *testing.T) {
 	})
 
 	got, _ := s.GetDevice("light-1")
+	if !got.Disabled {
+		t.Fatal("re-register cleared the user's disable")
+	}
 	if got.Name != "Desk Lamp" {
 		t.Fatalf("re-register clobbered user name: got %q, want %q", got.Name, "Desk Lamp")
 	}
@@ -75,7 +79,7 @@ func TestUpdateUserFields(t *testing.T) {
 	before, _ := s.GetDevice("light-1")
 
 	icon := "bulb"
-	s.UpdateUserFields("light-1", "New Name", &icon, []DeviceTag{DeviceTagLight})
+	s.UpdateUserFields("light-1", "New Name", &icon, []DeviceTag{DeviceTagLight}, false)
 
 	got, _ := s.GetDevice("light-1")
 	if got.Name != "New Name" {
@@ -97,7 +101,7 @@ func TestUpdateUserFields(t *testing.T) {
 
 func TestUpdateUserFieldsUnknownDevice(t *testing.T) {
 	s := NewMemoryStore()
-	s.UpdateUserFields("nope", "x", nil, nil)
+	s.UpdateUserFields("nope", "x", nil, nil, false)
 	if _, ok := s.GetDevice("nope"); ok {
 		t.Fatal("update on unknown device should not register it")
 	}
