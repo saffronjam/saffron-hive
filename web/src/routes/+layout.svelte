@@ -7,8 +7,9 @@
 	import SaveButton from "$lib/components/save-button.svelte";
 	import ViewToggle from "$lib/components/view-toggle.svelte";
 	import { setContextClient } from "@urql/svelte";
-	import { graphql } from "$lib/gql";
 	import { createGraphQLClient } from "$lib/graphql/client";
+	import { SETUP_STATUS_QUERY } from "$lib/graphql/setup-status";
+	import { nextRoute } from "$lib/auth-gate";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
@@ -24,9 +25,8 @@
 
 	let { children } = $props();
 
-	// Routes that render full-screen without the sidebar chrome. /login is where
-	// the user enters credentials; /setup is the first-run flow that creates the
-	// initial user and configures MQTT before any login is possible;
+	// Routes that render full-screen without the sidebar chrome. /login takes
+	// credentials; /setup creates the initial user on first run;
 	// /change-password-required is the forced first-login password change form
 	// (authenticated, but the user can't reach the rest of the app until done).
 	const PUBLIC_ROUTES = ["/login", "/setup", "/change-password-required"];
@@ -34,73 +34,22 @@
 	let ready = $state(false);
 	const loader = delayedLoading(() => !ready);
 
-	const SETUP_STATUS_QUERY = graphql(`
-		query setupStatus {
-			setupStatus {
-				hasInitialUser
-				mqttConfigured
-			}
-		}
-	`);
-
 	async function gate() {
-		const pathname = $page.url.pathname;
-
 		const result = await client.query(SETUP_STATUS_QUERY, {}).toPromise();
-		const setup = result.data?.setupStatus;
-		const hasInitialUser = setup?.hasInitialUser ?? false;
-		const mqttConfigured = setup?.mqttConfigured ?? false;
+		const hasInitialUser = result.data?.setupStatus?.hasInitialUser ?? false;
+		const isAuthenticated = hasInitialUser && auth.isAuthenticated();
 
-		// No initial user yet → /setup phase 1 creates it (unauthenticated).
-		if (!hasInitialUser) {
-			if (pathname !== "/setup") {
-				await goto("/setup", { replaceState: true });
-			}
-			ready = true;
-			return;
-		}
+		// Load `me` before deciding so a forced password change redirects before
+		// children render — the post-ready $effect only catches up later.
+		if (isAuthenticated && !me.user) await me.refresh(client);
 
-		// Initial user exists — anything else requires being logged in first,
-		// including /setup phase 2 (MQTT) whose mutations are authenticated.
-		if (!auth.isAuthenticated()) {
-			if (pathname !== "/login") {
-				await goto("/login", { replaceState: true });
-			}
-			ready = true;
-			return;
-		}
-
-		// Logged in. If MQTT isn't configured, finish setup.
-		if (!mqttConfigured) {
-			if (pathname !== "/setup") {
-				await goto("/setup", { replaceState: true });
-			}
-			ready = true;
-			return;
-		}
-
-		// Force-change gate: an admin-created user (or one whose password was
-		// just reset) must complete the change before any other route is
-		// reachable. Load `me` synchronously here so the redirect is decided
-		// before children render — the post-ready $effect only catches up later.
-		if (!me.user) await me.refresh(client);
-		if (me.user?.mustChangePassword) {
-			if (pathname !== "/change-password-required") {
-				await goto("/change-password-required", { replaceState: true });
-			}
-			ready = true;
-			return;
-		}
-		if (pathname === "/change-password-required") {
-			await goto("/", { replaceState: true });
-			ready = true;
-			return;
-		}
-
-		// Fully configured and authenticated. /login and /setup become redirects.
-		if (pathname === "/login" || pathname === "/setup") {
-			await goto("/", { replaceState: true });
-		}
+		const target = nextRoute({
+			pathname: $page.url.pathname,
+			hasInitialUser,
+			isAuthenticated,
+			mustChangePassword: me.user?.mustChangePassword ?? false,
+		});
+		if (target) await goto(target, { replaceState: true });
 		ready = true;
 	}
 
