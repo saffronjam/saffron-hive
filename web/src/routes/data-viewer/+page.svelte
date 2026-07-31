@@ -489,6 +489,7 @@
 						bucketSeconds={bucketSeconds > 0 ? bucketSeconds : undefined}
 						height="h-full"
 						showChips={false}
+						pinnedInspector
 						{disabledKeys}
 						onSeriesChange={(s) => (allSeries = s)}
 					/>

@@ -44,6 +44,7 @@
 	import type { CombinedError } from "@urql/core";
 	import { ChartContainer, type ChartConfig } from "$lib/components/ui/chart/index.js";
 	import { LineChart, Spline, ChartClipPath, Tooltip } from "layerchart";
+	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { SvelteSet } from "svelte/reactivity";
 	import { SvelteMap } from "svelte/reactivity";
 	import { curveMonotoneX } from "d3-shape";
@@ -71,6 +72,13 @@
 		showChips?: boolean;
 		disabledKeys?: SvelteSet<string>;
 		onSeriesChange?: (series: SeriesInfo[]) => void;
+		/**
+		 * On narrow screens, pin the readout to the bottom of the viewport instead
+		 * of floating it at the pointer — a finger-driven tooltip otherwise sits
+		 * under the finger that summoned it. Opt-in, because a viewport-pinned
+		 * panel makes no sense for a chart already inside a popover.
+		 */
+		pinnedInspector?: boolean;
 	}
 
 	let {
@@ -83,7 +91,11 @@
 		showChips = true,
 		disabledKeys: externalDisabled,
 		onSeriesChange,
+		pinnedInspector = false,
 	}: Props = $props();
+
+	const isMobile = new IsMobile();
+	const usePinned = $derived(pinnedInspector && isMobile.current);
 
 	interface RawSeries {
 		field: string;
@@ -425,6 +437,9 @@
 				spline: { opacity: 1 },
 				highlight: { opacity: 1 },
 				xAxis: { ticks: xTickCount, format: formatXTick },
+				// The pinned panel lingers after the finger lifts, so a value read
+				// mid-scrub stays legible once you stop touching the chart.
+				tooltip: { context: { hideDelay: usePinned ? 2500 : 0 } },
 			}}
 		>
 			{#snippet marks({ context })}
@@ -435,33 +450,79 @@
 				</ChartClipPath>
 			{/snippet}
 			{#snippet tooltip({ context })}
-				<Tooltip.Root {context}>
-					{#snippet children({ data })}
+				{#if usePinned}
+					<!--
+						Positioned against the viewport rather than the chart, so it never
+						lands under the finger doing the scrubbing. Tooltip.Root is skipped
+						entirely here — its whole job is the pointer-following placement
+						this mode discards, and it writes top/left inline where a class
+						could not override them.
+					-->
+					{#if context.tooltip.data}
 						{@const visible = context.tooltip.series.filter((s) => s.visible)}
 						{@const groups = groupTooltipSeries(visible)}
-						<Tooltip.Header
-							value={context.x(data)}
-							format={(d: Date) => formatTooltip(d, me.user?.timeFormat ?? "24h")}
-						/>
-						{#each groups as g, gi (g.sourceKey)}
-							{#if g.sourceName && groups.length > 1}
-								<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
-									{g.sourceName}
-								</div>
-							{/if}
-							<Tooltip.List>
-								{#each g.items as s (s.key)}
-									<Tooltip.Item
-										label={s.label}
-										value={formatTooltipValue(s.value, s.key)}
-										color={s.color}
-										valueAlign="right"
-									/>
-								{/each}
-							</Tooltip.List>
-						{/each}
-					{/snippet}
-				</Tooltip.Root>
+						<div
+							class="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-popover/95 px-4 pt-3 pb-24 text-popover-foreground shadow-lg backdrop-blur-sm"
+							role="status"
+							aria-live="polite"
+						>
+							<p class="text-xs font-medium text-muted-foreground">
+								{formatTooltip(context.x(context.tooltip.data), me.user?.timeFormat ?? "24h")}
+							</p>
+							{#each groups as g, gi (g.sourceKey)}
+								{#if g.sourceName && groups.length > 1}
+									<p class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
+										{g.sourceName}
+									</p>
+								{/if}
+								<!-- One column: at phone width a label + value pair already fills the row. -->
+								<ul class="mt-1 flex flex-col gap-1">
+									{#each g.items as s (s.key)}
+										<li class="flex items-center gap-2 text-sm">
+											<span
+												class="size-2 shrink-0 rounded-full"
+												style="background: {s.color}"
+												aria-hidden="true"
+											></span>
+											<span class="min-w-0 flex-1 truncate text-muted-foreground">{s.label}</span>
+											<span class="shrink-0 font-medium tabular-nums"
+												>{formatTooltipValue(s.value, s.key)}</span
+											>
+										</li>
+									{/each}
+								</ul>
+							{/each}
+						</div>
+					{/if}
+				{:else}
+					<Tooltip.Root {context}>
+						{#snippet children({ data })}
+							{@const visible = context.tooltip.series.filter((s) => s.visible)}
+							{@const groups = groupTooltipSeries(visible)}
+							<Tooltip.Header
+								value={context.x(data)}
+								format={(d: Date) => formatTooltip(d, me.user?.timeFormat ?? "24h")}
+							/>
+							{#each groups as g, gi (g.sourceKey)}
+								{#if g.sourceName && groups.length > 1}
+									<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
+										{g.sourceName}
+									</div>
+								{/if}
+								<Tooltip.List>
+									{#each g.items as s (s.key)}
+										<Tooltip.Item
+											label={s.label}
+											value={formatTooltipValue(s.value, s.key)}
+											color={s.color}
+											valueAlign="right"
+										/>
+									{/each}
+								</Tooltip.List>
+							{/each}
+						{/snippet}
+					</Tooltip.Root>
+				{/if}
 			{/snippet}
 		</LineChart>
 	{/if}
