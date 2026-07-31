@@ -44,7 +44,7 @@ func TestDevices_QueryAll(t *testing.T) {
 	nameSet := make(map[string]struct{}, len(result.Devices))
 	for _, d := range result.Devices {
 		nameSet[d.Name] = struct{}{}
-		if d.Source != "zigbee" {
+		if d.Source != "zigbee2mqtt" {
 			t.Errorf("device %q source=%q, want zigbee", d.Name, d.Source)
 		}
 		if d.ID == "" {
@@ -181,7 +181,7 @@ func TestDevices_QuerySingleByID(t *testing.T) {
 	if result.Device.Type != "light" {
 		t.Errorf("type=%q, want light", result.Device.Type)
 	}
-	if result.Device.Source != "zigbee" {
+	if result.Device.Source != "zigbee2mqtt" {
 		t.Errorf("source=%q, want zigbee", result.Device.Source)
 	}
 }

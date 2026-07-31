@@ -36,7 +36,7 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 					log.Printf("failed to upsert e2e device %s: %v", d.ID, err)
 					continue
 				}
-				if d.Source == "zigbee" {
+				if d.Source == device.SourceZigbee2MQTT {
 					if err := s.UpsertZigbeeDevice(ctx, store.RegisterZigbeeDeviceParams{
 						DeviceID:     d.ID,
 						IEEEAddress:  string(d.ID),

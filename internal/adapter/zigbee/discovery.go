@@ -120,7 +120,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		dev := device.Device{
 			ID:           id,
 			Name:         d.FriendlyName,
-			Source:       device.Source("zigbee"),
+			Source:       device.SourceZigbee2MQTT,
 			Type:         devType,
 			Capabilities: extractCapabilities(d.Definition.Exposes),
 			Available:    true,

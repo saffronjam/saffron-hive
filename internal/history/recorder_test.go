@@ -44,7 +44,7 @@ func newTestStore(t *testing.T) *store.DB {
 	if _, err := s.CreateDevice(context.Background(), store.CreateDeviceParams{
 		ID:     "sensor-1",
 		Name:   "Sensor",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Sensor,
 	}); err != nil {
 		t.Fatalf("seed device: %v", err)

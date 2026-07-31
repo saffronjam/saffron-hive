@@ -13,7 +13,7 @@ func seedHistoryDevice(t *testing.T, s *DB, id device.DeviceID) {
 	if _, err := s.CreateDevice(context.Background(), CreateDeviceParams{
 		ID:     id,
 		Name:   string(id),
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Sensor,
 	}); err != nil {
 		t.Fatalf("seed device: %v", err)

@@ -16,7 +16,7 @@ func TestCreateDevice(t *testing.T) {
 	d, err := s.CreateDevice(ctx, CreateDeviceParams{
 		ID:     "dev-1",
 		Name:   "Living Room Light",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Light,
 	})
 	if err != nil {
@@ -29,8 +29,8 @@ func TestCreateDevice(t *testing.T) {
 	if d.Name != "Living Room Light" {
 		t.Errorf("got Name %q, want %q", d.Name, "Living Room Light")
 	}
-	if d.Source != "zigbee" {
-		t.Errorf("got Source %q, want %q", d.Source, "zigbee")
+	if d.Source != "zigbee2mqtt" {
+		t.Errorf("got Source %q, want %q", d.Source, "zigbee2mqtt")
 	}
 	if d.Type != device.Light {
 		t.Errorf("got Type %q, want %q", d.Type, device.Light)
@@ -50,7 +50,7 @@ func TestGetDeviceByID(t *testing.T) {
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
 		ID:     "dev-1",
 		Name:   "Sensor",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Sensor,
 	})
 	if err != nil {
@@ -90,7 +90,7 @@ func TestListDevices(t *testing.T) {
 		_, err := s.CreateDevice(ctx, CreateDeviceParams{
 			ID:     device.DeviceID("dev-" + string(rune('1'+i))),
 			Name:   name,
-			Source: "zigbee",
+			Source: device.SourceZigbee2MQTT,
 			Type:   device.Light,
 		})
 		if err != nil {
@@ -111,11 +111,11 @@ func TestListDevicesBySource(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	_, err := s.CreateDevice(ctx, CreateDeviceParams{ID: "z1", Name: "Z1", Source: "zigbee", Type: device.Light})
+	_, err := s.CreateDevice(ctx, CreateDeviceParams{ID: "z1", Name: "Z1", Source: device.SourceZigbee2MQTT, Type: device.Light})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	_, err = s.CreateDevice(ctx, CreateDeviceParams{ID: "z2", Name: "Z2", Source: "zigbee", Type: device.Sensor})
+	_, err = s.CreateDevice(ctx, CreateDeviceParams{ID: "z2", Name: "Z2", Source: device.SourceZigbee2MQTT, Type: device.Sensor})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestListDevicesBySource(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	zigbee, err := s.ListDevicesBySource(ctx, "zigbee")
+	zigbee, err := s.ListDevicesBySource(ctx, device.SourceZigbee2MQTT)
 	if err != nil {
 		t.Fatalf("list by source: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestUpdateDevice(t *testing.T) {
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
 		ID:     "dev-1",
 		Name:   "Old Name",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Light,
 	})
 	if err != nil {
@@ -178,7 +178,7 @@ func TestUpdateDeviceTags(t *testing.T) {
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
 		ID:     "dev-1",
 		Name:   "Lava lamp",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Plug,
 	})
 	if err != nil {
@@ -227,7 +227,7 @@ func TestUpsertDevicePreservesName(t *testing.T) {
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
 		ID:     "dev-1",
 		Name:   "User Name",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Light,
 	})
 	if err != nil {
@@ -284,7 +284,7 @@ func TestSoftDeleteDevice(t *testing.T) {
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
 		ID:     "dev-1",
 		Name:   "Light",
-		Source: "zigbee",
+		Source: device.SourceZigbee2MQTT,
 		Type:   device.Light,
 	})
 	if err != nil {

@@ -254,7 +254,7 @@ describe("subscriptions", () => {
     const event = await eventPromise;
     expect(event.deviceAdded).toBeDefined();
     expect(event.deviceAdded.name).toBe("New Test Light");
-    expect(event.deviceAdded.source).toBe("zigbee");
+    expect(event.deviceAdded.source).toBe("zigbee2mqtt");
 
     await publishBridgeDevices(fixtures);
     await new Promise((r) => setTimeout(r, 1000));

@@ -13,7 +13,7 @@ func TestRegisterZigbeeDevice(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: "zigbee", Type: device.Light,
+		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -44,7 +44,7 @@ func TestLookupByIEEEAddress(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: "zigbee", Type: device.Light,
+		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -72,7 +72,7 @@ func TestLookupByFriendlyName(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: "zigbee", Type: device.Light,
+		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -100,13 +100,13 @@ func TestIEEEAddressUnique(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light 1", Source: "zigbee", Type: device.Light,
+		ID: "dev-1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-2", Name: "Light 2", Source: "zigbee", Type: device.Light,
+		ID: "dev-2", Name: "Light 2", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)

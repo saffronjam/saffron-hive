@@ -131,7 +131,7 @@ describe("devices", () => {
     for (const device of result.data!.devices) {
       expect(device.id).toBeTruthy();
       expect(device.name).toBeTruthy();
-      expect(device.source).toBe("zigbee");
+      expect(device.source).toBe("zigbee2mqtt");
       expect(typeof device.available).toBe("boolean");
     }
   });

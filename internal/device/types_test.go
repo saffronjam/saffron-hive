@@ -32,12 +32,10 @@ func TestDeviceTagValidation(t *testing.T) {
 }
 
 func TestSourceIsString(t *testing.T) {
-	s := Source("zigbee")
-	if string(s) != "zigbee" {
-		t.Fatalf("expected zigbee, got %s", s)
+	if string(SourceZigbee2MQTT) != "zigbee2mqtt" {
+		t.Fatalf("expected zigbee2mqtt, got %s", SourceZigbee2MQTT)
 	}
-	s2 := Source("wifi")
-	if s == s2 {
+	if SourceZigbee2MQTT == SourceTuya {
 		t.Fatal("different sources should not be equal")
 	}
 }

@@ -8,8 +8,6 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
-const Source device.Source = "tuya"
-
 type valueSpec struct {
 	Range []string `json:"range"`
 	Min   *float64 `json:"min"`
@@ -28,7 +26,7 @@ func mapDevice(info DeviceInfo, functions []Function) device.Device {
 	return device.Device{
 		ID:           device.DeviceID(info.ID),
 		Name:         name,
-		Source:       Source,
+		Source:       device.SourceTuya,
 		Type:         mapDeviceType(info),
 		Capabilities: mapCapabilities(functions),
 		Available:    info.Online,
