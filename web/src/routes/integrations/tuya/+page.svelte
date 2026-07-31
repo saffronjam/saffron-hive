@@ -3,6 +3,8 @@
 	import { getContextClient } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
+	import { stripErrorPrefix } from "$lib/graphql-error";
+	import { hasStoredSecret as secretIsStored, secretToSend } from "$lib/redacted-secret";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
@@ -15,8 +17,6 @@
 	} from "$lib/components/ui/select/index.js";
 	import TuyaIcon from "$lib/components/icons/tuya-icon.svelte";
 	import { CircleCheck, CircleX, Loader2, RefreshCw, Save, Unplug } from "@lucide/svelte";
-
-	const REDACTED_SECRET = "********";
 
 	const TUYA_CONFIG_QUERY = graphql(`
 		query TuyaConfigPage {
@@ -89,14 +89,14 @@
 	function mutationInput() {
 		return {
 			accessId: accessId.trim(),
-			accessSecret: accessSecret === "" && hasStoredSecret ? REDACTED_SECRET : accessSecret,
+			accessSecret: secretToSend(accessSecret, hasStoredSecret),
 			region,
 			enabled,
 		};
 	}
 
 	function cleanTuyaError(message: string): string {
-		let cleaned = message.replace(/^\[GraphQL\]\s*/i, "").trim();
+		let cleaned = stripErrorPrefix(message);
 		cleaned = cleaned.replace(
 			/^saved config but failed to reconnect Tuya:\s*/i,
 			"Saved config, but Tuya did not connect: ",
@@ -134,7 +134,7 @@
 		accessSecret = config?.accessSecret ?? "";
 		region = config?.region || "eu";
 		enabled = config?.enabled ?? true;
-		hasStoredSecret = Boolean(config?.accessSecret);
+		hasStoredSecret = secretIsStored(config?.accessSecret);
 		original = snapshot();
 	}
 
@@ -151,7 +151,6 @@
 			if (result.error) throw result.error;
 			applyConfig(result.data?.updateTuyaConfig ?? null);
 			testResult = null;
-			toast.success("Tuya configuration saved");
 		} catch (e) {
 			toast.error(errorMessage(e, "Failed to save Tuya configuration"));
 		} finally {
