@@ -8,6 +8,8 @@
 	import DashboardApartmentCard from "$lib/components/dashboard-apartment-card.svelte";
 	import DashboardRoomCard from "$lib/components/dashboard-room-card.svelte";
 	import RoomDrawer from "$lib/components/room-drawer.svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { PlugZap } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
 
@@ -87,6 +89,15 @@
 		}
 	`);
 
+	const INTEGRATIONS_QUERY = graphql(`
+		query DashboardIntegrations {
+			integrations {
+				provider
+				configured
+			}
+		}
+	`);
+
 	const SCENE_ACTIVE_SUB = graphql(`
 		subscription DashboardSceneActiveChanged {
 			sceneActiveChanged {
@@ -111,9 +122,17 @@
 	const groupsQuery = queryStore<{ groups: GroupData[] }>({ client, query: GROUPS_QUERY });
 	const scenesQuery = queryStore<{ scenes: SceneData[] }>({ client, query: SCENES_QUERY });
 
+	const integrationsQuery = queryStore({ client, query: INTEGRATIONS_QUERY });
+
 	const rooms = $derived($roomsQuery.data?.rooms ?? []);
 	const groups = $derived($groupsQuery.data?.groups ?? []);
-	const devices = $derived(Object.values($deviceStore));
+	// The dashboard is purely a runtime surface, so disabled devices leave it
+	// entirely: no card, no room membership, no contribution to a sensor average.
+	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+
+	const needsIntegration = $derived(
+		!!$integrationsQuery.data && !$integrationsQuery.data.integrations.some((i) => i.configured),
+	);
 
 	let scenes = $state<SceneData[]>([]);
 	$effect(() => {
@@ -165,9 +184,22 @@
 </script>
 
 <div class="mx-auto flex max-w-3xl flex-col gap-3">
-	<DashboardApartmentCard {devices} {client} />
+	{#if !needsIntegration}
+		<DashboardApartmentCard {devices} {client} />
+	{/if}
 
-	{#if $devicesHydrated && rooms.length === 0}
+	{#if needsIntegration}
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
+			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+				<PlugZap class="size-6 text-muted-foreground" />
+			</div>
+			<p class="text-muted-foreground">No integrations yet.</p>
+			<p class="mt-2 text-sm text-muted-foreground">
+				Add an integration to bring external devices into Saffron Hive.
+			</p>
+			<Button class="mt-4" href="/integrations">Set up your first integration</Button>
+		</div>
+	{:else if $devicesHydrated && rooms.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<p class="text-muted-foreground">No rooms configured yet.</p>
 			<p class="mt-2 text-sm text-muted-foreground">
