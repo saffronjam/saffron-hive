@@ -9,7 +9,7 @@
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
-	import TuyaIcon from "$lib/components/icons/tuya-icon.svelte";
+	import { integrationMeta } from "$lib/integrations";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		Dialog,
@@ -68,6 +68,9 @@
 		return availableProviders.filter((i) => i.name.toLowerCase().includes(q));
 	});
 	const deleteDeviceCount = $derived(deleteConfirmIntegration?.deviceCount ?? 0);
+	const deleteKeepsDevices = $derived(
+		deleteConfirmIntegration ? integrationMeta(deleteConfirmIntegration.provider).keepsDevices : false,
+	);
 
 	async function loadIntegrations() {
 		loading = true;
@@ -105,6 +108,7 @@
 	}
 
 	function statusLabel(integration: Integration): string {
+		if (integration.message) return integration.message;
 		if (!integration.enabled) return "Disabled";
 		if (integration.connected) return "Connected";
 		return "Configured";
@@ -141,9 +145,10 @@
 	{:else}
 		<AnimatedGrid>
 			{#each configuredIntegrations as integration (integration.provider)}
+				{@const meta = integrationMeta(integration.provider)}
 				<EntityCard
 					entity={{ id: integration.provider, name: integration.name, icon: null }}
-					fallbackIcon={TuyaIcon}
+					fallbackIcon={meta.icon}
 					subtitle={statusLabel(integration)}
 					editHref={`/integrations/${integration.provider}`}
 					ondelete={() => (deleteConfirmIntegration = integration)}
@@ -151,8 +156,12 @@
 					deleteLabel="Delete integration"
 					iconEditable={false}
 					readOnly={false}
-					class="min-h-32"
-				/>
+					class="min-h-32 justify-center"
+				>
+					{#snippet iconArea()}
+						<meta.icon class="size-10 shrink-0" />
+					{/snippet}
+				</EntityCard>
 			{/each}
 		</AnimatedGrid>
 	{/if}
@@ -184,15 +193,16 @@
 			{:else}
 				<div class="space-y-2">
 					{#each filteredAvailable as integration (integration.provider)}
+						{@const meta = integrationMeta(integration.provider)}
 						<button
 							type="button"
 							class="flex w-full items-center gap-3 rounded-lg bg-muted/30 p-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							onclick={() => openProvider(integration.provider)}
 						>
-							<TuyaIcon class="size-8 shrink-0" />
+							<meta.icon class="size-8 shrink-0" />
 							<div class="min-w-0">
 								<div class="font-medium">{integration.name}</div>
-								<div class="text-xs text-muted-foreground">Cloud API device adapter</div>
+								<div class="text-xs text-muted-foreground">{meta.description}</div>
 							</div>
 						</button>
 					{/each}
@@ -205,14 +215,23 @@
 <ConfirmDialog
 	bind:open={() => deleteConfirmIntegration !== null, (v) => { if (!v) deleteConfirmIntegration = null; }}
 	title="Delete Integration"
-	description="Deleting this integration removes its configuration and all devices connected through it. This cannot be undone."
+	description={deleteKeepsDevices
+		? "Deleting this integration removes its configuration and disconnects it. Its devices are kept, and reconfiguring it later restores them."
+		: "Deleting this integration removes its configuration and all devices connected through it. This cannot be undone."}
 	confirmLabel="Delete"
 	loading={deleteLoading}
 	onconfirm={handleDeleteIntegration}
 	oncancel={() => (deleteConfirmIntegration = null)}
 >
-	<div class="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-		<span>This will delete </span>
-		<strong>{deleteDeviceCount} device{deleteDeviceCount === 1 ? "" : "s"}</strong>
-	</div>
+	{#if deleteKeepsDevices}
+		<div class="rounded-lg bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+			<strong>{deleteDeviceCount} device{deleteDeviceCount === 1 ? "" : "s"}</strong>
+			<span> will be kept and marked unavailable.</span>
+		</div>
+	{:else}
+		<div class="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+			<span>This will delete </span>
+			<strong>{deleteDeviceCount} device{deleteDeviceCount === 1 ? "" : "s"}</strong>
+		</div>
+	{/if}
 </ConfirmDialog>
