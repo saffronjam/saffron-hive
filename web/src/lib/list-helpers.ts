@@ -64,6 +64,22 @@ export interface SceneActionLike {
   targetType: string;
 }
 
+/** A minimal scene room shape — just the display name is needed. */
+export interface SceneRoomLike {
+  name: string;
+}
+
+/**
+ * Which rooms a scene is present in, as a one-line summary. One room reads as its
+ * own name; several collapse to "Multi-room" rather than an unbounded list that
+ * would overflow a card subtitle. Empty → `""` so callers omit the segment.
+ */
+export function sceneRoomLabel(rooms: SceneRoomLike[]): string {
+  if (rooms.length === 0) return "";
+  if (rooms.length === 1) return rooms[0].name;
+  return "Multi-room";
+}
+
 /**
  * Human-readable breakdown of a scene's targets by target kind.
  * Counts device, group, room, and expression (selector) targets.

@@ -3,6 +3,7 @@ import {
   automationNodeCounts,
   compareDevicesByName,
   groupMemberBreakdown,
+  sceneRoomLabel,
   sceneTargetBreakdown,
 } from "$lib/list-helpers";
 import type { Device } from "$lib/stores/devices";
@@ -11,11 +12,12 @@ function device(id: string, name: string): Device {
   return {
     id,
     name,
-    source: "zigbee",
+    source: "zigbee2mqtt",
     type: "light",
     tags: [],
     capabilities: [],
     available: true,
+  disabled: false,
     lastSeen: "",
     state: null,
   };
@@ -123,5 +125,23 @@ describe("sceneTargetBreakdown", () => {
     expect(sceneTargetBreakdown([{ targetType: "device" }, { targetType: "scene" }])).toBe(
       "1 device",
     );
+  });
+});
+
+describe("sceneRoomLabel", () => {
+  it("returns an empty string for no rooms so the caller can omit the segment", () => {
+    expect(sceneRoomLabel([])).toBe("");
+  });
+
+  it("names a single room", () => {
+    expect(sceneRoomLabel([{ name: "Living room" }])).toBe("Living room");
+  });
+
+  // Listing every room overflows a card subtitle, so several collapse to one word.
+  it("collapses several rooms to Multi-room", () => {
+    expect(sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }])).toBe("Multi-room");
+    expect(
+      sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }, { name: "Hall" }]),
+    ).toBe("Multi-room");
   });
 });

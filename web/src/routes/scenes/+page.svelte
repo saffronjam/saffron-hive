@@ -18,7 +18,7 @@
 	import SceneTable from "$lib/components/scene-table.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
-	import { sceneTargetBreakdown } from "$lib/list-helpers";
+	import { sceneRoomLabel } from "$lib/list-helpers";
 	import { sceneTintColors } from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
@@ -761,7 +761,9 @@
 									<EntityCard
 										entity={scene}
 										fallbackIcon={Clapperboard}
-										subtitle="{scene.effectivePayloads.length} target{scene.effectivePayloads.length === 1 ? '' : 's'}{scene.effectivePayloads.length > 0 ? ' · ' + sceneTargetBreakdown(scene.actions) : ''}"
+										subtitle="{scene.effectivePayloads.length} target{scene.effectivePayloads.length === 1
+											? ''
+											: 's'}"
 										tintColors={tintColors.length > 0 ? tintColors : null}
 										tintInactive={tintColors.length > 0 ? !active : null}
 										onrename={handleRename}
@@ -772,10 +774,9 @@
 										addLabel="Add target"
 									>
 										{#snippet subtitleTrailing()}
-											{#if scene.rooms.length > 0}
-												<span class="text-muted-foreground/70">
-													· {scene.rooms.map((r) => r.name).join(", ")}
-												</span>
+											{@const roomLabel = sceneRoomLabel(scene.rooms)}
+											{#if roomLabel}
+												<span class="text-muted-foreground/70">· {roomLabel}</span>
 											{/if}
 										{/snippet}
 										{#snippet leadingActions()}
