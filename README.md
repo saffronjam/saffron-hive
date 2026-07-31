@@ -17,35 +17,17 @@
 
 ---
 
-Hive is a small home automation system. It runs as one Go service with an
-embedded Svelte dashboard, a SQLite database, and a GraphQL API.
+Hive runs your home from a single binary. One Go process serves a GraphQL API, an
+embedded Svelte dashboard, and a SQLite database, so there is nothing to
+orchestrate and nothing to keep in sync.
 
-It talks to devices through protocol adapters. Zigbee support uses
-zigbee2mqtt over MQTT. Tuya support uses the Tuya Cloud API and maps WiFi
-devices into the same native device model as everything else.
+Devices arrive through integrations. Zigbee2MQTT bridges Zigbee devices over an
+MQTT broker you already run; Tuya reaches WiFi devices through its cloud API.
+Both land in the same device model, so scenes, automations and the dashboard
+never care where a light came from.
 
-## Features
-
-- Device registry for lights, sensors, switches, plugs, climate devices,
-  rooms, and groups.
-- Live dashboard generated from rooms, groups, scenes, and device
-  capabilities.
-- Scenes that apply saved device states.
-- Automations with event and cron triggers, expr-lang conditions, and
-  cooldowns.
-- Effects for timed light changes and native protocol effects.
-- Activity feed, alarms, backend logs, and state history.
-- User accounts with JWT sessions and password hashing.
-- One GraphQL API for queries, mutations, and subscriptions.
-
-## Stack
-
-- Go 1.26 backend.
-- Svelte 5 frontend with shadcn-svelte and Tailwind.
-- Bun for frontend tooling.
-- SQLite with golang-migrate and sqlc.
-- gqlgen on the server, graphql-codegen on the client.
-- MQTT for Zigbee traffic.
+Integrations are opt-in and configured in the UI, not through environment
+variables. A fresh install starts with no devices and waits for you to add one.
 
 ## Run with Docker
 
@@ -54,53 +36,63 @@ docker run -d \
   --name hive \
   -p 8080:8080 \
   -v hive-data:/data \
-  -e HIVE_MQTT_ADDRESS=mqtt://192.168.1.200:1883 \
-  -e HIVE_MQTT_USER=your_user \
-  -e HIVE_MQTT_PASSWORD=your_pass \
+  -e HIVE_DATA_DIR=/data \
+  -e HIVE_DB_PATH=/data/hive.db \
+  -e HIVE_ALLOWED_ORIGINS=https://hive.example.com \
   ghcr.io/saffronjam/saffron-hive:latest
 ```
 
-MQTT can also be configured from the setup UI. Run migrations before serving
-when deploying a new version:
+`HIVE_ALLOWED_ORIGINS` gates WebSocket upgrades, so set it to whatever hostname
+you serve the dashboard from or subscriptions will be rejected.
+
+Migrations do not run automatically. Apply them before serving on every deploy:
 
 ```bash
 saffron-hive migrate up
 saffron-hive serve
 ```
 
+## First run
+
+Open the dashboard and you land on `/setup`, which creates the admin account. It
+asks for a bootstrap token, printed to the server log on first boot and also
+written to `$HIVE_DATA_DIR/bootstrap.token`. The token exists so a stranger who
+finds the URL before you do cannot claim the admin account.
+
+After that, go to Integrations and add Zigbee2MQTT. Point it at the broker your
+zigbee2mqtt instance publishes to and your devices show up on their own.
+
 ## Run from source
 
-Requires Go 1.26+ and Bun.
+Needs Go 1.26+ and Bun.
 
 ```bash
 make deps
-make web
-make api
+make web   # dashboard on :5173, proxies the API
+make api   # Go service on :8080
 ```
 
-Useful targets:
+`make help` lists everything else. The ones worth knowing:
 
 ```bash
-make help
-make format
-make lint
-make test
-make e2e
-make package
+make sqlc gqlgen codegen   # regenerate SQL, server schema, client types
+make prepare-for-commit    # what CI runs
 ```
 
-Code generation:
+CI fails on generated-code drift, so run `prepare-for-commit` before pushing
+anything that touches `queries/`, `api/schema.graphql`, or a GraphQL document.
+
+To watch raw broker traffic while debugging an adapter:
 
 ```bash
-make sqlc
-make gqlgen
-make codegen
+make mqttprint TOPIC='zigbee2mqtt/#'
 ```
 
-CI checks generated code for drift. Before committing larger changes, run:
+It reads the broker credentials from the Zigbee2MQTT integration, so it works
+against a running deployment too:
 
 ```bash
-make prepare-for-commit
+docker exec hive saffron-hive mqttprint 'zigbee2mqtt/#'
 ```
 
 ## License

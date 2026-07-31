@@ -5,7 +5,7 @@ All Go application code lives here. The `internal/` directory is a Go convention
 ## Packages
 
 - `activity/` — event recorder that enriches bus events with device/room/scene/automation names and persists them; retention loop prunes old rows; in-memory ring buffer feeds the frontend live activity view.
-- `adapter/` — protocol adapters that bridge external device protocols to the internal event bus. Zigbee (via zigbee2mqtt) is the current adapter; more protocols drop in as sibling packages.
+- `adapter/` — protocol adapters that bridge external device protocols to the internal event bus. `zigbee/` (via zigbee2mqtt over MQTT) and `tuya/` (via the Tuya cloud API) are the current adapters; more protocols drop in as sibling packages. Each adapter stamps devices with the `device.Source` of the integration that owns it, which is also the provider id the GraphQL API exposes.
 - `alarms/` — alarm-raising service, live subscription buffer, and system-health monitor. Severity-tagged actionable signals shown on the `/alarms` page; grouped by `alarm_id` in the service so consumers see one logical alarm per group with a count.
 - `auth/` — JWT signing + validation, password hashing, bootstrap (initial user / JWT secret on first boot), HTTP middleware that injects the authenticated user into the request context.
 - `automation/` — rule engine: expr evaluation, action executor, cooldown tracking, graph-based triggers (event and cron-scheduled).
@@ -39,7 +39,10 @@ auth/                → store/ types (param/result structs), narrow bootstrapSt
 automation/          → device/, eventbus/, alarms/, effect/, scene/, narrow automationStore interface
 avatars/             → auth/, narrow uploader/reader interfaces (uses *store.DB structurally), stdlib filesystem
 effect/              → device/, eventbus/, narrow EffectStore interface
-graph/               → device/, eventbus/, activity/, adapter/zigbee/, alarms/, auth/, automation/, effect/, history/, scene/, narrow GraphStore interface
+graph/               → device/, eventbus/, activity/, alarms/, auth/, automation/, effect/, history/, scene/, narrow GraphStore interface
+                       Integration lifecycle (reconnect, connection test, delete) goes through the
+                       narrow controller interfaces in resolver.go, satisfied by cmd/serve's
+                       adapterManager, so graph/ never imports an adapter package.
 history/             → device/, eventbus/, narrow historyStore interface
 pubsub/              → stdlib only
 scene/               → device/, eventbus/, effect/, narrow sceneStore interface

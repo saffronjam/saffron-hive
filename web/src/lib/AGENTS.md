@@ -6,10 +6,12 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 
 - `color.ts` — colour-space conversions. `rgbToXy(r,g,b)` for Zigbee XY commands.
 - `device-tint.ts` — visual tint derivation. `aggregateSensorReadings(devices)`, `groupBaseTintColors(devices)`, `groupTintColors(devices)`, `brightnessToTintStrength(brightness)`, `sceneTintFromPayloads(payloads)`, `deviceTint(device)`. Reuse for any card / row that wants colour-from-state.
-- `target-resolve.ts` — `resolveTargetDevices({ type, id }, devices, groups, rooms)` flattens a scene/group/room target to its device list (cycle-safe). `capabilityUnion(devices)` and `capabilityUnionForTarget(...)` merge capabilities. `hasCapability(caps, name)` for boolean checks.
+- `target-resolve.ts` — `resolveTargetDevices({ type, id }, devices, groups, rooms)` flattens a scene/group/room target to its device list (cycle-safe). `capabilityUnion(devices)` and `capabilityUnionForTarget(...)` merge capabilities. `hasCapability(caps, name)` for boolean checks. `resolveTargetDevices` / `evaluateExpression` / `capabilityUnionForTarget` drop disabled devices by default so the client resolves what the server commands; pass `{ includeDisabled: true }` on editor surfaces that should still render a disabled member (greyed).
 - `memberships.ts` — reverse-index helpers (`chipsByDevice`, `membershipRowsForDevice`).
 - `target-tree.ts` — tree-structured target views.
 - `list-helpers.ts` — list/array shape helpers (e.g. `groupMemberBreakdown`).
+- `integrations.ts` — `integrationMeta(provider)` returns the icon, one-line description and delete semantics (`keepsDevices`) for an integration provider id, with a `PlugZap` fallback for unknown providers. Use it anywhere a provider is rendered — the integrations list, the add dialog, and each detail page.
+- `redacted-secret.ts` — `REDACTED_SECRET`, `hasStoredSecret(fetched)`, `secretToSend(typed, stored)`. The API returns a placeholder in place of a stored secret and accepts it back as "keep the stored value"; use these for any secret input so a blank field never wipes the stored value.
 
 ## Mutation helpers
 
@@ -23,6 +25,10 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 - `scene-editable.ts` — scene editable state including `ActionPayload` shape.
 - `profile-core.ts` — user profile read/write helpers.
 - `time-format.ts` — relative + absolute time formatting.
+
+## Routing
+
+- `auth-gate.ts` — `nextRoute(state)` returns the route the root layout's gate should redirect to, or `null` to stay put. Pure, so the precedence between setup / login / forced-password-change is table-testable; `+layout.svelte` gathers the state and performs the `goto`.
 
 ## Reactivity primitives
 
@@ -42,6 +48,8 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 
 - `gql/` — graphql-codegen output (do not edit manually — regenerate with `make codegen`).
 - `graphql/client.ts` — `createGraphQLClient()` + `authenticatedFetch`. **Only call `createGraphQLClient()` from `routes/+layout.svelte`.** Every other file uses `getContextClient()` from `@urql/svelte`.
+- `graphql/setup-status.ts` — `SETUP_STATUS_QUERY`, shared by the routing gate and `/setup`. Operation names must be unique across the document set, so a second copy of this query only survives codegen while byte-identical — import it rather than re-declaring it.
+- `graphql-error.ts` — `stripErrorPrefix(message)` drops urql's `[GraphQL] ` / `[Network] ` prefix; `graphqlErrorMessage(error, fallback)` pulls the most useful message out of an urql error. Use instead of hand-rolling the regex.
 
 ## Utilities
 

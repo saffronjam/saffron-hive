@@ -30,7 +30,7 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `device.action_fired` — momentary action (button press, sensor occupancy edge) — distinct from a persistent state change
 - `device.availability_changed` — device online/offline
 - `device.added` / `device.removed` — device registry changes
-- `device.updated` — a device's user-owned metadata (name, icon, tags) changed; carries the updated device so caches (in-memory store) refresh those fields
+- `device.updated` — a device's user-owned metadata (name, icon, tags, disabled) changed; carries the updated device so caches (in-memory store) refresh those fields
 - `command.requested` — user or automation wants to set a device state
 - `native_effect.requested` — a request to start a named external effect program on a device
 - `scene.applied` — a scene was applied (commands fanned out)
@@ -52,10 +52,50 @@ Each protocol lives in its own adapter package. An adapter handles:
 
 Zigbee adapter (via zigbee2mqtt) is the first and primary adapter.
 
+### Integrations
+An integration is the user-facing half of an adapter: its credentials, its
+enabled flag, and its lifecycle. Every integration is **opt-in** — nothing is
+configured from environment variables, and a fresh install boots with no adapter
+at all until someone adds one from `/integrations`. The dashboard prompts for the
+first one.
+
+Each integration owns a singleton config table (`zigbee2mqtt_config`,
+`tuya_config`), a `Zigbee2MqttConfig`-style GraphQL type plus `update*` / `test*`
+mutations, and a narrow controller interface in `internal/graph/resolver.go` that
+`cmd/serve`'s `adapterManager` satisfies. The provider id is the same string as
+the `device.Source` its devices carry (`internal/device/types.go`), which is what
+lets `deviceCount` and the delete path find them.
+
+Two providers is not enough to justify a registry: the config shapes are
+genuinely different types and the lifecycles diverge (subscribe-and-stream vs
+poll-and-sync). Add the third entry to the `Integrations` resolver before
+reaching for an abstraction.
+
+Deleting an integration removes its config and stops its adapter. Whether it also
+purges devices depends on whether the provider's device ids are stable: Zigbee
+ids are IEEE addresses, so its devices are kept and reconnecting restores them
+with names, icons, rooms and scene references intact. Tuya re-derives ids on each
+sync, so its devices are purged.
+
+Secrets are never returned in the clear. Read resolvers substitute
+`redactedPasswordSentinel`, and update mutations accept that sentinel back as
+"keep the stored value" (frontend side: `web/src/lib/redacted-secret.ts`).
+
 ### Device model
 Devices are protocol-agnostic at the core. A generic `devices` table holds the common fields (id, name, source, type, availability). Protocol-specific tables (e.g. `zigbee_devices`) store adapter-specific fields (ieee_address, friendly_name) and reference the generic device by foreign key.
 
 Scenes, automations, and the dashboard reference generic device IDs only.
+
+A device carries two independent exclusion flags. `removed` is adapter-owned: the
+device disappeared from its integration, so the row is kept only to preserve
+scene/automation references. `disabled` is user-owned: the hardware still exists
+but should be left alone (seasonal equipment, something unplugged for a while).
+A disabled device keeps its row, detail page, live subscriptions and state
+history, and still renders as a member of the rooms, groups and scenes it
+belongs to — but it leaves every path that commands or watches it. The single
+chokepoint is `store.ResolveTargetDeviceIDs`, which every runtime fan-out
+resolves through; `Mutation.setDeviceState` rejects it outright and both
+adapters' command loops drop it as a final gate.
 
 ### State management
 - Device state is populated on startup from MQTT retained messages
@@ -105,7 +145,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
 ### Repository layout
 
 - `api/` — GraphQL schema (the single source of truth for API types) and `gqlgen.yml`.
-- `cmd/` — binary entry points: `serve` (the main application), `migrate` (CLI wrapper around golang-migrate), `mqttprint` (MQTT debug subscriber).
+- `cmd/` — subcommands dispatched from `cmd/main.go`: `serve` (the main application), `migrate` (CLI wrapper around golang-migrate), `mqttprint` (MQTT debug subscriber that reads broker credentials from the Zigbee2MQTT integration).
 - `internal/` — all Go application code. See `internal/CLAUDE.md` for the per-package breakdown.
 - `web/` — Svelte frontend. See `web/CLAUDE.md`.
 - `e2e/` — in-process end-to-end tests (Go side). Frontend e2e lives under `web/tests/`.
@@ -135,7 +175,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
   - **Press-and-drag** to set a numeric value: `web/src/lib/actions/brightness-drag.ts` (Svelte action). Wire it on EntityCard via the `dragOpts` prop.
   - **Colour / temp picker**: `web/src/lib/components/light-color-picker.svelte`. `hasColor` / `hasColorTemp` / `hasBrightness` come from `capabilityUnion()` in `web/src/lib/target-resolve.ts`.
   - **Group / room → device fan-out**: `web/src/lib/group-commands.ts` (`commitGroupBrightness`, `commitGroupToggle`, `commitGroupColor`, `commitGroupTemp`, `flattenGroupDevices`).
-  - **Resolve a scene/group/room target to its device list**: `resolveTargetDevices` in `web/src/lib/target-resolve.ts`.
+  - **Resolve a scene/group/room target to its device list**: `resolveTargetDevices` in `web/src/lib/target-resolve.ts`. It excludes disabled devices by default (matching `store.ResolveTargetDeviceIDs`); editor surfaces that render a disabled member greyed pass `{ includeDisabled: true }`.
   - **Aggregate sensor readings**: `aggregateSensorReadings` in `web/src/lib/device-tint.ts`. Same file has `groupBaseTintColors` and `brightnessToTintStrength` for tint computation.
   - **Drawer / sheet** for picking from grouped lists: `HiveDrawer` (`web/src/lib/components/hive-drawer.svelte`). Custom layout drawer: shadcn `Sheet` directly with `side="bottom"`.
   - **Popover outside-click guard** on cards that have a whole-card `onclick`: import from `web/src/lib/popover-guard.ts` and call `markPopoverDismissed()` from the popover's `onOpenChange(open=false)`; gate the card's `onclick` with `popoverDismissedRecently()`. bits-ui Popover is non-modal — without this, the outside click also triggers the underlying card.
