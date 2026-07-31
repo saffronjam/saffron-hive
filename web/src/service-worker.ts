@@ -55,7 +55,7 @@ sw.addEventListener("fetch", (event) => {
   if (BYPASS.some((prefix) => url.pathname.startsWith(prefix))) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(cacheFirst(request, SHELL));
+    event.respondWith(shellNetworkFirst(request));
     return;
   }
 
@@ -63,6 +63,27 @@ sw.addEventListener("fetch", (event) => {
     event.respondWith(cacheFirst(request, url.pathname));
   }
 });
+
+/**
+ * Navigations hit the network first and fall back to the cached shell only when
+ * offline. Serving the cache first would pin every visitor to the shell captured
+ * on their first ever load: a deploy would never reach them, and a shell captured
+ * at one URL would be replayed at another.
+ */
+async function shellNetworkFirst(request: Request): Promise<Response> {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(SHELL, response.clone());
+    }
+    return response;
+  } catch (err) {
+    const cached = await cache.match(SHELL);
+    if (cached) return cached;
+    throw err;
+  }
+}
 
 async function cacheFirst(request: Request, key: string): Promise<Response> {
   const cache = await caches.open(CACHE);

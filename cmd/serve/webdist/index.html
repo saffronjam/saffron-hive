@@ -11,6 +11,19 @@
     <meta name="theme-color" content="#09090b" />
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Hive</title>
+    <style>
+      /* Paints the canvas before the stylesheet loads, so the first frame after
+         the launch splash is already the theme background rather than UA white.
+         Mirrors --background in app.css. */
+      html {
+        color-scheme: dark;
+        background-color: #09090b;
+      }
+      html:not(.dark) {
+        color-scheme: light;
+        background-color: #ffffff;
+      }
+    </style>
     <script>
       (function () {
         var theme = localStorage.getItem("saffron-hive-theme");
@@ -29,12 +42,12 @@
         }
       })();
     </script>
-    <link href="/_app/immutable/entry/start.BbMRsBTl.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/C8AtJb7d.js" rel="modulepreload">
+    <link href="/_app/immutable/entry/start.IFttjRLi.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BRa6Hocj.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/Dh3IZ0C6.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/izduI3Ma.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/AmpqJidf.js" rel="modulepreload">
-		<link href="/_app/immutable/entry/app.DGKiWGDL.js" rel="modulepreload">
+		<link href="/_app/immutable/entry/app.BIvGBznb.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/XXtXHtWx.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/ZsEnWiqm.js" rel="modulepreload">
 		
@@ -43,15 +56,15 @@
     <div style="display: contents">
 			<script>
 				{
-					__sveltekit_ntbgbj = {
+					__sveltekit_8m380r = {
 						base: ""
 					};
 
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("/_app/immutable/entry/start.BbMRsBTl.js"),
-						import("/_app/immutable/entry/app.DGKiWGDL.js")
+						import("/_app/immutable/entry/start.IFttjRLi.js"),
+						import("/_app/immutable/entry/app.BIvGBznb.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});

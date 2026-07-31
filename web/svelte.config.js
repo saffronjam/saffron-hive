@@ -14,6 +14,13 @@ const config = {
     prerender: {
       handleUnseenRoutes: "ignore",
     },
+    // The shell is served at every depth by the SPA fallback, so its base has to
+    // be absolute. A location-relative base resolves against the current URL, and
+    // a two-segment path like /automations/<id> would make the router strip
+    // "/automations" and fail to match the remaining segment.
+    paths: {
+      relative: false,
+    },
   },
 };
 
