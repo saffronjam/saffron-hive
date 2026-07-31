@@ -339,12 +339,14 @@ type StateHistoryPoint struct {
 	Value    float64
 }
 
-// MQTTConfig represents the MQTT broker configuration stored in the database.
-type MQTTConfig struct {
+// Zigbee2MQTTConfig represents the singleton Zigbee2MQTT integration
+// configuration: the MQTT broker the zigbee2mqtt bridge publishes to.
+type Zigbee2MQTTConfig struct {
 	Broker   string
 	Username string
 	Password string
 	UseWSS   bool
+	Enabled  bool
 }
 
 // TuyaConfig represents the singleton Tuya cloud integration configuration.

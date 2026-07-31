@@ -90,6 +90,7 @@ type Device struct {
 	LastSeen     *time.Time
 	Capabilities string
 	Icon         *string
+	Disabled     bool
 }
 
 type DeviceStateSample struct {
@@ -154,14 +155,6 @@ type GroupMember struct {
 type GroupTag struct {
 	GroupID string
 	Tag     device.GroupTag
-}
-
-type MqttConfig struct {
-	ID       int64
-	Broker   string
-	Username string
-	Password string
-	UseWss   bool
 }
 
 type Room struct {
@@ -248,6 +241,15 @@ type User struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	TokenVersion       int64
+}
+
+type Zigbee2mqttConfig struct {
+	ID       int64
+	Broker   string
+	Username string
+	Password string
+	UseWss   bool
+	Enabled  bool
 }
 
 type ZigbeeDevice struct {
