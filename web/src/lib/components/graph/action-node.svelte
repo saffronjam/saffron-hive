@@ -272,7 +272,9 @@
 		const isChangeValue = data.config.actionType === "change_value";
 		const supportsChangeValue = (kind: "device" | "group" | "room", id: string) =>
 			settableNumericCapabilities(
-				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms),
+				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms, {
+					includeDisabled: true,
+				}),
 			).length > 0;
 		const items: TargetItem[] = [];
 		for (const d of allDevices) {
@@ -333,6 +335,7 @@
 			data.devices ?? [],
 			data.groups ?? [],
 			data.rooms ?? [],
+			{ includeDisabled: true },
 		),
 	);
 	const exprCaps = $derived(capabilityUnion(exprDevices));
@@ -500,16 +503,19 @@
 				<div class="space-y-1">
 					{#each cycleSceneIds as sid, i (sid + ":" + i)}
 						{@const scene = sceneById(sid)}
-						<div class="flex items-center gap-1 text-xs">
+						<div
+							class="-mx-1 flex items-center gap-1 rounded-sm border-l-2 px-1 text-xs transition-colors duration-200 {i ===
+							activeCycleIndex
+								? 'border-automation-action bg-automation-action/10'
+								: 'border-transparent'}"
+							aria-current={i === activeCycleIndex ? "true" : undefined}
+						>
 							<span class="flex-1 truncate {scene ? '' : 'text-destructive line-through'}">
 								{scene?.name ?? `Deleted scene (${sid})`}
 							</span>
 							{#each scene?.rooms ?? [] as room (room.id)}
 								<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
 							{/each}
-							{#if i === activeCycleIndex}
-								<Badge class="bg-automation-action/15 text-automation-action border-automation-action/30 text-[10px] py-0">Active</Badge>
-							{/if}
 							<Button
 								type="button"
 								variant="ghost"
@@ -759,14 +765,18 @@
 					<ul class="space-y-0.5">
 						{#each cycleSceneIds as sid, i (sid + ":" + i)}
 							{@const scene = sceneById(sid)}
-							<li class="flex items-center gap-1 text-xs {scene ? 'text-muted-foreground' : 'text-destructive line-through'}">
+							<li
+								class="-mx-1 flex items-center gap-1 rounded-sm border-l-2 px-1 text-xs transition-colors duration-200 {scene
+									? 'text-muted-foreground'
+									: 'text-destructive line-through'} {i === activeCycleIndex
+									? 'border-automation-action bg-automation-action/10'
+									: 'border-transparent'}"
+								aria-current={i === activeCycleIndex ? "true" : undefined}
+							>
 								<span class="flex-1 truncate">{scene?.name ?? `Deleted scene (${sid})`}</span>
 								{#each scene?.rooms ?? [] as room (room.id)}
 									<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
 								{/each}
-								{#if i === activeCycleIndex}
-									<Badge class="bg-automation-action/15 text-automation-action border-automation-action/30 text-[10px] py-0">Active</Badge>
-								{/if}
 							</li>
 						{/each}
 					</ul>
