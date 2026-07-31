@@ -86,7 +86,7 @@ migrate-version:
 	go run . migrate version
 
 mqttprint:
-	set -a && . ./.env && set +a && go run ./cmd/mqttprint $(TOPIC)
+	go run . mqttprint $(TOPIC)
 
 package:
 	@version=$$(git describe --tags --always --dirty 2>/dev/null || echo localbuild); \

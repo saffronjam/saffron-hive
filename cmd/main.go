@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/saffronjam/saffron-hive/cmd/migrate"
+	"github.com/saffronjam/saffron-hive/cmd/mqttprint"
 	"github.com/saffronjam/saffron-hive/cmd/serve"
 )
 
@@ -15,7 +16,7 @@ import (
 // It dispatches to the appropriate subcommand based on os.Args.
 func Main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage: saffron-hive <serve|migrate> [args...]\n")
+		fmt.Fprintf(os.Stderr, "usage: saffron-hive <serve|migrate|mqttprint> [args...]\n")
 		os.Exit(1)
 	}
 
@@ -39,6 +40,12 @@ func Main() {
 			}
 		}
 		err = migrate.Run(ctx, os.Args[2], steps)
+	case "mqttprint":
+		topic := ""
+		if len(os.Args) >= 3 {
+			topic = os.Args[2]
+		}
+		err = mqttprint.Run(ctx, topic)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
