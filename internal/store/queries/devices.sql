@@ -16,16 +16,16 @@ ON CONFLICT(id) DO UPDATE SET
     removed      = false;
 
 -- name: GetDevice :one
-SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
 FROM devices
 WHERE id = ?;
 
 -- name: ListDevices :many
-SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
 FROM devices;
 
 -- name: ListDevicesBySource :many
-SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
 FROM devices
 WHERE source = ?;
 
@@ -38,6 +38,16 @@ WHERE id = ?;
 -- can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
 -- skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
 -- overwrite a user-set icon.
+
+-- The disabled flag is user-owned, so it gets its own setter for the same reason
+-- the icon column does: UpdateDevice overwrites every column it names, and the
+-- device-removal path calls it with an otherwise zero-value struct.
+
+-- name: SetDeviceDisabled :exec
+UPDATE devices SET disabled = ? WHERE id = ?;
+
+-- name: ListDisabledDeviceIDs :many
+SELECT id FROM devices WHERE disabled = true;
 
 -- name: UpdateDeviceIcon :exec
 UPDATE devices SET icon = ? WHERE id = ?;

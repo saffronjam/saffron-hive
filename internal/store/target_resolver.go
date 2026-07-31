@@ -13,6 +13,12 @@ import (
 // shares a single visited set keyed by "kind:id" so cycles between the two
 // kinds — group→room→group→room — terminate. Each device appears at most once
 // in the returned slice; the result is sorted by device ID for stable output.
+//
+// Disabled devices are dropped from the result. This is the resolution every
+// runtime fan-out goes through (scene apply, automation actions, effect runs,
+// selector expressions), so excluding them here is what keeps a disabled device
+// out of all of them. The membership rows themselves are untouched, so
+// re-enabling restores the device everywhere it was.
 func (s *DB) ResolveTargetDeviceIDs(ctx context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
 	seen := map[string]bool{}
 	devSeen := map[device.DeviceID]bool{}
@@ -31,7 +37,35 @@ func (s *DB) ResolveTargetDeviceIDs(ctx context.Context, targetType device.Targe
 		s.collectRoomDeviceIDs(ctx, targetID, seen, devSeen, &out)
 	}
 
+	out = s.withoutDisabled(ctx, out)
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// withoutDisabled removes disabled devices from ids. The disabled set is read
+// once per resolution rather than joined per member, because the walk visits
+// each membership table separately and the disabled set is expected to be tiny.
+// A read failure returns ids unchanged: the adapter command gate is the
+// authoritative check, so failing open here cannot command a disabled device.
+func (s *DB) withoutDisabled(ctx context.Context, ids []device.DeviceID) []device.DeviceID {
+	if len(ids) == 0 {
+		return ids
+	}
+	disabled, err := s.ListDisabledDeviceIDs(ctx)
+	if err != nil || len(disabled) == 0 {
+		return ids
+	}
+	skip := make(map[device.DeviceID]struct{}, len(disabled))
+	for _, id := range disabled {
+		skip[id] = struct{}{}
+	}
+	out := make([]device.DeviceID, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := skip[id]; ok {
+			continue
+		}
+		out = append(out, id)
+	}
 	return out
 }
 

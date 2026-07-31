@@ -58,7 +58,7 @@ func (q *Queries) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
 FROM devices
 WHERE id = ?
 `
@@ -72,6 +72,7 @@ type GetDeviceRow struct {
 	Capabilities string
 	Available    bool
 	Removed      bool
+	Disabled     bool
 	LastSeen     *time.Time
 }
 
@@ -87,13 +88,14 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 		&i.Capabilities,
 		&i.Available,
 		&i.Removed,
+		&i.Disabled,
 		&i.LastSeen,
 	)
 	return i, err
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
 FROM devices
 `
 
@@ -106,6 +108,7 @@ type ListDevicesRow struct {
 	Capabilities string
 	Available    bool
 	Removed      bool
+	Disabled     bool
 	LastSeen     *time.Time
 }
 
@@ -127,6 +130,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 			&i.Capabilities,
 			&i.Available,
 			&i.Removed,
+			&i.Disabled,
 			&i.LastSeen,
 		); err != nil {
 			return nil, err
@@ -143,7 +147,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, icon, source, type, capabilities, available, removed, last_seen
+SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
 FROM devices
 WHERE source = ?
 `
@@ -157,6 +161,7 @@ type ListDevicesBySourceRow struct {
 	Capabilities string
 	Available    bool
 	Removed      bool
+	Disabled     bool
 	LastSeen     *time.Time
 }
 
@@ -178,6 +183,7 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 			&i.Capabilities,
 			&i.Available,
 			&i.Removed,
+			&i.Disabled,
 			&i.LastSeen,
 		); err != nil {
 			return nil, err
@@ -191,6 +197,56 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 		return nil, err
 	}
 	return items, nil
+}
+
+const listDisabledDeviceIDs = `-- name: ListDisabledDeviceIDs :many
+SELECT id FROM devices WHERE disabled = true
+`
+
+func (q *Queries) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
+	rows, err := q.db.QueryContext(ctx, listDisabledDeviceIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []device.DeviceID
+	for rows.Next() {
+		var id device.DeviceID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setDeviceDisabled = `-- name: SetDeviceDisabled :exec
+
+
+UPDATE devices SET disabled = ? WHERE id = ?
+`
+
+type SetDeviceDisabledParams struct {
+	Disabled bool
+	ID       device.DeviceID
+}
+
+// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
+// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
+// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
+// overwrite a user-set icon.
+// The disabled flag is user-owned, so it gets its own setter for the same reason
+// the icon column does: UpdateDevice overwrites every column it names, and the
+// device-removal path calls it with an otherwise zero-value struct.
+func (q *Queries) SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error {
+	_, err := q.db.ExecContext(ctx, setDeviceDisabled, arg.Disabled, arg.ID)
+	return err
 }
 
 const updateDevice = `-- name: UpdateDevice :exec
@@ -219,7 +275,6 @@ func (q *Queries) UpdateDevice(ctx context.Context, arg UpdateDeviceParams) erro
 }
 
 const updateDeviceIcon = `-- name: UpdateDeviceIcon :exec
-
 UPDATE devices SET icon = ? WHERE id = ?
 `
 
@@ -228,10 +283,6 @@ type UpdateDeviceIconParams struct {
 	ID   device.DeviceID
 }
 
-// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
-// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
-// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
-// overwrite a user-set icon.
 func (q *Queries) UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error {
 	_, err := q.db.ExecContext(ctx, updateDeviceIcon, arg.Icon, arg.ID)
 	return err

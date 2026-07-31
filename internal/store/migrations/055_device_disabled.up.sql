@@ -1,0 +1,1 @@
+ALTER TABLE devices ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT false;

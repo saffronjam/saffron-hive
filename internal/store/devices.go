@@ -66,6 +66,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 		Capabilities: unmarshalCapabilities(row.Capabilities),
 		Available:    row.Available,
 		Removed:      row.Removed,
+		Disabled:     row.Disabled,
 		LastSeen:     derefTime(row.LastSeen),
 	}, nil
 }
@@ -92,6 +93,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 			Capabilities: unmarshalCapabilities(r.Capabilities),
 			Available:    r.Available,
 			Removed:      r.Removed,
+			Disabled:     r.Disabled,
 			LastSeen:     derefTime(r.LastSeen),
 		})
 	}
@@ -120,6 +122,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 			Capabilities: unmarshalCapabilities(r.Capabilities),
 			Available:    r.Available,
 			Removed:      r.Removed,
+			Disabled:     r.Disabled,
 			LastSeen:     derefTime(r.LastSeen),
 		})
 	}
@@ -211,6 +214,30 @@ func deviceTagsFromStrings(tags []string) []device.DeviceTag {
 		}
 	}
 	return out
+}
+
+// SetDeviceDisabled toggles the user-owned disabled flag and returns the updated
+// device. Deliberately separate from UpdateDevice, which overwrites every column
+// it names and is called with an otherwise zero-value struct by the
+// device-removal path.
+func (s *DB) SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error) {
+	if err := s.q.SetDeviceDisabled(ctx, sqlite.SetDeviceDisabledParams{
+		Disabled: disabled,
+		ID:       id,
+	}); err != nil {
+		return device.Device{}, fmt.Errorf("set device disabled: %w", err)
+	}
+	return s.GetDevice(ctx, id)
+}
+
+// ListDisabledDeviceIDs returns the ids of every disabled device, so callers that
+// resolve a device set through joins can subtract them in one pass.
+func (s *DB) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
+	ids, err := s.q.ListDisabledDeviceIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list disabled device ids: %w", err)
+	}
+	return ids, nil
 }
 
 // UpdateDeviceIcon sets a device's user-overridable icon and returns the updated

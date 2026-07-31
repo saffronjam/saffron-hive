@@ -89,6 +89,7 @@ type Querier interface {
 	DeleteTuyaConfig(ctx context.Context) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
+	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
@@ -98,7 +99,6 @@ type Querier interface {
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
-	GetMQTTConfig(ctx context.Context) (GetMQTTConfigRow, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
@@ -107,6 +107,7 @@ type Querier interface {
 	GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) ([]GetUserAvatarPathsByIDsRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
+	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
 	GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error)
 	GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error)
 	// Activity event persistence. QueryActivityEvents is the only query in the
@@ -144,6 +145,7 @@ type Querier interface {
 	ListDeviceTags(ctx context.Context, deviceID string) ([]string, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
+	ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error)
 	ListEffectClips(ctx context.Context, trackID string) ([]EffectClip, error)
 	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
@@ -190,6 +192,14 @@ type Querier interface {
 	ResolveGroupIDByName(ctx context.Context, name string) (string, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
+	// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
+	// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
+	// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
+	// overwrite a user-set icon.
+	// The disabled flag is user-owned, so it gets its own setter for the same reason
+	// the icon column does: UpdateDevice overwrites every column it names, and the
+	// device-removal path calls it with an otherwise zero-value struct.
+	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
@@ -203,10 +213,6 @@ type Querier interface {
 	// NOT touched so the "last edited" semantics stay distinct from "last fired".
 	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
-	// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
-	// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
-	// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
-	// overwrite a user-set icon.
 	UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error
 	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
 	UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error
@@ -225,12 +231,12 @@ type Querier interface {
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
 	// Keeps the user-owned name and clears the removed flag when a device appears.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
-	UpsertMQTTConfig(ctx context.Context, arg UpsertMQTTConfigParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
 	UpsertTuyaDevice(ctx context.Context, arg UpsertTuyaDeviceParams) error
+	UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) error
 	UpsertZigbeeDevice(ctx context.Context, arg UpsertZigbeeDeviceParams) error
 }
 
