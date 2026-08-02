@@ -33,6 +33,26 @@ export interface Me {
   mustChangePassword: boolean;
 }
 
+/**
+ * The avatar path survives a reload in localStorage, mirroring how the theme is
+ * persisted. `me` is fetched after the first paint, and until it lands the
+ * sidebar has no idea whether the user has an avatar; without this it would
+ * assert "none" and flash the initials for a frame before the image arrives.
+ */
+const AVATAR_PATH_KEY = "hive.avatarPath";
+
+/** Last known avatar path, or null when there is none or none is cached. */
+export function cachedAvatarPath(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(AVATAR_PATH_KEY);
+}
+
+function cacheAvatarPath(path: string | null) {
+  if (typeof localStorage === "undefined") return;
+  if (path) localStorage.setItem(AVATAR_PATH_KEY, path);
+  else localStorage.removeItem(AVATAR_PATH_KEY);
+}
+
 function createMe() {
   let user = $state<Me | null>(null);
 
@@ -61,6 +81,7 @@ function createMe() {
       createdAt: data.createdAt ?? "",
       mustChangePassword: data.mustChangePassword ?? false,
     };
+    cacheAvatarPath(user.avatarPath);
     theme.syncFromProfile(t);
   }
 
@@ -91,6 +112,7 @@ function createMe() {
     },
     clear() {
       user = null;
+      cacheAvatarPath(null);
     },
   };
 }

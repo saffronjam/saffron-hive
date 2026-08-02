@@ -38,7 +38,7 @@
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
-	import { me } from "$lib/stores/me.svelte";
+	import { me, cachedAvatarPath } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
 	import { version } from "$lib/version";
 
@@ -218,10 +218,15 @@
 
 		{#if auth.user}
 			{@const currentUser = auth.user}
+			<!--
+				The cached path lets the image start loading on the first frame. Claiming
+				`null` here instead would render the initials until `me` resolves, which
+				is the avatar flashing on every reload.
+			-->
 			{@const profileUser = me.user ?? {
 				name: currentUser.name,
 				username: currentUser.username,
-				avatarPath: null,
+				avatarPath: cachedAvatarPath(),
 			}}
 			<SidebarMenu>
 				<SidebarMenuItem>

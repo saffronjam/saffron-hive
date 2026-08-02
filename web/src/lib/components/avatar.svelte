@@ -24,6 +24,10 @@
     return Math.abs(h) % 360;
   }
 
+  function pathToSrc(path: string | null | undefined): string | null {
+    return path ? `/avatars/${path}` : null;
+  }
+
   const seed = $derived(user.username || user.name || "?");
   const hue = $derived(hashHue(seed));
   const bg = $derived(`hsl(${hue} 55% 40%)`);
@@ -33,11 +37,22 @@
   // opaque, the other is transparent. On change, load the new src into the
   // inactive slot; once it decodes, flip `active`, which triggers CSS opacity
   // transitions on both layers in parallel — a real crossfade.
-  let srcA = $state<string | null>(null);
+  //
+  // Slot A and `active` are both seeded from the prop rather than filled by the
+  // effect below, so a user who already has an avatar renders an opaque <img> in
+  // the very first frame. Leaving either to the effect paints something else
+  // first (the initials, or an empty circle) and then fades, which is the avatar
+  // flashing on every page load. Nothing is lost by seeding: an <img> that has
+  // not decoded yet simply has no pixels, so a cached avatar appears at once and
+  // a cold one appears when it arrives.
+  // svelte-ignore state_referenced_locally
+  let srcA = $state<string | null>(pathToSrc(user.avatarPath));
   let srcB = $state<string | null>(null);
-  let active = $state<"A" | "B" | null>(null);
+  // svelte-ignore state_referenced_locally
+  let active = $state<"A" | "B" | null>(user.avatarPath ? "A" : null);
+  let failed = $state(false);
 
-  const desired = $derived(user.avatarPath ? `/avatars/${user.avatarPath}` : null);
+  const desired = $derived(pathToSrc(user.avatarPath));
 
   $effect(() => {
     const currentSrc = active === "A" ? srcA : active === "B" ? srcB : null;
@@ -48,6 +63,7 @@
       active = null;
       return;
     }
+    failed = false;
     // Load the new src into the slot that isn't active so the fade-in happens
     // without disturbing the currently visible image.
     if (active === "A") srcB = desired;
@@ -61,9 +77,16 @@
     if (srcB && srcB !== (active === "B" ? srcB : null)) active = "B";
   }
 
-  const aOpacity = $derived(active === "A" ? 1 : 0);
-  const bOpacity = $derived(active === "B" ? 1 : 0);
-  const initialsOpacity = $derived(active ? 0 : 1);
+  // `failed` hides the image rather than unmounting it: clearing the src would
+  // let the effect below notice an empty slot and immediately re-request the
+  // same broken URL, forever.
+  const aOpacity = $derived(active === "A" && !failed ? 1 : 0);
+  const bOpacity = $derived(active === "B" && !failed ? 1 : 0);
+
+  // Initials show only when there is genuinely no photo to show, rather than
+  // whenever one has yet to load. While a photo is loading the circle stays
+  // empty, which is a beat of nothing instead of a beat of the wrong thing.
+  const initialsOpacity = $derived(!desired || failed ? 1 : 0);
 </script>
 
 <div class="relative {sizeClasses[size]} {klass}">
@@ -85,6 +108,7 @@
       ]}"
       style="opacity: {aOpacity}"
       onload={onLoadA}
+      onerror={() => (failed = true)}
     />
   {/if}
   {#if srcB}
@@ -96,6 +120,7 @@
       ]}"
       style="opacity: {bOpacity}"
       onload={onLoadB}
+      onerror={() => (failed = true)}
     />
   {/if}
 </div>
