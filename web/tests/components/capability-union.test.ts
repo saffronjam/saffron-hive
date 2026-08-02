@@ -33,6 +33,8 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     __typename: "Device" as const,
     id,
     name: id,
+    friendlyName: "",
+    seen: true,
     source: "zigbee2mqtt",
     type: "light",
     tags: [],
@@ -255,21 +257,19 @@ describe("disabled devices", () => {
     expect(got).toEqual([]);
   });
 
-  it("are kept when includeDisabled is set, so editors can grey them", () => {
-    const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, offPlug], [grp], [], {
-      includeDisabled: true,
-    });
+  it("come back once re-enabled", () => {
+    const onPlug = { ...offPlug, disabled: false };
+    const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, onPlug], [grp], []);
     expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
   });
 
   it("leave the expression universe, so is_not cannot resurrect them", () => {
     const notLight = [{ subject: "device_type", op: "is_not", values: ["light"] }];
     expect(evaluateExpression(notLight, [light, offPlug], [], [])).toEqual([]);
-    expect(
-      evaluateExpression(notLight, [light, offPlug], [], [], { includeDisabled: true }).map(
-        (d) => d.id,
-      ),
-    ).toEqual(["plug-1"]);
+    const onPlug = { ...offPlug, disabled: false };
+    expect(evaluateExpression(notLight, [light, onPlug], [], []).map((d) => d.id)).toEqual([
+      "plug-1",
+    ]);
   });
 
   it("do not contribute capabilities to a target union", () => {

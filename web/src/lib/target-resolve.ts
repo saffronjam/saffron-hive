@@ -21,16 +21,13 @@ export interface RoomLite {
 export type TargetKind = "device" | "group" | "room";
 
 /**
- * Whether disabled devices count as members. Runtime paths leave this off so
- * the client resolves the same set the server commands; editors turn it on so a
- * disabled member still renders (greyed) in the list it belongs to.
+ * Drop disabled devices. Every resolution in this module runs through it, so
+ * the client resolves the same set the server commands.
+ *
+ * Callers must select `disabled` in their device query. An unselected field
+ * arrives as `undefined` rather than a type error, which silently defeats this.
  */
-export interface ResolveOpts {
-  includeDisabled?: boolean;
-}
-
-function selectable(devices: Device[], opts?: ResolveOpts): Device[] {
-  if (opts?.includeDisabled) return devices;
+function selectable(devices: Device[]): Device[] {
   return devices.filter((d) => !d.disabled);
 }
 
@@ -80,31 +77,24 @@ function deviceRoles(d: Pick<Device, "type" | "tags">): string[] {
  * (no precedence) with and = intersect, or = union; is_not* inverts against the
  * full device universe. An empty expression resolves to nothing.
  *
- * Disabled devices leave the universe unless `opts.includeDisabled` is set, so
- * they are matched by neither an including clause nor an is_not complement.
+ * Disabled devices leave the universe, so they are matched by neither an
+ * including clause nor the complement an is_not clause builds.
  */
 export function evaluateExpression(
   expr: Clause[],
   allDevices: Device[],
   groups: GroupLite[],
   rooms: RoomLite[],
-  opts?: ResolveOpts,
 ): Device[] {
   if (expr.length === 0) return [];
-  const devices = selectable(allDevices, opts);
+  const devices = selectable(allDevices);
   const byId = new Map(devices.map((d) => [d.id, d]));
 
   function clauseSet(c: Clause): Set<string> {
     const include = new Set<string>();
     if (c.subject === "room" || c.subject === "group" || c.subject === "device") {
       for (const v of c.values) {
-        for (const d of resolveTargetDevices(
-          { type: c.subject, id: v },
-          devices,
-          groups,
-          rooms,
-          opts,
-        )) {
+        for (const d of resolveTargetDevices({ type: c.subject, id: v }, devices, groups, rooms)) {
           include.add(d.id);
         }
       }
@@ -150,17 +140,15 @@ export function evaluateExpression(
  * it covers. Groups may nest other groups or rooms; resolution is iterative
  * with a seen-set to stop cycles.
  *
- * Disabled devices are dropped unless `opts.includeDisabled` is set, mirroring
- * `store.ResolveTargetDeviceIDs`.
+ * Disabled devices are dropped, mirroring `store.ResolveTargetDeviceIDs`.
  */
 export function resolveTargetDevices(
   target: { type: TargetKind; id: string },
   allDevices: Device[],
   groups: GroupLite[],
   rooms: RoomLite[],
-  opts?: ResolveOpts,
 ): Device[] {
-  const deviceByID = new Map(selectable(allDevices, opts).map((d) => [d.id, d]));
+  const deviceByID = new Map(selectable(allDevices).map((d) => [d.id, d]));
   const groupByID = new Map(groups.map((g) => [g.id, g]));
   const roomByID = new Map(rooms.map((r) => [r.id, r]));
 
@@ -240,9 +228,8 @@ export function capabilityUnionForTarget(
   devices: Device[],
   groups: GroupLite[],
   rooms: RoomLite[],
-  opts?: ResolveOpts,
 ): Capability[] {
-  return capabilityUnion(resolveTargetDevices(target, devices, groups, rooms, opts));
+  return capabilityUnion(resolveTargetDevices(target, devices, groups, rooms));
 }
 
 export function hasCapability(caps: Capability[], name: string): boolean {

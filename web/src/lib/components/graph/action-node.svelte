@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -272,14 +273,12 @@
 		const isChangeValue = data.config.actionType === "change_value";
 		const supportsChangeValue = (kind: "device" | "group" | "room", id: string) =>
 			settableNumericCapabilities(
-				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms, {
-					includeDisabled: true,
-				}),
+				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms),
 			).length > 0;
 		const items: TargetItem[] = [];
 		for (const d of allDevices) {
 			if (isChangeValue && !supportsChangeValue("device", d.id)) continue;
-			items.push({ kind: "device", id: d.id, name: d.name, deviceType: d.type });
+			items.push({ kind: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type });
 		}
 		for (const g of allGroups) {
 			if (isChangeValue && !supportsChangeValue("group", g.id)) continue;
@@ -335,7 +334,6 @@
 			data.devices ?? [],
 			data.groups ?? [],
 			data.rooms ?? [],
-			{ includeDisabled: true },
 		),
 	);
 	const exprCaps = $derived(capabilityUnion(exprDevices));
