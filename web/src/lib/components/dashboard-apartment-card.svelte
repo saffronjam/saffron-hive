@@ -4,7 +4,7 @@
 	import { House } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
-		brightnessToTintStrength,
+		groupTintStrength,
 		aggregateSensorReadings,
 	} from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
@@ -36,16 +36,10 @@
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
 	const tintColors = $derived(groupBaseTintColors(devices));
-	const tintStrength = $derived.by(() => {
-		const lit = onLights.filter((d) => d.state?.brightness != null);
-		if (lit.length === 0) return 0;
-		let sum = 0;
-		for (const d of lit) sum += d.state!.brightness!;
-		return brightnessToTintStrength(sum / lit.length);
-	});
+	const tintStrength = $derived(groupTintStrength(devices));
 
 	const dimmableLights = $derived(
-		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
+		devices.filter((d) => isLightControlDevice(d) && d.state?.brightness != null),
 	);
 	const avgBrightness = $derived.by((): number => {
 		const lit = onLights.filter((d) => d.state?.brightness != null);

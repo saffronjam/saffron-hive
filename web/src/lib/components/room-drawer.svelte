@@ -20,7 +20,7 @@
 	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
-		brightnessToTintStrength,
+		groupTintStrength,
 		aggregateSensorReadings,
 		sceneGlowColor,
 	} from "$lib/device-tint";
@@ -32,7 +32,7 @@
 		type Device,
 	} from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
 	import type { Component } from "svelte";
 	import {
@@ -121,7 +121,9 @@
 
 	const lightDevices = $derived(roomDevices.filter(isLightControlDevice));
 	const applianceDevices = $derived(
-		roomDevices.filter(isApplianceDevice).toSorted((a, b) => a.name.localeCompare(b.name)),
+		roomDevices
+			.filter(isApplianceDevice)
+			.toSorted((a, b) => deviceDisplayName(a).localeCompare(deviceDisplayName(b))),
 	);
 	const fullWidthApplianceId = $derived(
 		applianceDevices.length % 2 === 1
@@ -131,13 +133,7 @@
 	const onLights = $derived(lightDevices.filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 	const tintColors = $derived(groupBaseTintColors(roomDevices));
-	const tintStrength = $derived.by(() => {
-		const lit = onLights.filter((d) => d.state?.brightness != null);
-		if (lit.length === 0) return 0;
-		let sum = 0;
-		for (const d of lit) sum += d.state!.brightness!;
-		return brightnessToTintStrength(sum / lit.length);
-	});
+	const tintStrength = $derived(groupTintStrength(roomDevices));
 
 	const roomHasColor = $derived(
 		roomDevices.some((d) => d.capabilities.some((c) => c.name === "color")),
@@ -268,7 +264,7 @@
 			if (!isLightControlDevice(dev)) continue;
 			entries.push({
 				key: `device:${dev.id}`,
-				entity: { id: dev.id, name: dev.name, icon: dev.icon ?? null },
+				entity: { id: dev.id, name: deviceDisplayName(dev), icon: dev.icon ?? null },
 				devices: [dev],
 				isGroup: false,
 				fallbackIcon: deviceIcon(dev.type) ?? Lightbulb,

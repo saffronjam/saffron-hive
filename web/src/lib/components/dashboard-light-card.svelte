@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Component } from "svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
@@ -16,7 +17,7 @@
 	import { onDestroy } from "svelte";
 	import {
 		groupBaseTintColors,
-		brightnessToTintStrength,
+		groupTintStrength,
 		PLUG_TINT_COLOR,
 	} from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
@@ -56,7 +57,7 @@
 	`);
 
 	const sortedDevices = $derived(
-		[...devices].sort((a, b) => a.name.localeCompare(b.name)),
+		[...devices].sort((a, b) => deviceDisplayName(a).localeCompare(deviceDisplayName(b))),
 	);
 	const onOffDevices = $derived(
 		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
@@ -76,16 +77,7 @@
 		if (isSwitchOnlyLight) return [PLUG_TINT_COLOR];
 		return [];
 	});
-	const tintStrength = $derived.by(() => {
-		if (isSwitchOnlyLight) return 1;
-		const lit = devices.filter(
-			(d) => d.type === "light" && d.state?.on && d.state?.brightness != null,
-		);
-		if (lit.length === 0) return 0;
-		let sum = 0;
-		for (const d of lit) sum += d.state!.brightness!;
-		return brightnessToTintStrength(sum / lit.length);
-	});
+	const tintStrength = $derived(groupTintStrength(devices));
 	const onLights = $derived(dimmableLights.filter((d) => d.state?.on));
 	const avgBrightness = $derived.by((): number => {
 		if (onLights.length === 0) return 0;
@@ -279,7 +271,7 @@
 				<PopoverContent class="w-80 space-y-2 p-3" align="end">
 					{#each sortedDevices as d (d.id)}
 						<DashboardLightCard
-							entity={{ id: d.id, name: d.name, icon: null }}
+							entity={{ id: d.id, name: deviceDisplayName(d), icon: null }}
 							devices={[d]}
 							isGroup={false}
 							{client}

@@ -17,7 +17,7 @@
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import {
 		aggregateSensorReadings,
-		brightnessToTintStrength,
+		groupTintStrength,
 		groupBaseTintColors,
 	} from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
@@ -157,15 +157,7 @@
 
 	const tintColors = $derived(groupBaseTintColors(effectiveDevices));
 
-	const tintStrength = $derived.by((): number => {
-		const onLights = effectiveDevices.filter(
-			(d) => d.type === "light" && d.state?.on && d.state?.brightness != null,
-		);
-		if (onLights.length === 0) return 0;
-		let sum = 0;
-		for (const d of onLights) sum += d.state!.brightness!;
-		return brightnessToTintStrength(sum / onLights.length);
-	});
+	const tintStrength = $derived(groupTintStrength(effectiveDevices));
 
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };

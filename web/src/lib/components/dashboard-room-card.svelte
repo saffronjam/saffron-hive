@@ -5,7 +5,7 @@
 	import { DoorOpen } from "@lucide/svelte";
 	import {
 		groupBaseTintColors,
-		brightnessToTintStrength,
+		groupTintStrength,
 		aggregateSensorReadings,
 	} from "$lib/device-tint";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
@@ -49,16 +49,10 @@
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
 	const tintColors = $derived(groupBaseTintColors(roomDevices));
-	const tintStrength = $derived.by(() => {
-		const lit = onLights.filter((d) => d.state?.brightness != null);
-		if (lit.length === 0) return 0;
-		let sum = 0;
-		for (const d of lit) sum += d.state!.brightness!;
-		return brightnessToTintStrength(sum / lit.length);
-	});
+	const tintStrength = $derived(groupTintStrength(roomDevices));
 
 	const dimmableLights = $derived(
-		roomDevices.filter((d) => d.type === "light" && d.state?.brightness != null),
+		roomDevices.filter((d) => isLightControlDevice(d) && d.state?.brightness != null),
 	);
 	const avgBrightness = $derived.by((): number => {
 		const lit = onLights.filter((d) => d.state?.brightness != null);

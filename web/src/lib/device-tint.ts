@@ -110,6 +110,28 @@ export function brightnessToTintStrength(brightness: number | null | undefined):
 }
 
 /**
+ * Tint strength for a collection of devices (a room, a group, the apartment),
+ * suitable for driving the `--tint-strength` CSS variable.
+ *
+ * A light that is on but reports no brightness scores full strength rather than
+ * zero: a switch-only bulb or a LIGHT-tagged plug is either on or off, and there
+ * is no dimness to represent. Membership goes through `isLightControlDevice`, so
+ * a tagged plug counts as a light here exactly as it does in the card's own
+ * "N of M lights" count.
+ */
+export function groupTintStrength(devices: Device[]): number {
+  const on = devices.filter((d) => isLightControlDevice(d) && d.state?.on);
+  if (on.length === 0) return 0;
+
+  const dimmable = on.filter((d) => d.state?.brightness != null);
+  if (dimmable.length === 0) return 1;
+
+  let sum = 0;
+  for (const d of dimmable) sum += d.state!.brightness!;
+  return brightnessToTintStrength(sum / dimmable.length);
+}
+
+/**
  * Returns a CSS `rgb(...)` string representing the device's current visual
  * tint, based on its live state. Colored lights → their color, colorTemp
  * lights → warm/cool interpolation, plain-brightness lights → dimmed cream,
