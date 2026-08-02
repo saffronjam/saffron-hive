@@ -44,10 +44,13 @@
 	import type { CombinedError } from "@urql/core";
 	import { ChartContainer, type ChartConfig } from "$lib/components/ui/chart/index.js";
 	import { LineChart, Spline, ChartClipPath, Tooltip } from "layerchart";
+	import type { ComponentProps } from "svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { SvelteSet } from "svelte/reactivity";
 	import { SvelteMap } from "svelte/reactivity";
 	import { curveMonotoneX } from "d3-shape";
+	import { fly } from "svelte/transition";
+	import { X } from "@lucide/svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { formatTooltip } from "$lib/time-format";
 	import { deviceStore } from "$lib/stores/devices";
@@ -265,6 +268,14 @@
 
 	const seriesByKey = $derived(new Map(allSeries.map((s) => [s.key, s])));
 
+	interface TooltipSeriesItem {
+		key: string;
+		label: string;
+		value: unknown;
+		color?: string;
+		visible: boolean;
+	}
+
 	interface TooltipGroup {
 		sourceKey: string;
 		sourceName: string;
@@ -405,9 +416,82 @@
 		}
 		return m === 0 ? `${pad(h)}:00` : `${pad(h)}:${pad(m)}`;
 	}
+
+	// layerchart does not export its chart state type through the package export
+	// map, so it is recovered from the shape the marks snippet is handed.
+	type ChartCtx = Parameters<NonNullable<ComponentProps<typeof LineChart>["marks"]>>[0]["context"];
+
+	interface PinnedReading {
+		at: Date;
+		groups: TooltipGroup[];
+	}
+
+	// Pixel radius handed to the chart's quadtree-x lookup in pinned mode. It is
+	// horizontal distance only, so a tap left or right of where samples exist
+	// finds nothing and counts as a dismiss. Deliberately not 2D quadtree:
+	// that mode matches only the single nearest series, which would drop every
+	// other line from the readout.
+	const PINNED_HIT_RADIUS = 48;
+
+	let chartContext = $state<ChartCtx | undefined>();
+	let chartEl = $state<HTMLElement | null>(null);
+	let panelEl = $state<HTMLElement | null>(null);
+
+	// The reading is latched rather than read straight off the tooltip: with no
+	// hide delay the chart drops its data the moment the finger lifts, and the
+	// panel has to survive that. Only an explicit dismiss clears it.
+	let reading = $state<PinnedReading | null>(null);
+	let gestureHadData = false;
+	// Guards against a dismissed panel reappearing: the effect also re-runs when
+	// unrelated dependencies change, and the chart still holds the last hovered
+	// point. Only a genuinely new point re-latches.
+	let latchedData: unknown = null;
+
+	$effect(() => {
+		if (!usePinned) {
+			reading = null;
+			latchedData = null;
+			return;
+		}
+		const ctx = chartContext;
+		const data = ctx?.tooltip?.data;
+		if (!data || !ctx || data === latchedData) return;
+		latchedData = data;
+		const series = ctx.tooltip.series as unknown as TooltipSeriesItem[];
+		gestureHadData = true;
+		reading = {
+			at: ctx.x(data) as Date,
+			groups: groupTooltipSeries(series.filter((sr) => sr.visible)),
+		};
+	});
+
+	function insideChart(e: PointerEvent): boolean {
+		const target = e.target as Node | null;
+		return !!target && !!chartEl?.contains(target);
+	}
+
+	function onWindowPointerDown(e: PointerEvent) {
+		if (!usePinned) return;
+		if (insideChart(e)) {
+			gestureHadData = false;
+			return;
+		}
+		const target = e.target as Node | null;
+		if (target && panelEl?.contains(target)) return;
+		reading = null;
+	}
+
+	function onWindowPointerUp(e: PointerEvent) {
+		if (!usePinned || !insideChart(e)) return;
+		// Nothing was read during this gesture, so the tap landed further than
+		// PINNED_HIT_RADIUS from every sample. That is the in-chart dismiss.
+		if (!gestureHadData) reading = null;
+	}
 </script>
 
-<div class="w-full {height}" bind:clientWidth={chartWidth}>
+<svelte:window onpointerdown={onWindowPointerDown} onpointerup={onWindowPointerUp} />
+
+<div class="w-full {height}" bind:clientWidth={chartWidth} bind:this={chartEl}>
 <ChartContainer config={chartConfig} class="w-full h-full">
 	{#if historyFetching && allSeries.length === 0}
 		<div class="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -427,6 +511,7 @@
 		</div>
 	{:else}
 		<LineChart
+			bind:context={chartContext}
 			data={rows}
 			x={(d: Row) => d.at}
 			xDomain={[from, to]}
@@ -437,9 +522,9 @@
 				spline: { opacity: 1 },
 				highlight: { opacity: 1 },
 				xAxis: { ticks: xTickCount, format: formatXTick },
-				// The pinned panel lingers after the finger lifts, so a value read
-				// mid-scrub stays legible once you stop touching the chart.
-				tooltip: { context: { hideDelay: usePinned ? 2500 : 0 } },
+				// A finite radius is what makes a tap away from the samples read as
+				// "nothing here" rather than snapping to the nearest column.
+				tooltip: { context: { radius: usePinned ? PINNED_HIT_RADIUS : Infinity } },
 			}}
 		>
 			{#snippet marks({ context })}
@@ -450,51 +535,7 @@
 				</ChartClipPath>
 			{/snippet}
 			{#snippet tooltip({ context })}
-				{#if usePinned}
-					<!--
-						Positioned against the viewport rather than the chart, so it never
-						lands under the finger doing the scrubbing. Tooltip.Root is skipped
-						entirely here — its whole job is the pointer-following placement
-						this mode discards, and it writes top/left inline where a class
-						could not override them.
-					-->
-					{#if context.tooltip.data}
-						{@const visible = context.tooltip.series.filter((s) => s.visible)}
-						{@const groups = groupTooltipSeries(visible)}
-						<div
-							class="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-popover/95 px-4 pt-3 pb-24 text-popover-foreground shadow-lg backdrop-blur-sm"
-							role="status"
-							aria-live="polite"
-						>
-							<p class="text-xs font-medium text-muted-foreground">
-								{formatTooltip(context.x(context.tooltip.data), me.user?.timeFormat ?? "24h")}
-							</p>
-							{#each groups as g, gi (g.sourceKey)}
-								{#if g.sourceName && groups.length > 1}
-									<p class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
-										{g.sourceName}
-									</p>
-								{/if}
-								<!-- One column: at phone width a label + value pair already fills the row. -->
-								<ul class="mt-1 flex flex-col gap-1">
-									{#each g.items as s (s.key)}
-										<li class="flex items-center gap-2 text-sm">
-											<span
-												class="size-2 shrink-0 rounded-full"
-												style="background: {s.color}"
-												aria-hidden="true"
-											></span>
-											<span class="min-w-0 flex-1 truncate text-muted-foreground">{s.label}</span>
-											<span class="shrink-0 font-medium tabular-nums"
-												>{formatTooltipValue(s.value, s.key)}</span
-											>
-										</li>
-									{/each}
-								</ul>
-							{/each}
-						</div>
-					{/if}
-				{:else}
+				{#if !usePinned}
 					<Tooltip.Root {context}>
 						{#snippet children({ data })}
 							{@const visible = context.tooltip.series.filter((s) => s.visible)}
@@ -528,6 +569,59 @@
 	{/if}
 </ChartContainer>
 </div>
+
+{#if usePinned && reading}
+	<!--
+		Rendered here rather than inside the tooltip snippet so its lifetime is
+		ours: that is what lets it survive the finger lifting, transition out
+		instead of snapping, and be dismissed on our terms. It is viewport-fixed,
+		so it never lands under the finger doing the scrubbing.
+	-->
+	<div
+		bind:this={panelEl}
+		class="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-popover/95 px-4 pt-3 pb-24 text-popover-foreground shadow-lg backdrop-blur-sm"
+		role="status"
+		aria-live="polite"
+		transition:fly={{ y: 24, duration: 200 }}
+	>
+		<div class="flex items-start justify-between gap-2">
+			<p class="text-xs font-medium text-muted-foreground">
+				{formatTooltip(reading.at, me.user?.timeFormat ?? "24h")}
+			</p>
+			<button
+				type="button"
+				class="-mt-1 -mr-1 rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground"
+				aria-label="Dismiss reading"
+				onclick={() => (reading = null)}
+			>
+				<X class="size-4" />
+			</button>
+		</div>
+		{#each reading.groups as g, gi (g.sourceKey)}
+			{#if g.sourceName && reading.groups.length > 1}
+				<p class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
+					{g.sourceName}
+				</p>
+			{/if}
+			<!-- One column: at phone width a label + value pair already fills the row. -->
+			<ul class="mt-1 flex flex-col gap-1">
+				{#each g.items as sr (sr.key)}
+					<li class="flex items-center gap-2 text-sm">
+						<span
+							class="size-2 shrink-0 rounded-full"
+							style="background: {sr.color}"
+							aria-hidden="true"
+						></span>
+						<span class="min-w-0 flex-1 truncate text-muted-foreground">{sr.label}</span>
+						<span class="shrink-0 font-medium tabular-nums"
+							>{formatTooltipValue(sr.value, sr.key)}</span
+						>
+					</li>
+				{/each}
+			</ul>
+		{/each}
+	</div>
+{/if}
 
 <style>
 	:global(
