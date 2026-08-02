@@ -29,8 +29,8 @@ func (f fakeRoomLister) ListRooms(_ context.Context) ([]store.Room, error) {
 
 func sceneRoomsFixture() (device.StateReader, fakeRoomTargets, fakeRoomLister) {
 	reader := device.NewMemoryStore()
-	reader.Register(device.Device{ID: "d-light", Name: "Bulb", Source: device.SourceZigbee2MQTT, Type: device.Light})
-	reader.Register(device.Device{ID: "d-plug", Name: "Plug", Source: device.SourceZigbee2MQTT, Type: device.Plug})
+	reader.Register(device.Device{ID: "d-light", FriendlyName: "Bulb", Source: device.SourceZigbee2MQTT, Type: device.Light})
+	reader.Register(device.Device{ID: "d-plug", FriendlyName: "Plug", Source: device.SourceZigbee2MQTT, Type: device.Plug})
 
 	targets := fakeRoomTargets{
 		"r-living":  {"d-light"},

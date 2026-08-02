@@ -151,10 +151,12 @@ type ComplexityRoot struct {
 		Available    func(childComplexity int) int
 		Capabilities func(childComplexity int) int
 		Disabled     func(childComplexity int) int
+		FriendlyName func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Icon         func(childComplexity int) int
 		LastSeen     func(childComplexity int) int
 		Name         func(childComplexity int) int
+		Seen         func(childComplexity int) int
 		Source       func(childComplexity int) int
 		State        func(childComplexity int) int
 		Tags         func(childComplexity int) int
@@ -304,6 +306,7 @@ type ComplexityRoot struct {
 		FireAutomationTrigger       func(childComplexity int, automationID string, nodeID string) int
 		ForceLogoutAllSessions      func(childComplexity int, userID *string) int
 		Login                       func(childComplexity int, input model.LoginInput) int
+		MarkDevicesSeen             func(childComplexity int, ids []string) int
 		RaiseAlarm                  func(childComplexity int, input model.RaiseAlarmInput) int
 		RemoveGroupMember           func(childComplexity int, id string) int
 		RemoveRoomMember            func(childComplexity int, id string) int
@@ -526,6 +529,7 @@ type MutationResolver interface {
 	BatchDeleteAutomations(ctx context.Context, ids []string) (int, error)
 	BatchDeleteGroups(ctx context.Context, ids []string) (int, error)
 	BatchDeleteRooms(ctx context.Context, ids []string) (int, error)
+	MarkDevicesSeen(ctx context.Context, ids []string) (int, error)
 	BatchDeleteAlarms(ctx context.Context, alarmIds []string) (int, error)
 	BatchDeleteUsers(ctx context.Context, ids []string) (int, error)
 	BatchAddRoomMembers(ctx context.Context, roomID string, members []*model.RoomMemberInput) (*model.Room, error)
@@ -1028,6 +1032,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Disabled(childComplexity), true
+	case "Device.friendlyName":
+		if e.ComplexityRoot.Device.FriendlyName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.FriendlyName(childComplexity), true
 	case "Device.id":
 		if e.ComplexityRoot.Device.ID == nil {
 			break
@@ -1052,6 +1062,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Name(childComplexity), true
+	case "Device.seen":
+		if e.ComplexityRoot.Device.Seen == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Seen(childComplexity), true
 	case "Device.source":
 		if e.ComplexityRoot.Device.Source == nil {
 			break
@@ -1880,6 +1896,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Login(childComplexity, args["input"].(model.LoginInput)), true
+	case "Mutation.markDevicesSeen":
+		if e.ComplexityRoot.Mutation.MarkDevicesSeen == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_markDevicesSeen_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.MarkDevicesSeen(childComplexity, args["ids"].([]string)), true
 	case "Mutation.raiseAlarm":
 		if e.ComplexityRoot.Mutation.RaiseAlarm == nil {
 			break
@@ -2986,7 +3013,17 @@ type Capability {
 
 type Device {
   id: ID!
-  name: String!
+  """
+  The user's name override. Null means unset, in which case the device shows the
+  name its integration reports, or its id when there is none. Clients render
+  ` + "`" + `name ?? friendlyName ?? id` + "`" + `; ` + "`" + `updateDevice(name: null)` + "`" + ` clears the override.
+  """
+  name: String
+  """
+  The name the integration reports, refreshed on every adapter sync. Empty when
+  the integration has none.
+  """
+  friendlyName: String!
   icon: String
   source: String!
   type: String!
@@ -3001,6 +3038,12 @@ type Device {
   it still renders as a member of the rooms, groups and scenes it belongs to.
   """
   disabled: Boolean!
+  """
+  False from the moment an integration discovers a device until the user opens
+  the device list, which is what marks it as new in the UI. An adapter re-sync
+  never resets it.
+  """
+  seen: Boolean!
   lastSeen: DateTime
   state: DeviceState
 }
@@ -3674,6 +3717,10 @@ input ColorInput {
 }
 
 input UpdateDeviceInput {
+  """
+  Sets the name override. Pass null to clear it and fall back to the
+  integration's name. Omit the field to leave it alone.
+  """
   name: String
   icon: String
   tags: [DeviceTag!]
@@ -3896,6 +3943,11 @@ type Mutation {
   batchDeleteAutomations(ids: [ID!]!): Int! @auth
   batchDeleteGroups(ids: [ID!]!): Int! @auth
   batchDeleteRooms(ids: [ID!]!): Int! @auth
+  """
+  Clears the new-device flag for the given devices and returns how many rows
+  changed. The device list calls this with everything it renders.
+  """
+  markDevicesSeen(ids: [ID!]!): Int! @auth
   batchDeleteAlarms(alarmIds: [ID!]!): Int! @auth
   """
   Deletes the specified users. The currently authenticated user is silently
@@ -4308,6 +4360,17 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_markDevicesSeen_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
 	return args, nil
 }
 
@@ -6980,13 +7043,42 @@ func (ec *executionContext) _Device_name(ctx context.Context, field graphql.Coll
 			return obj.Name, nil
 		},
 		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Device_friendlyName(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_friendlyName,
+		func(ctx context.Context) (any, error) {
+			return obj.FriendlyName, nil
+		},
+		nil,
 		ec.marshalNString2string,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Device_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Device_friendlyName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Device",
 		Field:      field,
@@ -7206,6 +7298,35 @@ func (ec *executionContext) _Device_disabled(ctx context.Context, field graphql.
 }
 
 func (ec *executionContext) fieldContext_Device_disabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Device_seen(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_seen,
+		func(ctx context.Context) (any, error) {
+			return obj.Seen, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_seen(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Device",
 		Field:      field,
@@ -9074,6 +9195,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -9088,6 +9211,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -9263,6 +9388,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -9277,6 +9404,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -9737,6 +9866,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -9751,6 +9882,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -9815,6 +9948,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -9829,6 +9964,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -11422,6 +11559,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -11436,6 +11575,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -12417,6 +12558,60 @@ func (ec *executionContext) fieldContext_Mutation_batchDeleteRooms(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_markDevicesSeen(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_markDevicesSeen,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().MarkDevicesSeen(ctx, fc.Args["ids"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_markDevicesSeen(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_markDevicesSeen_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_batchDeleteAlarms(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13195,6 +13390,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -13209,6 +13406,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -13262,6 +13461,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -13276,6 +13477,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -15062,6 +15265,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -15076,6 +15281,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -15251,6 +15458,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -15265,6 +15474,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -16360,6 +16571,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
 			case "source":
@@ -16374,6 +16587,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
@@ -21499,6 +21714,8 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "name":
 			out.Values[i] = ec._Device_name(ctx, field, obj)
+		case "friendlyName":
+			out.Values[i] = ec._Device_friendlyName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -21531,6 +21748,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "disabled":
 			out.Values[i] = ec._Device_disabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "seen":
+			out.Values[i] = ec._Device_seen(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -22586,6 +22808,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "batchDeleteRooms":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_batchDeleteRooms(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "markDevicesSeen":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_markDevicesSeen(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

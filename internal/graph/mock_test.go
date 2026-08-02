@@ -185,7 +185,6 @@ func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDevicePar
 	if !ok {
 		return device.Device{}, sql.ErrNoRows
 	}
-	d.Name = params.Name
 	d.Available = params.Available
 	d.Removed = params.Removed
 	d.LastSeen = params.LastSeen
@@ -215,6 +214,34 @@ func (m *mockStore) UpdateDeviceIcon(_ context.Context, params store.UpdateDevic
 	}
 	m.devices[params.ID] = d
 	return d, nil
+}
+
+func (m *mockStore) SetDeviceName(_ context.Context, id device.DeviceID, name *string) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[id]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	d.Name = name
+	m.devices[id] = d
+	return d, nil
+}
+
+func (m *mockStore) MarkDevicesSeen(_ context.Context, ids []device.DeviceID) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var n int64
+	for _, id := range ids {
+		d, ok := m.devices[id]
+		if !ok || d.Seen {
+			continue
+		}
+		d.Seen = true
+		m.devices[id] = d
+		n++
+	}
+	return n, nil
 }
 
 func (m *mockStore) SetDeviceDisabled(_ context.Context, id device.DeviceID, disabled bool) (device.Device, error) {

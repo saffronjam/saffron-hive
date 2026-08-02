@@ -13,9 +13,9 @@ func TestQueryDevices(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
-	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
-	env.stateReader.addDevice(device.Device{ID: "d2", Name: "Sensor 1", Source: device.SourceZigbee2MQTT, Type: device.Sensor, Available: true, LastSeen: now})
-	env.stateReader.addDevice(device.Device{ID: "d3", Name: "Button 1", Source: device.SourceZigbee2MQTT, Type: device.Button, Available: false, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d1", FriendlyName: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d2", FriendlyName: "Sensor 1", Source: device.SourceZigbee2MQTT, Type: device.Sensor, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d3", FriendlyName: "Button 1", Source: device.SourceZigbee2MQTT, Type: device.Button, Available: false, LastSeen: now})
 
 	resp := env.query(t, `{ devices { id name type } }`, nil)
 	if len(resp.Errors) > 0 {
@@ -51,13 +51,13 @@ func TestQueryDevice(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
-	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d1", FriendlyName: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
 	env.stateReader.setDeviceState("d1", &device.DeviceState{
 		On:         device.Ptr(true),
 		Brightness: device.Ptr(200),
 	})
 
-	resp := env.query(t, `query($id: ID!) { device(id: $id) { id name source type available state { on brightness } } }`,
+	resp := env.query(t, `query($id: ID!) { device(id: $id) { id name friendlyName source type available state { on brightness } } }`,
 		map[string]any{"id": "d1"})
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
@@ -65,12 +65,13 @@ func TestQueryDevice(t *testing.T) {
 
 	var data struct {
 		Device struct {
-			ID        string `json:"id"`
-			Name      string `json:"name"`
-			Source    string `json:"source"`
-			Type      string `json:"type"`
-			Available bool   `json:"available"`
-			State     struct {
+			ID           string  `json:"id"`
+			Name         *string `json:"name"`
+			FriendlyName string  `json:"friendlyName"`
+			Source       string  `json:"source"`
+			Type         string  `json:"type"`
+			Available    bool    `json:"available"`
+			State        struct {
 				On         *bool `json:"on"`
 				Brightness *int  `json:"brightness"`
 			} `json:"state"`
@@ -82,8 +83,11 @@ func TestQueryDevice(t *testing.T) {
 	if data.Device.ID != "d1" {
 		t.Errorf("expected id d1, got %s", data.Device.ID)
 	}
-	if data.Device.Name != "Light 1" {
-		t.Errorf("expected name Light 1, got %s", data.Device.Name)
+	if data.Device.Name != nil {
+		t.Errorf("a discovered device has no name override, got %q", *data.Device.Name)
+	}
+	if data.Device.FriendlyName != "Light 1" {
+		t.Errorf("expected friendlyName Light 1, got %s", data.Device.FriendlyName)
 	}
 	if data.Device.Source != "zigbee2mqtt" {
 		t.Errorf("expected source zigbee, got %s", data.Device.Source)
@@ -117,7 +121,7 @@ func TestQueryDeviceLightState(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
-	env.stateReader.addDevice(device.Device{ID: "l1", Name: "Bulb", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "l1", FriendlyName: "Bulb", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
 	env.stateReader.setDeviceState("l1", &device.DeviceState{
 		On:        device.Ptr(true),
 		ColorTemp: device.Ptr(350),
@@ -155,7 +159,7 @@ func TestQueryDeviceSensorState(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
-	env.stateReader.addDevice(device.Device{ID: "s1", Name: "Temp Sensor", Source: device.SourceZigbee2MQTT, Type: device.Sensor, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "s1", FriendlyName: "Temp Sensor", Source: device.SourceZigbee2MQTT, Type: device.Sensor, Available: true, LastSeen: now})
 	env.stateReader.setDeviceState("s1", &device.DeviceState{
 		Temperature: device.Ptr(22.5),
 		Humidity:    device.Ptr(55.0),

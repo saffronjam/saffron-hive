@@ -39,13 +39,8 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 	if err != nil {
 		return nil, fmt.Errorf("device %q not found: %w", id, err)
 	}
-	name := d.Name
-	if n, ok := input.Name.ValueOK(); ok && n != nil {
-		name = *n
-	}
 	d, err = r.Store.UpdateDevice(ctx, store.UpdateDeviceParams{
 		ID:        deviceID,
-		Name:      name,
 		Available: d.Available,
 		Removed:   d.Removed,
 		LastSeen:  d.LastSeen,
@@ -54,6 +49,18 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 	})
 	if err != nil {
 		return nil, err
+	}
+	// ValueOK separates "field omitted" from "field set to null", which is what
+	// lets an explicit null clear the override rather than leaving it alone. An
+	// empty string clears it too, so an emptied rename field behaves the same.
+	if n, ok := input.Name.ValueOK(); ok {
+		if n != nil && *n == "" {
+			n = nil
+		}
+		d, err = r.Store.SetDeviceName(ctx, deviceID, n)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if icon, ok := input.Icon.ValueOK(); ok {
 		d, err = r.Store.UpdateDeviceIcon(ctx, store.UpdateDeviceIconParams{
@@ -88,7 +95,7 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 		return nil, fmt.Errorf("device %q not found", deviceID)
 	}
 	if d.Disabled {
-		return nil, fmt.Errorf("device %q is disabled; enable it before sending commands", d.Name)
+		return nil, disabledDeviceError(d)
 	}
 
 	cmd := device.Command{
@@ -128,8 +135,14 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 // SimulateDeviceAction is the resolver for the simulateDeviceAction field.
 func (r *mutationResolver) SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error) {
 	id := device.DeviceID(deviceID)
-	if _, ok := r.StateReader.GetDevice(id); !ok {
+	d, ok := r.StateReader.GetDevice(id)
+	if !ok {
 		return false, fmt.Errorf("device %q not found", deviceID)
+	}
+	// A simulated action drives automations exactly as the physical device
+	// would, so a disabled device must not be able to fire one.
+	if d.Disabled {
+		return false, disabledDeviceError(d)
 	}
 	if action == "" {
 		return false, fmt.Errorf("action must not be empty")
@@ -1147,6 +1160,32 @@ func (r *mutationResolver) BatchDeleteRooms(ctx context.Context, ids []string) (
 	return int(n), nil
 }
 
+// MarkDevicesSeen is the resolver for the markDevicesSeen field.
+func (r *mutationResolver) MarkDevicesSeen(ctx context.Context, ids []string) (int, error) {
+	deviceIDs := make([]device.DeviceID, len(ids))
+	for i, id := range ids {
+		deviceIDs[i] = device.DeviceID(id)
+	}
+	n, err := r.Store.MarkDevicesSeen(ctx, deviceIDs)
+	if err != nil {
+		return 0, err
+	}
+	// The in-memory store answers the device queries, so it has to agree or the
+	// next read would resurrect the flag until a restart.
+	for _, id := range deviceIDs {
+		if d, ok := r.StateReader.GetDevice(id); ok && !d.Seen {
+			d.Seen = true
+			r.EventBus.Publish(eventbus.Event{
+				Type:      eventbus.EventDeviceUpdated,
+				DeviceID:  string(id),
+				Timestamp: time.Now(),
+				Payload:   d,
+			})
+		}
+	}
+	return int(n), nil
+}
+
 // BatchDeleteAlarms is the resolver for the batchDeleteAlarms field.
 func (r *mutationResolver) BatchDeleteAlarms(ctx context.Context, alarmIds []string) (int, error) {
 	n, err := r.Alarms.BatchDeleteByAlarmIDs(ctx, alarmIds)
@@ -1355,6 +1394,12 @@ func (r *mutationResolver) RunEffect(ctx context.Context, effectID string, targe
 	if tt != device.TargetDevice && tt != device.TargetGroup && tt != device.TargetRoom {
 		return nil, fmt.Errorf("invalid target type %q: must be %q, %q, or %q",
 			targetType, device.TargetDevice, device.TargetGroup, device.TargetRoom)
+	}
+
+	if tt == device.TargetDevice {
+		if d, ok := r.StateReader.GetDevice(device.DeviceID(targetID)); ok && d.Disabled {
+			return nil, disabledDeviceError(d)
+		}
 	}
 
 	target := effect.Target{Type: tt, ID: targetID}

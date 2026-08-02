@@ -81,7 +81,9 @@ type GraphStore interface {
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]device.Device, error)
 	UpdateDevice(ctx context.Context, params store.UpdateDeviceParams) (device.Device, error)
 	UpdateDeviceIcon(ctx context.Context, params store.UpdateDeviceIconParams) (device.Device, error)
+	SetDeviceName(ctx context.Context, id device.DeviceID, name *string) (device.Device, error)
 	SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error)
+	MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64, error)
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
 
 	// Scenes

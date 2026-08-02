@@ -235,6 +235,12 @@ func currentUserID(ctx context.Context) *string {
 	return &id
 }
 
+// disabledDeviceError is the single refusal every mutation that would drive a
+// device returns, so the UI can match on one phrasing.
+func disabledDeviceError(d device.Device) error {
+	return fmt.Errorf("device %q is disabled; enable it before sending commands", d.DisplayName())
+}
+
 func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 	live, liveFound := sr.GetDevice(d.ID)
 	available := d.Available
@@ -246,6 +252,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 	md := &model.Device{
 		ID:           string(d.ID),
 		Name:         d.Name,
+		FriendlyName: d.FriendlyName,
 		Icon:         d.Icon,
 		Source:       string(d.Source),
 		Type:         string(d.Type),
@@ -253,6 +260,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		Capabilities: mapCapabilities(d.Capabilities),
 		Available:    available,
 		Disabled:     d.Disabled,
+		Seen:         d.Seen,
 		LastSeen:     &lastSeen,
 	}
 	md.State = resolveDeviceStateFromReader(sr, d.ID)

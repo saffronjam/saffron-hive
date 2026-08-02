@@ -13,7 +13,7 @@ func TestSubscriptionDeviceStateChanged(t *testing.T) {
 	sr := newMockStateReader()
 	bus := eventbus.NewChannelBus()
 
-	sr.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
+	sr.addDevice(device.Device{ID: "d1", FriendlyName: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
 	sr.setDeviceState("d1", &device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(200)})
 
 	resolver := &Resolver{StateReader: sr, EventBus: bus}
@@ -53,8 +53,8 @@ func TestSubscriptionDeviceStateFiltered(t *testing.T) {
 	sr := newMockStateReader()
 	bus := eventbus.NewChannelBus()
 
-	sr.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
-	sr.addDevice(device.Device{ID: "d2", Name: "Light 2", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
+	sr.addDevice(device.Device{ID: "d1", FriendlyName: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
+	sr.addDevice(device.Device{ID: "d2", FriendlyName: "Light 2", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
 	sr.setDeviceState("d1", &device.DeviceState{On: device.Ptr(true)})
 	sr.setDeviceState("d2", &device.DeviceState{On: device.Ptr(false)})
 
@@ -87,7 +87,7 @@ func TestSubscriptionDeviceAvailability(t *testing.T) {
 	sr := newMockStateReader()
 	bus := eventbus.NewChannelBus()
 
-	sr.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: false, LastSeen: time.Now()})
+	sr.addDevice(device.Device{ID: "d1", FriendlyName: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: false, LastSeen: time.Now()})
 
 	resolver := &Resolver{StateReader: sr, EventBus: bus}
 	sub := &subscriptionResolver{resolver}
@@ -130,7 +130,7 @@ func TestSubscriptionDeviceAdded(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 
-	sr.addDevice(device.Device{ID: "new1", Name: "New Light", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
+	sr.addDevice(device.Device{ID: "new1", FriendlyName: "New Light", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: time.Now()})
 	bus.Publish(eventbus.Event{Type: eventbus.EventDeviceAdded, DeviceID: "new1", Timestamp: time.Now()})
 
 	select {
@@ -138,8 +138,8 @@ func TestSubscriptionDeviceAdded(t *testing.T) {
 		if dev.ID != "new1" {
 			t.Errorf("expected new1, got %s", dev.ID)
 		}
-		if dev.Name != "New Light" {
-			t.Errorf("expected New Light, got %s", dev.Name)
+		if dev.FriendlyName != "New Light" {
+			t.Errorf("expected New Light, got %s", dev.FriendlyName)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out")

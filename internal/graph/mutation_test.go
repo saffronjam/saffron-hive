@@ -15,7 +15,7 @@ func TestMutationSetDeviceState(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
-	env.stateReader.addDevice(device.Device{ID: "d1", Name: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
+	env.stateReader.addDevice(device.Device{ID: "d1", FriendlyName: "Light 1", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true, LastSeen: now})
 	env.stateReader.setDeviceState("d1", &device.DeviceState{On: device.Ptr(false), Brightness: device.Ptr(0)})
 
 	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
@@ -50,20 +50,20 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 	env.stateReader.addDevice(device.Device{
-		ID:        "ac",
-		Name:      "Cloud Name",
-		Source:    "tuya",
-		Type:      device.Climate,
-		Available: true,
-		LastSeen:  now,
+		ID:           "ac",
+		FriendlyName: "Cloud Name",
+		Source:       "tuya",
+		Type:         device.Climate,
+		Available:    true,
+		LastSeen:     now,
 	})
 	env.store.putDevice(device.Device{
-		ID:        "ac",
-		Name:      "Mobile Air Conditioner",
-		Source:    "tuya",
-		Type:      device.Climate,
-		Available: true,
-		LastSeen:  now,
+		ID:           "ac",
+		FriendlyName: "Mobile Air Conditioner",
+		Source:       "tuya",
+		Type:         device.Climate,
+		Available:    true,
+		LastSeen:     now,
 	})
 
 	resp := env.query(t, `mutation($id: ID!, $input: UpdateDeviceInput!) {
@@ -118,39 +118,39 @@ func TestQueryDeviceUsesLiveAvailability(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 	env.stateReader.addDevice(device.Device{
-		ID:        "ac",
-		Name:      "Cloud Name",
-		Source:    "tuya",
-		Type:      device.Climate,
-		Available: true,
-		LastSeen:  now,
+		ID:           "ac",
+		FriendlyName: "Cloud Name",
+		Source:       "tuya",
+		Type:         device.Climate,
+		Available:    true,
+		LastSeen:     now,
 	})
 	env.store.putDevice(device.Device{
-		ID:        "ac",
-		Name:      "AC",
-		Source:    "tuya",
-		Type:      device.Climate,
-		Available: false,
-		LastSeen:  time.Time{},
+		ID:           "ac",
+		FriendlyName: "AC",
+		Source:       "tuya",
+		Type:         device.Climate,
+		Available:    false,
+		LastSeen:     time.Time{},
 	})
 
-	resp := env.query(t, `query { device(id: "ac") { id name available lastSeen } }`, nil)
+	resp := env.query(t, `query { device(id: "ac") { id friendlyName available lastSeen } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 	var data struct {
 		Device struct {
-			ID        string    `json:"id"`
-			Name      string    `json:"name"`
-			Available bool      `json:"available"`
-			LastSeen  time.Time `json:"lastSeen"`
+			ID           string    `json:"id"`
+			FriendlyName string    `json:"friendlyName"`
+			Available    bool      `json:"available"`
+			LastSeen     time.Time `json:"lastSeen"`
 		} `json:"device"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if data.Device.Name != "AC" {
-		t.Fatalf("got name %q, want AC", data.Device.Name)
+	if data.Device.FriendlyName != "AC" {
+		t.Fatalf("got friendlyName %q, want AC", data.Device.FriendlyName)
 	}
 	if !data.Device.Available {
 		t.Fatal("expected live availability true")
@@ -167,8 +167,8 @@ func TestMutationApplyScene(t *testing.T) {
 		{SceneID: "scene1", TargetType: "device", TargetID: "d1"},
 	}
 	env.stateReader.addDevice(device.Device{
-		ID:   "d1",
-		Name: "Light 1",
+		ID:           "d1",
+		FriendlyName: "Light 1",
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 		},
@@ -403,12 +403,12 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 	env.stateReader.addDevice(device.Device{
-		ID:        "ac",
-		Name:      "Portable AC",
-		Source:    device.SourceTuya,
-		Type:      device.Climate,
-		Available: true,
-		LastSeen:  now,
+		ID:           "ac",
+		FriendlyName: "Portable AC",
+		Source:       device.SourceTuya,
+		Type:         device.Climate,
+		Available:    true,
+		LastSeen:     now,
 	})
 
 	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
@@ -434,12 +434,17 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	}
 	drainDeviceUpdate(t, updates, env.stateReader)
 
-	resp = env.query(t, `mutation { setDeviceState(deviceId: "ac", state: {on: true}) { id } }`, nil)
-	if len(resp.Errors) == 0 {
-		t.Fatal("expected setDeviceState to reject a disabled device")
-	}
-	if !strings.Contains(resp.Errors[0].Message, "disabled") {
-		t.Errorf("error should name the reason, got %q", resp.Errors[0].Message)
+	for _, m := range []struct{ name, doc string }{
+		{"setDeviceState", `mutation { setDeviceState(deviceId: "ac", state: {on: true}) { id } }`},
+		{"simulateDeviceAction", `mutation { simulateDeviceAction(deviceId: "ac", action: "single") }`},
+	} {
+		resp = env.query(t, m.doc, nil)
+		if len(resp.Errors) == 0 {
+			t.Fatalf("expected %s to reject a disabled device", m.name)
+		}
+		if !strings.Contains(resp.Errors[0].Message, "disabled") {
+			t.Errorf("%s error should name the reason, got %q", m.name, resp.Errors[0].Message)
+		}
 	}
 	select {
 	case evt := <-ch:

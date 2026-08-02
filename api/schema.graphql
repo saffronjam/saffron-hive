@@ -21,7 +21,17 @@ type Capability {
 
 type Device {
   id: ID!
-  name: String!
+  """
+  The user's name override. Null means unset, in which case the device shows the
+  name its integration reports, or its id when there is none. Clients render
+  `name ?? friendlyName ?? id`; `updateDevice(name: null)` clears the override.
+  """
+  name: String
+  """
+  The name the integration reports, refreshed on every adapter sync. Empty when
+  the integration has none.
+  """
+  friendlyName: String!
   icon: String
   source: String!
   type: String!
@@ -36,6 +46,12 @@ type Device {
   it still renders as a member of the rooms, groups and scenes it belongs to.
   """
   disabled: Boolean!
+  """
+  False from the moment an integration discovers a device until the user opens
+  the device list, which is what marks it as new in the UI. An adapter re-sync
+  never resets it.
+  """
+  seen: Boolean!
   lastSeen: DateTime
   state: DeviceState
 }
@@ -709,6 +725,10 @@ input ColorInput {
 }
 
 input UpdateDeviceInput {
+  """
+  Sets the name override. Pass null to clear it and fall back to the
+  integration's name. Omit the field to leave it alone.
+  """
   name: String
   icon: String
   tags: [DeviceTag!]
@@ -931,6 +951,11 @@ type Mutation {
   batchDeleteAutomations(ids: [ID!]!): Int! @auth
   batchDeleteGroups(ids: [ID!]!): Int! @auth
   batchDeleteRooms(ids: [ID!]!): Int! @auth
+  """
+  Clears the new-device flag for the given devices and returns how many rows
+  changed. The device list calls this with everything it renders.
+  """
+  markDevicesSeen(ids: [ID!]!): Int! @auth
   batchDeleteAlarms(alarmIds: [ID!]!): Int! @auth
   """
   Deletes the specified users. The currently authenticated user is silently

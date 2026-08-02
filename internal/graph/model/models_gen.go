@@ -251,8 +251,14 @@ type CreateUserInput struct {
 }
 
 type Device struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
+	ID string `json:"id"`
+	// The user's name override. Null means unset, in which case the device shows the
+	// name its integration reports, or its id when there is none. Clients render
+	// `name ?? friendlyName ?? id`; `updateDevice(name: null)` clears the override.
+	Name *string `json:"name,omitempty"`
+	// The name the integration reports, refreshed on every adapter sync. Empty when
+	// the integration has none.
+	FriendlyName string        `json:"friendlyName"`
 	Icon         *string       `json:"icon,omitempty"`
 	Source       string        `json:"source"`
 	Type         string        `json:"type"`
@@ -264,7 +270,11 @@ type Device struct {
 	// unavailable / low-battery health checks. setDeviceState rejects it outright.
 	// Its row, detail page, live subscriptions and state history are unaffected, and
 	// it still renders as a member of the rooms, groups and scenes it belongs to.
-	Disabled bool         `json:"disabled"`
+	Disabled bool `json:"disabled"`
+	// False from the moment an integration discovers a device until the user opens
+	// the device list, which is what marks it as new in the UI. An adapter re-sync
+	// never resets it.
+	Seen     bool         `json:"seen"`
 	LastSeen *time.Time   `json:"lastSeen,omitempty"`
 	State    *DeviceState `json:"state,omitempty"`
 }
@@ -650,6 +660,8 @@ type UpdateCurrentUserInput struct {
 }
 
 type UpdateDeviceInput struct {
+	// Sets the name override. Pass null to clear it and fall back to the
+	// integration's name. Omit the field to leave it alone.
 	Name     graphql.Omittable[*string]     `json:"name,omitempty"`
 	Icon     graphql.Omittable[*string]     `json:"icon,omitempty"`
 	Tags     graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
