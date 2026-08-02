@@ -38,7 +38,7 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 
 ## Tags / chips / badges
 
-- `hive-chip.svelte` — type-coloured chip / badge. Knows about `light`, `sensor`, `button`, `plug`, `room`, `group`, `device`, plus reading types (`temperature`, `humidity`, …) and `new` for a freshly discovered device. Reuse before adding new colour-coded badges.
+- `hive-chip.svelte` — type-coloured chip / badge. Knows about `light`, `sensor`, `button`, `plug`, `room`, `group`, `device`, plus reading types (`temperature`, `humidity`, …) plus `new` for a freshly discovered device and `offline` for an unreachable one. Reuse before adding new colour-coded badges.
 - `group-tags-select.svelte` — multi-select for the `LIGHT` / `SENSOR` group tags.
 
 ## Status & feedback

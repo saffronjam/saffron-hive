@@ -164,11 +164,7 @@
 				aria-label="Disabled"
 			/>
 		{:else if !row.device.available}
-			<span
-				class="size-2.5 shrink-0 rounded-full bg-status-offline"
-				title="Offline"
-				aria-label="Offline"
-			></span>
+			<HiveChip type="offline" label="Offline" />
 		{/if}
 	</div>
 {/snippet}
@@ -286,5 +282,8 @@
 	columns={COLUMNS}
 	rows={displayRows}
 	rowId={(r) => r.device.id}
-	rowAttrs={(r) => rowAttrsForSelection(selection, r.device.id)}
+	rowAttrs={(r) => ({
+		...rowAttrsForSelection(selection, r.device.id),
+		class: r.device.disabled || !r.device.available ? "opacity-60" : undefined,
+	})}
 />

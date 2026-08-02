@@ -9,6 +9,7 @@
 	} from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
@@ -83,6 +84,10 @@
 			interacting = false;
 		}, INTERACT_COOLDOWN_MS);
 	}
+
+	// Disabled and offline both mean the card is not actionable right now, so
+	// they share one muted treatment. The Ban icon and the offline dot say which.
+	const muted = $derived(device.disabled || !device.available);
 
 	const isSensor = $derived(device.type === "sensor");
 	const hasBrightness = $derived(device.state?.brightness != null);
@@ -174,7 +179,7 @@
 	size="sm"
 	class="h-full min-h-28 transition-all {isNew ? 'ring-new' : 'hover:shadow-card-hover'} {tintColor
 		? 'tint-1'
-		: ''} {device.disabled ? 'opacity-60' : ''}"
+		: ''} {muted ? 'opacity-60' : ''}"
 	style={cardStyle}
 >
 	<CardHeader>
@@ -195,11 +200,7 @@
 						aria-label="Disabled"
 					/>
 				{:else if !device.available}
-					<span
-						class="size-2.5 shrink-0 rounded-full bg-status-offline"
-						title="Offline"
-						aria-label="Offline"
-					></span>
+					<HiveChip type="offline" label="Offline" />
 				{/if}
 			</div>
 			<div class="flex shrink-0 items-center gap-1">

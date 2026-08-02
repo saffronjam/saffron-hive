@@ -84,6 +84,8 @@
 				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
 			case "new":
 				return "bg-primary/10 text-primary border-primary/30";
+			case "offline":
+				return "bg-red-950/85 text-red-200 border-red-900/60";
 			default:
 				return "";
 		}
