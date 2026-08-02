@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import FieldError from "$lib/components/field-error.svelte";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
@@ -122,6 +123,7 @@
 	const clientRef = getContextClient();
 	let loading = $state(true);
 	let saving = $state(false);
+	let nameError = $state<string | null>(null);
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
 	let runDrawerOpen = $state(false);
@@ -245,9 +247,13 @@
 		if (!effectData || saving) return;
 		errors.clear();
 
+		nameError = null;
 		const validation = validateTimelineEffect(effectName, durationMs, loop, tracks);
 		if (validation) {
-			errors.setWithAutoDismiss(validation.message);
+			// A clip error belongs to no single input, so it keeps the banner; the
+			// name error goes on the field it is about.
+			if (validation.field === "name") nameError = validation.message;
+			else errors.setWithAutoDismiss(validation.message);
 			return;
 		}
 
@@ -350,8 +356,16 @@
 							</AnimatedIcon>
 						</IconPickerTrigger>
 					</IconPicker>
-					<Input id="effect-name" bind:value={effectName} placeholder="Effect name" />
+					<Input
+						id="effect-name"
+						bind:value={effectName}
+						placeholder="Effect name"
+						aria-invalid={!!nameError}
+						aria-describedby={nameError ? "effect-name-error" : undefined}
+						oninput={() => (nameError = null)}
+					/>
 				</div>
+				<FieldError id="effect-name-error" message={nameError} />
 			</div>
 
 			<EffectTimelineEditor bind:tracks bind:loop bind:durationMs disabled={saving} />

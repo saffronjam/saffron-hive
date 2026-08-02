@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import FieldError from "$lib/components/field-error.svelte";
 	import { goto } from "$app/navigation";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -30,6 +31,8 @@
 	let phase = $state<"loading" | "user">("loading");
 	const loader = delayedLoading(() => phase === "loading");
 	let error = $state<string | null>(null);
+	let passwordError = $state<string | null>(null);
+	let confirmError = $state<string | null>(null);
 
 	let username = $state("");
 	let name = $state("");
@@ -55,15 +58,10 @@
 	async function submitUser(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
-		if (password !== confirmPassword) {
-			error = "Passwords do not match.";
-			return;
-		}
 		const pwErr = validateNewPassword(password);
-		if (pwErr) {
-			error = pwErr + ".";
-			return;
-		}
+		passwordError = pwErr ? pwErr + "." : null;
+		confirmError = password !== confirmPassword ? "Passwords do not match." : null;
+		if (passwordError || confirmError) return;
 		submittingUser = true;
 		try {
 			const result = await client
@@ -122,7 +120,11 @@
 						bind:value={password}
 						autocomplete="new-password"
 						required
+						aria-invalid={!!passwordError}
+						aria-describedby={passwordError ? "setup-password-error" : undefined}
+						oninput={() => (passwordError = null)}
 					/>
+					<FieldError id="setup-password-error" message={passwordError} />
 				</div>
 				<div class="grid gap-1.5">
 					<label for="setup-confirm" class="text-sm font-medium">Confirm password</label>
@@ -132,7 +134,11 @@
 						bind:value={confirmPassword}
 						autocomplete="new-password"
 						required
+						aria-invalid={!!confirmError}
+						aria-describedby={confirmError ? "setup-confirm-error" : undefined}
+						oninput={() => (confirmError = null)}
 					/>
+					<FieldError id="setup-confirm-error" message={confirmError} />
 				</div>
 				<div class="grid gap-1.5">
 					<label for="setup-bootstrap" class="text-sm font-medium">Bootstrap token</label>

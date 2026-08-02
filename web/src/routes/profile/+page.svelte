@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
+	import FieldError from "$lib/components/field-error.svelte";
 	import { graphql } from "$lib/gql";
 	import {
 		Card,
@@ -74,6 +75,9 @@
 
 	let nameDraft = $state(me.user?.name ?? auth.user?.name ?? "");
 	let nameSaving = $state(false);
+	let nameError = $state<string | null>(null);
+	let newPwError = $state<string | null>(null);
+	let confirmPwError = $state<string | null>(null);
 	let uploading = $state(false);
 	let clearing = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
@@ -93,10 +97,8 @@
 
 	async function saveName() {
 		const trimmed = nameDraft.trim();
-		if (!trimmed) {
-			toast.error("Display name cannot be empty.");
-			return;
-		}
+		nameError = trimmed ? null : "Display name cannot be empty.";
+		if (nameError) return;
 		nameSaving = true;
 		try {
 			const result = await client
@@ -222,15 +224,9 @@
 
 	async function submitPassword(e: SubmitEvent) {
 		e.preventDefault();
-		const pwErr = validateNewPassword(newPw);
-		if (pwErr) {
-			toast.error(pwErr);
-			return;
-		}
-		if (newPw !== confirmPw) {
-			toast.error("Passwords do not match");
-			return;
-		}
+		newPwError = validateNewPassword(newPw);
+		confirmPwError = newPw !== confirmPw ? "Passwords do not match." : null;
+		if (newPwError || confirmPwError) return;
 		pwSaving = true;
 		try {
 			const result = await client
@@ -323,7 +319,15 @@
 				<div class="space-y-2">
 					<label for="profile-name" class="text-sm font-medium">Display name</label>
 					<div class="flex gap-2">
-						<Input id="profile-name" bind:value={nameDraft} disabled={nameSaving} />
+						<Input
+							id="profile-name"
+							bind:value={nameDraft}
+							disabled={nameSaving}
+							aria-invalid={!!nameError}
+							aria-describedby={nameError ? "profile-name-error" : undefined}
+							oninput={() => (nameError = null)}
+						/>
+						<FieldError id="profile-name-error" message={nameError} />
 						<SaveButton
 							saving={nameSaving}
 							disabled={!nameDirty || nameSaving}
@@ -427,11 +431,31 @@
 			</div>
 			<div class="space-y-2">
 				<label for="pw-new" class="text-sm font-medium">New password</label>
-				<Input id="pw-new" type="password" bind:value={newPw} required minlength={6} />
+				<Input
+					id="pw-new"
+					type="password"
+					bind:value={newPw}
+					required
+					minlength={6}
+					aria-invalid={!!newPwError}
+					aria-describedby={newPwError ? "pw-new-error" : undefined}
+					oninput={() => (newPwError = null)}
+				/>
+				<FieldError id="pw-new-error" message={newPwError} />
 			</div>
 			<div class="space-y-2">
 				<label for="pw-confirm" class="text-sm font-medium">Confirm new password</label>
-				<Input id="pw-confirm" type="password" bind:value={confirmPw} required minlength={6} />
+				<Input
+					id="pw-confirm"
+					type="password"
+					bind:value={confirmPw}
+					required
+					minlength={6}
+					aria-invalid={!!confirmPwError}
+					aria-describedby={confirmPwError ? "pw-confirm-error" : undefined}
+					oninput={() => (confirmPwError = null)}
+				/>
+				<FieldError id="pw-confirm-error" message={confirmPwError} />
 			</div>
 			<DialogFooter>
 				<Button type="button" variant="outline" onclick={() => (passwordOpen = false)}>

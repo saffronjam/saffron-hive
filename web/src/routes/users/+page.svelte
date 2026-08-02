@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { queryStore, getContextClient } from "@urql/svelte";
+	import FieldError from "$lib/components/field-error.svelte";
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
@@ -135,6 +136,10 @@
 	let createPassword = $state("");
 	let createConfirm = $state("");
 	let createSaving = $state(false);
+	let createPwError = $state<string | null>(null);
+	let createConfirmError = $state<string | null>(null);
+	let resetPwError = $state<string | null>(null);
+	let resetConfirmError = $state<string | null>(null);
 
 	let resetTarget = $state<UserRow | null>(null);
 	let resetPw = $state("");
@@ -199,15 +204,10 @@
 
 	async function submitCreate(e: SubmitEvent) {
 		e.preventDefault();
-		const createPwErr = validateNewPassword(createPassword);
-		if (createPwErr) {
-			toast.error(createPwErr);
-			return;
-		}
-		if (createPassword !== createConfirm) {
-			toast.error("Passwords do not match");
-			return;
-		}
+		createPwError = validateNewPassword(createPassword);
+		createConfirmError =
+			createPassword !== createConfirm ? "Passwords do not match." : null;
+		if (createPwError || createConfirmError) return;
 		createSaving = true;
 		try {
 			const result = await client
@@ -242,15 +242,9 @@
 	async function submitReset(e: SubmitEvent) {
 		e.preventDefault();
 		if (!resetTarget) return;
-		const resetPwErr = validateNewPassword(resetPw);
-		if (resetPwErr) {
-			toast.error(resetPwErr);
-			return;
-		}
-		if (resetPw !== resetConfirm) {
-			toast.error("Passwords do not match");
-			return;
-		}
+		resetPwError = validateNewPassword(resetPw);
+		resetConfirmError = resetPw !== resetConfirm ? "Passwords do not match." : null;
+		if (resetPwError || resetConfirmError) return;
 		resetSaving = true;
 		try {
 			const result = await client
@@ -466,7 +460,17 @@
 			</div>
 			<div class="space-y-2">
 				<label for="cu-pw" class="text-sm font-medium">Password</label>
-				<Input id="cu-pw" type="password" bind:value={createPassword} required minlength={6} />
+				<Input
+					id="cu-pw"
+					type="password"
+					bind:value={createPassword}
+					required
+					minlength={6}
+					aria-invalid={!!createPwError}
+					aria-describedby={createPwError ? "cu-pw-error" : undefined}
+					oninput={() => (createPwError = null)}
+				/>
+				<FieldError id="cu-pw-error" message={createPwError} />
 			</div>
 			<div class="space-y-2">
 				<label for="cu-confirm" class="text-sm font-medium">Confirm password</label>
@@ -476,7 +480,11 @@
 					bind:value={createConfirm}
 					required
 					minlength={6}
+					aria-invalid={!!createConfirmError}
+					aria-describedby={createConfirmError ? "cu-confirm-error" : undefined}
+					oninput={() => (createConfirmError = null)}
 				/>
+				<FieldError id="cu-confirm-error" message={createConfirmError} />
 			</div>
 			<DialogFooter>
 				<Button type="button" variant="outline" onclick={() => (createOpen = false)}>
@@ -503,7 +511,17 @@
 		<form onsubmit={submitReset} class="space-y-4">
 			<div class="space-y-2">
 				<label for="rp-new" class="text-sm font-medium">New password</label>
-				<Input id="rp-new" type="password" bind:value={resetPw} required minlength={6} />
+				<Input
+					id="rp-new"
+					type="password"
+					bind:value={resetPw}
+					required
+					minlength={6}
+					aria-invalid={!!resetPwError}
+					aria-describedby={resetPwError ? "rp-new-error" : undefined}
+					oninput={() => (resetPwError = null)}
+				/>
+				<FieldError id="rp-new-error" message={resetPwError} />
 			</div>
 			<div class="space-y-2">
 				<label for="rp-confirm" class="text-sm font-medium">Confirm password</label>
@@ -513,7 +531,11 @@
 					bind:value={resetConfirm}
 					required
 					minlength={6}
+					aria-invalid={!!resetConfirmError}
+					aria-describedby={resetConfirmError ? "rp-confirm-error" : undefined}
+					oninput={() => (resetConfirmError = null)}
 				/>
+				<FieldError id="rp-confirm-error" message={resetConfirmError} />
 			</div>
 			<DialogFooter>
 				<Button type="button" variant="outline" onclick={() => (resetTarget = null)}>
