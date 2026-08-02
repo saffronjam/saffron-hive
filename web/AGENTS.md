@@ -128,6 +128,32 @@ add a new edit page, follow that pattern. Delete-and-navigate-away flows
 may toast (the page is gone before the user could read the button), but
 in-place saves do not.
 
+## Form errors belong to their field
+
+A validation error renders under the input it is about, never in a page-level
+banner and never as a toast. Use `FieldError`
+(`src/lib/components/field-error.svelte`) together with `aria-invalid` on the
+input, and clear the error on `oninput` so it disappears as soon as the user
+starts fixing it:
+
+```svelte
+<Input
+  bind:value={password}
+  aria-invalid={!!passwordError}
+  aria-describedby={passwordError ? "password-error" : undefined}
+  oninput={() => (passwordError = null)}
+/>
+<FieldError id="password-error" message={passwordError} />
+```
+
+The banner and toasts are for things no single field owns: a failed mutation, an
+unreachable server, a validation that spans several inputs. A form whose only
+problem is one empty field must not push a banner to the top of the page.
+
+Where the invalid state is obvious without prose, prefer disabling submit over
+showing a message. The create dialogs do this: the button stays disabled while
+the name is empty, so no error is ever needed.
+
 ## Card styling
 
 Content cards use `rounded-lg shadow-card bg-card` — no `border`. The `shadow-card` token provides the visual separation. Never use `border` on content cards; it produces a white outline in dark mode that clashes with the rest of the UI.

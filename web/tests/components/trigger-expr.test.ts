@@ -96,7 +96,7 @@ describe("normalizeTriggerConfig mode recovery", () => {
     expect(filter).toBe("true");
   });
 
-  it("button_action: legacy device(X).action filter falls back to custom mode", () => {
+  it("button_action: a device(X).action filter falls back to custom mode", () => {
     // Old broken filters on device.state_changed are not auto-migrated;
     // they surface as custom so the user can see and rewrite them.
     const raw = {

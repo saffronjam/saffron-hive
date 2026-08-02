@@ -8,10 +8,9 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 - `device-collection-card.svelte` — wraps `EntityCard` with brightness, colour, temp and sensor controls for a list of devices (rooms and groups pages).
 - `dashboard-room-card.svelte` — dashboard top-level: room icon + name + sensor readout + click-to-open-drawer + drag-for-brightness.
 - `dashboard-light-card.svelte` — drawer Section A: single light or `LIGHT`-tagged group, tap-to-toggle, drag-for-brightness, icon-popover colour picker, expand-popover member rows.
-- `dashboard-device-card.svelte` — per-device dashboard card (Connected to the legacy device dashboard surface). Has built-in expand chevron + brightness slider with throttle.
 - `dashboard-apartment-card.svelte` — dashboard top-level apartment summary: House icon + aggregated sensor readings + drag-for-brightness across all dimmable lights.
 - `room-drawer.svelte` — bottom Sheet for a room: header card + scenes + Section A light grid.
-- `device-card.svelte` — alternate device card with brightness throttle + interacting cooldown (used by some legacy surfaces).
+- `device-card.svelte` — the card the `/devices` list renders. Icon + inline rename + quick controls + membership chips, with a brightness throttle and interacting cooldown. Shows disabled devices greyed and without controls.
 - `device-quick-controls.svelte` — toggle + brightness slider + colour picker for a single device, designed for the device detail view.
 
 ## Controls
@@ -31,6 +30,7 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 
 ## Layout / navigation
 
+- `section-divider.svelte` — a section label followed by a hairline rule (`Rooms ————`). Use for any in-page grouping heading.
 - `page-header.svelte` — top-bar breadcrumbs + actions, driven by `pageHeader` store.
 - `animated-grid.svelte` — list/grid with item enter/exit animations.
 - `list-view.svelte` — toggle between card and table renderings.
@@ -38,11 +38,15 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 
 ## Tags / chips / badges
 
-- `hive-chip.svelte` — type-coloured chip / badge. Knows about `light`, `sensor`, `button`, `plug`, `room`, `group`, `device`, plus reading types (`temperature`, `humidity`, …). Reuse before adding new colour-coded badges.
+- `hive-chip.svelte` — type-coloured chip / badge. Knows about `light`, `sensor`, `button`, `plug`, `room`, `group`, `device`, plus reading types (`temperature`, `humidity`, …) and `new` for a freshly discovered device. Reuse before adding new colour-coded badges.
 - `group-tags-select.svelte` — multi-select for the `LIGHT` / `SENSOR` group tags.
 
 ## Status & feedback
 
+- `field-error.svelte` — **the** way to show a form validation error. Renders an
+  alert icon plus the message under the field it belongs to, and renders nothing
+  when the message is null. Pair it with `aria-invalid` on the input, which the
+  shadcn `Input` already styles with a destructive border and ring.
 - `error-banner.svelte` — top-of-page error banner (paired with `BannerError` store).
 - `activity-feed.svelte` — recent automation node activations.
 - `sensor-display.svelte` — formatted sensor reading list.

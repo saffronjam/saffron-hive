@@ -26,8 +26,8 @@ MQTT broker you already run; Tuya reaches WiFi devices through its cloud API.
 Both land in the same device model, so scenes, automations and the dashboard
 never care where a light came from.
 
-Integrations are opt-in and configured in the UI, not through environment
-variables. A fresh install starts with no devices and waits for you to add one.
+Integrations are opt-in and configured in the UI. A fresh install starts with no
+devices and waits for you to add one.
 
 ## Run with Docker
 

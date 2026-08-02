@@ -30,7 +30,11 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `device.action_fired` — momentary action (button press, sensor occupancy edge) — distinct from a persistent state change
 - `device.availability_changed` — device online/offline
 - `device.added` / `device.removed` — device registry changes
-- `device.updated` — a device's user-owned metadata (name, icon, tags, disabled) changed; carries the updated device so caches (in-memory store) refresh those fields
+- `device.synced` — an adapter re-reported a device it already knew, with an
+  adapter-owned field changed (friendly name, type, capabilities); persistence
+  refreshes those columns. Adapters compare `device.AdapterFingerprint` across
+  syncs so an unchanged re-report publishes nothing
+- `device.updated` — a device's user-owned metadata (name override, icon, tags, disabled) changed; carries the updated device so caches (in-memory store) refresh those fields. Never published by an adapter — that is what `device.synced` is for
 - `command.requested` — user or automation wants to set a device state
 - `native_effect.requested` — a request to start a named external effect program on a device
 - `scene.applied` — a scene was applied (commands fanned out)
@@ -82,7 +86,15 @@ Secrets are never returned in the clear. Read resolvers substitute
 "keep the stored value" (frontend side: `web/src/lib/redacted-secret.ts`).
 
 ### Device model
-Devices are protocol-agnostic at the core. A generic `devices` table holds the common fields (id, name, source, type, availability). Protocol-specific tables (e.g. `zigbee_devices`) store adapter-specific fields (ieee_address, friendly_name) and reference the generic device by foreign key.
+Devices are protocol-agnostic at the core. A generic `devices` table holds the common fields (id, name, source, type, availability). Protocol-specific tables (e.g. `tuya_devices`) store adapter-specific fields (local_key, lan_ip, product_id) and reference the generic device by foreign key. A protocol only earns a table when it has fields nothing else needs.
+
+A device carries two names. `friendly_name` is adapter-owned and refreshed on
+every sync; `name` is the user's override and is nullable, where NULL means
+unset. Everything that renders, sorts or matches a device name resolves
+`name → friendly_name → id` through `device.Device.DisplayName` in Go or
+`deviceDisplayName` in `web/src/lib/utils.ts`. Nothing reads either column
+directly. Because the override is nullable and separate, a device renamed in
+zigbee2mqtt tracks that rename until someone sets a name in Hive.
 
 Scenes, automations, and the dashboard reference generic device IDs only.
 
@@ -96,6 +108,11 @@ belongs to — but it leaves every path that commands or watches it. The single
 chokepoint is `store.ResolveTargetDeviceIDs`, which every runtime fan-out
 resolves through; `Mutation.setDeviceState` rejects it outright and both
 adapters' command loops drop it as a final gate.
+
+A third flag, `seen`, is false from discovery until the user opens the device
+list, which is what marks a device as new in the UI. Like `disabled` and the
+name override it is user-owned, so `UpsertDevice` leaves it alone and an adapter
+re-sync cannot re-flag a device.
 
 ### State management
 - Device state is populated on startup from MQTT retained messages
@@ -193,12 +210,43 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - Avoid `any` in domain and business logic. Use concrete types, generics, or union types. `any` is acceptable only at framework boundaries: the event bus payload (type-asserted by subscribers), gqlgen-generated code, and raw JSON envelopes at the HTTP / MQTT edges.
 - Prefer compile-time type checking over runtime assertions wherever possible.
 
+### Write for the present
+
+**Nothing this project writes for a human to read may embed a change journey.**
+Not code comments, not the README, not `AGENTS.md` files, not GraphQL or SQL
+docstrings, not UI copy, not error messages, not a product blurb. Now is now,
+and only now is of interest.
+
+The test is the same everywhere: **would this sentence still make sense to
+someone who has never seen an earlier version?** If it only lands because the
+reader remembers what used to be there, it is change journey, and it goes.
+
+It hides in two shapes, and the second is the one that survives a keyword grep:
+
+- **Named** — "previously", "used to", "no longer", "formerly", "legacy",
+  "deprecated", "replaces X", "the new model", "now that", "this refactor".
+- **Implied** — defining something by what it is *not*, where the "not" is only
+  this project's own past. "Configured in the UI, not through environment
+  variables" reads as a warning about variables the reader has never heard of.
+  Drop the clause: "Configured in the UI."
+
+Contrast is still fine when the other side is a real alternative the reader
+could pick *today* — another product, a wrong approach, a rejected option.
+"Use design tokens instead of hardcoded colours" is guidance. "The dashboard is
+self-managed, unlike Lovelace" is positioning. Neither depends on our history.
+
+Two places are exempt, because describing change is their entire job: git
+history and release notes. That is the point of the rule rather than a hole in
+it — the story of how something came to be already has a home, so no other text
+has to carry it. When behaviour genuinely needs justifying elsewhere, say **why
+it is this way now**.
+
 ### Comments
 - No inline comments unless the logic is genuinely non-obvious.
 - No section comments (e.g. `// --- Helpers ---`, `// ========`). Never.
 - Godoc comments on exported types and functions: encouraged.
 - JSDoc comments on exported types and functions: encouraged.
-- **No migration / change-journey comments.** Strictly prohibited: anything that only makes sense if the reader remembers a previous version of the code. Concrete triggers — if a comment contains any of these, delete or rewrite it:
+- **No migration / change-journey comments.** The rule above applies in full; this is its concrete trigger list for code. If a comment contains any of these, delete or rewrite it:
   - "previously", "used to", "was (a|built|stored|classified|known|used) as", "no longer", "formerly", "legacy"
   - "historic", "historical", "historical bug", "the historic bug"
   - "refactor", "this refactor", "after the refactor", "post-refactor", "the new model", "under the new", "now that", "has been routed", "has been moved", "has been renamed"

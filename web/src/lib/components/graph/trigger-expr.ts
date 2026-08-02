@@ -288,7 +288,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     };
   }
 
-  // Event trigger (new or legacy shape)
+  // Event trigger. Several key spellings are accepted because rows written by
+  // different editor versions coexist at rest.
   const eventType =
     (raw.event_type as string) ?? (raw.eventType as string) ?? "device.state_changed";
   const filter =

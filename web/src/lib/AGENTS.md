@@ -5,7 +5,7 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 ## Domain helpers (pure functions)
 
 - `color.ts` — colour-space conversions. `rgbToXy(r,g,b)` for Zigbee XY commands.
-- `device-tint.ts` — visual tint derivation. `aggregateSensorReadings(devices)`, `groupBaseTintColors(devices)`, `groupTintColors(devices)`, `brightnessToTintStrength(brightness)`, `sceneTintFromPayloads(payloads)`, `deviceTint(device)`. Reuse for any card / row that wants colour-from-state.
+- `device-tint.ts` — visual tint derivation. `aggregateSensorReadings(devices)`, `groupBaseTintColors(devices)`, `groupTintColors(devices)`, `groupTintStrength(devices)`, `brightnessToTintStrength(brightness)`, `sceneTintFromPayloads(payloads)`, `deviceTint(device)`. Reuse for any card / row that wants colour-from-state. **`groupTintStrength` is the one every room / group / apartment card uses** — it handles a light that is on but reports no brightness (a switch-only bulb, a LIGHT-tagged plug) as full strength rather than zero.
 - `target-resolve.ts` — `resolveTargetDevices({ type, id }, devices, groups, rooms)` flattens a scene/group/room target to its device list (cycle-safe). `capabilityUnion(devices)` and `capabilityUnionForTarget(...)` merge capabilities. `hasCapability(caps, name)` for boolean checks. `resolveTargetDevices` / `evaluateExpression` / `capabilityUnionForTarget` drop disabled devices by default so the client resolves what the server commands; pass `{ includeDisabled: true }` on editor surfaces that should still render a disabled member (greyed).
 - `memberships.ts` — reverse-index helpers (`chipsByDevice`, `membershipRowsForDevice`).
 - `target-tree.ts` — tree-structured target views.
@@ -53,7 +53,7 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 
 ## Utilities
 
-- `utils.ts` / `utils/` — `cn()` (clsx + tailwind-merge), `deviceIcon()`, `sentenceCase()`, plus shared `WithoutChildrenOrChild` / `WithElementRef` types.
+- `utils.ts` / `utils/` — `cn()` (clsx + tailwind-merge), `deviceDisplayName()`, `deviceIcon()`, `sentenceCase()`, plus shared `WithoutChildrenOrChild` / `WithElementRef` types. `Device.name` is nullable (it is only the user's override), so read `deviceDisplayName(d)` anywhere a device name is rendered, sorted or searched.
 - `data/` — static data tables (icon registry, etc.).
 
 ## Conventions
