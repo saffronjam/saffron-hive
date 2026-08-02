@@ -1,4 +1,5 @@
 import type { Device } from "$lib/gql/graphql";
+import { deviceDisplayName } from "$lib/utils";
 import type { GroupLite, RoomLite, TargetKind } from "$lib/target-resolve";
 
 export type TargetTreeNode =
@@ -55,7 +56,8 @@ export function buildTargetTree(
   const groupByID = new Map(groupsLite.map((g) => [g.id, g]));
   const roomByID = new Map(roomsLite.map((r) => [r.id, r]));
 
-  const nodeName = (n: TargetTreeNode) => (n.kind === "device" ? n.device.name : n.name);
+  const nodeName = (n: TargetTreeNode) =>
+    n.kind === "device" ? deviceDisplayName(n.device) : n.name;
   const byName = (a: TargetTreeNode, b: TargetTreeNode) =>
     nodeName(a).localeCompare(nodeName(b), undefined, { numeric: true });
 

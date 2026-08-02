@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -133,7 +134,7 @@
 		if (!dev) return;
 		update({
 			deviceId: dev.id,
-			deviceName: dev.name,
+			deviceName: deviceDisplayName(dev),
 			property: undefined,
 			comparator: undefined,
 			value: undefined,
@@ -322,7 +323,7 @@
 					items={devicesForMode}
 					value={data.config.deviceId ?? ""}
 					getValue={(d) => d.id}
-					getLabel={(d) => d.name}
+					getLabel={(d) => deviceDisplayName(d)}
 					chipConfigs={deviceChipConfigs}
 					chipMatchers={deviceChipMatchers}
 					placeholder="Select device"

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, untrack } from "svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -134,10 +135,16 @@
 			label: "Device",
 			variant: "secondary",
 			options: (input) => {
-				const devices = Object.values($deviceStore).map((d) => ({ value: d.id, label: d.name }));
+				const devices = Object.values($deviceStore).map((d) => ({
+					value: d.id,
+					label: deviceDisplayName(d),
+				}));
 				return filterOptions(input, devices);
 			},
-			resolveLabel: (id) => $deviceStore[id]?.name ?? null,
+			resolveLabel: (id) => {
+				const d = $deviceStore[id];
+				return d ? deviceDisplayName(d) : null;
+			},
 		},
 		{
 			keyword: "room",

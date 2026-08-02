@@ -1,4 +1,5 @@
 import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
+import { deviceDisplayName } from "$lib/utils";
 import type { Clause } from "$lib/target-resolve";
 
 export interface SceneAction {
@@ -13,7 +14,10 @@ export interface SceneAction {
 export interface SceneTargetData {
   __typename: string;
   id: string;
+  /** Group and Room arms only; the Device arm aliases its nullable name below. */
   name: string;
+  deviceName?: string | null;
+  friendlyName?: string | null;
   icon?: string | null;
   type?: string;
   members?: GroupMemberData[];
@@ -154,9 +158,9 @@ export type DevicePayloadMap = Map<string, ActionPayload>;
  * Read a stored scene payload. The on-disk shape carries `color` / `colorTemp`
  * as flat siblings (the lingua franca of the internal command/state map shared
  * with backend code); this function lifts them into the discriminated
- * {@link LightMode} the rest of the frontend uses. When a legacy row carries
- * both — the symptom of an old write before the discriminator existed — the
- * explicit RGB colour wins, mirroring the SQL heal migration.
+ * {@link LightMode} the rest of the frontend uses. A row carrying both fields is
+ * ambiguous, and the explicit RGB colour wins, which is the rule the SQL heal
+ * migration applies at rest.
  */
 export function parsePayload(raw: string): ActionPayload {
   let obj: Record<string, unknown> = {};
@@ -264,7 +268,9 @@ export function buildTargetInfo(action: SceneAction): EditableTarget {
     uid: newTargetUid(),
     type: "device",
     id: t?.id ?? "",
-    name: t?.name ?? "",
+    name: t
+      ? deviceDisplayName({ id: t.id, name: t.deviceName, friendlyName: t.friendlyName })
+      : "",
     deviceType: t?.type,
   };
 }

@@ -7,7 +7,7 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceDisplayName, deviceIcon } from "$lib/utils";
 	import { deviceStore } from "$lib/stores/devices";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
@@ -43,6 +43,8 @@
 
 	let device = $state<Device | null>(null);
 	let loading = $state(true);
+	// metadataName holds only the override, so "" is a real state meaning
+	// "unset"; fallbackName is what the device shows when it is empty.
 	let metadataName = $state("");
 	let savedMetadataName = $state("");
 	let metadataIcon = $state<string | null>(null);
@@ -51,6 +53,7 @@
 	let savedMetadataTags = $state<DeviceTag[]>([]);
 	let metadataDisabled = $state(false);
 	let savedMetadataDisabled = $state(false);
+	const fallbackName = $derived(device ? device.friendlyName || device.id : "");
 	let savingMetadata = $state(false);
 	function tagsEqual(a: DeviceTag[], b: DeviceTag[]): boolean {
 		return a.length === b.length && a.every((tag, i) => tag === b[i]);
@@ -69,7 +72,10 @@
 
 	$effect(() => {
 		if (device) {
-			pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: device.name }];
+			pageHeader.breadcrumbs = [
+				{ label: "Devices", href: "/devices" },
+				{ label: deviceDisplayName(device) },
+			];
 		}
 		pageHeader.actions = device
 			? [
@@ -121,6 +127,8 @@
 				capabilities { name type values valueMin valueMax unit access }
 				available
 				disabled
+				friendlyName
+				seen
 				lastSeen
 				state {
 					on
@@ -214,6 +222,8 @@
 				icon
 				tags
 				disabled
+				friendlyName
+				seen
 			}
 		}
 	`);
@@ -412,11 +422,9 @@
 
 	async function saveMetadata() {
 		if (!clientRef || !device) return;
+		// An empty name is the valid way to clear the override, so there is nothing
+		// to validate here.
 		const name = metadataName.trim();
-		if (!name) {
-			error = "Name is required.";
-			return;
-		}
 
 		savingMetadata = true;
 		error = null;
@@ -442,7 +450,7 @@
 		}
 
 		if (result.data?.updateDevice) {
-			const updatedName = result.data.updateDevice.name;
+			const updatedName = result.data.updateDevice.name ?? null;
 			const updatedIcon = result.data.updateDevice.icon ?? null;
 			const updatedTags = [...result.data.updateDevice.tags] as DeviceTag[];
 			const updatedDisabled = result.data.updateDevice.disabled;
@@ -453,8 +461,8 @@
 				tags: updatedTags,
 				disabled: updatedDisabled,
 			};
-			metadataName = updatedName;
-			savedMetadataName = updatedName;
+			metadataName = updatedName ?? "";
+			savedMetadataName = updatedName ?? "";
 			metadataIcon = updatedIcon;
 			savedMetadataIcon = updatedIcon;
 			metadataTags = [...updatedTags];
@@ -495,8 +503,8 @@
 				loading = false;
 				if (result.data?.device) {
 					device = result.data.device;
-					metadataName = result.data.device.name;
-					savedMetadataName = result.data.device.name;
+					metadataName = result.data.device.name ?? "";
+					savedMetadataName = result.data.device.name ?? "";
 					metadataIcon = result.data.device.icon ?? null;
 					savedMetadataIcon = result.data.device.icon ?? null;
 					metadataTags = [...result.data.device.tags] as DeviceTag[];
@@ -593,7 +601,7 @@
 						id="device-name"
 						bind:value={metadataName}
 						disabled={savingMetadata}
-						placeholder="Device name"
+						placeholder={fallbackName}
 						onkeydown={(event) => {
 							if (event.key === "Enter" && metadataDirty && !savingMetadata) {
 								void saveMetadata();
@@ -728,7 +736,19 @@
 			</div>
 
 				<div class="flex flex-col gap-4">
-				{#if light}
+				{#if device.disabled && (light || climate || plug)}
+					<Card>
+						<CardContent class="py-8 text-center">
+							<p class="text-muted-foreground">
+								Controls are unavailable while this device is disabled.
+							</p>
+							<p class="mt-1 text-sm text-muted-foreground">
+								Switch <span class="font-medium text-foreground">Enabled</span> back on above to
+								command it again.
+							</p>
+						</CardContent>
+					</Card>
+				{:else if light}
 					<LightControls lightState={light} oncommand={handleDeviceCommand} />
 				{:else if climate}
 					<ClimateControls deviceState={climate} capabilities={device.capabilities} oncommand={handleDeviceCommand} />

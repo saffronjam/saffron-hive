@@ -9,7 +9,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { ArrowRight, Thermometer } from "@lucide/svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 
 	interface Props {
 		device: Device;
@@ -55,7 +55,7 @@
 </script>
 
 <EntityCard
-	entity={device}
+	entity={{ id: device.id, name: deviceDisplayName(device), icon: device.icon ?? null }}
 	fallbackIcon={Icon}
 	{subtitle}
 	tintColors={isOn ? [APPLIANCE_TINT_COLOR] : null}

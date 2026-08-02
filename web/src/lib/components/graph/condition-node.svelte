@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -172,7 +173,7 @@
 	const targetItems = $derived.by<TargetItem[]>(() => {
 		const items: TargetItem[] = [];
 		for (const d of data.devices ?? []) {
-			items.push({ kind: "device", id: d.id, name: d.name, deviceType: d.type });
+			items.push({ kind: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type });
 		}
 		for (const g of data.groups ?? []) {
 			items.push({ kind: "group", id: g.id, name: g.name });

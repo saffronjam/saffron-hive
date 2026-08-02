@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from "svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
 	import { X } from "@lucide/svelte";
@@ -45,7 +46,7 @@
 
 	const nameById = $derived.by(() => {
 		const m = new Map<string, string>();
-		for (const d of devices) m.set(d.id, d.name);
+		for (const d of devices) m.set(d.id, deviceDisplayName(d));
 		for (const g of groups) m.set(g.id, g.name ?? g.id);
 		for (const r of rooms) m.set(r.id, r.name ?? r.id);
 		return m;
@@ -76,7 +77,7 @@
 			return CLAUSE_KINDS.map((k) => ({ value: k, label: k.charAt(0).toUpperCase() + k.slice(1) }));
 		if (subject === "room") return rooms.map((r) => ({ value: r.id, label: r.name ?? r.id }));
 		if (subject === "group") return groups.map((g) => ({ value: g.id, label: g.name ?? g.id }));
-		return devices.map((d) => ({ value: d.id, label: d.name }));
+		return devices.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
 	}
 
 	const suggestions = $derived.by<Option[]>(() => {

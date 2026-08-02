@@ -54,7 +54,7 @@ describe("parsePayload", () => {
     });
   });
 
-  it("heals a legacy row with both color and colorTemp by preferring color", () => {
+  it("prefers color when a stored row carries both color and colorTemp", () => {
     const raw = JSON.stringify({
       kind: "static",
       on: true,
@@ -172,7 +172,16 @@ describe("buildTargetInfo", () => {
     const action: SceneAction = {
       targetType: "device",
       targetId: "d1",
-      target: { __typename: "Device", id: "d1", name: "Desk lamp", type: "light" },
+      // The Device arm of the union aliases its nullable name to deviceName,
+      // because Group.name and Room.name alongside it are non-null.
+      target: {
+        __typename: "Device",
+        id: "d1",
+        name: "",
+        deviceName: "Desk lamp",
+        friendlyName: "desk_lamp",
+        type: "light",
+      },
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
@@ -182,6 +191,40 @@ describe("buildTargetInfo", () => {
       name: "Desk lamp",
       deviceType: "light",
     });
+  });
+
+  it("labels a Device target with its integration name when no override is set", () => {
+    const action: SceneAction = {
+      targetType: "device",
+      targetId: "d1",
+      target: {
+        __typename: "Device",
+        name: "",
+        id: "d1",
+        deviceName: null,
+        friendlyName: "desk_lamp",
+        type: "light",
+      },
+      payload: "{}",
+    };
+    expect(buildTargetInfo(action)).toMatchObject({ id: "d1", name: "desk_lamp" });
+  });
+
+  it("falls back to the device id when neither name is set", () => {
+    const action: SceneAction = {
+      targetType: "device",
+      targetId: "0x00124b00",
+      target: {
+        __typename: "Device",
+        name: "",
+        id: "0x00124b00",
+        deviceName: null,
+        friendlyName: "",
+        type: "light",
+      },
+      payload: "{}",
+    };
+    expect(buildTargetInfo(action)).toMatchObject({ name: "0x00124b00" });
   });
 });
 
