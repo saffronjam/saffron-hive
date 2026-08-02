@@ -16,7 +16,7 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { ArrowLeft, Group, DoorOpen, Clapperboard, Play, X } from "@lucide/svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
@@ -65,10 +65,15 @@
 						... on Device {
 							__typename
 							id
-							name
+							# Aliased because Group.name and Room.name in the sibling arms are
+							# non-null, and GraphQL will not merge fields of differing nullability.
+							deviceName: name
 							type
 							capabilities { name type values valueMin valueMax unit access }
 							available
+							disabled
+							friendlyName
+							seen
 							lastSeen
 							state {
 								on
@@ -103,6 +108,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 								lastSeen
 								capabilities { name type values valueMin valueMax unit access }
 								state {
@@ -134,6 +142,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 								lastSeen
 								capabilities { name type values valueMin valueMax unit access }
 								state {
@@ -184,6 +195,9 @@
 				tags
 				source
 				available
+				disabled
+				friendlyName
+				seen
 				lastSeen
 				capabilities { name type values valueMin valueMax unit access }
 				state {
@@ -223,6 +237,9 @@
 					type
 					source
 					available
+					disabled
+					friendlyName
+					seen
 					lastSeen
 					capabilities { name type values valueMin valueMax unit access }
 					state {
@@ -262,6 +279,9 @@
 						type
 						source
 						available
+						disabled
+						friendlyName
+						seen
 						lastSeen
 						capabilities { name type values valueMin valueMax unit access }
 						state {
@@ -295,6 +315,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 							}
 							group { id name icon }
 							room { id name icon }
@@ -305,6 +328,9 @@
 							type
 							source
 							available
+							disabled
+							friendlyName
+							seen
 							lastSeen
 							capabilities { name type values valueMin valueMax unit access }
 							state {
@@ -332,6 +358,9 @@
 					type
 					source
 					available
+					disabled
+					friendlyName
+					seen
 					lastSeen
 					capabilities { name type values valueMin valueMax unit access }
 					state {
@@ -375,10 +404,15 @@
 						... on Device {
 							__typename
 							id
-							name
+							# Aliased because Group.name and Room.name in the sibling arms are
+							# non-null, and GraphQL will not merge fields of differing nullability.
+							deviceName: name
 							type
 							capabilities { name type values valueMin valueMax unit access }
 							available
+							disabled
+							friendlyName
+							seen
 							lastSeen
 							state {
 								on
@@ -413,6 +447,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 								lastSeen
 								capabilities { name type values valueMin valueMax unit access }
 								state {
@@ -444,6 +481,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 								lastSeen
 								capabilities { name type values valueMin valueMax unit access }
 								state {
@@ -681,7 +721,7 @@
 				items: availableDevices.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
@@ -741,12 +781,8 @@
 		for (const t of targets) {
 			const resolved =
 				t.type === "expression"
-					? evaluateExpression(t.expression ?? [], allDevices, groupsLite, roomsLite, {
-							includeDisabled: true,
-						})
-					: resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite, {
-							includeDisabled: true,
-						});
+					? evaluateExpression(t.expression ?? [], allDevices, groupsLite, roomsLite)
+					: resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
 			for (const d of resolved) {
 				if (isSceneTarget(d)) ids.add(d.id);
 			}
@@ -785,7 +821,7 @@
 			if (!d) return;
 			targets = [
 				...targets,
-				{ uid: newTargetUid(), type: "device", id: d.id, name: d.name, deviceType: d.type },
+				{ uid: newTargetUid(), type: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type },
 			];
 		} else if (memberType === "group") {
 			const g = allGroups.find((x) => x.id === memberId);
@@ -915,7 +951,9 @@
 			.toPromise()
 			.then((result) => {
 				if (result.data) {
-					allDevices = result.data.devices;
+					// Dropped at the source so the whole page follows: the target tree,
+					// its reachable counts, the Add drawer and every resolution.
+					allDevices = result.data.devices.filter((d) => !d.disabled);
 				}
 			});
 

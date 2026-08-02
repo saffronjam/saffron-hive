@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { deviceDisplayName } from "$lib/utils";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
@@ -240,6 +241,9 @@
 				source
 				capabilities { name type values valueMin valueMax unit access }
 				available
+				disabled
+				friendlyName
+				seen
 				lastSeen
 				state {
 					on
@@ -574,7 +578,7 @@
 		if (!devices.length) return cfg;
 		if (cfg.deviceId && !cfg.deviceName) {
 			const d = devices.find((x) => x.id === cfg.deviceId);
-			if (d) return { ...cfg, deviceName: d.name };
+			if (d) return { ...cfg, deviceName: deviceDisplayName(d) };
 		}
 		if (cfg.deviceName && !cfg.deviceId) {
 			const d = devices.find((x) => x.name === cfg.deviceName);
@@ -592,7 +596,7 @@
 		if (!cfg.targetName) {
 			if (cfg.targetId && cfg.targetType === "device") {
 				const d = devices.find((x) => x.id === cfg.targetId);
-				if (d) return { ...cfg, targetName: d.name };
+				if (d) return { ...cfg, targetName: deviceDisplayName(d) };
 			}
 			return cfg;
 		}
@@ -1360,7 +1364,9 @@
 			.toPromise()
 			.then((result) => {
 				if (result.data) {
-					devices = result.data.devices;
+					// Dropped at the source so every target picker, capability union
+					// and selector on this page follows.
+					devices = result.data.devices.filter((d) => !d.disabled);
 				}
 			});
 

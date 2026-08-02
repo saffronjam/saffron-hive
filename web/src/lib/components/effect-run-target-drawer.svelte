@@ -5,7 +5,7 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { toast } from "svelte-sonner";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { deviceSupportsCaps } from "$lib/effect-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
 	import { deviceSupportsNativeEffect, type Device } from "$lib/stores/devices";
@@ -61,6 +61,9 @@
 				tags
 				capabilities { name type values valueMin valueMax unit access }
 				available
+				disabled
+				friendlyName
+				seen
 				lastSeen
 				state {
 					on
@@ -134,7 +137,7 @@
 	async function fetchData() {
 		const result = await client.query<TargetDrawerQueryResult>(RUN_TARGETS_QUERY, {}).toPromise();
 		if (result.data) {
-			devices = result.data.devices;
+			devices = result.data.devices.filter((d) => !d.disabled);
 			groups = result.data.groups;
 			rooms = result.data.rooms;
 			dataLoaded = true;
@@ -185,7 +188,7 @@
 				items: eligibleDevices.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,

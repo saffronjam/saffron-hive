@@ -29,7 +29,7 @@
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { Plus, Clapperboard, Play, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
@@ -192,6 +192,9 @@
 				icon
 				type
 				tags
+				disabled
+				friendlyName
+				seen
 				capabilities {
 					name
 					access
@@ -232,6 +235,7 @@
 		name: string;
 		icon?: string | null;
 		type: string;
+		disabled: boolean;
 		capabilities: { name: string; access: number }[];
 	}
 
@@ -300,7 +304,7 @@
 				items: devs.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
@@ -552,7 +556,7 @@
 	async function fetchDevices() {
 		if (!clientRef) return;
 		const result = await clientRef.query<DevicesQueryResult>(DEVICES_QUERY, {}).toPromise();
-		if (result.data) devicesRef = result.data.devices;
+		if (result.data) devicesRef = result.data.devices.filter((d) => !d.disabled);
 	}
 
 	async function fetchGroups() {

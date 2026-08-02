@@ -38,7 +38,7 @@
 		DoorOpen,
 		X,
 	} from "@lucide/svelte";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
 	import { page } from "$app/state";
@@ -127,6 +127,9 @@
 						capabilities { name type values valueMin valueMax unit access }
 						source
 						available
+						disabled
+						friendlyName
+						seen
 						lastSeen
 						state {
 							on
@@ -158,6 +161,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 								lastSeen
 								state {
 									on
@@ -231,6 +237,9 @@
 						capabilities { name type values valueMin valueMax unit access }
 						source
 						available
+						disabled
+						friendlyName
+						seen
 						lastSeen
 						state {
 							on
@@ -262,6 +271,9 @@
 								type
 								source
 								available
+								disabled
+								friendlyName
+								seen
 								lastSeen
 								state {
 									on
@@ -369,7 +381,16 @@
 	const roomsQuery = queryStore<{ rooms: RoomData[] }>({ client, query: ROOMS_QUERY });
 
 	const groups = $derived($groupsQuery.data?.groups ?? []);
-	const devices = $derived(Object.values($deviceStore));
+	// Disabled devices leave this page entirely: no member row, no picker
+	// entry, no contribution to a group's readings or command fan-out.
+	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const disabledDeviceIds = $derived(
+		new Set(
+			Object.values($deviceStore)
+				.filter((d) => d.disabled)
+				.map((d) => d.id),
+		),
+	);
 	const allRooms = $derived($roomsQuery.data?.rooms ?? []);
 
 	function flattenGroupDevices(group: GroupData): Device[] {
@@ -431,8 +452,8 @@
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devices
-					.filter((d) => !q || d.name.toLowerCase().includes(q))
-					.map((d) => ({ value: d.name, label: d.name }));
+					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
+					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
 			},
 		},
 		{
@@ -556,7 +577,7 @@
 				items: devAvail.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
@@ -919,8 +940,9 @@
 		const result: DrawerGroup<"device" | "group" | "room">[] = [];
 		if (availableDevices.length > 0) {
 			result.push({ heading: "Devices", items: availableDevices.map((d) => ({
-				type: "device" as const, id: d.id, name: d.name,
-				icon: deviceIcon(d.type), iconRef: d.icon ?? null, searchValue: `${d.name} ${d.type}`,
+				type: "device" as const, id: d.id, name: deviceDisplayName(d),
+				icon: deviceIcon(d.type), iconRef: d.icon ?? null,
+				searchValue: `${deviceDisplayName(d)} ${d.type}`,
 			}))});
 		}
 		if (availableGroups.length > 0) {
@@ -939,7 +961,9 @@
 	});
 
 	const memberRows = $derived(
-		effectiveMembers.map((m) => {
+		effectiveMembers
+			.filter((m) => !(m.memberType === "device" && disabledDeviceIds.has(m.memberId)))
+			.map((m) => {
 			const name = m.device?.name ?? m.group?.name ?? m.room?.name ?? m.memberId;
 			const type = m.device?.type ?? m.memberType;
 			const related = allRooms

@@ -18,7 +18,7 @@
 	import { deviceStore } from "$lib/stores/devices";
 	import { graphql } from "$lib/gql";
 	import { queryStore, getContextClient } from "@urql/svelte";
-	import { deviceIcon, sentenceCase } from "$lib/utils";
+	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
 	import { DoorOpen, Group as GroupIcon, House, Layers, Plus, Trash2 } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { onMount, onDestroy, type Component } from "svelte";
@@ -188,7 +188,8 @@
 	const disabledKeys = new SvelteSet<string>();
 	let allSeries = $state<SeriesInfo[]>([]);
 
-	const devices = $derived(Object.values($deviceStore));
+	// The sources picker offers only devices the system still watches.
+	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
 
 	const DEVICE_GROUP_ORDER = ["sensor", "light", "plug", "speaker", "button"];
 
@@ -267,13 +268,16 @@
 		for (const t of [...DEVICE_GROUP_ORDER, ...byType.keys()]) {
 			if (seenType.has(t) || !byType.has(t)) continue;
 			seenType.add(t);
-			const list = byType.get(t)!.slice().sort((a, b) => a.name.localeCompare(b.name));
+			const list = byType
+				.get(t)!
+				.slice()
+				.sort((a, b) => deviceDisplayName(a).localeCompare(deviceDisplayName(b)));
 			result.push({
 				heading: `${sentenceCase(t)}s`,
 				items: list.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,

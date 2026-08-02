@@ -166,6 +166,9 @@
 			devices {
 				id
 				name
+				disabled
+				friendlyName
+				seen
 			}
 		}
 	`);
@@ -182,6 +185,7 @@
 	interface DeviceRef {
 		id: string;
 		name: string;
+		disabled: boolean;
 	}
 
 	interface SceneRef {
@@ -197,7 +201,9 @@
 	const scenesQuery = queryStore<{ scenes: SceneRef[] }>({ client, query: SCENES_QUERY });
 
 	const automations = $derived($automationsQuery.data?.automations ?? []);
-	const devicesRef = $derived($devicesQuery.data?.devices ?? []);
+	const devicesRef = $derived(
+		($devicesQuery.data?.devices ?? []).filter((d) => !d.disabled),
+	);
 	const scenesRef = $derived($scenesQuery.data?.scenes ?? []);
 
 	let hasLoadedOnce = $state(false);

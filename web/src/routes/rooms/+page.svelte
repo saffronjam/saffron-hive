@@ -41,16 +41,18 @@
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { deviceStore, isLightControlDevice, type Device } from "$lib/stores/devices";
-	import { deviceIcon } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { rgbToXy } from "$lib/color";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 
 	interface RoomMemberDevice {
 		id: string;
-		name: string;
+		name?: string | null;
+		friendlyName: string;
 		type: string;
 		source: string;
 		available: boolean;
+		disabled: boolean;
 	}
 
 	interface RoomMemberGroup {
@@ -95,6 +97,9 @@
 						type
 						source
 						available
+						disabled
+						friendlyName
+						seen
 					}
 					group {
 						id
@@ -145,6 +150,9 @@
 						type
 						source
 						available
+						disabled
+						friendlyName
+						seen
 					}
 					group {
 						id
@@ -179,6 +187,9 @@
 						type
 						source
 						available
+						disabled
+						friendlyName
+						seen
 					}
 					group {
 						id
@@ -251,7 +262,16 @@
 	const groupsQuery = queryStore<{ groups: SimpleGroup[] }>({ client, query: GROUPS_QUERY });
 
 	const rooms = $derived($roomsQuery.data?.rooms ?? []);
-	const devices = $derived(Object.values($deviceStore));
+	// Disabled devices leave this page entirely: no member row, no picker
+	// entry, no contribution to a room's readings or command fan-out.
+	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const disabledDeviceIds = $derived(
+		new Set(
+			Object.values($deviceStore)
+				.filter((d) => d.disabled)
+				.map((d) => d.id),
+		),
+	);
 	const allGroups = $derived($groupsQuery.data?.groups ?? []);
 	const deviceById = $derived(new Map(devices.map((d) => [d.id, d])));
 
@@ -358,8 +378,8 @@
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devices
-					.filter((d) => !q || d.name.toLowerCase().includes(q))
-					.map((d) => ({ value: d.name, label: d.name }));
+					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
+					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
 			},
 		},
 		{
@@ -387,7 +407,7 @@
 			}
 			if (
 				deviceValues.length > 0 &&
-				!deviceValues.some((v) => ds.some((d) => d.name.toLowerCase().includes(v)))
+				!deviceValues.some((v) => ds.some((d) => deviceDisplayName(d).toLowerCase().includes(v)))
 			)
 				return false;
 			if (emptyValues.length > 0) {
@@ -451,7 +471,7 @@
 				items: devAvail.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
@@ -608,7 +628,7 @@
 				items: availableDevices.map((d) => ({
 					type: "device" as const,
 					id: d.id,
-					name: d.name,
+					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
@@ -631,7 +651,9 @@
 	});
 
 	const memberRows = $derived(
-		effectiveMembers.map((m) => {
+		effectiveMembers
+			.filter((m) => !(m.kind === "device" && disabledDeviceIds.has(m.deviceId)))
+			.map((m) => {
 			if (m.kind === "device") {
 				const dev = devices.find((d) => d.id === m.deviceId);
 				const related = allGroups
