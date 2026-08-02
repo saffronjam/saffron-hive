@@ -16,8 +16,8 @@ func fixtureCycleScenes(s *mockStore, reader *mockStateReader) []string {
 	devices := []string{"dev-a", "dev-b", "dev-c"}
 	for _, id := range devices {
 		reader.addDevice(device.Device{
-			ID:   device.DeviceID(id),
-			Name: id,
+			ID:           device.DeviceID(id),
+			FriendlyName: id,
 			Capabilities: []device.Capability{
 				{Name: device.CapOnOff, Type: "binary", Access: 3},
 			},

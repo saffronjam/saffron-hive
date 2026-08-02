@@ -85,8 +85,8 @@ func TestTriggerCooldownBlocksRefire(t *testing.T) {
 // other.
 func TestTriggerCooldownIndependentPerTrigger(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "btn-1"})
-	reader.addDevice(device.Device{ID: "btn-2", Name: "btn-2"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "btn-1"})
+	reader.addDevice(device.Device{ID: "btn-2", FriendlyName: "btn-2"})
 	s := newMockStore()
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "two-triggers", Enabled: true},
@@ -138,8 +138,8 @@ func TestTriggerCooldownIndependentPerTrigger(t *testing.T) {
 // separate events.
 func TestTriggerGraceWindowCombinesWithLaterEvent(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-a", Name: "btn-a"})
-	reader.addDevice(device.Device{ID: "btn-b", Name: "btn-b"})
+	reader.addDevice(device.Device{ID: "btn-a", FriendlyName: "btn-a"})
+	reader.addDevice(device.Device{ID: "btn-b", FriendlyName: "btn-b"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -206,8 +206,8 @@ func TestTriggerGraceWindowCombinesWithLaterEvent(t *testing.T) {
 // earlier trigger is no longer considered active — AND stays false.
 func TestTriggerGraceExpiresDoesNotFire(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-a", Name: "btn-a"})
-	reader.addDevice(device.Device{ID: "btn-b", Name: "btn-b"})
+	reader.addDevice(device.Device{ID: "btn-a", FriendlyName: "btn-a"})
+	reader.addDevice(device.Device{ID: "btn-b", FriendlyName: "btn-b"})
 
 	s := newMockStore()
 	s.addAutomationGraph(

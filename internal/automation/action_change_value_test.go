@@ -23,8 +23,8 @@ func brightnessCap(min, max float64) device.Capability {
 
 func dimmableLight(id string, capMin, capMax float64) device.Device {
 	return device.Device{
-		ID:   device.DeviceID(id),
-		Name: id,
+		ID:           device.DeviceID(id),
+		FriendlyName: id,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Type: "binary", Access: 7},
 			brightnessCap(capMin, capMax),
@@ -219,8 +219,8 @@ func TestChangeValue_FieldNotOnDevice_NoCommand(t *testing.T) {
 
 	// Plug: on/off only, no brightness cap.
 	reader.addDevice(device.Device{
-		ID:   "plug-1",
-		Name: "plug-1",
+		ID:           "plug-1",
+		FriendlyName: "plug-1",
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Type: "binary", Access: 7},
 		},
@@ -276,8 +276,8 @@ func TestChangeValue_GroupFanOut_PerDeviceCurrentValue(t *testing.T) {
 	reader.addDevice(dimmableLight("light-1", 0, 254))
 	reader.addDevice(dimmableLight("light-2", 0, 254))
 	reader.addDevice(device.Device{
-		ID:   "plug-1",
-		Name: "plug-1",
+		ID:           "plug-1",
+		FriendlyName: "plug-1",
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Type: "binary", Access: 7},
 		},

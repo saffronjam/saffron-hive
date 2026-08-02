@@ -15,7 +15,7 @@ func TestToggleAction_DeviceCurrentlyOn_FlipsOff(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
@@ -44,7 +44,7 @@ func TestToggleAction_DeviceCurrentlyOff_FlipsOn(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
@@ -73,7 +73,7 @@ func TestToggleAction_DeviceUnknownState_DefaultsOn(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
@@ -98,8 +98,8 @@ func TestToggleAction_DeviceUnknownState_DefaultsOn(t *testing.T) {
 
 func TestToggleAction_GroupAnyOn_FlipsAllOff(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.addDevice(device.Device{ID: "light-2", Name: "light-2"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 	reader.setDeviceState("light-2", &device.DeviceState{On: device.Ptr(false)})
 
@@ -145,8 +145,8 @@ func TestToggleAction_GroupAnyOn_FlipsAllOff(t *testing.T) {
 
 func TestToggleAction_GroupAllOff_FlipsAllOn(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.addDevice(device.Device{ID: "light-2", Name: "light-2"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
 	reader.setDeviceState("light-2", &device.DeviceState{On: device.Ptr(false)})
 

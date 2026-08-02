@@ -19,9 +19,9 @@ func TestActivateSceneExplicitPayloadsFanOut(t *testing.T) {
 		{Name: device.CapOnOff, Access: 7},
 		{Name: device.CapBrightness, Access: 7},
 	}
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1", Capabilities: caps})
-	reader.addDevice(device.Device{ID: "light-2", Name: "light-2", Capabilities: caps})
-	reader.addDevice(device.Device{ID: "light-3", Name: "light-3", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-3", FriendlyName: "light-3", Capabilities: caps})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
 		{SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
@@ -110,8 +110,8 @@ func TestActivateSceneSkipsMatchingState(t *testing.T) {
 		{Name: device.CapOnOff, Access: 7},
 		{Name: device.CapBrightness, Access: 7},
 	}
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1", Capabilities: caps})
-	reader.addDevice(device.Device{ID: "light-2", Name: "light-2", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1", Capabilities: caps})
+	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2", Capabilities: caps})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(100)})
 
 	s.setSceneActions("scene-1", []store.SceneAction{
@@ -160,12 +160,12 @@ func TestActivateSceneDefaultFallbackCapabilityFiltered(t *testing.T) {
 	writable := func(name string) device.Capability { return device.Capability{Name: name, Access: 7} }
 	reader.addDevice(device.Device{
 		ID:           "lamp-1",
-		Name:         "Lamp 1",
+		FriendlyName: "Lamp 1",
 		Capabilities: []device.Capability{writable(device.CapOnOff), writable(device.CapBrightness), writable(device.CapColorTemp)},
 	})
 	reader.addDevice(device.Device{
 		ID:           "plug-1",
-		Name:         "Plug 1",
+		FriendlyName: "Plug 1",
 		Capabilities: []device.Capability{writable(device.CapOnOff)},
 	})
 
@@ -211,8 +211,8 @@ func TestActivateSceneStampsSceneOrigin(t *testing.T) {
 	s := newMockStore()
 
 	reader.addDevice(device.Device{
-		ID:   "light-1",
-		Name: "light-1",
+		ID:           "light-1",
+		FriendlyName: "light-1",
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 			{Name: device.CapBrightness, Access: 7},

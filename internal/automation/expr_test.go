@@ -27,7 +27,7 @@ func evalTestExprWithStore(t *testing.T, expression string, reader device.StateR
 
 func TestExprSimpleComparison(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > 100`, reader, eventbus.Event{}, time.Now())
@@ -41,7 +41,7 @@ func TestExprSimpleComparison(t *testing.T) {
 
 func TestExprSimpleComparisonFalse(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(50)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > 100`, reader, eventbus.Event{}, time.Now())
@@ -55,8 +55,8 @@ func TestExprSimpleComparisonFalse(t *testing.T) {
 
 func TestExprAnd(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(30.0)})
 
@@ -71,8 +71,8 @@ func TestExprAnd(t *testing.T) {
 
 func TestExprAndPartialFalse(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(20.0)})
 
@@ -87,7 +87,7 @@ func TestExprAndPartialFalse(t *testing.T) {
 
 func TestExprOr(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("sensor-1", &device.DeviceState{
 		Temperature: device.Ptr(25.0),
 		Humidity:    device.Ptr(75.0),
@@ -104,7 +104,7 @@ func TestExprOr(t *testing.T) {
 
 func TestExprNot(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	result, err := evalTestExpr(t, `!(device("light-1").on == true)`, reader, eventbus.Event{}, time.Now())
@@ -194,8 +194,8 @@ func TestExprSyntaxError(t *testing.T) {
 
 func TestExprGroupAccessor_AnyOnReturnsTrue(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.addDevice(device.Device{ID: "light-2", Name: "light-2"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
 	reader.setDeviceState("light-2", &device.DeviceState{On: device.Ptr(true)})
 
@@ -217,8 +217,8 @@ func TestExprGroupAccessor_AnyOnReturnsTrue(t *testing.T) {
 
 func TestExprGroupAccessor_AllOffReturnsFalse(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
-	reader.addDevice(device.Device{ID: "light-2", Name: "light-2"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
 	reader.setDeviceState("light-2", &device.DeviceState{On: device.Ptr(false)})
 
@@ -240,7 +240,7 @@ func TestExprGroupAccessor_AllOffReturnsFalse(t *testing.T) {
 
 func TestExprRoomAccessor_AnyOnReturnsTrue(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	s := newMockStore()
@@ -258,7 +258,7 @@ func TestExprRoomAccessor_AnyOnReturnsTrue(t *testing.T) {
 
 func TestExprNameCollision_DeviceWins(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "dev-1", Name: "Living"})
+	reader.addDevice(device.Device{ID: "dev-1", FriendlyName: "Living"})
 	reader.setDeviceState("dev-1", &device.DeviceState{On: device.Ptr(false)})
 
 	s := newMockStore()
@@ -281,7 +281,7 @@ func TestExprNameCollision_DeviceWins(t *testing.T) {
 
 func TestExprGroupAccessor_NonOnPropertyMissing(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(200)})
 
 	s := newMockStore()
@@ -304,7 +304,7 @@ func TestExprGroupAccessor_NonOnPropertyMissing(t *testing.T) {
 
 func TestExprTypeError(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > "hello"`, reader, eventbus.Event{}, time.Now())
@@ -313,5 +313,60 @@ func TestExprTypeError(t *testing.T) {
 	}
 	if result {
 		t.Fatal("expected false for type mismatch comparison")
+	}
+}
+
+// TestExprAddressesDeviceByResolvedName locks in that a condition naming a
+// device keeps working however that name resolves. Conditions address devices by
+// name, so if the lookup compared only the override, every automation naming a
+// device that tracks its integration would silently stop matching.
+func TestExprAddressesDeviceByResolvedName(t *testing.T) {
+	now := time.Now()
+	on := true
+
+	for _, tc := range []struct {
+		name    string
+		dev     device.Device
+		expr    string
+		matches bool
+	}{
+		{
+			name:    "falls back to the integration name when unset",
+			dev:     device.Device{ID: "d1", FriendlyName: "Portable AC"},
+			expr:    `device("Portable AC").on == true`,
+			matches: true,
+		},
+		{
+			name:    "the override wins over the integration name",
+			dev:     device.Device{ID: "d1", Name: device.Ptr("Bedroom AC"), FriendlyName: "Portable AC"},
+			expr:    `device("Bedroom AC").on == true`,
+			matches: true,
+		},
+		{
+			name:    "the shadowed integration name no longer matches",
+			dev:     device.Device{ID: "d1", Name: device.Ptr("Bedroom AC"), FriendlyName: "Portable AC"},
+			expr:    `device("Portable AC").on == true`,
+			matches: false,
+		},
+		{
+			name:    "falls back to the id when the integration has no name",
+			dev:     device.Device{ID: "0x00124b00"},
+			expr:    `device("0x00124b00").on == true`,
+			matches: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reader := newMockStateReader()
+			reader.addDevice(tc.dev)
+			reader.setDeviceState(tc.dev.ID, &device.DeviceState{On: &on})
+
+			got, err := evalTestExpr(t, tc.expr, reader, eventbus.Event{}, now)
+			if err != nil {
+				t.Fatalf("eval: %v", err)
+			}
+			if got != tc.matches {
+				t.Errorf("got %v, want %v", got, tc.matches)
+			}
+		})
 	}
 }

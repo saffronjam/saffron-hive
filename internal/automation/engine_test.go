@@ -25,7 +25,7 @@ func setupEngine(t *testing.T, reader *mockStateReader, s *mockStore) (*Engine, 
 
 func TestEngineTriggerToAction(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	s := newMockStore()
@@ -94,7 +94,7 @@ func TestEngineTriggerNoMatch(t *testing.T) {
 
 func TestEngineTriggerConditionFalse(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(20.0)})
 
 	s := newMockStore()
@@ -130,7 +130,7 @@ func TestEngineTriggerConditionFalse(t *testing.T) {
 
 func TestEngineANDOperator(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(30.0)})
 
 	s := newMockStore()
@@ -170,7 +170,7 @@ func TestEngineANDOperator(t *testing.T) {
 
 func TestEngineANDOperatorPartialFail(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(20.0)})
 
 	s := newMockStore()
@@ -248,7 +248,7 @@ func TestEngineOROperator(t *testing.T) {
 
 func TestEngineNOTOperator(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "sensor-1", Name: "sensor-1"})
+	reader.addDevice(device.Device{ID: "sensor-1", FriendlyName: "sensor-1"})
 	reader.setDeviceState("sensor-1", &device.DeviceState{Temperature: device.Ptr(20.0)})
 
 	s := newMockStore()
@@ -535,7 +535,7 @@ func TestEngineGroupTargetResolution(t *testing.T) {
 // action when its expression is false, and allows it when true.
 func TestEngineConditionGatesAction(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 
 	s := newMockStore()
 	// Trigger fires on any device.state_changed. Condition requires
@@ -586,7 +586,7 @@ func TestEngineConditionGatesAction(t *testing.T) {
 // action when its expression is false.
 func TestEngineConditionBlocksWhenFalse(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 
 	s := newMockStore()
 	// Condition time.hour >= 23; the engine clock is 22:30, so this fails.
@@ -629,7 +629,7 @@ func TestEngineConditionBlocksWhenFalse(t *testing.T) {
 // invoked by the engine's cron dispatch path (simulated via direct call).
 func TestEngineScheduleTriggerFires(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -689,7 +689,7 @@ func TestEngineButtonActionTrigger(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := newMockStateReader()
-			reader.addDevice(device.Device{ID: "btn-1", Name: "Gaming room switch"})
+			reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Gaming room switch"})
 
 			s := newMockStore()
 			triggerConfig := `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"` + tc.wantAction + `\""}`
@@ -736,8 +736,8 @@ func TestEngineButtonActionTrigger(t *testing.T) {
 // fire the automation even when the action value matches.
 func TestEngineButtonActionTriggerDeviceIDFilter(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Gaming room switch"})
-	reader.addDevice(device.Device{ID: "btn-2", Name: "Office switch"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Gaming room switch"})
+	reader.addDevice(device.Device{ID: "btn-2", FriendlyName: "Office switch"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -795,8 +795,8 @@ func TestEngineButtonActionTriggerDeviceIDFilter(t *testing.T) {
 // must be a no-op for a trigger filtered on action == "on_press".
 func TestEngineTriggerFilterFalseSkipsGraph(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "light-1", Name: "Ceiling"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "Ceiling"})
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	s := newMockStore()
@@ -851,8 +851,8 @@ func TestEngineTriggerFilterFalseSkipsGraph(t *testing.T) {
 // its trigger as false and inverts.
 func TestEngineDisjointSubgraphsIsolatedByReachability(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", FriendlyName: "Lava lamp"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -919,7 +919,7 @@ func TestEngineActionIncomingOr(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := newMockStateReader()
-			reader.addDevice(device.Device{ID: "btn-1", Name: "btn"})
+			reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "btn"})
 
 			s := newMockStore()
 			s.addAutomationGraph(
@@ -982,7 +982,7 @@ func TestEngineActionIncomingOr(t *testing.T) {
 func TestEngineSetDeviceStateGroupFanoutFilters(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{
-		ID: "light-1", Name: "Light", Type: device.Light,
+		ID: "light-1", FriendlyName: "Light", Type: device.Light,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 			{Name: device.CapBrightness, Access: 7},
@@ -990,14 +990,14 @@ func TestEngineSetDeviceStateGroupFanoutFilters(t *testing.T) {
 		},
 	})
 	reader.addDevice(device.Device{
-		ID: "plug-1", Name: "Plug", Type: device.Plug,
+		ID: "plug-1", FriendlyName: "Plug", Type: device.Plug,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 			{Name: device.CapPower, Access: 1},
 		},
 	})
 	reader.addDevice(device.Device{
-		ID: "unknown-1", Name: "Unknown", Type: device.Unknown,
+		ID: "unknown-1", FriendlyName: "Unknown", Type: device.Unknown,
 	})
 
 	s := newMockStore()
@@ -1090,8 +1090,8 @@ func TestEngineSetDeviceStateGroupFanoutFilters(t *testing.T) {
 // trigger and emit on:false.
 func TestEngineDisjointOrAndNotChainsIsolated(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", FriendlyName: "Lava lamp"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -1161,8 +1161,8 @@ collect:
 // and never fire even when the condition is in fact true.
 func TestEngineANDWithBackwardSideCondition(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", FriendlyName: "Lava lamp"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -1218,8 +1218,8 @@ func TestEngineANDWithBackwardSideCondition(t *testing.T) {
 // evaluated to NOT(unfired_manual=false)=true and fire the action.
 func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", FriendlyName: "Lava lamp"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -1267,8 +1267,8 @@ func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
 // active=true.
 func TestEngineDistinctActivationVisibility(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", FriendlyName: "Lava lamp"})
 
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -1337,8 +1337,8 @@ collect:
 // gap exposed by mixing grace with cross-chain NOT→OR wiring.
 func TestEngineGraceCrossFireBothChains(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "btn-1", Name: "Switch"})
-	reader.addDevice(device.Device{ID: "lamp-1", Name: "Lava lamp"})
+	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
+	reader.addDevice(device.Device{ID: "lamp-1", FriendlyName: "Lava lamp"})
 
 	s := newMockStore()
 	s.addAutomationGraph(

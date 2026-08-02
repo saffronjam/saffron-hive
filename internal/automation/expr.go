@@ -77,7 +77,9 @@ func targetLookup(ctx context.Context, reader device.StateReader, resolver devic
 func lookupDeviceByName(reader device.StateReader, name string) (map[string]any, bool) {
 	var targetID device.DeviceID
 	for _, d := range reader.ListDevices() {
-		if d.Name == name {
+		// Matched against the resolved name, so a condition keeps working whether
+		// the user set an override or the device is tracking its integration.
+		if d.DisplayName() == name {
 			targetID = d.ID
 			break
 		}

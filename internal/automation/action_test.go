@@ -13,7 +13,7 @@ func TestSkipCommandWhenStateMatches(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
@@ -39,7 +39,7 @@ func TestSendCommandWhenStateDiffers(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
@@ -95,7 +95,7 @@ func TestSetDeviceStateActionStampsAutomationOrigin(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
@@ -128,7 +128,7 @@ func TestPartialStateComparison(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", Name: "light-1"})
+	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
 	reader.setDeviceState("light-1", &device.DeviceState{
 		Brightness: device.Ptr(200),
 		ColorTemp:  device.Ptr(350),
