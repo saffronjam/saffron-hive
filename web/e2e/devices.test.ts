@@ -14,6 +14,7 @@ const DEVICES_QUERY = graphql(`
     devices {
       id
       name
+      friendlyName
       source
       type
       available
@@ -38,6 +39,7 @@ const DEVICE_QUERY = graphql(`
     device(id: $id) {
       id
       name
+      friendlyName
       source
       type
       available
@@ -122,7 +124,7 @@ describe("devices", () => {
 
     expect(result.data).toBeDefined();
 
-    const deviceNames = result.data!.devices.map((d) => d.name);
+    const deviceNames = result.data!.devices.map((d) => d.friendlyName);
     for (const fixture of fixtures) {
       if (fixture.type === COORDINATOR_TYPE) continue;
       expect(deviceNames).toContain(fixture.friendly_name);
@@ -130,7 +132,7 @@ describe("devices", () => {
 
     for (const device of result.data!.devices) {
       expect(device.id).toBeTruthy();
-      expect(device.name).toBeTruthy();
+      expect(device.friendlyName).toBeTruthy();
       expect(device.source).toBe("zigbee2mqtt");
       expect(typeof device.available).toBe("boolean");
     }
@@ -150,7 +152,7 @@ describe("devices", () => {
     expect(result.data).toBeDefined();
     expect(result.data!.device).toBeDefined();
     expect(result.data!.device!.id).toBe(firstDevice.id);
-    expect(result.data!.device!.name).toBe(firstDevice.name);
+    expect(result.data!.device!.friendlyName).toBe(firstDevice.friendlyName);
   });
 
   it("should reflect state changes after MQTT publish", async () => {
@@ -163,7 +165,7 @@ describe("devices", () => {
     const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(result.data).toBeDefined();
-    const light = result.data!.devices.find((d) => d.name === "Living Room Light");
+    const light = result.data!.devices.find((d) => d.friendlyName === "Living Room Light");
     expect(light).toBeDefined();
     expect(light!.state).toBeDefined();
   });
@@ -213,7 +215,7 @@ describe("devices", () => {
     const listResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(listResult.data).toBeDefined();
-    const lightDevice = listResult.data!.devices.find((d) => d.name === "Living Room Light");
+    const lightDevice = listResult.data!.devices.find((d) => d.friendlyName === "Living Room Light");
     expect(lightDevice).toBeDefined();
 
     const { messages, cleanup } = await subscribeMQTTCommands();

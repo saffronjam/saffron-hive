@@ -7,6 +7,7 @@ const DEVICES_QUERY = graphql(`
     devices {
       id
       name
+      friendlyName
       type
     }
   }
@@ -418,7 +419,7 @@ describe("automations", () => {
 
     const { messages, cleanup } = await subscribeMQTTCommands();
 
-    await publishDeviceState(sensor!.name, {
+    await publishDeviceState(sensor!.friendlyName, {
       temperature: 35,
       humidity: 60,
     });

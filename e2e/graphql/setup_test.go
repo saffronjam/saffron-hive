@@ -93,22 +93,33 @@ func waitForDevices(expected int) bool {
 	})
 }
 
+// queryDeviceIDByName matches on the resolved name a client would render, so a
+// device discovered from zigbee2mqtt is findable by its friendly name even
+// though it carries no user override.
 func queryDeviceIDByName(name string) (string, error) {
-	data, err := graphqlQuery(`{ devices { id name } }`, nil)
+	data, err := graphqlQuery(`{ devices { id name friendlyName } }`, nil)
 	if err != nil {
 		return "", err
 	}
 	var result struct {
 		Devices []struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+			ID           string  `json:"id"`
+			Name         *string `json:"name"`
+			FriendlyName string  `json:"friendlyName"`
 		} `json:"devices"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		return "", err
 	}
 	for _, d := range result.Devices {
-		if d.Name == name {
+		resolved := d.FriendlyName
+		if d.Name != nil && *d.Name != "" {
+			resolved = *d.Name
+		}
+		if resolved == "" {
+			resolved = d.ID
+		}
+		if resolved == name {
 			return d.ID, nil
 		}
 	}

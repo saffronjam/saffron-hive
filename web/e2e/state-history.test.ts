@@ -7,6 +7,7 @@ const DEVICES_QUERY = graphql(`
     devices {
       id
       name
+      friendlyName
       type
     }
   }
@@ -36,7 +37,7 @@ describe("state history", () => {
     expect(sensor).toBeDefined();
 
     const sensorState = getSensorStateFixture();
-    await publishDeviceState(sensor!.name, sensorState);
+    await publishDeviceState(sensor!.friendlyName, sensorState);
 
     await new Promise((r) => setTimeout(r, 2000));
 

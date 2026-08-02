@@ -26,7 +26,7 @@ func TestPlug_MeteringState(t *testing.T) {
 	ok := pollUntil(5*time.Second, 100*time.Millisecond, func() bool {
 		data, err := graphqlQuery(`{
 			devices {
-				name
+				friendlyName
 				state { on power voltage current energy }
 			}
 		}`, nil)
@@ -35,7 +35,7 @@ func TestPlug_MeteringState(t *testing.T) {
 		}
 		var result struct {
 			Devices []struct {
-				Name  string `json:"name"`
+				Name  string `json:"friendlyName"`
 				State struct {
 					On      *bool    `json:"on"`
 					Power   *float64 `json:"power"`

@@ -14,7 +14,7 @@ func TestDevices_QueryAll(t *testing.T) {
 	data, err := graphqlQuery(`{
 		devices {
 			id
-			name
+			friendlyName
 			type
 			source
 			available
@@ -27,7 +27,7 @@ func TestDevices_QueryAll(t *testing.T) {
 	var result struct {
 		Devices []struct {
 			ID        string `json:"id"`
-			Name      string `json:"name"`
+			Name      string `json:"friendlyName"`
 			Type      string `json:"type"`
 			Source    string `json:"source"`
 			Available bool   `json:"available"`
@@ -60,14 +60,14 @@ func TestDevices_QueryAll(t *testing.T) {
 }
 
 func TestDevices_VerifyTypes(t *testing.T) {
-	data, err := graphqlQuery(`{ devices { name type } }`, nil)
+	data, err := graphqlQuery(`{ devices { friendlyName type } }`, nil)
 	if err != nil {
 		t.Fatalf("query: %v", err)
 	}
 
 	var result struct {
 		Devices []struct {
-			Name string `json:"name"`
+			Name string `json:"friendlyName"`
 			Type string `json:"type"`
 		} `json:"devices"`
 	}
@@ -107,7 +107,7 @@ func TestDevices_StateChange(t *testing.T) {
 	ok := pollUntil(5*time.Second, 100*time.Millisecond, func() bool {
 		data, err := graphqlQuery(`{
 			devices {
-				name
+				friendlyName
 				state { on brightness colorTemp }
 			}
 		}`, nil)
@@ -116,7 +116,7 @@ func TestDevices_StateChange(t *testing.T) {
 		}
 		var result struct {
 			Devices []struct {
-				Name  string `json:"name"`
+				Name  string `json:"friendlyName"`
 				State struct {
 					On         *bool `json:"on"`
 					Brightness *int  `json:"brightness"`
@@ -149,7 +149,7 @@ func TestDevices_QuerySingleByID(t *testing.T) {
 	data, err := graphqlQuery(`query($id: ID!) {
 		device(id: $id) {
 			id
-			name
+			friendlyName
 			type
 			source
 			available
@@ -162,7 +162,7 @@ func TestDevices_QuerySingleByID(t *testing.T) {
 	var result struct {
 		Device struct {
 			ID        string `json:"id"`
-			Name      string `json:"name"`
+			Name      string `json:"friendlyName"`
 			Type      string `json:"type"`
 			Source    string `json:"source"`
 			Available bool   `json:"available"`
@@ -188,7 +188,7 @@ func TestDevices_QuerySingleByID(t *testing.T) {
 
 func TestDevices_QuerySingleByID_NotFound(t *testing.T) {
 	data, err := graphqlQuery(`query($id: ID!) {
-		device(id: $id) { id name }
+		device(id: $id) { id friendlyName }
 	}`, map[string]any{"id": "nonexistent-device-id"})
 	if err != nil {
 		t.Fatalf("query: %v", err)
@@ -197,7 +197,7 @@ func TestDevices_QuerySingleByID_NotFound(t *testing.T) {
 	var result struct {
 		Device *struct {
 			ID   string `json:"id"`
-			Name string `json:"name"`
+			Name string `json:"friendlyName"`
 		} `json:"device"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
@@ -253,7 +253,9 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 		t.Fatalf("find device: %v", err)
 	}
 
-	rename := func(name string) {
+	// A nil name clears the override, which is how the device goes back to
+	// showing the name zigbee2mqtt reports.
+	rename := func(name any) {
 		t.Helper()
 		if _, err := graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
 			updateDevice(id: $id, input: $input) { id name }
@@ -261,10 +263,10 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 			"id":    deviceID,
 			"input": map[string]any{"name": name},
 		}); err != nil {
-			t.Fatalf("rename to %q: %v", name, err)
+			t.Fatalf("rename to %v: %v", name, err)
 		}
 	}
-	defer rename("Bedroom Light")
+	defer rename(nil)
 
 	data, err := graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
 		updateDevice(id: $id, input: $input) { id name }
@@ -305,6 +307,31 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 	if queryResult.Device.Name != "Renamed Bedroom Light" {
 		t.Errorf("persisted name=%q, want %q", queryResult.Device.Name, "Renamed Bedroom Light")
 	}
+
+	// Clearing the override hands the name back to zigbee2mqtt.
+	rename(nil)
+	clearedData, err := graphqlQuery(`query($id: ID!) {
+		device(id: $id) { name friendlyName }
+	}`, map[string]any{"id": deviceID})
+	if err != nil {
+		t.Fatalf("query device after clear: %v", err)
+	}
+	var clearedResult struct {
+		Device struct {
+			Name         *string `json:"name"`
+			FriendlyName string  `json:"friendlyName"`
+		} `json:"device"`
+	}
+	if err := json.Unmarshal(clearedData, &clearedResult); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if clearedResult.Device.Name != nil {
+		t.Errorf("clearing left an override: %q", *clearedResult.Device.Name)
+	}
+	if clearedResult.Device.FriendlyName != "Bedroom Light" {
+		t.Errorf("friendlyName=%q, want %q", clearedResult.Device.FriendlyName, "Bedroom Light")
+	}
+	rename("Renamed Bedroom Light")
 
 	lightState, err := infra.LoadLightState()
 	if err != nil {
@@ -367,13 +394,13 @@ func TestDevices_AvailabilityChange(t *testing.T) {
 	}
 
 	ok := pollUntil(5*time.Second, 100*time.Millisecond, func() bool {
-		data, err := graphqlQuery(`{ devices { name available } }`, nil)
+		data, err := graphqlQuery(`{ devices { friendlyName available } }`, nil)
 		if err != nil {
 			return false
 		}
 		var result struct {
 			Devices []struct {
-				Name      string `json:"name"`
+				Name      string `json:"friendlyName"`
 				Available bool   `json:"available"`
 			} `json:"devices"`
 		}
@@ -397,13 +424,13 @@ func TestDevices_AvailabilityChange(t *testing.T) {
 	}
 
 	pollUntil(5*time.Second, 100*time.Millisecond, func() bool {
-		data, err := graphqlQuery(`{ devices { name available } }`, nil)
+		data, err := graphqlQuery(`{ devices { friendlyName available } }`, nil)
 		if err != nil {
 			return false
 		}
 		var result struct {
 			Devices []struct {
-				Name      string `json:"name"`
+				Name      string `json:"friendlyName"`
 				Available bool   `json:"available"`
 			} `json:"devices"`
 		}

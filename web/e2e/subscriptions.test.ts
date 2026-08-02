@@ -44,7 +44,7 @@ const DEVICE_ADDED = graphql(`
   subscription E2EDeviceAdded {
     deviceAdded {
       id
-      name
+      friendlyName
       type
       source
     }
@@ -86,6 +86,7 @@ const DEVICES_QUERY = graphql(`
     devices {
       id
       name
+      friendlyName
       type
     }
   }
@@ -253,7 +254,7 @@ describe("subscriptions", () => {
 
     const event = await eventPromise;
     expect(event.deviceAdded).toBeDefined();
-    expect(event.deviceAdded.name).toBe("New Test Light");
+    expect(event.deviceAdded.friendlyName).toBe("New Test Light");
     expect(event.deviceAdded.source).toBe("zigbee2mqtt");
 
     await publishBridgeDevices(fixtures);
@@ -325,7 +326,7 @@ describe("subscriptions", () => {
 
     await new Promise((r) => setTimeout(r, 500));
 
-    await publishDeviceState(sensor!.name, {
+    await publishDeviceState(sensor!.friendlyName, {
       temperature: 30,
       humidity: 50,
     });
@@ -346,8 +347,8 @@ describe("subscriptions", () => {
     const lights = devicesResult.data!.devices.filter((d) => d.type === "light");
     expect(lights.length).toBeGreaterThanOrEqual(2);
 
-    const targetLight = lights.find((l) => l.name === "Living Room Light")!;
-    const _otherLight = lights.find((l) => l.name === "Bedroom Light")!;
+    const targetLight = lights.find((l) => l.friendlyName === "Living Room Light")!;
+    const _otherLight = lights.find((l) => l.friendlyName === "Bedroom Light")!;
 
     const received: ResultOf<typeof DEVICE_STATE_CHANGED_FILTERED>[] = [];
 

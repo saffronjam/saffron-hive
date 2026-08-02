@@ -100,6 +100,7 @@ const DEVICES_QUERY = graphql(`
     devices {
       id
       name
+      friendlyName
       source
       type
       available

@@ -165,7 +165,7 @@ func TestSubscriptions_DeviceStateChangedWithFilter(t *testing.T) {
 
 func TestSubscriptions_DeviceAdded(t *testing.T) {
 	ch, cleanup, err := wsSubscribe(
-		`subscription { deviceAdded { id name type } }`,
+		`subscription { deviceAdded { id friendlyName type } }`,
 		nil,
 	)
 	if err != nil {
@@ -235,7 +235,7 @@ func TestSubscriptions_DeviceAdded(t *testing.T) {
 			var event struct {
 				DeviceAdded struct {
 					ID   string `json:"id"`
-					Name string `json:"name"`
+					Name string `json:"friendlyName"`
 					Type string `json:"type"`
 				} `json:"deviceAdded"`
 			}
