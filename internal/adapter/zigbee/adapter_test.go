@@ -16,7 +16,7 @@ func setupAdapterWithDevice(t *testing.T, friendlyName, ieee string, devType dev
 	}
 
 	id := device.DeviceID(ieee)
-	sw.Register(device.Device{ID: id, Name: friendlyName, Type: devType, Available: true})
+	sw.Register(device.Device{ID: id, FriendlyName: friendlyName, Type: devType, Available: true})
 
 	adapter.mu.Lock()
 	adapter.nameToID[friendlyName] = id

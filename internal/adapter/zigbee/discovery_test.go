@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 func TestDiscoverDevices_Light(t *testing.T) {
@@ -39,8 +40,11 @@ func TestDiscoverDevices_Light(t *testing.T) {
 	if dev.Type != device.Light {
 		t.Fatalf("expected Light, got %s", dev.Type)
 	}
-	if dev.Name != "living_room_light" {
-		t.Fatalf("expected living_room_light, got %s", dev.Name)
+	if dev.FriendlyName != "living_room_light" {
+		t.Fatalf("expected living_room_light, got %s", dev.FriendlyName)
+	}
+	if dev.Name != nil {
+		t.Fatalf("discovery must not set a name override, got %q", *dev.Name)
 	}
 }
 
@@ -610,4 +614,93 @@ func findCap(t *testing.T, caps []device.Capability, name string) device.Capabil
 
 func ptr(f float64) *float64 {
 	return &f
+}
+
+// TestBridgeDevicesRepublishSyncsAdapterFields covers the join sequence that
+// left new devices uncontrollable. zigbee2mqtt publishes bridge/devices as soon
+// as a device joins, with the definition still empty, then publishes it again
+// once the interview finishes. Only the first pass counted as an addition, so
+// the capabilities from the second never reached the database and the device
+// had no controls until a restart.
+//
+// It also pins the other half: a republish that changes nothing must stay
+// silent, because zigbee2mqtt resends the whole list on every join, leave and
+// rename.
+func TestBridgeDevicesRepublishSyncsAdapterFields(t *testing.T) {
+	adapter, mqtt, bus, _ := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	const midInterview = `[{
+		"ieee_address": "0x00158d0001a2b3c4",
+		"friendly_name": "0x00158d0001a2b3c4",
+		"type": "Router",
+		"supported": true,
+		"definition": {"model": "", "vendor": "", "description": "", "exposes": []}
+	}]`
+
+	const interviewed = `[{
+		"ieee_address": "0x00158d0001a2b3c4",
+		"friendly_name": "kitchen_plug",
+		"type": "Router",
+		"supported": true,
+		"definition": {
+			"model": "TS011F", "vendor": "Tuya", "description": "Smart plug",
+			"exposes": [
+				{"type": "switch", "features": [
+					{"type": "binary", "name": "state", "property": "state", "access": 7}
+				]}
+			]
+		}
+	}]`
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(midInterview))
+	if got := countEvents(bus, eventbus.EventDeviceAdded); got != 1 {
+		t.Fatalf("first sighting: got %d device.added, want 1", got)
+	}
+	if got := countEvents(bus, eventbus.EventDeviceSynced); got != 0 {
+		t.Fatalf("first sighting: got %d device.synced, want 0", got)
+	}
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(interviewed))
+	if got := countEvents(bus, eventbus.EventDeviceAdded); got != 1 {
+		t.Errorf("interview completing must not re-announce the device: got %d device.added", got)
+	}
+	synced := eventsOfType(bus, eventbus.EventDeviceSynced)
+	if len(synced) != 1 {
+		t.Fatalf("interview completing: got %d device.synced, want 1", len(synced))
+	}
+	dev, ok := synced[0].Payload.(device.Device)
+	if !ok {
+		t.Fatalf("device.synced payload is not a Device: %T", synced[0].Payload)
+	}
+	if dev.FriendlyName != "kitchen_plug" {
+		t.Errorf("synced friendly name = %q, want kitchen_plug", dev.FriendlyName)
+	}
+	if len(dev.Capabilities) == 0 {
+		t.Error("synced payload carries no capabilities, so persistence would still have none")
+	}
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(interviewed))
+	if got := countEvents(bus, eventbus.EventDeviceSynced); got != 1 {
+		t.Errorf("an unchanged republish must publish nothing: got %d device.synced", got)
+	}
+}
+
+func eventsOfType(bus *mockEventBus, t eventbus.EventType) []eventbus.Event {
+	bus.mu.Lock()
+	defer bus.mu.Unlock()
+	var out []eventbus.Event
+	for _, e := range bus.events {
+		if e.Type == t {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func countEvents(bus *mockEventBus, t eventbus.EventType) int {
+	return len(eventsOfType(bus, t))
 }

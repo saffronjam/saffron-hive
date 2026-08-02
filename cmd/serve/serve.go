@@ -146,6 +146,7 @@ func Run(ctx context.Context) error {
 
 	deviceCh := bus.Subscribe(
 		eventbus.EventDeviceAdded,
+		eventbus.EventDeviceSynced,
 		eventbus.EventDeviceRemoved,
 	)
 	spawn("history.recorder", func() { history.RunRecorder(ctx, bus, sqlStore) })
@@ -700,14 +701,14 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 				return
 			}
 			switch evt.Type {
-			case eventbus.EventDeviceAdded:
+			case eventbus.EventDeviceAdded, eventbus.EventDeviceSynced:
 				d, ok := evt.Payload.(device.Device)
 				if !ok {
 					continue
 				}
 				err := s.UpsertDevice(ctx, store.CreateDeviceParams{
 					ID:           d.ID,
-					Name:         d.Name,
+					FriendlyName: d.FriendlyName,
 					Source:       d.Source,
 					Type:         d.Type,
 					Capabilities: d.Capabilities,
@@ -715,16 +716,6 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 				if err != nil {
 					devicePersisterLogger.Error("failed to upsert device", "device_id", d.ID, "error", err)
 					continue
-				}
-				if d.Source == device.SourceZigbee2MQTT {
-					err = s.UpsertZigbeeDevice(ctx, store.RegisterZigbeeDeviceParams{
-						DeviceID:     d.ID,
-						IEEEAddress:  string(d.ID),
-						FriendlyName: d.Name,
-					})
-					if err != nil {
-						devicePersisterLogger.Error("failed to upsert zigbee device", "device_id", d.ID, "error", err)
-					}
 				}
 
 			case eventbus.EventDeviceRemoved:

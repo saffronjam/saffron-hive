@@ -10,10 +10,17 @@ const (
 	EventDeviceActionFired         EventType = "device.action_fired"
 	EventDeviceAvailabilityChanged EventType = "device.availability_changed"
 	EventDeviceAdded               EventType = "device.added"
+	// EventDeviceSynced signals that an adapter re-reported a device it already
+	// knew about, with at least one adapter-owned field changed (friendly name,
+	// type, capabilities). It carries the device.Device so persistence can
+	// refresh those columns. Distinct from device.added, which fires once per
+	// device and drives "new device" surfaces, and from device.updated, which
+	// carries user-owned metadata and must never come from an adapter.
+	EventDeviceSynced EventType = "device.synced"
 	// EventDeviceUpdated signals a change to a device's user-owned metadata
-	// (name, icon, tags) — distinct from runtime state or availability. It
-	// carries the updated device.Device; subscribers refresh their cached
-	// view of those fields.
+	// (name, icon, tags, disabled) — distinct from runtime state or
+	// availability. It carries the updated device.Device; subscribers refresh
+	// their cached view of those fields.
 	EventDeviceUpdated           EventType = "device.updated"
 	EventDeviceRemoved           EventType = "device.removed"
 	EventCommandRequested        EventType = "command.requested"

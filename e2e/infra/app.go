@@ -78,6 +78,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	sqlStore := store.New(db)
 	deviceCh := bus.Subscribe(
 		eventbus.EventDeviceAdded,
+		eventbus.EventDeviceSynced,
 		eventbus.EventDeviceRemoved,
 	)
 	go runDevicePersister(appCtx, bus, deviceCh, sqlStore)

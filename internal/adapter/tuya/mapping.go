@@ -16,16 +16,14 @@ type valueSpec struct {
 }
 
 func mapDevice(info DeviceInfo, functions []Function) device.Device {
+	// No id arm: an empty friendly name falls through to the id in DisplayName.
 	name := info.Name
 	if name == "" {
 		name = info.ProductName
 	}
-	if name == "" {
-		name = info.ID
-	}
 	return device.Device{
 		ID:           device.DeviceID(info.ID),
-		Name:         name,
+		FriendlyName: name,
 		Source:       device.SourceTuya,
 		Type:         mapDeviceType(info),
 		Capabilities: mapCapabilities(functions),

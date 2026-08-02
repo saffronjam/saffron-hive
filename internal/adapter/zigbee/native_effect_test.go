@@ -95,7 +95,7 @@ func registerEffectDevice(t *testing.T, adapter *ZigbeeAdapter, sw *mockStateWri
 	}
 	dev := device.Device{
 		ID:           id,
-		Name:         friendlyName,
+		FriendlyName: friendlyName,
 		Type:         device.Light,
 		Available:    true,
 		Capabilities: caps,

@@ -53,20 +53,24 @@ type Adapter struct {
 
 	mu    sync.Mutex
 	conns map[device.DeviceID]*conn
-	creds map[device.DeviceID]store.TuyaDevice
+	// knownDevices holds the adapter-field fingerprint of each device the poll
+	// loop has already reported, keyed by device id.
+	knownDevices map[device.DeviceID]string
+	creds        map[device.DeviceID]store.TuyaDevice
 }
 
 // NewAdapter creates the Tuya adapter. ds persists per-device local-control
 // metadata.
 func NewAdapter(client *CloudClient, bus eventbus.EventBus, state device.StateStore, ds deviceStore) *Adapter {
 	return &Adapter{
-		client: client,
-		bus:    bus,
-		reader: state,
-		writer: state,
-		store:  ds,
-		conns:  make(map[device.DeviceID]*conn),
-		creds:  make(map[device.DeviceID]store.TuyaDevice),
+		client:       client,
+		bus:          bus,
+		reader:       state,
+		writer:       state,
+		store:        ds,
+		conns:        make(map[device.DeviceID]*conn),
+		knownDevices: make(map[device.DeviceID]string),
+		creds:        make(map[device.DeviceID]store.TuyaDevice),
 	}
 }
 
@@ -151,12 +155,29 @@ func (a *Adapter) Sync(ctx context.Context) ([]device.Device, error) {
 		dev := mapDevice(info, functions)
 		dev.Capabilities = augmentCapabilities(dev.Capabilities, productID)
 		a.writer.Register(dev)
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceAdded,
-			DeviceID:  string(dev.ID),
-			Timestamp: time.Now(),
-			Payload:   dev,
-		})
+		// Sync runs on a poll loop, so only the first sighting is an addition;
+		// afterwards nothing is published unless an adapter-owned field moved.
+		print := device.AdapterFingerprint(dev)
+		a.mu.Lock()
+		prevPrint, wasKnown := a.knownDevices[dev.ID]
+		a.knownDevices[dev.ID] = print
+		a.mu.Unlock()
+		switch {
+		case !wasKnown:
+			a.bus.Publish(eventbus.Event{
+				Type:      eventbus.EventDeviceAdded,
+				DeviceID:  string(dev.ID),
+				Timestamp: time.Now(),
+				Payload:   dev,
+			})
+		case prevPrint != print:
+			a.bus.Publish(eventbus.Event{
+				Type:      eventbus.EventDeviceSynced,
+				DeviceID:  string(dev.ID),
+				Timestamp: time.Now(),
+				Payload:   dev,
+			})
+		}
 		out = append(out, dev)
 
 		logger.Debug("tuya device resolved", "device_id", info.ID, "name", dev.Name,

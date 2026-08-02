@@ -21,29 +21,20 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 				return
 			}
 			switch evt.Type {
-			case eventbus.EventDeviceAdded:
+			case eventbus.EventDeviceAdded, eventbus.EventDeviceSynced:
 				d, ok := evt.Payload.(device.Device)
 				if !ok {
 					continue
 				}
 				if err := s.UpsertDevice(ctx, store.CreateDeviceParams{
 					ID:           d.ID,
-					Name:         d.Name,
+					FriendlyName: d.FriendlyName,
 					Source:       d.Source,
 					Type:         d.Type,
 					Capabilities: d.Capabilities,
 				}); err != nil {
 					log.Printf("failed to upsert e2e device %s: %v", d.ID, err)
 					continue
-				}
-				if d.Source == device.SourceZigbee2MQTT {
-					if err := s.UpsertZigbeeDevice(ctx, store.RegisterZigbeeDeviceParams{
-						DeviceID:     d.ID,
-						IEEEAddress:  string(d.ID),
-						FriendlyName: d.Name,
-					}); err != nil {
-						log.Printf("failed to upsert e2e zigbee device %s: %v", d.ID, err)
-					}
 				}
 			case eventbus.EventDeviceRemoved:
 				if _, err := s.UpdateDevice(ctx, store.UpdateDeviceParams{

@@ -64,7 +64,7 @@ type ZigbeeAdapter struct {
 	ieeeToID     map[string]device.DeviceID
 	nameToID     map[string]device.DeviceID
 	idToName     map[device.DeviceID]string
-	knownDevices map[device.DeviceID]struct{}
+	knownDevices map[device.DeviceID]string
 
 	// pendingOrigin holds the origin of the most recent outgoing command per
 	// device. The next inbound state echo claims (and clears) the entry so the
@@ -102,7 +102,7 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 		ieeeToID:      make(map[string]device.DeviceID),
 		nameToID:      make(map[string]device.DeviceID),
 		idToName:      make(map[device.DeviceID]string),
-		knownDevices:  make(map[device.DeviceID]struct{}),
+		knownDevices:  make(map[device.DeviceID]string),
 		pendingOrigin: make(map[device.DeviceID]device.CommandOrigin),
 		stopCh:        make(chan struct{}),
 		dispatchCh:    make(chan incomingMsg, dispatchBufferSize),

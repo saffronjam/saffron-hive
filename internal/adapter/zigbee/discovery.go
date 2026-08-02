@@ -119,7 +119,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 
 		dev := device.Device{
 			ID:           id,
-			Name:         d.FriendlyName,
+			FriendlyName: d.FriendlyName,
 			Source:       device.SourceZigbee2MQTT,
 			Type:         devType,
 			Capabilities: extractCapabilities(d.Definition.Exposes),
@@ -128,17 +128,31 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 
 		a.stateWriter.Register(dev)
 
+		print := device.AdapterFingerprint(dev)
 		a.mu.Lock()
-		_, wasKnown := a.knownDevices[id]
+		prev, wasKnown := a.knownDevices[id]
 		a.ieeeToID[d.IEEEAddress] = id
 		a.nameToID[d.FriendlyName] = id
 		a.idToName[id] = d.FriendlyName
-		a.knownDevices[id] = struct{}{}
+		a.knownDevices[id] = print
 		a.mu.Unlock()
 
-		if !wasKnown {
+		// zigbee2mqtt republishes the whole device list on every join, leave and
+		// rename, and publishes it again once an interview completes with the
+		// definition filled in. Comparing fingerprints is what turns that into a
+		// single event when something actually changed, instead of one per
+		// device per republish.
+		switch {
+		case !wasKnown:
 			a.bus.Publish(eventbus.Event{
 				Type:      eventbus.EventDeviceAdded,
+				DeviceID:  string(id),
+				Timestamp: time.Now(),
+				Payload:   dev,
+			})
+		case prev != print:
+			a.bus.Publish(eventbus.Event{
+				Type:      eventbus.EventDeviceSynced,
 				DeviceID:  string(id),
 				Timestamp: time.Now(),
 				Payload:   dev,
