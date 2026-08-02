@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
+	import { deviceDisplayName } from "$lib/utils";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -11,11 +12,12 @@
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import SectionDivider from "$lib/components/section-divider.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { chipsByDevice } from "$lib/memberships";
-	import { compareDevicesByName } from "$lib/list-helpers";
+	import { compareDevicesByNewThenName } from "$lib/list-helpers";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
@@ -77,8 +79,13 @@
 		},
 	];
 
+	// Devices discovered since the last visit are snapshotted once, when the store
+	// first hydrates. Both the New chips and the sort order read this rather than
+	// `device.seen`, so neither changes under the cursor when the mutation lands.
+	let newDeviceIds = $state<ReadonlySet<string>>(new Set());
+
 	const allDevices = $derived(
-		Object.values($deviceStore).sort(compareDevicesByName)
+		Object.values($deviceStore).sort(compareDevicesByNewThenName(newDeviceIds)),
 	);
 
 	const filteredDevices = $derived.by(() => {
@@ -97,7 +104,7 @@
 			}
 			if (query) {
 				const matches =
-					d.name.toLowerCase().includes(query) ||
+					deviceDisplayName(d).toLowerCase().includes(query) ||
 					d.type.toLowerCase().includes(query) ||
 					d.source.toLowerCase().includes(query);
 				if (!matches) return false;
@@ -105,6 +112,9 @@
 			return true;
 		});
 	});
+
+	const newDevices = $derived(filteredDevices.filter((d) => newDeviceIds.has(d.id)));
+	const existingDevices = $derived(filteredDevices.filter((d) => !newDeviceIds.has(d.id)));
 
 	const selection = createTableSelection();
 	const filteredIds = $derived(filteredDevices.map((d) => d.id));
@@ -120,7 +130,15 @@
 				icon
 				tags
 				disabled
+				friendlyName
+				seen
 			}
+		}
+	`);
+
+	const MARK_DEVICES_SEEN = graphql(`
+		mutation MarkDevicesSeen($ids: [ID!]!) {
+			markDevicesSeen(ids: $ids)
 		}
 	`);
 
@@ -268,7 +286,7 @@
 			.mutation(UPDATE_DEVICE, { id, input: { name: newName } })
 			.toPromise();
 		if (result.data) {
-			deviceStore.updateName(id, result.data.updateDevice.name);
+			deviceStore.updateName(id, result.data.updateDevice.name ?? null);
 		}
 	}
 
@@ -295,10 +313,42 @@
 		}
 	}
 
+	let snapshotTaken = false;
+
+	$effect(() => {
+		if (!$devicesHydrated || snapshotTaken) return;
+		snapshotTaken = true;
+		const unseen = Object.values($deviceStore)
+			.filter((d) => !d.seen)
+			.map((d) => d.id);
+		if (unseen.length === 0) return;
+		newDeviceIds = new Set(unseen);
+		void markSeen(unseen);
+	});
+
+	async function markSeen(ids: string[]) {
+		const result = await client.mutation(MARK_DEVICES_SEEN, { ids }).toPromise();
+		if (result.data) deviceStore.markSeen(ids);
+	}
+
 	onMount(() => {
 		void refreshMemberships();
 	});
 </script>
+
+	{#snippet deviceCard(device: Device)}
+		{@const chips = chipsFor(device.id)}
+		<DeviceCard
+			{device}
+			roomChips={chips.roomChips}
+			groupChips={chips.groupChips}
+			onrename={handleRename}
+			oniconchange={handleIconChange}
+			onAddTo={handleAddTo}
+			ontoggleenabled={handleToggleEnabled}
+			isNew={newDeviceIds.has(device.id)}
+		/>
+	{/snippet}
 
 {#if $devicesHydrated}
 	<div in:fly={{ y: -4, duration: 150 }}>
@@ -338,20 +388,29 @@
 		{:else}
 			<ListView mode={view}>
 				{#snippet card()}
-					<AnimatedGrid>
-						{#each filteredDevices as device (device.id)}
-							{@const chips = chipsFor(device.id)}
-							<DeviceCard
-								{device}
-								roomChips={chips.roomChips}
-								groupChips={chips.groupChips}
-								onrename={handleRename}
-								oniconchange={handleIconChange}
-								onAddTo={handleAddTo}
-								ontoggleenabled={handleToggleEnabled}
-							/>
-						{/each}
-					</AnimatedGrid>
+					<!-- Sections only earn their headings when there is something to divide. -->
+					{#if newDevices.length > 0}
+						<SectionDivider label="New devices" class="mb-3" />
+						<AnimatedGrid>
+							{#each newDevices as device (device.id)}
+								{@render deviceCard(device)}
+							{/each}
+						</AnimatedGrid>
+						{#if existingDevices.length > 0}
+							<SectionDivider class="mt-6 mb-3" />
+							<AnimatedGrid>
+								{#each existingDevices as device (device.id)}
+									{@render deviceCard(device)}
+								{/each}
+							</AnimatedGrid>
+						{/if}
+					{:else}
+						<AnimatedGrid>
+							{#each filteredDevices as device (device.id)}
+								{@render deviceCard(device)}
+							{/each}
+						</AnimatedGrid>
+					{/if}
 				{/snippet}
 				{#snippet table()}
 					<DeviceTable
@@ -364,6 +423,7 @@
 						oniconchange={handleIconChange}
 						onAddTo={handleAddTo}
 						ontoggleenabled={handleToggleEnabled}
+						{newDeviceIds}
 					/>
 				{/snippet}
 			</ListView>

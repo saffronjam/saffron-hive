@@ -22,7 +22,7 @@
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
-	import { deviceIcon, sentenceCase } from "$lib/utils";
+	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
 	import { Ban, CircleCheck, DoorOpen, Group as GroupIcon, Plus } from "@lucide/svelte";
 
 	interface MembershipChip {
@@ -44,10 +44,19 @@
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 		ontoggleenabled: (device: Device) => void;
+		/** Ids that were unseen when the list mounted. */
+		newDeviceIds?: ReadonlySet<string>;
 	}
 
-	let { rows, selection, onrename, oniconchange, onAddTo, ontoggleenabled }: Props =
-		$props();
+	let {
+		rows,
+		selection,
+		onrename,
+		oniconchange,
+		onAddTo,
+		ontoggleenabled,
+		newDeviceIds,
+	}: Props = $props();
 
 	const COLUMNS: ColumnDef<Row>[] = [
 		{
@@ -142,9 +151,12 @@
 {#snippet nameCell(row: Row)}
 	<div class="flex items-center gap-2">
 		<InlineEditName
-			name={row.device.name}
+			name={deviceDisplayName(row.device)}
 			onsave={(newName) => onrename(row.device.id, newName)}
 		/>
+		{#if newDeviceIds?.has(row.device.id)}
+			<HiveChip type="new" label="New" />
+		{/if}
 		{#if row.device.disabled}
 			<Ban
 				class="size-3.5 shrink-0 text-muted-foreground"
@@ -192,7 +204,7 @@
 			<SensorHistoryPopover
 				target={{ kind: "device", id: row.device.id }}
 				fields={readings.map((r) => r.field)}
-				title={row.device.name}
+				title={deviceDisplayName(row.device)}
 				triggerClass="group rounded focus-visible:outline-none"
 			>
 				<div class="flex items-center gap-3 text-sm tabular-nums">
@@ -214,7 +226,7 @@
 		{:else}
 			<SensorHistoryPopover
 				target={{ kind: "device", id: row.device.id }}
-				title={row.device.name}
+				title={deviceDisplayName(row.device)}
 				triggerClass="group rounded focus-visible:outline-none"
 			>
 				<span

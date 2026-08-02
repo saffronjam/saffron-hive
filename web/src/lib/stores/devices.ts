@@ -1,4 +1,6 @@
 import { writable } from "svelte/store";
+import { toast } from "svelte-sonner";
+import { deviceDisplayName } from "$lib/utils";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import {
@@ -77,6 +79,8 @@ const DEVICES_QUERY = graphql(`
       }
       available
       disabled
+      friendlyName
+      seen
       lastSeen
       state {
         on
@@ -156,6 +160,9 @@ const DEVICE_ADDED = graphql(`
     deviceAdded {
       id
       name
+      friendlyName
+      seen
+      disabled
       source
       type
       tags
@@ -239,11 +246,16 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, available } });
   }
 
-  function addDevice(device: Device) {
+  /**
+   * Adds a device the server just announced. Returns true only the first time a
+   * given device is seen, so the caller can tell a genuine discovery from a
+   * replay after a reconnect and toast accordingly.
+   */
+  function addDevice(device: Device): boolean {
     const existing = current[device.id];
     if (!existing) {
       set({ ...current, [device.id]: device });
-      return;
+      return true;
     }
     set({
       ...current,
@@ -253,14 +265,26 @@ function createDeviceStore() {
         icon: existing.icon ?? null,
         tags: existing.tags,
         disabled: existing.disabled,
+        seen: existing.seen,
       },
     });
+    return false;
   }
 
-  function updateName(deviceId: string, name: string) {
+  function markSeen(deviceIds: string[]) {
+    if (deviceIds.length === 0) return;
+    const next = { ...current };
+    for (const id of deviceIds) {
+      const device = next[id];
+      if (device && !device.seen) next[id] = { ...device, seen: true };
+    }
+    set(next);
+  }
+
+  function updateName(deviceId: string, name: string | null) {
     const device = current[deviceId];
     if (!device) return;
-    if (device.name === name) return;
+    if ((device.name ?? null) === name) return;
     set({ ...current, [deviceId]: { ...device, name } });
   }
 
@@ -302,6 +326,7 @@ function createDeviceStore() {
     updateIcon,
     updateTags,
     updateDisabled,
+    markSeen,
     removeDevice,
 
     async start(client: Client) {
@@ -326,7 +351,10 @@ function createDeviceStore() {
       });
       const s3 = client.subscription(DEVICE_ADDED, {}).subscribe((r) => {
         if (!r.data) return;
-        addDevice(r.data.deviceAdded as Device);
+        const device = r.data.deviceAdded as Device;
+        if (addDevice(device)) {
+          toast.info("New device discovered", { description: deviceDisplayName(device) });
+        }
       });
       const s4 = client.subscription(DEVICE_REMOVED, {}).subscribe((r) => {
         if (!r.data) return;

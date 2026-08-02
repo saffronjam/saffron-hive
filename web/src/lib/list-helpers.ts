@@ -1,4 +1,5 @@
 import type { Device } from "$lib/stores/devices";
+import { deviceDisplayName } from "$lib/utils";
 
 /**
  * Stable comparator for device list ordering: case-insensitive name, then id tiebreak.
@@ -6,8 +7,25 @@ import type { Device } from "$lib/stores/devices";
  */
 export function compareDevicesByName(a: Device, b: Device): number {
   return (
-    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) || a.id.localeCompare(b.id)
+    deviceDisplayName(a).localeCompare(deviceDisplayName(b), undefined, {
+      sensitivity: "base",
+    }) || a.id.localeCompare(b.id)
   );
+}
+
+/**
+ * Orders a device list with the ones discovered since the last visit first, then
+ * by name. `newIds` is the device list's mount-time snapshot rather than a live
+ * read of `device.seen`, so rows do not reshuffle under the cursor the moment
+ * the mark-seen mutation lands.
+ */
+export function compareDevicesByNewThenName(
+  newIds: ReadonlySet<string>,
+): (a: Device, b: Device) => number {
+  return (a, b) => {
+    const rank = Number(newIds.has(b.id)) - Number(newIds.has(a.id));
+    return rank || compareDevicesByName(a, b);
+  };
 }
 
 /** A minimal automation node shape — just the `type` field is needed. */

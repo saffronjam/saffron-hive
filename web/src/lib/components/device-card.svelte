@@ -9,7 +9,7 @@
 	} from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
-	import { deviceIcon, sentenceCase } from "$lib/utils";
+	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import {
@@ -52,6 +52,8 @@
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 		ontoggleenabled: (device: Device) => void;
+		/** Set from the list's mount-time snapshot, so the chip does not vanish mid-visit. */
+		isNew?: boolean;
 	}
 
 	let {
@@ -62,6 +64,7 @@
 		oniconchange,
 		onAddTo,
 		ontoggleenabled,
+		isNew = false,
 	}: Props = $props();
 
 	let localBrightness = $state(0);
@@ -169,7 +172,7 @@
 
 <Card
 	size="sm"
-	class="h-full min-h-28 transition-all hover:shadow-card-hover {tintColor
+	class="h-full min-h-28 transition-all {isNew ? 'ring-new' : 'hover:shadow-card-hover'} {tintColor
 		? 'tint-1'
 		: ''} {device.disabled ? 'opacity-60' : ''}"
 	style={cardStyle}
@@ -184,7 +187,7 @@
 					size="sm"
 					iconClass="size-4 {mutedTextClass}"
 				/>
-				<InlineEditName name={device.name} onsave={(newName) => onrename(device.id, newName)} />
+				<InlineEditName name={deviceDisplayName(device)} onsave={(newName) => onrename(device.id, newName)} />
 				{#if device.disabled}
 					<Ban
 						class="size-3.5 shrink-0 text-muted-foreground"
@@ -286,7 +289,7 @@
 		{#if hasSensorReading}
 			<SensorHistoryPopover
 				target={{ kind: "device", id: device.id }}
-				title={device.name}
+				title={deviceDisplayName(device)}
 				align="end"
 				triggerClass="group block w-full rounded focus-visible:outline-none"
 			>

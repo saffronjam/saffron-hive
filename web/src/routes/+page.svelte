@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
+	import SectionDivider from "$lib/components/section-divider.svelte";
 	import { getContextClient, queryStore } from "@urql/svelte";
 	import { pushState } from "$app/navigation";
 	import { page } from "$app/state";
@@ -207,10 +208,7 @@
 			</p>
 		</div>
 	{:else}
-		<div class="mt-3 flex items-center gap-3">
-			<h2 class="text-sm font-medium text-muted-foreground">Rooms</h2>
-			<div class="h-px flex-1 bg-border"></div>
-		</div>
+		<SectionDivider label="Rooms" class="mt-3" />
 		{#each rooms as room (room.id)}
 			<DashboardRoomCard
 				{room}

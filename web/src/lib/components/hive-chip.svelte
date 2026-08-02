@@ -17,6 +17,7 @@
 		Palette,
 		Plug,
 		Power,
+		Sparkles,
 		Speaker,
 		Sun,
 		SunMedium,
@@ -81,6 +82,8 @@
 				return "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30";
 			case "energy":
 				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
+			case "new":
+				return "bg-primary/10 text-primary border-primary/30";
 			default:
 				return "";
 		}
@@ -130,6 +133,8 @@
 				return Activity;
 			case "energy":
 				return BatteryCharging;
+			case "new":
+				return Sparkles;
 			default:
 				return null;
 		}

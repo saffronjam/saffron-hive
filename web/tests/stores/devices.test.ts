@@ -49,6 +49,8 @@ function makeDevice(
   return {
     id,
     name,
+    friendlyName: "",
+    seen: true,
     source: "zigbee2mqtt",
     type,
     tags: [],
@@ -107,6 +109,31 @@ describe("deviceStore", () => {
     const map = get(deviceStore);
     expect(Object.keys(map)).toHaveLength(2);
     expect(map["d2"].name).toBe("B");
+  });
+
+  // The return value is what gates the "New device discovered" toast, so a
+  // replay after a websocket reconnect must not look like a discovery.
+  it("addDevice reports a first sighting only once", () => {
+    deviceStore.hydrate([makeDevice("d1", "A")]);
+    expect(deviceStore.addDevice(makeDevice("d2", "B"))).toBe(true);
+    expect(deviceStore.addDevice(makeDevice("d2", "B"))).toBe(false);
+    expect(deviceStore.addDevice(makeDevice("d1", "A"))).toBe(false);
+  });
+
+  it("markSeen clears the flag for the given devices only", () => {
+    const a = { ...makeDevice("d1", "A"), seen: false };
+    const b = { ...makeDevice("d2", "B"), seen: false };
+    deviceStore.hydrate([a, b]);
+    deviceStore.markSeen(["d1"]);
+    const map = get(deviceStore);
+    expect(map["d1"].seen).toBe(true);
+    expect(map["d2"].seen).toBe(false);
+  });
+
+  it("addDevice keeps a device's seen flag across re-discovery", () => {
+    deviceStore.hydrate([{ ...makeDevice("d1", "A"), seen: true }]);
+    deviceStore.addDevice({ ...makeDevice("d1", "A"), seen: false });
+    expect(get(deviceStore)["d1"].seen).toBe(true);
   });
 
   it("removeDevice removes a device", () => {

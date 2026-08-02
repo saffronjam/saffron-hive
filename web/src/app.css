@@ -214,6 +214,26 @@
    animates that color back to var(--card) over 150ms when the tint class
    is removed — the brief transparent gap reveals the (darker) page bg
    behind the card and reads as a "black flash" toggle-off transition. */
+/*
+ * Marks a device discovered since the last visit. An inset ring rather than a
+ * real border, so nothing reflows when it clears.
+ *
+ * Keyed to --foreground rather than a literal white: it resolves to near-white
+ * in dark mode, which is the intent, and flips to near-black in light mode where
+ * a white ring would be invisible.
+ */
+.ring-new {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--foreground) 45%, transparent),
+    var(--card-shadow);
+}
+
+.ring-new:hover {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--foreground) 60%, transparent),
+    var(--card-shadow-hover);
+}
+
 .tint-1 {
   background-image: linear-gradient(
     135deg,

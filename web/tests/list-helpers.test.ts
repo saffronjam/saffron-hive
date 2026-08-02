@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   automationNodeCounts,
   compareDevicesByName,
+  compareDevicesByNewThenName,
   groupMemberBreakdown,
   sceneRoomLabel,
   sceneTargetBreakdown,
@@ -12,6 +13,8 @@ function device(id: string, name: string): Device {
   return {
     id,
     name,
+    friendlyName: "",
+    seen: true,
     source: "zigbee2mqtt",
     type: "light",
     tags: [],
@@ -143,5 +146,26 @@ describe("sceneRoomLabel", () => {
     expect(
       sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }, { name: "Hall" }]),
     ).toBe("Multi-room");
+  });
+});
+
+describe("compareDevicesByNewThenName", () => {
+  it("puts newly discovered devices first", () => {
+    const input = [device("b", "Bravo"), device("a", "Alpha"), device("z", "Zulu")];
+    input.sort(compareDevicesByNewThenName(new Set(["z"])));
+    expect(input.map((d) => d.id)).toEqual(["z", "a", "b"]);
+  });
+
+  it("orders several new devices among themselves by name", () => {
+    const input = [device("c", "Charlie"), device("a", "Alpha"), device("b", "Bravo")];
+    input.sort(compareDevicesByNewThenName(new Set(["c", "b"])));
+    expect(input.map((d) => d.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("falls back to name ordering when nothing is new", () => {
+    const input = [device("b", "Bravo"), device("a", "Alpha")];
+    const byName = [...input].sort(compareDevicesByName);
+    input.sort(compareDevicesByNewThenName(new Set()));
+    expect(input).toEqual(byName);
   });
 });
