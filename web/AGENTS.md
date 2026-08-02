@@ -154,6 +154,45 @@ Where the invalid state is obvious without prose, prefer disabling submit over
 showing a message. The create dialogs do this: the button stays disabled while
 the name is empty, so no error is ever needed.
 
+## This is not a generic web app
+
+**Copy this project, not the web.** Before adding any visual or interactive
+behaviour, find where the codebase already does that thing and match it. If you
+cannot find one, the pattern does not exist here, and adding it is a proposal to
+put to the user — not something to implement and mention afterwards.
+
+The failure this prevents: reaching for what most apps do. Cards get hover
+states. Badges get icons. Empty states get illustrations. New things fade in.
+None of that is reasoning about *this* app; it is autocomplete with a stylesheet.
+A repo with an established vocabulary is the one place that instinct is most
+likely to be wrong, because everything it suggests will look plausible and
+none of it will match.
+
+The trap is subtle when you are already editing. Needing to write new code for
+something is not licence to design it. `.ring-new` could not reuse
+`hover:shadow-card-hover` because both write `box-shadow`, so a `:hover` rule had
+to be written by hand — and "I am writing this rule anyway" is exactly the moment
+a generic instinct slips in as though it were a translation. Port the behaviour
+that was there. Nothing more.
+
+What this app actually does, so there is something to check against:
+
+- **Cards do not visibly respond to the pointer.** They carry
+  `hover:shadow-card-hover`, which swaps one near-black shadow for another. On
+  the dark surface that is imperceptible by design. A card that lights up,
+  lifts, scales or outlines on hover is a new interaction pattern.
+- **Colour comes from tokens**, never from a palette picked for the occasion.
+- **State is shown by a chip, an icon or opacity** — see `HiveChip`, the `Ban`
+  marker on a disabled device, the muted treatment on an unreachable one.
+- **Motion is a `transition-colors duration-200`**, or `duration-300`–`500` for a
+  deliberate, user-triggered movement. Decorative entrance animation is not a
+  house style.
+
+If you do add something that is not already here, say so plainly in your summary
+and name it as new. Burying it in a feature description ("hover strengthens the
+ring from 45% to 60%") reads as a considered detail and denies the user the
+chance to say no.
+
 ## Card styling
 
 Content cards use `rounded-lg shadow-card bg-card` — no `border`. The `shadow-card` token provides the visual separation. Never use `border` on content cards; it produces a white outline in dark mode that clashes with the rest of the UI.

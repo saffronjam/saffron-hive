@@ -203,7 +203,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
 
 ### Design language
 - Stick to existing tokens: `rounded-lg shadow-card bg-card` for content cards (no `border`), `transition-colors duration-200` for state-driven properties, shadcn `Button` variants (`ghost`, `outline`, `default` with sizes like `sm`, `xs`, `icon-sm`), lucide icons for iconography.
-- Don't introduce new colour ramps, button shapes, or layout primitives unless the user explicitly asks for a new component or interaction pattern. New ideas land as deliberate user decisions, not drift.
+- Don't introduce **any** visual or interactive behaviour the codebase does not already have — not a colour ramp, a button shape, a layout primitive, a hover response, an icon, or an entrance animation. Find where the repo already does the thing and match it; if there is no existing instance, the pattern does not exist here and adding it is a proposal to put to the user, not something to implement and mention afterwards. New ideas land as deliberate user decisions, not drift. See `web/AGENTS.md` → "This is not a generic web app", which names the failure mode and lists what the app actually does.
 - For interactive editor surfaces with copy/paste/undo/redo, mirror the toolbar layout used in the automations editor: undo · redo · copy · paste, then domain-specific controls (zoom, etc.). Same shadcn `variant="ghost" size="icon-sm"` icon buttons, same keyboard map: `mod+z`, `mod+shift+z` / `mod+y`, `mod+c`, `mod+v`, all guarded by `isEditableTarget`.
 
 ### Type safety
