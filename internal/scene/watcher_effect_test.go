@@ -149,9 +149,9 @@ func newEffectFixture(t *testing.T) *effectFixture {
 
 func (f *effectFixture) registerLight(id device.DeviceID) {
 	f.state.Register(device.Device{
-		ID:   id,
-		Name: string(id),
-		Type: device.Light,
+		ID:           id,
+		FriendlyName: string(id),
+		Type:         device.Light,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 			{Name: device.CapBrightness, Access: 7},

@@ -153,5 +153,6 @@ func setDisabled(t *testing.T, s *MemoryStore, id DeviceID, disabled bool) {
 	if !ok {
 		t.Fatalf("device %s not registered", id)
 	}
-	s.UpdateUserFields(d.ID, d.Name, d.Icon, d.Tags, disabled)
+	d.Disabled = disabled
+	s.UpdateUserFields(d)
 }

@@ -180,9 +180,9 @@ func newWatcherFixture(t *testing.T) *watcherFixture {
 
 func (f *watcherFixture) registerLight(id device.DeviceID) {
 	f.state.Register(device.Device{
-		ID:   id,
-		Name: string(id),
-		Type: device.Light,
+		ID:           id,
+		FriendlyName: string(id),
+		Type:         device.Light,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 			{Name: device.CapBrightness, Access: 7},
@@ -441,9 +441,9 @@ func TestWatcher_ColorModeFlip_DeactivatesPriorOppositeModeScene(t *testing.T) {
 	shrinkSettleWindow(t, 0)
 	f := newWatcherFixture(t)
 	f.state.Register(device.Device{
-		ID:   "dev-1",
-		Name: "dev-1",
-		Type: device.Light,
+		ID:           "dev-1",
+		FriendlyName: "dev-1",
+		Type:         device.Light,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Access: 7},
 			{Name: device.CapBrightness, Access: 7},
@@ -628,7 +628,7 @@ func TestWatcher_Hydrate_ClearsDriftedScene(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	st := newFakeStore()
 	state := device.NewMemoryStore()
-	state.Register(device.Device{ID: "dev-1", Name: "d1", Type: device.Light})
+	state.Register(device.Device{ID: "dev-1", FriendlyName: "d1", Type: device.Light})
 	state.UpdateDeviceState("dev-1", device.DeviceState{On: device.Ptr(false)})
 
 	st.mu.Lock()
@@ -652,7 +652,7 @@ func TestWatcher_Hydrate_PreservesMatchingScene(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	st := newFakeStore()
 	state := device.NewMemoryStore()
-	state.Register(device.Device{ID: "dev-1", Name: "d1", Type: device.Light})
+	state.Register(device.Device{ID: "dev-1", FriendlyName: "d1", Type: device.Light})
 	state.UpdateDeviceState("dev-1", device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(200)})
 
 	st.mu.Lock()

@@ -453,7 +453,7 @@ func TestDeviceUnavailableRequiresBothSignals(t *testing.T) {
 
 			reader := &fakeReader{
 				devices: []device.Device{
-					{ID: "d1", Name: "Gaming room ceiling", Type: device.Light, Available: tc.available, LastSeen: tc.lastSeen},
+					{ID: "d1", FriendlyName: "Gaming room ceiling", Type: device.Light, Available: tc.available, LastSeen: tc.lastSeen},
 				},
 			}
 			probe := &fakeProbe{enabled: true, connected: true}
@@ -487,7 +487,7 @@ func TestEvaluateAndApplyBatteryLowPerDevice(t *testing.T) {
 	lowBattery := 5.0
 	reader := &fakeReader{
 		devices: []device.Device{
-			{ID: "sensor-1", Name: "Kitchen sensor", Type: device.Sensor, Available: true, LastSeen: time.Now()},
+			{ID: "sensor-1", FriendlyName: "Kitchen sensor", Type: device.Sensor, Available: true, LastSeen: time.Now()},
 		},
 		states: map[device.DeviceID]*device.DeviceState{
 			"sensor-1": {Battery: &lowBattery},
@@ -528,7 +528,7 @@ func TestEvaluateAndApplyClearsAlarmsForDisabledDevice(t *testing.T) {
 	lowBattery := 5.0
 	reader := &fakeReader{
 		devices: []device.Device{
-			{ID: "ac-1", Name: "Portable AC", Type: device.Climate, LastSeen: time.Now().Add(-2 * DeviceStaleAfter)},
+			{ID: "ac-1", FriendlyName: "Portable AC", Type: device.Climate, LastSeen: time.Now().Add(-2 * DeviceStaleAfter)},
 		},
 		states: map[device.DeviceID]*device.DeviceState{
 			"ac-1": {Battery: &lowBattery},

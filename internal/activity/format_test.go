@@ -80,7 +80,7 @@ func TestFormatMessage(t *testing.T) {
 		},
 		{
 			name:      "device added from payload",
-			evt:       eventbus.Event{Type: eventbus.EventDeviceAdded, Timestamp: now, Payload: device.Device{Name: "New Bulb", Type: device.Light}},
+			evt:       eventbus.Event{Type: eventbus.EventDeviceAdded, Timestamp: now, Payload: device.Device{FriendlyName: "New Bulb", Type: device.Light}},
 			wantExact: "New device discovered: New Bulb",
 		},
 		{

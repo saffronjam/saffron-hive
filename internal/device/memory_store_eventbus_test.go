@@ -43,7 +43,7 @@ func TestRunHandlesDeviceAdded(t *testing.T) {
 		Type:      eventbus.EventDeviceAdded,
 		DeviceID:  "new-1",
 		Timestamp: time.Now(),
-		Payload:   Device{ID: "new-1", Name: "New Light", Type: Light},
+		Payload:   Device{ID: "new-1", FriendlyName: "New Light", Type: Light},
 	})
 
 	assertEventually(t, func() bool {

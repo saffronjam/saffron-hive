@@ -67,7 +67,7 @@ func TestRecorderEnrichesAndPersists(t *testing.T) {
 	s := newTestStore(t)
 	bus := eventbus.NewChannelBus()
 	reader := &fakeReader{devices: map[device.DeviceID]device.Device{
-		"d1": {ID: "d1", Name: "Kitchen light", Type: device.Light},
+		"d1": {ID: "d1", FriendlyName: "Kitchen light", Type: device.Light},
 	}}
 	buf := NewBuffer()
 

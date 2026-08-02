@@ -40,8 +40,8 @@ func formatMessage(evt eventbus.Event, deviceName, sceneName, automationName str
 		return fmt.Sprintf("%s went offline", source)
 
 	case eventbus.EventDeviceAdded:
-		if d, ok := evt.Payload.(device.Device); ok && d.Name != "" {
-			return fmt.Sprintf("New device discovered: %s", d.Name)
+		if d, ok := evt.Payload.(device.Device); ok {
+			return fmt.Sprintf("New device discovered: %s", d.DisplayName())
 		}
 		if source != "Device" {
 			return fmt.Sprintf("New device discovered: %s", source)

@@ -238,7 +238,7 @@ func collectChecks(
 					AlarmID:  alarmID,
 					Severity: store.AlarmSeverityMedium,
 					Kind:     store.AlarmKindAuto,
-					Message:  fmt.Sprintf("Device %q has not reported recently", d.Name),
+					Message:  fmt.Sprintf("Device %q has not reported recently", d.DisplayName()),
 					Source:   MonitorSource,
 				},
 			})
@@ -252,7 +252,7 @@ func collectChecks(
 						AlarmID:  batteryID,
 						Severity: store.AlarmSeverityLow,
 						Kind:     store.AlarmKindAuto,
-						Message:  fmt.Sprintf("Device %q battery is %.0f%%", d.Name, *ss.Battery),
+						Message:  fmt.Sprintf("Device %q battery is %.0f%%", d.DisplayName(), *ss.Battery),
 						Source:   MonitorSource,
 					},
 				})

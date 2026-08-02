@@ -89,8 +89,8 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 	if evt.DeviceID != "" {
 		params.DeviceID = device.Ptr(evt.DeviceID)
 		if d, ok := r.stateReader.GetDevice(device.DeviceID(evt.DeviceID)); ok {
-			deviceName = d.Name
-			params.DeviceName = device.Ptr(d.Name)
+			deviceName = d.DisplayName()
+			params.DeviceName = device.Ptr(deviceName)
 			dt := string(d.Type)
 			params.DeviceType = device.Ptr(dt)
 		}
@@ -105,9 +105,9 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 	// For device.added the payload may carry a richer name than the state store.
 	if evt.Type == eventbus.EventDeviceAdded {
 		if d, ok := evt.Payload.(device.Device); ok {
-			if d.Name != "" {
-				deviceName = d.Name
-				params.DeviceName = device.Ptr(d.Name)
+			if n := d.DisplayName(); n != "" {
+				deviceName = n
+				params.DeviceName = device.Ptr(n)
 			}
 			if d.Type != "" {
 				dt := string(d.Type)

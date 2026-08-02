@@ -62,7 +62,7 @@ func (s *MemoryStore) handleEvent(evt eventbus.Event) {
 		}
 	case eventbus.EventDeviceUpdated:
 		if d, ok := evt.Payload.(Device); ok {
-			s.UpdateUserFields(d.ID, d.Name, d.Icon, d.Tags, d.Disabled)
+			s.UpdateUserFields(d)
 		}
 	case eventbus.EventDeviceRemoved:
 		s.Remove(id)

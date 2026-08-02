@@ -66,11 +66,12 @@ func (s *MemoryStore) ListDevices() []Device {
 }
 
 // Register inserts a device, or merges adapter-owned fields into an existing
-// one. Name, Icon, Tags, and Disabled are user-owned: once a device is known, a
+// one. Name, Icon, Tags, Disabled and Seen are user-owned: once a device is known, a
 // re-registration from an adapter (re-discovery, periodic sync) keeps those
-// values and updates only the adapter-owned fields (Source, Type, Capabilities,
-// Available, LastSeen). This mirrors the UpsertDevice query so the in-memory
-// store and the database agree on which fields a re-sync may overwrite.
+// values and updates only the adapter-owned fields (FriendlyName, Source, Type,
+// Capabilities, Available, LastSeen). This mirrors the UpsertDevice query so the
+// in-memory store and the database agree on which fields a re-sync may
+// overwrite.
 func (s *MemoryStore) Register(d Device) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -79,26 +80,33 @@ func (s *MemoryStore) Register(d Device) {
 		d.Icon = existing.Icon
 		d.Tags = existing.Tags
 		d.Disabled = existing.Disabled
+		d.Seen = existing.Seen
 	}
 	s.devices[d.ID] = d
 }
 
-// UpdateUserFields overwrites a device's user-owned metadata (name, icon, tags,
-// disabled) in response to a rename/edit, leaving runtime state (availability,
-// last seen, reported state) untouched. If the device is not registered, the
-// call is a no-op.
-func (s *MemoryStore) UpdateUserFields(id DeviceID, name string, icon *string, tags []DeviceTag, disabled bool) {
+// UpdateUserFields copies the user-owned metadata (name, icon, tags, disabled,
+// seen) off src onto the registered device, leaving runtime state (availability,
+// last seen, reported state) untouched. A nil name clears the override so the
+// device falls back to the name its integration reports. If the device is not
+// registered, the call is a no-op.
+//
+// It takes the whole device rather than a field list because the caller is the
+// device.updated handler, which already holds one, and because every field added
+// to the user-owned set would otherwise lengthen the signature.
+func (s *MemoryStore) UpdateUserFields(src Device) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	d, ok := s.devices[id]
+	d, ok := s.devices[src.ID]
 	if !ok {
 		return
 	}
-	d.Name = name
-	d.Icon = icon
-	d.Tags = tags
-	d.Disabled = disabled
-	s.devices[id] = d
+	d.Name = src.Name
+	d.Icon = src.Icon
+	d.Tags = src.Tags
+	d.Disabled = src.Disabled
+	d.Seen = src.Seen
+	s.devices[src.ID] = d
 }
 
 // Remove soft-deletes a device by setting its Removed flag.
