@@ -125,7 +125,7 @@ func TestAddGroupMember(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -185,7 +185,7 @@ func TestListGroupMembers(t *testing.T) {
 	}
 	for i, devName := range []string{"dev-1", "dev-2"} {
 		_, err := s.CreateDevice(ctx, CreateDeviceParams{
-			ID: device.DeviceID(devName), Name: "Device", Source: device.SourceZigbee2MQTT, Type: device.Light,
+			ID: device.DeviceID(devName), FriendlyName: "Device", Source: device.SourceZigbee2MQTT, Type: device.Light,
 		})
 		if err != nil {
 			t.Fatalf("create device %d: %v", i, err)
@@ -219,7 +219,7 @@ func TestRemoveGroupMember(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -256,7 +256,7 @@ func TestDeleteGroupCascadesMembers(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -297,7 +297,7 @@ func TestListGroupsContainingMember(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -334,7 +334,7 @@ func TestAddGroupMemberDuplicateRejected(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "Light", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)

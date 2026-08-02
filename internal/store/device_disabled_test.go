@@ -10,10 +10,10 @@ import (
 func mustCreateDeviceRow(ctx context.Context, t *testing.T, s *DB, id, name string) {
 	t.Helper()
 	if _, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     device.DeviceID(id),
-		Name:   name,
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Light,
+		ID:           device.DeviceID(id),
+		FriendlyName: name,
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Light,
 	}); err != nil {
 		t.Fatalf("create device %s: %v", id, err)
 	}
@@ -120,10 +120,10 @@ func TestDeviceUpsertKeepsDisabled(t *testing.T) {
 	}
 
 	if err := s.UpsertDevice(ctx, CreateDeviceParams{
-		ID:     "d-1",
-		Name:   "Portable AC",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Climate,
+		ID:           "d-1",
+		FriendlyName: "Portable AC",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Climate,
 	}); err != nil {
 		t.Fatalf("upsert device: %v", err)
 	}
@@ -180,5 +180,56 @@ func TestResolveTargetDeviceIDsSkipsDisabled(t *testing.T) {
 	}
 	if got := s.ResolveTargetDeviceIDs(ctx, device.TargetRoom, "r-1"); !sliceEqual(got, []device.DeviceID{"d-1", "d-2"}) {
 		t.Errorf("after re-enable: got %v, want [d-1 d-2]", got)
+	}
+}
+
+// TestDeviceSeenLifecycle covers the new-device flag end to end at the store
+// level: a discovered device starts unseen, marking clears it, and an adapter
+// re-sync must not flag it again. That last one is the whole reason UpsertDevice
+// leaves the column alone.
+func TestDeviceSeenLifecycle(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	mustCreateDeviceRow(ctx, t, s, "d-1", "Kitchen plug")
+	mustCreateDeviceRow(ctx, t, s, "d-2", "Balcony plug")
+
+	d, err := s.GetDevice(ctx, "d-1")
+	if err != nil {
+		t.Fatalf("get device: %v", err)
+	}
+	if d.Seen {
+		t.Fatal("a freshly discovered device must start unseen")
+	}
+
+	n, err := s.MarkDevicesSeen(ctx, []device.DeviceID{"d-1"})
+	if err != nil {
+		t.Fatalf("mark seen: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("marked %d rows, want 1", n)
+	}
+
+	if d, _ = s.GetDevice(ctx, "d-1"); !d.Seen {
+		t.Error("d-1 should be seen")
+	}
+	if d, _ = s.GetDevice(ctx, "d-2"); d.Seen {
+		t.Error("marking one device must not touch another")
+	}
+
+	if err := s.UpsertDevice(ctx, CreateDeviceParams{
+		ID:           "d-1",
+		FriendlyName: "Kitchen plug",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Plug,
+	}); err != nil {
+		t.Fatalf("re-sync: %v", err)
+	}
+	if d, _ = s.GetDevice(ctx, "d-1"); !d.Seen {
+		t.Error("an adapter re-sync re-flagged the device as new")
+	}
+
+	if n, err = s.MarkDevicesSeen(ctx, nil); err != nil || n != 0 {
+		t.Errorf("empty mark should be a no-op, got n=%d err=%v", n, err)
 	}
 }

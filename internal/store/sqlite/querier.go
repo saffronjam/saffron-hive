@@ -108,8 +108,6 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
 	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
-	GetZigbeeDeviceByFriendlyName(ctx context.Context, friendlyName string) (ZigbeeDevice, error)
-	GetZigbeeDeviceByIEEEAddress(ctx context.Context, ieeeAddress string) (ZigbeeDevice, error)
 	// Activity event persistence. QueryActivityEvents is the only query in the
 	// codebase with fully-dynamic filters, so it uses every gate trick we have:
 	//
@@ -165,6 +163,7 @@ type Querier interface {
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListTuyaDevices(ctx context.Context) ([]TuyaDevice, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
+	MarkDevicesSeen(ctx context.Context, idsJson string) (int64, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
@@ -179,7 +178,6 @@ type Querier interface {
 	// always pick sources explicitly). Time bounds are RFC3339Nano UTC strings so
 	// lexicographic comparison matches chronological order.
 	QueryStateHistoryRaw(ctx context.Context, arg QueryStateHistoryRawParams) ([]QueryStateHistoryRawRow, error)
-	RegisterZigbeeDevice(ctx context.Context, arg RegisterZigbeeDeviceParams) error
 	RemoveGroupMember(ctx context.Context, id string) error
 	// Cleanup of dangling polymorphic room references when a room is deleted.
 	// group_members.member_id is polymorphic so no FK; mirror the same intent.
@@ -192,14 +190,17 @@ type Querier interface {
 	ResolveGroupIDByName(ctx context.Context, name string) (string, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
+	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
 	// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
 	// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
 	// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
 	// overwrite a user-set icon.
-	// The disabled flag is user-owned, so it gets its own setter for the same reason
-	// the icon column does: UpdateDevice overwrites every column it names, and the
-	// device-removal path calls it with an otherwise zero-value struct.
-	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
+	// The disabled flag, the name override and the seen flag are user-owned, so each
+	// gets its own setter for the same reason the icon column does: UpdateDevice
+	// overwrites every column it names, and the device-removal path calls it with an
+	// otherwise zero-value struct. UpsertDevice leaves all four alone as well, or an
+	// adapter re-sync would undo them.
+	SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
@@ -229,7 +230,9 @@ type Querier interface {
 	// from "set to NULL"). theme is constrained by a CHECK in the migration.
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
-	// Keeps the user-owned name and clears the removed flag when a device appears.
+	// Refreshes every adapter-owned column, including the friendly name, and clears
+	// the removed flag when a device reappears. The name column is the user's
+	// override and is never touched here.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
@@ -237,7 +240,6 @@ type Querier interface {
 	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
 	UpsertTuyaDevice(ctx context.Context, arg UpsertTuyaDeviceParams) error
 	UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) error
-	UpsertZigbeeDevice(ctx context.Context, arg UpsertZigbeeDeviceParams) error
 }
 
 var _ Querier = (*Queries)(nil)

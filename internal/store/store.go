@@ -11,10 +11,12 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/effect"
 )
 
-// CreateDeviceParams holds the parameters for creating a new device.
+// CreateDeviceParams holds the parameters for creating a new device. Every
+// field is adapter-owned; the name override is set separately through
+// SetDeviceName so a re-sync cannot clobber it.
 type CreateDeviceParams struct {
 	ID           device.DeviceID
-	Name         string
+	FriendlyName string
 	Source       device.Source
 	Type         device.DeviceType
 	Capabilities []device.Capability
@@ -23,7 +25,6 @@ type CreateDeviceParams struct {
 // UpdateDeviceParams holds the parameters for updating a device.
 type UpdateDeviceParams struct {
 	ID        device.DeviceID
-	Name      string
 	Available bool
 	Removed   bool
 	LastSeen  time.Time
@@ -37,20 +38,6 @@ type UpdateDeviceIconParams struct {
 	ID      device.DeviceID
 	SetIcon bool
 	Icon    *string
-}
-
-// RegisterZigbeeDeviceParams holds the parameters for registering a zigbee device.
-type RegisterZigbeeDeviceParams struct {
-	DeviceID     device.DeviceID
-	IEEEAddress  string
-	FriendlyName string
-}
-
-// ZigbeeDevice represents a zigbee device row.
-type ZigbeeDevice struct {
-	DeviceID     device.DeviceID
-	IEEEAddress  string
-	FriendlyName string
 }
 
 // CreateSceneParams holds the parameters for creating a new scene.

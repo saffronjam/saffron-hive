@@ -11,10 +11,10 @@ import (
 func seedHistoryDevice(t *testing.T, s *DB, id device.DeviceID) {
 	t.Helper()
 	if _, err := s.CreateDevice(context.Background(), CreateDeviceParams{
-		ID:     id,
-		Name:   string(id),
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Sensor,
+		ID:           id,
+		FriendlyName: string(id),
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Sensor,
 	}); err != nil {
 		t.Fatalf("seed device: %v", err)
 	}

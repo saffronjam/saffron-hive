@@ -23,13 +23,13 @@ func (q *Queries) ClearDeviceIcon(ctx context.Context, id device.DeviceID) error
 
 const createDevice = `-- name: CreateDevice :exec
 
-INSERT INTO devices (id, name, source, type, capabilities, available, removed)
+INSERT INTO devices (id, friendly_name, source, type, capabilities, available, removed)
 VALUES (?, ?, ?, ?, ?, false, false)
 `
 
 type CreateDeviceParams struct {
 	ID           device.DeviceID
-	Name         string
+	FriendlyName string
 	Source       device.Source
 	Type         device.DeviceType
 	Capabilities string
@@ -40,7 +40,7 @@ type CreateDeviceParams struct {
 func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) error {
 	_, err := q.db.ExecContext(ctx, createDevice,
 		arg.ID,
-		arg.Name,
+		arg.FriendlyName,
 		arg.Source,
 		arg.Type,
 		arg.Capabilities,
@@ -58,14 +58,15 @@ func (q *Queries) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
+SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE id = ?
 `
 
 type GetDeviceRow struct {
 	ID           device.DeviceID
-	Name         string
+	Name         *string
+	FriendlyName string
 	Icon         *string
 	Source       device.Source
 	Type         device.DeviceType
@@ -73,6 +74,7 @@ type GetDeviceRow struct {
 	Available    bool
 	Removed      bool
 	Disabled     bool
+	Seen         bool
 	LastSeen     *time.Time
 }
 
@@ -82,6 +84,7 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.FriendlyName,
 		&i.Icon,
 		&i.Source,
 		&i.Type,
@@ -89,19 +92,21 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 		&i.Available,
 		&i.Removed,
 		&i.Disabled,
+		&i.Seen,
 		&i.LastSeen,
 	)
 	return i, err
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
+SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 `
 
 type ListDevicesRow struct {
 	ID           device.DeviceID
-	Name         string
+	Name         *string
+	FriendlyName string
 	Icon         *string
 	Source       device.Source
 	Type         device.DeviceType
@@ -109,6 +114,7 @@ type ListDevicesRow struct {
 	Available    bool
 	Removed      bool
 	Disabled     bool
+	Seen         bool
 	LastSeen     *time.Time
 }
 
@@ -124,6 +130,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.FriendlyName,
 			&i.Icon,
 			&i.Source,
 			&i.Type,
@@ -131,6 +138,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 			&i.Available,
 			&i.Removed,
 			&i.Disabled,
+			&i.Seen,
 			&i.LastSeen,
 		); err != nil {
 			return nil, err
@@ -147,14 +155,15 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, icon, source, type, capabilities, available, removed, disabled, last_seen
+SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE source = ?
 `
 
 type ListDevicesBySourceRow struct {
 	ID           device.DeviceID
-	Name         string
+	Name         *string
+	FriendlyName string
 	Icon         *string
 	Source       device.Source
 	Type         device.DeviceType
@@ -162,6 +171,7 @@ type ListDevicesBySourceRow struct {
 	Available    bool
 	Removed      bool
 	Disabled     bool
+	Seen         bool
 	LastSeen     *time.Time
 }
 
@@ -177,6 +187,7 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.FriendlyName,
 			&i.Icon,
 			&i.Source,
 			&i.Type,
@@ -184,6 +195,7 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 			&i.Available,
 			&i.Removed,
 			&i.Disabled,
+			&i.Seen,
 			&i.LastSeen,
 		); err != nil {
 			return nil, err
@@ -226,9 +238,20 @@ func (q *Queries) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID,
 	return items, nil
 }
 
+const markDevicesSeen = `-- name: MarkDevicesSeen :execrows
+UPDATE devices SET seen = true
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) MarkDevicesSeen(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markDevicesSeen, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setDeviceDisabled = `-- name: SetDeviceDisabled :exec
-
-
 UPDATE devices SET disabled = ? WHERE id = ?
 `
 
@@ -237,26 +260,43 @@ type SetDeviceDisabledParams struct {
 	ID       device.DeviceID
 }
 
-// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
-// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
-// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
-// overwrite a user-set icon.
-// The disabled flag is user-owned, so it gets its own setter for the same reason
-// the icon column does: UpdateDevice overwrites every column it names, and the
-// device-removal path calls it with an otherwise zero-value struct.
 func (q *Queries) SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error {
 	_, err := q.db.ExecContext(ctx, setDeviceDisabled, arg.Disabled, arg.ID)
 	return err
 }
 
+const setDeviceName = `-- name: SetDeviceName :exec
+
+
+UPDATE devices SET name = ? WHERE id = ?
+`
+
+type SetDeviceNameParams struct {
+	Name *string
+	ID   device.DeviceID
+}
+
+// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
+// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
+// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
+// overwrite a user-set icon.
+// The disabled flag, the name override and the seen flag are user-owned, so each
+// gets its own setter for the same reason the icon column does: UpdateDevice
+// overwrites every column it names, and the device-removal path calls it with an
+// otherwise zero-value struct. UpsertDevice leaves all four alone as well, or an
+// adapter re-sync would undo them.
+func (q *Queries) SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error {
+	_, err := q.db.ExecContext(ctx, setDeviceName, arg.Name, arg.ID)
+	return err
+}
+
 const updateDevice = `-- name: UpdateDevice :exec
 UPDATE devices
-SET name = ?, available = ?, removed = ?, last_seen = ?
+SET available = ?, removed = ?, last_seen = ?
 WHERE id = ?
 `
 
 type UpdateDeviceParams struct {
-	Name      string
 	Available bool
 	Removed   bool
 	LastSeen  *time.Time
@@ -265,7 +305,6 @@ type UpdateDeviceParams struct {
 
 func (q *Queries) UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error {
 	_, err := q.db.ExecContext(ctx, updateDevice,
-		arg.Name,
 		arg.Available,
 		arg.Removed,
 		arg.LastSeen,
@@ -289,28 +328,31 @@ func (q *Queries) UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconPara
 }
 
 const upsertDevice = `-- name: UpsertDevice :exec
-INSERT INTO devices (id, name, source, type, capabilities, available, removed)
+INSERT INTO devices (id, friendly_name, source, type, capabilities, available, removed)
 VALUES (?, ?, ?, ?, ?, false, false)
 ON CONFLICT(id) DO UPDATE SET
-    source       = excluded.source,
-    type         = excluded.type,
-    capabilities = excluded.capabilities,
-    removed      = false
+    friendly_name = excluded.friendly_name,
+    source        = excluded.source,
+    type          = excluded.type,
+    capabilities  = excluded.capabilities,
+    removed       = false
 `
 
 type UpsertDeviceParams struct {
 	ID           device.DeviceID
-	Name         string
+	FriendlyName string
 	Source       device.Source
 	Type         device.DeviceType
 	Capabilities string
 }
 
-// Keeps the user-owned name and clears the removed flag when a device appears.
+// Refreshes every adapter-owned column, including the friendly name, and clears
+// the removed flag when a device reappears. The name column is the user's
+// override and is never touched here.
 func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error {
 	_, err := q.db.ExecContext(ctx, upsertDevice,
 		arg.ID,
-		arg.Name,
+		arg.FriendlyName,
 		arg.Source,
 		arg.Type,
 		arg.Capabilities,

@@ -14,10 +14,10 @@ func TestCreateDevice(t *testing.T) {
 	ctx := context.Background()
 
 	d, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "Living Room Light",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Light,
+		ID:           "dev-1",
+		FriendlyName: "Living Room Light",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -26,8 +26,11 @@ func TestCreateDevice(t *testing.T) {
 	if d.ID != "dev-1" {
 		t.Errorf("got ID %q, want %q", d.ID, "dev-1")
 	}
-	if d.Name != "Living Room Light" {
-		t.Errorf("got Name %q, want %q", d.Name, "Living Room Light")
+	if d.DisplayName() != "Living Room Light" {
+		t.Errorf("got DisplayName %q, want %q", d.DisplayName(), "Living Room Light")
+	}
+	if d.Name != nil {
+		t.Errorf("CreateDevice must not set a name override, got %q", *d.Name)
 	}
 	if d.Source != "zigbee2mqtt" {
 		t.Errorf("got Source %q, want %q", d.Source, "zigbee2mqtt")
@@ -48,10 +51,10 @@ func TestGetDeviceByID(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "Sensor",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Sensor,
+		ID:           "dev-1",
+		FriendlyName: "Sensor",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Sensor,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -64,8 +67,8 @@ func TestGetDeviceByID(t *testing.T) {
 	if d.ID != "dev-1" {
 		t.Errorf("got ID %q, want %q", d.ID, "dev-1")
 	}
-	if d.Name != "Sensor" {
-		t.Errorf("got Name %q, want %q", d.Name, "Sensor")
+	if d.DisplayName() != "Sensor" {
+		t.Errorf("got DisplayName %q, want %q", d.DisplayName(), "Sensor")
 	}
 }
 
@@ -88,10 +91,10 @@ func TestListDevices(t *testing.T) {
 
 	for i, name := range []string{"A", "B", "C"} {
 		_, err := s.CreateDevice(ctx, CreateDeviceParams{
-			ID:     device.DeviceID("dev-" + string(rune('1'+i))),
-			Name:   name,
-			Source: device.SourceZigbee2MQTT,
-			Type:   device.Light,
+			ID:           device.DeviceID("dev-" + string(rune('1'+i))),
+			FriendlyName: name,
+			Source:       device.SourceZigbee2MQTT,
+			Type:         device.Light,
 		})
 		if err != nil {
 			t.Fatalf("create device %s: %v", name, err)
@@ -111,15 +114,15 @@ func TestListDevicesBySource(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	_, err := s.CreateDevice(ctx, CreateDeviceParams{ID: "z1", Name: "Z1", Source: device.SourceZigbee2MQTT, Type: device.Light})
+	_, err := s.CreateDevice(ctx, CreateDeviceParams{ID: "z1", FriendlyName: "Z1", Source: device.SourceZigbee2MQTT, Type: device.Light})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	_, err = s.CreateDevice(ctx, CreateDeviceParams{ID: "z2", Name: "Z2", Source: device.SourceZigbee2MQTT, Type: device.Sensor})
+	_, err = s.CreateDevice(ctx, CreateDeviceParams{ID: "z2", FriendlyName: "Z2", Source: device.SourceZigbee2MQTT, Type: device.Sensor})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	_, err = s.CreateDevice(ctx, CreateDeviceParams{ID: "w1", Name: "W1", Source: "wifi", Type: device.Light})
+	_, err = s.CreateDevice(ctx, CreateDeviceParams{ID: "w1", FriendlyName: "W1", Source: "wifi", Type: device.Light})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -146,10 +149,10 @@ func TestUpdateDevice(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "Old Name",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Light,
+		ID:           "dev-1",
+		FriendlyName: "Old Name",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -157,17 +160,29 @@ func TestUpdateDevice(t *testing.T) {
 
 	updated, err := s.UpdateDevice(ctx, UpdateDeviceParams{
 		ID:        "dev-1",
-		Name:      "New Name",
 		Available: true,
 	})
 	if err != nil {
 		t.Fatalf("update device: %v", err)
 	}
-	if updated.Name != "New Name" {
-		t.Errorf("got Name %q, want %q", updated.Name, "New Name")
-	}
 	if !updated.Available {
 		t.Error("expected Available to be true")
+	}
+
+	updated, err = s.SetDeviceName(ctx, "dev-1", device.Ptr("New Name"))
+	if err != nil {
+		t.Fatalf("set device name: %v", err)
+	}
+	if updated.DisplayName() != "New Name" {
+		t.Errorf("got DisplayName %q, want %q", updated.DisplayName(), "New Name")
+	}
+
+	updated, err = s.SetDeviceName(ctx, "dev-1", nil)
+	if err != nil {
+		t.Fatalf("clear device name: %v", err)
+	}
+	if updated.DisplayName() != "Old Name" {
+		t.Errorf("clearing the override should fall back to the adapter name, got %q", updated.DisplayName())
 	}
 }
 
@@ -176,10 +191,10 @@ func TestUpdateDeviceTags(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "Lava lamp",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Plug,
+		ID:           "dev-1",
+		FriendlyName: "Lava lamp",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Plug,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -187,7 +202,6 @@ func TestUpdateDeviceTags(t *testing.T) {
 
 	updated, err := s.UpdateDevice(ctx, UpdateDeviceParams{
 		ID:        "dev-1",
-		Name:      "Lava lamp",
 		Available: true,
 		SetTags:   true,
 		Tags:      []device.DeviceTag{device.DeviceTagLight, device.DeviceTagLight, device.DeviceTag("BAD")},
@@ -209,7 +223,6 @@ func TestUpdateDeviceTags(t *testing.T) {
 
 	updated, err = s.UpdateDevice(ctx, UpdateDeviceParams{
 		ID:      "dev-1",
-		Name:    "Lava lamp",
 		SetTags: true,
 	})
 	if err != nil {
@@ -220,23 +233,29 @@ func TestUpdateDeviceTags(t *testing.T) {
 	}
 }
 
+// TestUpsertDevicePreservesName covers the split: a re-sync refreshes every
+// adapter-owned column including the friendly name, and never touches the
+// user's override.
 func TestUpsertDevicePreservesName(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "User Name",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Light,
+		ID:           "dev-1",
+		FriendlyName: "old_friendly",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
 	}
 
+	if _, err := s.SetDeviceName(ctx, "dev-1", device.Ptr("User Name")); err != nil {
+		t.Fatalf("set device name: %v", err)
+	}
+
 	_, err = s.UpdateDevice(ctx, UpdateDeviceParams{
 		ID:      "dev-1",
-		Name:    "User Name",
 		Removed: true,
 	})
 	if err != nil {
@@ -244,10 +263,10 @@ func TestUpsertDevicePreservesName(t *testing.T) {
 	}
 
 	err = s.UpsertDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "Adapter Name",
-		Source: "tuya",
-		Type:   device.Climate,
+		ID:           "dev-1",
+		FriendlyName: "Adapter Name",
+		Source:       "tuya",
+		Type:         device.Climate,
 		Capabilities: []device.Capability{
 			{Name: device.CapOnOff, Type: "binary", Access: 7},
 		},
@@ -260,8 +279,14 @@ func TestUpsertDevicePreservesName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get device: %v", err)
 	}
-	if d.Name != "User Name" {
-		t.Fatalf("got name %q, want User Name", d.Name)
+	if d.Name == nil || *d.Name != "User Name" {
+		t.Fatalf("re-sync clobbered the user override: got %v", d.Name)
+	}
+	if d.FriendlyName != "Adapter Name" {
+		t.Fatalf("re-sync did not refresh the friendly name: got %q", d.FriendlyName)
+	}
+	if d.DisplayName() != "User Name" {
+		t.Fatalf("override must win over the adapter name, got %q", d.DisplayName())
 	}
 	if d.Source != "tuya" {
 		t.Fatalf("got source %q, want tuya", d.Source)
@@ -282,10 +307,10 @@ func TestSoftDeleteDevice(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID:     "dev-1",
-		Name:   "Light",
-		Source: device.SourceZigbee2MQTT,
-		Type:   device.Light,
+		ID:           "dev-1",
+		FriendlyName: "Light",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -293,7 +318,6 @@ func TestSoftDeleteDevice(t *testing.T) {
 
 	_, err = s.UpdateDevice(ctx, UpdateDeviceParams{
 		ID:      "dev-1",
-		Name:    "Light",
 		Removed: true,
 	})
 	if err != nil {

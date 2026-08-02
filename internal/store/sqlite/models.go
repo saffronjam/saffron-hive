@@ -82,15 +82,17 @@ type AutomationNodeState struct {
 
 type Device struct {
 	ID           device.DeviceID
-	Name         string
+	Name         *string
+	FriendlyName string
 	Source       device.Source
 	Type         device.DeviceType
-	Available    bool
-	Removed      bool
-	LastSeen     *time.Time
 	Capabilities string
 	Icon         *string
+	Available    bool
+	Removed      bool
 	Disabled     bool
+	LastSeen     *time.Time
+	Seen         bool
 }
 
 type DeviceStateSample struct {
@@ -250,10 +252,4 @@ type Zigbee2mqttConfig struct {
 	Password string
 	UseWss   bool
 	Enabled  bool
-}
-
-type ZigbeeDevice struct {
-	DeviceID     device.DeviceID
-	IeeeAddress  string
-	FriendlyName string
 }

@@ -17,7 +17,7 @@ func (s *DB) CreateDevice(ctx context.Context, params CreateDeviceParams) (devic
 	}
 	if err := s.q.CreateDevice(ctx, sqlite.CreateDeviceParams{
 		ID:           params.ID,
-		Name:         params.Name,
+		FriendlyName: params.FriendlyName,
 		Source:       params.Source,
 		Type:         params.Type,
 		Capabilities: capsJSON,
@@ -36,7 +36,7 @@ func (s *DB) UpsertDevice(ctx context.Context, params CreateDeviceParams) error 
 	}
 	if err := s.q.UpsertDevice(ctx, sqlite.UpsertDeviceParams{
 		ID:           params.ID,
-		Name:         params.Name,
+		FriendlyName: params.FriendlyName,
 		Source:       params.Source,
 		Type:         params.Type,
 		Capabilities: capsJSON,
@@ -59,6 +59,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 	return device.Device{
 		ID:           row.ID,
 		Name:         row.Name,
+		FriendlyName: row.FriendlyName,
 		Icon:         row.Icon,
 		Source:       row.Source,
 		Type:         row.Type,
@@ -67,6 +68,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 		Available:    row.Available,
 		Removed:      row.Removed,
 		Disabled:     row.Disabled,
+		Seen:         row.Seen,
 		LastSeen:     derefTime(row.LastSeen),
 	}, nil
 }
@@ -86,6 +88,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 		devices = append(devices, device.Device{
 			ID:           r.ID,
 			Name:         r.Name,
+			FriendlyName: r.FriendlyName,
 			Icon:         r.Icon,
 			Source:       r.Source,
 			Type:         r.Type,
@@ -94,6 +97,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 			Available:    r.Available,
 			Removed:      r.Removed,
 			Disabled:     r.Disabled,
+			Seen:         r.Seen,
 			LastSeen:     derefTime(r.LastSeen),
 		})
 	}
@@ -115,6 +119,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 		devices = append(devices, device.Device{
 			ID:           r.ID,
 			Name:         r.Name,
+			FriendlyName: r.FriendlyName,
 			Icon:         r.Icon,
 			Source:       r.Source,
 			Type:         r.Type,
@@ -123,6 +128,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 			Available:    r.Available,
 			Removed:      r.Removed,
 			Disabled:     r.Disabled,
+			Seen:         r.Seen,
 			LastSeen:     derefTime(r.LastSeen),
 		})
 	}
@@ -140,7 +146,6 @@ func (s *DB) UpdateDevice(ctx context.Context, params UpdateDeviceParams) (devic
 	}
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.UpdateDevice(ctx, sqlite.UpdateDeviceParams{
-			Name:      params.Name,
 			Available: params.Available,
 			Removed:   params.Removed,
 			LastSeen:  lastSeenArg,
@@ -230,6 +235,28 @@ func (s *DB) SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled
 	return s.GetDevice(ctx, id)
 }
 
+// MarkDevicesSeen clears the new-device flag for the given ids and returns how
+// many rows changed. The device list calls it with everything it just rendered,
+// so an empty slice is the common case and does no work.
+func (s *DB) MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	raw := make([]string, len(ids))
+	for i, id := range ids {
+		raw[i] = string(id)
+	}
+	js, err := marshalStringArray(raw)
+	if err != nil {
+		return 0, fmt.Errorf("mark devices seen: %w", err)
+	}
+	n, err := s.q.MarkDevicesSeen(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("mark devices seen: %w", err)
+	}
+	return n, nil
+}
+
 // ListDisabledDeviceIDs returns the ids of every disabled device, so callers that
 // resolve a device set through joins can subtract them in one pass.
 func (s *DB) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
@@ -238,6 +265,21 @@ func (s *DB) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, erro
 		return nil, fmt.Errorf("list disabled device ids: %w", err)
 	}
 	return ids, nil
+}
+
+// SetDeviceName sets the user's name override and returns the updated device. A
+// nil name clears the override, so the device falls back to the name its
+// integration reports. Deliberately separate from UpdateDevice for the same
+// reason SetDeviceDisabled is: UpdateDevice overwrites every column it names and
+// the device-removal path calls it with an otherwise zero-value struct.
+func (s *DB) SetDeviceName(ctx context.Context, id device.DeviceID, name *string) (device.Device, error) {
+	if err := s.q.SetDeviceName(ctx, sqlite.SetDeviceNameParams{
+		Name: name,
+		ID:   id,
+	}); err != nil {
+		return device.Device{}, fmt.Errorf("set device name: %w", err)
+	}
+	return s.GetDevice(ctx, id)
 }
 
 // UpdateDeviceIcon sets a device's user-overridable icon and returns the updated

@@ -40,7 +40,7 @@ func TestAddSceneActions(t *testing.T) {
 
 	for i, devID := range []device.DeviceID{"dev-1", "dev-2", "dev-3"} {
 		_, err := s.CreateDevice(ctx, CreateDeviceParams{
-			ID: devID, Name: "Device", Source: device.SourceZigbee2MQTT, Type: device.Light,
+			ID: devID, FriendlyName: "Device", Source: device.SourceZigbee2MQTT, Type: device.Light,
 		})
 		if err != nil {
 			t.Fatalf("create device %d: %v", i, err)
@@ -73,7 +73,7 @@ func TestDeleteSceneCascadesActions(t *testing.T) {
 		t.Fatalf("create scene: %v", err)
 	}
 	_, err = s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "Device", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "Device", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -142,7 +142,7 @@ func TestSaveSceneContentReplacesAtomically(t *testing.T) {
 
 	for _, devID := range []device.DeviceID{"dev-1", "dev-2"} {
 		if _, err := s.CreateDevice(ctx, CreateDeviceParams{
-			ID: devID, Name: "d", Source: device.SourceZigbee2MQTT, Type: device.Light,
+			ID: devID, FriendlyName: "d", Source: device.SourceZigbee2MQTT, Type: device.Light,
 		}); err != nil {
 			t.Fatalf("create device: %v", err)
 		}
@@ -197,7 +197,7 @@ func TestSaveSceneContentRollsBackOnInvalidTarget(t *testing.T) {
 	}
 
 	if _, err := s.CreateDevice(ctx, CreateDeviceParams{
-		ID: "dev-1", Name: "d", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		ID: "dev-1", FriendlyName: "d", Source: device.SourceZigbee2MQTT, Type: device.Light,
 	}); err != nil {
 		t.Fatalf("create device: %v", err)
 	}
