@@ -78,9 +78,7 @@ describe("chipsByDevice", () => {
   });
 
   it("combines room and group chips for the same device", () => {
-    const rooms: MembershipRoom[] = [
-      { id: "r1", name: "Kitchen", members: [roomDevice("d1")] },
-    ];
+    const rooms: MembershipRoom[] = [{ id: "r1", name: "Kitchen", members: [roomDevice("d1")] }];
     const groups: MembershipGroup[] = [
       {
         id: "g1",
@@ -102,10 +100,7 @@ describe("chipsByDevice", () => {
       {
         id: "r1",
         name: "Kitchen",
-        members: [
-          roomDevice("d1"),
-          { id: "rg1", memberType: "group", memberId: "g1" },
-        ],
+        members: [roomDevice("d1"), { id: "rg1", memberType: "group", memberId: "g1" }],
       },
     ];
 
@@ -118,16 +113,12 @@ describe("chipsByDevice", () => {
 
 describe("membershipRowsForDevice", () => {
   it("returns an empty array when deviceId is undefined (not yet loaded)", () => {
-    const rooms: MembershipRoom[] = [
-      { id: "r1", name: "Kitchen", members: [roomDevice("d1")] },
-    ];
+    const rooms: MembershipRoom[] = [{ id: "r1", name: "Kitchen", members: [roomDevice("d1")] }];
     expect(membershipRowsForDevice(undefined, rooms, [])).toEqual([]);
   });
 
   it("returns an empty array when the device is not in any room or group", () => {
-    const rooms: MembershipRoom[] = [
-      { id: "r1", name: "Kitchen", members: [roomDevice("other")] },
-    ];
+    const rooms: MembershipRoom[] = [{ id: "r1", name: "Kitchen", members: [roomDevice("other")] }];
     const groups: MembershipGroup[] = [
       {
         id: "g1",
@@ -140,9 +131,7 @@ describe("membershipRowsForDevice", () => {
   });
 
   it("prefixes row ids so room and group ids never collide", () => {
-    const rooms: MembershipRoom[] = [
-      { id: "same-id", name: "Room", members: [roomDevice("d1")] },
-    ];
+    const rooms: MembershipRoom[] = [{ id: "same-id", name: "Room", members: [roomDevice("d1")] }];
     const groups: MembershipGroup[] = [
       {
         id: "same-id",
@@ -193,9 +182,7 @@ describe("membershipRowsForDevice", () => {
   });
 
   it("lists rooms first, then groups (stable order for the UI)", () => {
-    const rooms: MembershipRoom[] = [
-      { id: "r1", name: "A room", members: [roomDevice("d1")] },
-    ];
+    const rooms: MembershipRoom[] = [{ id: "r1", name: "A room", members: [roomDevice("d1")] }];
     const groups: MembershipGroup[] = [
       {
         id: "g1",

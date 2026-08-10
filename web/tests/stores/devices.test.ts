@@ -56,7 +56,7 @@ function makeDevice(
     tags: [],
     capabilities: [],
     available: true,
-  disabled: false,
+    disabled: false,
     lastSeen: "2026-01-01T00:00:00Z",
     state,
   };

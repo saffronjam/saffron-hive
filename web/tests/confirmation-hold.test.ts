@@ -128,9 +128,7 @@ describe("createConfirmationHold", () => {
     }
     const hold = createConfirmationHold<Rgb>({
       matches: (a, b) =>
-        Math.abs(a.r - b.r) <= 5 &&
-        Math.abs(a.g - b.g) <= 5 &&
-        Math.abs(a.b - b.b) <= 5,
+        Math.abs(a.r - b.r) <= 5 && Math.abs(a.g - b.g) <= 5 && Math.abs(a.b - b.b) <= 5,
     });
     hold.hold({ r: 200, g: 100, b: 50 });
     expect(hold.shouldSuppress({ r: 0, g: 0, b: 0 })).toBe(true);

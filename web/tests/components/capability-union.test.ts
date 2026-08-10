@@ -39,7 +39,7 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     type: "light",
     tags: [],
     available: true,
-  disabled: false,
+    disabled: false,
     lastSeen: null,
     capabilities: caps,
     state: null,

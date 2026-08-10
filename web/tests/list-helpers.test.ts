@@ -20,7 +20,7 @@ function device(id: string, name: string): Device {
     tags: [],
     capabilities: [],
     available: true,
-  disabled: false,
+    disabled: false,
     lastSeen: "",
     state: null,
   };
@@ -143,9 +143,9 @@ describe("sceneRoomLabel", () => {
   // Listing every room overflows a card subtitle, so several collapse to one word.
   it("collapses several rooms to Multi-room", () => {
     expect(sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }])).toBe("Multi-room");
-    expect(
-      sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }, { name: "Hall" }]),
-    ).toBe("Multi-room");
+    expect(sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }, { name: "Hall" }])).toBe(
+      "Multi-room",
+    );
   });
 });
 
