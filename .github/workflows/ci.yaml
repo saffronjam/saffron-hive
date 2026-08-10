@@ -68,8 +68,10 @@ jobs:
         with:
           sqlc-version: "1.31.0"
 
+      - uses: extractions/setup-just@v4
+
       - name: Verify sqlc output is up to date
-        run: make sqlc-check
+        run: just sqlc-check
 
   codegen-check:
     name: graphql-codegen drift check
@@ -82,8 +84,10 @@ jobs:
       - run: bun install
         working-directory: web
 
+      - uses: extractions/setup-just@v4
+
       - name: Verify graphql-codegen output is up to date
-        run: make codegen-check
+        run: just codegen-check
 
   test:
     name: Test

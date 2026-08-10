@@ -46,7 +46,7 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 
 ## GraphQL
 
-- `gql/` — graphql-codegen output (do not edit manually — regenerate with `make codegen`).
+- `gql/` — graphql-codegen output (do not edit manually — regenerate with `just codegen`).
 - `graphql/client.ts` — `createGraphQLClient()` + `authenticatedFetch`. **Only call `createGraphQLClient()` from `routes/+layout.svelte`.** Every other file uses `getContextClient()` from `@urql/svelte`.
 - `graphql/setup-status.ts` — `SETUP_STATUS_QUERY`, shared by the routing gate and `/setup`. Operation names must be unique across the document set, so a second copy of this query only survives codegen while byte-identical — import it rather than re-declaring it.
 - `graphql-error.ts` — `stripErrorPrefix(message)` drops urql's `[GraphQL] ` / `[Network] ` prefix; `graphqlErrorMessage(error, fallback)` pulls the most useful message out of an urql error. Use instead of hand-rolling the regex.

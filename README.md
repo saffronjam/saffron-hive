@@ -64,19 +64,19 @@ zigbee2mqtt instance publishes to and your devices show up on their own.
 
 ## Run from source
 
-Needs Go 1.26+ and Bun.
+Needs Go 1.26+, Bun, and [just](https://just.systems).
 
 ```bash
-make deps
-make web   # dashboard on :5173, proxies the API
-make api   # Go service on :8080
+just deps
+just web   # dashboard on :5173, proxies the API
+just api   # Go service on :8080
 ```
 
-`make help` lists everything else. The ones worth knowing:
+A bare `just` lists everything else. The ones worth knowing:
 
 ```bash
-make sqlc gqlgen codegen   # regenerate SQL, server schema, client types
-make prepare-for-commit    # what CI runs
+just sqlc gqlgen codegen   # regenerate SQL, server schema, client types
+just prepare-for-commit    # what CI runs
 ```
 
 CI fails on generated-code drift, so run `prepare-for-commit` before pushing
@@ -85,7 +85,7 @@ anything that touches `queries/`, `api/schema.graphql`, or a GraphQL document.
 To watch raw broker traffic while debugging an adapter:
 
 ```bash
-make mqttprint TOPIC='zigbee2mqtt/#'
+just mqttprint 'zigbee2mqtt/#'
 ```
 
 It reads the broker credentials from the Zigbee2MQTT integration, so it works

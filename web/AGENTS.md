@@ -51,7 +51,7 @@ The built output (`web/dist/`) is embedded into the Go binary via `go:embed`. Th
 - `src/lib/gql/gql.ts` + `index.ts` — the `graphql()` helper that takes a query string and returns a `TypedDocumentNode<Data, Variables>`.
 - `src/lib/gql/fragment-masking.ts` — ready for fragment introduction (no fragments used today).
 
-Regenerate with `make codegen` (or `cd web && bun run codegen`). `make codegen-check` fails when the committed output drifts from the SQL; it runs in `prepare-for-commit` and CI.
+Regenerate with `just codegen` (or `cd web && bun run codegen`). `just codegen-check` fails when the committed output drifts from the SQL; it runs in `prepare-for-commit` and CI.
 
 **Do not import from `$lib/gql/graphql` directly for schema types unless you need them; prefer letting urql infer operation result/variable types from the `TypedDocumentNode` returned by `graphql()`.**
 
