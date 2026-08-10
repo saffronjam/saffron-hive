@@ -40,6 +40,12 @@
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { isEditableTarget } from "$lib/utils/keyboard";
 	import {
+		clampPanelPos,
+		placeBesideRect,
+		type PanelPlaceBounds,
+		type PanelPos,
+	} from "$lib/panel-place";
+	import {
 		CLIP_LABEL_THRESHOLD_PX,
 		MIN_CLIP_VISUAL_PX,
 		computeRequiredCapabilities,
@@ -98,7 +104,6 @@
 	let randomMap = $state<Record<string, boolean>>({});
 	let initialized = $state(false);
 
-	type PanelPos = { x: number; y: number };
 	const PANEL_WIDTH = 288;
 	const PANEL_FALLBACK_HEIGHT = 360;
 	let panelPos = $state<PanelPos>({ x: 0, y: 0 });
@@ -788,34 +793,17 @@
 		return null;
 	});
 
-	function clampPanelPos(x: number, y: number): PanelPos {
-		const editorRect = editorRootEl?.getBoundingClientRect();
-		const minX = editorRect ? editorRect.left : 8;
-		const maxX = window.innerWidth - PANEL_WIDTH - 8;
-		const height = panelEl?.offsetHeight ?? PANEL_FALLBACK_HEIGHT;
-		const minY = 8;
-		const maxY = window.innerHeight - height - 8;
+	function panelBounds(): PanelPlaceBounds {
 		return {
-			x: Math.max(minX, Math.min(maxX, x)),
-			y: Math.max(minY, Math.min(Math.max(maxY, minY), y)),
+			panelWidth: PANEL_WIDTH,
+			panelHeight: panelEl?.offsetHeight ?? PANEL_FALLBACK_HEIGHT,
+			minX: editorRootEl?.getBoundingClientRect().left,
 		};
-	}
-
-	function placeBesideRect(rect: DOMRect): PanelPos {
-		const PANEL_GAP = 8;
-		const editorRect = editorRootEl?.getBoundingClientRect();
-		const editorLeft = editorRect ? editorRect.left : 0;
-		const fitsRight = rect.right + PANEL_GAP + PANEL_WIDTH + 8 <= window.innerWidth;
-		const desiredX = fitsRight
-			? rect.right + PANEL_GAP
-			: rect.left - PANEL_GAP - PANEL_WIDTH;
-		const x = desiredX < editorLeft ? rect.right + PANEL_GAP : desiredX;
-		return clampPanelPos(x, rect.top);
 	}
 
 	function openClipPanel(uid: string, triggerRect: DOMRect) {
 		activeClipUid = uid;
-		panelPos = placeBesideRect(triggerRect);
+		panelPos = placeBesideRect(triggerRect, panelBounds());
 	}
 
 	function closeClipPanel() {
@@ -834,7 +822,7 @@
 		function handleMove(e: PointerEvent) {
 			const dx = e.clientX - startX;
 			const dy = e.clientY - startY;
-			panelPos = clampPanelPos(initial.x + dx, initial.y + dy);
+			panelPos = clampPanelPos(initial.x + dx, initial.y + dy, panelBounds());
 		}
 
 		function handleUp(e: PointerEvent) {
@@ -962,9 +950,9 @@
 		const id = requestAnimationFrame(() => {
 			const btn = document.querySelector<HTMLElement>(`[data-clip-uid="${uid}"]`);
 			if (btn) {
-				panelPos = placeBesideRect(btn.getBoundingClientRect());
+				panelPos = placeBesideRect(btn.getBoundingClientRect(), panelBounds());
 			} else {
-				panelPos = clampPanelPos(panelPos.x, panelPos.y);
+				panelPos = clampPanelPos(panelPos.x, panelPos.y, panelBounds());
 			}
 		});
 		return () => cancelAnimationFrame(id);
