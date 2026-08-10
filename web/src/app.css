@@ -375,6 +375,23 @@
   animation: activity-row-flash 2000ms ease-out both;
 }
 
+/* Occupied motion sensors on the map pulse expanding rings around their
+   marker dot. Animates the circle's `r` geometry property: a transform
+   scale would grow from the SVG view-box origin, not the marker. */
+@keyframes map-occupancy-ring {
+  0% {
+    r: 6px;
+    stroke: color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+  100% {
+    r: 30px;
+    stroke: color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+}
+.map-occupancy-ring {
+  animation: map-occupancy-ring 1800ms ease-out infinite;
+}
+
 /* Theme crossfade. The `theme-transitioning` class is added to <html> just
    before the `dark` class flips and removed ~300ms later; scoping the
    transition this way keeps it out of the default hover/focus behaviour so

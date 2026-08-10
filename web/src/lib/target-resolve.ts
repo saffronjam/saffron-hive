@@ -141,14 +141,18 @@ export function evaluateExpression(
  * with a seen-set to stop cycles.
  *
  * Disabled devices are dropped, mirroring `store.ResolveTargetDeviceIDs`.
+ * Editor surfaces that render a disabled member greyed pass
+ * `{ includeDisabled: true }` to keep it in the result.
  */
 export function resolveTargetDevices(
   target: { type: TargetKind; id: string },
   allDevices: Device[],
   groups: GroupLite[],
   rooms: RoomLite[],
+  opts?: { includeDisabled?: boolean },
 ): Device[] {
-  const deviceByID = new Map(selectable(allDevices).map((d) => [d.id, d]));
+  const pool = opts?.includeDisabled ? allDevices : selectable(allDevices);
+  const deviceByID = new Map(pool.map((d) => [d.id, d]));
   const groupByID = new Map(groups.map((g) => [g.id, g]));
   const roomByID = new Map(rooms.map((r) => [r.id, r]));
 

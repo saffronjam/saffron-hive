@@ -7,7 +7,8 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import EntitySelector from "$lib/components/entity-selector.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import type { DrawerGroup, DrawerItem } from "$lib/components/hive-drawer";
+	import { createHoldDrag } from "$lib/actions/hold-drag";
 
 	type Selection = { type: T; id: string };
 
@@ -18,6 +19,13 @@
 		multiple?: boolean;
 		groups: DrawerGroup<T>[];
 		onselect: (type: T, id: string) => void;
+		/**
+		 * Hold-drag handoff: pressing and holding a row (immediately with a
+		 * mouse) calls this with the row's item and the initiating pointerdown
+		 * event, then closes the sheet so the caller can drive the rest of the
+		 * pointer gesture.
+		 */
+		ondragout?: (item: DrawerItem<T>, e: PointerEvent) => void;
 	}
 
 	let {
@@ -27,24 +35,52 @@
 		multiple = false,
 		groups,
 		onselect,
+		ondragout,
 	}: Props = $props();
 
 	let selected = $state<Selection[]>([]);
+
+	let dragItem: DrawerItem<T> | null = null;
+	const dragMachine = createHoldDrag({
+		onstart(e) {
+			const item = dragItem;
+			dragItem = null;
+			if (item && ondragout) {
+				ondragout(item, e);
+				open = false;
+			}
+		},
+		onmove() {},
+		onend() {
+			dragItem = null;
+		},
+		oncancel() {
+			dragItem = null;
+		},
+		mouseImmediate: true,
+	});
+
+	function handleRowPointerDown(item: DrawerItem<T>, e: PointerEvent) {
+		if (!ondragout || item.disabled) return;
+		dragItem = item;
+		dragMachine.pointerdown(e);
+	}
 
 	function isSelected(type: T, id: string): boolean {
 		return selected.some((s) => s.type === type && s.id === id);
 	}
 
-	function handleSelect(type: T, id: string) {
+	function handleSelect(item: DrawerItem<T>) {
+		if (item.disabled) return;
 		if (!multiple) {
-			onselect(type, id);
+			onselect(item.type, item.id);
 			return;
 		}
 
-		if (isSelected(type, id)) {
-			selected = selected.filter((s) => !(s.type === type && s.id === id));
+		if (isSelected(item.type, item.id)) {
+			selected = selected.filter((s) => !(s.type === item.type && s.id === item.id));
 		} else {
-			selected = [...selected, { type, id }];
+			selected = [...selected, { type: item.type, id: item.id }];
 		}
 	}
 
@@ -63,6 +99,12 @@
 	});
 </script>
 
+<svelte:window
+	onpointermove={dragMachine.pointermove}
+	onpointerup={dragMachine.pointerup}
+	onpointercancel={dragMachine.pointercancel}
+/>
+
 <EntitySelector
 	bind:open
 	{title}
@@ -77,7 +119,10 @@
 					{@const checked = isSelected(item.type, item.id)}
 					<CommandItem
 						value={`${item.type}:${item.id} ${item.searchValue ?? item.name}`}
-						onSelect={() => handleSelect(item.type, item.id)}
+						disabled={item.disabled}
+						class="data-[disabled=true]:opacity-60"
+						onSelect={() => handleSelect(item)}
+						onpointerdown={(e: PointerEvent) => handleRowPointerDown(item, e)}
 						data-checked={checked}
 					>
 						{#if item.iconRef || Icon}

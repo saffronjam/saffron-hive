@@ -1,0 +1,1983 @@
+<script lang="ts">
+	import { onDestroy, onMount, tick } from "svelte";
+	import { fly } from "svelte/transition";
+	import { getContextClient, queryStore } from "@urql/svelte";
+	import { page } from "$app/state";
+	import { goto, pushState } from "$app/navigation";
+	import {
+		Copy,
+		DoorOpen,
+		ExternalLink,
+		Frame,
+		Link as LinkIcon,
+		Lock,
+		LockOpen,
+		Map as MapIcon,
+		MousePointer2,
+		Pencil,
+		PenLine,
+		Square,
+		Trash2,
+		Unlink,
+		X,
+	} from "@lucide/svelte";
+	import { Button } from "$lib/components/ui/button";
+	import { Input } from "$lib/components/ui/input";
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuSeparator,
+		DropdownMenuTrigger,
+	} from "$lib/components/ui/dropdown-menu";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
+	import NumberInput from "$lib/components/number-input.svelte";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import FloorplanEditor, {
+		emptySelection,
+		placementViewKey,
+		placementViewRef,
+		type EditorSelection,
+		type EditorTool,
+		type FloorplanEditorApi,
+		type PlacementView,
+	} from "$lib/components/floorplan/floorplan-editor.svelte";
+	import RoomPanel, {
+		type DeviceRow,
+		type GroupRow,
+		type PanelGroup,
+	} from "$lib/components/floorplan/room-panel.svelte";
+	import DetachedRoomsCard from "$lib/components/floorplan/detached-rooms-card.svelte";
+	import RoomDrawer from "$lib/components/room-drawer.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+	import PlanPointMenu from "$lib/components/floorplan/plan-point-menu.svelte";
+	import type {
+		GlowGroup,
+		GlowView,
+		LightmapFrame,
+	} from "$lib/components/floorplan/glow-layer.svelte";
+	import MapToolbar, { openingKinds } from "$lib/components/floorplan/map-toolbar.svelte";
+	import MapBrushPalette, {
+		type ArmedBrush,
+	} from "$lib/components/floorplan/map-brush-palette.svelte";
+	import {
+		APPLY_SCENE,
+		FLOORPLAN_QUERY,
+		GROUPS_QUERY,
+		LOCATION_QUERY,
+		ROOMS_QUERY,
+		SCENES_QUERY,
+		SCENE_ACTIVE_SUB,
+		UPDATE_FLOORPLAN,
+	} from "$lib/graphql/map";
+	import type { Device, DeviceState } from "$lib/gql/graphql";
+	import { BannerError } from "$lib/stores/banner-error.svelte";
+	import { HistoryStack } from "$lib/stores/history.svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { deviceHasCapability, deviceStore, isLightControlDevice } from "$lib/stores/devices";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { isEditableTarget } from "$lib/utils/keyboard";
+	import { resolveTargetDevices } from "$lib/target-resolve";
+	import { brightnessToTintStrength, miredToRgb } from "$lib/device-tint";
+	import { AMBIENT_UNLIT_OPACITY, markerGlow } from "$lib/floorplan/glow";
+	import { daylightRgb } from "$lib/floorplan/daylight";
+	import {
+		combineLight,
+		computeDaylight,
+		lampField,
+		rasterisePlan,
+		type LightmapGrid,
+		type LightSource,
+	} from "$lib/floorplan/lightmap";
+	import { carryPlacements } from "$lib/floorplan/placement-carry";
+	import { sunPosition } from "$lib/sun";
+	import {
+		applyPlacement,
+		needsConfirmation,
+		placementConflicts,
+		type Placement,
+		type PlacementConflict,
+		type PlacementRef,
+	} from "$lib/floorplan/placement-conflicts";
+	import { BRUSH_RADIUS_PX, createStrokeAccumulator } from "$lib/floorplan/brush";
+	import { profile } from "$lib/stores/profile.svelte";
+	import { commitGroupColor, commitGroupTemp, commitGroupToggle } from "$lib/group-commands";
+	import { dropPointerFocus } from "$lib/pointer-focus";
+	import { popoverDismissedRecently } from "$lib/popover-guard";
+	import { flushThrottle, throttle, type Throttle } from "$lib/throttle";
+	import {
+		DEFAULT_GRID_SIZE,
+		DEFAULT_WALL_THICKNESS,
+		MAX_WALL_THICKNESS,
+		MIN_WALL_THICKNESS,
+		detectFaces,
+		faceBounds,
+		faceContainingPoint,
+		facePairKeys,
+		wallPairKey,
+		formatArea,
+		formatMeters,
+		nearestPointInFace,
+		addRoomClipped,
+		normalizeGraph,
+		snapRectOffset,
+		removeOpenings,
+		setOpeningKind,
+		setWallThickness,
+		wallLength,
+		pointInPolygon,
+		type Face,
+		type OpeningKind,
+		type PlanGraph,
+		type PlanRoomMeta,
+		faceKey,
+		type PlanVertex,
+		type PlanWall,
+		type Point,
+	} from "$lib/floorplan";
+	import {
+		buildUpdateFloorplanInput,
+		floorplanToGraph,
+		newPlanId,
+		newVertexId,
+		newWallId,
+		placementKey,
+		reconcileRooms,
+		type FloorplanPlacementData,
+	} from "$lib/floorplan-editable";
+	import { deviceDisplayName } from "$lib/utils";
+
+
+	const client = getContextClient();
+	const errors = new BannerError();
+
+	interface MapSceneData {
+		id: string;
+		name: string;
+		icon?: string | null;
+		rooms: { id: string }[];
+		actions: { targetType: string; targetId: string }[];
+		effectivePayloads: { deviceId: string; payload: string }[];
+		activatedAt?: string | null;
+	}
+
+	interface MapRoomData {
+		id: string;
+		name: string;
+		icon?: string | null;
+		members: { memberType: string; memberId: string }[];
+		resolvedDevices: { id: string }[];
+	}
+
+	let loading = $state(true);
+	let saving = $state(false);
+	let editMode = $state(true);
+	let planId = $state("");
+	let planName = $state("Home");
+	let graph = $state<PlanGraph>({ vertices: [], walls: [] });
+	let rooms = $state<PlanRoomMeta[]>([]);
+	let placements = $state<FloorplanPlacementData[]>([]);
+	let hiveRooms = $state<MapRoomData[]>([]);
+	let tool = $state<EditorTool>("select");
+	let openingKind = $state<OpeningKind>("door");
+	// Latched stand-ins for Alt and Shift, which a touch screen cannot hold down.
+	let snapOff = $state(false);
+	let additive = $state(false);
+	let selection = $state<EditorSelection>({ ...emptySelection });
+	let editorApi: FloorplanEditorApi | null = $state(null);
+	let copyBuffer = $state<{ vertices: PlanVertex[]; walls: PlanWall[] } | null>(null);
+	let drawerOpen = $state(false);
+	let viewportVersion = $state(0);
+	let highlightFaceKey = $state<string | null>(null);
+
+	interface ExternalDrag {
+		kind: "hive-room" | "detached" | "placement";
+		hiveRoomId?: string;
+		roomMetaId?: string;
+		placement?: PlacementView;
+		text?: string;
+	}
+	let externalDrag = $state<ExternalDrag | null>(null);
+	let draftLabel = $state<{ point: Point; text: string } | null>(null);
+	let draftRoom = $state<{ a: Point; b: Point } | null>(null);
+	let draftPlacement = $state<PlacementView | null>(null);
+
+	let brushOpen = $state(false);
+	let brushRadiusPx = $state(profile.get("map.brushRadius", undefined) ?? BRUSH_RADIUS_PX);
+
+	function setBrushRadius(px: number) {
+		brushRadiusPx = px;
+		profile.set("map.brushRadius", px);
+	}
+
+	let armedBrush = $state<ArmedBrush | null>(null);
+	let discardOpen = $state(false);
+	// The last state the server accepted. Held outside the history stack: its
+	// cursor is not a stable index (pushes truncate the redo branch and the
+	// stack is capped), so only a snapshot can be trusted to restore.
+	let savedSnapshot: PlanSnapshot | null = null;
+	const strokeAcc = createStrokeAccumulator();
+	const brushColorThrottle: Throttle = { lastSent: 0, trailing: null };
+	const brushTempThrottle: Throttle = { lastSent: 0, trailing: null };
+	const brushPowerThrottle: Throttle = { lastSent: 0, trailing: null };
+
+	const brushCss = $derived.by(() => {
+		if (!armedBrush) return null;
+		if (armedBrush.kind === "color") {
+			const c = armedBrush.color;
+			return `rgb(${c.r}, ${c.g}, ${c.b})`;
+		}
+		// On/off carries no hue: the ring reads neutral so it can't be mistaken
+		// for a colour about to be painted.
+		if (armedBrush.kind === "power") return "var(--muted-foreground)";
+		const c = miredToRgb(armedBrush.mireds);
+		return `rgb(${c.r}, ${c.g}, ${c.b})`;
+	});
+	const armedCapability = $derived.by(() => {
+		if (!armedBrush) return null;
+		if (armedBrush.kind === "color") return "color";
+		if (armedBrush.kind === "temp") return "color_temp";
+		return "power";
+	});
+	function disarmBrush() {
+		armedBrush = null;
+		flushThrottle(brushColorThrottle);
+		flushThrottle(brushTempThrottle);
+		flushThrottle(brushPowerThrottle);
+		strokeAcc.reset();
+	}
+
+	function commitBrushPending() {
+		const armed = armedBrush;
+		if (!armed) return;
+		const devices = strokeAcc
+			.drainPending()
+			.map((id) => liveDeviceById.get(id))
+			.filter((d): d is Device => d != null);
+		if (devices.length === 0) return;
+		if (armed.kind === "color") commitGroupColor(client, devices, armed.color);
+		else if (armed.kind === "temp") commitGroupTemp(client, devices, armed.mireds);
+		else commitGroupToggle(client, devices, armed.on);
+	}
+
+	// The stroke reports placement keys; expanding them here means a group and a
+	// member of it under the same brush still command each device once.
+	function handleBrushStroke(placementKeys: string[]) {
+		if (!armedBrush) return;
+		strokeAcc.add(placementKeys.flatMap((k) => (viewDevices.get(k) ?? []).map((d) => d.id)));
+		if (strokeAcc.pendingCount === 0) return;
+		const t =
+			armedBrush.kind === "color"
+				? brushColorThrottle
+				: armedBrush.kind === "temp"
+					? brushTempThrottle
+					: brushPowerThrottle;
+		throttle(t, commitBrushPending);
+	}
+
+	function handleBrushEnd() {
+		flushThrottle(brushColorThrottle);
+		flushThrottle(brushTempThrottle);
+		flushThrottle(brushPowerThrottle);
+		commitBrushPending();
+		strokeAcc.reset();
+	}
+
+	// Rooms are locked against whole-room dragging until explicitly unlocked
+	// from the context menu; the unlock is a transient editing aid, so a
+	// reload comes back fully locked.
+	let unlockedRoomIds = $state<Set<string>>(new Set());
+	/**
+	 * Rooms whose corners may be dragged one at a time. Locked by default, so a
+	 * corner handle resizes the room instead of pulling it out of square.
+	 */
+	let freeCornerRoomIds = $state<Set<string>>(new Set());
+	/** Plan room the link drawer was opened for, when it came from that room's menu. */
+	let linkTargetRowId = $state<string | null>(null);
+	/**
+	 * The open face menu. `unlocked` and `cornersFree` are read once, when it
+	 * opens: a menu item that rewrites its own label the moment it is clicked
+	 * changes the menu's text while it is still fading out.
+	 */
+	let faceMenu = $state<{
+		x: number;
+		y: number;
+		roomId: string;
+		faceIndex: number;
+		unlocked: boolean;
+		cornersFree: boolean;
+	} | null>(null);
+	let faceMenuOpen = $state(false);
+	let markerMenu = $state<{ x: number; y: number; placement: PlacementView } | null>(null);
+	let markerMenuOpen = $state(false);
+	let openingMenu = $state<{ x: number; y: number; openingId: string } | null>(null);
+	let openingMenuOpen = $state(false);
+	let renameRoomId = $state<string | null>(null);
+	let renameAt = $state<{ x: number; y: number }>({ x: 0, y: 0 });
+	let renameInputEl = $state<HTMLInputElement | null>(null);
+	let renameBoxEl = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		if (renameRoomId && renameInputEl) {
+			renameInputEl.focus();
+			renameInputEl.select();
+		}
+	});
+
+	// Dismissed by a click outside rather than by losing focus. The menu that
+	// opens this field is still closing when it mounts, and hands focus back to
+	// the document as it goes — so the field is blurred a frame after it focuses
+	// itself, and a blur is no evidence the user is done with it.
+	$effect(() => {
+		const box = renameRoomId ? renameBoxEl : null;
+		if (!box) return;
+		const dismiss = (e: PointerEvent) => {
+			if (!box.contains(e.target as Node)) renameRoomId = null;
+		};
+		window.addEventListener("pointerdown", dismiss, true);
+		return () => window.removeEventListener("pointerdown", dismiss, true);
+	});
+
+	const groupsQuery = queryStore({ client, query: GROUPS_QUERY });
+	const hiveGroups = $derived($groupsQuery.data?.groups ?? []);
+	const scenesQuery = queryStore<{ scenes: MapSceneData[] }>({ client, query: SCENES_QUERY });
+	let scenes = $state<MapSceneData[]>([]);
+	$effect(() => {
+		const fresh = $scenesQuery.data?.scenes;
+		if (fresh) scenes = fresh;
+	});
+
+	let previewByDevice = $state<Record<string, Partial<DeviceState>>>({});
+	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
+	const INTERACT_COOLDOWN_MS = 1500;
+
+	function noteInteract() {
+		if (interactingTimer) clearTimeout(interactingTimer);
+		interactingTimer = setTimeout(() => {
+			interactingTimer = null;
+			previewByDevice = {};
+		}, INTERACT_COOLDOWN_MS);
+	}
+
+	const faces = $derived(detectFaces(graph));
+	const allDevices = $derived(Object.values($deviceStore));
+	const deviceById = $derived(new Map(allDevices.map((d) => [d.id, d])));
+
+	/** Live-surface devices: disabled ones gone, picker previews merged in. */
+	const liveDevices = $derived(
+		allDevices
+			.filter((d) => !d.disabled)
+			.map((d) => {
+				const preview = previewByDevice[d.id];
+				return preview ? { ...d, state: { ...d.state, ...preview } } : d;
+			}),
+	);
+	const liveDeviceById = $derived(new Map(liveDevices.map((d) => [d.id, d])));
+	const hiveRoomById = $derived(
+		new Map(hiveRooms.map((r) => [r.id, { name: r.name ?? r.id, icon: r.icon }])),
+	);
+	const roomByFace = $derived(new Map(rooms.map((r) => [faceKey(r), r])));
+	const faceKeySet = $derived(new Set(faces.map((f) => faceKey(f))));
+	const linkedHiveRoomIds = $derived(new Set(rooms.filter((r) => r.roomId).map((r) => r.roomId!)));
+	const detachedRooms = $derived(
+		rooms.filter((r) => (r.name || r.roomId) && !faceKeySet.has(faceKey(r))),
+	);
+	const unlockedFaceKeys = $derived(
+		new Set(rooms.filter((r) => unlockedRoomIds.has(r.id)).map((r) => faceKey(r))),
+	);
+	const freeCornerFaceKeys = $derived(
+		new Set(rooms.filter((r) => freeCornerRoomIds.has(r.id)).map((r) => faceKey(r))),
+	);
+	const menuRoom = $derived(
+		faceMenu ? (rooms.find((r) => r.id === faceMenu!.roomId) ?? null) : null,
+	);
+	const renameRoom = $derived(
+		renameRoomId ? (rooms.find((r) => r.id === renameRoomId) ?? null) : null,
+	);
+	/** Every placement's target resolved to its devices, keyed by placement key. */
+	const placementDevices = $derived.by(() => {
+		const pool = editMode ? allDevices : liveDevices;
+		const out = new Map<string, Device[]>();
+		for (const p of placements) {
+			out.set(
+				placementKey(p),
+				resolveTargetDevices({ type: p.memberType, id: p.memberId }, pool, hiveGroups, hiveRooms, {
+					includeDisabled: true,
+				}),
+			);
+		}
+		return out;
+	});
+	/** Device ids carrying a marker of their own — a group's glow skips them. */
+	const placedDeviceIds = $derived(
+		new Set(placements.filter((p) => p.memberType === "device").map((p) => p.memberId)),
+	);
+	const placementViews = $derived(
+		placements.flatMap((p): PlacementView[] => {
+			if (p.memberType === "device") {
+				const device = (editMode ? deviceById : liveDeviceById).get(p.memberId);
+				return device ? [{ kind: "device", device, x: p.x, y: p.y }] : [];
+			}
+			const group = hiveGroups.find((g) => g.id === p.memberId);
+			if (!group) return [];
+			return [
+				{
+					kind: "group",
+					group: { id: group.id, name: group.name, icon: group.icon },
+					devices: placementDevices.get(placementKey(p)) ?? [],
+					x: p.x,
+					y: p.y,
+				},
+			];
+		}),
+	);
+	const viewDevices = $derived(
+		new Map(placementViews.map((pl) => [placementViewKey(pl), placementDeviceList(pl)])),
+	);
+
+	function placementDeviceList(pl: PlacementView): Device[] {
+		return pl.kind === "device" ? [pl.device] : pl.devices;
+	}
+
+	const brushInertKeys = $derived.by(() => {
+		if (!armedCapability) return new Set<string>();
+		// on/off reaches anything switchable, which is the same set
+		// `commitGroupToggle` commands; the colour brushes need a capability.
+		const paints = (device: Device) =>
+			armedCapability === "power"
+				? isLightControlDevice(device)
+				: deviceHasCapability(device, armedCapability);
+		return new Set(
+			placementViews
+				.filter((pl) => !placementDeviceList(pl).some(paints))
+				.map((pl) => placementViewKey(pl)),
+		);
+	});
+	const placedDevices = $derived(placementViews.flatMap(placementDeviceList));
+	const placedHasColor = $derived(placedDevices.some((d) => deviceHasCapability(d, "color")));
+	const placedHasSwitchable = $derived(placedDevices.some(isLightControlDevice));
+	const placedHasColorTemp = $derived(
+		placedDevices.some((d) => deviceHasCapability(d, "color_temp")),
+	);
+	/** With nothing on the map to paint, the brush has no reason to be offered. */
+	const canPaint = $derived(placedHasColor || placedHasColorTemp || placedHasSwitchable);
+
+	/** Location settings, absent until someone fills them in — then the sun runs. */
+	let location = $state<{ latitude: number; longitude: number; planNorth: number } | null>(null);
+	/** Ticked once a minute; the sun barely moves faster than that. */
+	let now = $state(new Date());
+	let sunTimer: ReturnType<typeof setInterval> | null = null;
+
+	const sun = $derived(
+		location ? sunPosition(now, location.latitude, location.longitude) : null,
+	);
+
+	async function loadLocation() {
+		const result = await client.query(LOCATION_QUERY, {}).toPromise();
+		if (!result.data?.settings) return;
+		const by = new Map(result.data.settings.map((s) => [s.key, s.value]));
+		const lat = Number.parseFloat(by.get("location.latitude") ?? "");
+		const lon = Number.parseFloat(by.get("location.longitude") ?? "");
+		if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+		const north = Number.parseFloat(by.get("location.plan_north_deg") ?? "");
+		location = { latitude: lat, longitude: lon, planNorth: Number.isFinite(north) ? north : 0 };
+	}
+
+	function faceLit(face: Face): boolean {
+		const row = roomByFace.get(faceKey(face));
+		if (!row?.roomId) return false;
+		const hive = hiveRooms.find((r) => r.id === row.roomId);
+		if (!hive) return false;
+		return hive.resolvedDevices.some((ref) => {
+			const d = liveDeviceById.get(ref.id);
+			return d != null && isLightControlDevice(d) && d.state?.on === true;
+		});
+	}
+
+	/** The plan's raster for lighting; rebuilt when the graph changes. */
+	const lightGrid = $derived.by(() =>
+		editMode ? null : rasterisePlan($state.snapshot(graph) as PlanGraph, faces),
+	);
+
+	/**
+	 * Daylight over that raster. Computed off the frame via an idle callback —
+	 * it is the one pass slow enough (~30 ms) to be felt if it ran inside a
+	 * derived — and republished as state for the combine to pick up.
+	 */
+	let daylightField = $state<{ grid: LightmapGrid; field: Float32Array } | null>(null);
+	$effect(() => {
+		const grid = lightGrid;
+		const at = sun;
+		const north = location?.planNorth;
+		if (!grid || !at || north === undefined) {
+			daylightField = null;
+			return;
+		}
+		const compute = () => {
+			daylightField = { grid, field: computeDaylight(grid, at, north) };
+		};
+		if (typeof window.requestIdleCallback === "function") {
+			// Without a timeout the browser may defer idle work indefinitely while
+			// the user keeps interacting — and the plan would sit sunless until
+			// they let go of the mouse.
+			const handle = window.requestIdleCallback(compute, { timeout: 300 });
+			return () => window.cancelIdleCallback(handle);
+		}
+		const handle = setTimeout(compute, 0);
+		return () => clearTimeout(handle);
+	});
+
+	/**
+	 * Per-lamp light fields, cached by grid and position: a lamp's footprint
+	 * depends only on where it stands and what walls surround it, so a
+	 * brightness or colour change re-combines cached fields instead of
+	 * re-tracing them.
+	 */
+	const lampFieldCache = new Map<string, Float32Array>();
+	let lampFieldGrid: LightmapGrid | null = null;
+	function lampFieldFor(grid: LightmapGrid, x: number, y: number): Float32Array {
+		if (lampFieldGrid !== grid) {
+			lampFieldCache.clear();
+			lampFieldGrid = grid;
+		}
+		const key = `${Math.round(x / grid.cellM)}:${Math.round(y / grid.cellM)}`;
+		let field = lampFieldCache.get(key);
+		if (!field) {
+			field = lampField(grid, { x, y });
+			lampFieldCache.set(key, field);
+		}
+		return field;
+	}
+
+	/**
+	 * The glow a marker casts. Which devices count as lights is this page's
+	 * business; how they add up is the glow module's.
+	 */
+	function glowForPlacement(pl: PlacementView): GlowView | null {
+		const lights = (pl.kind === "device" ? [pl.device] : pl.devices)
+			.filter((d) => d.available && isLightControlDevice(d))
+			.map((d) => ({ id: d.id, state: d.state }));
+		return markerGlow(
+			{ key: placementViewKey(pl), x: pl.x, y: pl.y, lights, pooled: pl.kind === "group" },
+			placedDeviceIds,
+		);
+	}
+
+	/**
+	 * Everything the light map draws: daylight plus every in-room lamp, summed
+	 * into one bitmap. Markers outside every room keep their glow circles — the
+	 * grid has no cells for them.
+	 */
+	const combined = $derived.by(() => {
+		if (editMode) return null;
+		const grid = lightGrid;
+		if (!grid) return null;
+		const sources: LightSource[] = [];
+		if (daylightField && daylightField.grid === grid && sun) {
+			sources.push({ field: daylightField.field, rgb: daylightRgb(sun.elevation), intensity: 1 });
+		}
+		const outside: GlowView[] = [];
+		for (const pl of placementViews) {
+			const view = glowForPlacement(pl);
+			if (!view) continue;
+			// A marker against a wall sits on the wall band, where no face
+			// contains its point — it still belongs to the room it hugs, and its
+			// light starts just inside so it shines one-sided like a lamp
+			// standing against that wall.
+			const face =
+				faceContainingPoint(faces, { x: pl.x, y: pl.y }) ?? nearestFaceWithin(pl, 0.5);
+			if (face) {
+				const at = nearestPointInFace({ x: view.x, y: view.y }, face, grid.cellM);
+				sources.push({
+					field: lampFieldFor(grid, at.x, at.y),
+					rgb: view.rgb,
+					intensity: view.opacity,
+				});
+			} else {
+				outside.push(view);
+			}
+		}
+		return { light: combineLight(grid, sources), outside };
+	});
+
+	/** The face whose interior comes closest to `p`, if any is within `reach`. */
+	function nearestFaceWithin(p: Point, reach: number): Face | null {
+		let best: Face | null = null;
+		let bestDist = reach;
+		for (const face of faces) {
+			const near = nearestPointInFace(p, face);
+			const dist = Math.hypot(near.x - p.x, near.y - p.y);
+			if (dist < bestDist) {
+				bestDist = dist;
+				best = face;
+			}
+		}
+		return best;
+	}
+
+	const lightmapFrame = $derived.by((): LightmapFrame | null => {
+		const grid = lightGrid;
+		if (!grid || !combined) return null;
+		return {
+			rgba: combined.light.rgba,
+			cols: grid.width,
+			rows: grid.height,
+			x: grid.originX,
+			y: grid.originY,
+			width: grid.width * grid.cellM,
+			height: grid.height * grid.cellM,
+		};
+	});
+
+	const glowData = $derived.by((): { groups: GlowGroup[]; outside: GlowView[] } => {
+		if (editMode) return { groups: [], outside: [] };
+		const amounts = combined?.light.faceAmount;
+		const groups: GlowGroup[] = faces.map((face, i) => {
+			// Lamps and daylight both lift the room out of the dark; a room with
+			// any lamp on stays fully lifted however dim the bitmap reads.
+			const lift = Math.max(faceLit(face) ? 1 : 0, amounts?.[i] ?? 0);
+			return {
+				key: `face-${i}`,
+				polygon: face.polygon,
+				dim: AMBIENT_UNLIT_OPACITY * (1 - lift),
+			};
+		});
+		return { groups, outside: combined?.outside ?? [] };
+	});
+
+	const faceLabels = $derived.by(() => {
+		const out = new Map<string, string>();
+		for (const face of faces) {
+			const room = roomByFace.get(faceKey(face));
+			if (!room) continue;
+			const label = room.roomId ? hiveRoomById.get(room.roomId)?.name : room.name;
+			if (label) out.set(faceKey(face), label);
+		}
+		return out;
+	});
+
+	interface PlanSnapshot {
+		graph: PlanGraph;
+		rooms: PlanRoomMeta[];
+		placements: FloorplanPlacementData[];
+	}
+
+	const history = new HistoryStack<PlanSnapshot>();
+	// Cursor of the snapshot that matches what's persisted in the DB. Set on
+	// initial load and after each successful save, so undo/redo back to the
+	// saved baseline cleanly turns Save off.
+	let savedCursor = $state(0);
+	const isDirty = $derived(history.cursor !== savedCursor);
+
+	function cloneSnapshot(): PlanSnapshot {
+		return {
+			graph: $state.snapshot(graph),
+			rooms: $state.snapshot(rooms),
+			placements: $state.snapshot(placements),
+		};
+	}
+
+	function takeSnapshot() {
+		history.push(cloneSnapshot());
+	}
+
+	function restoreSnapshot(snap: PlanSnapshot) {
+		// Snapshots read back from the HistoryStack are $state proxies;
+		// $state.snapshot deep-unwraps them into a fresh plain copy.
+		const plain = $state.snapshot(snap);
+		graph = plain.graph;
+		rooms = plain.rooms;
+		placements = plain.placements;
+		selection = { ...emptySelection };
+	}
+
+	function handlePreview(g: PlanGraph) {
+		graph = g;
+	}
+
+	function handleCommit(g: PlanGraph, opts: { snapshot: boolean }) {
+		const normalized = normalizeGraph(g);
+		const nextFaces = detectFaces(normalized);
+		const nextRooms = reconcileRooms(rooms, nextFaces);
+		// The pre-gesture snapshot anchors which room each light was in, so a
+		// moved room carries its lights and a shrunk one stashes what it left
+		// behind — and because this lands before the gesture's own snapshot,
+		// undo restores walls and lights together.
+		const before = history.current;
+		graph = normalized;
+		rooms = nextRooms;
+		if (before) {
+			const carried = carryPlacements({
+				before: { graph: before.graph, rooms: before.rooms },
+				after: { faces: nextFaces, rooms: nextRooms },
+				placements: $state.snapshot(placements) as FloorplanPlacementData[],
+			});
+			if (carried.changed) placements = carried.placements;
+		}
+		if (opts.snapshot) takeSnapshot();
+	}
+
+	/**
+	 * A room was split free of its neighbours to be dragged. Applied without
+	 * normalizing — the split vertices sit on their originals, so a merge pass
+	 * would undo it. Rooms are reconciled straight away so the unlocked outline
+	 * and the detached-rooms card keep tracking the recomputed faces.
+	 *
+	 * The dragged row's vertex ids are remapped first: face-to-room matching
+	 * scores vertex-id overlap, and a room whose every corner was shared comes
+	 * out of the split with an all-new ring that would otherwise score zero and
+	 * lose its name and Hive link.
+	 */
+	function handleDetach(g: PlanGraph, prevFaceKey: string, idMap: Map<string, string>) {
+		const dragged = rooms.find((r) => faceKey(r) === prevFaceKey) ?? null;
+		const remapped = dragged
+			? rooms.map((r) =>
+					r.id === dragged.id
+						? { ...r, vertexIds: r.vertexIds.map((id) => idMap.get(id) ?? id) }
+						: r,
+				)
+			: rooms;
+		const nextFaces = detectFaces(g);
+		const nextRooms = reconcileRooms(remapped, nextFaces);
+		graph = g;
+		rooms = nextRooms;
+		if (dragged && selection.faceIndex !== null) {
+			const index = nextRooms.findIndex((r) => r.id === dragged.id);
+			if (index >= 0 && index < nextFaces.length) {
+				selection = { ...selection, faceIndex: index };
+			}
+		}
+	}
+
+	function handleUndo() {
+		const snap = history.undo();
+		if (snap) restoreSnapshot(snap);
+	}
+
+	function handleRedo() {
+		const snap = history.redo();
+		if (snap) restoreSnapshot(snap);
+	}
+
+	function updateRoomRow(roomMetaId: string, patch: Partial<PlanRoomMeta>) {
+		rooms = rooms.map((r) => (r.id === roomMetaId ? { ...r, ...patch } : r));
+	}
+
+	/** Tear down a room: its exclusive walls go; walls shared with a neighboring
+	 * room stay (they still belong to the neighbor). A room with no exclusive
+	 * walls at all loses everything, so Delete always visibly acts. */
+	function deleteFace(face: Face) {
+		const mine = facePairKeys(face);
+		const others = new Set<string>();
+		for (const f of faces) {
+			if (f === face) continue;
+			for (const k of facePairKeys(f)) others.add(k);
+		}
+		let doomed = graph.walls.filter(
+			(w) => mine.has(wallPairKey(w)) && !others.has(wallPairKey(w)),
+		);
+		if (doomed.length === 0) doomed = graph.walls.filter((w) => mine.has(wallPairKey(w)));
+		const drop = new Set(doomed.map((w) => w.id));
+		selection = { ...emptySelection };
+		handleCommit(
+			{ vertices: graph.vertices, walls: graph.walls.filter((w) => !drop.has(w.id)) },
+			{ snapshot: true },
+		);
+	}
+
+	function deleteSelection() {
+		if (selection.placementKeys.length > 0) {
+			const drop = new Set(selection.placementKeys);
+			placements = placements.filter((p) => !drop.has(placementKey(p)));
+			selection = { ...emptySelection };
+			takeSnapshot();
+			return;
+		}
+		if (selection.openingIds.length > 0) {
+			dropOpenings(selection.openingIds);
+			return;
+		}
+		if (selection.faceIndex !== null && selectedFace) {
+			deleteFace(selectedFace);
+			return;
+		}
+		if (selection.wallIds.length === 0 && selection.vertexIds.length === 0) return;
+		const dropWalls = new Set(selection.wallIds);
+		const dropVertices = new Set(selection.vertexIds);
+		const g: PlanGraph = {
+			vertices: graph.vertices.filter((v) => !dropVertices.has(v.id)),
+			walls: graph.walls.filter(
+				(w) => !dropWalls.has(w.id) && !dropVertices.has(w.a) && !dropVertices.has(w.b),
+			),
+		};
+		selection = { ...emptySelection };
+		handleCommit(g, { snapshot: true });
+	}
+
+	function handleCopy() {
+		if (selection.wallIds.length === 0) return;
+		const wallSet = new Set(selection.wallIds);
+		const walls = graph.walls.filter((w) => wallSet.has(w.id));
+		const vertexIds = new Set(walls.flatMap((w) => [w.a, w.b]));
+		copyBuffer = {
+			walls: $state.snapshot(walls),
+			vertices: $state.snapshot(graph.vertices.filter((v) => vertexIds.has(v.id))),
+		};
+	}
+
+	function handlePaste() {
+		if (!copyBuffer || copyBuffer.walls.length === 0) return;
+		const offset = 48 / (editorApi?.getZoom() ?? 50);
+		const idMap = new Map<string, string>();
+		for (const v of copyBuffer.vertices) idMap.set(v.id, newVertexId());
+		const newVertices = copyBuffer.vertices.map((v) => ({
+			...v,
+			id: idMap.get(v.id)!,
+			x: v.x + offset,
+			y: v.y + offset,
+		}));
+		const newWalls = copyBuffer.walls.map((w) => ({
+			...w,
+			id: newWallId(),
+			a: idMap.get(w.a) ?? w.a,
+			b: idMap.get(w.b) ?? w.b,
+		}));
+		const g: PlanGraph = {
+			vertices: [...graph.vertices, ...newVertices],
+			walls: [...graph.walls, ...newWalls],
+		};
+		selection = { ...emptySelection, wallIds: newWalls.map((w) => w.id) };
+		handleCommit(g, { snapshot: true });
+	}
+
+	function gridSnap(p: Point): Point {
+		return {
+			x: Math.round(p.x / DEFAULT_GRID_SIZE) * DEFAULT_GRID_SIZE,
+			y: Math.round(p.y / DEFAULT_GRID_SIZE) * DEFAULT_GRID_SIZE,
+		};
+	}
+
+	/** Point every row at the right link: the target row takes the Hive room, and
+	 * any other row that held it is unlinked keeping the Hive name as its label. */
+	function applyLink(rowId: string, hiveRoomId: string) {
+		const hiveName = hiveRoomById.get(hiveRoomId)?.name ?? null;
+		rooms = rooms.map((r) => {
+			if (r.id === rowId) return { ...r, roomId: hiveRoomId, name: null };
+			if (r.roomId === hiveRoomId) return { ...r, roomId: null, name: r.name ?? hiveName };
+			return r;
+		});
+	}
+
+	function linkFace(face: Face, hiveRoomId: string) {
+		const row = roomByFace.get(faceKey(face));
+		if (!row) return;
+		applyLink(row.id, hiveRoomId);
+		takeSnapshot();
+	}
+
+	function unlinkSelectedRoom() {
+		unlinkRoomRow(selectedRoom?.id ?? null);
+	}
+
+	/** Drop a plan room's Hive link, keeping the room's name as a loose label. */
+	function unlinkRoomRow(rowId: string | null) {
+		const row = rowId === null ? null : (rooms.find((r) => r.id === rowId) ?? null);
+		if (!row?.roomId) return;
+		const hiveName = hiveRoomById.get(row.roomId)?.name ?? null;
+		updateRoomRow(row.id, { roomId: null, name: hiveName });
+		takeSnapshot();
+	}
+
+	/** Stamp a grid-snapped 3 m x 3 m room at `center` and link its face. */
+	/** Half the side of a room dropped in from the drawer, in meters. */
+	const DROPPED_ROOM_HALF = 1.5;
+
+	/**
+	 * Where a room dropped at `center` would land. The preview and the drop read
+	 * this same function, so what the pointer shows is what gets drawn.
+	 */
+	function droppedRoomRect(center: Point): { a: Point; b: Point } {
+		const c = gridSnap(center);
+		const half = DROPPED_ROOM_HALF;
+		const dropped: Point[] = [
+			{ x: c.x - half, y: c.y - half },
+			{ x: c.x + half, y: c.y - half },
+			{ x: c.x + half, y: c.y + half },
+			{ x: c.x - half, y: c.y + half },
+		];
+		// Land the room flush against what is already drawn, the way the stamp
+		// tool does — otherwise two rooms dropped side by side sit a fraction
+		// apart and never share a wall.
+		const shift = snapRectOffset(dropped, graph);
+		const corners = dropped.map((p) => ({ x: p.x + shift.x, y: p.y + shift.y }));
+		return { a: corners[0], b: corners[2] };
+	}
+
+	function stampLinkedRect(center: Point, hiveRoomId: string) {
+		const c = gridSnap(center);
+		const { a, b } = droppedRoomRect(center);
+		handleCommit(
+			addRoomClipped(
+				graph,
+				a,
+				b,
+				DEFAULT_WALL_THICKNESS,
+				{ vertexId: newVertexId, wallId: newWallId },
+				faces,
+			),
+			{ snapshot: false },
+		);
+		const face = faceContainingPoint(faces, c);
+		if (face) {
+			const row = roomByFace.get(faceKey(face));
+			if (row) applyLink(row.id, hiveRoomId);
+		}
+		takeSnapshot();
+	}
+
+	function reattachDetached(roomMetaId: string, face: Face) {
+		const detached = rooms.find((r) => r.id === roomMetaId);
+		if (!detached) return;
+		const fk = faceKey(face);
+		rooms = rooms
+			.filter((r) => r.id === roomMetaId || faceKey(r) !== fk)
+			.map((r) => (r.id === roomMetaId ? { ...r, vertexIds: [...face.vertexIds] } : r));
+		takeSnapshot();
+	}
+
+	/** The devices a placement ref covers, disabled ones included. */
+	function devicesForRef(ref: PlacementRef): Device[] {
+		return resolveTargetDevices(
+			{ type: ref.memberType, id: ref.memberId },
+			allDevices,
+			hiveGroups,
+			hiveRooms,
+			{ includeDisabled: true },
+		);
+	}
+
+	function deviceIdsForRef(ref: PlacementRef): string[] {
+		return devicesForRef(ref).map((d) => d.id);
+	}
+
+	/**
+	 * The face a marker belongs in: the linked room holding that device. A group
+	 * spans whatever its members span, so it has no single home and lands where
+	 * it is dropped.
+	 */
+	function homeFaceFor(ref: PlacementRef): Face | null {
+		if (ref.memberType !== "device") return null;
+		for (const face of faces) {
+			const row = roomByFace.get(faceKey(face));
+			if (!row?.roomId) continue;
+			const hive = hiveRooms.find((r) => r.id === row.roomId);
+			if (hive?.resolvedDevices?.some((d) => d.id === ref.memberId)) return face;
+		}
+		return null;
+	}
+
+	function settlePlacement(ref: PlacementRef, p: Point, alt: boolean): Point {
+		if (alt) return p;
+		const home = homeFaceFor(ref);
+		if (home && !pointInPolygon(p, home.polygon)) {
+			return nearestPointInFace(p, home, 0.2);
+		}
+		return p;
+	}
+
+	function handlePlacementPreview(ref: PlacementRef, p: Point) {
+		const key = placementKey(ref);
+		placements = placements.map((pl) =>
+			placementKey(pl) === key ? { ...pl, x: p.x, y: p.y } : pl,
+		);
+		const home = homeFaceFor(ref);
+		highlightFaceKey = home && !pointInPolygon(p, home.polygon) ? faceKey(home) : null;
+	}
+
+	function handlePlacementDrop(ref: PlacementRef, p: Point, alt: boolean) {
+		const key = placementKey(ref);
+		const settled = settlePlacement(ref, p, alt);
+		placements = placements.map((pl) =>
+			placementKey(pl) === key ? { ...pl, x: settled.x, y: settled.y } : pl,
+		);
+		highlightFaceKey = null;
+		takeSnapshot();
+	}
+
+	function removePlacement(ref: PlacementRef) {
+		const key = placementKey(ref);
+		placements = placements.filter((p) => placementKey(p) !== key);
+		takeSnapshot();
+	}
+
+	let pendingPlacement = $state<{ placement: Placement; conflict: PlacementConflict } | null>(null);
+	let conflictOpen = $state(false);
+
+	function refLabel(ref: PlacementRef): string {
+		if (ref.memberType === "group") {
+			return hiveGroups.find((g) => g.id === ref.memberId)?.name ?? ref.memberId;
+		}
+		const device = deviceById.get(ref.memberId);
+		return device ? deviceDisplayName(device) : ref.memberId;
+	}
+
+	/**
+	 * Land a marker, displacing anything already covering the same devices. The
+	 * displacement and the insertion ship as one list assignment plus one
+	 * snapshot, so undo restores both halves together.
+	 */
+	function requestPlacement(placement: Placement) {
+		const existing = $state.snapshot(placements);
+		const conflict = placementConflicts(placement, existing, deviceIdsForRef);
+		if (needsConfirmation(placement, conflict)) {
+			pendingPlacement = { placement, conflict };
+			conflictOpen = true;
+			return;
+		}
+		placements = applyPlacement(existing, placement, conflict);
+		takeSnapshot();
+	}
+
+	function confirmPlacement() {
+		const pending = pendingPlacement;
+		conflictOpen = false;
+		pendingPlacement = null;
+		if (!pending) return;
+		placements = applyPlacement($state.snapshot(placements), pending.placement, pending.conflict);
+		takeSnapshot();
+	}
+
+	function cancelPlacement() {
+		conflictOpen = false;
+		pendingPlacement = null;
+	}
+
+	function startRoomDrag(kind: "hive-room" | "detached", id: string, text: string, e: PointerEvent) {
+		externalDrag =
+			kind === "hive-room" ? { kind, hiveRoomId: id, text } : { kind, roomMetaId: id, text };
+		moveExternalDrag(e);
+	}
+
+	function startDeviceDrag(device: Device, e: PointerEvent) {
+		const view: PlacementView = { kind: "device", device, x: 0, y: 0 };
+		externalDrag = { kind: "placement", placement: view };
+		draftPlacement = view;
+		moveExternalDrag(e);
+	}
+
+	function startGroupDrag(group: PanelGroup, e: PointerEvent) {
+		const view: PlacementView = {
+			kind: "group",
+			group,
+			devices: devicesForRef({ memberType: "group", memberId: group.id }),
+			x: 0,
+			y: 0,
+		};
+		externalDrag = { kind: "placement", placement: view };
+		draftPlacement = view;
+		moveExternalDrag(e);
+	}
+
+	function moveExternalDrag(e: PointerEvent) {
+		if (!externalDrag || !editorApi) return;
+		const p = editorApi.clientToWorld(e.clientX, e.clientY);
+		const dragged = externalDrag.placement;
+		if (externalDrag.kind === "placement" && dragged) {
+			const snapped = e.altKey ? p : gridSnap(p);
+			draftPlacement = { ...dragged, x: snapped.x, y: snapped.y };
+			const home = homeFaceFor(placementViewRef(dragged));
+			highlightFaceKey =
+				home && !pointInPolygon(snapped, home.polygon) && !e.altKey ? faceKey(home) : null;
+		} else {
+			draftLabel = { point: p, text: externalDrag.text ?? "" };
+			const face = faceContainingPoint(faces, p);
+			highlightFaceKey = face ? faceKey(face) : null;
+			// Over a room the drop links to it, which the highlight already shows.
+			// Anywhere else it draws one, so show where.
+			draftRoom =
+				externalDrag.kind === "hive-room" && !face ? droppedRoomRect(p) : null;
+		}
+	}
+
+	function endExternalDrag(e: PointerEvent) {
+		const drag = externalDrag;
+		clearExternalDrag();
+		if (!drag || !editorApi) return;
+		const p = editorApi.clientToWorld(e.clientX, e.clientY);
+		if (drag.kind === "placement" && drag.placement) {
+			const ref = placementViewRef(drag.placement);
+			const snapped = e.altKey ? p : gridSnap(p);
+			const settled = settlePlacement(ref, snapped, e.altKey);
+			requestPlacement({ ...ref, x: settled.x, y: settled.y });
+			return;
+		}
+		if (drag.kind === "hive-room" && drag.hiveRoomId) {
+			const face = faceContainingPoint(faces, p);
+			if (face) linkFace(face, drag.hiveRoomId);
+			else stampLinkedRect(p, drag.hiveRoomId);
+			return;
+		}
+		if (drag.kind === "detached" && drag.roomMetaId) {
+			const face = faceContainingPoint(faces, p);
+			if (face) reattachDetached(drag.roomMetaId, face);
+		}
+	}
+
+	function clearExternalDrag() {
+		externalDrag = null;
+		draftLabel = null;
+		draftRoom = null;
+		draftPlacement = null;
+		highlightFaceKey = null;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (!editMode) {
+			if (e.key === "Escape" && armedBrush && !isEditableTarget(e.target)) {
+				disarmBrush();
+			}
+			return;
+		}
+		if (isEditableTarget(e.target)) return;
+		const mod = e.metaKey || e.ctrlKey;
+		if (mod && e.key === "z" && !e.shiftKey) {
+			e.preventDefault();
+			handleUndo();
+		} else if (mod && (e.key === "Z" || e.key === "y")) {
+			e.preventDefault();
+			handleRedo();
+		} else if (mod && e.key === "c") {
+			if (selection.wallIds.length === 0) return;
+			e.preventDefault();
+			handleCopy();
+		} else if (mod && e.key === "v") {
+			if (!copyBuffer) return;
+			e.preventDefault();
+			handlePaste();
+		} else if (e.key === "Delete" || e.key === "Backspace") {
+			e.preventDefault();
+			deleteSelection();
+		} else if (e.key === "Escape") {
+			if (externalDrag) {
+				clearExternalDrag();
+				return;
+			}
+			if (editorApi?.cancelDraw()) return;
+			selection = { ...emptySelection };
+		}
+	}
+
+	async function handleSave() {
+		if (saving || !isDirty) return;
+		saving = true;
+		try {
+			const input = buildUpdateFloorplanInput(planId, planName, graph, rooms, placements);
+			const result = await client.mutation(UPDATE_FLOORPLAN, { input }).toPromise();
+			if (result.error) {
+				errors.setWithAutoDismiss(graphqlErrorMessage(result.error, "Failed to save the plan."));
+				return;
+			}
+			savedCursor = history.cursor;
+			savedSnapshot = cloneSnapshot();
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Going Live with unsaved edits saves first and stays in Edit if that fails.
+	function handleEnterEdit() {
+		disarmBrush();
+		brushOpen = false;
+		editMode = true;
+	}
+
+	function handleCancelEdit() {
+		if (saving) return;
+		if (isDirty) {
+			discardOpen = true;
+			return;
+		}
+		exitEditMode();
+	}
+
+	function confirmDiscard() {
+		discardOpen = false;
+		revertToSaved();
+		exitEditMode();
+	}
+
+	/**
+	 * Put the plan back to what the server holds and start a fresh history, so
+	 * Redo cannot resurrect the changes that were just discarded.
+	 */
+	function revertToSaved() {
+		if (savedSnapshot) restoreSnapshot(savedSnapshot);
+		history.reset(cloneSnapshot());
+		savedCursor = history.cursor;
+		savedSnapshot = cloneSnapshot();
+	}
+
+	function exitEditMode() {
+		clearExternalDrag();
+		editorApi?.cancelDraw();
+		selection = { ...emptySelection };
+		drawerOpen = false;
+		unlockedRoomIds = new Set();
+		freeCornerRoomIds = new Set();
+		renameRoomId = null;
+		faceMenuOpen = false;
+		faceMenu = null;
+		// Copied walls may not exist after a discard.
+		copyBuffer = null;
+		editMode = false;
+	}
+
+	function handleMarkerTap(pl: PlacementView) {
+		if (popoverDismissedRecently()) return;
+		const devices = placementDeviceList(pl).filter(
+			(d) => !d.disabled && d.available && isLightControlDevice(d),
+		);
+		if (devices.length === 0) return;
+		commitGroupToggle(client, devices, !devices.some((d) => d.state?.on));
+	}
+
+	function handleMarkerMenu(placement: PlacementView, clientX: number, clientY: number) {
+		faceMenuOpen = false;
+		markerMenu = { x: clientX, y: clientY, placement };
+		markerMenuOpen = true;
+	}
+
+	function menuRemovePlacement() {
+		const m = markerMenu;
+		markerMenuOpen = false;
+		markerMenu = null;
+		if (m) removePlacement(placementViewRef(m.placement));
+	}
+
+	function menuOpenDevicePage() {
+		const m = markerMenu;
+		markerMenuOpen = false;
+		markerMenu = null;
+		if (m?.placement.kind === "device") goto(`/devices/${m.placement.device.id}`);
+	}
+
+	function handleOpeningMenu(openingId: string, clientX: number, clientY: number) {
+		if (!editMode) return;
+		faceMenuOpen = false;
+		selection = { ...emptySelection, openingIds: [openingId] };
+		openingMenu = { x: clientX, y: clientY, openingId };
+		openingMenuOpen = true;
+	}
+
+	/** The kind of the opening the menu is about, so the menu can mark it current. */
+	const openingMenuKind = $derived.by(() => {
+		if (!openingMenu) return null;
+		for (const w of graph.walls) {
+			const o = w.openings?.find((x) => x.id === openingMenu!.openingId);
+			if (o) return o.kind;
+		}
+		return null;
+	});
+
+	function menuSetOpeningKind(kind: OpeningKind) {
+		const m = openingMenu;
+		openingMenuOpen = false;
+		openingMenu = null;
+		if (!m) return;
+		handleCommit({
+			...graph,
+			walls: graph.walls.map((w) =>
+				w.openings?.some((o) => o.id === m.openingId)
+					? { ...w, openings: w.openings.map((o) => (o.id === m.openingId ? { ...o, kind } : o)) }
+					: w,
+			),
+		}, { snapshot: true });
+	}
+
+	function menuRemoveOpening() {
+		const m = openingMenu;
+		openingMenuOpen = false;
+		openingMenu = null;
+		if (m) dropOpenings([m.openingId]);
+	}
+
+	function dropOpenings(ids: string[]) {
+		handleCommit(removeOpenings(graph, ids), { snapshot: true });
+		selection = { ...emptySelection };
+	}
+
+	function handleMarkerPreview(deviceIds: string[], partial: Partial<DeviceState>) {
+		const next = { ...previewByDevice };
+		for (const id of deviceIds) next[id] = { ...next[id], ...partial };
+		previewByDevice = next;
+		noteInteract();
+	}
+
+	function handleFaceTap(faceIndex: number) {
+		if (popoverDismissedRecently()) return;
+		const face = faces[faceIndex];
+		if (!face) return;
+		const row = roomByFace.get(faceKey(face));
+		if (!row?.roomId) return;
+		pushState("", { ...page.state, mapRoomId: row.roomId });
+	}
+
+	function handleFaceMenu(faceIndex: number, clientX: number, clientY: number) {
+		if (!editMode) return;
+		const face = faces[faceIndex];
+		if (!face) return;
+		const row = roomByFace.get(faceKey(face));
+		if (!row) return;
+		// Right-click opens the menu and nothing else — selecting is what a left
+		// click is for, and it is what opens the room's panel.
+		renameRoomId = null;
+		faceMenu = {
+			x: clientX,
+			y: clientY,
+			roomId: row.id,
+			faceIndex,
+			unlocked: unlockedRoomIds.has(row.id),
+			cornersFree: freeCornerRoomIds.has(row.id),
+		};
+		faceMenuOpen = true;
+	}
+
+	function menuToggleCornerLock() {
+		const m = faceMenu;
+		faceMenuOpen = false;
+		if (!m) return;
+		const next = new Set(freeCornerRoomIds);
+		if (next.has(m.roomId)) next.delete(m.roomId);
+		else next.add(m.roomId);
+		freeCornerRoomIds = next;
+	}
+
+	function menuToggleLock() {
+		const m = faceMenu;
+		faceMenuOpen = false;
+		if (!m) return;
+		const next = new Set(unlockedRoomIds);
+		if (next.has(m.roomId)) next.delete(m.roomId);
+		else next.add(m.roomId);
+		unlockedRoomIds = next;
+	}
+
+	function menuRename() {
+		const m = faceMenu;
+		faceMenuOpen = false;
+		if (!m) return;
+		renameAt = { x: m.x, y: m.y };
+		renameRoomId = m.roomId;
+	}
+
+	function menuLink() {
+		const m = faceMenu;
+		faceMenuOpen = false;
+		if (!m) return;
+		linkTargetRowId = m.roomId;
+		drawerOpen = true;
+	}
+
+	function menuUnlink() {
+		const m = faceMenu;
+		faceMenuOpen = false;
+		unlinkRoomRow(m?.roomId ?? null);
+	}
+
+	/**
+	 * A right-click while one of the plan's menus is open lands on the menu's own
+	 * layer, not the plan, so the browser would raise its menu instead. Take the
+	 * click and move the plan's menu to it.
+	 */
+	async function handlePlanContextMenu(e: MouseEvent) {
+		if (!faceMenuOpen && !markerMenuOpen && !openingMenuOpen) return;
+		e.preventDefault();
+		const { clientX, clientY } = e;
+		faceMenuOpen = false;
+		markerMenuOpen = false;
+		openingMenuOpen = false;
+		// The menu has to actually close before it will anchor somewhere new;
+		// closing and opening in one go leaves it where it was.
+		await tick();
+		editorApi?.openMenuAt(clientX, clientY);
+	}
+
+	function menuDelete() {
+		const m = faceMenu;
+		faceMenuOpen = false;
+		const face = m === null ? null : faces[m.faceIndex];
+		if (face) deleteFace(face);
+	}
+
+	const openRoomId = $derived<string | null>(
+		(page.state as { mapRoomId?: string }).mapRoomId ?? null,
+	);
+	const openRoom = $derived(
+		openRoomId ? (hiveRooms.find((r) => r.id === openRoomId) ?? null) : null,
+	);
+
+	function closeRoomDrawer() {
+		if (openRoomId !== null) window.history.back();
+	}
+
+	async function handleApplyScene(scene: { id: string; name: string }) {
+		const previousActivatedAt = scenes.find((s) => s.id === scene.id)?.activatedAt ?? null;
+		const optimisticAt = new Date().toISOString();
+		scenes = scenes.map((s) => (s.id === scene.id ? { ...s, activatedAt: optimisticAt } : s));
+		const result = await client.mutation(APPLY_SCENE, { sceneId: scene.id }).toPromise();
+		if (result.error) {
+			scenes = scenes.map((s) =>
+				s.id === scene.id ? { ...s, activatedAt: previousActivatedAt } : s,
+			);
+			errors.setWithAutoDismiss(graphqlErrorMessage(result.error, "Failed to apply the scene."));
+		}
+	}
+
+	onMount(async () => {
+		pageHeader.breadcrumbs = [{ label: "Map" }];
+		// A minute is finer than the sun moves and finer than the eye reads.
+		sunTimer = setInterval(() => (now = new Date()), 60_000);
+		const [planResult, roomsResult] = await Promise.all([
+			client.query(FLOORPLAN_QUERY, {}).toPromise(),
+			client.query(ROOMS_QUERY, {}).toPromise(),
+			loadLocation(),
+		]);
+		if (planResult.error) {
+			errors.setWithAutoDismiss(graphqlErrorMessage(planResult.error, "Failed to load the plan."));
+		}
+		if (roomsResult.data?.rooms) {
+			hiveRooms = roomsResult.data.rooms;
+		}
+		const plan = planResult.data?.floorplan;
+		if (plan) {
+			const converted = floorplanToGraph(plan);
+			planId = plan.id;
+			planName = plan.name;
+			graph = converted.graph;
+			rooms = converted.rooms;
+			placements = converted.placements;
+		} else {
+			planId = newPlanId();
+		}
+		history.reset(cloneSnapshot());
+		savedCursor = history.cursor;
+		savedSnapshot = cloneSnapshot();
+		// The map's day-to-day job is being looked at, not edited: a plan with
+		// anything on it opens Live; only a blank plan opens in Edit.
+		editMode = graph.walls.length === 0 && rooms.length === 0;
+		activeSubHandle = client.subscription(SCENE_ACTIVE_SUB, {}).subscribe((r) => {
+			const ev = r.data?.sceneActiveChanged;
+			if (!ev) return;
+			scenes = scenes.map((s) =>
+				s.id === ev.sceneId ? { ...s, activatedAt: ev.activatedAt ?? null } : s,
+			);
+		});
+		loading = false;
+	});
+
+	let activeSubHandle: { unsubscribe: () => void } | null = null;
+
+	onDestroy(() => {
+		pageHeader.reset();
+		activeSubHandle?.unsubscribe();
+		if (interactingTimer) clearTimeout(interactingTimer);
+		if (sunTimer) clearInterval(sunTimer);
+	});
+
+	$effect(() => {
+		if (loading) {
+			pageHeader.actions = [];
+			return;
+		}
+		// `saving` is the layout's discriminator for rendering SaveButton, which
+		// hardcodes its own label and icon — the other actions must omit it.
+		pageHeader.actions = editMode
+			? [
+					{
+						label: "Cancel",
+						icon: X,
+						variant: "outline" as const,
+						onclick: handleCancelEdit,
+						disabled: saving,
+						hideLabelOnMobile: true,
+					},
+					{
+						label: "Save",
+						saving,
+						onclick: handleSave,
+						disabled: saving || !isDirty,
+						hideLabelOnMobile: true,
+					},
+				]
+			: [
+					{
+						label: "Edit",
+						icon: Pencil,
+						onclick: handleEnterEdit,
+						hideLabelOnMobile: true,
+					},
+				];
+	});
+
+	const selectedFace = $derived<Face | null>(
+		selection.faceIndex !== null && selection.faceIndex < faces.length
+			? faces[selection.faceIndex]
+			: null,
+	);
+	const selectedFaceBounds = $derived(selectedFace ? faceBounds(selectedFace) : null);
+	/** The lone selected wall, which is what the metadata card can edit. */
+	const selectedWall = $derived<PlanWall | null>(
+		selection.wallIds.length === 1
+			? (graph.walls.find((w) => w.id === selection.wallIds[0]) ?? null)
+			: null,
+	);
+
+	function setSelectedWallThickness(next: number | null) {
+		const wall = selectedWall;
+		if (!wall || next === null || next === wall.thickness) return;
+		handleCommit(setWallThickness(graph, wall.id, next), { snapshot: true });
+	}
+	const selectedRoom = $derived(selectedFace ? (roomByFace.get(faceKey(selectedFace)) ?? null) : null);
+	const selectedLinkedRoom = $derived.by(() => {
+		if (!selectedRoom?.roomId) return null;
+		const hive = hiveRoomById.get(selectedRoom.roomId);
+		return hive ? { id: selectedRoom.roomId, name: hive.name, icon: hive.icon } : null;
+	});
+	const panelAnchor = $derived.by(() => {
+		void viewportVersion;
+		if (!selectedFace || !editorApi) return null;
+		return editorApi.faceClientRect(selectedFace);
+	});
+	const placedKeys = $derived(new Set(placements.map((p) => placementKey(p))));
+	const panelRoomDevices = $derived.by<Device[]>(() => {
+		if (!selectedRoom?.roomId) return [];
+		return resolveTargetDevices(
+			{ type: "room", id: selectedRoom.roomId },
+			allDevices,
+			hiveGroups,
+			hiveRooms,
+			{ includeDisabled: true },
+		);
+	});
+	const panelDeviceRows = $derived<DeviceRow[]>(
+		panelRoomDevices.map((device) => ({
+			device,
+			placed: placedKeys.has(placementKey({ memberType: "device", memberId: device.id })),
+		})),
+	);
+	/** Groups reaching into the selected room, derived from device-set overlap. */
+	const panelGroupRows = $derived.by<GroupRow[]>(() => {
+		if (panelRoomDevices.length === 0) return [];
+		const roomDeviceIds = new Set(panelRoomDevices.map((d) => d.id));
+		return hiveGroups.flatMap((group) => {
+			const overlap = deviceIdsForRef({ memberType: "group", memberId: group.id }).filter((id) =>
+				roomDeviceIds.has(id),
+			);
+			if (overlap.length === 0) return [];
+			return [
+				{
+					group: { id: group.id, name: group.name, icon: group.icon },
+					deviceCount: overlap.length,
+					placed: placedKeys.has(placementKey({ memberType: "group", memberId: group.id })),
+				},
+			];
+		});
+	});
+	const metadataLabel = $derived(
+		selectedLinkedRoom?.name ?? (selectedRoom?.name || null),
+	);
+
+	const drawerGroups = $derived<DrawerGroup<"room">[]>([
+		{
+			heading: "Rooms",
+			items: hiveRooms.map((r) => {
+				const linked = linkedHiveRoomIds.has(r.id);
+				return {
+					type: "room" as const,
+					id: r.id,
+					name: r.name ?? r.id,
+					icon: DoorOpen,
+					iconRef: r.icon,
+					badge: linked ? "Linked" : `${r.resolvedDevices?.length ?? 0} devices`,
+					disabled: linked,
+				};
+			}),
+		},
+	]);
+
+	function handleDrawerSelect(_type: "room", id: string) {
+		drawerOpen = false;
+		// The menu names its own room; otherwise fall back to whatever is selected.
+		const target = linkTargetRowId;
+		linkTargetRowId = null;
+		if (target) {
+			applyLink(target, id);
+			takeSnapshot();
+			return;
+		}
+		if (selectedFace && selectedRoom) {
+			linkFace(selectedFace, id);
+			return;
+		}
+		if (!editorApi) return;
+		stampLinkedRect(editorApi.getViewportCenterWorld(), id);
+	}
+
+</script>
+
+<svelte:window
+	oncontextmenu={handlePlanContextMenu}
+	onkeydown={handleKeydown}
+	onpointermove={externalDrag ? moveExternalDrag : undefined}
+	onpointerup={externalDrag ? endExternalDrag : undefined}
+/>
+<UnsavedGuard dirty={isDirty} />
+
+<div class="flex h-[calc(100vh-6rem)] flex-col">
+	{#if errors.message}
+		<ErrorBanner class="mb-2" message={errors.message} ondismiss={() => errors.clear()} />
+	{/if}
+
+	<div class="relative mt-2 flex-1 overflow-hidden rounded-lg shadow-card">
+		<div class="dark absolute inset-0 bg-background">
+			{#if loading}
+				<div class="h-full w-full animate-pulse bg-muted/30"></div>
+			{:else}
+				<div in:fly={{ y: -4, duration: 150 }} class="h-full w-full">
+					<FloorplanEditor
+						{graph}
+						{faces}
+						{tool}
+						{selection}
+						live={!editMode}
+						unlockedKeys={unlockedFaceKeys}
+						freeCornerKeys={freeCornerFaceKeys}
+						brush={armedBrush && brushCss ? { kind: armedBrush.kind, css: brushCss } : null}
+						inertKeys={brushInertKeys}
+						onbrushstroke={handleBrushStroke}
+						onbrushend={handleBrushEnd}
+						{brushRadiusPx}
+						onbrushresize={setBrushRadius}
+						glowGroups={glowData.groups}
+						lightmap={lightmapFrame}
+						outsideGlows={glowData.outside}
+						placements={placementViews}
+						{draftPlacement}
+						{draftLabel}
+						{draftRoom}
+						{faceLabels}
+						{highlightFaceKey}
+						onselectionchange={(sel) => (selection = sel)}
+						onpreview={handlePreview}
+						oncommit={handleCommit}
+						ondetach={handleDetach}
+						onsnapshot={takeSnapshot}
+						onplacementpreview={handlePlacementPreview}
+						onplacementdrop={handlePlacementDrop}
+						onmarkertap={handleMarkerTap}
+						onmarkermenu={handleMarkerMenu}
+						{openingKind}
+						onopeningmenu={handleOpeningMenu}
+						{snapOff}
+						{additive}
+						onfacetap={handleFaceTap}
+						onfacemenu={handleFaceMenu}
+						onmarkerpreview={handleMarkerPreview}
+						onviewportchange={() => viewportVersion++}
+						onready={(api) => (editorApi = api)}
+					/>
+				</div>
+			{/if}
+		</div>
+
+		{#if !loading}
+			<MapToolbar
+				{editMode}
+				{tool}
+				ontool={(next) => (tool = next)}
+				{openingKind}
+				onopeningkind={(next) => (openingKind = next)}
+				canUndo={history.canUndo}
+				canRedo={history.canRedo}
+				onundo={handleUndo}
+				onredo={handleRedo}
+				selectedWallCount={selection.wallIds.length}
+				hasCopyBuffer={!!copyBuffer}
+				oncopy={handleCopy}
+				onpaste={handlePaste}
+				{snapOff}
+				onsnaptoggle={() => (snapOff = !snapOff)}
+				{additive}
+				onadditivetoggle={() => (additive = !additive)}
+				onlinkroom={() => (drawerOpen = true)}
+				{brushOpen}
+				{canPaint}
+				onbrushtoggle={() => {
+					brushOpen = !brushOpen;
+					if (!brushOpen) disarmBrush();
+				}}
+			/>
+
+			<div
+				class="absolute bottom-3 left-3 z-10 rounded-lg bg-card/90 shadow-card px-3 py-2 text-xs backdrop-blur-sm transition-opacity duration-200 {editMode &&
+				(selectedFace || selectedWall)
+					? 'opacity-100'
+					: 'pointer-events-none opacity-0'}"
+			>
+				{#if selectedFace && selectedFaceBounds}
+					{#if metadataLabel}
+						<div class="flex items-center gap-1.5 pb-0.5 font-medium">
+							{#if selectedLinkedRoom}
+								<DoorOpen class="size-3 text-muted-foreground" />
+							{/if}
+							{metadataLabel}
+						</div>
+					{/if}
+					<div class="font-medium">{formatArea(selectedFace.area)}</div>
+					<div class="text-muted-foreground">
+						{formatMeters(selectedFaceBounds.width)} × {formatMeters(selectedFaceBounds.height)}
+					</div>
+				{:else if selectedWall}
+					<div class="font-medium">{formatMeters(wallLength(selectedWall, graph.vertices))}</div>
+					<div class="flex items-center gap-2 pt-1">
+						<span class="text-muted-foreground">Thickness</span>
+						<NumberInput
+							value={selectedWall.thickness}
+							min={MIN_WALL_THICKNESS}
+							max={MAX_WALL_THICKNESS}
+							allowDecimal
+							class="h-6 w-16 text-xs"
+							ariaLabel="Wall thickness in meters"
+							onValueChange={setSelectedWallThickness}
+						/>
+					</div>
+				{/if}
+			</div>
+
+			{#if !editMode && brushOpen && canPaint}
+				<MapBrushPalette
+					hasColor={placedHasColor}
+					hasColorTemp={placedHasColorTemp}
+					hasSwitchable={placedHasSwitchable}
+					armed={armedBrush}
+					radiusPx={brushRadiusPx}
+					onradiuschange={setBrushRadius}
+					onarm={(b) => {
+						if (b === null) disarmBrush();
+						else armedBrush = b;
+					}}
+				/>
+			{/if}
+
+			{#if editMode && detachedRooms.length > 0}
+				<DetachedRoomsCard
+					rooms={detachedRooms}
+					{hiveRoomById}
+					ondiscard={(id) => {
+						rooms = rooms.filter((r) => r.id !== id);
+						takeSnapshot();
+					}}
+					ondragstart={(room, e) =>
+						startRoomDrag(
+							"detached",
+							room.id,
+							room.roomId
+								? (hiveRoomById.get(room.roomId)?.name ?? room.name ?? "Room")
+								: (room.name ?? "Room"),
+							e,
+						)}
+					ondragmove={moveExternalDrag}
+					ondragend={endExternalDrag}
+					ondragcancel={clearExternalDrag}
+				/>
+			{/if}
+
+			{#if editMode && graph.walls.length === 0}
+				<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+					<div class="rounded-lg shadow-card bg-card p-8 text-center">
+						<div
+							class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted"
+						>
+							<MapIcon class="size-6 text-muted-foreground" />
+						</div>
+						<p class="text-muted-foreground">No plan yet.</p>
+						<p class="mt-2 text-sm text-muted-foreground">
+							Pick the wall tool and click to start drawing.
+						</p>
+					</div>
+				</div>
+			{/if}
+		{/if}
+	</div>
+</div>
+
+{#if editMode && selectedFace && selectedLinkedRoom && panelAnchor && !externalDrag}
+	<!--
+		Keyed on the room so moving from one to another builds a new panel rather
+		than rewriting this one in place: the old fades out and the new fades in,
+		the same as opening and closing it.
+	-->
+	{#key selectedLinkedRoom.id}
+		<RoomPanel
+			anchor={panelAnchor}
+			linkedRoom={selectedLinkedRoom}
+			deviceRows={panelDeviceRows}
+			groupRows={panelGroupRows}
+			ondevicedragstart={startDeviceDrag}
+			ongroupdragstart={startGroupDrag}
+			ondragmove={moveExternalDrag}
+			ondragend={endExternalDrag}
+			ondragcancel={clearExternalDrag}
+			onremoveplacement={removePlacement}
+		/>
+	{/key}
+{/if}
+
+{#if editMode && renameRoom}
+	<div
+		bind:this={renameBoxEl}
+		class="fixed z-50 w-56 rounded-md bg-popover p-2 shadow-md ring-1 ring-foreground/10"
+		style="left: {renameAt.x}px; top: {renameAt.y}px;"
+	>
+		<Input
+			bind:ref={renameInputEl}
+			value={renameRoom.name ?? ""}
+			placeholder="Room label"
+			class="h-8 text-sm"
+			oninput={(e) => {
+				if (!renameRoomId) return;
+				const v = e.currentTarget.value;
+				updateRoomRow(renameRoomId, { name: v === "" ? null : v });
+				queueMicrotask(takeSnapshot);
+			}}
+			onkeydown={(e) => {
+				if (e.key === "Enter" || e.key === "Escape") renameRoomId = null;
+			}}
+		/>
+	</div>
+{/if}
+
+<PlanPointMenu bind:open={markerMenuOpen} at={markerMenu} onclose={() => (markerMenu = null)}>
+		{#if markerMenu?.placement.kind === "device"}
+			<DropdownMenuItem onclick={menuOpenDevicePage}>
+				<ExternalLink class="size-3.5" />
+				Open device
+			</DropdownMenuItem>
+			<DropdownMenuSeparator />
+		{/if}
+		<DropdownMenuItem onclick={menuRemovePlacement}>
+			<X class="size-3.5" />
+			Remove from map
+		</DropdownMenuItem>
+</PlanPointMenu>
+
+<PlanPointMenu bind:open={openingMenuOpen} at={openingMenu} onclose={() => (openingMenu = null)}>
+		{#each openingKinds as k (k.id)}
+			<DropdownMenuItem disabled={openingMenuKind === k.id} onclick={() => menuSetOpeningKind(k.id)}>
+				<k.icon class="size-3.5" />
+				{k.label}
+			</DropdownMenuItem>
+		{/each}
+		<DropdownMenuSeparator />
+		<DropdownMenuItem onclick={menuRemoveOpening}>
+			<X class="size-3.5" />
+			Remove opening
+		</DropdownMenuItem>
+</PlanPointMenu>
+
+<PlanPointMenu bind:open={faceMenuOpen} at={faceMenu}>
+		<DropdownMenuItem onclick={menuToggleLock}>
+			{#if faceMenu?.unlocked}
+				<Lock class="size-3.5" />
+				Lock room
+			{:else}
+				<LockOpen class="size-3.5" />
+				Unlock room
+			{/if}
+		</DropdownMenuItem>
+		<DropdownMenuItem onclick={menuToggleCornerLock}>
+			{#if faceMenu?.cornersFree}
+				<Frame class="size-3.5" />
+				Keep corners square
+			{:else}
+				<PenLine class="size-3.5" />
+				Move corners freely
+			{/if}
+		</DropdownMenuItem>
+		<DropdownMenuItem onclick={menuRename}>
+			<Pencil class="size-3.5" />
+			Rename
+		</DropdownMenuItem>
+		<DropdownMenuSeparator />
+		{#if menuRoom?.roomId}
+			<DropdownMenuItem onclick={menuUnlink}>
+				<Unlink class="size-3.5" />
+				Unlink room
+			</DropdownMenuItem>
+		{:else}
+			<DropdownMenuItem onclick={menuLink}>
+				<LinkIcon class="size-3.5" />
+				Link room
+			</DropdownMenuItem>
+		{/if}
+	<DropdownMenuSeparator />
+		<DropdownMenuItem variant="destructive" onclick={menuDelete}>
+			<Trash2 class="size-3.5" />
+			Delete room
+		</DropdownMenuItem>
+</PlanPointMenu>
+
+<ConfirmDialog
+	bind:open={conflictOpen}
+	title="Already on the map"
+	description="{pendingPlacement
+		? refLabel(pendingPlacement.placement)
+		: ''} covers these. They come off the map; nothing else changes."
+	confirmLabel="Remove and place"
+	onconfirm={confirmPlacement}
+	oncancel={cancelPlacement}
+>
+	{#if pendingPlacement}
+		<div class="rounded-lg bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+			<span>These markers leave the plan:</span>
+			<div class="mt-2 flex flex-wrap gap-1.5">
+				{#each pendingPlacement.conflict.displaced as d (placementKey(d))}
+					<HiveChip type={d.memberType} label={refLabel(d)} />
+				{/each}
+			</div>
+		</div>
+	{/if}
+</ConfirmDialog>
+
+<ConfirmDialog
+	bind:open={discardOpen}
+	title="Discard changes?"
+	description="Your unsaved changes to the plan will be lost."
+	confirmLabel="Discard"
+	onconfirm={confirmDiscard}
+	oncancel={() => (discardOpen = false)}
+/>
+
+<HiveDrawer
+	bind:open={drawerOpen}
+	title="Link a Hive room"
+	description="Drag a room onto the plan, or select it to stamp a linked room."
+	groups={drawerGroups}
+	onselect={handleDrawerSelect}
+	ondragout={(item, e) => startRoomDrag("hive-room", item.id, item.name, e)}
+/>
+
+<RoomDrawer
+	room={openRoom}
+	open={openRoomId !== null}
+	devices={liveDevices}
+	groups={hiveGroups}
+	rooms={hiveRooms}
+	{scenes}
+	{client}
+	onclose={closeRoomDrawer}
+	onapplyscene={handleApplyScene}
+/>

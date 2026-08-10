@@ -35,6 +35,7 @@
 		Wrench,
 		ChevronUp,
 		PlugZap,
+		Map as MapIcon,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -54,7 +55,12 @@
 	}
 
 	const navGroups: NavGroup[] = [
-		{ items: [{ href: "/", label: "Dashboard", icon: LayoutDashboard }] },
+		{
+			items: [
+				{ href: "/", label: "Dashboard", icon: LayoutDashboard },
+				{ href: "/map", label: "Map", icon: MapIcon },
+			],
+		},
 		{
 			label: "Things",
 			items: [

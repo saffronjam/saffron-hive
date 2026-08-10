@@ -4,14 +4,13 @@ import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
 import type { Component } from "svelte";
 
-interface RGB {
+export interface RGB {
   r: number;
   g: number;
   b: number;
 }
 
 const WARM: RGB = { r: 255, g: 138, b: 54 };
-const COOL: RGB = { r: 160, g: 200, b: 255 };
 const CREAM: RGB = { r: 255, g: 230, b: 190 };
 const DIM: RGB = { r: 80, g: 80, b: 80 };
 const NEUTRAL: RGB = { r: 120, g: 120, b: 120 };
@@ -49,16 +48,43 @@ function toCss(c: RGB): string {
   return `rgb(${c.r}, ${c.g}, ${c.b})`;
 }
 
-function miredToRgb(mired: number): RGB {
-  const t = clamp01((mired - MIRED_MIN) / (MIRED_MAX - MIRED_MIN));
-  return lerpRgb(COOL, WARM, t);
+function clamp255(n: number): number {
+  return Math.round(Math.min(255, Math.max(0, n)));
+}
+
+/**
+ * Approximate the RGB appearance of a black-body emitter at the given color
+ * temperature (Tanner Helland's curve fit, valid ~1000–40000 K). This is the
+ * one CT→RGB vocabulary shared by card tints and the map's light glow.
+ */
+export function kelvinToRgb(kelvin: number): RGB {
+  const t = Math.min(400, Math.max(10, kelvin / 100));
+  let r: number;
+  let g: number;
+  let b: number;
+  if (t <= 66) {
+    r = 255;
+    g = 99.4708025861 * Math.log(t) - 161.1195681661;
+    b = t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  } else {
+    r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+    g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+    b = 255;
+  }
+  return { r: clamp255(r), g: clamp255(g), b: clamp255(b) };
+}
+
+/** Zigbee color temperature (mireds, clamped to the UI's 150–500 range) → RGB. */
+export function miredToRgb(mired: number): RGB {
+  const clamped = Math.min(MIRED_MAX, Math.max(MIRED_MIN, mired));
+  return kelvinToRgb(1e6 / clamped);
 }
 
 function brightnessToRgb(brightness: number): RGB {
   return lerpRgb(DIM, CREAM, clamp01(brightness / BRIGHTNESS_MAX));
 }
 
-interface TintInput {
+export interface TintInput {
   type?: string;
   on?: boolean | null;
   color?: { r: number; g: number; b: number } | null;
@@ -89,7 +115,7 @@ function staticPayloadIsSwitchOnly(payload: StaticActionPayload): boolean {
   return payload.light === undefined && payload.brightness == null;
 }
 
-function resolveTintRgb(input: TintInput): RGB {
+export function resolveTintRgb(input: TintInput): RGB {
   if (!input.on) return NEUTRAL;
   if (input.color) return { r: input.color.r, g: input.color.g, b: input.color.b };
   if (input.colorTemp != null) return miredToRgb(input.colorTemp);

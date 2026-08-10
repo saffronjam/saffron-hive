@@ -8,6 +8,8 @@ export interface ProfileState {
   "view.scenes": ListView;
   "view.users": ListView;
   "activity.advanced": boolean;
+  "map.viewport"?: { x: number; y: number; k: number };
+  "map.brushRadius"?: number;
 }
 
 export const PROFILE_STORAGE_KEY = "saffron-hive-profile";

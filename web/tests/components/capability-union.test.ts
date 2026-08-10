@@ -257,6 +257,33 @@ describe("disabled devices", () => {
     expect(got).toEqual([]);
   });
 
+  it("stay dropped from a room target without includeDisabled", () => {
+    const room: RoomLite = {
+      id: "r1",
+      members: [
+        { memberType: "device", memberId: "light-1" },
+        { memberType: "device", memberId: "plug-1" },
+      ],
+    };
+    const got = resolveTargetDevices({ type: "room", id: "r1" }, [light, offPlug], [], [room]);
+    expect(got.map((d) => d.id)).toEqual(["light-1"]);
+  });
+
+  it("are kept in a room target with includeDisabled", () => {
+    const room: RoomLite = {
+      id: "r1",
+      members: [
+        { memberType: "device", memberId: "light-1" },
+        { memberType: "device", memberId: "plug-1" },
+      ],
+    };
+    const got = resolveTargetDevices({ type: "room", id: "r1" }, [light, offPlug], [], [room], {
+      includeDisabled: true,
+    });
+    expect(got.map((d) => d.id).sort()).toEqual(["light-1", "plug-1"]);
+    expect(got.find((d) => d.id === "plug-1")?.disabled).toBe(true);
+  });
+
   it("come back once re-enabled", () => {
     const onPlug = { ...offPlug, disabled: false };
     const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, onPlug], [grp], []);

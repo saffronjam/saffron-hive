@@ -14,6 +14,11 @@ export interface DrawerItem<U extends string = string> {
   iconRef?: string | null;
   badge?: string;
   searchValue?: string;
+  /**
+   * Renders the row muted and inert: it cannot be selected and it does not
+   * participate in drag-out.
+   */
+  disabled?: boolean;
 }
 
 export interface DrawerGroup<U extends string = string> {
