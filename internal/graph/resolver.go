@@ -11,6 +11,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/geocode"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
@@ -140,6 +141,10 @@ type GraphStore interface {
 	RemoveRoomMember(ctx context.Context, id string) error
 	ListRoomsContainingMember(ctx context.Context, memberType device.RoomMemberType, memberID string) ([]store.Room, error)
 
+	// Floorplan
+	GetFloorplanGraph(ctx context.Context) (*store.Floorplan, error)
+	ReplaceFloorplan(ctx context.Context, params store.ReplaceFloorplanParams) error
+
 	// Effects
 	CreateEffect(ctx context.Context, params store.CreateEffectParams) (store.Effect, error)
 	GetEffect(ctx context.Context, id string) (store.Effect, error)
@@ -181,6 +186,12 @@ type GraphStore interface {
 
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
+// PlaceSearcher turns a place name into coordinates. Kept as an interface so
+// the resolver does not care which geocoder answers.
+type PlaceSearcher interface {
+	Search(ctx context.Context, query string) ([]geocode.Place, error)
+}
+
 type Resolver struct {
 	StateReader         device.StateReader
 	Store               GraphStore
@@ -200,6 +211,7 @@ type Resolver struct {
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter
 	BootstrapToken      BootstrapTokenChecker
+	Places              PlaceSearcher
 	// AvatarDir is the filesystem directory where per-user avatar files live.
 	// Used by deleteUser to remove the file alongside the row.
 	AvatarDir string

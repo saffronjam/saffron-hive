@@ -33,6 +33,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/geocode"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
@@ -218,6 +219,7 @@ func Run(ctx context.Context) error {
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
 		BootstrapToken:      bootstrapTokenStore,
+		Places:              geocode.New(),
 		AvatarDir:           avatarDir,
 	}
 

@@ -146,6 +146,44 @@ func TestDeleteRoom_CleansGroupMembers(t *testing.T) {
 	}
 }
 
+// TestDeleteRoom_UnlinksFloorplanRooms verifies the floorplan sweep: deleting
+// a Hive room clears the link on its floorplan face and keeps a label — the
+// room's name when the face was anonymous, the existing loose name otherwise.
+func TestDeleteRoom_UnlinksFloorplanRooms(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	mustCreateRoom(ctx, t, s, "r-1", "Kitchen")
+	mustCreateRoom(ctx, t, s, "r-2", "Bedroom")
+	mustReplaceFloorplanRooms(ctx, t, s,
+		FloorplanRoom{ID: "fr-1", RoomID: strPtr("r-1")},
+		FloorplanRoom{ID: "fr-2", Name: strPtr("Pantry"), RoomID: strPtr("r-2")},
+	)
+
+	if err := s.DeleteRoom(ctx, "r-1"); err != nil {
+		t.Fatalf("delete room r-1: %v", err)
+	}
+	if err := s.DeleteRoom(ctx, "r-2"); err != nil {
+		t.Fatalf("delete room r-2: %v", err)
+	}
+
+	rooms := mustGetFloorplanRooms(ctx, t, s)
+	anon := rooms["fr-1"]
+	if anon.RoomID != nil {
+		t.Errorf("fr-1 room_id = %q, want NULL", *anon.RoomID)
+	}
+	if anon.Name == nil || *anon.Name != "Kitchen" {
+		t.Errorf("fr-1 name = %v, want %q copied from the deleted room", anon.Name, "Kitchen")
+	}
+	labeled := rooms["fr-2"]
+	if labeled.RoomID != nil {
+		t.Errorf("fr-2 room_id = %q, want NULL", *labeled.RoomID)
+	}
+	if labeled.Name == nil || *labeled.Name != "Pantry" {
+		t.Errorf("fr-2 name = %v, want the loose label %q kept", labeled.Name, "Pantry")
+	}
+}
+
 func mustCreateRoom(ctx context.Context, t *testing.T, s *DB, id, name string) {
 	t.Helper()
 	if _, err := s.CreateRoom(ctx, CreateRoomParams{ID: id, Name: name}); err != nil {
@@ -170,6 +208,33 @@ func mustAddRoomMember(ctx context.Context, t *testing.T, s *DB, roomID string, 
 	}); err != nil {
 		t.Fatalf("add room member: %v", err)
 	}
+}
+
+func mustReplaceFloorplanRooms(ctx context.Context, t *testing.T, s *DB, rooms ...FloorplanRoom) {
+	t.Helper()
+	if err := s.ReplaceFloorplan(ctx, ReplaceFloorplanParams{
+		ID:    "fp-1",
+		Name:  "Home",
+		Rooms: rooms,
+	}); err != nil {
+		t.Fatalf("replace floorplan: %v", err)
+	}
+}
+
+func mustGetFloorplanRooms(ctx context.Context, t *testing.T, s *DB) map[string]FloorplanRoom {
+	t.Helper()
+	fp, err := s.GetFloorplanGraph(ctx)
+	if err != nil {
+		t.Fatalf("get floorplan graph: %v", err)
+	}
+	if fp == nil {
+		t.Fatal("get floorplan graph: no floorplan saved")
+	}
+	out := make(map[string]FloorplanRoom, len(fp.Rooms))
+	for _, r := range fp.Rooms {
+		out[r.ID] = r
+	}
+	return out
 }
 
 func mustAddGroupMember(ctx context.Context, t *testing.T, s *DB, groupID string, mt device.GroupMemberType, memberID string) {

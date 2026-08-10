@@ -670,6 +670,73 @@ func (r *mutationResolver) RemoveRoomMember(ctx context.Context, id string) (boo
 	return true, nil
 }
 
+// UpdateFloorplan is the resolver for the updateFloorplan field.
+func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.UpdateFloorplanInput) (*model.Floorplan, error) {
+	if err := validateFloorplanInput(ctx, r.Store, input); err != nil {
+		return nil, err
+	}
+
+	params := store.ReplaceFloorplanParams{
+		ID:         input.ID,
+		Name:       input.Name,
+		Vertices:   make([]store.FloorplanVertex, len(input.Vertices)),
+		Walls:      make([]store.FloorplanWall, len(input.Walls)),
+		Openings:   make([]store.FloorplanOpening, len(input.Openings)),
+		Rooms:      make([]store.FloorplanRoom, len(input.Rooms)),
+		Placements: make([]store.FloorplanPlacement, len(input.Placements)),
+	}
+	for i, v := range input.Vertices {
+		params.Vertices[i] = store.FloorplanVertex{ID: v.ID, X: v.X, Y: v.Y}
+	}
+	for i, w := range input.Walls {
+		params.Walls[i] = store.FloorplanWall{
+			ID:        w.ID,
+			VertexA:   w.VertexA,
+			VertexB:   w.VertexB,
+			Thickness: w.Thickness,
+			CurveX:    w.CurveX.Value(),
+			CurveY:    w.CurveY.Value(),
+		}
+	}
+	for i, o := range input.Openings {
+		params.Openings[i] = store.FloorplanOpening{
+			ID:     o.ID,
+			WallID: o.WallID,
+			T:      o.T,
+			Width:  o.Width,
+			Kind:   openingKindFromModel(o.Kind),
+		}
+	}
+	for i, room := range input.Rooms {
+		params.Rooms[i] = store.FloorplanRoom{
+			ID:        room.ID,
+			Name:      room.Name.Value(),
+			RoomID:    room.RoomID.Value(),
+			VertexIDs: room.VertexIds,
+		}
+	}
+	for i, p := range input.Placements {
+		params.Placements[i] = store.FloorplanPlacement{
+			MemberType: device.TargetType(p.MemberType),
+			MemberID:   p.MemberID,
+			X:          p.X,
+			Y:          p.Y,
+		}
+	}
+	if err := r.Store.ReplaceFloorplan(ctx, params); err != nil {
+		return nil, err
+	}
+
+	fp, err := r.Store.GetFloorplanGraph(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if fp == nil {
+		return nil, fmt.Errorf("floorplan %q not found after save", input.ID)
+	}
+	return mapFloorplan(fp), nil
+}
+
 // UpdateZigbee2MqttConfig is the resolver for the updateZigbee2MqttConfig field.
 // Saving always reapplies the configuration to the adapter, so a reachable
 // broker connects immediately. The row is persisted even when the reconnect
@@ -1628,6 +1695,18 @@ func (r *queryResolver) Room(ctx context.Context, id string) (*model.Room, error
 	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
 }
 
+// Floorplan is the resolver for the floorplan field.
+func (r *queryResolver) Floorplan(ctx context.Context) (*model.Floorplan, error) {
+	fp, err := r.Store.GetFloorplanGraph(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if fp == nil {
+		return nil, nil
+	}
+	return mapFloorplan(fp), nil
+}
+
 // StateHistory is the resolver for the stateHistory field.
 func (r *queryResolver) StateHistory(ctx context.Context, filter model.StateHistoryFilter) ([]*model.StateSeries, error) {
 	if len(filter.DeviceIds) == 0 {
@@ -1950,6 +2029,26 @@ func (r *queryResolver) Settings(ctx context.Context) ([]*model.Setting, error) 
 		result = append(result, &model.Setting{Key: s.Key, Value: s.Value})
 	}
 	return result, nil
+}
+
+// SearchPlaces is the resolver for the searchPlaces field.
+func (r *queryResolver) SearchPlaces(ctx context.Context, query string) ([]*model.Place, error) {
+	if r.Places == nil {
+		return nil, fmt.Errorf("place search is not configured")
+	}
+	found, err := r.Places.Search(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.Place, 0, len(found))
+	for _, p := range found {
+		out = append(out, &model.Place{
+			Name:      p.Name,
+			Latitude:  p.Latitude,
+			Longitude: p.Longitude,
+		})
+	}
+	return out, nil
 }
 
 // Logs is the resolver for the logs field.

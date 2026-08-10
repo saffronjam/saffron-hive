@@ -731,6 +731,77 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 	return mg
 }
 
+func mapFloorplan(fp *store.Floorplan) *model.Floorplan {
+	mf := &model.Floorplan{
+		ID:   fp.ID,
+		Name: fp.Name,
+	}
+	mf.Vertices = make([]*model.FloorplanVertex, len(fp.Vertices))
+	for i, v := range fp.Vertices {
+		mf.Vertices[i] = &model.FloorplanVertex{ID: v.ID, X: v.X, Y: v.Y}
+	}
+	mf.Walls = make([]*model.FloorplanWall, len(fp.Walls))
+	for i, w := range fp.Walls {
+		mf.Walls[i] = &model.FloorplanWall{
+			ID:        w.ID,
+			VertexA:   w.VertexA,
+			VertexB:   w.VertexB,
+			Thickness: w.Thickness,
+			CurveX:    w.CurveX,
+			CurveY:    w.CurveY,
+		}
+	}
+	mf.Openings = make([]*model.FloorplanOpening, len(fp.Openings))
+	for i, o := range fp.Openings {
+		mf.Openings[i] = &model.FloorplanOpening{
+			ID:     o.ID,
+			WallID: o.WallID,
+			T:      o.T,
+			Width:  o.Width,
+			Kind:   modelOpeningKind(o.Kind),
+		}
+	}
+	mf.Rooms = make([]*model.FloorplanRoom, len(fp.Rooms))
+	for i, r := range fp.Rooms {
+		mf.Rooms[i] = &model.FloorplanRoom{
+			ID:        r.ID,
+			Name:      r.Name,
+			RoomID:    r.RoomID,
+			VertexIds: r.VertexIDs,
+		}
+	}
+	mf.Placements = make([]*model.FloorplanPlacement, len(fp.Placements))
+	for i, p := range fp.Placements {
+		mf.Placements[i] = &model.FloorplanPlacement{
+			MemberType: string(p.MemberType),
+			MemberID:   p.MemberID,
+			X:          p.X,
+			Y:          p.Y,
+		}
+	}
+	return mf
+}
+
+func modelOpeningKind(k store.FloorplanOpeningKind) model.FloorplanOpeningKind {
+	switch k {
+	case store.FloorplanOpeningWindow:
+		return model.FloorplanOpeningKindWindow
+	case store.FloorplanOpeningCased:
+		return model.FloorplanOpeningKindOpening
+	}
+	return model.FloorplanOpeningKindDoor
+}
+
+func openingKindFromModel(k model.FloorplanOpeningKind) store.FloorplanOpeningKind {
+	switch k {
+	case model.FloorplanOpeningKindWindow:
+		return store.FloorplanOpeningWindow
+	case model.FloorplanOpeningKindOpening:
+		return store.FloorplanOpeningCased
+	}
+	return store.FloorplanOpeningDoor
+}
+
 func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
 		ID:        g.ID,
@@ -1173,6 +1244,74 @@ func attrsContainFold(attrs map[string]string, substr string) bool {
 		}
 	}
 	return false
+}
+
+// validateFloorplanInput checks the references an updateFloorplan input
+// carries before the plan is persisted: every linked roomId must name an
+// existing Hive room, no two faces may link the same room (the UNIQUE
+// constraint on floorplan_rooms.room_id backstops this with a less readable
+// error), and every placement must name a device or a group that exists and
+// appear only once (the primary key on floorplan_placements backstops that).
+func validateFloorplanInput(ctx context.Context, store GraphStore, input model.UpdateFloorplanInput) error {
+	linked := make(map[string]string, len(input.Rooms))
+	for _, room := range input.Rooms {
+		roomID := room.RoomID.Value()
+		if roomID == nil || *roomID == "" {
+			continue
+		}
+		if name, dup := linked[*roomID]; dup {
+			return fmt.Errorf("room %q is linked by more than one floorplan room", name)
+		}
+		rm, err := store.GetRoom(ctx, *roomID)
+		if err != nil {
+			return fmt.Errorf("room %q not found: %w", *roomID, err)
+		}
+		linked[*roomID] = rm.Name
+	}
+	wallIDs := make(map[string]bool, len(input.Walls))
+	for _, w := range input.Walls {
+		wallIDs[w.ID] = true
+	}
+	openingIDs := make(map[string]bool, len(input.Openings))
+	for _, o := range input.Openings {
+		if !wallIDs[o.WallID] {
+			return fmt.Errorf("opening %q references wall %q, which is not part of the plan", o.ID, o.WallID)
+		}
+		if o.T < 0 || o.T > 1 {
+			return fmt.Errorf("opening %q has t %v, outside the wall's 0..1 range", o.ID, o.T)
+		}
+		if o.Width <= 0 {
+			return fmt.Errorf("opening %q has width %v, which is not positive", o.ID, o.Width)
+		}
+		if openingIDs[o.ID] {
+			return fmt.Errorf("opening %q appears more than once on the plan", o.ID)
+		}
+		openingIDs[o.ID] = true
+	}
+	placed := make(map[device.TargetType]map[string]bool, 2)
+	for _, p := range input.Placements {
+		memberType := device.TargetType(p.MemberType)
+		switch memberType {
+		case device.TargetDevice:
+			if _, err := store.GetDevice(ctx, device.DeviceID(p.MemberID)); err != nil {
+				return fmt.Errorf("device %q not found: %w", p.MemberID, err)
+			}
+		case device.TargetGroup:
+			if _, err := store.GetGroup(ctx, p.MemberID); err != nil {
+				return fmt.Errorf("group %q not found: %w", p.MemberID, err)
+			}
+		default:
+			return fmt.Errorf("placement memberType %q is not %q or %q", p.MemberType, device.TargetDevice, device.TargetGroup)
+		}
+		if placed[memberType] == nil {
+			placed[memberType] = make(map[string]bool)
+		}
+		if placed[memberType][p.MemberID] {
+			return fmt.Errorf("%s %q is placed more than once on the plan", memberType, p.MemberID)
+		}
+		placed[memberType][p.MemberID] = true
+	}
+	return nil
 }
 
 // validateAutomationInput validates automation node/edge inputs before persisting.

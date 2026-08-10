@@ -304,12 +304,23 @@ func (s *DB) UpdateDeviceIcon(ctx context.Context, params UpdateDeviceIconParams
 	return s.GetDevice(ctx, params.ID)
 }
 
-// DeleteDevice deletes a device by its ID.
+// DeleteDevice deletes a device by its ID together with its floorplan
+// placement in one transaction. The placement is deleted explicitly because
+// the runtime connection does not enforce foreign keys, so the schema's
+// ON DELETE CASCADE does not fire on its own.
 func (s *DB) DeleteDevice(ctx context.Context, id device.DeviceID) error {
-	if err := s.q.DeleteDevice(ctx, id); err != nil {
-		return fmt.Errorf("delete device: %w", err)
-	}
-	return nil
+	return s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.DeleteFloorplanPlacementsByMember(ctx, sqlite.DeleteFloorplanPlacementsByMemberParams{
+			MemberType: device.TargetDevice,
+			MemberID:   string(id),
+		}); err != nil {
+			return fmt.Errorf("delete floorplan placement for device: %w", err)
+		}
+		if err := q.DeleteDevice(ctx, id); err != nil {
+			return fmt.Errorf("delete device: %w", err)
+		}
+		return nil
+	})
 }
 
 func derefTime(t *time.Time) time.Time {

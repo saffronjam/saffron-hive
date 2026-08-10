@@ -138,6 +138,55 @@ type EffectTrack struct {
 	Name       string
 }
 
+type Floorplan struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type FloorplanOpening struct {
+	ID          string
+	FloorplanID string
+	WallID      string
+	T           float64
+	Width       float64
+	Kind        string
+}
+
+type FloorplanPlacement struct {
+	FloorplanID string
+	MemberType  device.TargetType
+	MemberID    string
+	X           float64
+	Y           float64
+}
+
+type FloorplanRoom struct {
+	ID          string
+	FloorplanID string
+	Name        *string
+	RoomID      *string
+	VertexIds   string
+}
+
+type FloorplanVertex struct {
+	ID          string
+	FloorplanID string
+	X           float64
+	Y           float64
+}
+
+type FloorplanWall struct {
+	ID          string
+	FloorplanID string
+	VertexA     string
+	VertexB     string
+	Thickness   float64
+	CurveX      *float64
+	CurveY      *float64
+}
+
 type Group struct {
 	ID        string
 	Name      string

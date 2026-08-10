@@ -385,6 +385,91 @@ type RoomMember {
   group: Group
 }
 
+"""
+The floor plan drawn on the /map page: a centerline wall graph, the room faces
+derived from it, and the devices and groups placed on it. World units are
+meters. Saved as a whole — updateFloorplan replaces every list in one
+transaction.
+"""
+type Floorplan {
+  id: ID!
+  name: String!
+  vertices: [FloorplanVertex!]!
+  walls: [FloorplanWall!]!
+  openings: [FloorplanOpening!]!
+  rooms: [FloorplanRoom!]!
+  placements: [FloorplanPlacement!]!
+}
+
+type FloorplanVertex {
+  id: ID!
+  x: Float!
+  y: Float!
+}
+
+"""
+A wall between two vertices of the plan graph. curveX/curveY, when set, are
+the control point of a quadratic bezier; null means the wall is straight.
+"""
+type FloorplanWall {
+  id: ID!
+  vertexA: ID!
+  vertexB: ID!
+  thickness: Float!
+  curveX: Float
+  curveY: Float
+}
+
+"""
+What a gap in a wall represents. Daylight reaches a room through WINDOW
+openings; DOOR and OPENING are bare gaps in the wall body.
+"""
+enum FloorplanOpeningKind {
+  DOOR
+  WINDOW
+  OPENING
+}
+
+"""
+A gap cut out of a wall body. t is the gap's centre in the wall's own
+parameterisation (0 at vertexA, 1 at vertexB); width is in meters, so
+splitting a wall rescales t while width carries across untouched. Openings
+leave the centerline graph alone, so the derived room faces are the same with
+or without them.
+"""
+type FloorplanOpening {
+  id: ID!
+  wallId: ID!
+  t: Float!
+  width: Float!
+  kind: FloorplanOpeningKind!
+}
+
+"""
+A derived face of the wall graph. name is the user's label (null when
+anonymous); roomId links the face to a Hive room (null when unlinked, at most
+one face per room). vertexIds holds the face's vertex ids in canonical
+rotation so the face keeps its identity across edits.
+"""
+type FloorplanRoom {
+  id: ID!
+  name: String
+  roomId: ID
+  vertexIds: [ID!]!
+}
+
+"""
+Pins a target ref to a point on the plan. memberType is "device" or "group",
+and each ref appears at most once on the map. Which devices belong to a room or
+a group stays in membership — a placement is coordinates only.
+"""
+type FloorplanPlacement {
+  memberType: String!
+  memberId: ID!
+  x: Float!
+  y: Float!
+}
+
 type StateSeriesPoint {
   at: DateTime!
   value: Float!
@@ -597,6 +682,16 @@ type ConnectionTestResult {
 type Setting {
   key: String!
   value: String!
+}
+
+"""
+A place found by name, for filling in the coordinates the sun is computed from.
+"""
+type Place {
+  """Human-readable name, specific enough to tell two matches apart."""
+  name: String!
+  latitude: Float!
+  longitude: Float!
 }
 
 type LogEntry {
@@ -841,6 +936,58 @@ input RoomMemberInput {
   memberId: ID!
 }
 
+"""
+The whole plan in one input: the client sends every vertex, wall, opening,
+room, and placement it wants persisted, and the server replaces the stored plan
+with exactly this set. Ids are client-generated and stable across saves.
+"""
+input UpdateFloorplanInput {
+  id: ID!
+  name: String!
+  vertices: [FloorplanVertexInput!]!
+  walls: [FloorplanWallInput!]!
+  openings: [FloorplanOpeningInput!]!
+  rooms: [FloorplanRoomInput!]!
+  placements: [FloorplanPlacementInput!]!
+}
+
+input FloorplanVertexInput {
+  id: ID!
+  x: Float!
+  y: Float!
+}
+
+input FloorplanWallInput {
+  id: ID!
+  vertexA: ID!
+  vertexB: ID!
+  thickness: Float!
+  curveX: Float
+  curveY: Float
+}
+
+input FloorplanOpeningInput {
+  id: ID!
+  wallId: ID!
+  t: Float!
+  width: Float!
+  kind: FloorplanOpeningKind!
+}
+
+input FloorplanRoomInput {
+  id: ID!
+  name: String
+  roomId: ID
+  vertexIds: [ID!]!
+}
+
+input FloorplanPlacementInput {
+  memberType: String!
+  memberId: ID!
+  x: Float!
+  y: Float!
+}
+
 input UpdateAutomationInput {
   name: String
   icon: String
@@ -860,6 +1007,8 @@ type Query {
   group(id: ID!): Group @auth
   rooms: [Room!]! @auth
   room(id: ID!): Room @auth
+  "The floor plan. Null until the first save."
+  floorplan: Floorplan @auth
   stateHistory(filter: StateHistoryFilter!): [StateSeries!]! @auth
   aggregatedStateHistory(filter: AggregatedStateHistoryFilter!): [AggregatedSeries!]! @auth
   stateHistoryFields: [String!]! @auth
@@ -867,6 +1016,11 @@ type Query {
   zigbee2MqttConfig: Zigbee2MqttConfig @auth
   tuyaConfig: TuyaConfig @auth
   settings: [Setting!]! @auth
+  """
+  Places matching a search term, resolved through an OpenStreetMap geocoder.
+  Empty for a blank term, and an error when the geocoder cannot be reached.
+  """
+  searchPlaces(query: String!): [Place!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
   activity(filter: ActivityFilter): [ActivityEvent!]! @auth
   alarms(filter: AlarmFilter): [Alarm!]! @auth
@@ -913,6 +1067,11 @@ type Mutation {
   deleteRoom(id: ID!): Boolean! @auth
   addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
   removeRoomMember(id: ID!): Boolean! @auth
+  """
+  Upserts the floorplan row and replaces its vertices, walls, rooms, and
+  placements with the input's sets in one transaction. Returns the saved plan.
+  """
+  updateFloorplan(input: UpdateFloorplanInput!): Floorplan! @auth
   updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
   testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth

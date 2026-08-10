@@ -646,3 +646,94 @@ type Effect struct {
 	CreatedBy  *UserRef
 	Tracks     []EffectTrack
 }
+
+// Floorplan is a full floor plan: the plan row plus its wall graph, the gaps
+// cut into it, derived room faces, and placements. World units are meters.
+type Floorplan struct {
+	ID         string
+	Name       string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Vertices   []FloorplanVertex
+	Walls      []FloorplanWall
+	Openings   []FloorplanOpening
+	Rooms      []FloorplanRoom
+	Placements []FloorplanPlacement
+}
+
+// FloorplanVertex is one endpoint in the centerline wall graph.
+type FloorplanVertex struct {
+	ID string
+	X  float64
+	Y  float64
+}
+
+// FloorplanWall is one edge in the centerline wall graph, referencing its two
+// endpoint vertices. CurveX/CurveY, when both set, are the control point of a
+// quadratic bezier; nil means the wall is straight.
+type FloorplanWall struct {
+	ID        string
+	VertexA   string
+	VertexB   string
+	Thickness float64
+	CurveX    *float64
+	CurveY    *float64
+}
+
+// FloorplanOpeningKind is what a gap in a wall represents.
+type FloorplanOpeningKind string
+
+const (
+	// FloorplanOpeningDoor is a doorway.
+	FloorplanOpeningDoor FloorplanOpeningKind = "door"
+	// FloorplanOpeningWindow is a window; daylight enters through these.
+	FloorplanOpeningWindow FloorplanOpeningKind = "window"
+	// FloorplanOpeningCased is a cased opening with nothing in it.
+	FloorplanOpeningCased FloorplanOpeningKind = "opening"
+)
+
+// FloorplanOpening is a gap cut out of a wall body. T is the gap's centre in
+// the wall's own parameterisation (0 at VertexA, 1 at VertexB); Width is in
+// meters, so splitting a wall rescales T while Width carries across untouched.
+// Openings leave the centerline graph alone, so the derived faces are the same
+// with or without them.
+type FloorplanOpening struct {
+	ID     string
+	WallID string
+	T      float64
+	Width  float64
+	Kind   FloorplanOpeningKind
+}
+
+// FloorplanRoom is a derived face of the wall graph. Name is the user's label
+// (nil when anonymous); RoomID links the face to a Hive room (nil when
+// unlinked, at most one face per room). VertexIDs holds the face's vertex ids
+// in canonical rotation so the face keeps its identity across edits.
+type FloorplanRoom struct {
+	ID        string
+	Name      *string
+	RoomID    *string
+	VertexIDs []string
+}
+
+// FloorplanPlacement pins a target ref — a device or a group — to a point on
+// the plan. Each ref appears at most once on the map; membership stays in
+// room_members and group_members, this is coordinates only.
+type FloorplanPlacement struct {
+	MemberType device.TargetType
+	MemberID   string
+	X          float64
+	Y          float64
+}
+
+// ReplaceFloorplanParams bundles the whole plan for a single-transaction
+// replace: the plan row is upserted and all five child lists are swapped.
+type ReplaceFloorplanParams struct {
+	ID         string
+	Name       string
+	Vertices   []FloorplanVertex
+	Walls      []FloorplanWall
+	Openings   []FloorplanOpening
+	Rooms      []FloorplanRoom
+	Placements []FloorplanPlacement
+}

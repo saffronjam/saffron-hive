@@ -101,11 +101,16 @@ func (s *DB) UpdateRoom(ctx context.Context, params UpdateRoomParams) (Room, err
 // DeleteRoom deletes a room and any group_members rows that pointed to it.
 // room_members.room_id has an FK ON DELETE CASCADE so direct memberships are
 // removed automatically; the polymorphic reverse reference from group_members
-// has no FK and is cleaned up explicitly here.
+// has no FK and is cleaned up explicitly here, as is the floorplan_rooms link,
+// which is unlinked with the room's name kept as a loose label. The floorplan
+// sweep runs before the rooms row goes away because it copies rooms.name.
 func (s *DB) DeleteRoom(ctx context.Context, id string) error {
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.RemoveGroupMembersByRoom(ctx, id); err != nil {
 			return fmt.Errorf("clean group members for room: %w", err)
+		}
+		if err := q.UnlinkFloorplanRoomsByRoom(ctx, id); err != nil {
+			return fmt.Errorf("unlink floorplan rooms for room: %w", err)
 		}
 		if err := q.DeleteRoom(ctx, id); err != nil {
 			return fmt.Errorf("delete room: %w", err)
@@ -117,7 +122,10 @@ func (s *DB) DeleteRoom(ctx context.Context, id string) error {
 
 // BatchDeleteRooms deletes the rooms with the given IDs. Returns the number of
 // rows actually deleted; missing IDs are silently ignored. Also clears any
-// group_members rows that referenced these rooms.
+// group_members rows that referenced these rooms and unlinks their
+// floorplan_rooms faces, keeping each room's name as a loose label; the
+// floorplan sweep runs before the rooms rows go away because it copies
+// rooms.name.
 func (s *DB) BatchDeleteRooms(ctx context.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -131,6 +139,9 @@ func (s *DB) BatchDeleteRooms(ctx context.Context, ids []string) (int64, error) 
 		for _, id := range ids {
 			if err := q.RemoveGroupMembersByRoom(ctx, id); err != nil {
 				return fmt.Errorf("clean group members for room %s: %w", id, err)
+			}
+			if err := q.UnlinkFloorplanRoomsByRoom(ctx, id); err != nil {
+				return fmt.Errorf("unlink floorplan rooms for room %s: %w", id, err)
 			}
 		}
 		n, err := q.BatchDeleteRooms(ctx, js)

@@ -40,11 +40,15 @@ type App struct {
 	// auth) is exercised, not bypassed.
 	AuthToken string
 	UserID    string
-	cancel    context.CancelFunc
-	db        *sql.DB
-	dbPath    string
-	adapter   *zigbee.ZigbeeAdapter
-	server    *http.Server
+	// Store is the app's persistence layer, exposed for test steps that have
+	// no GraphQL surface (e.g. deleting a device row the way an integration
+	// purge does).
+	Store   *store.DB
+	cancel  context.CancelFunc
+	db      *sql.DB
+	dbPath  string
+	adapter *zigbee.ZigbeeAdapter
+	server  *http.Server
 }
 
 // StartApp starts the saffron-hive application in-process with a temp SQLite
@@ -239,6 +243,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		GraphQLURL: graphqlURL,
 		AuthToken:  token,
 		UserID:     seedUserID,
+		Store:      sqlStore,
 		cancel:     cancel,
 		db:         db,
 		dbPath:     dbPath,

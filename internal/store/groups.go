@@ -173,13 +173,20 @@ func (s *DB) loadAllGroupTags(ctx context.Context) (map[string][]device.GroupTag
 	return out, nil
 }
 
-// DeleteGroup deletes a group and any room_members rows that pointed to it.
-// group_members owns its members via FK cascade; the polymorphic reverse
-// reference from room_members has no FK and is cleaned up explicitly here.
+// DeleteGroup deletes a group together with any room_members rows and any
+// floorplan placement that pointed to it. group_members owns its members via
+// FK cascade; the polymorphic reverse references from room_members and
+// floorplan_placements have no FK and are cleaned up explicitly here.
 func (s *DB) DeleteGroup(ctx context.Context, id string) error {
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.RemoveRoomMembersByGroup(ctx, id); err != nil {
 			return fmt.Errorf("clean room members for group: %w", err)
+		}
+		if err := q.DeleteFloorplanPlacementsByMember(ctx, sqlite.DeleteFloorplanPlacementsByMemberParams{
+			MemberType: device.TargetGroup,
+			MemberID:   id,
+		}); err != nil {
+			return fmt.Errorf("delete floorplan placement for group: %w", err)
 		}
 		if err := q.DeleteGroup(ctx, id); err != nil {
 			return fmt.Errorf("delete group: %w", err)
@@ -191,7 +198,7 @@ func (s *DB) DeleteGroup(ctx context.Context, id string) error {
 
 // BatchDeleteGroups deletes the groups with the given IDs. Returns the number
 // of rows actually deleted; missing IDs are silently ignored. Also clears any
-// room_members rows that referenced these groups.
+// room_members rows and floorplan placements that referenced these groups.
 func (s *DB) BatchDeleteGroups(ctx context.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -205,6 +212,12 @@ func (s *DB) BatchDeleteGroups(ctx context.Context, ids []string) (int64, error)
 		for _, id := range ids {
 			if err := q.RemoveRoomMembersByGroup(ctx, id); err != nil {
 				return fmt.Errorf("clean room members for group %s: %w", id, err)
+			}
+			if err := q.DeleteFloorplanPlacementsByMember(ctx, sqlite.DeleteFloorplanPlacementsByMemberParams{
+				MemberType: device.TargetGroup,
+				MemberID:   id,
+			}); err != nil {
+				return fmt.Errorf("delete floorplan placement for group %s: %w", id, err)
 			}
 		}
 		n, err := q.BatchDeleteGroups(ctx, js)

@@ -104,6 +104,8 @@ type mockStore struct {
 	automationEdges map[string][]store.AutomationEdge
 	groups          map[string]store.Group
 	groupMembers    map[string][]store.GroupMember
+	rooms           map[string]store.Room
+	floorplan       *store.Floorplan
 	stateSamples    []store.StateHistoryPoint
 	activityEvents  []store.ActivityEvent
 	activityCounter int64
@@ -133,6 +135,7 @@ func newMockStore() *mockStore {
 		automationEdges: make(map[string][]store.AutomationEdge),
 		groups:          make(map[string]store.Group),
 		groupMembers:    make(map[string][]store.GroupMember),
+		rooms:           make(map[string]store.Room),
 		devices:         make(map[device.DeviceID]device.Device),
 		users:           make(map[string]store.User),
 		effects:         make(map[string]store.Effect),
@@ -809,12 +812,22 @@ func (m *mockStore) UpsertSetting(_ context.Context, _, _ string) error {
 	return nil
 }
 
-func (m *mockStore) CreateRoom(_ context.Context, _ store.CreateRoomParams) (store.Room, error) {
-	return store.Room{}, nil
+func (m *mockStore) CreateRoom(_ context.Context, params store.CreateRoomParams) (store.Room, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r := store.Room{ID: params.ID, Name: params.Name}
+	m.rooms[params.ID] = r
+	return r, nil
 }
 
-func (m *mockStore) GetRoom(_ context.Context, _ string) (store.Room, error) {
-	return store.Room{}, nil
+func (m *mockStore) GetRoom(_ context.Context, id string) (store.Room, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	r, ok := m.rooms[id]
+	if !ok {
+		return store.Room{}, fmt.Errorf("room %q not found", id)
+	}
+	return r, nil
 }
 
 func (m *mockStore) ListRooms(_ context.Context) ([]store.Room, error) {
@@ -856,6 +869,28 @@ func (m *mockStore) RemoveRoomMember(_ context.Context, _ string) error {
 
 func (m *mockStore) ListRoomsContainingMember(_ context.Context, _ device.RoomMemberType, _ string) ([]store.Room, error) {
 	return nil, nil
+}
+
+func (m *mockStore) GetFloorplanGraph(_ context.Context) (*store.Floorplan, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.floorplan, nil
+}
+
+func (m *mockStore) ReplaceFloorplan(_ context.Context, params store.ReplaceFloorplanParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.floorplan = &store.Floorplan{
+		ID:         params.ID,
+		Name:       params.Name,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		Vertices:   params.Vertices,
+		Walls:      params.Walls,
+		Rooms:      params.Rooms,
+		Placements: params.Placements,
+	}
+	return nil
 }
 
 func (m *mockStore) CreateUser(_ context.Context, params store.CreateUserParams) (store.User, error) {

@@ -1,0 +1,14 @@
+DROP INDEX IF EXISTS idx_floorplan_placements_floorplan_id;
+DROP TABLE IF EXISTS floorplan_placements;
+DROP INDEX IF EXISTS idx_floorplan_openings_wall_id;
+DROP INDEX IF EXISTS idx_floorplan_openings_floorplan_id;
+DROP TABLE IF EXISTS floorplan_openings;
+DROP INDEX IF EXISTS idx_floorplan_rooms_floorplan_id;
+DROP TABLE IF EXISTS floorplan_rooms;
+DROP INDEX IF EXISTS idx_floorplan_walls_vertex_b;
+DROP INDEX IF EXISTS idx_floorplan_walls_vertex_a;
+DROP INDEX IF EXISTS idx_floorplan_walls_floorplan_id;
+DROP TABLE IF EXISTS floorplan_walls;
+DROP INDEX IF EXISTS idx_floorplan_vertices_floorplan_id;
+DROP TABLE IF EXISTS floorplan_vertices;
+DROP TABLE IF EXISTS floorplans;

@@ -34,6 +34,38 @@ func TestBatchDeleteRooms(t *testing.T) {
 	}
 }
 
+func TestBatchDeleteRooms_UnlinksFloorplanRooms(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	mustCreateRoom(ctx, t, s, "r-1", "Kitchen")
+	mustCreateRoom(ctx, t, s, "r-2", "Bedroom")
+	mustReplaceFloorplanRooms(ctx, t, s,
+		FloorplanRoom{ID: "fr-1", RoomID: strPtr("r-1")},
+		FloorplanRoom{ID: "fr-2", Name: strPtr("Pantry"), RoomID: strPtr("r-2")},
+	)
+
+	if _, err := s.BatchDeleteRooms(ctx, []string{"r-1", "r-2"}); err != nil {
+		t.Fatalf("batch delete rooms: %v", err)
+	}
+
+	rooms := mustGetFloorplanRooms(ctx, t, s)
+	anon := rooms["fr-1"]
+	if anon.RoomID != nil {
+		t.Errorf("fr-1 room_id = %q, want NULL", *anon.RoomID)
+	}
+	if anon.Name == nil || *anon.Name != "Kitchen" {
+		t.Errorf("fr-1 name = %v, want %q copied from the deleted room", anon.Name, "Kitchen")
+	}
+	labeled := rooms["fr-2"]
+	if labeled.RoomID != nil {
+		t.Errorf("fr-2 room_id = %q, want NULL", *labeled.RoomID)
+	}
+	if labeled.Name == nil || *labeled.Name != "Pantry" {
+		t.Errorf("fr-2 name = %v, want the loose label %q kept", labeled.Name, "Pantry")
+	}
+}
+
 func TestBatchDeleteRoomsEmptyInput(t *testing.T) {
 	s := newTestStore(t)
 	n, err := s.BatchDeleteRooms(context.Background(), nil)

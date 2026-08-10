@@ -55,6 +55,11 @@ type Querier interface {
 	CreateEffect(ctx context.Context, arg CreateEffectParams) error
 	CreateEffectClip(ctx context.Context, arg CreateEffectClipParams) error
 	CreateEffectTrack(ctx context.Context, arg CreateEffectTrackParams) error
+	CreateFloorplanOpening(ctx context.Context, arg CreateFloorplanOpeningParams) error
+	CreateFloorplanPlacement(ctx context.Context, arg CreateFloorplanPlacementParams) error
+	CreateFloorplanRoom(ctx context.Context, arg CreateFloorplanRoomParams) error
+	CreateFloorplanVertex(ctx context.Context, arg CreateFloorplanVertexParams) error
+	CreateFloorplanWall(ctx context.Context, arg CreateFloorplanWallParams) error
 	// Same join shape as rooms; member table is group_members with typed member_type.
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	// Rooms share the same read-shape with scenes/groups/automations: the row is
@@ -78,6 +83,16 @@ type Querier interface {
 	DeleteDeviceTags(ctx context.Context, deviceID string) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
+	DeleteFloorplanOpeningsByFloorplan(ctx context.Context, floorplanID string) error
+	DeleteFloorplanPlacementsByFloorplan(ctx context.Context, floorplanID string) error
+	// DeleteFloorplanPlacementsByMember drops the map placement of a device or
+	// group being deleted. The runtime connection does not enforce foreign keys,
+	// so this sweep runs inside the DeleteDevice / DeleteGroup / BatchDeleteGroups
+	// transactions rather than relying on a cascade.
+	DeleteFloorplanPlacementsByMember(ctx context.Context, arg DeleteFloorplanPlacementsByMemberParams) error
+	DeleteFloorplanRoomsByFloorplan(ctx context.Context, floorplanID string) error
+	DeleteFloorplanVerticesByFloorplan(ctx context.Context, floorplanID string) error
+	DeleteFloorplanWallsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteGroupTags(ctx context.Context, groupID string) error
 	DeleteRoom(ctx context.Context, id string) error
@@ -98,6 +113,12 @@ type Querier interface {
 	GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
+	// A floorplan owns five child tables: floorplan_vertices, floorplan_walls,
+	// floorplan_openings, floorplan_rooms, floorplan_placements. GetFloorplanGraph
+	// is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
+	// inside one tx. vertex_ids is a JSON TEXT array; the Go wrapper marshals it
+	// before hitting these queries and unmarshals on read.
+	GetFloorplan(ctx context.Context) (Floorplan, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
@@ -148,6 +169,11 @@ type Querier interface {
 	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
 	ListEnabledAutomations(ctx context.Context) ([]ListEnabledAutomationsRow, error)
+	ListFloorplanOpenings(ctx context.Context, floorplanID string) ([]FloorplanOpening, error)
+	ListFloorplanPlacements(ctx context.Context, floorplanID string) ([]FloorplanPlacement, error)
+	ListFloorplanRooms(ctx context.Context, floorplanID string) ([]FloorplanRoom, error)
+	ListFloorplanVertices(ctx context.Context, floorplanID string) ([]FloorplanVertex, error)
+	ListFloorplanWalls(ctx context.Context, floorplanID string) ([]FloorplanWall, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]GroupMember, error)
 	ListGroupTags(ctx context.Context, groupID string) ([]device.GroupTag, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
@@ -203,6 +229,11 @@ type Querier interface {
 	SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
+	// UnlinkFloorplanRoomsByRoom clears the Hive-room link on the faces that point
+	// at a room being deleted. COALESCE copies the room's name into faces that have
+	// no loose label yet, so the label survives the deletion; runs inside the
+	// DeleteRoom / BatchDeleteRooms transactions before the rooms row goes away.
+	UnlinkFloorplanRoomsByRoom(ctx context.Context, roomID string) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
 	// Partial update via COALESCE(narg, col) gate. Nil narg values leave their
 	// column untouched. The nullable icon column can't be cleared through this
@@ -234,6 +265,7 @@ type Querier interface {
 	// the removed flag when a device reappears. The name column is the user's
 	// override and is never touched here.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
+	UpsertFloorplan(ctx context.Context, arg UpsertFloorplanParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error

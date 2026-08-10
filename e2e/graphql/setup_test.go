@@ -11,12 +11,14 @@ import (
 	"testing"
 
 	"github.com/saffronjam/saffron-hive/e2e/infra"
+	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 var (
 	graphqlURL string
 	authToken  string
 	publisher  *infra.Publisher
+	sqlStore   *store.DB
 )
 
 const expectedDeviceCount = 7
@@ -36,6 +38,7 @@ func TestMain(m *testing.M) {
 	}
 	graphqlURL = app.GraphQLURL
 	authToken = app.AuthToken
+	sqlStore = app.Store
 
 	publisher, err = infra.NewPublisher(mosquitto.BrokerURL)
 	if err != nil {

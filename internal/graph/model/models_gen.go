@@ -306,6 +306,7 @@ type DeviceState struct {
 	Humidity          *float64 `json:"humidity,omitempty"`
 	Pressure          *float64 `json:"pressure,omitempty"`
 	Illuminance       *float64 `json:"illuminance,omitempty"`
+	Occupancy         *bool    `json:"occupancy,omitempty"`
 	Battery           *float64 `json:"battery,omitempty"`
 	Power             *float64 `json:"power,omitempty"`
 	Voltage           *float64 `json:"voltage,omitempty"`
@@ -411,6 +412,108 @@ type EffectTrackInput struct {
 	Clips []*EffectClipInput `json:"clips"`
 }
 
+// The floor plan drawn on the /map page: a centerline wall graph, the room faces
+// derived from it, and the devices and groups placed on it. World units are
+// meters. Saved as a whole — updateFloorplan replaces every list in one
+// transaction.
+type Floorplan struct {
+	ID         string                `json:"id"`
+	Name       string                `json:"name"`
+	Vertices   []*FloorplanVertex    `json:"vertices"`
+	Walls      []*FloorplanWall      `json:"walls"`
+	Openings   []*FloorplanOpening   `json:"openings"`
+	Rooms      []*FloorplanRoom      `json:"rooms"`
+	Placements []*FloorplanPlacement `json:"placements"`
+}
+
+// A gap cut out of a wall body. t is the gap's centre in the wall's own
+// parameterisation (0 at vertexA, 1 at vertexB); width is in meters, so
+// splitting a wall rescales t while width carries across untouched. Openings
+// leave the centerline graph alone, so the derived room faces are the same with
+// or without them.
+type FloorplanOpening struct {
+	ID     string               `json:"id"`
+	WallID string               `json:"wallId"`
+	T      float64              `json:"t"`
+	Width  float64              `json:"width"`
+	Kind   FloorplanOpeningKind `json:"kind"`
+}
+
+type FloorplanOpeningInput struct {
+	ID     string               `json:"id"`
+	WallID string               `json:"wallId"`
+	T      float64              `json:"t"`
+	Width  float64              `json:"width"`
+	Kind   FloorplanOpeningKind `json:"kind"`
+}
+
+// Pins a target ref to a point on the plan. memberType is "device" or "group",
+// and each ref appears at most once on the map. Which devices belong to a room or
+// a group stays in membership — a placement is coordinates only.
+type FloorplanPlacement struct {
+	MemberType string  `json:"memberType"`
+	MemberID   string  `json:"memberId"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+}
+
+type FloorplanPlacementInput struct {
+	MemberType string  `json:"memberType"`
+	MemberID   string  `json:"memberId"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+}
+
+// A derived face of the wall graph. name is the user's label (null when
+// anonymous); roomId links the face to a Hive room (null when unlinked, at most
+// one face per room). vertexIds holds the face's vertex ids in canonical
+// rotation so the face keeps its identity across edits.
+type FloorplanRoom struct {
+	ID        string   `json:"id"`
+	Name      *string  `json:"name,omitempty"`
+	RoomID    *string  `json:"roomId,omitempty"`
+	VertexIds []string `json:"vertexIds"`
+}
+
+type FloorplanRoomInput struct {
+	ID        string                     `json:"id"`
+	Name      graphql.Omittable[*string] `json:"name,omitempty"`
+	RoomID    graphql.Omittable[*string] `json:"roomId,omitempty"`
+	VertexIds []string                   `json:"vertexIds"`
+}
+
+type FloorplanVertex struct {
+	ID string  `json:"id"`
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+}
+
+type FloorplanVertexInput struct {
+	ID string  `json:"id"`
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+}
+
+// A wall between two vertices of the plan graph. curveX/curveY, when set, are
+// the control point of a quadratic bezier; null means the wall is straight.
+type FloorplanWall struct {
+	ID        string   `json:"id"`
+	VertexA   string   `json:"vertexA"`
+	VertexB   string   `json:"vertexB"`
+	Thickness float64  `json:"thickness"`
+	CurveX    *float64 `json:"curveX,omitempty"`
+	CurveY    *float64 `json:"curveY,omitempty"`
+}
+
+type FloorplanWallInput struct {
+	ID        string                      `json:"id"`
+	VertexA   string                      `json:"vertexA"`
+	VertexB   string                      `json:"vertexB"`
+	Thickness float64                     `json:"thickness"`
+	CurveX    graphql.Omittable[*float64] `json:"curveX,omitempty"`
+	CurveY    graphql.Omittable[*float64] `json:"curveY,omitempty"`
+}
+
 type Group struct {
 	ID              string         `json:"id"`
 	Name            string         `json:"name"`
@@ -464,6 +567,14 @@ type NativeEffectOption struct {
 	Name                 string `json:"name"`
 	DisplayName          string `json:"displayName"`
 	SupportedDeviceCount int    `json:"supportedDeviceCount"`
+}
+
+// A place found by name, for filling in the coordinates the sun is computed from.
+type Place struct {
+	// Human-readable name, specific enough to tell two matches apart.
+	Name      string  `json:"name"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
 }
 
 type Query struct {
@@ -676,6 +787,19 @@ type UpdateEffectInput struct {
 	DurationMs graphql.Omittable[*int]                `json:"durationMs,omitempty"`
 	NativeName graphql.Omittable[*string]             `json:"nativeName,omitempty"`
 	Tracks     graphql.Omittable[[]*EffectTrackInput] `json:"tracks,omitempty"`
+}
+
+// The whole plan in one input: the client sends every vertex, wall, opening,
+// room, and placement it wants persisted, and the server replaces the stored plan
+// with exactly this set. Ids are client-generated and stable across saves.
+type UpdateFloorplanInput struct {
+	ID         string                     `json:"id"`
+	Name       string                     `json:"name"`
+	Vertices   []*FloorplanVertexInput    `json:"vertices"`
+	Walls      []*FloorplanWallInput      `json:"walls"`
+	Openings   []*FloorplanOpeningInput   `json:"openings"`
+	Rooms      []*FloorplanRoomInput      `json:"rooms"`
+	Placements []*FloorplanPlacementInput `json:"placements"`
 }
 
 type UpdateGroupInput struct {
@@ -1133,6 +1257,65 @@ func (e *EffectKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e EffectKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// What a gap in a wall represents. Daylight reaches a room through WINDOW
+// openings; DOOR and OPENING are bare gaps in the wall body.
+type FloorplanOpeningKind string
+
+const (
+	FloorplanOpeningKindDoor    FloorplanOpeningKind = "DOOR"
+	FloorplanOpeningKindWindow  FloorplanOpeningKind = "WINDOW"
+	FloorplanOpeningKindOpening FloorplanOpeningKind = "OPENING"
+)
+
+var AllFloorplanOpeningKind = []FloorplanOpeningKind{
+	FloorplanOpeningKindDoor,
+	FloorplanOpeningKindWindow,
+	FloorplanOpeningKindOpening,
+}
+
+func (e FloorplanOpeningKind) IsValid() bool {
+	switch e {
+	case FloorplanOpeningKindDoor, FloorplanOpeningKindWindow, FloorplanOpeningKindOpening:
+		return true
+	}
+	return false
+}
+
+func (e FloorplanOpeningKind) String() string {
+	return string(e)
+}
+
+func (e *FloorplanOpeningKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FloorplanOpeningKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FloorplanOpeningKind", str)
+	}
+	return nil
+}
+
+func (e FloorplanOpeningKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *FloorplanOpeningKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e FloorplanOpeningKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
