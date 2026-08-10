@@ -81,6 +81,43 @@ func TestDiscoverDevices_Sensor(t *testing.T) {
 	}
 }
 
+func TestDiscoverDevices_MotionSensor(t *testing.T) {
+	adapter, mqtt, _, sw := newTestAdapter()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(`[{
+		"ieee_address": "0x00158d0001a2b3c8",
+		"friendly_name": "hallway_motion",
+		"type": "EndDevice",
+		"supported": true,
+		"definition": {
+			"model": "SNZB-03", "vendor": "SONOFF", "description": "Motion sensor",
+			"exposes": [
+				{"type": "binary", "name": "occupancy", "property": "occupancy", "access": 1},
+				{"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%"}
+			]
+		}
+	}]`))
+
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	dev, ok := sw.devices[device.DeviceID("0x00158d0001a2b3c8")]
+	if !ok {
+		t.Fatal("device not registered")
+	}
+	if dev.Type != device.Sensor {
+		t.Fatalf("expected Sensor, got %s", dev.Type)
+	}
+	occupancy := findCap(t, dev.Capabilities, device.CapOccupancy)
+	if occupancy.Type != "binary" {
+		t.Fatalf("expected occupancy type binary, got %s", occupancy.Type)
+	}
+}
+
 func TestDiscoverDevices_Button(t *testing.T) {
 	adapter, mqtt, _, sw := newTestAdapter()
 	if err := adapter.Start(); err != nil {

@@ -52,7 +52,7 @@ func TestDevices_QueryAll(t *testing.T) {
 		}
 	}
 
-	for _, expected := range []string{"Living Room Light", "Bedroom Light", "Kitchen Light", "Living Room Sensor", "Outdoor Sensor", "Office Button", "Lava Lamp"} {
+	for _, expected := range []string{"Living Room Light", "Bedroom Light", "Kitchen Light", "Living Room Sensor", "Outdoor Sensor", "Office Button", "Lava Lamp", "Hallway Motion Sensor"} {
 		if _, ok := nameSet[expected]; !ok {
 			t.Errorf("expected device %q not found", expected)
 		}
@@ -76,13 +76,14 @@ func TestDevices_VerifyTypes(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"Living Room Light":  "light",
-		"Bedroom Light":      "light",
-		"Kitchen Light":      "light",
-		"Living Room Sensor": "sensor",
-		"Outdoor Sensor":     "sensor",
-		"Office Button":      "button",
-		"Lava Lamp":          "plug",
+		"Living Room Light":     "light",
+		"Bedroom Light":         "light",
+		"Kitchen Light":         "light",
+		"Living Room Sensor":    "sensor",
+		"Outdoor Sensor":        "sensor",
+		"Office Button":         "button",
+		"Lava Lamp":             "plug",
+		"Hallway Motion Sensor": "sensor",
 	}
 
 	for _, d := range result.Devices {

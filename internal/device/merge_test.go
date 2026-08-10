@@ -84,6 +84,26 @@ func TestMergeDeviceState_SensorFieldsPreserved(t *testing.T) {
 	}
 }
 
+func TestMergeDeviceState_Occupancy(t *testing.T) {
+	current := DeviceState{Occupancy: Ptr(true), Illuminance: Ptr(120.0)}
+	update := DeviceState{Occupancy: Ptr(false)}
+
+	result := MergeDeviceState(current, update)
+
+	if result.Occupancy == nil || *result.Occupancy {
+		t.Fatalf("expected occupancy false, got %v", result.Occupancy)
+	}
+	if result.Illuminance == nil || *result.Illuminance != 120.0 {
+		t.Fatalf("expected illuminance preserved at 120, got %v", result.Illuminance)
+	}
+
+	result = MergeDeviceState(result, DeviceState{Illuminance: Ptr(80.0)})
+
+	if result.Occupancy == nil || *result.Occupancy {
+		t.Fatalf("expected occupancy untouched by nil update, got %v", result.Occupancy)
+	}
+}
+
 func TestMergeDeviceState_MeteringFields(t *testing.T) {
 	current := DeviceState{}
 	update := DeviceState{

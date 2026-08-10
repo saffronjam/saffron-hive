@@ -84,6 +84,19 @@ describe("stateSummary", () => {
       expect(stateSummary(state({ temperature: 19 }), "sensor")).toBe("19.0\u00b0C");
     });
 
+    it("summarizes an occupancy-only sensor by its motion state", () => {
+      expect(stateSummary(state({ occupancy: true }), "sensor")).toBe("Motion detected");
+      expect(stateSummary(state({ occupancy: false }), "sensor")).toBe("No motion");
+    });
+
+    it("prefers numeric readings over occupancy", () => {
+      expect(stateSummary(state({ temperature: 19, occupancy: true }), "sensor")).toBe("19.0°C");
+    });
+
+    it("prefers occupancy over battery", () => {
+      expect(stateSummary(state({ occupancy: false, battery: 72 }), "sensor")).toBe("No motion");
+    });
+
     it("falls back to battery when no temperature or humidity", () => {
       expect(stateSummary(state({ battery: 72 }), "sensor")).toBe("Battery 72%");
     });

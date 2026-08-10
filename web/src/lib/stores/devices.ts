@@ -46,6 +46,7 @@ function statesEqual(
     a.humidity === b.humidity &&
     a.pressure === b.pressure &&
     a.illuminance === b.illuminance &&
+    a.occupancy === b.occupancy &&
     a.battery === b.battery &&
     a.power === b.power &&
     a.voltage === b.voltage &&
@@ -102,6 +103,7 @@ const DEVICES_QUERY = graphql(`
         humidity
         pressure
         illuminance
+        occupancy
         battery
         power
         voltage
@@ -136,6 +138,7 @@ const DEVICE_STATE_CHANGED = graphql(`
         humidity
         pressure
         illuminance
+        occupancy
         battery
         power
         voltage
@@ -197,6 +200,7 @@ const DEVICE_ADDED = graphql(`
         humidity
         pressure
         illuminance
+        occupancy
         battery
         power
         voltage

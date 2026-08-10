@@ -140,6 +140,7 @@
 					humidity
 					pressure
 					illuminance
+					occupancy
 					battery
 					power
 					voltage
@@ -242,6 +243,7 @@
 					humidity
 					pressure
 					illuminance
+					occupancy
 					battery
 					power
 					voltage

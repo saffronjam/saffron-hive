@@ -76,6 +76,7 @@ type DeviceState {
   humidity: Float
   pressure: Float
   illuminance: Float
+  occupancy: Boolean
   battery: Float
   power: Float
   voltage: Float

@@ -65,6 +65,7 @@ func mapDeviceState(raw json.RawMessage) (device.DeviceState, string, error) {
 	state.Humidity = dto.Humidity
 	state.Pressure = dto.Pressure
 	state.Illuminance = dto.Illuminance
+	state.Occupancy = dto.Occupancy
 	state.Battery = dto.Battery
 
 	state.Power = dto.Power

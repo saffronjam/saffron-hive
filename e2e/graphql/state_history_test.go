@@ -69,6 +69,66 @@ func TestStateHistory_FansOutPerField(t *testing.T) {
 	}
 }
 
+func TestStateHistory_RecordsOccupancy(t *testing.T) {
+	motionID, err := queryDeviceIDByName("Hallway Motion Sensor")
+	if err != nil {
+		t.Fatalf("find motion sensor: %v", err)
+	}
+
+	motionPayload, _ := json.Marshal(map[string]any{
+		"occupancy": true,
+		"battery":   95,
+	})
+	if err := publisher.PublishDeviceState("Hallway Motion Sensor", motionPayload); err != nil {
+		t.Fatalf("publish motion state: %v", err)
+	}
+
+	var last stateSeriesResponse
+	var lastRaw []byte
+	ok := pollUntil(5*time.Second, 200*time.Millisecond, func() bool {
+		data, qErr := graphqlQuery(`query($filter: StateHistoryFilter!) {
+			stateHistory(filter: $filter) { deviceId field points { at value } }
+		}`, map[string]any{
+			"filter": map[string]any{
+				"deviceIds": []string{motionID},
+				"from":      time.Now().Add(-time.Hour).Format(time.RFC3339),
+				"to":        time.Now().Add(time.Minute).Format(time.RFC3339),
+			},
+		})
+		if qErr != nil {
+			return false
+		}
+		lastRaw = data
+		last = stateSeriesResponse{}
+		if json.Unmarshal(data, &last) != nil {
+			return false
+		}
+		for _, s := range last.StateHistory {
+			if s.Field == "occupancy" {
+				return true
+			}
+		}
+		return false
+	})
+
+	if !ok {
+		t.Fatalf("timed out waiting for occupancy series; deviceId=%s last=%s", motionID, string(lastRaw))
+	}
+	for _, s := range last.StateHistory {
+		if s.Field != "occupancy" {
+			continue
+		}
+		if len(s.Points) == 0 {
+			t.Fatal("occupancy series has no points")
+		}
+		for _, p := range s.Points {
+			if p.Value != 0 && p.Value != 1 {
+				t.Errorf("occupancy sample value %v, want 0 or 1", p.Value)
+			}
+		}
+	}
+}
+
 func TestStateHistory_EmptyForUnknownDevice(t *testing.T) {
 	data, err := graphqlQuery(`query($filter: StateHistoryFilter!) {
 		stateHistory(filter: $filter) { deviceId field }
@@ -100,7 +160,7 @@ func TestStateHistoryFields_ReturnsFullList(t *testing.T) {
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	for _, want := range []string{"on", "brightness", "temperature", "humidity", "battery", "power"} {
+	for _, want := range []string{"on", "brightness", "temperature", "humidity", "battery", "power", "occupancy"} {
 		seen := false
 		for _, f := range result.StateHistoryFields {
 			if f == want {

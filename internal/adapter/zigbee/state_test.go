@@ -145,6 +145,56 @@ func TestMapDeviceState_SensorFields(t *testing.T) {
 	}
 }
 
+func TestMapDeviceState_OccupancyTrue(t *testing.T) {
+	raw := json.RawMessage(`{"occupancy":true}`)
+	state, _, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Occupancy == nil || !*state.Occupancy {
+		t.Fatalf("expected Occupancy=true, got %v", state.Occupancy)
+	}
+}
+
+func TestMapDeviceState_OccupancyFalse(t *testing.T) {
+	raw := json.RawMessage(`{"occupancy":false}`)
+	state, _, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Occupancy == nil || *state.Occupancy {
+		t.Fatalf("expected Occupancy=false, got %v", state.Occupancy)
+	}
+}
+
+func TestMapDeviceState_OccupancyAbsent(t *testing.T) {
+	raw := json.RawMessage(`{"temperature":22.5}`)
+	state, _, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Occupancy != nil {
+		t.Fatalf("expected Occupancy=nil when not reported, got %v", *state.Occupancy)
+	}
+}
+
+func TestMapDeviceState_MotionSensorReport(t *testing.T) {
+	raw := json.RawMessage(`{"occupancy":true,"illuminance":120,"battery":95}`)
+	state, _, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Occupancy == nil || !*state.Occupancy {
+		t.Fatalf("expected Occupancy=true, got %v", state.Occupancy)
+	}
+	if state.Illuminance == nil || *state.Illuminance != 120 {
+		t.Fatalf("expected Illuminance=120, got %v", state.Illuminance)
+	}
+	if state.Battery == nil || *state.Battery != 95 {
+		t.Fatalf("expected Battery=95, got %v", state.Battery)
+	}
+}
+
 func TestMapDeviceState_PlugMetering(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","power":42.5,"voltage":230.1,"current":0.18,"energy":12.3}`)
 	state, _, err := mapDeviceState(raw)

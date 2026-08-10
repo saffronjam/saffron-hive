@@ -72,6 +72,7 @@ func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
 		{FieldVoltage, ptrFloat(ds.Voltage), ds.Voltage != nil},
 		{FieldCurrent, ptrFloat(ds.Current), ds.Current != nil},
 		{FieldEnergy, ptrFloat(ds.Energy), ds.Energy != nil},
+		{FieldOccupancy, boolToFloat(ds.Occupancy), ds.Occupancy != nil},
 	}
 
 	inserted := 0

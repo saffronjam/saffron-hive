@@ -372,6 +372,7 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 		Humidity:          ds.Humidity,
 		Pressure:          ds.Pressure,
 		Illuminance:       ds.Illuminance,
+		Occupancy:         ds.Occupancy,
 		Battery:           ds.Battery,
 		Power:             ds.Power,
 		Voltage:           ds.Voltage,

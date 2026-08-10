@@ -128,6 +128,13 @@ func meteringParts(s device.DeviceState) []string {
 
 func sensorParts(s device.DeviceState) []string {
 	var parts []string
+	if s.Occupancy != nil {
+		if *s.Occupancy {
+			parts = append(parts, "motion detected")
+		} else {
+			parts = append(parts, "no motion")
+		}
+	}
 	if s.Temperature != nil {
 		parts = append(parts, fmt.Sprintf("%.1f°C", *s.Temperature))
 	}

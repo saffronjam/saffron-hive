@@ -118,6 +118,104 @@ func TestRecorderFansOutPerField(t *testing.T) {
 	}
 }
 
+func TestRecorderRecordsOccupancyAsZeroOrOne(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s := newTestStore(t)
+	bus := eventbus.NewChannelBus()
+	go RunRecorder(ctx, bus, s)
+
+	time.Sleep(20 * time.Millisecond)
+
+	occupied := true
+	vacant := false
+	for _, v := range []*bool{&occupied, &vacant} {
+		bus.Publish(eventbus.Event{
+			Type:      eventbus.EventDeviceStateChanged,
+			DeviceID:  "sensor-1",
+			Timestamp: time.Now(),
+			Payload:   device.DeviceStateChange{State: device.DeviceState{Occupancy: v}},
+		})
+	}
+
+	var points []store.StateHistoryPoint
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var err error
+		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
+			DeviceIDs: []device.DeviceID{"sensor-1"},
+			From:      time.Now().Add(-time.Hour),
+			To:        time.Now().Add(time.Hour),
+		})
+		if err != nil {
+			t.Fatalf("query: %v", err)
+		}
+		if len(points) >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if len(points) != 2 {
+		t.Fatalf("expected 2 occupancy samples, got %d", len(points))
+	}
+	values := map[float64]bool{}
+	for _, p := range points {
+		if p.Field != FieldOccupancy {
+			t.Errorf("expected field %q, got %q", FieldOccupancy, p.Field)
+		}
+		values[p.Value] = true
+	}
+	if !values[1] || !values[0] {
+		t.Errorf("expected one sample at 1 and one at 0, got %+v", points)
+	}
+}
+
+func TestRecorderSkipsOccupancyWhenAbsent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s := newTestStore(t)
+	bus := eventbus.NewChannelBus()
+	go RunRecorder(ctx, bus, s)
+
+	time.Sleep(20 * time.Millisecond)
+
+	temp := 21.0
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceStateChanged,
+		DeviceID:  "sensor-1",
+		Timestamp: time.Now(),
+		Payload:   device.DeviceStateChange{State: device.DeviceState{Temperature: &temp}},
+	})
+
+	var points []store.StateHistoryPoint
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var err error
+		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
+			DeviceIDs: []device.DeviceID{"sensor-1"},
+			From:      time.Now().Add(-time.Hour),
+			To:        time.Now().Add(time.Hour),
+		})
+		if err != nil {
+			t.Fatalf("query: %v", err)
+		}
+		if len(points) >= 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if len(points) != 1 {
+		t.Fatalf("expected only the temperature sample, got %d", len(points))
+	}
+	if points[0].Field == FieldOccupancy {
+		t.Errorf("occupancy sample recorded for a payload without occupancy: %+v", points[0])
+	}
+}
+
 func TestRecorderSkipsEventsWithoutDeviceID(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

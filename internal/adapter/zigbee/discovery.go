@@ -29,7 +29,7 @@ func detectDeviceType(exposes []z2mFeature) device.DeviceType {
 			}
 		case "action":
 			hasAction = true
-		case "temperature", "humidity", "pressure", "illuminance":
+		case "temperature", "humidity", "pressure", "illuminance", "occupancy":
 			hasEnv = true
 		}
 	}
@@ -54,6 +54,7 @@ var knownCapabilities = map[string]string{
 	"humidity":    device.CapHumidity,
 	"pressure":    device.CapPressure,
 	"illuminance": device.CapIlluminance,
+	"occupancy":   device.CapOccupancy,
 	"battery":     device.CapBattery,
 	"action":      device.CapAction,
 	"effect":      device.CapEffect,

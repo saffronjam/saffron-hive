@@ -26,6 +26,7 @@ export function stateSummary(state: DeviceState | null | undefined, type: string
     if (state.temperature != null) parts.push(`${state.temperature.toFixed(1)}\u00b0C`);
     if (state.humidity != null) parts.push(`${state.humidity.toFixed(0)}% RH`);
     if (parts.length > 0) return parts.join(" / ");
+    if (state.occupancy != null) return state.occupancy ? "Motion detected" : "No motion";
     if (state.battery != null) return `Battery ${Math.round(state.battery)}%`;
     return "No data";
   }

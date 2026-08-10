@@ -62,6 +62,32 @@ func TestStateChangePublishesEvent(t *testing.T) {
 	}
 }
 
+func TestOccupancyOnlyPayloadPublishesEvent(t *testing.T) {
+	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "hallway_motion", "0xmotion", device.Sensor)
+	defer adapter.Stop()
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/hallway_motion", []byte(`{"occupancy":false}`))
+
+	events := waitForEvents(bus, 1, 500*time.Millisecond)
+
+	found := false
+	for _, e := range events {
+		if e.Type == eventbus.EventDeviceStateChanged {
+			found = true
+			change, ok := e.Payload.(device.DeviceStateChange)
+			if !ok {
+				t.Fatal("expected DeviceStateChange payload")
+			}
+			if change.State.Occupancy == nil || *change.State.Occupancy {
+				t.Fatalf("expected Occupancy=false, got %v", change.State.Occupancy)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("EventDeviceStateChanged not found for occupancy-only payload")
+	}
+}
+
 func TestAvailabilityPublishesEvent(t *testing.T) {
 	adapter, mqtt, bus, sw := setupAdapterWithDevice(t, "living_room_light", "0xabc", device.Light)
 	defer adapter.Stop()

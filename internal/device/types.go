@@ -69,6 +69,7 @@ const (
 	CapHumidity          = "humidity"
 	CapPressure          = "pressure"
 	CapIlluminance       = "illuminance"
+	CapOccupancy         = "occupancy"
 	CapBattery           = "battery"
 	CapAction            = "action"
 	CapEffect            = "effect"

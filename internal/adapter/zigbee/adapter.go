@@ -421,6 +421,6 @@ func hasAnyField(s device.DeviceState) bool {
 	return s.On != nil || s.Brightness != nil || s.ColorTemp != nil ||
 		s.Color != nil || s.Transition != nil ||
 		s.Temperature != nil || s.Humidity != nil || s.Pressure != nil ||
-		s.Illuminance != nil || s.Battery != nil ||
+		s.Illuminance != nil || s.Occupancy != nil || s.Battery != nil ||
 		s.Power != nil || s.Voltage != nil || s.Current != nil || s.Energy != nil
 }

@@ -134,6 +134,21 @@
     }
   },
   {
+    "ieee_address": "0x00158d0008a9bac0",
+    "friendly_name": "Hallway Motion Sensor",
+    "type": "EndDevice",
+    "supported": true,
+    "definition": {
+      "model": "SNZB-03",
+      "vendor": "SONOFF",
+      "description": "Motion sensor",
+      "exposes": [
+        {"type": "binary", "name": "occupancy", "property": "occupancy", "access": 1, "features": []},
+        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []}
+      ]
+    }
+  },
+  {
     "ieee_address": "0x00124b0000000000",
     "friendly_name": "Coordinator",
     "type": "Coordinator",

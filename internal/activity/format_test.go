@@ -49,6 +49,18 @@ func TestFormatMessage(t *testing.T) {
 			wantExact: "Hallway sensor: 21.3°C",
 		},
 		{
+			name:      "motion detected",
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{Occupancy: boolPtr(true)}}},
+			devName:   "Hallway motion",
+			wantExact: "Hallway motion: motion detected",
+		},
+		{
+			name:      "no motion",
+			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{Occupancy: boolPtr(false)}}},
+			devName:   "Hallway motion",
+			wantExact: "Hallway motion: no motion",
+		},
+		{
 			name:      "plug metering not pressed",
 			evt:       eventbus.Event{Type: eventbus.EventDeviceStateChanged, Timestamp: now, Payload: device.DeviceStateChange{State: device.DeviceState{On: boolPtr(true), Power: f64Ptr(42), Voltage: f64Ptr(230)}}},
 			devName:   "Lava lamp",

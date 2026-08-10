@@ -21,6 +21,7 @@ const (
 	FieldVoltage     = "voltage"
 	FieldCurrent     = "current"
 	FieldEnergy      = "energy"
+	FieldOccupancy   = "occupancy"
 )
 
 // AllFields is the full set of recordable scalar fields, in a stable display
@@ -40,6 +41,7 @@ var AllFields = []string{
 	FieldVoltage,
 	FieldCurrent,
 	FieldEnergy,
+	FieldOccupancy,
 }
 
 var fieldSet = func() map[string]struct{} {

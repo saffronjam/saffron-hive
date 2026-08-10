@@ -21,7 +21,7 @@ var (
 	sqlStore   *store.DB
 )
 
-const expectedDeviceCount = 7
+const expectedDeviceCount = 8
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
