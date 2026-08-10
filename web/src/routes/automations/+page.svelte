@@ -18,6 +18,7 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import { automationNodeCounts } from "$lib/list-helpers";
+	import { deviceDisplayName } from "$lib/utils";
 	import { formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { me } from "$lib/stores/me.svelte";
@@ -184,7 +185,8 @@
 
 	interface DeviceRef {
 		id: string;
-		name: string;
+		name: string | null;
+		friendlyName: string | null;
 		disabled: boolean;
 	}
 
@@ -278,8 +280,8 @@
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devicesRef
-					.filter((d) => !q || d.name.toLowerCase().includes(q))
-					.map((d) => ({ value: d.name, label: d.name }));
+					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
+					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
 			},
 		},
 		{
@@ -336,7 +338,10 @@
 			if (deviceValues.length > 0) {
 				const ids = new Set(a.nodes.flatMap((n) => referencedDeviceIds(n)));
 				const names = [...ids]
-					.map((id) => devicesRef.find((d) => d.id === id)?.name.toLowerCase() ?? "")
+					.map((id) => {
+						const d = devicesRef.find((x) => x.id === id);
+						return d ? deviceDisplayName(d).toLowerCase() : "";
+					})
 					.filter((n) => n !== "");
 				if (!deviceValues.some((v) => names.some((n) => n.includes(v)))) return false;
 			}

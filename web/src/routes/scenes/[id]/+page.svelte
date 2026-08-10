@@ -724,7 +724,7 @@
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
-					searchValue: `${d.name} ${d.type}`,
+					searchValue: `${deviceDisplayName(d)} ${d.type}`,
 				})),
 			});
 		}

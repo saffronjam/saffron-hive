@@ -232,7 +232,8 @@
 
 	interface DeviceRef {
 		id: string;
-		name: string;
+		name: string | null;
+		friendlyName: string | null;
 		icon?: string | null;
 		type: string;
 		disabled: boolean;
@@ -307,7 +308,7 @@
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type),
 					iconRef: d.icon ?? null,
-					searchValue: `${d.name} ${d.type}`,
+					searchValue: `${deviceDisplayName(d)} ${d.type}`,
 				})),
 			});
 		}
@@ -603,8 +604,8 @@
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devicesRef
-					.filter((d) => !q || d.name.toLowerCase().includes(q))
-					.map((d) => ({ value: d.name, label: d.name }));
+					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
+					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
 			},
 		},
 		{
@@ -637,7 +638,7 @@
 		const query = searchState.freeText.toLowerCase();
 
 		const deviceIdByNameLower = new Map<string, string>();
-		for (const d of devicesRef) deviceIdByNameLower.set(d.name.toLowerCase(), d.id);
+		for (const d of devicesRef) deviceIdByNameLower.set(deviceDisplayName(d).toLowerCase(), d.id);
 
 		return scenes.filter((s) => {
 			if (targetValues.length > 0 && !s.actions.some((a) => targetValues.includes(a.targetType)))
@@ -647,7 +648,7 @@
 					s.actions.some((a) => {
 						if (a.targetType !== "device") return false;
 						const device = devicesRef.find((d) => d.id === a.targetId);
-						return device ? device.name.toLowerCase().includes(v) : false;
+						return device ? deviceDisplayName(device).toLowerCase().includes(v) : false;
 					}),
 				);
 				if (!matches) return false;
