@@ -148,19 +148,21 @@ type ComplexityRoot struct {
 	}
 
 	Device struct {
-		Available    func(childComplexity int) int
-		Capabilities func(childComplexity int) int
-		Disabled     func(childComplexity int) int
-		FriendlyName func(childComplexity int) int
-		ID           func(childComplexity int) int
-		Icon         func(childComplexity int) int
-		LastSeen     func(childComplexity int) int
-		Name         func(childComplexity int) int
-		Seen         func(childComplexity int) int
-		Source       func(childComplexity int) int
-		State        func(childComplexity int) int
-		Tags         func(childComplexity int) int
-		Type         func(childComplexity int) int
+		Available         func(childComplexity int) int
+		Capabilities      func(childComplexity int) int
+		Disabled          func(childComplexity int) int
+		DisplayBrightness func(childComplexity int) int
+		DisplayColor      func(childComplexity int) int
+		FriendlyName      func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Icon              func(childComplexity int) int
+		LastSeen          func(childComplexity int) int
+		Name              func(childComplexity int) int
+		Seen              func(childComplexity int) int
+		Source            func(childComplexity int) int
+		State             func(childComplexity int) int
+		Tags              func(childComplexity int) int
+		Type              func(childComplexity int) int
 	}
 
 	DeviceActionEvent struct {
@@ -240,6 +242,7 @@ type ComplexityRoot struct {
 	}
 
 	Floorplan struct {
+		Furniture  func(childComplexity int) int
 		ID         func(childComplexity int) int
 		Name       func(childComplexity int) int
 		Openings   func(childComplexity int) int
@@ -247,6 +250,17 @@ type ComplexityRoot struct {
 		Rooms      func(childComplexity int) int
 		Vertices   func(childComplexity int) int
 		Walls      func(childComplexity int) int
+	}
+
+	FloorplanFurniture struct {
+		Height   func(childComplexity int) int
+		ID       func(childComplexity int) int
+		Kind     func(childComplexity int) int
+		Occluder func(childComplexity int) int
+		Rotation func(childComplexity int) int
+		Width    func(childComplexity int) int
+		X        func(childComplexity int) int
+		Y        func(childComplexity int) int
 	}
 
 	FloorplanOpening struct {
@@ -1092,6 +1106,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Disabled(childComplexity), true
+	case "Device.displayBrightness":
+		if e.ComplexityRoot.Device.DisplayBrightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.DisplayBrightness(childComplexity), true
+	case "Device.displayColor":
+		if e.ComplexityRoot.Device.DisplayColor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.DisplayColor(childComplexity), true
 	case "Device.friendlyName":
 		if e.ComplexityRoot.Device.FriendlyName == nil {
 			break
@@ -1473,6 +1499,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.EffectTrack.Name(childComplexity), true
 
+	case "Floorplan.furniture":
+		if e.ComplexityRoot.Floorplan.Furniture == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Floorplan.Furniture(childComplexity), true
 	case "Floorplan.id":
 		if e.ComplexityRoot.Floorplan.ID == nil {
 			break
@@ -1515,6 +1547,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Floorplan.Walls(childComplexity), true
+
+	case "FloorplanFurniture.height":
+		if e.ComplexityRoot.FloorplanFurniture.Height == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.Height(childComplexity), true
+	case "FloorplanFurniture.id":
+		if e.ComplexityRoot.FloorplanFurniture.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.ID(childComplexity), true
+	case "FloorplanFurniture.kind":
+		if e.ComplexityRoot.FloorplanFurniture.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.Kind(childComplexity), true
+	case "FloorplanFurniture.occluder":
+		if e.ComplexityRoot.FloorplanFurniture.Occluder == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.Occluder(childComplexity), true
+	case "FloorplanFurniture.rotation":
+		if e.ComplexityRoot.FloorplanFurniture.Rotation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.Rotation(childComplexity), true
+	case "FloorplanFurniture.width":
+		if e.ComplexityRoot.FloorplanFurniture.Width == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.Width(childComplexity), true
+	case "FloorplanFurniture.x":
+		if e.ComplexityRoot.FloorplanFurniture.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.X(childComplexity), true
+	case "FloorplanFurniture.y":
+		if e.ComplexityRoot.FloorplanFurniture.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanFurniture.Y(childComplexity), true
 
 	case "FloorplanOpening.id":
 		if e.ComplexityRoot.FloorplanOpening.ID == nil {
@@ -3175,6 +3256,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeviceStateInput,
 		ec.unmarshalInputEffectClipInput,
 		ec.unmarshalInputEffectTrackInput,
+		ec.unmarshalInputFloorplanFurnitureInput,
 		ec.unmarshalInputFloorplanOpeningInput,
 		ec.unmarshalInputFloorplanPlacementInput,
 		ec.unmarshalInputFloorplanRoomInput,
@@ -3324,6 +3406,16 @@ type Device {
   """
   friendlyName: String!
   icon: String
+  """
+  The colour the floor plan gives this device when it reports none of its own,
+  as ` + "`" + `#rrggbb` + "`" + `. Null leaves it to the map's default warm light.
+  """
+  displayColor: String
+  """
+  How bright this device shows on the floor plan when it reports no brightness
+  of its own, on the 0-254 scale device state uses. Null means full strength.
+  """
+  displayBrightness: Int
   source: String!
   type: String!
   tags: [DeviceTag!]!
@@ -3691,6 +3783,7 @@ type Floorplan {
   openings: [FloorplanOpening!]!
   rooms: [FloorplanRoom!]!
   placements: [FloorplanPlacement!]!
+  furniture: [FloorplanFurniture!]!
 }
 
 type FloorplanVertex {
@@ -3760,6 +3853,23 @@ type FloorplanPlacement {
   memberId: ID!
   x: Float!
   y: Float!
+}
+
+"""
+A piece standing on the plan: a bed, a sofa, a plain box. ` + "`" + `x` + "`" + `/` + "`" + `y` + "`" + ` is its centre
+and ` + "`" + `width` + "`" + `/` + "`" + `height` + "`" + ` its unrotated footprint in meters, ` + "`" + `rotation` + "`" + ` degrees
+clockwise. ` + "`" + `kind` + "`" + ` names a shape in the client's catalogue. An occluder blocks
+light where it stands.
+"""
+type FloorplanFurniture {
+  id: ID!
+  kind: String!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float!
+  occluder: Boolean!
 }
 
 type StateSeriesPoint {
@@ -4118,6 +4228,16 @@ input UpdateDeviceInput {
   """
   name: String
   icon: String
+  """
+  Sets the floor-plan display colour (` + "`" + `#rrggbb` + "`" + `). Pass null to clear it and
+  fall back to the map's default. Omit the field to leave it alone.
+  """
+  displayColor: String
+  """
+  Sets the floor-plan display brightness (0-254). Pass null to clear it and
+  show the device at full strength. Omit the field to leave it alone.
+  """
+  displayBrightness: Int
   tags: [DeviceTag!]
   disabled: Boolean
 }
@@ -4241,6 +4361,7 @@ input UpdateFloorplanInput {
   openings: [FloorplanOpeningInput!]!
   rooms: [FloorplanRoomInput!]!
   placements: [FloorplanPlacementInput!]!
+  furniture: [FloorplanFurnitureInput!]!
 }
 
 input FloorplanVertexInput {
@@ -4278,6 +4399,17 @@ input FloorplanPlacementInput {
   memberId: ID!
   x: Float!
   y: Float!
+}
+
+input FloorplanFurnitureInput {
+  id: ID!
+  kind: String!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float!
+  occluder: Boolean!
 }
 
 input UpdateAutomationInput {
@@ -7601,6 +7733,64 @@ func (ec *executionContext) fieldContext_Device_icon(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _Device_displayColor(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_displayColor,
+		func(ctx context.Context) (any, error) {
+			return obj.DisplayColor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_displayColor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Device_displayBrightness(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_displayBrightness,
+		func(ctx context.Context) (any, error) {
+			return obj.DisplayBrightness, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_displayBrightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Device_source(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9779,6 +9969,285 @@ func (ec *executionContext) fieldContext_Floorplan_placements(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Floorplan_furniture(ctx context.Context, field graphql.CollectedField, obj *model.Floorplan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Floorplan_furniture,
+		func(ctx context.Context) (any, error) {
+			return obj.Furniture, nil
+		},
+		nil,
+		ec.marshalNFloorplanFurniture2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Floorplan_furniture(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Floorplan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_FloorplanFurniture_id(ctx, field)
+			case "kind":
+				return ec.fieldContext_FloorplanFurniture_kind(ctx, field)
+			case "x":
+				return ec.fieldContext_FloorplanFurniture_x(ctx, field)
+			case "y":
+				return ec.fieldContext_FloorplanFurniture_y(ctx, field)
+			case "width":
+				return ec.fieldContext_FloorplanFurniture_width(ctx, field)
+			case "height":
+				return ec.fieldContext_FloorplanFurniture_height(ctx, field)
+			case "rotation":
+				return ec.fieldContext_FloorplanFurniture_rotation(ctx, field)
+			case "occluder":
+				return ec.fieldContext_FloorplanFurniture_occluder(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FloorplanFurniture", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_id(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_kind(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_x(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_y(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_width(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_width,
+		func(ctx context.Context) (any, error) {
+			return obj.Width, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_width(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_height(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_height,
+		func(ctx context.Context) (any, error) {
+			return obj.Height, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_height(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_rotation(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_rotation,
+		func(ctx context.Context) (any, error) {
+			return obj.Rotation, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_rotation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanFurniture_occluder(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanFurniture) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanFurniture_occluder,
+		func(ctx context.Context) (any, error) {
+			return obj.Occluder, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanFurniture_occluder(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanFurniture",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _FloorplanOpening_id(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanOpening) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10608,6 +11077,10 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -10801,6 +11274,10 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -11279,6 +11756,10 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -11361,6 +11842,10 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -12729,6 +13214,8 @@ func (ec *executionContext) fieldContext_Mutation_updateFloorplan(ctx context.Co
 				return ec.fieldContext_Floorplan_rooms(ctx, field)
 			case "placements":
 				return ec.fieldContext_Floorplan_placements(ctx, field)
+			case "furniture":
+				return ec.fieldContext_Floorplan_furniture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Floorplan", field.Name)
 		},
@@ -13042,6 +13529,10 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -14960,6 +15451,10 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -15031,6 +15526,10 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -15638,6 +16137,8 @@ func (ec *executionContext) fieldContext_Query_floorplan(_ context.Context, fiel
 				return ec.fieldContext_Floorplan_rooms(ctx, field)
 			case "placements":
 				return ec.fieldContext_Floorplan_placements(ctx, field)
+			case "furniture":
+				return ec.fieldContext_Floorplan_furniture(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Floorplan", field.Name)
 		},
@@ -16955,6 +17456,10 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -17148,6 +17653,10 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -18261,6 +18770,10 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_friendlyName(ctx, field)
 			case "icon":
 				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
 			case "source":
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
@@ -21769,6 +22282,85 @@ func (ec *executionContext) unmarshalInputEffectTrackInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputFloorplanFurnitureInput(ctx context.Context, obj any) (model.FloorplanFurnitureInput, error) {
+	var it model.FloorplanFurnitureInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"id", "kind", "x", "y", "width", "height", "rotation", "occluder"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "x":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("x"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.X = data
+		case "y":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("y"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Y = data
+		case "width":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("width"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Width = data
+		case "height":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("height"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Height = data
+		case "rotation":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rotation"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Rotation = data
+		case "occluder":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("occluder"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Occluder = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputFloorplanOpeningInput(ctx context.Context, obj any) (model.FloorplanOpeningInput, error) {
 	var it model.FloorplanOpeningInput
 	if obj == nil {
@@ -22538,7 +23130,7 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "tags", "disabled"}
+	fieldsInOrder := [...]string{"name", "icon", "displayColor", "displayBrightness", "tags", "disabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -22559,6 +23151,20 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 				return it, err
 			}
 			it.Icon = graphql.OmittableOf(data)
+		case "displayColor":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayColor"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisplayColor = graphql.OmittableOf(data)
+		case "displayBrightness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayBrightness"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisplayBrightness = graphql.OmittableOf(data)
 		case "tags":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
 			data, err := ec.unmarshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx, v)
@@ -22661,7 +23267,7 @@ func (ec *executionContext) unmarshalInputUpdateFloorplanInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "vertices", "walls", "openings", "rooms", "placements"}
+	fieldsInOrder := [...]string{"id", "name", "vertices", "walls", "openings", "rooms", "placements", "furniture"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -22717,6 +23323,13 @@ func (ec *executionContext) unmarshalInputUpdateFloorplanInput(ctx context.Conte
 				return it, err
 			}
 			it.Placements = data
+		case "furniture":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("furniture"))
+			data, err := ec.unmarshalNFloorplanFurnitureInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Furniture = data
 		}
 	}
 	return it, nil
@@ -23748,6 +24361,10 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "icon":
 			out.Values[i] = ec._Device_icon(ctx, field, obj)
+		case "displayColor":
+			out.Values[i] = ec._Device_displayColor(ctx, field, obj)
+		case "displayBrightness":
+			out.Values[i] = ec._Device_displayBrightness(ctx, field, obj)
 		case "source":
 			out.Values[i] = ec._Device_source(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -24319,6 +24936,85 @@ func (ec *executionContext) _Floorplan(ctx context.Context, sel ast.SelectionSet
 			}
 		case "placements":
 			out.Values[i] = ec._Floorplan_placements(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "furniture":
+			out.Values[i] = ec._Floorplan_furniture(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var floorplanFurnitureImplementors = []string{"FloorplanFurniture"}
+
+func (ec *executionContext) _FloorplanFurniture(ctx context.Context, sel ast.SelectionSet, obj *model.FloorplanFurniture) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, floorplanFurnitureImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FloorplanFurniture")
+		case "id":
+			out.Values[i] = ec._FloorplanFurniture_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._FloorplanFurniture_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "x":
+			out.Values[i] = ec._FloorplanFurniture_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._FloorplanFurniture_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "width":
+			out.Values[i] = ec._FloorplanFurniture_width(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "height":
+			out.Values[i] = ec._FloorplanFurniture_height(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rotation":
+			out.Values[i] = ec._FloorplanFurniture_rotation(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "occluder":
+			out.Values[i] = ec._FloorplanFurniture_occluder(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -27913,6 +28609,52 @@ func (ec *executionContext) marshalNFloorplan2ᚖgithubᚗcomᚋsaffronjamᚋsaf
 		return graphql.Null
 	}
 	return ec._Floorplan(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNFloorplanFurniture2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FloorplanFurniture) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNFloorplanFurniture2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurniture(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNFloorplanFurniture2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurniture(ctx context.Context, sel ast.SelectionSet, v *model.FloorplanFurniture) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FloorplanFurniture(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNFloorplanFurnitureInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureInputᚄ(ctx context.Context, v any) ([]*model.FloorplanFurnitureInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.FloorplanFurnitureInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFloorplanFurnitureInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNFloorplanFurnitureInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureInput(ctx context.Context, v any) (*model.FloorplanFurnitureInput, error) {
+	res, err := ec.unmarshalInputFloorplanFurnitureInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNFloorplanOpening2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanOpeningᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FloorplanOpening) graphql.Marshaler {

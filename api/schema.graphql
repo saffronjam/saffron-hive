@@ -33,6 +33,16 @@ type Device {
   """
   friendlyName: String!
   icon: String
+  """
+  The colour the floor plan gives this device when it reports none of its own,
+  as `#rrggbb`. Null leaves it to the map's default warm light.
+  """
+  displayColor: String
+  """
+  How bright this device shows on the floor plan when it reports no brightness
+  of its own, on the 0-254 scale device state uses. Null means full strength.
+  """
+  displayBrightness: Int
   source: String!
   type: String!
   tags: [DeviceTag!]!
@@ -400,6 +410,7 @@ type Floorplan {
   openings: [FloorplanOpening!]!
   rooms: [FloorplanRoom!]!
   placements: [FloorplanPlacement!]!
+  furniture: [FloorplanFurniture!]!
 }
 
 type FloorplanVertex {
@@ -469,6 +480,23 @@ type FloorplanPlacement {
   memberId: ID!
   x: Float!
   y: Float!
+}
+
+"""
+A piece standing on the plan: a bed, a sofa, a plain box. `x`/`y` is its centre
+and `width`/`height` its unrotated footprint in meters, `rotation` degrees
+clockwise. `kind` names a shape in the client's catalogue. An occluder blocks
+light where it stands.
+"""
+type FloorplanFurniture {
+  id: ID!
+  kind: String!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float!
+  occluder: Boolean!
 }
 
 type StateSeriesPoint {
@@ -827,6 +855,16 @@ input UpdateDeviceInput {
   """
   name: String
   icon: String
+  """
+  Sets the floor-plan display colour (`#rrggbb`). Pass null to clear it and
+  fall back to the map's default. Omit the field to leave it alone.
+  """
+  displayColor: String
+  """
+  Sets the floor-plan display brightness (0-254). Pass null to clear it and
+  show the device at full strength. Omit the field to leave it alone.
+  """
+  displayBrightness: Int
   tags: [DeviceTag!]
   disabled: Boolean
 }
@@ -950,6 +988,7 @@ input UpdateFloorplanInput {
   openings: [FloorplanOpeningInput!]!
   rooms: [FloorplanRoomInput!]!
   placements: [FloorplanPlacementInput!]!
+  furniture: [FloorplanFurnitureInput!]!
 }
 
 input FloorplanVertexInput {
@@ -987,6 +1026,17 @@ input FloorplanPlacementInput {
   memberId: ID!
   x: Float!
   y: Float!
+}
+
+input FloorplanFurnitureInput {
+  id: ID!
+  kind: String!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float!
+  occluder: Boolean!
 }
 
 input UpdateAutomationInput {

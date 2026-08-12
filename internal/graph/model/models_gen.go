@@ -258,13 +258,19 @@ type Device struct {
 	Name *string `json:"name,omitempty"`
 	// The name the integration reports, refreshed on every adapter sync. Empty when
 	// the integration has none.
-	FriendlyName string        `json:"friendlyName"`
-	Icon         *string       `json:"icon,omitempty"`
-	Source       string        `json:"source"`
-	Type         string        `json:"type"`
-	Tags         []DeviceTag   `json:"tags"`
-	Capabilities []*Capability `json:"capabilities"`
-	Available    bool          `json:"available"`
+	FriendlyName string  `json:"friendlyName"`
+	Icon         *string `json:"icon,omitempty"`
+	// The colour the floor plan gives this device when it reports none of its own,
+	// as `#rrggbb`. Null leaves it to the map's default warm light.
+	DisplayColor *string `json:"displayColor,omitempty"`
+	// How bright this device shows on the floor plan when it reports no brightness
+	// of its own, on the 0-254 scale device state uses. Null means full strength.
+	DisplayBrightness *int          `json:"displayBrightness,omitempty"`
+	Source            string        `json:"source"`
+	Type              string        `json:"type"`
+	Tags              []DeviceTag   `json:"tags"`
+	Capabilities      []*Capability `json:"capabilities"`
+	Available         bool          `json:"available"`
 	// When true the device is excluded from every path that commands or watches it:
 	// scene apply, automation and effect fan-out, target selectors, and the
 	// unavailable / low-battery health checks. setDeviceState rejects it outright.
@@ -424,6 +430,33 @@ type Floorplan struct {
 	Openings   []*FloorplanOpening   `json:"openings"`
 	Rooms      []*FloorplanRoom      `json:"rooms"`
 	Placements []*FloorplanPlacement `json:"placements"`
+	Furniture  []*FloorplanFurniture `json:"furniture"`
+}
+
+// A piece standing on the plan: a bed, a sofa, a plain box. `x`/`y` is its centre
+// and `width`/`height` its unrotated footprint in meters, `rotation` degrees
+// clockwise. `kind` names a shape in the client's catalogue. An occluder blocks
+// light where it stands.
+type FloorplanFurniture struct {
+	ID       string  `json:"id"`
+	Kind     string  `json:"kind"`
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	Width    float64 `json:"width"`
+	Height   float64 `json:"height"`
+	Rotation float64 `json:"rotation"`
+	Occluder bool    `json:"occluder"`
+}
+
+type FloorplanFurnitureInput struct {
+	ID       string  `json:"id"`
+	Kind     string  `json:"kind"`
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	Width    float64 `json:"width"`
+	Height   float64 `json:"height"`
+	Rotation float64 `json:"rotation"`
+	Occluder bool    `json:"occluder"`
 }
 
 // A gap cut out of a wall body. t is the gap's centre in the wall's own
@@ -773,10 +806,16 @@ type UpdateCurrentUserInput struct {
 type UpdateDeviceInput struct {
 	// Sets the name override. Pass null to clear it and fall back to the
 	// integration's name. Omit the field to leave it alone.
-	Name     graphql.Omittable[*string]     `json:"name,omitempty"`
-	Icon     graphql.Omittable[*string]     `json:"icon,omitempty"`
-	Tags     graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
-	Disabled graphql.Omittable[*bool]       `json:"disabled,omitempty"`
+	Name graphql.Omittable[*string] `json:"name,omitempty"`
+	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
+	// Sets the floor-plan display colour (`#rrggbb`). Pass null to clear it and
+	// fall back to the map's default. Omit the field to leave it alone.
+	DisplayColor graphql.Omittable[*string] `json:"displayColor,omitempty"`
+	// Sets the floor-plan display brightness (0-254). Pass null to clear it and
+	// show the device at full strength. Omit the field to leave it alone.
+	DisplayBrightness graphql.Omittable[*int]        `json:"displayBrightness,omitempty"`
+	Tags              graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
+	Disabled          graphql.Omittable[*bool]       `json:"disabled,omitempty"`
 }
 
 type UpdateEffectInput struct {
@@ -800,6 +839,7 @@ type UpdateFloorplanInput struct {
 	Openings   []*FloorplanOpeningInput   `json:"openings"`
 	Rooms      []*FloorplanRoomInput      `json:"rooms"`
 	Placements []*FloorplanPlacementInput `json:"placements"`
+	Furniture  []*FloorplanFurnitureInput `json:"furniture"`
 }
 
 type UpdateGroupInput struct {
