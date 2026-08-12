@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -250,18 +251,20 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		lastSeen = live.LastSeen
 	}
 	md := &model.Device{
-		ID:           string(d.ID),
-		Name:         d.Name,
-		FriendlyName: d.FriendlyName,
-		Icon:         d.Icon,
-		Source:       string(d.Source),
-		Type:         string(d.Type),
-		Tags:         deviceTagsToModel(d.Tags),
-		Capabilities: mapCapabilities(d.Capabilities),
-		Available:    available,
-		Disabled:     d.Disabled,
-		Seen:         d.Seen,
-		LastSeen:     &lastSeen,
+		ID:                string(d.ID),
+		Name:              d.Name,
+		FriendlyName:      d.FriendlyName,
+		Icon:              d.Icon,
+		DisplayColor:      d.DisplayColor,
+		DisplayBrightness: displayBrightnessToModel(d.DisplayBrightness),
+		Source:            string(d.Source),
+		Type:              string(d.Type),
+		Tags:              deviceTagsToModel(d.Tags),
+		Capabilities:      mapCapabilities(d.Capabilities),
+		Available:         available,
+		Disabled:          d.Disabled,
+		Seen:              d.Seen,
+		LastSeen:          &lastSeen,
 	}
 	md.State = resolveDeviceStateFromReader(sr, d.ID)
 	return md
@@ -778,6 +781,19 @@ func mapFloorplan(fp *store.Floorplan) *model.Floorplan {
 			MemberID:   p.MemberID,
 			X:          p.X,
 			Y:          p.Y,
+		}
+	}
+	mf.Furniture = make([]*model.FloorplanFurniture, len(fp.Furniture))
+	for i, f := range fp.Furniture {
+		mf.Furniture[i] = &model.FloorplanFurniture{
+			ID:       f.ID,
+			Kind:     f.Kind,
+			X:        f.X,
+			Y:        f.Y,
+			Width:    f.Width,
+			Height:   f.Height,
+			Rotation: f.Rotation,
+			Occluder: f.Occluder,
 		}
 	}
 	return mf
@@ -1312,7 +1328,65 @@ func validateFloorplanInput(ctx context.Context, store GraphStore, input model.U
 		}
 		placed[memberType][p.MemberID] = true
 	}
+	furnitureIDs := make(map[string]bool, len(input.Furniture))
+	for _, f := range input.Furniture {
+		if !knownFurnitureKinds[f.Kind] {
+			return fmt.Errorf("furniture %q has kind %q, which the plan has no shape for", f.ID, f.Kind)
+		}
+		if !isFinite(f.Width) || f.Width <= 0 {
+			return fmt.Errorf("furniture %q has width %v, which is not a positive size", f.ID, f.Width)
+		}
+		if !isFinite(f.Height) || f.Height <= 0 {
+			return fmt.Errorf("furniture %q has height %v, which is not a positive size", f.ID, f.Height)
+		}
+		if !isFinite(f.X) || !isFinite(f.Y) {
+			return fmt.Errorf("furniture %q sits at a point that is not a number", f.ID)
+		}
+		if !isFinite(f.Rotation) {
+			return fmt.Errorf("furniture %q has a rotation that is not a number", f.ID)
+		}
+		if furnitureIDs[f.ID] {
+			return fmt.Errorf("furniture %q appears more than once on the plan", f.ID)
+		}
+		furnitureIDs[f.ID] = true
+	}
 	return nil
+}
+
+// knownFurnitureKinds mirrors the client's furniture catalogue. The catalogue
+// owns each shape's geometry; the server only refuses a kind it cannot name, so
+// a plan can never hold a piece nothing knows how to draw.
+var knownFurnitureKinds = map[string]bool{
+	"sink":          true,
+	"bathtub":       true,
+	"toilet":        true,
+	"armchair":      true,
+	"bed-single":    true,
+	"bed-medium":    true,
+	"bed-double":    true,
+	"sofa-straight": true,
+	"sofa-corner":   true,
+	"sofa-center":   true,
+	"sofa-side":     true,
+	"box":           true,
+	"ellipse":       true,
+}
+
+func isFinite(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0)
+}
+
+// normalizeRotation folds a rotation into [0, 360) so stored angles compare
+// equal however many turns the user dragged through.
+func normalizeRotation(deg float64) float64 {
+	if !isFinite(deg) {
+		return 0
+	}
+	r := math.Mod(deg, 360)
+	if r < 0 {
+		r += 360
+	}
+	return r
 }
 
 // validateAutomationInput validates automation node/edge inputs before persisting.
@@ -1634,4 +1708,13 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 	default:
 		return nil
 	}
+}
+
+// displayBrightnessToModel narrows the stored 0-254 value to the GraphQL Int.
+func displayBrightnessToModel(v *int64) *int {
+	if v == nil {
+		return nil
+	}
+	n := int(*v)
+	return &n
 }

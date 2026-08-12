@@ -219,6 +219,34 @@ func (m *mockStore) UpdateDeviceIcon(_ context.Context, params store.UpdateDevic
 	return d, nil
 }
 
+func (m *mockStore) UpdateDeviceDisplayColor(_ context.Context, params store.UpdateDeviceDisplayColorParams) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[params.ID]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	if params.SetColor {
+		d.DisplayColor = params.Color
+	}
+	m.devices[params.ID] = d
+	return d, nil
+}
+
+func (m *mockStore) UpdateDeviceDisplayBrightness(_ context.Context, params store.UpdateDeviceDisplayBrightnessParams) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[params.ID]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	if params.SetBrightness {
+		d.DisplayBrightness = params.Brightness
+	}
+	m.devices[params.ID] = d
+	return d, nil
+}
+
 func (m *mockStore) SetDeviceName(_ context.Context, id device.DeviceID, name *string) (device.Device, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

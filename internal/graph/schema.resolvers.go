@@ -72,6 +72,34 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 			return nil, err
 		}
 	}
+	if brightness, ok := input.DisplayBrightness.ValueOK(); ok {
+		var v *int64
+		if brightness != nil {
+			n := int64(*brightness)
+			v = &n
+		}
+		d, err = r.Store.UpdateDeviceDisplayBrightness(ctx, store.UpdateDeviceDisplayBrightnessParams{
+			ID:            deviceID,
+			SetBrightness: true,
+			Brightness:    v,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	if color, ok := input.DisplayColor.ValueOK(); ok {
+		if color != nil && *color == "" {
+			color = nil
+		}
+		d, err = r.Store.UpdateDeviceDisplayColor(ctx, store.UpdateDeviceDisplayColorParams{
+			ID:       deviceID,
+			SetColor: true,
+			Color:    color,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 	if disabled, ok := input.Disabled.ValueOK(); ok && disabled != nil {
 		d, err = r.Store.SetDeviceDisabled(ctx, deviceID, *disabled)
 		if err != nil {
@@ -684,6 +712,7 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 		Openings:   make([]store.FloorplanOpening, len(input.Openings)),
 		Rooms:      make([]store.FloorplanRoom, len(input.Rooms)),
 		Placements: make([]store.FloorplanPlacement, len(input.Placements)),
+		Furniture:  make([]store.FloorplanFurniture, len(input.Furniture)),
 	}
 	for i, v := range input.Vertices {
 		params.Vertices[i] = store.FloorplanVertex{ID: v.ID, X: v.X, Y: v.Y}
@@ -721,6 +750,18 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 			MemberID:   p.MemberID,
 			X:          p.X,
 			Y:          p.Y,
+		}
+	}
+	for i, f := range input.Furniture {
+		params.Furniture[i] = store.FloorplanFurniture{
+			ID:       f.ID,
+			Kind:     f.Kind,
+			X:        f.X,
+			Y:        f.Y,
+			Width:    f.Width,
+			Height:   f.Height,
+			Rotation: normalizeRotation(f.Rotation),
+			Occluder: f.Occluder,
 		}
 	}
 	if err := r.Store.ReplaceFloorplan(ctx, params); err != nil {
