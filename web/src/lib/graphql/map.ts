@@ -42,6 +42,16 @@ export const FLOORPLAN_QUERY = graphql(`
         x
         y
       }
+      furniture {
+        id
+        kind
+        x
+        y
+        width
+        height
+        rotation
+        occluder
+      }
     }
   }
 `);
@@ -134,6 +144,16 @@ export const APPLY_SCENE = graphql(`
     applyScene(sceneId: $sceneId) {
       id
       name
+    }
+  }
+`);
+
+export const SET_DISPLAY_COLOR = graphql(`
+  mutation MapPageSetDisplayColor($id: ID!, $input: UpdateDeviceInput!) {
+    updateDevice(id: $id, input: $input) {
+      id
+      displayColor
+      displayBrightness
     }
   }
 `);

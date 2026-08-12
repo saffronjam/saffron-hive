@@ -51,6 +51,9 @@ const sample: FloorplanData = {
     { memberType: "device", memberId: "dev-1", x: 1, y: 2 },
     { memberType: "group", memberId: "grp-1", x: 3, y: 4 },
   ],
+  furniture: [
+    { id: "furn-1", kind: "bed-double", x: 2, y: 1, width: 1.8, height: 2, rotation: 90, occluder: false },
+  ],
 };
 
 describe("floorplanToGraph", () => {
@@ -99,8 +102,8 @@ describe("floorplanToGraph", () => {
 
 describe("buildUpdateFloorplanInput", () => {
   it("round-trips a loaded plan unchanged", () => {
-    const { graph, rooms, placements } = floorplanToGraph(sample);
-    const input = buildUpdateFloorplanInput("fplan-1", "Home", graph, rooms, placements);
+    const { graph, rooms, placements, furniture } = floorplanToGraph(sample);
+    const input = buildUpdateFloorplanInput("fplan-1", "Home", graph, rooms, placements, furniture);
     expect(input.id).toBe("fplan-1");
     expect(input.vertices).toEqual(sample.vertices);
     expect(input.walls).toEqual(sample.walls);
@@ -109,6 +112,7 @@ describe("buildUpdateFloorplanInput", () => {
     ]);
     expect(input.placements).toEqual(sample.placements);
     expect(input.openings).toEqual(sample.openings);
+    expect(input.furniture).toEqual(sample.furniture);
   });
 
   it("flattens openings back onto their wall id", () => {
@@ -130,6 +134,7 @@ describe("buildUpdateFloorplanInput", () => {
       },
       [],
       [],
+      [],
     );
     expect(input.openings).toEqual([
       {
@@ -147,6 +152,7 @@ describe("buildUpdateFloorplanInput", () => {
       "fplan-1",
       "Home",
       { vertices: [], walls: [{ id: "wall-1", a: "x", b: "y", thickness: 0.1 }] },
+      [],
       [],
       [],
     );

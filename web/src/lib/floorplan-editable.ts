@@ -44,6 +44,22 @@ export interface FloorplanRoomData {
 /** A marker on the plan: a device or a group, at a point in world meters. */
 export type FloorplanPlacementData = Placement;
 
+/**
+ * A piece standing on the plan. `x`/`y` is its centre and `width`/`height` its
+ * unrotated footprint in meters, `rotation` degrees clockwise. `kind` names a
+ * shape in the furniture catalogue; an occluder blocks light where it stands.
+ */
+export interface FloorplanFurnitureData {
+  id: string;
+  kind: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  occluder: boolean;
+}
+
 export interface FloorplanData {
   id: string;
   name: string;
@@ -54,6 +70,7 @@ export interface FloorplanData {
   rooms: FloorplanRoomData[];
   /** `memberType` arrives from GraphQL as a plain string and is narrowed here. */
   placements: { memberType: string; memberId: string; x: number; y: number }[];
+  furniture: FloorplanFurnitureData[];
 }
 
 /** Shape of the GraphQL `UpdateFloorplanInput`. */
@@ -65,6 +82,7 @@ export interface UpdateFloorplanInputData {
   openings: FloorplanOpeningData[];
   rooms: { id: string; name: string | null; roomId: string | null; vertexIds: string[] }[];
   placements: FloorplanPlacementData[];
+  furniture: FloorplanFurnitureData[];
 }
 
 export function newPlanId(): string {
@@ -81,6 +99,10 @@ export function newWallId(): string {
 
 export function newRoomId(): string {
   return `froom-${crypto.randomUUID()}`;
+}
+
+export function newFurnitureId(): string {
+  return `furn-${crypto.randomUUID()}`;
 }
 
 export function newOpeningId(): string {
@@ -108,6 +130,7 @@ export function floorplanToGraph(data: FloorplanData): {
   graph: PlanGraph;
   rooms: PlanRoomMeta[];
   placements: FloorplanPlacementData[];
+  furniture: FloorplanFurnitureData[];
 } {
   const byWall = new Map<string, PlanOpening[]>();
   for (const o of data.openings) {
@@ -147,7 +170,8 @@ export function floorplanToGraph(data: FloorplanData): {
     x: p.x,
     y: p.y,
   }));
-  return { graph, rooms, placements };
+  const furniture: FloorplanFurnitureData[] = data.furniture.map((f) => ({ ...f }));
+  return { graph, rooms, placements, furniture };
 }
 
 /** Build the `updateFloorplan` mutation input from the editor's working state. */
@@ -157,6 +181,7 @@ export function buildUpdateFloorplanInput(
   graph: PlanGraph,
   rooms: PlanRoomMeta[],
   placements: FloorplanPlacementData[],
+  furniture: FloorplanFurnitureData[],
 ): UpdateFloorplanInputData {
   return {
     id: planId,
@@ -191,6 +216,7 @@ export function buildUpdateFloorplanInput(
       x: p.x,
       y: p.y,
     })),
+    furniture: furniture.map((f) => ({ ...f })),
   };
 }
 
