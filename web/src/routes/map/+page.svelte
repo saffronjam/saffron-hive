@@ -8,12 +8,15 @@
 		Copy,
 		DoorOpen,
 		ExternalLink,
+		Ban,
+		Check,
 		Frame,
 		Link as LinkIcon,
 		Lock,
 		LockOpen,
 		Map as MapIcon,
 		MousePointer2,
+		Palette,
 		Pencil,
 		PenLine,
 		Square,
@@ -43,6 +46,7 @@
 		type EditorSelection,
 		type EditorTool,
 		type FloorplanEditorApi,
+		type MeasureKind,
 		type PlacementView,
 	} from "$lib/components/floorplan/floorplan-editor.svelte";
 	import RoomPanel, {
@@ -59,7 +63,10 @@
 		GlowView,
 		LightmapFrame,
 	} from "$lib/components/floorplan/glow-layer.svelte";
-	import MapToolbar, { openingKinds } from "$lib/components/floorplan/map-toolbar.svelte";
+	import MapToolbar, {
+		openingKinds,
+		type FurnitureMode,
+	} from "$lib/components/floorplan/map-toolbar.svelte";
 	import MapBrushPalette, {
 		type ArmedBrush,
 	} from "$lib/components/floorplan/map-brush-palette.svelte";
@@ -71,18 +78,40 @@
 		ROOMS_QUERY,
 		SCENES_QUERY,
 		SCENE_ACTIVE_SUB,
+		SET_DISPLAY_COLOR,
 		UPDATE_FLOORPLAN,
 	} from "$lib/graphql/map";
 	import type { Device, DeviceState } from "$lib/gql/graphql";
+	import {
+		defaultFurniture,
+		nearestPointOutside,
+		placementsInsideFurniture,
+		furnitureContainsPoint,
+		furnitureGroups,
+	} from "$lib/floorplan/furniture";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { deviceHasCapability, deviceStore, isLightControlDevice } from "$lib/stores/devices";
+	import {
+		deviceHasCapability,
+		deviceStore,
+		isLightControlDevice,
+		needsDisplayColor,
+	} from "$lib/stores/devices";
+	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { isEditableTarget } from "$lib/utils/keyboard";
 	import { resolveTargetDevices } from "$lib/target-resolve";
-	import { brightnessToTintStrength, miredToRgb } from "$lib/device-tint";
-	import { AMBIENT_UNLIT_OPACITY, markerGlow } from "$lib/floorplan/glow";
+	import { brightnessToTintStrength, miredToRgb, temperatureToRgb } from "$lib/device-tint";
+	import type { RGB } from "$lib/device-tint";
+	import {
+		availableMapViews,
+		placementVisibleInView,
+		resolveMapView,
+		TEMP_SOURCE_INTENSITY,
+		type MapViewId,
+	} from "$lib/map-views";
+	import { markerGlow } from "$lib/floorplan/glow";
 	import { daylightRgb } from "$lib/floorplan/daylight";
 	import {
 		combineLight,
@@ -147,6 +176,8 @@
 		placementKey,
 		reconcileRooms,
 		type FloorplanPlacementData,
+		newFurnitureId,
+		type FloorplanFurnitureData,
 	} from "$lib/floorplan-editable";
 	import { deviceDisplayName } from "$lib/utils";
 
@@ -180,6 +211,14 @@
 	let graph = $state<PlanGraph>({ vertices: [], walls: [] });
 	let rooms = $state<PlanRoomMeta[]>([]);
 	let placements = $state<FloorplanPlacementData[]>([]);
+	let furniture = $state<FloorplanFurnitureData[]>([]);
+	let draftFurniture = $state<FloorplanFurnitureData | null>(null);
+	let measureKind = $state<MeasureKind>("line");
+	let keepMeasures = $state(false);
+	let furnitureDrawerOpen = $state(false);
+	let furnitureMode = $state<FurnitureMode>("move");
+	let furnitureMenu = $state<{ x: number; y: number; piece: FloorplanFurnitureData } | null>(null);
+	let furnitureMenuOpen = $state(false);
 	let hiveRooms = $state<MapRoomData[]>([]);
 	let tool = $state<EditorTool>("select");
 	let openingKind = $state<OpeningKind>("door");
@@ -189,15 +228,18 @@
 	let selection = $state<EditorSelection>({ ...emptySelection });
 	let editorApi: FloorplanEditorApi | null = $state(null);
 	let copyBuffer = $state<{ vertices: PlanVertex[]; walls: PlanWall[] } | null>(null);
+	/** A copied piece, with the size and angle it was copied at. */
+	let furnitureBuffer = $state<FloorplanFurnitureData | null>(null);
 	let drawerOpen = $state(false);
 	let viewportVersion = $state(0);
 	let highlightFaceKey = $state<string | null>(null);
 
 	interface ExternalDrag {
-		kind: "hive-room" | "detached" | "placement";
+		kind: "hive-room" | "detached" | "placement" | "furniture";
 		hiveRoomId?: string;
 		roomMetaId?: string;
 		placement?: PlacementView;
+		furnitureKind?: string;
 		text?: string;
 	}
 	let externalDrag = $state<ExternalDrag | null>(null);
@@ -211,6 +253,17 @@
 	function setBrushRadius(px: number) {
 		brushRadiusPx = px;
 		profile.set("map.brushRadius", px);
+	}
+
+	let mapViewPref = $state<MapViewId>(profile.get("map.view", undefined) ?? "light");
+
+	function setMapView(view: MapViewId) {
+		mapViewPref = view;
+		profile.set("map.view", view);
+		if (view !== "light") {
+			brushOpen = false;
+			disarmBrush();
+		}
 	}
 
 	let armedBrush = $state<ArmedBrush | null>(null);
@@ -315,6 +368,9 @@
 	let markerMenuOpen = $state(false);
 	let openingMenu = $state<{ x: number; y: number; openingId: string } | null>(null);
 	let openingMenuOpen = $state(false);
+	let colorPickDeviceId = $state<string | null>(null);
+	let colorPickAt = $state<{ x: number; y: number }>({ x: 0, y: 0 });
+	let colorPickBoxEl = $state<HTMLDivElement | null>(null);
 	let renameRoomId = $state<string | null>(null);
 	let renameAt = $state<{ x: number; y: number }>({ x: 0, y: 0 });
 	let renameInputEl = $state<HTMLInputElement | null>(null);
@@ -336,6 +392,21 @@
 		if (!box) return;
 		const dismiss = (e: PointerEvent) => {
 			if (!box.contains(e.target as Node)) renameRoomId = null;
+		};
+		window.addEventListener("pointerdown", dismiss, true);
+		return () => window.removeEventListener("pointerdown", dismiss, true);
+	});
+
+	$effect(() => {
+		const box = colorPickDeviceId ? colorPickBoxEl : null;
+		if (!box) return;
+		const dismiss = (e: PointerEvent) => {
+			if (box.contains(e.target as Node)) return;
+			colorPickDeviceId = null;
+			// One undo step per visit to the picker, however many samples the
+			// wheel emitted on the way.
+			if (changedDisplay) takeSnapshot();
+			changedDisplay = false;
 		};
 		window.addEventListener("pointerdown", dismiss, true);
 		return () => window.removeEventListener("pointerdown", dismiss, true);
@@ -363,7 +434,21 @@
 	}
 
 	const faces = $derived(detectFaces(graph));
-	const allDevices = $derived(Object.values($deviceStore));
+	/**
+	 * Display colours edited but not saved. They ride the plan's snapshot, so
+	 * they undo, redo and discard with everything else the editor holds, and
+	 * reach the server only when the plan is saved.
+	 */
+	let deviceDisplay = $state<Record<string, DeviceDisplay>>({});
+	const displayed = $derived(
+		Object.values($deviceStore).map((d) => {
+			const edit = deviceDisplay[d.id];
+			return edit
+				? { ...d, displayColor: edit.color, displayBrightness: edit.brightness }
+				: d;
+		}),
+	);
+	const allDevices = $derived(displayed);
 	const deviceById = $derived(new Map(allDevices.map((d) => [d.id, d])));
 
 	/** Live-surface devices: disabled ones gone, picker previews merged in. */
@@ -394,6 +479,18 @@
 	const menuRoom = $derived(
 		faceMenu ? (rooms.find((r) => r.id === faceMenu!.roomId) ?? null) : null,
 	);
+	/** The menu room's bounding size, the plain fact a menu can end with. */
+	const menuRoomSize = $derived.by(() => {
+		const face = faceMenu ? faces[faceMenu.faceIndex] : null;
+		if (!face) return null;
+		const xs = face.polygon.map((p) => p.x);
+		const ys = face.polygon.map((p) => p.y);
+		return {
+			width: Math.max(...xs) - Math.min(...xs),
+			height: Math.max(...ys) - Math.min(...ys),
+		};
+	});
+
 	const renameRoom = $derived(
 		renameRoomId ? (rooms.find((r) => r.id === renameRoomId) ?? null) : null,
 	);
@@ -465,6 +562,21 @@
 	/** With nothing on the map to paint, the brush has no reason to be offered. */
 	const canPaint = $derived(placedHasColor || placedHasColorTemp || placedHasSwitchable);
 
+	/** Offered views come from the unfiltered pool, or there is no way back. */
+	const availableViews = $derived(availableMapViews(placedDevices));
+	/**
+	 * The rendered view: the stored preference while its devices exist, light
+	 * otherwise. The fallback is derived, never written back, so a sensor
+	 * going offline does not erase the choice.
+	 */
+	const mapView = $derived(resolveMapView(mapViewPref, availableViews));
+	/** Live mode shows only the view's devices; edit mode manages them all. */
+	const visiblePlacements = $derived(
+		editMode
+			? placementViews
+			: placementViews.filter((pl) => placementVisibleInView(mapView, placementDeviceList(pl))),
+	);
+
 	/** Location settings, absent until someone fills them in — then the sun runs. */
 	let location = $state<{ latitude: number; longitude: number; planNorth: number } | null>(null);
 	/** Ticked once a minute; the sun barely moves faster than that. */
@@ -486,21 +598,39 @@
 		location = { latitude: lat, longitude: lon, planNorth: Number.isFinite(north) ? north : 0 };
 	}
 
-	function faceLit(face: Face): boolean {
-		const row = roomByFace.get(faceKey(face));
-		if (!row?.roomId) return false;
-		const hive = hiveRooms.find((r) => r.id === row.roomId);
-		if (!hive) return false;
-		return hive.resolvedDevices.some((ref) => {
-			const d = liveDeviceById.get(ref.id);
-			return d != null && isLightControlDevice(d) && d.state?.on === true;
-		});
-	}
-
 	/** The plan's raster for lighting; rebuilt when the graph changes. */
-	const lightGrid = $derived.by(() =>
-		editMode ? null : rasterisePlan($state.snapshot(graph) as PlanGraph, faces),
-	);
+	/**
+	 * The plan's raster, held across an edit session rather than rebuilt on the
+	 * way back. Editing renders no light and changes the plan on every drag
+	 * frame, and a fresh raster would also void every lamp field cached against
+	 * it — which is what made returning to Live drop frames while toggling a
+	 * single lamp did not.
+	 */
+	let gridCache: {
+		graph: PlanGraph;
+		faces: Face[];
+		furniture: FloorplanFurnitureData[];
+		grid: LightmapGrid | null;
+	} | null = null;
+
+	const lightGrid = $derived.by(() => {
+		if (editMode) return gridCache?.grid ?? null;
+		if (
+			gridCache &&
+			gridCache.graph === graph &&
+			gridCache.faces === faces &&
+			gridCache.furniture === furniture
+		) {
+			return gridCache.grid;
+		}
+		const grid = rasterisePlan(
+			$state.snapshot(graph) as PlanGraph,
+			faces,
+			$state.snapshot(furniture) as FloorplanFurnitureData[],
+		);
+		gridCache = { graph, faces, furniture, grid };
+		return grid;
+	});
 
 	/**
 	 * Daylight over that raster. Computed off the frame via an idle callback —
@@ -559,7 +689,12 @@
 	function glowForPlacement(pl: PlacementView): GlowView | null {
 		const lights = (pl.kind === "device" ? [pl.device] : pl.devices)
 			.filter((d) => d.available && isLightControlDevice(d))
-			.map((d) => ({ id: d.id, state: d.state }));
+			.map((d) => ({
+				id: d.id,
+				state: d.state,
+				displayColor: d.displayColor,
+				displayBrightness: d.displayBrightness,
+			}));
 		return markerGlow(
 			{ key: placementViewKey(pl), x: pl.x, y: pl.y, lights, pooled: pl.kind === "group" },
 			placedDeviceIds,
@@ -567,22 +702,52 @@
 	}
 
 	/**
-	 * Everything the light map draws: daylight plus every in-room lamp, summed
-	 * into one bitmap. Markers outside every room keep their glow circles — the
-	 * grid has no cells for them.
+	 * A placement's temperature reading: the mean over its available members
+	 * that report one. Group members carrying their own marker are skipped,
+	 * like a group's glow skips them.
+	 */
+	function tempForPlacement(pl: PlacementView): number | null {
+		const members =
+			pl.kind === "device" ? [pl.device] : pl.devices.filter((d) => !placedDeviceIds.has(d.id));
+		const readings = members
+			.filter((d) => d.available && d.state?.temperature != null)
+			.map((d) => d.state!.temperature!);
+		if (readings.length === 0) return null;
+		return readings.reduce((sum, t) => sum + t, 0) / readings.length;
+	}
+
+	/**
+	 * Everything the light map draws, summed into one bitmap. The light view
+	 * adds daylight and every in-room lamp; the temperature view swaps both
+	 * for a heat field around each reporting sensor, through the same cached
+	 * unit fields. Markers outside every room keep their glow circles in the
+	 * light view — the grid has no cells for them — while an outside sensor
+	 * contributes nothing, since a glow disc's white core would read as a lamp.
 	 */
 	const combined = $derived.by(() => {
 		if (editMode) return null;
 		const grid = lightGrid;
 		if (!grid) return null;
 		const sources: LightSource[] = [];
-		if (daylightField && daylightField.grid === grid && sun) {
+		const outside: GlowView[] = [];
+		if (mapView === "light" && daylightField && daylightField.grid === grid && sun) {
 			sources.push({ field: daylightField.field, rgb: daylightRgb(sun.elevation), intensity: 1 });
 		}
-		const outside: GlowView[] = [];
-		for (const pl of placementViews) {
-			const view = glowForPlacement(pl);
-			if (!view) continue;
+		for (const pl of visiblePlacements) {
+			let rgb: RGB;
+			let intensity: number;
+			let glow: GlowView | null = null;
+			if (mapView === "light") {
+				glow = glowForPlacement(pl);
+				if (!glow) continue;
+				rgb = glow.rgb;
+				intensity = glow.opacity;
+			} else {
+				const temp = tempForPlacement(pl);
+				if (temp == null) continue;
+				rgb = temperatureToRgb(temp);
+				intensity = TEMP_SOURCE_INTENSITY;
+			}
 			// A marker against a wall sits on the wall band, where no face
 			// contains its point — it still belongs to the room it hugs, and its
 			// light starts just inside so it shines one-sided like a lamp
@@ -590,14 +755,10 @@
 			const face =
 				faceContainingPoint(faces, { x: pl.x, y: pl.y }) ?? nearestFaceWithin(pl, 0.5);
 			if (face) {
-				const at = nearestPointInFace({ x: view.x, y: view.y }, face, grid.cellM);
-				sources.push({
-					field: lampFieldFor(grid, at.x, at.y),
-					rgb: view.rgb,
-					intensity: view.opacity,
-				});
-			} else {
-				outside.push(view);
+				const at = nearestPointInFace({ x: pl.x, y: pl.y }, face, grid.cellM);
+				sources.push({ field: lampFieldFor(grid, at.x, at.y), rgb, intensity });
+			} else if (glow) {
+				outside.push(glow);
 			}
 		}
 		return { light: combineLight(grid, sources), outside };
@@ -634,17 +795,10 @@
 
 	const glowData = $derived.by((): { groups: GlowGroup[]; outside: GlowView[] } => {
 		if (editMode) return { groups: [], outside: [] };
-		const amounts = combined?.light.faceAmount;
-		const groups: GlowGroup[] = faces.map((face, i) => {
-			// Lamps and daylight both lift the room out of the dark; a room with
-			// any lamp on stays fully lifted however dim the bitmap reads.
-			const lift = Math.max(faceLit(face) ? 1 : 0, amounts?.[i] ?? 0);
-			return {
-				key: `face-${i}`,
-				polygon: face.polygon,
-				dim: AMBIENT_UNLIT_OPACITY * (1 - lift),
-			};
-		});
+		const groups: GlowGroup[] = faces.map((face, i) => ({
+			key: `face-${i}`,
+			polygon: face.polygon,
+		}));
 		return { groups, outside: combined?.outside ?? [] };
 	});
 
@@ -663,6 +817,14 @@
 		graph: PlanGraph;
 		rooms: PlanRoomMeta[];
 		placements: FloorplanPlacementData[];
+		furniture: FloorplanFurnitureData[];
+		deviceDisplay: Record<string, DeviceDisplay>;
+	}
+
+	/** A device's map appearance while it has none of its own to report. */
+	interface DeviceDisplay {
+		color: string | null;
+		brightness: number | null;
 	}
 
 	const history = new HistoryStack<PlanSnapshot>();
@@ -677,6 +839,8 @@
 			graph: $state.snapshot(graph),
 			rooms: $state.snapshot(rooms),
 			placements: $state.snapshot(placements),
+			furniture: $state.snapshot(furniture),
+			deviceDisplay: $state.snapshot(deviceDisplay),
 		};
 	}
 
@@ -691,6 +855,8 @@
 		graph = plain.graph;
 		rooms = plain.rooms;
 		placements = plain.placements;
+		furniture = plain.furniture ?? [];
+		deviceDisplay = plain.deviceDisplay ?? {};
 		selection = { ...emptySelection };
 	}
 
@@ -789,6 +955,10 @@
 	}
 
 	function deleteSelection() {
+		if (selection.furnitureId) {
+			removeFurniture(selection.furnitureId);
+			return;
+		}
 		if (selection.placementKeys.length > 0) {
 			const drop = new Set(selection.placementKeys);
 			placements = placements.filter((p) => !drop.has(placementKey(p)));
@@ -818,6 +988,12 @@
 	}
 
 	function handleCopy() {
+		if (selectedFurniture) {
+			// The whole piece travels, so a pasted copy stands at the size and
+			// angle the original was given.
+			furnitureBuffer = $state.snapshot(selectedFurniture) as FloorplanFurnitureData;
+			return;
+		}
 		if (selection.wallIds.length === 0) return;
 		const wallSet = new Set(selection.wallIds);
 		const walls = graph.walls.filter((w) => wallSet.has(w.id));
@@ -829,6 +1005,22 @@
 	}
 
 	function handlePaste() {
+		if (furnitureBuffer && !selection.wallIds.length) {
+			const offset = 48 / (editorApi?.getZoom() ?? 50);
+			const copy = {
+				...furnitureBuffer,
+				id: newFurnitureId(),
+				x: furnitureBuffer.x + offset,
+				y: furnitureBuffer.y + offset,
+			};
+			furniture = [...furniture, copy];
+			// Paste again and the next copy lands beyond this one, rather than
+			// stacking every copy on the same spot.
+			furnitureBuffer = copy;
+			selection = { ...emptySelection, furnitureId: copy.id };
+			takeSnapshot();
+			return;
+		}
 		if (!copyBuffer || copyBuffer.walls.length === 0) return;
 		const offset = 48 / (editorApi?.getZoom() ?? 50);
 		const idMap = new Map<string, string>();
@@ -1081,10 +1273,97 @@
 		moveExternalDrag(e);
 	}
 
+	/** Tap instead of drag: drop the piece in the middle of what is on screen. */
+	function placeFurnitureAtCentre(kindId: string) {
+		furnitureDrawerOpen = false;
+		const at = editorApi?.getViewportCenterWorld() ?? { x: 0, y: 0 };
+		const piece = defaultFurniture(kindId, gridSnap(at), newFurnitureId());
+		furniture = [...furniture, piece];
+		selection = { ...emptySelection, furnitureId: piece.id };
+		takeSnapshot();
+	}
+
+	const selectedFurniture = $derived(
+		selection.furnitureId
+			? (furniture.find((f) => f.id === selection.furnitureId) ?? null)
+			: null,
+	);
+
+	/** A transform in flight: shown live, written to history only on release. */
+	function previewFurniture(piece: FloorplanFurnitureData) {
+		furniture = furniture.map((f) => (f.id === piece.id ? piece : f));
+	}
+
+	function commitFurniture(piece: FloorplanFurnitureData) {
+		previewFurniture(piece);
+		takeSnapshot();
+	}
+
+	function removeFurniture(id: string) {
+		furniture = furniture.filter((f) => f.id !== id);
+		if (selection.furnitureId === id) selection = { ...emptySelection };
+		takeSnapshot();
+	}
+
+	function duplicateFurniture(piece: FloorplanFurnitureData) {
+		const copy = { ...piece, id: newFurnitureId(), x: piece.x + 0.2, y: piece.y + 0.2 };
+		furniture = [...furniture, copy];
+		selection = { ...emptySelection, furnitureId: copy.id };
+		takeSnapshot();
+	}
+
+	/**
+	 * A marker dropped on an occluder slides out of it. Light from inside one
+	 * never reaches the room — the cell is solid — so the marker settles where
+	 * it can actually be seen instead.
+	 */
+	function clearOfOccluders(at: Point): Point {
+		let out = at;
+		for (const piece of furniture) {
+			out = nearestPointOutside(piece, out);
+		}
+		return out;
+	}
+
+	/** The light standing inside a piece, if marking it would strand one. */
+	function occludedLightNames(piece: FloorplanFurnitureData): string | null {
+		const inside = placementsInsideFurniture({ ...piece, occluder: true }, placementViews);
+		const lights = inside.filter((pl) => placementDeviceList(pl).some(isLightControlDevice));
+		if (lights.length === 0) return null;
+		const first = lights[0];
+		const name =
+			first.kind === "device" ? deviceDisplayName(first.device) : first.group.name;
+		return lights.length > 1 ? `${name} and ${lights.length - 1} more` : name;
+	}
+
+	function toggleOccluder(piece: FloorplanFurnitureData) {
+		commitFurniture({ ...piece, occluder: !piece.occluder });
+	}
+
+	function handleFurnitureMenu(piece: FloorplanFurnitureData, clientX: number, clientY: number) {
+		if (!editMode) return;
+		faceMenuOpen = false;
+		markerMenuOpen = false;
+		selection = { ...emptySelection, furnitureId: piece.id };
+		furnitureMenu = { x: clientX, y: clientY, piece };
+		furnitureMenuOpen = true;
+	}
+
+	function startFurnitureDrag(kindId: string, e: PointerEvent) {
+		externalDrag = { kind: "furniture", furnitureKind: kindId };
+		draftFurniture = defaultFurniture(kindId, { x: 0, y: 0 }, newFurnitureId());
+		moveExternalDrag(e);
+	}
+
 	function moveExternalDrag(e: PointerEvent) {
 		if (!externalDrag || !editorApi) return;
 		const p = editorApi.clientToWorld(e.clientX, e.clientY);
 		const dragged = externalDrag.placement;
+		if (externalDrag.kind === "furniture" && draftFurniture) {
+			const snapped = e.altKey ? p : gridSnap(p);
+			draftFurniture = { ...draftFurniture, x: snapped.x, y: snapped.y };
+			return;
+		}
 		if (externalDrag.kind === "placement" && dragged) {
 			const snapped = e.altKey ? p : gridSnap(p);
 			draftPlacement = { ...dragged, x: snapped.x, y: snapped.y };
@@ -1107,10 +1386,18 @@
 		clearExternalDrag();
 		if (!drag || !editorApi) return;
 		const p = editorApi.clientToWorld(e.clientX, e.clientY);
+		if (drag.kind === "furniture" && drag.furnitureKind) {
+			const snapped = e.altKey ? p : gridSnap(p);
+			const piece = defaultFurniture(drag.furnitureKind, snapped, newFurnitureId());
+			furniture = [...furniture, piece];
+			selection = { ...emptySelection, furnitureId: piece.id };
+			takeSnapshot();
+			return;
+		}
 		if (drag.kind === "placement" && drag.placement) {
 			const ref = placementViewRef(drag.placement);
 			const snapped = e.altKey ? p : gridSnap(p);
-			const settled = settlePlacement(ref, snapped, e.altKey);
+			const settled = clearOfOccluders(settlePlacement(ref, snapped, e.altKey));
 			requestPlacement({ ...ref, x: settled.x, y: settled.y });
 			return;
 		}
@@ -1131,6 +1418,7 @@
 		draftLabel = null;
 		draftRoom = null;
 		draftPlacement = null;
+		draftFurniture = null;
 		highlightFaceKey = null;
 	}
 
@@ -1150,11 +1438,11 @@
 			e.preventDefault();
 			handleRedo();
 		} else if (mod && e.key === "c") {
-			if (selection.wallIds.length === 0) return;
+			if (selection.wallIds.length === 0 && !selection.furnitureId) return;
 			e.preventDefault();
 			handleCopy();
 		} else if (mod && e.key === "v") {
-			if (!copyBuffer) return;
+			if (!copyBuffer && !furnitureBuffer) return;
 			e.preventDefault();
 			handlePaste();
 		} else if (e.key === "Delete" || e.key === "Backspace") {
@@ -1174,10 +1462,15 @@
 		if (saving || !isDirty) return;
 		saving = true;
 		try {
-			const input = buildUpdateFloorplanInput(planId, planName, graph, rooms, placements);
+			const input = buildUpdateFloorplanInput(planId, planName, graph, rooms, placements, furniture);
 			const result = await client.mutation(UPDATE_FLOORPLAN, { input }).toPromise();
 			if (result.error) {
 				errors.setWithAutoDismiss(graphqlErrorMessage(result.error, "Failed to save the plan."));
+				return;
+			}
+			const displayError = await saveDisplayEdits();
+			if (displayError) {
+				errors.setWithAutoDismiss(displayError);
 				return;
 			}
 			savedCursor = history.cursor;
@@ -1185,6 +1478,36 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	/**
+	 * Push the display colours the plan is carrying to the devices they belong
+	 * to. They are device metadata rather than plan data, so they travel beside
+	 * the plan's own mutation; the message of the first failure comes back.
+	 */
+	async function saveDisplayEdits(): Promise<string | null> {
+		for (const [id, edit] of Object.entries(deviceDisplay)) {
+			const device = $deviceStore[id];
+			if (!device) continue;
+			if (
+				(device.displayColor ?? null) === edit.color &&
+				(device.displayBrightness ?? null) === edit.brightness
+			) {
+				continue;
+			}
+			const result = await client
+				.mutation(SET_DISPLAY_COLOR, {
+					id,
+					input: { displayColor: edit.color, displayBrightness: edit.brightness },
+				})
+				.toPromise();
+			if (result.error) {
+				return graphqlErrorMessage(result.error, "Failed to save a display colour.");
+			}
+			deviceStore.updateDisplayColor(id, edit.color);
+			deviceStore.updateDisplayBrightness(id, edit.brightness);
+		}
+		return null;
 	}
 
 	// Going Live with unsaved edits saves first and stays in Edit if that fails.
@@ -1228,6 +1551,7 @@
 		unlockedRoomIds = new Set();
 		freeCornerRoomIds = new Set();
 		renameRoomId = null;
+		colorPickDeviceId = null;
 		faceMenuOpen = false;
 		faceMenu = null;
 		// Copied walls may not exist after a discard.
@@ -1262,6 +1586,52 @@
 		markerMenuOpen = false;
 		markerMenu = null;
 		if (m?.placement.kind === "device") goto(`/devices/${m.placement.device.id}`);
+	}
+
+	function menuSetDisplayColor() {
+		const m = markerMenu;
+		markerMenuOpen = false;
+		markerMenu = null;
+		if (m?.placement.kind !== "device") return;
+		colorPickDeviceId = m.placement.device.id;
+		colorPickAt = { x: m.x, y: m.y };
+		changedDisplay = false;
+	}
+
+	const colorPickDevice = $derived(
+		colorPickDeviceId ? (allDevices.find((d) => d.id === colorPickDeviceId) ?? null) : null,
+	);
+	const displayColorRgb = $derived(hexToRgbValue(colorPickDevice?.displayColor ?? null));
+
+	/** `#rrggbb` to the picker's channels; its own default when unset. */
+	function hexToRgbValue(hex: string | null): { r: number; g: number; b: number } {
+		const m = hex ? /^#?([0-9a-f]{6})$/i.exec(hex.trim()) : null;
+		if (!m) return { r: 255, g: 170, b: 80 };
+		const n = parseInt(m[1], 16);
+		return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+	}
+
+	let changedDisplay = false;
+
+	function editDisplay(deviceId: string, patch: Partial<DeviceDisplay>) {
+		changedDisplay = true;
+		const device = deviceById.get(deviceId);
+		const current = deviceDisplay[deviceId] ?? {
+			color: device?.displayColor ?? null,
+			brightness: device?.displayBrightness ?? null,
+		};
+		deviceDisplay = { ...deviceDisplay, [deviceId]: { ...current, ...patch } };
+	}
+
+	function setDisplayBrightness(deviceId: string, brightness: number) {
+		editDisplay(deviceId, { brightness: Math.max(1, Math.min(254, Math.round(brightness))) });
+	}
+
+	function setDisplayColor(deviceId: string, rgb: { r: number; g: number; b: number }) {
+		const hex = `#${[rgb.r, rgb.g, rgb.b]
+			.map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0"))
+			.join("")}`;
+		editDisplay(deviceId, { color: hex });
 	}
 
 	function handleOpeningMenu(openingId: string, clientX: number, clientY: number) {
@@ -1459,6 +1829,7 @@
 			graph = converted.graph;
 			rooms = converted.rooms;
 			placements = converted.placements;
+			furniture = converted.furniture;
 		} else {
 			planId = newPlanId();
 		}
@@ -1590,6 +1961,19 @@
 		selectedLinkedRoom?.name ?? (selectedRoom?.name || null),
 	);
 
+	const furnitureDrawerGroups = $derived<DrawerGroup<"furniture">[]>(
+		furnitureGroups().map((g) => ({
+			heading: g.group,
+			items: g.kinds.map((k) => ({
+				type: "furniture" as const,
+				id: k.id,
+				name: k.label,
+				icon: k.icon,
+				badge: `${k.size.width.toFixed(2)} × ${k.size.height.toFixed(2)} m`,
+			})),
+		})),
+	);
+
 	const drawerGroups = $derived<DrawerGroup<"room">[]>([
 		{
 			heading: "Rooms",
@@ -1664,7 +2048,14 @@
 						glowGroups={glowData.groups}
 						lightmap={lightmapFrame}
 						outsideGlows={glowData.outside}
-						placements={placementViews}
+						placements={visiblePlacements}
+						{furniture}
+						{draftFurniture}
+						selectedFurnitureId={selection.furnitureId}
+						{furnitureMode}
+						onfurnituremenu={handleFurnitureMenu}
+						onfurniturepreview={previewFurniture}
+						onfurniturecommit={commitFurniture}
 						{draftPlacement}
 						{draftLabel}
 						{draftRoom}
@@ -1680,6 +2071,8 @@
 						onmarkertap={handleMarkerTap}
 						onmarkermenu={handleMarkerMenu}
 						{openingKind}
+						{measureKind}
+						{keepMeasures}
 						onopeningmenu={handleOpeningMenu}
 						{snapOff}
 						{additive}
@@ -1700,12 +2093,16 @@
 				ontool={(next) => (tool = next)}
 				{openingKind}
 				onopeningkind={(next) => (openingKind = next)}
+				{measureKind}
+				onmeasurekind={(next) => (measureKind = next)}
+				{keepMeasures}
+				onkeepmeasures={() => (keepMeasures = !keepMeasures)}
 				canUndo={history.canUndo}
 				canRedo={history.canRedo}
 				onundo={handleUndo}
 				onredo={handleRedo}
-				selectedWallCount={selection.wallIds.length}
-				hasCopyBuffer={!!copyBuffer}
+				selectedWallCount={selection.wallIds.length + (selection.furnitureId ? 1 : 0)}
+				hasCopyBuffer={!!copyBuffer || !!furnitureBuffer}
 				oncopy={handleCopy}
 				onpaste={handlePaste}
 				{snapOff}
@@ -1713,12 +2110,19 @@
 				{additive}
 				onadditivetoggle={() => (additive = !additive)}
 				onlinkroom={() => (drawerOpen = true)}
+				onfurniture={() => (furnitureDrawerOpen = true)}
+				furnitureSelected={!!selection.furnitureId}
+				{furnitureMode}
+				onfurnituremode={(mode: FurnitureMode) => (furnitureMode = mode)}
 				{brushOpen}
 				{canPaint}
 				onbrushtoggle={() => {
 					brushOpen = !brushOpen;
 					if (!brushOpen) disarmBrush();
 				}}
+				view={mapView}
+				viewOptions={availableViews}
+				onviewchange={setMapView}
 			/>
 
 			<div
@@ -1757,7 +2161,7 @@
 				{/if}
 			</div>
 
-			{#if !editMode && brushOpen && canPaint}
+			{#if !editMode && brushOpen && canPaint && mapView === "light"}
 				<MapBrushPalette
 					hasColor={placedHasColor}
 					hasColorTemp={placedHasColorTemp}
@@ -1860,12 +2264,41 @@
 	</div>
 {/if}
 
+{#if colorPickDevice}
+	<!-- Anchored where the menu was, and dismissed by a click outside: the same
+	     shape as the room rename field. -->
+	<div
+		bind:this={colorPickBoxEl}
+		class="fixed z-50 w-64 rounded-md bg-popover p-3 shadow-md ring-1 ring-foreground/10"
+		style="left: {colorPickAt.x}px; top: {colorPickAt.y}px;"
+	>
+		<LightColorPicker
+			color={displayColorRgb}
+			colorTemp={null}
+			hasColor={true}
+			hasColorTemp={true}
+			hasBrightness={true}
+			brightness={colorPickDevice?.displayBrightness ?? 254}
+			onbrightnesschange={(v) => colorPickDeviceId && setDisplayBrightness(colorPickDeviceId, v)}
+			oncolorchange={(c) => colorPickDeviceId && setDisplayColor(colorPickDeviceId, c)}
+			ontempchange={(mired) =>
+				colorPickDeviceId && setDisplayColor(colorPickDeviceId, miredToRgb(mired))}
+		/>
+	</div>
+{/if}
+
 <PlanPointMenu bind:open={markerMenuOpen} at={markerMenu} onclose={() => (markerMenu = null)}>
 		{#if markerMenu?.placement.kind === "device"}
 			<DropdownMenuItem onclick={menuOpenDevicePage}>
 				<ExternalLink class="size-3.5" />
 				Open device
 			</DropdownMenuItem>
+			{#if editMode && needsDisplayColor(markerMenu.placement.device)}
+				<DropdownMenuItem onclick={menuSetDisplayColor}>
+					<Palette class="size-3.5" />
+					Set display color
+				</DropdownMenuItem>
+			{/if}
 			<DropdownMenuSeparator />
 		{/if}
 		<DropdownMenuItem onclick={menuRemovePlacement}>
@@ -1928,6 +2361,11 @@
 			<Trash2 class="size-3.5" />
 			Delete room
 		</DropdownMenuItem>
+		{#if menuRoomSize}
+			<div class="mt-1 px-2 pt-1.5 pb-1 text-xs text-muted-foreground">
+				{formatMeters(menuRoomSize.width)} × {formatMeters(menuRoomSize.height)}
+			</div>
+		{/if}
 </PlanPointMenu>
 
 <ConfirmDialog
@@ -1968,6 +2406,63 @@
 	groups={drawerGroups}
 	onselect={handleDrawerSelect}
 	ondragout={(item, e) => startRoomDrag("hive-room", item.id, item.name, e)}
+/>
+
+<PlanPointMenu
+	bind:open={furnitureMenuOpen}
+	at={furnitureMenu}
+	onclose={() => (furnitureMenu = null)}
+>
+	{#if furnitureMenu}
+		{@const piece = furnitureMenu.piece}
+		{@const blockedBy = occludedLightNames(piece)}
+		<DropdownMenuItem
+			disabled={!piece.occluder && blockedBy !== null}
+			onclick={() => {
+				furnitureMenuOpen = false;
+				toggleOccluder(piece);
+			}}
+		>
+			{#if piece.occluder}
+				<Check class="size-3.5" />
+			{:else}
+				<Ban class="size-3.5" />
+			{/if}
+			{piece.occluder
+				? "Lets light through"
+				: blockedBy
+					? `${blockedBy} sits inside this piece`
+					: "Blocks light"}
+		</DropdownMenuItem>
+		<DropdownMenuItem
+			onclick={() => {
+				furnitureMenuOpen = false;
+				duplicateFurniture(piece);
+			}}
+		>
+			<Copy class="size-3.5" />
+			Duplicate
+		</DropdownMenuItem>
+		<DropdownMenuSeparator />
+		<DropdownMenuItem
+			onclick={() => {
+				furnitureMenuOpen = false;
+				removeFurniture(piece.id);
+			}}
+		>
+			<X class="size-3.5" />
+			Remove from plan
+		</DropdownMenuItem>
+	{/if}
+</PlanPointMenu>
+
+<HiveDrawer
+	bind:open={furnitureDrawerOpen}
+	title="Furniture"
+	description="Drag a piece onto the plan. It arrives at its real size."
+	groups={furnitureDrawerGroups}
+	onselect={(_type, id) => placeFurnitureAtCentre(id)}
+	ondragout={(item, e) => startFurnitureDrag(item.id, e)}
 />
 
 <RoomDrawer
