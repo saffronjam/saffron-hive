@@ -21,6 +21,18 @@ export function isApplianceDevice(device: Device): boolean {
   return !isLightControlDevice(device) && (device.type === "climate" || device.type === "plug");
 }
 
+/**
+ * Whether a device needs a display colour picked for it: it lights a room but
+ * reports no colour of its own, so the map has nothing to draw but a default.
+ */
+export function needsDisplayColor(device: Device): boolean {
+  return (
+    isLightControlDevice(device) &&
+    !deviceHasCapability(device, "color") &&
+    !deviceHasCapability(device, "color_temp")
+  );
+}
+
 function colorsEqual(a: Color | null | undefined, b: Color | null | undefined): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -66,6 +78,8 @@ const DEVICES_QUERY = graphql(`
       id
       name
       icon
+      displayColor
+      displayBrightness
       source
       type
       tags
@@ -267,6 +281,8 @@ function createDeviceStore() {
         ...device,
         name: existing.name,
         icon: existing.icon ?? null,
+        displayColor: existing.displayColor ?? null,
+        displayBrightness: existing.displayBrightness ?? null,
         tags: existing.tags,
         disabled: existing.disabled,
         seen: existing.seen,
@@ -299,6 +315,20 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, icon } });
   }
 
+  function updateDisplayColor(deviceId: string, displayColor: string | null) {
+    const device = current[deviceId];
+    if (!device) return;
+    if ((device.displayColor ?? null) === displayColor) return;
+    set({ ...current, [deviceId]: { ...device, displayColor } });
+  }
+
+  function updateDisplayBrightness(deviceId: string, displayBrightness: number | null) {
+    const device = current[deviceId];
+    if (!device) return;
+    if ((device.displayBrightness ?? null) === displayBrightness) return;
+    set({ ...current, [deviceId]: { ...device, displayBrightness } });
+  }
+
   function updateTags(deviceId: string, tags: Device["tags"]) {
     const device = current[deviceId];
     if (!device) return;
@@ -328,6 +358,8 @@ function createDeviceStore() {
     addDevice,
     updateName,
     updateIcon,
+    updateDisplayColor,
+    updateDisplayBrightness,
     updateTags,
     updateDisabled,
     markSeen,

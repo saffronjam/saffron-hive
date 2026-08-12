@@ -80,6 +80,39 @@ export function miredToRgb(mired: number): RGB {
   return kelvinToRgb(1e6 / clamped);
 }
 
+/**
+ * The heat ramp's stops, in Celsius. Cold reads deep blue, comfortable reads
+ * green, warm runs yellow to red — the vocabulary of a heat map rather than of
+ * light, so a temperature view never looks like a room with a lamp in it.
+ */
+const HEAT_STOPS: { c: number; rgb: RGB }[] = [
+  { c: 16, rgb: { r: 0, g: 120, b: 255 } },
+  { c: 18, rgb: { r: 0, g: 200, b: 255 } },
+  { c: 20, rgb: { r: 0, g: 230, b: 140 } },
+  { c: 21.5, rgb: { r: 170, g: 240, b: 40 } },
+  { c: 23, rgb: { r: 255, g: 220, b: 0 } },
+  { c: 25, rgb: { r: 255, g: 140, b: 0 } },
+  { c: 27, rgb: { r: 255, g: 30, b: 0 } },
+];
+
+/**
+ * Room temperature (raw Celsius) → the map's heat colour, clamped to the ends
+ * of {@link HEAT_STOPS} and interpolated between them.
+ */
+export function temperatureToRgb(celsius: number): RGB {
+  const first = HEAT_STOPS[0];
+  const last = HEAT_STOPS[HEAT_STOPS.length - 1];
+  if (celsius <= first.c) return first.rgb;
+  if (celsius >= last.c) return last.rgb;
+  for (let i = 1; i < HEAT_STOPS.length; i++) {
+    const hi = HEAT_STOPS[i];
+    if (celsius > hi.c) continue;
+    const lo = HEAT_STOPS[i - 1];
+    return lerpRgb(lo.rgb, hi.rgb, (celsius - lo.c) / (hi.c - lo.c));
+  }
+  return last.rgb;
+}
+
 function brightnessToRgb(brightness: number): RGB {
   return lerpRgb(DIM, CREAM, clamp01(brightness / BRIGHTNESS_MAX));
 }
@@ -234,6 +267,11 @@ export function sceneTintColors(payloads: ActionPayload[]): string[] {
 export function deviceTintBase(device: Device): string | null {
   const state: DeviceState | null | undefined = device.state;
   if (!state) return null;
+  // A device with no colour of its own wears the one the user gave it, so a
+  // LIGHT-tagged switch stands for the bulb it actually turns on.
+  if (state.color == null && state.colorTemp == null && device.displayColor) {
+    return device.displayColor;
+  }
   if (state.color == null && state.colorTemp == null && state.brightness == null) {
     if (isLightControlDevice(device)) return PLUG_TINT_COLOR;
     return null;

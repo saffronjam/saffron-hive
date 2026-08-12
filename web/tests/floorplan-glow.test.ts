@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  AMBIENT_UNLIT_OPACITY,
   markerGlow,
   GLOW_BASE_RADIUS_M,
   aggregateGlow,
@@ -85,13 +84,6 @@ describe("glowRgbForState", () => {
 
   it("resolves colorTemp through the shared mired ramp", () => {
     expect(glowRgbForState({ colorTemp: 500 })).toEqual(miredToRgb(500));
-  });
-});
-
-describe("AMBIENT_UNLIT_OPACITY", () => {
-  it("is a sane dim level", () => {
-    expect(AMBIENT_UNLIT_OPACITY).toBeGreaterThan(0);
-    expect(AMBIENT_UNLIT_OPACITY).toBeLessThan(1);
   });
 });
 
@@ -205,3 +197,80 @@ describe("markerGlow", () => {
     expect(glow).toBeNull();
   });
 });
+
+describe("display colour", () => {
+  it("stands in for a device that reports no colour of its own", () => {
+    const view = markerGlow(
+      {
+        key: "m",
+        x: 0,
+        y: 0,
+        lights: [{ id: "a", state: { on: true }, displayColor: "#3366ff" }],
+        pooled: false,
+      },
+      new Set(),
+    );
+    expect(view?.rgb).toEqual({ r: 0x33, g: 0x66, b: 0xff });
+  });
+
+  it("never overrides a colour the device does report", () => {
+    const view = markerGlow(
+      {
+        key: "m",
+        x: 0,
+        y: 0,
+        lights: [
+          { id: "a", state: { on: true, color: { r: 10, g: 20, b: 30 } }, displayColor: "#3366ff" },
+        ],
+        pooled: false,
+      },
+      new Set(),
+    );
+    expect(view?.rgb).toEqual({ r: 10, g: 20, b: 30 });
+  });
+
+  it("ignores a malformed colour rather than drawing nothing", () => {
+    const view = markerGlow(
+      {
+        key: "m",
+        x: 0,
+        y: 0,
+        lights: [{ id: "a", state: { on: true }, displayColor: "not-a-colour" }],
+        pooled: false,
+      },
+      new Set(),
+    );
+    expect(view?.rgb).toBeDefined();
+  });
+});
+
+describe("display brightness", () => {
+  const source = (displayBrightness: number | null) => ({
+    key: "m",
+    x: 0,
+    y: 0,
+    lights: [{ id: "a", state: { on: true }, displayBrightness }],
+    pooled: false,
+  });
+
+  it("dims a device that reports no brightness of its own", () => {
+    const dim = markerGlow(source(40), new Set())!;
+    const full = markerGlow(source(null), new Set())!;
+    expect(dim.opacity).toBeLessThan(full.opacity);
+    expect(dim.opacity).toBeGreaterThan(0);
+  });
+
+  it("never overrides a brightness the device does report", () => {
+    const view = markerGlow(
+      {
+        key: "m",
+        x: 0,
+        y: 0,
+        lights: [{ id: "a", state: { on: true, brightness: 254 }, displayBrightness: 20 }],
+        pooled: false,
+      },
+      new Set(),
+    )!;
+    expect(view.opacity).toBe(1);
+  });
+})

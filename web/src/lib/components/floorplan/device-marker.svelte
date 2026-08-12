@@ -61,7 +61,9 @@
 
 	const tintBase = $derived(deviceTintBase(device));
 	const tintStrength = $derived(
-		device.state?.on ? brightnessToTintStrength(device.state?.brightness) : 0,
+		device.state?.on
+			? brightnessToTintStrength(device.state?.brightness ?? device.displayBrightness)
+			: 0,
 	);
 	const discFill = $derived(
 		live && tintBase && tintStrength > 0
