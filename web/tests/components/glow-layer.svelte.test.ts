@@ -1,6 +1,6 @@
-import { describe, expect, it, afterEach, vi } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
-import GlowLayer from "$lib/components/floorplan/glow-layer.svelte";
+import GlowLayer, { blendBytes, needsSnap } from "$lib/components/floorplan/glow-layer.svelte";
 import type { GlowGroup, LightmapFrame } from "$lib/components/floorplan/glow-layer.svelte";
 
 let instance: ReturnType<typeof mount> | null = null;
@@ -22,6 +22,9 @@ function render(groups: GlowGroup[], lightmap: LightmapFrame | null = null) {
   return { svg: host, props };
 }
 
+/** Matches the component's cell-to-display scale. */
+const SCALE = 6;
+
 const square = [
   { x: 0, y: 0 },
   { x: 2, y: 0 },
@@ -30,7 +33,7 @@ const square = [
 ];
 
 function group(overrides: Partial<GlowGroup> = {}): GlowGroup {
-  return { key: "face-0", polygon: square, dim: 0.35, ...overrides };
+  return { key: "face-0", polygon: square, ...overrides };
 }
 
 function frame(overrides: Partial<LightmapFrame> = {}): LightmapFrame {
@@ -61,47 +64,66 @@ describe("GlowLayer", () => {
     expect(svg.querySelector("image")).toBeNull();
   });
 
-  it("darkens a room by exactly its dim amount", () => {
-    const { svg } = render([group({ dim: 0.2 })]);
-    const overlay = [...svg.querySelectorAll("polygon")].at(-1)!;
-    expect(overlay.getAttribute("opacity")).toBe("0.2");
-    expect(overlay.getAttribute("fill")).toBe("var(--background)");
+  it("darkens no room by itself", () => {
+    // How dark a room reads is the light map's business, cell by cell. A
+    // per-room overlay would step at every shared wall, however much light
+    // actually crosses it.
+    const { svg } = render([group()], frame());
+    expect(svg.querySelector("polygon")).toBeNull();
   });
 
-  it("keeps a fully lit room's overlay invisible", () => {
-    const { svg } = render([group({ dim: 0 })]);
-    const overlay = [...svg.querySelectorAll("polygon")].at(-1)!;
-    expect(overlay.getAttribute("opacity")).toBe("0");
-  });
-
-  it("snaps instead of fading when the grid grows downward", () => {
+  it("snaps rather than fades when the grid grows downward", () => {
     // A room dragged toward the bottom grows the grid's rows while cols and
-    // origin stay put. Fading across that would stretch the old frame onto a
-    // different-sized canvas — a snap draws once and schedules no animation.
-    const raf = vi.fn(() => 1);
-    vi.stubGlobal("requestAnimationFrame", raf);
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    try {
-      const { props } = render([group()], frame({ cols: 2, rows: 3 }));
-      props.lightmap = frame({ cols: 2, rows: 5, height: 3.9 });
-      flushSync();
-      expect(raf).not.toHaveBeenCalled();
-    } finally {
-      vi.unstubAllGlobals();
+    // origin stay put; fading across that would stretch the old frame.
+    const canvas = { width: 2 * SCALE, height: 3 * SCALE };
+    expect(needsSnap(frame({ cols: 2, rows: 3 }), frame({ cols: 2, rows: 5, height: 3.9 }), canvas, SCALE)).toBe(true);
+  });
+
+  it("snaps when the grid moves without changing shape", () => {
+    const shown = frame();
+    const canvas = { width: shown.cols * SCALE, height: shown.rows * SCALE };
+    expect(needsSnap(shown, frame({ x: 4 }), canvas, SCALE)).toBe(true);
+  });
+
+  it("fades between frames of identical geometry", () => {
+    const shown = frame();
+    const canvas = { width: shown.cols * SCALE, height: shown.rows * SCALE };
+    expect(needsSnap(shown, frame(), canvas, SCALE)).toBe(false);
+  });
+
+  it("swaps frames without throwing", () => {
+    const { props } = render([group()], frame());
+    props.lightmap = frame();
+    flushSync();
+    props.lightmap = frame({ cols: 4, rows: 4 });
+    flushSync();
+    props.lightmap = null;
+    flushSync();
+  });
+
+  it("holds an untouched pixel steady through a fade", () => {
+    // The dim field sits a level or two above black, where rounding each
+    // frame separately would swing a pixel by a whole level mid-fade.
+    const from = new Uint8ClampedArray([3, 200, 11, 255]);
+    const to = new Uint8ClampedArray([3, 0, 11, 255]);
+    const out = new Uint8ClampedArray(4);
+    for (let step = 0; step <= 20; step++) {
+      blendBytes(from, to, step / 20, out);
+      expect(out[0], `untouched dim pixel at t=${step / 20}`).toBe(3);
+      expect(out[2], `untouched mid pixel at t=${step / 20}`).toBe(11);
     }
   });
 
-  it("crossfades between frames of identical geometry", () => {
-    const raf = vi.fn(() => 1);
-    vi.stubGlobal("requestAnimationFrame", raf);
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    try {
-      const { props } = render([group()], frame());
-      props.lightmap = frame();
-      flushSync();
-      expect(raf).toHaveBeenCalledOnce();
-    } finally {
-      vi.unstubAllGlobals();
-    }
+  it("moves a changed pixel across the fade", () => {
+    const from = new Uint8ClampedArray([0]);
+    const to = new Uint8ClampedArray([200]);
+    const out = new Uint8ClampedArray(1);
+    blendBytes(from, to, 0, out);
+    expect(out[0]).toBe(0);
+    blendBytes(from, to, 0.5, out);
+    expect(out[0]).toBe(100);
+    blendBytes(from, to, 1, out);
+    expect(out[0]).toBe(200);
   });
+
 });

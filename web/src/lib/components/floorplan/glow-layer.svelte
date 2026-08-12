@@ -1,6 +1,54 @@
 <script lang="ts" module>
 	export type { GlowGroup, GlowView } from "$lib/floorplan/glow";
 
+	/**
+	 * Blend two frames' bytes into `out` at mix `t`, rounding once.
+	 *
+	 * Compositing the frames as two canvas draws instead would round each to 8
+	 * bits separately, landing a pixel neither frame touches on `v` or `v+1`
+	 * depending on where the fade is — invisible in a lit room, a shimmer
+	 * across every dim one, where the light sits a level or two above black.
+	 */
+	export function blendBytes(
+		from: Uint8ClampedArray,
+		to: Uint8ClampedArray,
+		t: number,
+		out: Uint8ClampedArray,
+	): void {
+		for (let i = 0; i < out.length; i++) {
+			out[i] = from[i] + (to[i] - from[i]) * t;
+		}
+	}
+
+	/**
+	 * Whether a new frame replaces the old outright instead of fading into it.
+	 *
+	 * Every dimension counts: a room dragged downward grows the grid's rows
+	 * while its columns and origin stay put, and fading across that would
+	 * stretch the old frame over a canvas of a different shape.
+	 */
+	export function needsSnap(
+		shown: LightmapFrame | null,
+		next: LightmapFrame | null,
+		canvas: { width: number; height: number },
+		scale: number,
+	): boolean {
+		const moved =
+			next &&
+			shown &&
+			(next.cols !== shown.cols ||
+				next.rows !== shown.rows ||
+				next.x !== shown.x ||
+				next.y !== shown.y ||
+				next.width !== shown.width ||
+				next.height !== shown.height);
+		return (
+			canvas.width !== (next?.cols ?? 0) * scale ||
+			canvas.height !== (next?.rows ?? 0) * scale ||
+			!!moved
+		);
+	}
+
 	/** One rendered light-map frame: raw pixels placed in world meters. */
 	export interface LightmapFrame {
 		rgba: Uint8ClampedArray<ArrayBuffer>;
@@ -16,7 +64,6 @@
 <script lang="ts">
 	import { glowStops } from "$lib/floorplan/glow";
 	import type { GlowGroup, GlowView } from "$lib/floorplan/glow";
-	import type { Point } from "$lib/floorplan";
 
 	interface Props {
 		groups: GlowGroup[];
@@ -45,54 +92,66 @@
 	}
 
 	/**
-	 * The crossfade is drawn by hand with canvas `lighter` compositing:
-	 * `old×(1−t) + new×t` per pixel, so a region the change does not touch holds
-	 * exactly its value all the way through. CSS opacity transitions on
-	 * plus-lighter layers cannot promise that — mid-animation the compositor
-	 * falls back to normal blending and the whole plan visibly dips.
+	 * The crossfade blends the two frames' bytes into one image and draws that
+	 * once. Compositing them as two draws instead would round each to 8 bits
+	 * separately, so a pixel neither frame touches lands on `v` or `v+1`
+	 * depending on where the fade is — invisible in a lit room, a shimmer
+	 * across every dim one, where the light sits a level or two above black.
 	 *
 	 * Fades are linear and queue rather than restart: a bulb ramping up reports
 	 * several states, and back-to-back linear fades chain into one swell.
 	 */
 	let shown: LightmapFrame | null = null;
-	let fadeFrom: HTMLCanvasElement | null = null;
-	let fadeTo: HTMLCanvasElement | null = null;
+	let fadeFrom: LightmapFrame | null = null;
+	let fadeTo: LightmapFrame | null = null;
 	let fadeStart = 0;
 	let queued: LightmapFrame | null | undefined;
 	let raf = 0;
+	let snapRaf = 0;
 
-	function cellCanvas(frame: LightmapFrame): HTMLCanvasElement | null {
-		const canvas = document.createElement("canvas");
-		canvas.width = frame.cols;
-		canvas.height = frame.rows;
-		const ctx = canvas.getContext("2d");
+	/** Cell-resolution scratch the blend writes into, before the upscale. */
+	let cells: HTMLCanvasElement | null = null;
+	let blend: Uint8ClampedArray<ArrayBuffer> | null = null;
+
+	function blendedCells(from: LightmapFrame | null, to: LightmapFrame | null, t: number) {
+		const frame = to ?? from;
+		if (!frame) return null;
+		if (!cells) cells = document.createElement("canvas");
+		if (cells.width !== frame.cols || cells.height !== frame.rows) {
+			cells.width = frame.cols;
+			cells.height = frame.rows;
+			blend = null;
+		}
+		const ctx = cells.getContext("2d");
 		if (!ctx) return null;
-		ctx.putImageData(new ImageData(frame.rgba, frame.cols, frame.rows), 0, 0);
-		return canvas;
+		const size = frame.cols * frame.rows * 4;
+		if (!blend || blend.length !== size) blend = new Uint8ClampedArray(size);
+		const a = from?.rgba;
+		const b = to?.rgba;
+		const sameShape = a && b && a.length === size && b.length === size;
+		if (!sameShape) {
+			blend.set(b ?? a!);
+		} else {
+			blendBytes(a, b, t, blend);
+		}
+		ctx.putImageData(new ImageData(blend, frame.cols, frame.rows), 0, 0);
+		return cells;
 	}
 
 	function draw(mix: number) {
 		// A frame timestamp can precede the performance.now() that started the
-		// fade, and canvas silently ignores an out-of-range globalAlpha — an
-		// unclamped mix would paint both frames at full strength for one frame.
+		// fade, so the mix needs clamping before it reaches the blend.
 		const t = Math.min(1, Math.max(0, mix));
 		const canvas = ensureDisplay();
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return;
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.globalCompositeOperation = "lighter";
+		ctx.globalCompositeOperation = "source-over";
 		ctx.imageSmoothingEnabled = true;
-		ctx.filter = `blur(${DISPLAY_SCALE * 0.45}px)`;
-		if (fadeFrom && t < 1) {
-			ctx.globalAlpha = 1 - t;
-			ctx.drawImage(fadeFrom, 0, 0, canvas.width, canvas.height);
-		}
-		if (fadeTo && t > 0) {
-			ctx.globalAlpha = t;
-			ctx.drawImage(fadeTo, 0, 0, canvas.width, canvas.height);
-		}
-		ctx.globalAlpha = 1;
+		ctx.filter = `blur(${DISPLAY_SCALE * 0.6}px)`;
+		const source = blendedCells(fadeFrom, fadeTo, t);
+		if (source) ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
 		mask(ctx, canvas);
 		href = canvas.toDataURL();
 	}
@@ -122,7 +181,7 @@
 			ctx.closePath();
 		}
 		ctx.fill();
-		ctx.globalCompositeOperation = "lighter";
+		ctx.globalCompositeOperation = "source-over";
 	}
 
 	function tick(now: number) {
@@ -143,7 +202,7 @@
 
 	function beginFade(next: LightmapFrame | null) {
 		shown = next;
-		fadeTo = next ? cellCanvas(next) : null;
+		fadeTo = next;
 		fadeStart = performance.now();
 		raf = requestAnimationFrame(tick);
 	}
@@ -152,33 +211,24 @@
 		const next = lightmap;
 		if (next === shown) return;
 		const canvas = ensureDisplay();
-		// A different grid (plan edited, mode switched) repositions the canvas —
-		// snap rather than fade across unrelated geometry. Every dimension
-		// counts: a room dragged downward grows the grid's rows while cols and
-		// origin stay put, and fading across that would stretch the old frame.
-		const moved =
-			next &&
-			shown &&
-			(next.cols !== shown.cols ||
-				next.rows !== shown.rows ||
-				next.x !== shown.x ||
-				next.y !== shown.y ||
-				next.width !== shown.width ||
-				next.height !== shown.height);
-		if (
-			canvas.width !== (next?.cols ?? 0) * DISPLAY_SCALE ||
-			canvas.height !== (next?.rows ?? 0) * DISPLAY_SCALE ||
-			moved
-		) {
+		if (needsSnap(shown, next, canvas, DISPLAY_SCALE)) {
 			canvas.width = (next?.cols ?? 1) * DISPLAY_SCALE;
 			canvas.height = (next?.rows ?? 1) * DISPLAY_SCALE;
 			if (raf) cancelAnimationFrame(raf);
 			raf = 0;
 			queued = undefined;
 			shown = next;
-			fadeFrom = next ? cellCanvas(next) : null;
-			fadeTo = fadeFrom;
-			draw(1);
+			fadeFrom = next;
+			fadeTo = next;
+			// A snap rides a mode switch or a plan edit, where the browser is
+			// already swapping a screenful of chrome. Encoding the light map in
+			// that same frame is what tips it into a dropped one, and the image
+			// simply holds its last pixels until the next.
+			if (snapRaf) cancelAnimationFrame(snapRaf);
+			snapRaf = requestAnimationFrame(() => {
+				snapRaf = 0;
+				draw(1);
+			});
 			return;
 		}
 		if (raf) {
@@ -190,11 +240,9 @@
 
 	$effect(() => () => {
 		if (raf) cancelAnimationFrame(raf);
+		if (snapRaf) cancelAnimationFrame(snapRaf);
 	});
 
-	function points(polygon: Point[]): string {
-		return polygon.map((p) => `${p.x},${p.y}`).join(" ");
-	}
 </script>
 
 <defs>
@@ -239,11 +287,3 @@
 	</g>
 {/if}
 
-{#each groups as grp (grp.key)}
-	<polygon
-		points={points(grp.polygon)}
-		fill="var(--background)"
-		opacity={grp.dim}
-		style="transition: opacity 300ms ease"
-	/>
-{/each}
