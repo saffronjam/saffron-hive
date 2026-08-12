@@ -101,15 +101,20 @@ type Device struct {
 	// Name is the user's override, nil when unset. FriendlyName is what the
 	// integration reports and is refreshed on every adapter sync. Read
 	// DisplayName rather than either field directly.
-	Name         *string      `json:"name,omitempty"`
-	FriendlyName string       `json:"friendlyName"`
-	Icon         *string      `json:"icon,omitempty"`
-	Source       Source       `json:"source"`
-	Type         DeviceType   `json:"type"`
-	Tags         []DeviceTag  `json:"tags"`
-	Capabilities []Capability `json:"capabilities"`
-	Available    bool         `json:"available"`
-	Removed      bool         `json:"removed"`
+	Name         *string `json:"name,omitempty"`
+	FriendlyName string  `json:"friendlyName"`
+	Icon         *string `json:"icon,omitempty"`
+	// DisplayColor is the colour the floor plan gives a device that reports
+	// none of its own, as a #rrggbb string; nil leaves it to the map default.
+	DisplayColor *string `json:"displayColor,omitempty"`
+	// DisplayBrightness is how bright such a device shows, 0-254; nil is full.
+	DisplayBrightness *int64       `json:"displayBrightness,omitempty"`
+	Source            Source       `json:"source"`
+	Type              DeviceType   `json:"type"`
+	Tags              []DeviceTag  `json:"tags"`
+	Capabilities      []Capability `json:"capabilities"`
+	Available         bool         `json:"available"`
+	Removed           bool         `json:"removed"`
 	// Disabled excludes the device from every path that commands or watches it
 	// (scenes, automations, effects, staleness alarms) while keeping its row and
 	// its detail page. For seasonal hardware that is unplugged but not gone.

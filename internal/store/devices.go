@@ -57,19 +57,21 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 		return device.Device{}, fmt.Errorf("list device tags: %w", err)
 	}
 	return device.Device{
-		ID:           row.ID,
-		Name:         row.Name,
-		FriendlyName: row.FriendlyName,
-		Icon:         row.Icon,
-		Source:       row.Source,
-		Type:         row.Type,
-		Tags:         deviceTagsFromStrings(tags),
-		Capabilities: unmarshalCapabilities(row.Capabilities),
-		Available:    row.Available,
-		Removed:      row.Removed,
-		Disabled:     row.Disabled,
-		Seen:         row.Seen,
-		LastSeen:     derefTime(row.LastSeen),
+		ID:                row.ID,
+		Name:              row.Name,
+		FriendlyName:      row.FriendlyName,
+		Icon:              row.Icon,
+		DisplayColor:      row.DisplayColor,
+		DisplayBrightness: row.DisplayBrightness,
+		Source:            row.Source,
+		Type:              row.Type,
+		Tags:              deviceTagsFromStrings(tags),
+		Capabilities:      unmarshalCapabilities(row.Capabilities),
+		Available:         row.Available,
+		Removed:           row.Removed,
+		Disabled:          row.Disabled,
+		Seen:              row.Seen,
+		LastSeen:          derefTime(row.LastSeen),
 	}, nil
 }
 
@@ -86,19 +88,21 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 	var devices []device.Device
 	for _, r := range rows {
 		devices = append(devices, device.Device{
-			ID:           r.ID,
-			Name:         r.Name,
-			FriendlyName: r.FriendlyName,
-			Icon:         r.Icon,
-			Source:       r.Source,
-			Type:         r.Type,
-			Tags:         tagsByDevice[r.ID],
-			Capabilities: unmarshalCapabilities(r.Capabilities),
-			Available:    r.Available,
-			Removed:      r.Removed,
-			Disabled:     r.Disabled,
-			Seen:         r.Seen,
-			LastSeen:     derefTime(r.LastSeen),
+			ID:                r.ID,
+			Name:              r.Name,
+			FriendlyName:      r.FriendlyName,
+			Icon:              r.Icon,
+			DisplayColor:      r.DisplayColor,
+			DisplayBrightness: r.DisplayBrightness,
+			Source:            r.Source,
+			Type:              r.Type,
+			Tags:              tagsByDevice[r.ID],
+			Capabilities:      unmarshalCapabilities(r.Capabilities),
+			Available:         r.Available,
+			Removed:           r.Removed,
+			Disabled:          r.Disabled,
+			Seen:              r.Seen,
+			LastSeen:          derefTime(r.LastSeen),
 		})
 	}
 	return devices, nil
@@ -117,19 +121,21 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 	var devices []device.Device
 	for _, r := range rows {
 		devices = append(devices, device.Device{
-			ID:           r.ID,
-			Name:         r.Name,
-			FriendlyName: r.FriendlyName,
-			Icon:         r.Icon,
-			Source:       r.Source,
-			Type:         r.Type,
-			Tags:         tagsByDevice[r.ID],
-			Capabilities: unmarshalCapabilities(r.Capabilities),
-			Available:    r.Available,
-			Removed:      r.Removed,
-			Disabled:     r.Disabled,
-			Seen:         r.Seen,
-			LastSeen:     derefTime(r.LastSeen),
+			ID:                r.ID,
+			Name:              r.Name,
+			FriendlyName:      r.FriendlyName,
+			Icon:              r.Icon,
+			DisplayColor:      r.DisplayColor,
+			DisplayBrightness: r.DisplayBrightness,
+			Source:            r.Source,
+			Type:              r.Type,
+			Tags:              tagsByDevice[r.ID],
+			Capabilities:      unmarshalCapabilities(r.Capabilities),
+			Available:         r.Available,
+			Removed:           r.Removed,
+			Disabled:          r.Disabled,
+			Seen:              r.Seen,
+			LastSeen:          derefTime(r.LastSeen),
 		})
 	}
 	return devices, nil
@@ -298,6 +304,48 @@ func (s *DB) UpdateDeviceIcon(ctx context.Context, params UpdateDeviceIconParams
 				ID:   params.ID,
 			}); err != nil {
 				return device.Device{}, fmt.Errorf("update device icon: %w", err)
+			}
+		}
+	}
+	return s.GetDevice(ctx, params.ID)
+}
+
+// UpdateDeviceDisplayColor sets the colour the floor plan gives a device that
+// reports none of its own, and returns the updated device. A nil params.Color
+// clears the column. SetColor must be true, matching UpdateDeviceIcon.
+func (s *DB) UpdateDeviceDisplayColor(ctx context.Context, params UpdateDeviceDisplayColorParams) (device.Device, error) {
+	if params.SetColor {
+		if params.Color == nil {
+			if err := s.q.ClearDeviceDisplayColor(ctx, params.ID); err != nil {
+				return device.Device{}, fmt.Errorf("clear device display color: %w", err)
+			}
+		} else {
+			if err := s.q.UpdateDeviceDisplayColor(ctx, sqlite.UpdateDeviceDisplayColorParams{
+				DisplayColor: params.Color,
+				ID:           params.ID,
+			}); err != nil {
+				return device.Device{}, fmt.Errorf("update device display color: %w", err)
+			}
+		}
+	}
+	return s.GetDevice(ctx, params.ID)
+}
+
+// UpdateDeviceDisplayBrightness sets how bright a device shows on the floor
+// plan when it reports no brightness of its own, and returns the updated
+// device. A nil params.Brightness clears the column.
+func (s *DB) UpdateDeviceDisplayBrightness(ctx context.Context, params UpdateDeviceDisplayBrightnessParams) (device.Device, error) {
+	if params.SetBrightness {
+		if params.Brightness == nil {
+			if err := s.q.ClearDeviceDisplayBrightness(ctx, params.ID); err != nil {
+				return device.Device{}, fmt.Errorf("clear device display brightness: %w", err)
+			}
+		} else {
+			if err := s.q.UpdateDeviceDisplayBrightness(ctx, sqlite.UpdateDeviceDisplayBrightnessParams{
+				DisplayBrightness: params.Brightness,
+				ID:                params.ID,
+			}); err != nil {
+				return device.Device{}, fmt.Errorf("update device display brightness: %w", err)
 			}
 		}
 	}

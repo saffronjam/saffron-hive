@@ -19,16 +19,16 @@ ON CONFLICT(id) DO UPDATE SET
     removed       = false;
 
 -- name: GetDevice :one
-SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE id = ?;
 
 -- name: ListDevices :many
-SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices;
 
 -- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE source = ?;
 
@@ -37,10 +37,10 @@ UPDATE devices
 SET available = ?, removed = ?, last_seen = ?
 WHERE id = ?;
 
--- The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
--- can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
--- skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
--- overwrite a user-set icon.
+-- The nullable icon and display_color columns need dedicated clear queries
+-- because COALESCE can't distinguish "leave alone" from "set to NULL".
+-- UpdateDevice deliberately skips both so MQTT-driven sync (UpsertDevice) and
+-- re-sync don't overwrite what the user set.
 
 -- The disabled flag, the name override and the seen flag are user-owned, so each
 -- gets its own setter for the same reason the icon column does: UpdateDevice
@@ -66,6 +66,18 @@ UPDATE devices SET icon = ? WHERE id = ?;
 
 -- name: ClearDeviceIcon :exec
 UPDATE devices SET icon = NULL WHERE id = ?;
+
+-- name: UpdateDeviceDisplayColor :exec
+UPDATE devices SET display_color = ? WHERE id = ?;
+
+-- name: ClearDeviceDisplayColor :exec
+UPDATE devices SET display_color = NULL WHERE id = ?;
+
+-- name: UpdateDeviceDisplayBrightness :exec
+UPDATE devices SET display_brightness = ? WHERE id = ?;
+
+-- name: ClearDeviceDisplayBrightness :exec
+UPDATE devices SET display_brightness = NULL WHERE id = ?;
 
 -- name: DeleteDevice :exec
 DELETE FROM devices WHERE id = ?;

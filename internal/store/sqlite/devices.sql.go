@@ -12,6 +12,24 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const clearDeviceDisplayBrightness = `-- name: ClearDeviceDisplayBrightness :exec
+UPDATE devices SET display_brightness = NULL WHERE id = ?
+`
+
+func (q *Queries) ClearDeviceDisplayBrightness(ctx context.Context, id device.DeviceID) error {
+	_, err := q.db.ExecContext(ctx, clearDeviceDisplayBrightness, id)
+	return err
+}
+
+const clearDeviceDisplayColor = `-- name: ClearDeviceDisplayColor :exec
+UPDATE devices SET display_color = NULL WHERE id = ?
+`
+
+func (q *Queries) ClearDeviceDisplayColor(ctx context.Context, id device.DeviceID) error {
+	_, err := q.db.ExecContext(ctx, clearDeviceDisplayColor, id)
+	return err
+}
+
 const clearDeviceIcon = `-- name: ClearDeviceIcon :exec
 UPDATE devices SET icon = NULL WHERE id = ?
 `
@@ -58,24 +76,26 @@ func (q *Queries) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE id = ?
 `
 
 type GetDeviceRow struct {
-	ID           device.DeviceID
-	Name         *string
-	FriendlyName string
-	Icon         *string
-	Source       device.Source
-	Type         device.DeviceType
-	Capabilities string
-	Available    bool
-	Removed      bool
-	Disabled     bool
-	Seen         bool
-	LastSeen     *time.Time
+	ID                device.DeviceID
+	Name              *string
+	FriendlyName      string
+	Icon              *string
+	DisplayColor      *string
+	DisplayBrightness *int64
+	Source            device.Source
+	Type              device.DeviceType
+	Capabilities      string
+	Available         bool
+	Removed           bool
+	Disabled          bool
+	Seen              bool
+	LastSeen          *time.Time
 }
 
 func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error) {
@@ -86,6 +106,8 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 		&i.Name,
 		&i.FriendlyName,
 		&i.Icon,
+		&i.DisplayColor,
+		&i.DisplayBrightness,
 		&i.Source,
 		&i.Type,
 		&i.Capabilities,
@@ -99,23 +121,25 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 `
 
 type ListDevicesRow struct {
-	ID           device.DeviceID
-	Name         *string
-	FriendlyName string
-	Icon         *string
-	Source       device.Source
-	Type         device.DeviceType
-	Capabilities string
-	Available    bool
-	Removed      bool
-	Disabled     bool
-	Seen         bool
-	LastSeen     *time.Time
+	ID                device.DeviceID
+	Name              *string
+	FriendlyName      string
+	Icon              *string
+	DisplayColor      *string
+	DisplayBrightness *int64
+	Source            device.Source
+	Type              device.DeviceType
+	Capabilities      string
+	Available         bool
+	Removed           bool
+	Disabled          bool
+	Seen              bool
+	LastSeen          *time.Time
 }
 
 func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
@@ -132,6 +156,8 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 			&i.Name,
 			&i.FriendlyName,
 			&i.Icon,
+			&i.DisplayColor,
+			&i.DisplayBrightness,
 			&i.Source,
 			&i.Type,
 			&i.Capabilities,
@@ -155,24 +181,26 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE source = ?
 `
 
 type ListDevicesBySourceRow struct {
-	ID           device.DeviceID
-	Name         *string
-	FriendlyName string
-	Icon         *string
-	Source       device.Source
-	Type         device.DeviceType
-	Capabilities string
-	Available    bool
-	Removed      bool
-	Disabled     bool
-	Seen         bool
-	LastSeen     *time.Time
+	ID                device.DeviceID
+	Name              *string
+	FriendlyName      string
+	Icon              *string
+	DisplayColor      *string
+	DisplayBrightness *int64
+	Source            device.Source
+	Type              device.DeviceType
+	Capabilities      string
+	Available         bool
+	Removed           bool
+	Disabled          bool
+	Seen              bool
+	LastSeen          *time.Time
 }
 
 func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error) {
@@ -189,6 +217,8 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 			&i.Name,
 			&i.FriendlyName,
 			&i.Icon,
+			&i.DisplayColor,
+			&i.DisplayBrightness,
 			&i.Source,
 			&i.Type,
 			&i.Capabilities,
@@ -276,10 +306,10 @@ type SetDeviceNameParams struct {
 	ID   device.DeviceID
 }
 
-// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
-// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
-// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
-// overwrite a user-set icon.
+// The nullable icon and display_color columns need dedicated clear queries
+// because COALESCE can't distinguish "leave alone" from "set to NULL".
+// UpdateDevice deliberately skips both so MQTT-driven sync (UpsertDevice) and
+// re-sync don't overwrite what the user set.
 // The disabled flag, the name override and the seen flag are user-owned, so each
 // gets its own setter for the same reason the icon column does: UpdateDevice
 // overwrites every column it names, and the device-removal path calls it with an
@@ -310,6 +340,34 @@ func (q *Queries) UpdateDevice(ctx context.Context, arg UpdateDeviceParams) erro
 		arg.LastSeen,
 		arg.ID,
 	)
+	return err
+}
+
+const updateDeviceDisplayBrightness = `-- name: UpdateDeviceDisplayBrightness :exec
+UPDATE devices SET display_brightness = ? WHERE id = ?
+`
+
+type UpdateDeviceDisplayBrightnessParams struct {
+	DisplayBrightness *int64
+	ID                device.DeviceID
+}
+
+func (q *Queries) UpdateDeviceDisplayBrightness(ctx context.Context, arg UpdateDeviceDisplayBrightnessParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeviceDisplayBrightness, arg.DisplayBrightness, arg.ID)
+	return err
+}
+
+const updateDeviceDisplayColor = `-- name: UpdateDeviceDisplayColor :exec
+UPDATE devices SET display_color = ? WHERE id = ?
+`
+
+type UpdateDeviceDisplayColorParams struct {
+	DisplayColor *string
+	ID           device.DeviceID
+}
+
+func (q *Queries) UpdateDeviceDisplayColor(ctx context.Context, arg UpdateDeviceDisplayColorParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeviceDisplayColor, arg.DisplayColor, arg.ID)
 	return err
 }
 

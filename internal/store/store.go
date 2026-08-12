@@ -40,6 +40,24 @@ type UpdateDeviceIconParams struct {
 	Icon    *string
 }
 
+// UpdateDeviceDisplayColorParams holds the parameters for updating a device's
+// floor-plan display colour. SetColor distinguishes "leave alone" from "set to
+// this value" (nil clears the column).
+type UpdateDeviceDisplayColorParams struct {
+	ID       device.DeviceID
+	SetColor bool
+	Color    *string
+}
+
+// UpdateDeviceDisplayBrightnessParams holds the parameters for updating a
+// device's floor-plan display brightness. SetBrightness distinguishes "leave
+// alone" from "set to this value" (nil clears the column).
+type UpdateDeviceDisplayBrightnessParams struct {
+	ID            device.DeviceID
+	SetBrightness bool
+	Brightness    *int64
+}
+
 // CreateSceneParams holds the parameters for creating a new scene.
 type CreateSceneParams struct {
 	ID        string
@@ -659,6 +677,7 @@ type Floorplan struct {
 	Openings   []FloorplanOpening
 	Rooms      []FloorplanRoom
 	Placements []FloorplanPlacement
+	Furniture  []FloorplanFurniture
 }
 
 // FloorplanVertex is one endpoint in the centerline wall graph.
@@ -726,8 +745,23 @@ type FloorplanPlacement struct {
 	Y          float64
 }
 
+// FloorplanFurniture is a piece standing on the plan: a bed, a sofa, a plain
+// box. X/Y is its centre and Width/Height its unrotated footprint in meters,
+// Rotation degrees clockwise. Kind names a shape in the client's catalogue.
+// An occluder blocks light where it stands.
+type FloorplanFurniture struct {
+	ID       string
+	Kind     string
+	X        float64
+	Y        float64
+	Width    float64
+	Height   float64
+	Rotation float64
+	Occluder bool
+}
+
 // ReplaceFloorplanParams bundles the whole plan for a single-transaction
-// replace: the plan row is upserted and all five child lists are swapped.
+// replace: the plan row is upserted and every child list is swapped.
 type ReplaceFloorplanParams struct {
 	ID         string
 	Name       string
@@ -736,4 +770,5 @@ type ReplaceFloorplanParams struct {
 	Openings   []FloorplanOpening
 	Rooms      []FloorplanRoom
 	Placements []FloorplanPlacement
+	Furniture  []FloorplanFurniture
 }
