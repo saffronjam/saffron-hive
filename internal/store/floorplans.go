@@ -83,6 +83,24 @@ func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 		}
 	}
 
+	furniture, err := s.q.ListFloorplanFurniture(ctx, fp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list floorplan furniture: %w", err)
+	}
+	fp.Furniture = make([]FloorplanFurniture, len(furniture))
+	for i, f := range furniture {
+		fp.Furniture[i] = FloorplanFurniture{
+			ID:       f.ID,
+			Kind:     f.Kind,
+			X:        f.X,
+			Y:        f.Y,
+			Width:    f.Width,
+			Height:   f.Height,
+			Rotation: f.Rotation,
+			Occluder: f.Occluder,
+		}
+	}
+
 	placements, err := s.q.ListFloorplanPlacements(ctx, fp.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list floorplan placements: %w", err)
@@ -96,7 +114,8 @@ func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 }
 
 // ReplaceFloorplan atomically upserts the floorplan row and replaces its
-// vertices, walls, openings, rooms, and placements with the given sets.
+// vertices, walls, openings, rooms, placements and furniture with the given
+// sets.
 // Deletes run children-first and inserts parents-first so the foreign keys
 // hold at every point inside the transaction.
 func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams) error {
@@ -106,6 +125,9 @@ func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams
 			Name: params.Name,
 		}); err != nil {
 			return fmt.Errorf("upsert floorplan: %w", err)
+		}
+		if err := q.DeleteFloorplanFurnitureByFloorplan(ctx, params.ID); err != nil {
+			return fmt.Errorf("delete floorplan furniture: %w", err)
 		}
 		if err := q.DeleteFloorplanPlacementsByFloorplan(ctx, params.ID); err != nil {
 			return fmt.Errorf("delete floorplan placements: %w", err)
@@ -181,6 +203,21 @@ func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams
 				Y:           p.Y,
 			}); err != nil {
 				return fmt.Errorf("create floorplan placement: %w", err)
+			}
+		}
+		for _, f := range params.Furniture {
+			if err := q.CreateFloorplanFurniture(ctx, sqlite.CreateFloorplanFurnitureParams{
+				ID:          f.ID,
+				FloorplanID: params.ID,
+				Kind:        f.Kind,
+				X:           f.X,
+				Y:           f.Y,
+				Width:       f.Width,
+				Height:      f.Height,
+				Rotation:    f.Rotation,
+				Occluder:    f.Occluder,
+			}); err != nil {
+				return fmt.Errorf("create floorplan furniture: %w", err)
 			}
 		}
 		return nil

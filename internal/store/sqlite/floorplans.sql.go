@@ -11,6 +11,38 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const createFloorplanFurniture = `-- name: CreateFloorplanFurniture :exec
+INSERT INTO floorplan_furniture (id, floorplan_id, kind, x, y, width, height, rotation, occluder)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+`
+
+type CreateFloorplanFurnitureParams struct {
+	ID          string
+	FloorplanID string
+	Kind        string
+	X           float64
+	Y           float64
+	Width       float64
+	Height      float64
+	Rotation    float64
+	Occluder    bool
+}
+
+func (q *Queries) CreateFloorplanFurniture(ctx context.Context, arg CreateFloorplanFurnitureParams) error {
+	_, err := q.db.ExecContext(ctx, createFloorplanFurniture,
+		arg.ID,
+		arg.FloorplanID,
+		arg.Kind,
+		arg.X,
+		arg.Y,
+		arg.Width,
+		arg.Height,
+		arg.Rotation,
+		arg.Occluder,
+	)
+	return err
+}
+
 const createFloorplanOpening = `-- name: CreateFloorplanOpening :exec
 INSERT INTO floorplan_openings (id, floorplan_id, wall_id, t, width, kind)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -135,6 +167,15 @@ func (q *Queries) CreateFloorplanWall(ctx context.Context, arg CreateFloorplanWa
 	return err
 }
 
+const deleteFloorplanFurnitureByFloorplan = `-- name: DeleteFloorplanFurnitureByFloorplan :exec
+DELETE FROM floorplan_furniture WHERE floorplan_id = ?1
+`
+
+func (q *Queries) DeleteFloorplanFurnitureByFloorplan(ctx context.Context, floorplanID string) error {
+	_, err := q.db.ExecContext(ctx, deleteFloorplanFurnitureByFloorplan, floorplanID)
+	return err
+}
+
 const deleteFloorplanOpeningsByFloorplan = `-- name: DeleteFloorplanOpeningsByFloorplan :exec
 DELETE FROM floorplan_openings WHERE floorplan_id = ?1
 `
@@ -222,6 +263,45 @@ func (q *Queries) GetFloorplan(ctx context.Context) (Floorplan, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listFloorplanFurniture = `-- name: ListFloorplanFurniture :many
+SELECT id, floorplan_id, kind, x, y, width, height, rotation, occluder
+FROM floorplan_furniture
+WHERE floorplan_id = ?1
+`
+
+func (q *Queries) ListFloorplanFurniture(ctx context.Context, floorplanID string) ([]FloorplanFurniture, error) {
+	rows, err := q.db.QueryContext(ctx, listFloorplanFurniture, floorplanID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FloorplanFurniture
+	for rows.Next() {
+		var i FloorplanFurniture
+		if err := rows.Scan(
+			&i.ID,
+			&i.FloorplanID,
+			&i.Kind,
+			&i.X,
+			&i.Y,
+			&i.Width,
+			&i.Height,
+			&i.Rotation,
+			&i.Occluder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFloorplanOpenings = `-- name: ListFloorplanOpenings :many

@@ -29,6 +29,8 @@ type Querier interface {
 	// reset, and exposed via forceLogoutAllSessions for explicit revocation.
 	BumpUserTokenVersion(ctx context.Context, id string) error
 	ClearAutomationIcon(ctx context.Context, id string) error
+	ClearDeviceDisplayBrightness(ctx context.Context, id device.DeviceID) error
+	ClearDeviceDisplayColor(ctx context.Context, id device.DeviceID) error
 	ClearDeviceIcon(ctx context.Context, id device.DeviceID) error
 	ClearEffectIcon(ctx context.Context, id string) error
 	ClearEffectNativeName(ctx context.Context, id string) error
@@ -55,6 +57,7 @@ type Querier interface {
 	CreateEffect(ctx context.Context, arg CreateEffectParams) error
 	CreateEffectClip(ctx context.Context, arg CreateEffectClipParams) error
 	CreateEffectTrack(ctx context.Context, arg CreateEffectTrackParams) error
+	CreateFloorplanFurniture(ctx context.Context, arg CreateFloorplanFurnitureParams) error
 	CreateFloorplanOpening(ctx context.Context, arg CreateFloorplanOpeningParams) error
 	CreateFloorplanPlacement(ctx context.Context, arg CreateFloorplanPlacementParams) error
 	CreateFloorplanRoom(ctx context.Context, arg CreateFloorplanRoomParams) error
@@ -83,6 +86,7 @@ type Querier interface {
 	DeleteDeviceTags(ctx context.Context, deviceID string) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
+	DeleteFloorplanFurnitureByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanOpeningsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanPlacementsByFloorplan(ctx context.Context, floorplanID string) error
 	// DeleteFloorplanPlacementsByMember drops the map placement of a device or
@@ -169,6 +173,7 @@ type Querier interface {
 	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
 	ListEnabledAutomations(ctx context.Context) ([]ListEnabledAutomationsRow, error)
+	ListFloorplanFurniture(ctx context.Context, floorplanID string) ([]FloorplanFurniture, error)
 	ListFloorplanOpenings(ctx context.Context, floorplanID string) ([]FloorplanOpening, error)
 	ListFloorplanPlacements(ctx context.Context, floorplanID string) ([]FloorplanPlacement, error)
 	ListFloorplanRooms(ctx context.Context, floorplanID string) ([]FloorplanRoom, error)
@@ -217,10 +222,10 @@ type Querier interface {
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
-	// The nullable icon column needs a dedicated ClearDeviceIcon because COALESCE
-	// can't distinguish "leave alone" from "set to NULL". UpdateDevice deliberately
-	// skips the icon column so MQTT-driven sync (UpsertDevice) and re-sync don't
-	// overwrite a user-set icon.
+	// The nullable icon and display_color columns need dedicated clear queries
+	// because COALESCE can't distinguish "leave alone" from "set to NULL".
+	// UpdateDevice deliberately skips both so MQTT-driven sync (UpsertDevice) and
+	// re-sync don't overwrite what the user set.
 	// The disabled flag, the name override and the seen flag are user-owned, so each
 	// gets its own setter for the same reason the icon column does: UpdateDevice
 	// overwrites every column it names, and the device-removal path calls it with an
@@ -245,6 +250,8 @@ type Querier interface {
 	// NOT touched so the "last edited" semantics stay distinct from "last fired".
 	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
+	UpdateDeviceDisplayBrightness(ctx context.Context, arg UpdateDeviceDisplayBrightnessParams) error
+	UpdateDeviceDisplayColor(ctx context.Context, arg UpdateDeviceDisplayColorParams) error
 	UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error
 	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
 	UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error

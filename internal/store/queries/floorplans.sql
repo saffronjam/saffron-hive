@@ -42,6 +42,11 @@ SELECT floorplan_id, member_type, member_id, x, y
 FROM floorplan_placements
 WHERE floorplan_id = sqlc.arg('floorplan_id');
 
+-- name: ListFloorplanFurniture :many
+SELECT id, floorplan_id, kind, x, y, width, height, rotation, occluder
+FROM floorplan_furniture
+WHERE floorplan_id = sqlc.arg('floorplan_id');
+
 -- name: CreateFloorplanVertex :exec
 INSERT INTO floorplan_vertices (id, floorplan_id, x, y)
 VALUES (sqlc.arg('id'), sqlc.arg('floorplan_id'), sqlc.arg('x'), sqlc.arg('y'));
@@ -61,6 +66,13 @@ VALUES (sqlc.arg('id'), sqlc.arg('floorplan_id'), sqlc.narg('name'), sqlc.narg('
 -- name: CreateFloorplanPlacement :exec
 INSERT INTO floorplan_placements (floorplan_id, member_type, member_id, x, y)
 VALUES (sqlc.arg('floorplan_id'), sqlc.arg('member_type'), sqlc.arg('member_id'), sqlc.arg('x'), sqlc.arg('y'));
+
+-- name: CreateFloorplanFurniture :exec
+INSERT INTO floorplan_furniture (id, floorplan_id, kind, x, y, width, height, rotation, occluder)
+VALUES (sqlc.arg('id'), sqlc.arg('floorplan_id'), sqlc.arg('kind'), sqlc.arg('x'), sqlc.arg('y'), sqlc.arg('width'), sqlc.arg('height'), sqlc.arg('rotation'), sqlc.arg('occluder'));
+
+-- name: DeleteFloorplanFurnitureByFloorplan :exec
+DELETE FROM floorplan_furniture WHERE floorplan_id = sqlc.arg('floorplan_id');
 
 -- name: DeleteFloorplanVerticesByFloorplan :exec
 DELETE FROM floorplan_vertices WHERE floorplan_id = sqlc.arg('floorplan_id');

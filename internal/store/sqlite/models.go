@@ -81,18 +81,20 @@ type AutomationNodeState struct {
 }
 
 type Device struct {
-	ID           device.DeviceID
-	Name         *string
-	FriendlyName string
-	Source       device.Source
-	Type         device.DeviceType
-	Capabilities string
-	Icon         *string
-	Available    bool
-	Removed      bool
-	Disabled     bool
-	LastSeen     *time.Time
-	Seen         bool
+	ID                device.DeviceID
+	Name              *string
+	FriendlyName      string
+	Source            device.Source
+	Type              device.DeviceType
+	Capabilities      string
+	Icon              *string
+	Available         bool
+	Removed           bool
+	Disabled          bool
+	LastSeen          *time.Time
+	Seen              bool
+	DisplayColor      *string
+	DisplayBrightness *int64
 }
 
 type DeviceStateSample struct {
@@ -143,6 +145,18 @@ type Floorplan struct {
 	Name      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type FloorplanFurniture struct {
+	ID          string
+	FloorplanID string
+	Kind        string
+	X           float64
+	Y           float64
+	Width       float64
+	Height      float64
+	Rotation    float64
+	Occluder    bool
 }
 
 type FloorplanOpening struct {
