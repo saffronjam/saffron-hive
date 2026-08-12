@@ -5,6 +5,7 @@ import {
   CELL_PORTAL,
   CELL_SOLID,
   CELL_KIND_MASK,
+  CELL_OCCLUDER,
   combineLight,
   computeDaylight,
   lampField,
@@ -14,7 +15,9 @@ import {
 } from "$lib/floorplan/lightmap";
 import { detectFaces } from "$lib/floorplan";
 import type { PlanGraph, PlanOpening, PlanWall, Point } from "$lib/floorplan";
+import { temperatureToRgb } from "$lib/device-tint";
 import type { SunPosition } from "$lib/sun";
+import type { FloorplanFurnitureData } from "$lib/floorplan-editable";
 
 function sun(elevation: number, azimuth: number): SunPosition {
   return { elevation, azimuth };
@@ -418,7 +421,7 @@ describe("combineLight", () => {
     expect(rgba[outIdx + 3]).toBe(255);
   });
 
-  it("ranks face lift: windowed room, then door-connected, then sealed", () => {
+  it("ranks rendered brightness: windowed room, then door-connected, then sealed", () => {
     const graph = plan(
       { x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)], right: [opening("door", 0.5, 1)] } },
       { x: 4, y: 0, w: 4, h: 3 },
@@ -427,20 +430,39 @@ describe("combineLight", () => {
     const faces = detectFaces(graph);
     const grid = rasterisePlan(graph, faces)!;
     const daylight = computeDaylight(grid, sun(45, 180), NORTH_UP);
-    const { faceAmount } = combineLight(grid, [
+    const { rgba } = combineLight(grid, [
       { field: daylight, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
     ]);
     const byX = (x: number) => {
       const cell = worldToCell(grid, { x, y: 1.5 })!;
-      return faceAmount[grid.faceIndex[cell.cy * grid.width + cell.cx]];
+      return rgba[(cell.cy * grid.width + cell.cx) * 4];
     };
-    const windowed = byX(2);
-    const connected = byX(6);
-    const sealed = byX(10);
-    expect(windowed).toBeGreaterThan(connected);
-    expect(connected).toBeGreaterThan(sealed);
-    expect(sealed).toBe(0);
-    expect(faceAmount).toHaveLength(faces.length);
+    expect(byX(2)).toBeGreaterThan(byX(6));
+    expect(byX(6)).toBeGreaterThan(byX(10));
+    expect(byX(10)).toBe(0);
+  });
+
+  it("carries light through an opening without a step at the room boundary", () => {
+    // Light crossing into the next room must fade with distance alone: the
+    // rooms' shared edge is not a brightness cliff.
+    const graph = plan(
+      { x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("opening", 0.5, 1.1)] } },
+      { x: 0, y: 3, w: 4, h: 3 },
+    );
+    const grid = build(graph);
+    const field = lampField(grid, { x: 2, y: 2.2 });
+    const { rgba } = combineLight(grid, [
+      { field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
+    ]);
+    const at = (y: number) => {
+      const cell = worldToCell(grid, { x: 2, y })!;
+      return rgba[(cell.cy * grid.width + cell.cx) * 4];
+    };
+    const near = at(2.85);
+    const far = at(3.15);
+    expect(far).toBeGreaterThan(0);
+    // A tenth of a metre across the boundary keeps most of the brightness.
+    expect(far).toBeGreaterThan(near * 0.6);
   });
 
   it("stays bounded with sources stacked on top of each other", () => {
@@ -481,7 +503,6 @@ describe("combineLight", () => {
       { field: second, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
     ]);
     expect(combinedB.rgba).toEqual(combinedA.rgba);
-    expect(combinedB.faceAmount).toEqual(combinedA.faceAmount);
   });
 });
 
@@ -516,6 +537,113 @@ describe("two rooms separated by a thin outdoor strip", () => {
     const grid = build(shared);
     const field = lampField(grid, { x: 2, y: 1.5 });
     expect(lightAt(grid, field, 2, 3.8)).toBeGreaterThan(0);
+  });
+});
+
+describe("temperature-tinted sources", () => {
+  it("lands a cold reading blue-heavy and a hot one red-heavy", () => {
+    const graph = plan({ x: 0, y: 0, w: 4, h: 3 });
+    const grid = build(graph);
+    const field = lampField(grid, { x: 2, y: 1.5 });
+    const probe = worldToCell(grid, { x: 2, y: 1.5 })!;
+    const idx = (probe.cy * grid.width + probe.cx) * 4;
+    const cold = combineLight(grid, [{ field, rgb: temperatureToRgb(16), intensity: 0.9 }]);
+    expect(cold.rgba[idx + 2]).toBeGreaterThan(cold.rgba[idx]);
+    const hot = combineLight(grid, [{ field, rgb: temperatureToRgb(27), intensity: 0.9 }]);
+    expect(hot.rgba[idx]).toBeGreaterThan(hot.rgba[idx + 2]);
+  });
+});
+
+describe("furniture that blocks light", () => {
+  const room = () => plan({ x: 0, y: 0, w: 6, h: 4 });
+  const box = (over: Partial<FloorplanFurnitureData> = {}): FloorplanFurnitureData => ({
+    id: "furn-1",
+    kind: "box",
+    x: 3,
+    y: 2,
+    width: 0.4,
+    height: 3,
+    rotation: 0,
+    occluder: true,
+    ...over,
+  });
+
+  function litBehind(furniture: FloorplanFurnitureData[], probeX = 3.25): number {
+    const graph = room();
+    const grid = rasterisePlan(graph, detectFaces(graph), furniture)!;
+    const field = lampField(grid, { x: 1, y: 2 });
+    const { rgba } = combineLight(grid, [
+      { field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
+    ]);
+    const cell = worldToCell(grid, { x: probeX, y: 2 })!;
+    return rgba[(cell.cy * grid.width + cell.cx) * 4];
+  }
+
+  it("blacks out what a wall-to-wall piece hides", () => {
+    // Spanning the room, nothing can travel around it.
+    expect(litBehind([box({ height: 4.2 })])).toBe(0);
+  });
+
+  it("deepens the shadow behind a piece light can round", () => {
+    // A box with gaps above and below still lets the bounce past, so the test
+    // is how much darker it gets, not whether anything survives.
+    const blocked = litBehind([box()]);
+    const open = litBehind([box({ occluder: false })]);
+    expect(open).toBeGreaterThan(0);
+    expect(blocked).toBeLessThan(open / 2);
+  });
+
+  it("leaves the lit side of the piece alone", () => {
+    // Between lamp and piece nothing changed, so the shadow is a shadow and
+    // not the whole room dimming.
+    expect(litBehind([box()], 2.5)).toBe(litBehind([box({ occluder: false })], 2.5));
+  });
+
+  it("keeps the shadow through the render bleed", () => {
+    // The bleed fills unlit non-indoor cells from their neighbours so a room's
+    // light reaches its clip edge; an occluder must be exempt, or it would be
+    // filled in with the light it is blocking.
+    const graph = room();
+    const piece = box();
+    const grid = rasterisePlan(graph, detectFaces(graph), [piece])!;
+    const field = lampField(grid, { x: 1, y: 2 });
+    const { rgba } = combineLight(grid, [
+      { field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
+    ]);
+    for (let cy = 0; cy < grid.height; cy++) {
+      for (let cx = 0; cx < grid.width; cx++) {
+        const idx = cy * grid.width + cx;
+        if (!(grid.cells[idx] & CELL_OCCLUDER)) continue;
+        expect(rgba[idx * 4], `occluder cell ${cx},${cy}`).toBe(0);
+      }
+    }
+  });
+
+  it("blocks along the footprint it was turned to", () => {
+    // Upright, the piece is a narrow column at x≈3; turned, it lies across the
+    // room, and the cells it blocks turn with it.
+    const graph = room();
+    const occluding = (rotation: number) => {
+      const grid = rasterisePlan(graph, detectFaces(graph), [box({ rotation })])!;
+      const cell = worldToCell(grid, { x: 4.2, y: 2 })!;
+      return (grid.cells[cell.cy * grid.width + cell.cx] & CELL_OCCLUDER) !== 0;
+    };
+    expect(occluding(0)).toBe(false);
+    expect(occluding(90)).toBe(true);
+  });
+
+  it("stamps a piece thinner than a cell rather than letting it vanish", () => {
+    const graph = room();
+    const grid = rasterisePlan(graph, detectFaces(graph), [box({ width: 0.02, height: 0.02 })])!;
+    const solid = [...grid.cells].filter((c) => c & CELL_OCCLUDER).length;
+    expect(solid).toBeGreaterThan(0);
+  });
+
+  it("leaves the plan alone when nothing occludes", () => {
+    const graph = room();
+    const withNone = rasterisePlan(graph, detectFaces(graph), [])!;
+    const withOpen = rasterisePlan(graph, detectFaces(graph), [box({ occluder: false })])!;
+    expect([...withOpen.cells]).toEqual([...withNone.cells]);
   });
 });
 

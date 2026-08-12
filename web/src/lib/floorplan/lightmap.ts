@@ -7,6 +7,8 @@ import { openingAnchor } from "./openings";
 import type { WallMetrics } from "./geometry";
 import { openingSpan, solidSpans } from "./openings";
 import type { Face, PlanGraph, PlanVertex, Point } from "./types";
+import type { FloorplanFurnitureData } from "$lib/floorplan-editable";
+import { furnitureContainsPoint, furnitureCorners } from "./furniture";
 
 const DEG = Math.PI / 180;
 
@@ -79,7 +81,7 @@ const TONEMAP_GAIN = 1.6;
 const LAMP_REACH_M = 2.6;
 
 /** Scales lamp light overall: a lamp is a pool in a room, not a floodlight. */
-const LAMP_GAIN = 0.55;
+const LAMP_GAIN = 0.42;
 
 /** Lamps bounce a little less than daylight, or one bulb washes a whole room. */
 const LAMP_ALBEDO = 0.3;
@@ -98,6 +100,8 @@ export const CELL_INDOOR = 2;
 export const CELL_KIND_MASK = 0x03;
 /** Diagnostic flag: the cell lies under an exterior window's span. */
 export const CELL_PORTAL = 0x04;
+/** The cell is solid because a piece of furniture blocks light there. */
+export const CELL_OCCLUDER = 0x08;
 
 /** An exterior window as a sky source: span endpoints and shadow-ray targets. */
 export interface SkyWindow {
@@ -125,7 +129,6 @@ export interface LightmapGrid {
   cells: Uint8Array;
   /** Owning face per cell, -1 where none; aligned with the faces given at build. */
   faceIndex: Int16Array;
-  faceCount: number;
   windows: SkyWindow[];
 }
 
@@ -160,7 +163,11 @@ function pointAtArc(m: WallMetrics, s: number): Point {
  * Rasterise a plan for lighting. Null when there is nothing to light — no
  * walls or no rooms.
  */
-export function rasterisePlan(graph: PlanGraph, faces: Face[]): LightmapGrid | null {
+export function rasterisePlan(
+  graph: PlanGraph,
+  faces: Face[],
+  furniture: FloorplanFurnitureData[] = [],
+): LightmapGrid | null {
   if (graph.walls.length === 0 || faces.length === 0) return null;
   const verts = vertexMap(graph.vertices);
 
@@ -196,14 +203,59 @@ export function rasterisePlan(graph: PlanGraph, faces: Face[]): LightmapGrid | n
     cellM,
     cells,
     faceIndex,
-    faceCount: faces.length,
     windows: [],
   };
 
   stampWalls(grid, graph, verts);
+  // Between the two: stampFaces skips cells that are already solid, so an
+  // occluder stamped here survives as a hole in the room it stands in. Stamped
+  // after, the face would paint straight over it.
+  stampFurniture(grid, furniture);
   stampFaces(grid, faces);
   collectWindows(grid, graph, faces, verts);
   return grid;
+}
+
+/**
+ * Stamp every occluding piece into the grid. The footprint is the piece's box
+ * or ellipse rather than its drawn detail: predictable beats faithful for
+ * something that decides where shadows fall.
+ */
+function stampFurniture(grid: LightmapGrid, furniture: FloorplanFurnitureData[]): void {
+  const { cellM, originX, originY, cells } = grid;
+  for (const piece of furniture) {
+    if (!piece.occluder) continue;
+    const corners = furnitureCorners(piece);
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const c of corners) {
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x > maxX) maxX = c.x;
+      if (c.y > maxY) maxY = c.y;
+    }
+    const cx0 = Math.max(0, Math.floor((minX - originX) / cellM));
+    const cx1 = Math.min(grid.width - 1, Math.floor((maxX - originX) / cellM));
+    const cy0 = Math.max(0, Math.floor((minY - originY) / cellM));
+    const cy1 = Math.min(grid.height - 1, Math.floor((maxY - originY) / cellM));
+    let stamped = false;
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const center = { x: originX + (cx + 0.5) * cellM, y: originY + (cy + 0.5) * cellM };
+        if (!furnitureContainsPoint(piece, center)) continue;
+        cells[cy * grid.width + cx] = CELL_SOLID | CELL_OCCLUDER;
+        stamped = true;
+      }
+    }
+    // A piece narrower than a cell still blocks light, the same guarantee a
+    // thin wall gets.
+    if (!stamped) {
+      const cell = worldToCell(grid, { x: piece.x, y: piece.y });
+      if (cell) cells[cell.cy * grid.width + cell.cx] = CELL_SOLID | CELL_OCCLUDER;
+    }
+  }
 }
 
 /** Stamp a disc of SOLID cells around a world point. */
@@ -649,7 +701,43 @@ function bounce(grid: LightmapGrid, field: Float32Array, albedo: number): void {
     }
   }
 
+  smoothIndoor(grid, best);
   for (let idx = 0; idx < field.length; idx++) field[idx] += best[idx];
+}
+
+/**
+ * Average each indoor cell with its indoor neighbours, in place.
+ *
+ * The bounce wave travels on eight fixed directions, so its contours are
+ * octagons rather than circles, and the staircase edges surface as blotches
+ * once a dim room quantises to a couple of byte levels. One 3x3 pass rounds
+ * them off. Only indoor neighbours contribute, so nothing crosses a wall:
+ * walls are at least a cell thick, which puts the far side out of reach.
+ */
+function smoothIndoor(grid: LightmapGrid, values: Float64Array): void {
+  const { width, height, cells } = grid;
+  const source = values.slice();
+  for (let cy = 0; cy < height; cy++) {
+    for (let cx = 0; cx < width; cx++) {
+      const idx = cy * width + cx;
+      if ((cells[idx] & CELL_KIND_MASK) !== CELL_INDOOR) continue;
+      let sum = 0;
+      let weight = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const nIdx = ny * width + nx;
+          if ((cells[nIdx] & CELL_KIND_MASK) !== CELL_INDOOR) continue;
+          const w = dx === 0 && dy === 0 ? 4 : dx === 0 || dy === 0 ? 2 : 1;
+          sum += w * source[nIdx];
+          weight += w;
+        }
+      }
+      if (weight > 0) values[idx] = sum / weight;
+    }
+  }
 }
 
 /**
@@ -695,8 +783,6 @@ export interface LightSource {
 export interface CombinedLight {
   /** RGBA bytes, row-major: tinted light on indoor cells, opaque black elsewhere. */
   rgba: Uint8ClampedArray<ArrayBuffer>;
-  /** Per-face lift for the ambient dim overlay, aligned with the faces at build. */
-  faceAmount: number[];
 }
 
 /**
@@ -727,10 +813,6 @@ export function combineLight(grid: LightmapGrid, sources: LightSource[]): Combin
   }
 
   const rgba = new Uint8ClampedArray(size * 4);
-  const bins = 32;
-  const histograms = new Uint32Array(grid.faceCount * bins);
-  const sums = new Float64Array(grid.faceCount);
-  const counts = new Uint32Array(grid.faceCount);
 
   for (let i = 0; i < size; i++) {
     const offset = i * 4;
@@ -739,20 +821,9 @@ export function combineLight(grid: LightmapGrid, sources: LightSource[]): Combin
     const tr = 1 - Math.exp(-TONEMAP_GAIN * r[i]);
     const tg = 1 - Math.exp(-TONEMAP_GAIN * g[i]);
     const tb = 1 - Math.exp(-TONEMAP_GAIN * b[i]);
-    // Deterministic dither breaks the byte quantisation up: dim regions live on
-    // a handful of levels, and without it they band into visible clouds.
-    const dither = (((i * 2654435761) >>> 24) & 255) / 255 - 0.5;
-    rgba[offset] = tr * 255 + dither;
-    rgba[offset + 1] = tg * 255 + dither;
-    rgba[offset + 2] = tb * 255 + dither;
-    const face = grid.faceIndex[i];
-    if (face >= 0) {
-      const level = Math.max(tr, tg, tb);
-      const bin = Math.min(bins - 1, (level * bins) | 0);
-      histograms[face * bins + bin]++;
-      sums[face] += level;
-      counts[face]++;
-    }
+    rgba[offset] = tr * 255;
+    rgba[offset + 1] = tg * 255;
+    rgba[offset + 2] = tb * 255;
   }
 
   // Bleed the lit edge outward so upscaling interpolates flat colour up to the
@@ -769,6 +840,10 @@ export function combineLight(grid: LightmapGrid, sources: LightSource[]): Combin
     for (let cx = 0; cx < grid.width; cx++) {
       const i = cy * grid.width + cx;
       if ((grid.cells[i] & CELL_KIND_MASK) === CELL_INDOOR) continue;
+      // An occluder is a hole inside a room rather than a wall band, so the
+      // bleed would fill it from its neighbours and erase the very shadow it
+      // exists to cast.
+      if (grid.cells[i] & CELL_OCCLUDER) continue;
       let best = -1;
       let bestD = Infinity;
       let tie = false;
@@ -838,25 +913,5 @@ export function combineLight(grid: LightmapGrid, sources: LightSource[]): Combin
     }
   }
 
-  const faceAmount: number[] = new Array(grid.faceCount).fill(0);
-  for (let face = 0; face < grid.faceCount; face++) {
-    const count = counts[face];
-    if (count === 0) continue;
-    const mean = sums[face] / count;
-    let remaining = Math.max(1, Math.round(count * 0.05));
-    let p95 = 0;
-    for (let bin = bins - 1; bin >= 0; bin--) {
-      const inBin = histograms[face * bins + bin];
-      if (inBin >= remaining) {
-        // The bottom bin holds the unlit cells; a room whose 95th percentile
-        // lands there is dark, not faintly lit.
-        p95 = bin === 0 ? 0 : (bin + 0.5) / bins;
-        break;
-      }
-      remaining -= inBin;
-    }
-    faceAmount[face] = Math.min(1, 0.75 * p95 + 0.25 * mean);
-  }
-
-  return { rgba, faceAmount };
+  return { rgba };
 }
