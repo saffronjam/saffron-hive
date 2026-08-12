@@ -35,6 +35,20 @@ export interface PlanLabelInput {
   rubber: { from: Point; to: Point; length: number } | null;
   /** The rectangle stamp in progress, measured on two sides. */
   stamp: { x: number; y: number; w: number; h: number } | null;
+  /**
+   * Scratch measurements: a line says how long it is, a box its area and both
+   * of its sides.
+   */
+  measures: { id: string; kind: "line" | "rect"; a: Point; b: Point }[];
+  /** A furniture piece being resized, measured on two sides like the stamp. */
+  furniture: {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+  } | null;
 }
 
 /** Below this a measurement is noise rather than information. */
@@ -42,6 +56,9 @@ const MIN_MEASURE_M = 0.005;
 
 /** Rectangle sides shorter than this are not worth labelling. */
 const MIN_STAMP_LABEL_M = 0.05;
+
+/** How far a furniture measurement stands off the side it measures, in meters. */
+const FURNITURE_LABEL_GAP_M = 0.18;
 
 /** Every label the plan draws, in the order they should be painted. */
 export function planLabels(input: PlanLabelInput): PlanLabel[] {
@@ -135,6 +152,88 @@ export function planLabels(input: PlanLabelInput): PlanLabel[] {
       tone: "measure",
       dy: 0,
       anchor: "end",
+    });
+  }
+
+  for (const m of input.measures) {
+    const w = Math.abs(m.b.x - m.a.x);
+    const h = Math.abs(m.b.y - m.a.y);
+    if (m.kind === "line") {
+      const length = Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y);
+      if (length < MIN_MEASURE_M) continue;
+      out.push({
+        id: `measure-${m.id}`,
+        x: (m.a.x + m.b.x) / 2,
+        y: (m.a.y + m.b.y) / 2,
+        text: formatMeters(length),
+        tone: "measure",
+        dy: -10,
+        anchor: "middle",
+      });
+      continue;
+    }
+    if (w < MIN_MEASURE_M && h < MIN_MEASURE_M) continue;
+    const left = Math.min(m.a.x, m.b.x);
+    const top = Math.min(m.a.y, m.b.y);
+    out.push({
+      id: `measure-${m.id}-area`,
+      x: left + w / 2,
+      y: top + h / 2,
+      text: formatArea(w * h),
+      tone: "measure",
+      dy: 0,
+      anchor: "middle",
+    });
+    out.push({
+      id: `measure-${m.id}-w`,
+      x: left + w / 2,
+      y: top - MIN_STAMP_LABEL_M,
+      text: formatMeters(w),
+      tone: "measure",
+      dy: 0,
+      anchor: "middle",
+    });
+    out.push({
+      id: `measure-${m.id}-h`,
+      x: left - MIN_STAMP_LABEL_M,
+      y: top + h / 2,
+      text: formatMeters(h),
+      tone: "measure",
+      dy: 0,
+      anchor: "end",
+    });
+  }
+
+  const piece = input.furniture;
+  if (piece) {
+    // The labels sit off the top and left edges, turning with the piece so they
+    // stay beside the side they measure. The text itself never rotates.
+    const rad = (piece.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const at = (lx: number, ly: number) => ({
+      x: piece.x + lx * cos - ly * sin,
+      y: piece.y + lx * sin + ly * cos,
+    });
+    const top = at(0, -piece.height / 2 - FURNITURE_LABEL_GAP_M);
+    const side = at(-piece.width / 2 - FURNITURE_LABEL_GAP_M, 0);
+    out.push({
+      id: `furniture-w-${piece.id}`,
+      x: top.x,
+      y: top.y,
+      text: formatMeters(piece.width),
+      tone: "measure",
+      dy: 0,
+      anchor: "middle",
+    });
+    out.push({
+      id: `furniture-h-${piece.id}`,
+      x: side.x,
+      y: side.y,
+      text: formatMeters(piece.height),
+      tone: "measure",
+      dy: 0,
+      anchor: "middle",
     });
   }
 

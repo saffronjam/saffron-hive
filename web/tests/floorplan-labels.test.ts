@@ -33,6 +33,8 @@ function input(overrides: Partial<PlanLabelInput> = {}): PlanLabelInput {
     measuredWallIds: new Set(),
     rubber: null,
     stamp: null,
+    measures: [],
+    furniture: null,
     ...overrides,
   };
 }
@@ -107,5 +109,70 @@ describe("planLabels", () => {
       }),
     );
     expect(new Set(labels.map((l) => l.id)).size).toBe(labels.length);
+  });
+});
+
+describe("furniture measurements", () => {
+  const piece = { id: "f1", x: 4, y: 2, width: 1.8, height: 2, rotation: 0 };
+
+  it("labels both sides of a piece being resized", () => {
+    const labels = planLabels(input({ furniture: piece }));
+    const texts = labels.filter((l) => l.id.startsWith("furniture-")).map((l) => l.text);
+    expect(texts).toEqual(["1.80 m", "2.00 m"]);
+  });
+
+  it("stands the labels off the sides they measure", () => {
+    const [w, h] = planLabels(input({ furniture: piece })).filter((l) =>
+      l.id.startsWith("furniture-"),
+    );
+    // Width above the top edge, height left of the left edge.
+    expect(w.x).toBeCloseTo(4, 6);
+    expect(w.y).toBeLessThan(2 - piece.height / 2);
+    expect(h.y).toBeCloseTo(2, 6);
+    expect(h.x).toBeLessThan(4 - piece.width / 2);
+  });
+
+  it("turns the labels with the piece", () => {
+    const [w] = planLabels(input({ furniture: { ...piece, rotation: 90 } })).filter((l) =>
+      l.id.startsWith("furniture-"),
+    );
+    // Quarter turn: the top edge now faces right, and its label follows.
+    expect(w.x).toBeGreaterThan(4 + piece.height / 2);
+    expect(w.y).toBeCloseTo(2, 6);
+  });
+
+  it("says nothing when no piece is being resized", () => {
+    expect(planLabels(input()).some((l) => l.id.startsWith("furniture-"))).toBe(false);
+  });
+});
+
+describe("scratch measurements", () => {
+  const line = { id: "m1", kind: "line" as const, a: { x: 0, y: 0 }, b: { x: 3, y: 4 } };
+  const box = { id: "m2", kind: "rect" as const, a: { x: 1, y: 1 }, b: { x: 4, y: 3 } };
+
+  it("says how long a line is, at its middle", () => {
+    const [label] = planLabels(input({ measures: [line] })).filter((l) => l.id.startsWith("measure-"));
+    expect(label.text).toBe("5.00 m");
+    expect(label.x).toBeCloseTo(1.5, 6);
+    expect(label.y).toBeCloseTo(2, 6);
+  });
+
+  it("says a box's area and both of its sides", () => {
+    const labels = planLabels(input({ measures: [box] })).filter((l) => l.id.startsWith("measure-"));
+    expect(labels.map((l) => l.text)).toEqual(["6.00 m²", "3.00 m", "2.00 m"]);
+  });
+
+  it("stays quiet about a measurement with no length", () => {
+    const none = { ...line, b: { x: 0, y: 0 } };
+    expect(planLabels(input({ measures: [none] })).some((l) => l.id.startsWith("measure-"))).toBe(
+      false,
+    );
+  });
+
+  it("labels every measurement on the plan", () => {
+    const labels = planLabels(input({ measures: [line, box] })).filter((l) =>
+      l.id.startsWith("measure-"),
+    );
+    expect(labels).toHaveLength(4);
   });
 });

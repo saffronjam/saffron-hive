@@ -4,7 +4,18 @@
 	import type { Face as PlanFace, Point as PlanPoint } from "$lib/floorplan";
 	import type { Device as PlanDevice } from "$lib/gql/graphql";
 
-	export type EditorTool = "select" | "wall" | "rect" | "opening";
+	export type EditorTool = "select" | "wall" | "rect" | "opening" | "measure";
+
+	/** What the measure tool lays down: a length, or a boxed area. */
+	export type MeasureKind = "line" | "rect";
+
+	/** A measurement drawn on the plan. Scratch work: never part of the plan. */
+	export interface PlanMeasure {
+		id: string;
+		kind: MeasureKind;
+		a: Point;
+		b: Point;
+	}
 
 	export interface EditorSelection {
 		vertexIds: string[];
@@ -14,6 +25,8 @@
 		placementKeys: string[];
 		/** Ids of the selected wall openings. */
 		openingIds: string[];
+		/** The selected furniture piece; one at a time. */
+		furnitureId: string | null;
 	}
 
 	/** An empty selection — spread it to build a "select only this" update. */
@@ -23,6 +36,7 @@
 		faceIndex: null,
 		placementKeys: [],
 		openingIds: [],
+		furnitureId: null,
 	};
 
 	/** The group half of a placement: what its marker needs in order to render. */
@@ -71,6 +85,8 @@
 		) => { left: number; top: number; width: number; height: number } | null;
 		/** World point at the center of the visible viewport. */
 		getViewportCenterWorld: () => PlanPoint;
+		/** Screen point of a world point, for anchoring chrome to a piece. */
+		worldToClient: (p: PlanPoint) => { left: number; top: number } | null;
 	}
 </script>
 
@@ -145,6 +161,20 @@
 	} from "$lib/components/floorplan/glow-layer.svelte";
 	import type { DeviceState } from "$lib/gql/graphql";
 	import { fade } from "svelte/transition";
+	import FurniturePiece from "$lib/components/floorplan/furniture-piece.svelte";
+	import type { FloorplanFurnitureData } from "$lib/floorplan-editable";
+	import {
+		furnitureContainsPoint,
+		furnitureCorners,
+		furnitureKind,
+		moveFurniture,
+		resizeFromHandle,
+		rotateFurnitureTo,
+		scaleHandlePoint,
+		scaleHandles,
+		snapFurnitureToWalls,
+		type ScaleHandle,
+	} from "$lib/floorplan/furniture";
 	import { profile } from "$lib/stores/profile.svelte";
 	import { throttle, type Throttle } from "$lib/throttle";
 
@@ -187,10 +217,28 @@
 		onmarkermenu?: (placement: PlacementView, clientX: number, clientY: number) => void;
 		/** What the opening tool places. */
 		openingKind?: OpeningKind;
+		/** What the measure tool lays down. */
+		measureKind?: MeasureKind;
+		/** Whether a finished measurement stays on the plan. */
+		keepMeasures?: boolean;
 		/** Right-click / touch-hold on an opening (edit mode). */
 		onopeningmenu?: (openingId: string, clientX: number, clientY: number) => void;
 		onmarkerpreview?: (deviceIds: string[], partial: Partial<DeviceState>) => void;
 		placements?: PlacementView[];
+		/** Furniture standing on the plan. */
+		furniture?: FloorplanFurnitureData[];
+		/** In-flight furniture following the pointer during a drag-in. */
+		draftFurniture?: FloorplanFurnitureData | null;
+		/** The selected piece, which draws its handles. */
+		selectedFurnitureId?: string | null;
+		/** Which gizmo the selected piece is showing. */
+		furnitureMode?: "move" | "rotate" | "scale";
+		/** Right-click / touch-hold on a piece (edit mode). */
+		onfurnituremenu?: (piece: FloorplanFurnitureData, clientX: number, clientY: number) => void;
+		/** Frame-by-frame during a transform; the page holds the draft. */
+		onfurniturepreview?: (piece: FloorplanFurnitureData) => void;
+		/** End of a transform gesture: one undo step. */
+		onfurniturecommit?: (piece: FloorplanFurnitureData) => void;
 		/** In-flight placement following the pointer during a drag-in. */
 		draftPlacement?: PlacementView | null;
 		/** In-flight room label following the pointer during a link drag. */
@@ -244,9 +292,18 @@
 		onfacemenu,
 		onmarkermenu,
 		openingKind = "door",
+		measureKind = "line",
+		keepMeasures = false,
 		onopeningmenu,
 		onmarkerpreview,
 		placements = [],
+		furniture = [],
+		draftFurniture = null,
+		selectedFurnitureId = null,
+		furnitureMode = "move",
+		onfurnituremenu,
+		onfurniturepreview,
+		onfurniturecommit,
 		draftPlacement = null,
 		draftLabel = null,
 		draftRoom = null,
@@ -269,6 +326,12 @@
 	const idMint = { vertexId: newVertexId, wallId: newWallId };
 	/** Minimum rectangle-stamp side, in meters, below which the stamp is discarded. */
 	const MIN_STAMP_SIDE = 0.05;
+
+	/** Shorter than this and a measurement has nothing to say. */
+	const MIN_MEASURE_SPAN_M = 0.05;
+
+	/** How close a piece's edge must come to a wall face to sit flush against it. */
+	const WALL_SNAP_REACH_PX = 14;
 
 	let svgEl: SVGSVGElement | null = $state(null);
 	let width = $state(0);
@@ -337,6 +400,9 @@
 					// may take away.
 					if ((event.touches?.length ?? 0) >= 2) return true;
 					if (event.button === 1) return true;
+					// An armed brush takes the left button, so the right one pans —
+					// painting several rooms otherwise means disarming to move.
+					if (event.button === 2) return live && !!brush;
 					if (event.button !== 0 && event.button !== undefined) return false;
 					if (live) {
 						if (brush) return false;
@@ -360,7 +426,7 @@
 	});
 
 	interface DragState {
-		kind: "vertex" | "wall" | "face" | "marker" | "opening" | "openingEdge" | "bend";
+		kind: "vertex" | "wall" | "face" | "marker" | "opening" | "openingEdge" | "bend" | "furniture";
 		pointerId: number;
 		start: Point;
 		moved: boolean;
@@ -373,6 +439,13 @@
 		openingId?: string;
 		/** Arc length of the end a width drag pivots around, in meters. */
 		openingAnchorS?: number;
+		/** Selected markers and where they stood when the gesture began. */
+		markerOrigin?: Map<string, Point>;
+		/** The piece a furniture gesture started from, to transform against. */
+		furnitureFrom?: FloorplanFurnitureData;
+		/** Which scale handle is held, or the angle a rotation started at. */
+		furnitureHandle?: ScaleHandle;
+		furnitureStartAngle?: number;
 		snap?: SnapResult | null;
 	}
 	let drag = $state<DragState | null>(null);
@@ -400,6 +473,23 @@
 	let rubber = $state<{ end: Point; snap: SnapResult } | null>(null);
 
 	let stamp = $state<{ a: Point; b: Point } | null>(null);
+	/**
+	 * Measurements taken with the measure tool. They are scratch work — never
+	 * saved, never in the undo stack — so they live here and go when the tool
+	 * does.
+	 */
+	let measures = $state<PlanMeasure[]>([]);
+	let measureSeq = 0;
+	let measuring = $state<PlanMeasure | null>(null);
+
+	$effect(() => {
+		// Measurements last as long as the tool is armed and kept: unarming it,
+		// leaving edit mode, or turning keep off all clear the plan.
+		if (tool !== "measure" || live || !keepMeasures) {
+			measures = [];
+			measuring = null;
+		}
+	});
 	/** Shift-drag selection rectangle. Plain drag stays d3-zoom's, for panning. */
 	let marquee = $state<{ a: Point; b: Point; pointerId: number; moved: boolean } | null>(null);
 
@@ -413,6 +503,15 @@
 		return {
 			x: (clientX - rect.left - transform.x) / transform.k / PX_PER_M,
 			y: (clientY - rect.top - transform.y) / transform.k / PX_PER_M,
+		};
+	}
+
+	function worldToClient(p: Point) {
+		const rect = svgEl?.getBoundingClientRect();
+		if (!rect) return null;
+		return {
+			left: rect.left + transform.x + p.x * pxPerM,
+			top: rect.top + transform.y + p.y * pxPerM,
 		};
 	}
 
@@ -441,12 +540,21 @@
 			openMenuAt,
 			getZoom: () => pxPerM,
 			clientToWorld,
+			worldToClient,
 			faceClientRect,
 			getViewportCenterWorld,
 		});
 	});
 
+	function clearMeasures(): boolean {
+		if (!measuring && measures.length === 0) return false;
+		measuring = null;
+		measures = [];
+		return true;
+	}
+
 	function cancelDraw(): boolean {
+		if (clearMeasures()) return true;
 		if (stamp) {
 			stamp = null;
 			return true;
@@ -493,14 +601,16 @@
 	/** The openings the pointer can act on; none in live mode, where none are editable. */
 	const openingViews = $derived(live ? [] : allOpeningViews);
 	/**
-	 * The openings that draw a line across their gap: every window, in both
-	 * modes, since the pane is what makes a gap read as a window rather than a
-	 * doorway — plus whatever the pointer is on, to pick it out.
+	 * The openings that draw a line across their gap: every window and door,
+	 * in both modes — the thin pane reads as a window, the thicker leaf as a
+	 * door, and a bare gap as a cased opening — plus whatever the pointer is
+	 * on, to pick it out.
 	 */
 	const strokedOpenings = $derived(
 		allOpeningViews.filter(
 			(v) =>
 				v.opening.kind === "window" ||
+				v.opening.kind === "door" ||
 				selectedOpeningSet.has(v.opening.id) ||
 				(hover?.kind === "opening" && hover.id === v.opening.id),
 		),
@@ -516,6 +626,63 @@
 		if (!wall) return null;
 		return { wall, point: wallApex(wall, graph.vertices) };
 	});
+
+	const selectedFurniture = $derived(
+		live || !selectedFurnitureId
+			? null
+			: (furniture.find((f) => f.id === selectedFurnitureId) ?? null),
+	);
+	/** Screen-size handles in world meters, so they hold their size at any zoom. */
+	const handleR = $derived(5 / pxPerM);
+	const furnitureHandles = $derived.by(() => {
+		const piece = selectedFurniture;
+		if (!piece || furnitureMode !== "scale") return [];
+		const kind = furnitureKind(piece.kind);
+		if (!kind) return [];
+		return scaleHandles(kind).map((h) => ({ handle: h, point: scaleHandlePoint(piece, h) }));
+	});
+	/** The rotate gizmo's ring and its one dot, above the piece. */
+	const rotateGizmo = $derived.by(() => {
+		const piece = selectedFurniture;
+		if (!piece || furnitureMode !== "rotate") return null;
+		const radius = Math.max(piece.width, piece.height) / 2 + 0.25;
+		const rad = ((piece.rotation - 90) * Math.PI) / 180;
+		return {
+			radius,
+			dot: { x: piece.x + radius * Math.cos(rad), y: piece.y + radius * Math.sin(rad) },
+		};
+	});
+
+	/**
+	 * Where a dragged piece comes to rest: on the grid, unless a wall face is
+	 * near enough to sit flush against.
+	 */
+	function settleFurniture(piece: FloorplanFurnitureData, to: Point, alt: boolean) {
+		const moved = moveFurniture(piece, markerSnap(to, alt));
+		if (alt) return moved;
+		return moveFurniture(moved, snapFurnitureToWalls(moved, graph, WALL_SNAP_REACH_PX / pxPerM));
+	}
+
+	/** The topmost piece under `p` — later pieces draw on top, so search back. */
+	function furnitureAt(p: Point): FloorplanFurnitureData | null {
+		for (let i = furniture.length - 1; i >= 0; i--) {
+			if (furnitureContainsPoint(furniture[i], p)) return furniture[i];
+		}
+		return null;
+	}
+
+	function handleNear(p: Point): { handle: ScaleHandle; point: Point } | null {
+		let best: { handle: ScaleHandle; point: Point } | null = null;
+		let bestD = handleR * 2;
+		for (const h of furnitureHandles) {
+			const d = Math.hypot(h.point.x - p.x, h.point.y - p.y);
+			if (d < bestD) {
+				bestD = d;
+				best = h;
+			}
+		}
+		return best;
+	}
 
 	const grabInput = $derived({
 		graph,
@@ -694,6 +861,14 @@
 			return;
 		}
 
+		if (tool === "measure") {
+			e.preventDefault();
+			const snap = resolveSnap(p, { graph, zoom: pxPerM, alt: noSnap(e) });
+			measuring = { id: `m-${measureSeq++}`, kind: measureKind, a: snap.point, b: snap.point };
+			svgEl.setPointerCapture(e.pointerId);
+			return;
+		}
+
 		if (tool === "rect") {
 			e.preventDefault();
 			const snap = resolveSnap(p, { graph, zoom: pxPerM, alt: noSnap(e) });
@@ -725,6 +900,40 @@
 
 		// One resolved answer for what is under the pointer, so the press, the
 		// click it may become, and the hover cannot disagree.
+		if (!live) {
+			// A scale handle is the smallest target on the plan, so it is asked
+			// about first; then the piece body, which sits under the markers.
+			const handle = furnitureMode === "scale" ? handleNear(p) : null;
+			if (handle && selectedFurniture) {
+				e.preventDefault();
+				drag = {
+					kind: "furniture",
+					pointerId: e.pointerId,
+					start: p,
+					moved: false,
+					furnitureFrom: selectedFurniture,
+					furnitureHandle: handle.handle,
+				};
+				svgEl.setPointerCapture(e.pointerId);
+				return;
+			}
+			if (selectedFurniture && furnitureMode === "rotate" && rotateGizmo) {
+				const d = Math.hypot(rotateGizmo.dot.x - p.x, rotateGizmo.dot.y - p.y);
+				if (d <= handleR * 2.5) {
+					e.preventDefault();
+					drag = {
+						kind: "furniture",
+						pointerId: e.pointerId,
+						start: p,
+						moved: false,
+						furnitureFrom: selectedFurniture,
+					};
+					svgEl.setPointerCapture(e.pointerId);
+					return;
+				}
+			}
+		}
+
 		const grab = grabAt(p);
 		if (grab?.kind === "marker") {
 			const m = placements[grab.index];
@@ -739,6 +948,25 @@
 			};
 			svgEl.setPointerCapture(e.pointerId);
 			return;
+		}
+		if (!live) {
+			const piece = furnitureAt(p);
+			if (piece) {
+				e.preventDefault();
+				if (selectedFurnitureId !== piece.id) {
+					onselectionchange?.({ ...emptySelection, furnitureId: piece.id });
+				}
+				armFurnitureHold(piece, e);
+				drag = {
+					kind: "furniture",
+					pointerId: e.pointerId,
+					start: p,
+					moved: false,
+					furnitureFrom: piece,
+				};
+				svgEl.setPointerCapture(e.pointerId);
+				return;
+			}
 		}
 		if (grab?.kind === "bend") {
 			e.preventDefault();
@@ -797,6 +1025,7 @@
 				moved: false,
 				vertexId: grab.vertexId,
 				origin: group,
+				markerOrigin: group ? selectedMarkerOrigin() : undefined,
 				snap: null,
 			};
 			svgEl.setPointerCapture(e.pointerId);
@@ -950,6 +1179,11 @@
 		armHold(e, () => onfacemenu(faceIndex, e.clientX, e.clientY));
 	}
 
+	function armFurnitureHold(piece: FloorplanFurnitureData, e: PointerEvent) {
+		if (!onfurnituremenu) return;
+		armHold(e, () => onfurnituremenu?.(piece, e.clientX, e.clientY));
+	}
+
 	function armMarkerHold(placement: PlacementView, e: PointerEvent) {
 		if (!onmarkermenu) return;
 		armHold(e, () => onmarkermenu(placement, e.clientX, e.clientY));
@@ -995,6 +1229,9 @@
 
 	function handleContextMenu(e: MouseEvent) {
 		e.preventDefault();
+		// The right button is panning while a brush is armed; a menu on release
+		// would land on whatever the pan happened to stop over.
+		if (live && brush) return;
 		openMenuAt(e.clientX, e.clientY);
 	}
 
@@ -1020,6 +1257,12 @@
 		const grab = grabAt(p, false);
 		if (grab?.kind === "opening" && onopeningmenu) {
 			onopeningmenu(grab.openingId, e.clientX, e.clientY);
+			return;
+		}
+		// A piece covers the room it stands in, so its menu comes first.
+		const piece = furnitureAt(p);
+		if (piece && onfurnituremenu) {
+			onfurnituremenu(piece, e.clientX, e.clientY);
 			return;
 		}
 		if (!onfacemenu) return;
@@ -1049,6 +1292,12 @@
 		if (tool === "wall" && draw) {
 			const snap = resolveSnap(p, { graph, zoom: pxPerM, alt: noSnap(e), prevPoint: draw.anchor });
 			rubber = { end: snap.point, snap };
+			return;
+		}
+
+		if (tool === "measure" && measuring) {
+			const snap = resolveSnap(p, { graph, zoom: pxPerM, alt: noSnap(e) });
+			measuring = { ...measuring, b: snap.point };
 			return;
 		}
 
@@ -1109,6 +1358,7 @@
 							}
 						}
 						if (!carryWallCurves(g, (id) => origin.has(id), { x: dx, y: dy })) return;
+						if (drag.markerOrigin) carryMarkers(drag.markerOrigin, dx, dy, noSnap(e), false);
 						onpreview(g);
 					}
 				} else {
@@ -1119,6 +1369,21 @@
 						if (!carryWallCurves(g, (id) => id === drag!.vertexId, { x: 0, y: 0 })) return;
 						onpreview(g);
 					}
+				}
+			} else if (drag.kind === "furniture" && drag.furnitureFrom) {
+				const from = drag.furnitureFrom;
+				if (drag.furnitureHandle) {
+					onfurniturepreview?.(
+						resizeFromHandle(from, drag.furnitureHandle, p, noSnap(e) ? 0 : DEFAULT_GRID_SIZE),
+					);
+				} else if (furnitureMode === "rotate") {
+					onfurniturepreview?.(rotateFurnitureTo(from, p, noSnap(e) ? 0 : 15));
+				} else {
+					const to = {
+						x: from.x + (p.x - drag.start.x),
+						y: from.y + (p.y - drag.start.y),
+					};
+					onfurniturepreview?.(settleFurniture(from, to, noSnap(e)));
 				}
 			} else if (drag.kind === "bend" && drag.wallId) {
 				onpreview(bendWall(graph, drag.wallId, markerSnap(p, noSnap(e)), hitRadius));
@@ -1257,6 +1522,16 @@
 			return;
 		}
 
+		if (tool === "measure" && measuring) {
+			const m = measuring;
+			measuring = null;
+			// A tap leaves nothing to read, so it lays nothing down.
+			if (keepMeasures && Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y) >= MIN_MEASURE_SPAN_M) {
+				measures = [...measures, m];
+			}
+			return;
+		}
+
 		if (tool === "rect" && stamp) {
 			const { a, b } = stamp;
 			stamp = null;
@@ -1275,11 +1550,38 @@
 			wallDragBase = null;
 			faceDragDetach = null;
 			if (d.moved) {
-				if (d.kind === "marker" && d.placementRef) {
+				if (d.kind === "furniture" && d.furnitureFrom) {
+					const from = d.furnitureFrom;
+					const settled = d.furnitureHandle
+						? resizeFromHandle(from, d.furnitureHandle, p, noSnap(e) ? 0 : DEFAULT_GRID_SIZE)
+						: furnitureMode === "rotate"
+							? rotateFurnitureTo(from, p, noSnap(e) ? 0 : 15)
+							: settleFurniture(
+									from,
+									{ x: from.x + (p.x - d.start.x), y: from.y + (p.y - d.start.y) },
+									noSnap(e),
+								);
+					onfurniturecommit?.(settled);
+				} else if (d.kind === "marker" && d.placementRef) {
 					onplacementdrop?.(d.placementRef, markerSnap(p, noSnap(e)), noSnap(e));
 				} else if (d.kind === "face" && d.origin) {
 					oncommit(clipDraggedRoom(d.origin), { snapshot: true });
 				} else {
+					if (d.kind === "vertex" && d.markerOrigin && d.origin) {
+						// The markers land where the joints left them, in the same
+						// commit, so the whole move is one undo step.
+						const from = d.origin.get(d.vertexId!);
+						const settled = d.snap?.point ?? p;
+						if (from) {
+							carryMarkers(
+								d.markerOrigin,
+								settled.x - from.x,
+								settled.y - from.y,
+								noSnap(e),
+								true,
+							);
+						}
+					}
 					oncommit(graph, { snapshot: true });
 				}
 				return;
@@ -1310,6 +1612,36 @@
 	 * Add everything the rectangle encloses to the selection. A wall counts only
 	 * when both of its ends are inside, so half-covered walls are left alone.
 	 */
+	/** Where each selected marker stands right now, to translate it from. */
+	function selectedMarkerOrigin(): Map<string, Point> | undefined {
+		if (selection.placementKeys.length === 0) return undefined;
+		const keys = new Set(selection.placementKeys);
+		const out = new Map<string, Point>();
+		for (const pl of placements) {
+			const key = placementViewKey(pl);
+			if (keys.has(key)) out.set(key, { x: pl.x, y: pl.y });
+		}
+		return out.size > 0 ? out : undefined;
+	}
+
+	/** Move every carried marker by the gesture's delta. */
+	function carryMarkers(
+		origin: Map<string, Point>,
+		dx: number,
+		dy: number,
+		alt: boolean,
+		commit: boolean,
+	) {
+		for (const pl of placements) {
+			const from = origin.get(placementViewKey(pl));
+			if (!from) continue;
+			const to = markerSnap({ x: from.x + dx, y: from.y + dy }, alt);
+			const ref = placementViewRef(pl);
+			if (commit) onplacementdrop?.(ref, to, alt);
+			else onplacementpreview?.(ref, to);
+		}
+	}
+
 	function applyMarquee(a: Point, b: Point) {
 		const minX = Math.min(a.x, b.x);
 		const maxX = Math.max(a.x, b.x);
@@ -1321,10 +1653,16 @@
 				.map((v) => v.id),
 		);
 		const walls = graph.walls.filter((w) => swept.has(w.a) && swept.has(w.b)).map((w) => w.id);
+		// Markers inside the sweep come along, so dragging the corners takes the
+		// devices standing between them.
+		const markers = placements
+			.filter((pl) => pl.x >= minX && pl.x <= maxX && pl.y >= minY && pl.y <= maxY)
+			.map((pl) => placementViewKey(pl));
 		onselectionchange({
 			...emptySelection,
 			vertexIds: [...new Set([...selection.vertexIds, ...swept])],
 			wallIds: [...new Set([...selection.wallIds, ...walls])],
+			placementKeys: [...new Set([...selection.placementKeys, ...markers])],
 		});
 	}
 
@@ -1332,6 +1670,18 @@
 		// Handles are for dragging: a click that never moved selects whatever lies
 		// under them instead.
 		const grab = grabAt(p, false);
+		// Furniture is not part of the graph the grab resolver walks, so a click
+		// on a piece is answered here — otherwise the press selects it and the
+		// release clears it again.
+		// A piece stands on top of the room it is in, so it beats a face grab —
+		// but never a marker, a wall or a handle, which sit above it.
+		if (!live && (!grab || grab.kind === "face")) {
+			const piece = furnitureAt(p);
+			if (piece) {
+				onselectionchange({ ...emptySelection, furnitureId: piece.id });
+				return;
+			}
+		}
 		const toggle = (ids: string[], id: string) =>
 			ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
 
@@ -1438,7 +1788,9 @@
 
 	/** Walls whose dimension labels are live: mid-drag neighbours and the rubber band. */
 	const draggedWallIds = $derived.by(() => {
-		if (!drag || !drag.moved) return new Set<string>();
+		// The measurements appear on the press, not on the first movement: a
+		// held handle should already say what it is about to change.
+		if (!drag) return new Set<string>();
 		if (drag.kind === "vertex" && drag.vertexId) return new Set(wallsTouching(drag.vertexId));
 		if (drag.kind === "face" && drag.origin) {
 			// The room is detached before it moves, so nothing stretches: label
@@ -1479,6 +1831,9 @@
 	);
 
 
+	/** Everything the measure tool is showing: settled measurements and the live one. */
+	const shownMeasures = $derived(measuring ? [...measures, measuring] : measures);
+
 	const stampRect = $derived.by(() => {
 		const box = stamp ?? draftRoom;
 		if (!box) return null;
@@ -1514,6 +1869,10 @@
 			rubber:
 				draw && rubber ? { from: draw.anchor, to: rubber.end, length: rubberLength } : null,
 			stamp: stampRect,
+			measures: shownMeasures,
+			// Resizing is the one gesture where the size is the point, so the
+			// piece carries its dimensions while its handles are out.
+			furniture: furnitureMode === "scale" ? selectedFurniture : null,
 		}),
 	);
 </script>
@@ -1568,7 +1927,7 @@
 						<polygon
 							data-plan-hit={unlocked ? "face" : undefined}
 							points={face.polygon.map((pt) => `${pt.x},${pt.y}`).join(" ")}
-							fill="var(--card)"
+							fill={live ? "color-mix(in srgb, var(--card) 65%, var(--background))" : "var(--card)"}
 							stroke={outlined || unlocked ? "var(--primary)" : "none"}
 							stroke-width={outlined || unlocked ? 1.5 : 0}
 							stroke-dasharray={unlocked && !outlined ? "6 4" : undefined}
@@ -1584,6 +1943,59 @@
 						<GlowLayer groups={glowGroups} outside={outsideGlows} {lightmap} />
 					</g>
 				{/if}
+
+				<g>
+					{#each furniture as fp (fp.id)}
+						<FurniturePiece piece={fp} {live} selected={!live && selectedFurnitureId === fp.id} />
+					{/each}
+					{#if draftFurniture}
+						<FurniturePiece piece={draftFurniture} draft />
+					{/if}
+				</g>
+
+				{#if selectedFurniture}
+					{@const piece = selectedFurniture}
+					<g class="pointer-events-none">
+						{#if furnitureMode === "move"}
+							<g transform="translate({piece.x} {piece.y})">
+								<line x1={-handleR * 1.6} y1="0" x2={handleR * 1.6} y2="0" stroke="var(--primary)" stroke-width="2" vector-effect="non-scaling-stroke" />
+								<line x1="0" y1={-handleR * 1.6} x2="0" y2={handleR * 1.6} stroke="var(--primary)" stroke-width="2" vector-effect="non-scaling-stroke" />
+							</g>
+						{:else if furnitureMode === "rotate" && rotateGizmo}
+							<circle
+								cx={piece.x}
+								cy={piece.y}
+								r={rotateGizmo.radius}
+								fill="none"
+								stroke="var(--primary)"
+								stroke-opacity="0.5"
+								stroke-width="1.5"
+								vector-effect="non-scaling-stroke"
+							/>
+							<circle cx={rotateGizmo.dot.x} cy={rotateGizmo.dot.y} r={handleR} fill="var(--primary)" />
+						{:else if furnitureMode === "scale"}
+							<polygon
+								points={furnitureCorners(piece).map((c) => `${c.x},${c.y}`).join(" ")}
+								fill="none"
+								stroke="var(--primary)"
+								stroke-opacity="0.6"
+								stroke-width="1.5"
+								stroke-dasharray="4 3"
+								vector-effect="non-scaling-stroke"
+							/>
+							{#each furnitureHandles as h (h.handle)}
+								<rect
+									x={h.point.x - handleR}
+									y={h.point.y - handleR}
+									width={handleR * 2}
+									height={handleR * 2}
+									fill="var(--primary)"
+								/>
+							{/each}
+						{/if}
+					</g>
+				{/if}
+
 
 				<g>
 					{#each wallOutlines as { wall, key, points } (key)}
@@ -1607,7 +2019,7 @@
 							fill="none"
 							stroke={active ? "var(--primary)" : "var(--foreground)"}
 							stroke-opacity={active ? 1 : 0.7}
-							stroke-width="2"
+							stroke-width={opening.kind === "door" ? 3.5 : 2}
 							vector-effect="non-scaling-stroke"
 							class="transition-[stroke-opacity] duration-200"
 						/>
@@ -1699,6 +2111,34 @@
 						vector-effect="non-scaling-stroke"
 					/>
 				{/if}
+
+				{#each shownMeasures as m (m.id)}
+					{#if m.kind === "line"}
+						<line
+							x1={m.a.x}
+							y1={m.a.y}
+							x2={m.b.x}
+							y2={m.b.y}
+							stroke="var(--primary)"
+							stroke-width="2"
+							stroke-dasharray="6 4"
+							vector-effect="non-scaling-stroke"
+						/>
+					{:else}
+						<rect
+							x={Math.min(m.a.x, m.b.x)}
+							y={Math.min(m.a.y, m.b.y)}
+							width={Math.abs(m.b.x - m.a.x)}
+							height={Math.abs(m.b.y - m.a.y)}
+							fill="var(--primary)"
+							fill-opacity="0.08"
+							stroke="var(--primary)"
+							stroke-width="2"
+							stroke-dasharray="6 4"
+							vector-effect="non-scaling-stroke"
+						/>
+					{/if}
+				{/each}
 
 				{#if stampRect}
 					<rect
