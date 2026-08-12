@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 
@@ -258,6 +259,7 @@ func TestUpdateFloorplan_RejectsInvalidInputBeforeSaving(t *testing.T) {
 			"openings":   []any{},
 			"rooms":      []any{map[string]any{"id": "fr-1", "roomId": "missing-room", "vertexIds": []any{}}},
 			"placements": []any{},
+			"furniture":  []any{},
 		},
 	})
 	if len(resp.Errors) == 0 {
@@ -268,5 +270,88 @@ func TestUpdateFloorplan_RejectsInvalidInputBeforeSaving(t *testing.T) {
 	}
 	if te.store.floorplan != nil {
 		t.Error("floorplan was persisted despite failing validation")
+	}
+}
+
+func furnitureInput(pieces ...*model.FloorplanFurnitureInput) model.UpdateFloorplanInput {
+	input := floorplanInput(nil, nil)
+	input.Furniture = pieces
+	return input
+}
+
+func piece(id, kind string) *model.FloorplanFurnitureInput {
+	return &model.FloorplanFurnitureInput{
+		ID: id, Kind: kind, X: 1, Y: 1, Width: 1, Height: 1, Rotation: 0,
+	}
+}
+
+func TestValidateFloorplanInput_AcceptsKnownFurniture(t *testing.T) {
+	st := newMockStore()
+	input := furnitureInput(piece("furn-1", "bed-double"), piece("furn-2", "box"))
+	if err := validateFloorplanInput(context.Background(), st, input); err != nil {
+		t.Fatalf("valid furniture rejected: %v", err)
+	}
+}
+
+func TestValidateFloorplanInput_RejectsUnknownFurnitureKind(t *testing.T) {
+	st := newMockStore()
+	input := furnitureInput(piece("furn-1", "hovercraft"))
+	err := validateFloorplanInput(context.Background(), st, input)
+	if err == nil || !strings.Contains(err.Error(), "hovercraft") {
+		t.Fatalf("error = %v, want one naming the kind", err)
+	}
+}
+
+func TestValidateFloorplanInput_RejectsFurnitureWithoutPositiveSize(t *testing.T) {
+	st := newMockStore()
+	for _, tc := range []struct {
+		name  string
+		mutta func(*model.FloorplanFurnitureInput)
+		field string
+	}{
+		{"zero width", func(p *model.FloorplanFurnitureInput) { p.Width = 0 }, "width"},
+		{"negative height", func(p *model.FloorplanFurnitureInput) { p.Height = -1 }, "height"},
+		{"NaN width", func(p *model.FloorplanFurnitureInput) { p.Width = math.NaN() }, "width"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := piece("furn-1", "box")
+			tc.mutta(p)
+			err := validateFloorplanInput(context.Background(), st, furnitureInput(p))
+			if err == nil || !strings.Contains(err.Error(), tc.field) {
+				t.Fatalf("error = %v, want one naming %q", err, tc.field)
+			}
+		})
+	}
+}
+
+func TestValidateFloorplanInput_RejectsFurnitureAtAPointThatIsNotANumber(t *testing.T) {
+	st := newMockStore()
+	p := piece("furn-1", "box")
+	p.X = math.Inf(1)
+	err := validateFloorplanInput(context.Background(), st, furnitureInput(p))
+	if err == nil || !strings.Contains(err.Error(), "not a number") {
+		t.Fatalf("error = %v, want one about a point that is not a number", err)
+	}
+}
+
+func TestValidateFloorplanInput_RejectsDuplicateFurnitureID(t *testing.T) {
+	st := newMockStore()
+	input := furnitureInput(piece("furn-1", "box"), piece("furn-1", "ellipse"))
+	err := validateFloorplanInput(context.Background(), st, input)
+	if err == nil || !strings.Contains(err.Error(), "more than once") {
+		t.Fatalf("error = %v, want one about a repeated id", err)
+	}
+}
+
+func TestNormalizeRotation(t *testing.T) {
+	for _, tc := range []struct{ in, want float64 }{
+		{0, 0}, {90, 90}, {360, 0}, {450, 90}, {-90, 270}, {-370, 350},
+	} {
+		if got := normalizeRotation(tc.in); got != tc.want {
+			t.Fatalf("normalizeRotation(%v) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+	if got := normalizeRotation(math.NaN()); got != 0 {
+		t.Fatalf("normalizeRotation(NaN) = %v, want 0", got)
 	}
 }

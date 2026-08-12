@@ -17,6 +17,7 @@ const floorplanFields = `
 	openings { id wallId t width kind }
 	rooms { id name roomId vertexIds }
 	placements { memberType memberId x y }
+	furniture { id kind x y width height rotation occluder }
 `
 
 type floorplanResult struct {
@@ -54,6 +55,16 @@ type floorplanResult struct {
 		X          float64 `json:"x"`
 		Y          float64 `json:"y"`
 	} `json:"placements"`
+	Furniture []struct {
+		ID       string  `json:"id"`
+		Kind     string  `json:"kind"`
+		X        float64 `json:"x"`
+		Y        float64 `json:"y"`
+		Width    float64 `json:"width"`
+		Height   float64 `json:"height"`
+		Rotation float64 `json:"rotation"`
+		Occluder bool    `json:"occluder"`
+	} `json:"furniture"`
 }
 
 func saveFloorplan(t *testing.T, input map[string]any) floorplanResult {
@@ -112,11 +123,19 @@ func squareFloorplanInput(placements ...map[string]any) map[string]any {
 			{"id": "froom-1", "name": "Studio", "vertexIds": []string{"vtx-a", "vtx-b", "vtx-c", "vtx-d"}},
 		},
 		"placements": placements,
+		"furniture":  []map[string]any{},
 	}
 	if placements == nil {
 		input["placements"] = []map[string]any{}
 	}
 	return input
+}
+
+func furniturePiece(id, kind string, x, y, w, h, rot float64, occluder bool) map[string]any {
+	return map[string]any{
+		"id": id, "kind": kind, "x": x, "y": y,
+		"width": w, "height": h, "rotation": rot, "occluder": occluder,
+	}
 }
 
 func devicePlacement(id string, x, y float64) map[string]any {
@@ -392,5 +411,65 @@ func TestFloorplan_RejectsUnknownPlacementMemberType(t *testing.T) {
 		updateFloorplan(input: $input) { id }
 	}`, map[string]any{"input": input}); err == nil {
 		t.Fatal("expected an error for a memberType that is neither device nor group")
+	}
+}
+
+func TestFloorplan_FurnitureRoundtripsAndReplaces(t *testing.T) {
+	input := squareFloorplanInput()
+	input["furniture"] = []map[string]any{
+		furniturePiece("furn-1", "bed-double", 1.5, 1.25, 1.8, 2.0, 90, false),
+		furniturePiece("furn-2", "box", 3.2, 2.4, 1.0, 0.6, 0, true),
+	}
+	got := saveFloorplan(t, input)
+	if len(got.Furniture) != 2 {
+		t.Fatalf("furniture count = %d, want 2", len(got.Furniture))
+	}
+	byID := map[string]int{}
+	for i, f := range got.Furniture {
+		byID[f.ID] = i
+	}
+	bed := got.Furniture[byID["furn-1"]]
+	if bed.Kind != "bed-double" || bed.Width != 1.8 || bed.Height != 2.0 || bed.Rotation != 90 || bed.Occluder {
+		t.Fatalf("bed round-tripped as %+v", bed)
+	}
+	box := got.Furniture[byID["furn-2"]]
+	if !box.Occluder || box.X != 3.2 || box.Y != 2.4 {
+		t.Fatalf("box round-tripped as %+v", box)
+	}
+
+	// A second save replaces the list wholesale, like every other child list.
+	input["furniture"] = []map[string]any{furniturePiece("furn-2", "box", 1, 1, 1, 1, 0, false)}
+	got = saveFloorplan(t, input)
+	if len(got.Furniture) != 1 || got.Furniture[0].ID != "furn-2" || got.Furniture[0].Occluder {
+		t.Fatalf("after replace, furniture = %+v", got.Furniture)
+	}
+}
+
+func TestFloorplan_NormalizesFurnitureRotation(t *testing.T) {
+	input := squareFloorplanInput()
+	input["furniture"] = []map[string]any{furniturePiece("furn-1", "box", 1, 1, 1, 1, -90, false)}
+	got := saveFloorplan(t, input)
+	if len(got.Furniture) != 1 || got.Furniture[0].Rotation != 270 {
+		t.Fatalf("rotation = %v, want 270", got.Furniture[0].Rotation)
+	}
+}
+
+func TestFloorplan_RejectsUnknownFurnitureKind(t *testing.T) {
+	input := squareFloorplanInput()
+	input["furniture"] = []map[string]any{furniturePiece("furn-1", "hovercraft", 1, 1, 1, 1, 0, false)}
+	if _, err := graphqlMutation(`mutation($input: UpdateFloorplanInput!) {
+		updateFloorplan(input: $input) { id }
+	}`, map[string]any{"input": input}); err == nil {
+		t.Fatal("expected an error for a furniture kind the catalogue has no shape for")
+	}
+}
+
+func TestFloorplan_RejectsFurnitureWithoutSize(t *testing.T) {
+	input := squareFloorplanInput()
+	input["furniture"] = []map[string]any{furniturePiece("furn-1", "box", 1, 1, 0, 1, 0, false)}
+	if _, err := graphqlMutation(`mutation($input: UpdateFloorplanInput!) {
+		updateFloorplan(input: $input) { id }
+	}`, map[string]any{"input": input}); err == nil {
+		t.Fatal("expected an error for furniture with a zero width")
 	}
 }
