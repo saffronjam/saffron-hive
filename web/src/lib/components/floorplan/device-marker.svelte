@@ -39,6 +39,8 @@
 		live?: boolean;
 		/** The armed brush cannot paint this device: muted and stroke-inert. */
 		inert?: boolean;
+		/** Whether a sensor shows its reading chip; connectivity hides it. */
+		showReading?: boolean;
 		/** Picker interaction feeds the page's preview map (anti-flicker). */
 		onpreviewstate?: (partial: Partial<DeviceState>) => void;
 	}
@@ -52,6 +54,7 @@
 		draft = false,
 		live = false,
 		inert = false,
+		showReading = true,
 		onpreviewstate,
 	}: Props = $props();
 
@@ -79,7 +82,7 @@
 
 	const isSensor = $derived(device.type === "sensor");
 	const reading = $derived(
-		live && isSensor
+		live && showReading && isSensor
 			? (aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius")[0] ?? null)
 			: null,
 	);

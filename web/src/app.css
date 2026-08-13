@@ -392,6 +392,25 @@
   animation: map-occupancy-ring 1800ms ease-out infinite;
 }
 
+/* A device transmitting in the connectivity view flashes one expanding ring
+   around its marker. One-shot: the ring plays once per report and ends
+   transparent; a new report remounts the element (its key carries a sequence
+   number), which is what restarts the animation. Same r-geometry idiom as
+   the occupancy ring above. */
+@keyframes map-tx-ring {
+  0% {
+    r: 6px;
+    stroke: color-mix(in oklch, var(--primary) 55%, transparent);
+  }
+  100% {
+    r: 26px;
+    stroke: color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+}
+.map-tx-ring {
+  animation: map-tx-ring 700ms ease-out 1 both;
+}
+
 /* Theme crossfade. The `theme-transitioning` class is added to <html> just
    before the `dark` class flips and removed ~300ms later; scoping the
    transition this way keeps it out of the default hover/focus behaviour so

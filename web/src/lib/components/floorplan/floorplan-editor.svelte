@@ -151,6 +151,8 @@
 	import { newOpeningId, newVertexId, newWallId } from "$lib/floorplan-editable";
 	import { deviceHasCapability } from "$lib/stores/devices";
 	import DeviceMarker from "$lib/components/floorplan/device-marker.svelte";
+	import MeshLinks from "$lib/components/floorplan/mesh-links.svelte";
+	import type { MeshLinkView } from "$lib/floorplan/connectivity";
 	import GroupMarker from "$lib/components/floorplan/group-marker.svelte";
 	import PlanLabels from "$lib/components/floorplan/plan-labels.svelte";
 	import PlanSnapGuides from "$lib/components/floorplan/plan-snap-guides.svelte";
@@ -209,6 +211,12 @@
 		glowGroups?: GlowGroup[];
 		outsideGlows?: GlowView[];
 		lightmap?: LightmapFrame | null;
+		/** Mesh link lines for the connectivity view (live mode only). */
+		meshLinks?: MeshLinkView[];
+		/** One-shot TX pulse rings, keyed so a bump restarts the animation. */
+		txPulses?: { key: string; x: number; y: number }[];
+		/** Hide sensor reading chips (the connectivity view's markers are bare). */
+		hideReadings?: boolean;
 		onmarkertap?: (placement: PlacementView, e: PointerEvent) => void;
 		onfacetap?: (faceIndex: number) => void;
 		/** Right-click / touch-hold on a room face (edit mode). */
@@ -287,6 +295,9 @@
 		glowGroups = [],
 		outsideGlows = [],
 		lightmap = null,
+		meshLinks = [],
+		txPulses = [],
+		hideReadings = false,
 		onmarkertap,
 		onfacetap,
 		onfacemenu,
@@ -2185,6 +2196,10 @@
 					</g>
 				{/if}
 
+				{#if live && (meshLinks.length > 0 || txPulses.length > 0)}
+					<MeshLinks links={meshLinks} pulses={txPulses} {pxPerM} />
+				{/if}
+
 				<g>
 					{#each placements as pl (placementViewKey(pl))}
 						{@const key = placementViewKey(pl)}
@@ -2200,6 +2215,7 @@
 								{live}
 								inert={inertKeys.has(key)}
 								selected={!live && selectedKeySet.has(key)}
+								showReading={!hideReadings}
 								onpreviewstate={(partial) => onmarkerpreview?.([pl.device.id], partial)}
 							/>
 						{:else}
