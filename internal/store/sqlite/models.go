@@ -222,6 +222,13 @@ type GroupTag struct {
 	Tag     device.GroupTag
 }
 
+type NetworkTopologySnapshot struct {
+	Provider  device.Source
+	Nodes     string
+	Links     string
+	ScannedAt time.Time
+}
+
 type Room struct {
 	ID        string
 	Name      string
@@ -309,10 +316,13 @@ type User struct {
 }
 
 type Zigbee2mqttConfig struct {
-	ID       int64
-	Broker   string
-	Username string
-	Password string
-	UseWss   bool
-	Enabled  bool
+	ID                  int64
+	Broker              string
+	Username            string
+	Password            string
+	UseWss              bool
+	Enabled             bool
+	ScanScheduleEnabled bool
+	ScanHour            *int64
+	ScanMinute          *int64
 }

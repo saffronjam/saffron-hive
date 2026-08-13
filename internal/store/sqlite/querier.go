@@ -99,6 +99,7 @@ type Querier interface {
 	DeleteFloorplanWallsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteGroupTags(ctx context.Context, groupID string) error
+	DeleteNetworkTopology(ctx context.Context, provider device.Source) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
 	DeleteSceneActionsByScene(ctx context.Context, sceneID string) error
@@ -124,6 +125,7 @@ type Querier interface {
 	// before hitting these queries and unmarshals on read.
 	GetFloorplan(ctx context.Context) (Floorplan, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
+	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
@@ -183,6 +185,7 @@ type Querier interface {
 	ListGroupTags(ctx context.Context, groupID string) ([]device.GroupTag, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
+	ListNetworkTopologies(ctx context.Context) ([]NetworkTopologySnapshot, error)
 	ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, error)
 	ListRoomMemberships(ctx context.Context) ([]ListRoomMembershipsRow, error)
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
@@ -273,6 +276,7 @@ type Querier interface {
 	// override and is never touched here.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertFloorplan(ctx context.Context, arg UpsertFloorplanParams) error
+	UpsertNetworkTopology(ctx context.Context, arg UpsertNetworkTopologyParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error

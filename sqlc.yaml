@@ -34,3 +34,5 @@ sql:
             go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"
           - column: "floorplan_placements.member_type"
             go_type: "github.com/saffronjam/saffron-hive/internal/device.TargetType"
+          - column: "network_topology_snapshots.provider"
+            go_type: "github.com/saffronjam/saffron-hive/internal/device.Source"
