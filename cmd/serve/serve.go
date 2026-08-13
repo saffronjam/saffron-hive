@@ -20,6 +20,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/robfig/cron/v3"
 	"os"
 
 	"github.com/saffronjam/saffron-hive/internal/activity"
@@ -39,6 +40,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/version"
 	_ "modernc.org/sqlite"
 )
@@ -152,6 +154,7 @@ func Run(ctx context.Context) error {
 	)
 	spawn("history.recorder", func() { history.RunRecorder(ctx, bus, sqlStore) })
 	spawn("device.persister", func() { runDevicePersister(ctx, bus, deviceCh, sqlStore) })
+	spawn("topology.persister", func() { topology.RunPersister(ctx, bus, sqlStore) })
 	spawn("auth.login_limiter", func() { loginLimiter.Run(ctx) })
 
 	activityBuffer := activity.NewBuffer()
@@ -398,6 +401,75 @@ type adapterManager struct {
 	store              *store.DB
 	bus                eventbus.EventBus
 	memStore           *device.MemoryStore
+	scanStartedAt      time.Time
+	scanCron           *cron.Cron
+}
+
+// scanWindow bounds how long a requested networkmap scan counts as running
+// when no response has landed: past it the scan is presumed lost and a new
+// one may be requested.
+const scanWindow = 10 * time.Minute
+
+// scanCronSpec renders a daily wall-clock time as a cron spec for the
+// scheduled topology scan.
+func scanCronSpec(hour, minute int64) string {
+	return fmt.Sprintf("%d %d * * *", minute, hour)
+}
+
+// ScanZigbee2MQTTNetwork asks the running adapter for a topology scan. The
+// scan itself completes asynchronously: the response lands on the bus, the
+// topology persister stores it, and topology.updated announces it.
+func (m *adapterManager) ScanZigbee2MQTTNetwork(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.adapter == nil {
+		return fmt.Errorf("Zigbee2MQTT is not connected")
+	}
+	if m.scanStartedAtLocked(ctx) != nil {
+		return fmt.Errorf("a network scan is already running")
+	}
+	if err := m.adapter.RequestNetworkmap(); err != nil {
+		return err
+	}
+	m.scanStartedAt = time.Now()
+	return nil
+}
+
+// Zigbee2MQTTScanStartedAt reports when the in-flight scan was requested, nil
+// when none is running: requested within the scan window and not yet
+// reflected in the stored snapshot. Computed rather than stored, so it
+// survives page reloads and cannot wedge on a scan whose response never
+// arrives.
+func (m *adapterManager) Zigbee2MQTTScanStartedAt(ctx context.Context) *time.Time {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.scanStartedAtLocked(ctx)
+}
+
+func (m *adapterManager) scanStartedAtLocked(ctx context.Context) *time.Time {
+	if m.scanStartedAt.IsZero() || time.Since(m.scanStartedAt) > scanWindow {
+		return nil
+	}
+	topo, err := m.store.GetNetworkTopology(ctx, device.SourceZigbee2MQTT)
+	if err != nil {
+		serveLogger.Warn("failed to read topology for scan status", "error", err)
+		return nil
+	}
+	if topo != nil && !topo.ScannedAt.Before(m.scanStartedAt) {
+		return nil
+	}
+	at := m.scanStartedAt
+	return &at
+}
+
+// stopScanCronLocked halts the scheduled-scan cron if one is armed. Callers
+// hold m.mu; Stop does not wait for a running job, so a job blocked on the
+// same mutex cannot deadlock this.
+func (m *adapterManager) stopScanCronLocked() {
+	if m.scanCron != nil {
+		m.scanCron.Stop()
+		m.scanCron = nil
+	}
 }
 
 // Zigbee2MQTTConnected reports whether the managed broker client is currently
@@ -425,6 +497,7 @@ func (m *adapterManager) Zigbee2MQTTEnabled() bool {
 func (m *adapterManager) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.stopScanCronLocked()
 	if m.adapter != nil {
 		m.adapter.Stop()
 		m.adapter = nil
@@ -455,6 +528,7 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 		m.adapter = nil
 	}
 	m.client = nil
+	m.stopScanCronLocked()
 
 	// Set before attempting Start so a configured integration whose broker is
 	// unreachable still counts as enabled, and the connectivity alarm fires.
@@ -481,6 +555,23 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 	}
 	m.client = client
 	m.adapter = adapter
+
+	if cfg.ScanScheduleEnabled && cfg.ScanHour != nil && cfg.ScanMinute != nil {
+		c := cron.New()
+		spec := scanCronSpec(*cfg.ScanHour, *cfg.ScanMinute)
+		if _, err := c.AddFunc(spec, func() {
+			if err := m.ScanZigbee2MQTTNetwork(context.Background()); err != nil {
+				serveLogger.Warn("scheduled network scan skipped", "error", err)
+			}
+		}); err != nil {
+			serveLogger.Error("failed to arm scheduled network scan", "spec", spec, "error", err)
+		} else {
+			c.Start()
+			m.scanCron = c
+			serveLogger.Info("scheduled daily network scan",
+				"hour", *cfg.ScanHour, "minute", *cfg.ScanMinute)
+		}
+	}
 
 	serveLogger.Info("Zigbee2MQTT connected", "broker", cfg.Broker)
 	return nil
@@ -597,9 +688,13 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 		}
 		m.client = nil
 		m.zigbee2mqttEnabled = false
+		m.stopScanCronLocked()
 		m.mu.Unlock()
 
 		if err := m.store.DeleteZigbee2MQTTConfig(ctx); err != nil {
+			return 0, err
+		}
+		if err := m.store.DeleteNetworkTopology(ctx, device.SourceZigbee2MQTT); err != nil {
 			return 0, err
 		}
 		m.markSourceUnavailable(ctx, device.SourceZigbee2MQTT)
