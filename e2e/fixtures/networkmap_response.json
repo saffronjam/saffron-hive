@@ -1,0 +1,99 @@
+{
+  "status": "ok",
+  "data": {
+    "type": "raw",
+    "routes": true,
+    "value": {
+      "nodes": [
+        {
+          "ieeeAddr": "0x00124b0000000000",
+          "friendlyName": "Coordinator",
+          "type": "Coordinator",
+          "networkAddress": 0
+        },
+        {
+          "ieeeAddr": "0x00158d0001a2b3c4",
+          "friendlyName": "Living Room Light",
+          "type": "Router",
+          "networkAddress": 100
+        },
+        {
+          "ieeeAddr": "0x00158d0002b3c4d5",
+          "friendlyName": "Bedroom Light",
+          "type": "Router",
+          "networkAddress": 200
+        },
+        {
+          "ieeeAddr": "0x00158d0004d5e6f7",
+          "friendlyName": "Living Room Sensor",
+          "type": "EndDevice",
+          "networkAddress": 300
+        }
+      ],
+      "links": [
+        {
+          "source": {
+            "ieeeAddr": "0x00158d0004d5e6f7",
+            "networkAddress": 300
+          },
+          "target": {
+            "ieeeAddr": "0x00158d0001a2b3c4",
+            "networkAddress": 100
+          },
+          "lqi": 180,
+          "depth": 2,
+          "relationship": 1,
+          "routes": []
+        },
+        {
+          "source": {
+            "ieeeAddr": "0x00158d0001a2b3c4",
+            "networkAddress": 100
+          },
+          "target": {
+            "ieeeAddr": "0x00124b0000000000",
+            "networkAddress": 0
+          },
+          "lqi": 210,
+          "depth": 1,
+          "relationship": 2,
+          "routes": [
+            {
+              "destinationAddress": 0,
+              "status": "ACTIVE",
+              "nextHop": 0
+            }
+          ]
+        },
+        {
+          "source": {
+            "ieeeAddr": "0x00158d0002b3c4d5",
+            "networkAddress": 200
+          },
+          "target": {
+            "ieeeAddr": "0x00158d0001a2b3c4",
+            "networkAddress": 100
+          },
+          "lqi": 120,
+          "depth": 1,
+          "relationship": 2,
+          "routes": []
+        },
+        {
+          "source": {
+            "ieeeAddr": "0x00158d0002b3c4d5",
+            "networkAddress": 200
+          },
+          "target": {
+            "ieeeAddr": "0x00124b0000000000",
+            "networkAddress": 0
+          },
+          "lqi": 95,
+          "depth": 1,
+          "relationship": 3,
+          "routes": []
+        }
+      ]
+    }
+  }
+}

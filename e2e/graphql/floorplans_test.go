@@ -260,6 +260,7 @@ func TestFloorplan_SecondSaveReplaces(t *testing.T) {
 		"openings":   []map[string]any{},
 		"rooms":      []map[string]any{},
 		"placements": []map[string]any{},
+		"furniture":  []map[string]any{},
 	}
 	saved := saveFloorplan(t, replacement)
 	if saved.Name != "Home v2" {

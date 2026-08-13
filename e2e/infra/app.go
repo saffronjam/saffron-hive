@@ -29,6 +29,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/topology"
 	_ "modernc.org/sqlite"
 )
 
@@ -86,6 +87,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		eventbus.EventDeviceRemoved,
 	)
 	go runDevicePersister(appCtx, bus, deviceCh, sqlStore)
+	go topology.RunPersister(appCtx, bus, sqlStore)
 
 	mqttClient := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   brokerURL,
@@ -173,6 +175,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		StateReader:         memStore,
 		Store:               sqlStore,
 		EventBus:            bus,
+		Zigbee2MQTT:         &zigbeeController{adapter: adapter, store: sqlStore},
 		TargetResolver:      sqlStore,
 		AutomationReloader:  rel,
 		AutomationTriggerer: rel,

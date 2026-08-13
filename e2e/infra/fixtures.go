@@ -38,6 +38,11 @@ func LoadPlugState() ([]byte, error) {
 	return os.ReadFile(filepath.Join(fixturesDir(), "plug_state.json"))
 }
 
+// LoadNetworkmapResponse returns the networkmap_response.json fixture content.
+func LoadNetworkmapResponse() ([]byte, error) {
+	return os.ReadFile(filepath.Join(fixturesDir(), "networkmap_response.json"))
+}
+
 // LoadMotionState returns the motion_state.json fixture content. Motion
 // sensors report a boolean occupancy alongside battery.
 func LoadMotionState() ([]byte, error) {

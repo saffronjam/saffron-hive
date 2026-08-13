@@ -81,6 +81,31 @@ func (p *Publisher) SubscribeCommands() (<-chan MQTTMessage, error) {
 	return ch, nil
 }
 
+// PublishNetworkmapResponse publishes a bridge/response/networkmap payload,
+// as zigbee2mqtt does when a topology scan completes.
+func (p *Publisher) PublishNetworkmapResponse(payload []byte) error {
+	token := p.client.Publish("zigbee2mqtt/bridge/response/networkmap", 0, false, payload)
+	token.Wait()
+	return token.Error()
+}
+
+// SubscribeNetworkmapRequests subscribes to the topology-scan request topic
+// and sends received payloads to the returned channel.
+func (p *Publisher) SubscribeNetworkmapRequests() (<-chan MQTTMessage, error) {
+	ch := make(chan MQTTMessage, 8)
+	token := p.client.Subscribe("zigbee2mqtt/bridge/request/networkmap", 0, func(_ mqtt.Client, msg mqtt.Message) {
+		ch <- MQTTMessage{
+			Topic:   msg.Topic(),
+			Payload: msg.Payload(),
+		}
+	})
+	token.Wait()
+	if err := token.Error(); err != nil {
+		return nil, err
+	}
+	return ch, nil
+}
+
 // Disconnect cleanly disconnects from the broker.
 func (p *Publisher) Disconnect() {
 	p.client.Disconnect(250)
