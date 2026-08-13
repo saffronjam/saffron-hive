@@ -39,6 +39,13 @@ type Zigbee2MQTTController interface {
 	TestZigbee2MQTT(ctx context.Context, cfg store.Zigbee2MQTTConfig) error
 	Zigbee2MQTTConnected() bool
 	Zigbee2MQTTEnabled() bool
+	// ScanZigbee2MQTTNetwork requests a topology scan from the running
+	// adapter. Returns immediately; completion arrives as topology.updated.
+	ScanZigbee2MQTTNetwork(ctx context.Context) error
+	// Zigbee2MQTTScanStartedAt reports when the in-flight scan was requested,
+	// nil when none is running: requested recently and not yet reflected in
+	// the stored snapshot.
+	Zigbee2MQTTScanStartedAt(ctx context.Context) *time.Time
 }
 
 // TuyaController manages the optional Tuya cloud integration.
@@ -164,6 +171,7 @@ type GraphStore interface {
 	GetZigbee2MQTTConfig(ctx context.Context) (*store.Zigbee2MQTTConfig, error)
 	UpsertZigbee2MQTTConfig(ctx context.Context, cfg store.Zigbee2MQTTConfig) error
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
+	ListNetworkTopologies(ctx context.Context) ([]device.NetworkTopology, error)
 	GetTuyaConfig(ctx context.Context) (*store.TuyaConfig, error)
 	UpsertTuyaConfig(ctx context.Context, cfg store.TuyaConfig) error
 	DeleteTuyaConfig(ctx context.Context) error

@@ -46,6 +46,19 @@ func TestMutationSetDeviceState(t *testing.T) {
 	}
 }
 
+func TestMutationSetDeviceStateRejectsHub(t *testing.T) {
+	env := newTestEnv(t)
+	env.stateReader.addDevice(device.Device{ID: "coord", FriendlyName: "Coordinator", Source: device.SourceZigbee2MQTT, Type: device.Hub, Available: true})
+
+	resp := env.query(t, `mutation { setDeviceState(deviceId: "coord", state: {on: true}) { id } }`, nil)
+	if len(resp.Errors) == 0 {
+		t.Fatal("commanding a hub must fail")
+	}
+	if !strings.Contains(resp.Errors[0].Message, "hub") {
+		t.Fatalf("error should name the hub restriction, got %q", resp.Errors[0].Message)
+	}
+}
+
 func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)

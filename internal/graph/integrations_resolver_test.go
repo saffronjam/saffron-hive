@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
@@ -12,9 +13,12 @@ import (
 // mockIntegrationController stands in for cmd/serve's adapterManager, which
 // satisfies every integration interface with one value.
 type mockIntegrationController struct {
-	z2mEnabled   bool
-	z2mConnected bool
-	tuyaOnline   bool
+	z2mEnabled    bool
+	z2mConnected  bool
+	tuyaOnline    bool
+	scanRequested int
+	scanStartedAt *time.Time
+	scanErr       error
 }
 
 func (m *mockIntegrationController) ReconnectZigbee2MQTT(context.Context) error { return nil }
@@ -26,6 +30,15 @@ func (m *mockIntegrationController) TestZigbee2MQTT(context.Context, store.Zigbe
 func (m *mockIntegrationController) Zigbee2MQTTConnected() bool { return m.z2mConnected }
 
 func (m *mockIntegrationController) Zigbee2MQTTEnabled() bool { return m.z2mEnabled }
+
+func (m *mockIntegrationController) ScanZigbee2MQTTNetwork(context.Context) error {
+	m.scanRequested++
+	return m.scanErr
+}
+
+func (m *mockIntegrationController) Zigbee2MQTTScanStartedAt(context.Context) *time.Time {
+	return m.scanStartedAt
+}
 
 func (m *mockIntegrationController) ReconnectTuya(context.Context) error { return nil }
 

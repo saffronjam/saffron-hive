@@ -684,6 +684,22 @@ type Zigbee2MqttConfig {
   password: String!
   useWss: Boolean!
   enabled: Boolean!
+  """
+  Whether a topology scan runs automatically every day at scanHour:scanMinute.
+  """
+  scanScheduleEnabled: Boolean!
+  """
+  Daily scan time. Kept while the schedule is off so re-enabling restores the
+  chosen time; null means never set.
+  """
+  scanHour: Int
+  scanMinute: Int
+  """
+  When the in-flight topology scan was requested, null when none is running.
+  The scan reports nothing until it finishes, so elapsed time is the only
+  honest progress there is.
+  """
+  scanStartedAt: DateTime
 }
 
 type Integration {
@@ -706,6 +722,55 @@ type TuyaConfig {
 type ConnectionTestResult {
   success: Boolean!
   message: String!
+}
+
+"""
+One device in a mesh snapshot. `id` is the node's provider-scoped identity;
+`deviceId` is set when the node is a registered Hive device. Roles: "hub" is
+the network's point of entry, "relay" forwards traffic for others, "leaf"
+speaks only for itself.
+"""
+type TopologyNode {
+  id: ID!
+  deviceId: ID
+  role: String!
+}
+
+"""
+One undirected edge in a mesh snapshot. Kinds: "parent" joins a leaf to the
+node that speaks for it (source is the child), "route" is a relay's active
+uplink toward the hub, "neighbour" records radio contact with no claim that
+traffic flows there. A stale link was carried forward from an earlier scan
+because the node slept through the latest one; observedAt is when it was
+actually seen.
+"""
+type TopologyLink {
+  source: ID!
+  target: ID!
+  kind: String!
+  quality: Float!
+  rawQuality: Int!
+  stale: Boolean!
+  observedAt: DateTime!
+}
+
+"""
+One integration provider's mesh snapshot: what its latest network scan
+reported, at the time it reported it.
+"""
+type NetworkTopology {
+  provider: String!
+  scannedAt: DateTime!
+  nodes: [TopologyNode!]!
+  links: [TopologyLink!]!
+}
+
+"""Announces that a provider's stored topology snapshot changed."""
+type NetworkTopologyEvent {
+  provider: String!
+  scannedAt: DateTime!
+  nodeCount: Int!
+  linkCount: Int!
 }
 
 type Setting {
@@ -819,6 +884,14 @@ input Zigbee2MqttConfigInput {
   password: String!
   useWss: Boolean!
   enabled: Boolean!
+  """Enabling requires scanHour and scanMinute to be set."""
+  scanScheduleEnabled: Boolean!
+  """
+  Daily scan time. Null while the schedule is disabled keeps the stored time,
+  so switching the schedule off never erases it.
+  """
+  scanHour: Int
+  scanMinute: Int
 }
 
 input TuyaConfigInput {
@@ -1066,6 +1139,8 @@ type Query {
   integrations: [Integration!]! @auth
   zigbee2MqttConfig: Zigbee2MqttConfig @auth
   tuyaConfig: TuyaConfig @auth
+  """Every provider's stored mesh snapshot. Empty until a scan completes."""
+  networkTopologies: [NetworkTopology!]! @auth
   settings: [Setting!]! @auth
   """
   Places matching a search term, resolved through an OpenStreetMap geocoder.
@@ -1125,6 +1200,12 @@ type Mutation {
   updateFloorplan(input: UpdateFloorplanInput!): Floorplan! @auth
   updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
   testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
+  """
+  Requests a Zigbee topology scan. Returns immediately; the scan walks every
+  router on the mesh, takes minutes, and slows the network while it runs.
+  Completion is announced on the networkTopologyUpdated subscription.
+  """
+  scanZigbee2MqttNetwork: Boolean! @auth
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
@@ -1216,4 +1297,10 @@ type Subscription {
   step boundaries are broadcast.
   """
   effectStepActivated(runId: ID): EffectStepEvent! @auth
+  """
+  Fires after a merged topology snapshot is persisted, so a consumer that
+  re-queries on it always reads the new snapshot. When provider is given,
+  only that provider's updates are delivered.
+  """
+  networkTopologyUpdated(provider: String): NetworkTopologyEvent! @auth
 }

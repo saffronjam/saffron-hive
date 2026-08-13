@@ -125,6 +125,9 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 	if d.Disabled {
 		return nil, disabledDeviceError(d)
 	}
+	if d.Type == device.Hub {
+		return nil, fmt.Errorf("device %q is a hub and takes no commands", d.DisplayName())
+	}
 
 	cmd := device.Command{
 		DeviceID:          id,
@@ -788,12 +791,19 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 	if err != nil {
 		return nil, err
 	}
+	scanHour, scanMinute, err := zigbee2MQTTScanSchedule(ctx, r.Store, input)
+	if err != nil {
+		return nil, err
+	}
 	cfg := store.Zigbee2MQTTConfig{
-		Broker:   strings.TrimSpace(input.Broker),
-		Username: strings.TrimSpace(input.Username),
-		Password: password,
-		UseWSS:   input.UseWss,
-		Enabled:  input.Enabled,
+		Broker:              strings.TrimSpace(input.Broker),
+		Username:            strings.TrimSpace(input.Username),
+		Password:            password,
+		UseWSS:              input.UseWss,
+		Enabled:             input.Enabled,
+		ScanScheduleEnabled: input.ScanScheduleEnabled,
+		ScanHour:            scanHour,
+		ScanMinute:          scanMinute,
 	}
 	if err := r.Store.UpsertZigbee2MQTTConfig(ctx, cfg); err != nil {
 		return nil, err
@@ -803,7 +813,7 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 			return nil, fmt.Errorf("saved config but failed to reconnect Zigbee2MQTT: %w", err)
 		}
 	}
-	return mapZigbee2MQTTConfig(cfg), nil
+	return mapZigbee2MQTTConfig(cfg, r.zigbee2MQTTScanStartedAt(ctx)), nil
 }
 
 // TestZigbee2MqttConnection is the resolver for the testZigbee2MqttConnection field.
@@ -826,6 +836,17 @@ func (r *mutationResolver) TestZigbee2MqttConnection(ctx context.Context, input 
 		return &model.ConnectionTestResult{Success: false, Message: err.Error()}, nil
 	}
 	return &model.ConnectionTestResult{Success: true, Message: "Connected successfully"}, nil
+}
+
+// ScanZigbee2MqttNetwork is the resolver for the scanZigbee2MqttNetwork field.
+func (r *mutationResolver) ScanZigbee2MqttNetwork(ctx context.Context) (bool, error) {
+	if r.Zigbee2MQTT == nil {
+		return false, fmt.Errorf("Zigbee2MQTT integration is unavailable")
+	}
+	if err := r.Zigbee2MQTT.ScanZigbee2MQTTNetwork(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // UpdateTuyaConfig is the resolver for the updateTuyaConfig field.
@@ -2039,7 +2060,7 @@ func (r *queryResolver) Zigbee2MqttConfig(ctx context.Context) (*model.Zigbee2Mq
 	if cfg == nil {
 		return nil, nil
 	}
-	return mapZigbee2MQTTConfig(*cfg), nil
+	return mapZigbee2MQTTConfig(*cfg, r.zigbee2MQTTScanStartedAt(ctx)), nil
 }
 
 // TuyaConfig is the resolver for the tuyaConfig field.
@@ -2052,6 +2073,19 @@ func (r *queryResolver) TuyaConfig(ctx context.Context) (*model.TuyaConfig, erro
 		return nil, nil
 	}
 	return mapTuyaConfig(*cfg), nil
+}
+
+// NetworkTopologies is the resolver for the networkTopologies field.
+func (r *queryResolver) NetworkTopologies(ctx context.Context) ([]*model.NetworkTopology, error) {
+	topos, err := r.Store.ListNetworkTopologies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.NetworkTopology, 0, len(topos))
+	for _, topo := range topos {
+		out = append(out, mapNetworkTopology(topo))
+	}
+	return out, nil
 }
 
 // Settings is the resolver for the settings field. Server-internal keys
@@ -2725,6 +2759,47 @@ func (r *subscriptionResolver) EffectStepActivated(ctx context.Context, runID *s
 					StepIndex: payload.StepIndex,
 					Active:    payload.Active,
 				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// NetworkTopologyUpdated is the resolver for the networkTopologyUpdated field.
+func (r *subscriptionResolver) NetworkTopologyUpdated(ctx context.Context, provider *string) (<-chan *model.NetworkTopologyEvent, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventNetworkTopologyUpdated)
+	out := make(chan *model.NetworkTopologyEvent, 1)
+
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				payload, ok := evt.Payload.(eventbus.NetworkTopologyUpdatedEvent)
+				if !ok {
+					continue
+				}
+				if provider != nil && *provider != payload.Provider {
+					continue
+				}
+				event := &model.NetworkTopologyEvent{
+					Provider:  payload.Provider,
+					ScannedAt: payload.ScannedAt,
+					NodeCount: payload.NodeCount,
+					LinkCount: payload.LinkCount,
+				}
+				select {
+				case out <- event:
 				case <-ctx.Done():
 					return
 				}

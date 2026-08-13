@@ -113,6 +113,7 @@ type mockStore struct {
 	users           map[string]store.User // keyed by id
 	zigbee2mqttCfg  *store.Zigbee2MQTTConfig
 	tuyaConfig      *store.TuyaConfig
+	topologies      []device.NetworkTopology
 	effects         map[string]store.Effect
 	activeEffects   map[string]effect.ActiveEffectRecord
 
@@ -810,6 +811,12 @@ func (m *mockStore) DeleteZigbee2MQTTConfig(_ context.Context) error {
 	defer m.mu.Unlock()
 	m.zigbee2mqttCfg = nil
 	return nil
+}
+
+func (m *mockStore) ListNetworkTopologies(_ context.Context) ([]device.NetworkTopology, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]device.NetworkTopology(nil), m.topologies...), nil
 }
 
 func (m *mockStore) GetTuyaConfig(_ context.Context) (*store.TuyaConfig, error) {

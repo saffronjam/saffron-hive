@@ -375,6 +375,7 @@ type ComplexityRoot struct {
 		ResetUserPassword           func(childComplexity int, id string, newPassword string) int
 		RunEffect                   func(childComplexity int, effectID string, targetType string, targetID string) int
 		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
+		ScanZigbee2MqttNetwork      func(childComplexity int) int
 		SetDeviceState              func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
@@ -401,6 +402,20 @@ type ComplexityRoot struct {
 		SupportedDeviceCount func(childComplexity int) int
 	}
 
+	NetworkTopology struct {
+		Links     func(childComplexity int) int
+		Nodes     func(childComplexity int) int
+		Provider  func(childComplexity int) int
+		ScannedAt func(childComplexity int) int
+	}
+
+	NetworkTopologyEvent struct {
+		LinkCount func(childComplexity int) int
+		NodeCount func(childComplexity int) int
+		Provider  func(childComplexity int) int
+		ScannedAt func(childComplexity int) int
+	}
+
 	Place struct {
 		Latitude  func(childComplexity int) int
 		Longitude func(childComplexity int) int
@@ -425,6 +440,7 @@ type ComplexityRoot struct {
 		Logs                   func(childComplexity int, search *string, limit *int) int
 		Me                     func(childComplexity int) int
 		NativeEffectOptions    func(childComplexity int) int
+		NetworkTopologies      func(childComplexity int) int
 		Room                   func(childComplexity int, id string) int
 		Rooms                  func(childComplexity int) int
 		Scene                  func(childComplexity int, id string) int
@@ -517,6 +533,7 @@ type ComplexityRoot struct {
 		DeviceStateChanged        func(childComplexity int, deviceID *string) int
 		EffectStepActivated       func(childComplexity int, runID *string) int
 		LogStream                 func(childComplexity int) int
+		NetworkTopologyUpdated    func(childComplexity int, provider *string) int
 		SceneActiveChanged        func(childComplexity int) int
 	}
 
@@ -525,6 +542,22 @@ type ComplexityRoot struct {
 		Op        func(childComplexity int) int
 		Subject   func(childComplexity int) int
 		Values    func(childComplexity int) int
+	}
+
+	TopologyLink struct {
+		Kind       func(childComplexity int) int
+		ObservedAt func(childComplexity int) int
+		Quality    func(childComplexity int) int
+		RawQuality func(childComplexity int) int
+		Source     func(childComplexity int) int
+		Stale      func(childComplexity int) int
+		Target     func(childComplexity int) int
+	}
+
+	TopologyNode struct {
+		DeviceID func(childComplexity int) int
+		ID       func(childComplexity int) int
+		Role     func(childComplexity int) int
 	}
 
 	TuyaConfig struct {
@@ -547,11 +580,15 @@ type ComplexityRoot struct {
 	}
 
 	Zigbee2MqttConfig struct {
-		Broker   func(childComplexity int) int
-		Enabled  func(childComplexity int) int
-		Password func(childComplexity int) int
-		UseWss   func(childComplexity int) int
-		Username func(childComplexity int) int
+		Broker              func(childComplexity int) int
+		Enabled             func(childComplexity int) int
+		Password            func(childComplexity int) int
+		ScanHour            func(childComplexity int) int
+		ScanMinute          func(childComplexity int) int
+		ScanScheduleEnabled func(childComplexity int) int
+		ScanStartedAt       func(childComplexity int) int
+		UseWss              func(childComplexity int) int
+		Username            func(childComplexity int) int
 	}
 }
 
@@ -581,6 +618,7 @@ type MutationResolver interface {
 	UpdateFloorplan(ctx context.Context, input model.UpdateFloorplanInput) (*model.Floorplan, error)
 	UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error)
 	TestZigbee2MqttConnection(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.ConnectionTestResult, error)
+	ScanZigbee2MqttNetwork(ctx context.Context) (bool, error)
 	UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error)
 	TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error)
 	SyncTuyaDevices(ctx context.Context) ([]*model.Device, error)
@@ -631,6 +669,7 @@ type QueryResolver interface {
 	Integrations(ctx context.Context) ([]*model.Integration, error)
 	Zigbee2MqttConfig(ctx context.Context) (*model.Zigbee2MqttConfig, error)
 	TuyaConfig(ctx context.Context) (*model.TuyaConfig, error)
+	NetworkTopologies(ctx context.Context) ([]*model.NetworkTopology, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
 	SearchPlaces(ctx context.Context, query string) ([]*model.Place, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
@@ -656,6 +695,7 @@ type SubscriptionResolver interface {
 	ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error)
 	AlarmEvent(ctx context.Context) (<-chan *model.AlarmEvent, error)
 	EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error)
+	NetworkTopologyUpdated(ctx context.Context, provider *string) (<-chan *model.NetworkTopologyEvent, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -2300,6 +2340,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RunNativeEffect(childComplexity, args["nativeName"].(string), args["targetType"].(string), args["targetId"].(string)), true
+	case "Mutation.scanZigbee2MqttNetwork":
+		if e.ComplexityRoot.Mutation.ScanZigbee2MqttNetwork == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.ScanZigbee2MqttNetwork(childComplexity), true
 	case "Mutation.setDeviceState":
 		if e.ComplexityRoot.Mutation.SetDeviceState == nil {
 			break
@@ -2513,6 +2559,56 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.NativeEffectOption.SupportedDeviceCount(childComplexity), true
 
+	case "NetworkTopology.links":
+		if e.ComplexityRoot.NetworkTopology.Links == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopology.Links(childComplexity), true
+	case "NetworkTopology.nodes":
+		if e.ComplexityRoot.NetworkTopology.Nodes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopology.Nodes(childComplexity), true
+	case "NetworkTopology.provider":
+		if e.ComplexityRoot.NetworkTopology.Provider == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopology.Provider(childComplexity), true
+	case "NetworkTopology.scannedAt":
+		if e.ComplexityRoot.NetworkTopology.ScannedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopology.ScannedAt(childComplexity), true
+
+	case "NetworkTopologyEvent.linkCount":
+		if e.ComplexityRoot.NetworkTopologyEvent.LinkCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopologyEvent.LinkCount(childComplexity), true
+	case "NetworkTopologyEvent.nodeCount":
+		if e.ComplexityRoot.NetworkTopologyEvent.NodeCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopologyEvent.NodeCount(childComplexity), true
+	case "NetworkTopologyEvent.provider":
+		if e.ComplexityRoot.NetworkTopologyEvent.Provider == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopologyEvent.Provider(childComplexity), true
+	case "NetworkTopologyEvent.scannedAt":
+		if e.ComplexityRoot.NetworkTopologyEvent.ScannedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NetworkTopologyEvent.ScannedAt(childComplexity), true
+
 	case "Place.latitude":
 		if e.ComplexityRoot.Place.Latitude == nil {
 			break
@@ -2675,6 +2771,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.NativeEffectOptions(childComplexity), true
+	case "Query.networkTopologies":
+		if e.ComplexityRoot.Query.NetworkTopologies == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.NetworkTopologies(childComplexity), true
 	case "Query.room":
 		if e.ComplexityRoot.Query.Room == nil {
 			break
@@ -3085,6 +3187,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.LogStream(childComplexity), true
+	case "Subscription.networkTopologyUpdated":
+		if e.ComplexityRoot.Subscription.NetworkTopologyUpdated == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_networkTopologyUpdated_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.NetworkTopologyUpdated(childComplexity, args["provider"].(*string)), true
 	case "Subscription.sceneActiveChanged":
 		if e.ComplexityRoot.Subscription.SceneActiveChanged == nil {
 			break
@@ -3116,6 +3229,68 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TargetClause.Values(childComplexity), true
+
+	case "TopologyLink.kind":
+		if e.ComplexityRoot.TopologyLink.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.Kind(childComplexity), true
+	case "TopologyLink.observedAt":
+		if e.ComplexityRoot.TopologyLink.ObservedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.ObservedAt(childComplexity), true
+	case "TopologyLink.quality":
+		if e.ComplexityRoot.TopologyLink.Quality == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.Quality(childComplexity), true
+	case "TopologyLink.rawQuality":
+		if e.ComplexityRoot.TopologyLink.RawQuality == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.RawQuality(childComplexity), true
+	case "TopologyLink.source":
+		if e.ComplexityRoot.TopologyLink.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.Source(childComplexity), true
+	case "TopologyLink.stale":
+		if e.ComplexityRoot.TopologyLink.Stale == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.Stale(childComplexity), true
+	case "TopologyLink.target":
+		if e.ComplexityRoot.TopologyLink.Target == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyLink.Target(childComplexity), true
+
+	case "TopologyNode.deviceId":
+		if e.ComplexityRoot.TopologyNode.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyNode.DeviceID(childComplexity), true
+	case "TopologyNode.id":
+		if e.ComplexityRoot.TopologyNode.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyNode.ID(childComplexity), true
+	case "TopologyNode.role":
+		if e.ComplexityRoot.TopologyNode.Role == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TopologyNode.Role(childComplexity), true
 
 	case "TuyaConfig.accessId":
 		if e.ComplexityRoot.TuyaConfig.AccessID == nil {
@@ -3215,6 +3390,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttConfig.Password(childComplexity), true
+	case "Zigbee2MqttConfig.scanHour":
+		if e.ComplexityRoot.Zigbee2MqttConfig.ScanHour == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.ScanHour(childComplexity), true
+	case "Zigbee2MqttConfig.scanMinute":
+		if e.ComplexityRoot.Zigbee2MqttConfig.ScanMinute == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.ScanMinute(childComplexity), true
+	case "Zigbee2MqttConfig.scanScheduleEnabled":
+		if e.ComplexityRoot.Zigbee2MqttConfig.ScanScheduleEnabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.ScanScheduleEnabled(childComplexity), true
+	case "Zigbee2MqttConfig.scanStartedAt":
+		if e.ComplexityRoot.Zigbee2MqttConfig.ScanStartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.ScanStartedAt(childComplexity), true
 	case "Zigbee2MqttConfig.useWss":
 		if e.ComplexityRoot.Zigbee2MqttConfig.UseWss == nil {
 			break
@@ -4057,6 +4256,22 @@ type Zigbee2MqttConfig {
   password: String!
   useWss: Boolean!
   enabled: Boolean!
+  """
+  Whether a topology scan runs automatically every day at scanHour:scanMinute.
+  """
+  scanScheduleEnabled: Boolean!
+  """
+  Daily scan time. Kept while the schedule is off so re-enabling restores the
+  chosen time; null means never set.
+  """
+  scanHour: Int
+  scanMinute: Int
+  """
+  When the in-flight topology scan was requested, null when none is running.
+  The scan reports nothing until it finishes, so elapsed time is the only
+  honest progress there is.
+  """
+  scanStartedAt: DateTime
 }
 
 type Integration {
@@ -4079,6 +4294,55 @@ type TuyaConfig {
 type ConnectionTestResult {
   success: Boolean!
   message: String!
+}
+
+"""
+One device in a mesh snapshot. ` + "`" + `id` + "`" + ` is the node's provider-scoped identity;
+` + "`" + `deviceId` + "`" + ` is set when the node is a registered Hive device. Roles: "hub" is
+the network's point of entry, "relay" forwards traffic for others, "leaf"
+speaks only for itself.
+"""
+type TopologyNode {
+  id: ID!
+  deviceId: ID
+  role: String!
+}
+
+"""
+One undirected edge in a mesh snapshot. Kinds: "parent" joins a leaf to the
+node that speaks for it (source is the child), "route" is a relay's active
+uplink toward the hub, "neighbour" records radio contact with no claim that
+traffic flows there. A stale link was carried forward from an earlier scan
+because the node slept through the latest one; observedAt is when it was
+actually seen.
+"""
+type TopologyLink {
+  source: ID!
+  target: ID!
+  kind: String!
+  quality: Float!
+  rawQuality: Int!
+  stale: Boolean!
+  observedAt: DateTime!
+}
+
+"""
+One integration provider's mesh snapshot: what its latest network scan
+reported, at the time it reported it.
+"""
+type NetworkTopology {
+  provider: String!
+  scannedAt: DateTime!
+  nodes: [TopologyNode!]!
+  links: [TopologyLink!]!
+}
+
+"""Announces that a provider's stored topology snapshot changed."""
+type NetworkTopologyEvent {
+  provider: String!
+  scannedAt: DateTime!
+  nodeCount: Int!
+  linkCount: Int!
 }
 
 type Setting {
@@ -4192,6 +4456,14 @@ input Zigbee2MqttConfigInput {
   password: String!
   useWss: Boolean!
   enabled: Boolean!
+  """Enabling requires scanHour and scanMinute to be set."""
+  scanScheduleEnabled: Boolean!
+  """
+  Daily scan time. Null while the schedule is disabled keeps the stored time,
+  so switching the schedule off never erases it.
+  """
+  scanHour: Int
+  scanMinute: Int
 }
 
 input TuyaConfigInput {
@@ -4439,6 +4711,8 @@ type Query {
   integrations: [Integration!]! @auth
   zigbee2MqttConfig: Zigbee2MqttConfig @auth
   tuyaConfig: TuyaConfig @auth
+  """Every provider's stored mesh snapshot. Empty until a scan completes."""
+  networkTopologies: [NetworkTopology!]! @auth
   settings: [Setting!]! @auth
   """
   Places matching a search term, resolved through an OpenStreetMap geocoder.
@@ -4498,6 +4772,12 @@ type Mutation {
   updateFloorplan(input: UpdateFloorplanInput!): Floorplan! @auth
   updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
   testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
+  """
+  Requests a Zigbee topology scan. Returns immediately; the scan walks every
+  router on the mesh, takes minutes, and slows the network while it runs.
+  Completion is announced on the networkTopologyUpdated subscription.
+  """
+  scanZigbee2MqttNetwork: Boolean! @auth
   updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
@@ -4589,6 +4869,12 @@ type Subscription {
   step boundaries are broadcast.
   """
   effectStepActivated(runId: ID): EffectStepEvent! @auth
+  """
+  Fires after a merged topology snapshot is persisted, so a consumer that
+  re-queries on it always reads the new snapshot. When provider is given,
+  only that provider's updates are delivered.
+  """
+  networkTopologyUpdated(provider: String): NetworkTopologyEvent! @auth
 }
 `, BuiltIn: false},
 }
@@ -5493,6 +5779,17 @@ func (ec *executionContext) field_Subscription_effectStepActivated_args(ctx cont
 		return nil, err
 	}
 	args["runId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_networkTopologyUpdated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "provider", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["provider"] = arg0
 	return args, nil
 }
 
@@ -13282,6 +13579,14 @@ func (ec *executionContext) fieldContext_Mutation_updateZigbee2MqttConfig(ctx co
 				return ec.fieldContext_Zigbee2MqttConfig_useWss(ctx, field)
 			case "enabled":
 				return ec.fieldContext_Zigbee2MqttConfig_enabled(ctx, field)
+			case "scanScheduleEnabled":
+				return ec.fieldContext_Zigbee2MqttConfig_scanScheduleEnabled(ctx, field)
+			case "scanHour":
+				return ec.fieldContext_Zigbee2MqttConfig_scanHour(ctx, field)
+			case "scanMinute":
+				return ec.fieldContext_Zigbee2MqttConfig_scanMinute(ctx, field)
+			case "scanStartedAt":
+				return ec.fieldContext_Zigbee2MqttConfig_scanStartedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
 		},
@@ -13356,6 +13661,48 @@ func (ec *executionContext) fieldContext_Mutation_testZigbee2MqttConnection(ctx 
 	if fc.Args, err = ec.field_Mutation_testZigbee2MqttConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_scanZigbee2MqttNetwork(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_scanZigbee2MqttNetwork,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().ScanZigbee2MqttNetwork(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_scanZigbee2MqttNetwork(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -15319,6 +15666,262 @@ func (ec *executionContext) fieldContext_NativeEffectOption_supportedDeviceCount
 	return fc, nil
 }
 
+func (ec *executionContext) _NetworkTopology_provider(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopology) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopology_provider,
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopology_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopology",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopology_scannedAt(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopology) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopology_scannedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ScannedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopology_scannedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopology",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopology_nodes(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopology) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopology_nodes,
+		func(ctx context.Context) (any, error) {
+			return obj.Nodes, nil
+		},
+		nil,
+		ec.marshalNTopologyNode2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyNodeᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopology_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopology",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_TopologyNode_id(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_TopologyNode_deviceId(ctx, field)
+			case "role":
+				return ec.fieldContext_TopologyNode_role(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TopologyNode", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopology_links(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopology) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopology_links,
+		func(ctx context.Context) (any, error) {
+			return obj.Links, nil
+		},
+		nil,
+		ec.marshalNTopologyLink2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyLinkᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopology_links(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopology",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "source":
+				return ec.fieldContext_TopologyLink_source(ctx, field)
+			case "target":
+				return ec.fieldContext_TopologyLink_target(ctx, field)
+			case "kind":
+				return ec.fieldContext_TopologyLink_kind(ctx, field)
+			case "quality":
+				return ec.fieldContext_TopologyLink_quality(ctx, field)
+			case "rawQuality":
+				return ec.fieldContext_TopologyLink_rawQuality(ctx, field)
+			case "stale":
+				return ec.fieldContext_TopologyLink_stale(ctx, field)
+			case "observedAt":
+				return ec.fieldContext_TopologyLink_observedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TopologyLink", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopologyEvent_provider(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopologyEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopologyEvent_provider,
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopologyEvent_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopologyEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopologyEvent_scannedAt(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopologyEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopologyEvent_scannedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ScannedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopologyEvent_scannedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopologyEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopologyEvent_nodeCount(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopologyEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopologyEvent_nodeCount,
+		func(ctx context.Context) (any, error) {
+			return obj.NodeCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopologyEvent_nodeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopologyEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NetworkTopologyEvent_linkCount(ctx context.Context, field graphql.CollectedField, obj *model.NetworkTopologyEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NetworkTopologyEvent_linkCount,
+		func(ctx context.Context) (any, error) {
+			return obj.LinkCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NetworkTopologyEvent_linkCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NetworkTopologyEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Place_name(ctx context.Context, field graphql.CollectedField, obj *model.Place) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16415,6 +17018,14 @@ func (ec *executionContext) fieldContext_Query_zigbee2MqttConfig(_ context.Conte
 				return ec.fieldContext_Zigbee2MqttConfig_useWss(ctx, field)
 			case "enabled":
 				return ec.fieldContext_Zigbee2MqttConfig_enabled(ctx, field)
+			case "scanScheduleEnabled":
+				return ec.fieldContext_Zigbee2MqttConfig_scanScheduleEnabled(ctx, field)
+			case "scanHour":
+				return ec.fieldContext_Zigbee2MqttConfig_scanHour(ctx, field)
+			case "scanMinute":
+				return ec.fieldContext_Zigbee2MqttConfig_scanMinute(ctx, field)
+			case "scanStartedAt":
+				return ec.fieldContext_Zigbee2MqttConfig_scanStartedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
 		},
@@ -16469,6 +17080,58 @@ func (ec *executionContext) fieldContext_Query_tuyaConfig(_ context.Context, fie
 				return ec.fieldContext_TuyaConfig_enabled(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TuyaConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_networkTopologies(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_networkTopologies,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().NetworkTopologies(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.NetworkTopology
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNNetworkTopology2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopologyᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_networkTopologies(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "provider":
+				return ec.fieldContext_NetworkTopology_provider(ctx, field)
+			case "scannedAt":
+				return ec.fieldContext_NetworkTopology_scannedAt(ctx, field)
+			case "nodes":
+				return ec.fieldContext_NetworkTopology_nodes(ctx, field)
+			case "links":
+				return ec.fieldContext_NetworkTopology_links(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type NetworkTopology", field.Name)
 		},
 	}
 	return fc, nil
@@ -19185,6 +19848,70 @@ func (ec *executionContext) fieldContext_Subscription_effectStepActivated(ctx co
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_networkTopologyUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_networkTopologyUpdated,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().NetworkTopologyUpdated(ctx, fc.Args["provider"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.NetworkTopologyEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNNetworkTopologyEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopologyEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_networkTopologyUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "provider":
+				return ec.fieldContext_NetworkTopologyEvent_provider(ctx, field)
+			case "scannedAt":
+				return ec.fieldContext_NetworkTopologyEvent_scannedAt(ctx, field)
+			case "nodeCount":
+				return ec.fieldContext_NetworkTopologyEvent_nodeCount(ctx, field)
+			case "linkCount":
+				return ec.fieldContext_NetworkTopologyEvent_linkCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type NetworkTopologyEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_networkTopologyUpdated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TargetClause_connector(ctx context.Context, field graphql.CollectedField, obj *model.TargetClause) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19291,6 +20018,296 @@ func (ec *executionContext) _TargetClause_values(ctx context.Context, field grap
 func (ec *executionContext) fieldContext_TargetClause_values(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "TargetClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_source(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_target(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_target,
+		func(ctx context.Context) (any, error) {
+			return obj.Target, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_target(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_kind(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_quality(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_quality,
+		func(ctx context.Context) (any, error) {
+			return obj.Quality, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_quality(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_rawQuality(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_rawQuality,
+		func(ctx context.Context) (any, error) {
+			return obj.RawQuality, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_rawQuality(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_stale(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_stale,
+		func(ctx context.Context) (any, error) {
+			return obj.Stale, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_stale(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyLink_observedAt(ctx context.Context, field graphql.CollectedField, obj *model.TopologyLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyLink_observedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ObservedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyLink_observedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyNode_id(ctx context.Context, field graphql.CollectedField, obj *model.TopologyNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyNode_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyNode_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyNode_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.TopologyNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyNode_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyNode_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TopologyNode_role(ctx context.Context, field graphql.CollectedField, obj *model.TopologyNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TopologyNode_role,
+		func(ctx context.Context) (any, error) {
+			return obj.Role, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TopologyNode_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TopologyNode",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -19818,6 +20835,122 @@ func (ec *executionContext) fieldContext_Zigbee2MqttConfig_enabled(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_scanScheduleEnabled(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_scanScheduleEnabled,
+		func(ctx context.Context) (any, error) {
+			return obj.ScanScheduleEnabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_scanScheduleEnabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_scanHour(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_scanHour,
+		func(ctx context.Context) (any, error) {
+			return obj.ScanHour, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_scanHour(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_scanMinute(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_scanMinute,
+		func(ctx context.Context) (any, error) {
+			return obj.ScanMinute, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_scanMinute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_scanStartedAt(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_scanStartedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ScanStartedAt, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_scanStartedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
 		},
 	}
 	return fc, nil
@@ -23478,7 +24611,7 @@ func (ec *executionContext) unmarshalInputZigbee2MqttConfigInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"broker", "username", "password", "useWss", "enabled"}
+	fieldsInOrder := [...]string{"broker", "username", "password", "useWss", "enabled", "scanScheduleEnabled", "scanHour", "scanMinute"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -23520,6 +24653,27 @@ func (ec *executionContext) unmarshalInputZigbee2MqttConfigInput(ctx context.Con
 				return it, err
 			}
 			it.Enabled = data
+		case "scanScheduleEnabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scanScheduleEnabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScanScheduleEnabled = data
+		case "scanHour":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scanHour"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScanHour = graphql.OmittableOf(data)
+		case "scanMinute":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scanMinute"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScanMinute = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -25741,6 +26895,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "scanZigbee2MqttNetwork":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_scanZigbee2MqttNetwork(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateTuyaConfig":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateTuyaConfig(ctx, field)
@@ -26004,6 +27165,114 @@ func (ec *executionContext) _NativeEffectOption(ctx context.Context, sel ast.Sel
 			}
 		case "supportedDeviceCount":
 			out.Values[i] = ec._NativeEffectOption_supportedDeviceCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var networkTopologyImplementors = []string{"NetworkTopology"}
+
+func (ec *executionContext) _NetworkTopology(ctx context.Context, sel ast.SelectionSet, obj *model.NetworkTopology) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, networkTopologyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NetworkTopology")
+		case "provider":
+			out.Values[i] = ec._NetworkTopology_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scannedAt":
+			out.Values[i] = ec._NetworkTopology_scannedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nodes":
+			out.Values[i] = ec._NetworkTopology_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "links":
+			out.Values[i] = ec._NetworkTopology_links(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var networkTopologyEventImplementors = []string{"NetworkTopologyEvent"}
+
+func (ec *executionContext) _NetworkTopologyEvent(ctx context.Context, sel ast.SelectionSet, obj *model.NetworkTopologyEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, networkTopologyEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NetworkTopologyEvent")
+		case "provider":
+			out.Values[i] = ec._NetworkTopologyEvent_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scannedAt":
+			out.Values[i] = ec._NetworkTopologyEvent_scannedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nodeCount":
+			out.Values[i] = ec._NetworkTopologyEvent_nodeCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "linkCount":
+			out.Values[i] = ec._NetworkTopologyEvent_linkCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -26439,6 +27708,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_tuyaConfig(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "networkTopologies":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_networkTopologies(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -27270,6 +28561,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_alarmEvent(ctx, fields[0])
 	case "effectStepActivated":
 		return ec._Subscription_effectStepActivated(ctx, fields[0])
+	case "networkTopologyUpdated":
+		return ec._Subscription_networkTopologyUpdated(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -27300,6 +28593,121 @@ func (ec *executionContext) _TargetClause(ctx context.Context, sel ast.Selection
 			}
 		case "values":
 			out.Values[i] = ec._TargetClause_values(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var topologyLinkImplementors = []string{"TopologyLink"}
+
+func (ec *executionContext) _TopologyLink(ctx context.Context, sel ast.SelectionSet, obj *model.TopologyLink) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, topologyLinkImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TopologyLink")
+		case "source":
+			out.Values[i] = ec._TopologyLink_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "target":
+			out.Values[i] = ec._TopologyLink_target(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._TopologyLink_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "quality":
+			out.Values[i] = ec._TopologyLink_quality(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rawQuality":
+			out.Values[i] = ec._TopologyLink_rawQuality(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stale":
+			out.Values[i] = ec._TopologyLink_stale(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "observedAt":
+			out.Values[i] = ec._TopologyLink_observedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var topologyNodeImplementors = []string{"TopologyNode"}
+
+func (ec *executionContext) _TopologyNode(ctx context.Context, sel ast.SelectionSet, obj *model.TopologyNode) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, topologyNodeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TopologyNode")
+		case "id":
+			out.Values[i] = ec._TopologyNode_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deviceId":
+			out.Values[i] = ec._TopologyNode_deviceId(ctx, field, obj)
+		case "role":
+			out.Values[i] = ec._TopologyNode_role(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -27477,6 +28885,17 @@ func (ec *executionContext) _Zigbee2MqttConfig(ctx context.Context, sel ast.Sele
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "scanScheduleEnabled":
+			out.Values[i] = ec._Zigbee2MqttConfig_scanScheduleEnabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scanHour":
+			out.Values[i] = ec._Zigbee2MqttConfig_scanHour(ctx, field, obj)
+		case "scanMinute":
+			out.Values[i] = ec._Zigbee2MqttConfig_scanMinute(ctx, field, obj)
+		case "scanStartedAt":
+			out.Values[i] = ec._Zigbee2MqttConfig_scanStartedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -29147,6 +30566,46 @@ func (ec *executionContext) marshalNNativeEffectOption2ᚖgithubᚗcomᚋsaffron
 	return ec._NativeEffectOption(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNNetworkTopology2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopologyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NetworkTopology) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNetworkTopology2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopology(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNetworkTopology2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopology(ctx context.Context, sel ast.SelectionSet, v *model.NetworkTopology) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NetworkTopology(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNetworkTopologyEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopologyEvent(ctx context.Context, sel ast.SelectionSet, v model.NetworkTopologyEvent) graphql.Marshaler {
+	return ec._NetworkTopologyEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNNetworkTopologyEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopologyEvent(ctx context.Context, sel ast.SelectionSet, v *model.NetworkTopologyEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NetworkTopologyEvent(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNPlace2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPlaceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Place) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -29555,6 +31014,58 @@ func (ec *executionContext) marshalNTargetClause2ᚖgithubᚗcomᚋsaffronjamᚋ
 func (ec *executionContext) unmarshalNTargetClauseInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInput(ctx context.Context, v any) (*model.TargetClauseInput, error) {
 	res, err := ec.unmarshalInputTargetClauseInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTopologyLink2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyLinkᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TopologyLink) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNTopologyLink2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyLink(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNTopologyLink2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyLink(ctx context.Context, sel ast.SelectionSet, v *model.TopologyLink) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TopologyLink(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNTopologyNode2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyNodeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TopologyNode) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNTopologyNode2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyNode(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNTopologyNode2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyNode(ctx context.Context, sel ast.SelectionSet, v *model.TopologyNode) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TopologyNode(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNTuyaConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v model.TuyaConfig) graphql.Marshaler {

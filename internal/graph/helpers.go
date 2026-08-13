@@ -331,17 +331,107 @@ func zigbee2MQTTPassword(ctx context.Context, s GraphStore, input string) (strin
 	return existing.Password, nil
 }
 
-func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig) *model.Zigbee2MqttConfig {
+// zigbee2MQTTScanStartedAt reports when the in-flight topology scan was
+// requested, nil when none is running or no controller is wired (tests,
+// partial setups).
+func (r *Resolver) zigbee2MQTTScanStartedAt(ctx context.Context) *time.Time {
+	if r.Zigbee2MQTT == nil {
+		return nil
+	}
+	return r.Zigbee2MQTT.Zigbee2MQTTScanStartedAt(ctx)
+}
+
+// zigbee2MQTTScanSchedule resolves the scan-schedule time for an update. An
+// absent hour or minute falls back to the stored value, so disabling the
+// schedule (whose form no longer submits a time) never erases the chosen
+// time. Enabling demands a complete, in-range time.
+func zigbee2MQTTScanSchedule(ctx context.Context, s GraphStore, input model.Zigbee2MqttConfigInput) (hour, minute *int64, err error) {
+	if h, ok := input.ScanHour.ValueOK(); ok && h != nil {
+		v := int64(*h)
+		hour = &v
+	}
+	if m, ok := input.ScanMinute.ValueOK(); ok && m != nil {
+		v := int64(*m)
+		minute = &v
+	}
+	if hour == nil || minute == nil {
+		stored, err := s.GetZigbee2MQTTConfig(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		if stored != nil {
+			if hour == nil {
+				hour = stored.ScanHour
+			}
+			if minute == nil {
+				minute = stored.ScanMinute
+			}
+		}
+	}
+	if hour != nil && (*hour < 0 || *hour > 23) {
+		return nil, nil, fmt.Errorf("scan hour must be between 0 and 23")
+	}
+	if minute != nil && (*minute < 0 || *minute > 59) {
+		return nil, nil, fmt.Errorf("scan minute must be between 0 and 59")
+	}
+	if input.ScanScheduleEnabled && (hour == nil || minute == nil) {
+		return nil, nil, fmt.Errorf("a scheduled scan needs a time of day")
+	}
+	return hour, minute, nil
+}
+
+func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig, scanStartedAt *time.Time) *model.Zigbee2MqttConfig {
 	password := ""
 	if cfg.Password != "" {
 		password = redactedPasswordSentinel
 	}
 	return &model.Zigbee2MqttConfig{
-		Broker:   cfg.Broker,
-		Username: cfg.Username,
-		Password: password,
-		UseWss:   cfg.UseWSS,
-		Enabled:  cfg.Enabled,
+		Broker:              cfg.Broker,
+		Username:            cfg.Username,
+		Password:            password,
+		UseWss:              cfg.UseWSS,
+		Enabled:             cfg.Enabled,
+		ScanScheduleEnabled: cfg.ScanScheduleEnabled,
+		ScanHour:            intPtrFromInt64(cfg.ScanHour),
+		ScanMinute:          intPtrFromInt64(cfg.ScanMinute),
+		ScanStartedAt:       scanStartedAt,
+	}
+}
+
+func intPtrFromInt64(v *int64) *int {
+	if v == nil {
+		return nil
+	}
+	i := int(*v)
+	return &i
+}
+
+func mapNetworkTopology(topo device.NetworkTopology) *model.NetworkTopology {
+	nodes := make([]*model.TopologyNode, 0, len(topo.Nodes))
+	for _, n := range topo.Nodes {
+		nodes = append(nodes, &model.TopologyNode{
+			ID:       n.ID,
+			DeviceID: (*string)(n.DeviceID),
+			Role:     string(n.Role),
+		})
+	}
+	links := make([]*model.TopologyLink, 0, len(topo.Links))
+	for _, l := range topo.Links {
+		links = append(links, &model.TopologyLink{
+			Source:     l.Source,
+			Target:     l.Target,
+			Kind:       string(l.Kind),
+			Quality:    l.Quality,
+			RawQuality: l.RawQuality,
+			Stale:      l.Stale,
+			ObservedAt: l.ObservedAt,
+		})
+	}
+	return &model.NetworkTopology{
+		Provider:  string(topo.Provider),
+		ScannedAt: topo.ScannedAt,
+		Nodes:     nodes,
+		Links:     links,
 	}
 }
 

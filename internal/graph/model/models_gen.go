@@ -602,6 +602,23 @@ type NativeEffectOption struct {
 	SupportedDeviceCount int    `json:"supportedDeviceCount"`
 }
 
+// One integration provider's mesh snapshot: what its latest network scan
+// reported, at the time it reported it.
+type NetworkTopology struct {
+	Provider  string          `json:"provider"`
+	ScannedAt time.Time       `json:"scannedAt"`
+	Nodes     []*TopologyNode `json:"nodes"`
+	Links     []*TopologyLink `json:"links"`
+}
+
+// Announces that a provider's stored topology snapshot changed.
+type NetworkTopologyEvent struct {
+	Provider  string    `json:"provider"`
+	ScannedAt time.Time `json:"scannedAt"`
+	NodeCount int       `json:"nodeCount"`
+	LinkCount int       `json:"linkCount"`
+}
+
 // A place found by name, for filling in the coordinates the sun is computed from.
 type Place struct {
 	// Human-readable name, specific enough to tell two matches apart.
@@ -774,6 +791,32 @@ type TargetClauseInput struct {
 	Values    []string                   `json:"values"`
 }
 
+// One undirected edge in a mesh snapshot. Kinds: "parent" joins a leaf to the
+// node that speaks for it (source is the child), "route" is a relay's active
+// uplink toward the hub, "neighbour" records radio contact with no claim that
+// traffic flows there. A stale link was carried forward from an earlier scan
+// because the node slept through the latest one; observedAt is when it was
+// actually seen.
+type TopologyLink struct {
+	Source     string    `json:"source"`
+	Target     string    `json:"target"`
+	Kind       string    `json:"kind"`
+	Quality    float64   `json:"quality"`
+	RawQuality int       `json:"rawQuality"`
+	Stale      bool      `json:"stale"`
+	ObservedAt time.Time `json:"observedAt"`
+}
+
+// One device in a mesh snapshot. `id` is the node's provider-scoped identity;
+// `deviceId` is set when the node is a registered Hive device. Roles: "hub" is
+// the network's point of entry, "relay" forwards traffic for others, "leaf"
+// speaks only for itself.
+type TopologyNode struct {
+	ID       string  `json:"id"`
+	DeviceID *string `json:"deviceId,omitempty"`
+	Role     string  `json:"role"`
+}
+
 type TuyaConfig struct {
 	AccessID     string `json:"accessId"`
 	AccessSecret string `json:"accessSecret"`
@@ -898,6 +941,16 @@ type Zigbee2MqttConfig struct {
 	Password string `json:"password"`
 	UseWss   bool   `json:"useWss"`
 	Enabled  bool   `json:"enabled"`
+	// Whether a topology scan runs automatically every day at scanHour:scanMinute.
+	ScanScheduleEnabled bool `json:"scanScheduleEnabled"`
+	// Daily scan time. Kept while the schedule is off so re-enabling restores the
+	// chosen time; null means never set.
+	ScanHour   *int `json:"scanHour,omitempty"`
+	ScanMinute *int `json:"scanMinute,omitempty"`
+	// When the in-flight topology scan was requested, null when none is running.
+	// The scan reports nothing until it finishes, so elapsed time is the only
+	// honest progress there is.
+	ScanStartedAt *time.Time `json:"scanStartedAt,omitempty"`
 }
 
 type Zigbee2MqttConfigInput struct {
@@ -906,6 +959,12 @@ type Zigbee2MqttConfigInput struct {
 	Password string `json:"password"`
 	UseWss   bool   `json:"useWss"`
 	Enabled  bool   `json:"enabled"`
+	// Enabling requires scanHour and scanMinute to be set.
+	ScanScheduleEnabled bool `json:"scanScheduleEnabled"`
+	// Daily scan time. Null while the schedule is disabled keeps the stored time,
+	// so switching the schedule off never erases it.
+	ScanHour   graphql.Omittable[*int] `json:"scanHour,omitempty"`
+	ScanMinute graphql.Omittable[*int] `json:"scanMinute,omitempty"`
 }
 
 type AggregatedHistoryTargetType string
