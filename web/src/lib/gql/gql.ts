@@ -91,6 +91,10 @@ type Documents = {
     "\n  subscription MapPageSceneActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n": typeof types.MapPageSceneActiveChangedDocument,
     "\n  mutation MapPageApplyScene($sceneId: ID!) {\n    applyScene(sceneId: $sceneId) {\n      id\n      name\n    }\n  }\n": typeof types.MapPageApplySceneDocument,
     "\n  mutation MapPageSetDisplayColor($id: ID!, $input: UpdateDeviceInput!) {\n    updateDevice(id: $id, input: $input) {\n      id\n      displayColor\n      displayBrightness\n    }\n  }\n": typeof types.MapPageSetDisplayColorDocument,
+    "\n  query MapNetworkTopologies {\n    networkTopologies {\n      provider\n      scannedAt\n      nodes {\n        id\n        deviceId\n        role\n      }\n      links {\n        source\n        target\n        kind\n        quality\n        stale\n      }\n    }\n  }\n": typeof types.MapNetworkTopologiesDocument,
+    "\n  subscription MapPageTopologyUpdated {\n    networkTopologyUpdated {\n      provider\n      scannedAt\n    }\n  }\n": typeof types.MapPageTopologyUpdatedDocument,
+    "\n  subscription MapPageDeviceTx {\n    deviceStateChanged {\n      deviceId\n    }\n  }\n": typeof types.MapPageDeviceTxDocument,
+    "\n  subscription MapPageActionTx {\n    deviceActionFired {\n      deviceId\n    }\n  }\n": typeof types.MapPageActionTxDocument,
     "\n  query setupStatus {\n    setupStatus {\n      hasInitialUser\n    }\n  }\n": typeof types.SetupStatusDocument,
     "\n  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setDeviceState(deviceId: $deviceId, state: $state) {\n      id\n      state {\n        on\n        brightness\n      }\n    }\n  }\n": typeof types.GroupCommandsSetDeviceStateDocument,
     "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n": typeof types.ActiveAlarmsDocument,
@@ -171,9 +175,12 @@ type Documents = {
     "\n\t\tmutation UpdateTuyaConfig($input: TuyaConfigInput!) {\n\t\t\tupdateTuyaConfig(input: $input) {\n\t\t\t\taccessId\n\t\t\t\taccessSecret\n\t\t\t\tregion\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateTuyaConfigDocument,
     "\n\t\tmutation TestTuyaConnection($input: TuyaConfigInput!) {\n\t\t\ttestTuyaConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": typeof types.TestTuyaConnectionDocument,
     "\n\t\tmutation SyncTuyaDevices {\n\t\t\tsyncTuyaDevices {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t": typeof types.SyncTuyaDevicesDocument,
-    "\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttConfigPageDocument,
-    "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateZigbee2MqttConfigDocument,
+    "\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttConfigPageDocument,
+    "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateZigbee2MqttConfigDocument,
     "\n\t\tmutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {\n\t\t\ttestZigbee2MqttConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": typeof types.TestZigbee2MqttConnectionDocument,
+    "\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\tscanZigbee2MqttNetwork\n\t\t}\n\t": typeof types.ScanZigbee2MqttNetworkDocument,
+    "\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttLastScanDocument,
+    "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttScanUpdatesDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogStreamDocument,
@@ -298,6 +305,10 @@ const documents: Documents = {
     "\n  subscription MapPageSceneActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n": types.MapPageSceneActiveChangedDocument,
     "\n  mutation MapPageApplyScene($sceneId: ID!) {\n    applyScene(sceneId: $sceneId) {\n      id\n      name\n    }\n  }\n": types.MapPageApplySceneDocument,
     "\n  mutation MapPageSetDisplayColor($id: ID!, $input: UpdateDeviceInput!) {\n    updateDevice(id: $id, input: $input) {\n      id\n      displayColor\n      displayBrightness\n    }\n  }\n": types.MapPageSetDisplayColorDocument,
+    "\n  query MapNetworkTopologies {\n    networkTopologies {\n      provider\n      scannedAt\n      nodes {\n        id\n        deviceId\n        role\n      }\n      links {\n        source\n        target\n        kind\n        quality\n        stale\n      }\n    }\n  }\n": types.MapNetworkTopologiesDocument,
+    "\n  subscription MapPageTopologyUpdated {\n    networkTopologyUpdated {\n      provider\n      scannedAt\n    }\n  }\n": types.MapPageTopologyUpdatedDocument,
+    "\n  subscription MapPageDeviceTx {\n    deviceStateChanged {\n      deviceId\n    }\n  }\n": types.MapPageDeviceTxDocument,
+    "\n  subscription MapPageActionTx {\n    deviceActionFired {\n      deviceId\n    }\n  }\n": types.MapPageActionTxDocument,
     "\n  query setupStatus {\n    setupStatus {\n      hasInitialUser\n    }\n  }\n": types.SetupStatusDocument,
     "\n  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setDeviceState(deviceId: $deviceId, state: $state) {\n      id\n      state {\n        on\n        brightness\n      }\n    }\n  }\n": types.GroupCommandsSetDeviceStateDocument,
     "\n  query ActiveAlarms {\n    alarms {\n      id\n      latestRowId\n      severity\n      kind\n      message\n      source\n      count\n      firstRaisedAt\n      lastRaisedAt\n    }\n  }\n": types.ActiveAlarmsDocument,
@@ -378,9 +389,12 @@ const documents: Documents = {
     "\n\t\tmutation UpdateTuyaConfig($input: TuyaConfigInput!) {\n\t\t\tupdateTuyaConfig(input: $input) {\n\t\t\t\taccessId\n\t\t\t\taccessSecret\n\t\t\t\tregion\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": types.UpdateTuyaConfigDocument,
     "\n\t\tmutation TestTuyaConnection($input: TuyaConfigInput!) {\n\t\t\ttestTuyaConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": types.TestTuyaConnectionDocument,
     "\n\t\tmutation SyncTuyaDevices {\n\t\t\tsyncTuyaDevices {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t": types.SyncTuyaDevicesDocument,
-    "\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttConfigPageDocument,
-    "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t": types.UpdateZigbee2MqttConfigDocument,
+    "\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttConfigPageDocument,
+    "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t": types.UpdateZigbee2MqttConfigDocument,
     "\n\t\tmutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {\n\t\t\ttestZigbee2MqttConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": types.TestZigbee2MqttConnectionDocument,
+    "\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\tscanZigbee2MqttNetwork\n\t\t}\n\t": types.ScanZigbee2MqttNetworkDocument,
+    "\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttLastScanDocument,
+    "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttScanUpdatesDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogStreamDocument,
@@ -753,6 +767,22 @@ export function graphql(source: "\n  mutation MapPageSetDisplayColor($id: ID!, $
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query MapNetworkTopologies {\n    networkTopologies {\n      provider\n      scannedAt\n      nodes {\n        id\n        deviceId\n        role\n      }\n      links {\n        source\n        target\n        kind\n        quality\n        stale\n      }\n    }\n  }\n"): (typeof documents)["\n  query MapNetworkTopologies {\n    networkTopologies {\n      provider\n      scannedAt\n      nodes {\n        id\n        deviceId\n        role\n      }\n      links {\n        source\n        target\n        kind\n        quality\n        stale\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription MapPageTopologyUpdated {\n    networkTopologyUpdated {\n      provider\n      scannedAt\n    }\n  }\n"): (typeof documents)["\n  subscription MapPageTopologyUpdated {\n    networkTopologyUpdated {\n      provider\n      scannedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription MapPageDeviceTx {\n    deviceStateChanged {\n      deviceId\n    }\n  }\n"): (typeof documents)["\n  subscription MapPageDeviceTx {\n    deviceStateChanged {\n      deviceId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription MapPageActionTx {\n    deviceActionFired {\n      deviceId\n    }\n  }\n"): (typeof documents)["\n  subscription MapPageActionTx {\n    deviceActionFired {\n      deviceId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  query setupStatus {\n    setupStatus {\n      hasInitialUser\n    }\n  }\n"): (typeof documents)["\n  query setupStatus {\n    setupStatus {\n      hasInitialUser\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1073,15 +1103,27 @@ export function graphql(source: "\n\t\tmutation SyncTuyaDevices {\n\t\t\tsyncTuy
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Zigbee2MqttConfigPage {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {\n\t\t\ttestZigbee2MqttConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {\n\t\t\ttestZigbee2MqttConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\tscanZigbee2MqttNetwork\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\tscanZigbee2MqttNetwork\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

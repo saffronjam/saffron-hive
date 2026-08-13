@@ -806,6 +806,12 @@ export type Mutation = {
    * ActiveEffect synthesises a transient view of the run.
    */
   runNativeEffect: ActiveEffect;
+  /**
+   * Requests a Zigbee topology scan. Returns immediately; the scan walks every
+   * router on the mesh, takes minutes, and slows the network while it runs.
+   * Completion is announced on the networkTopologyUpdated subscription.
+   */
+  scanZigbee2MqttNetwork: Scalars['Boolean']['output'];
   setDeviceState: Device;
   /**
    * Simulate a device-fired action by publishing a synthetic
@@ -1145,6 +1151,27 @@ export type NativeEffectOption = {
   supportedDeviceCount: Scalars['Int']['output'];
 };
 
+/**
+ * One integration provider's mesh snapshot: what its latest network scan
+ * reported, at the time it reported it.
+ */
+export type NetworkTopology = {
+  __typename?: 'NetworkTopology';
+  links: Array<TopologyLink>;
+  nodes: Array<TopologyNode>;
+  provider: Scalars['String']['output'];
+  scannedAt: Scalars['DateTime']['output'];
+};
+
+/** Announces that a provider's stored topology snapshot changed. */
+export type NetworkTopologyEvent = {
+  __typename?: 'NetworkTopologyEvent';
+  linkCount: Scalars['Int']['output'];
+  nodeCount: Scalars['Int']['output'];
+  provider: Scalars['String']['output'];
+  scannedAt: Scalars['DateTime']['output'];
+};
+
 /** A place found by name, for filling in the coordinates the sun is computed from. */
 export type Place = {
   __typename?: 'Place';
@@ -1174,6 +1201,8 @@ export type Query = {
   logs: Array<LogEntry>;
   me?: Maybe<User>;
   nativeEffectOptions: Array<NativeEffectOption>;
+  /** Every provider's stored mesh snapshot. Empty until a scan completes. */
+  networkTopologies: Array<NetworkTopology>;
   room?: Maybe<Room>;
   rooms: Array<Room>;
   scene?: Maybe<Scene>;
@@ -1433,6 +1462,12 @@ export type Subscription = {
    */
   effectStepActivated: EffectStepEvent;
   logStream: LogEntry;
+  /**
+   * Fires after a merged topology snapshot is persisted, so a consumer that
+   * re-queries on it always reads the new snapshot. When provider is given,
+   * only that provider's updates are delivered.
+   */
+  networkTopologyUpdated: NetworkTopologyEvent;
   sceneActiveChanged: SceneActiveEvent;
 };
 
@@ -1459,6 +1494,11 @@ export type SubscriptionDeviceStateChangedArgs = {
 
 export type SubscriptionEffectStepActivatedArgs = {
   runId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type SubscriptionNetworkTopologyUpdatedArgs = {
+  provider?: InputMaybe<Scalars['String']['input']>;
 };
 
 /**
@@ -1495,6 +1535,38 @@ export enum TimeFormat {
   TwelveHour = 'TWELVE_HOUR',
   TwentyFourHour = 'TWENTY_FOUR_HOUR'
 }
+
+/**
+ * One undirected edge in a mesh snapshot. Kinds: "parent" joins a leaf to the
+ * node that speaks for it (source is the child), "route" is a relay's active
+ * uplink toward the hub, "neighbour" records radio contact with no claim that
+ * traffic flows there. A stale link was carried forward from an earlier scan
+ * because the node slept through the latest one; observedAt is when it was
+ * actually seen.
+ */
+export type TopologyLink = {
+  __typename?: 'TopologyLink';
+  kind: Scalars['String']['output'];
+  observedAt: Scalars['DateTime']['output'];
+  quality: Scalars['Float']['output'];
+  rawQuality: Scalars['Int']['output'];
+  source: Scalars['ID']['output'];
+  stale: Scalars['Boolean']['output'];
+  target: Scalars['ID']['output'];
+};
+
+/**
+ * One device in a mesh snapshot. `id` is the node's provider-scoped identity;
+ * `deviceId` is set when the node is a registered Hive device. Roles: "hub" is
+ * the network's point of entry, "relay" forwards traffic for others, "leaf"
+ * speaks only for itself.
+ */
+export type TopologyNode = {
+  __typename?: 'TopologyNode';
+  deviceId?: Maybe<Scalars['ID']['output']>;
+  id: Scalars['ID']['output'];
+  role: Scalars['String']['output'];
+};
 
 export type TuyaConfig = {
   __typename?: 'TuyaConfig';
@@ -1641,6 +1713,20 @@ export type Zigbee2MqttConfig = {
   broker: Scalars['String']['output'];
   enabled: Scalars['Boolean']['output'];
   password: Scalars['String']['output'];
+  /**
+   * Daily scan time. Kept while the schedule is off so re-enabling restores the
+   * chosen time; null means never set.
+   */
+  scanHour?: Maybe<Scalars['Int']['output']>;
+  scanMinute?: Maybe<Scalars['Int']['output']>;
+  /** Whether a topology scan runs automatically every day at scanHour:scanMinute. */
+  scanScheduleEnabled: Scalars['Boolean']['output'];
+  /**
+   * When the in-flight topology scan was requested, null when none is running.
+   * The scan reports nothing until it finishes, so elapsed time is the only
+   * honest progress there is.
+   */
+  scanStartedAt?: Maybe<Scalars['DateTime']['output']>;
   useWss: Scalars['Boolean']['output'];
   username: Scalars['String']['output'];
 };
@@ -1649,6 +1735,14 @@ export type Zigbee2MqttConfigInput = {
   broker: Scalars['String']['input'];
   enabled: Scalars['Boolean']['input'];
   password: Scalars['String']['input'];
+  /**
+   * Daily scan time. Null while the schedule is disabled keeps the stored time,
+   * so switching the schedule off never erases it.
+   */
+  scanHour?: InputMaybe<Scalars['Int']['input']>;
+  scanMinute?: InputMaybe<Scalars['Int']['input']>;
+  /** Enabling requires scanHour and scanMinute to be set. */
+  scanScheduleEnabled: Scalars['Boolean']['input'];
   useWss: Scalars['Boolean']['input'];
   username: Scalars['String']['input'];
 };
@@ -2159,6 +2253,26 @@ export type MapPageSetDisplayColorMutationVariables = Exact<{
 
 export type MapPageSetDisplayColorMutation = { __typename?: 'Mutation', updateDevice: { __typename?: 'Device', id: string, displayColor?: string | null, displayBrightness?: number | null } };
 
+export type MapNetworkTopologiesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MapNetworkTopologiesQuery = { __typename?: 'Query', networkTopologies: Array<{ __typename?: 'NetworkTopology', provider: string, scannedAt: any, nodes: Array<{ __typename?: 'TopologyNode', id: string, deviceId?: string | null, role: string }>, links: Array<{ __typename?: 'TopologyLink', source: string, target: string, kind: string, quality: number, stale: boolean }> }> };
+
+export type MapPageTopologyUpdatedSubscriptionVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MapPageTopologyUpdatedSubscription = { __typename?: 'Subscription', networkTopologyUpdated: { __typename?: 'NetworkTopologyEvent', provider: string, scannedAt: any } };
+
+export type MapPageDeviceTxSubscriptionVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MapPageDeviceTxSubscription = { __typename?: 'Subscription', deviceStateChanged: { __typename?: 'DeviceStateEvent', deviceId: string } };
+
+export type MapPageActionTxSubscriptionVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MapPageActionTxSubscription = { __typename?: 'Subscription', deviceActionFired: { __typename?: 'DeviceActionEvent', deviceId: string } };
+
 export type SetupStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -2654,14 +2768,14 @@ export type SyncTuyaDevicesMutation = { __typename?: 'Mutation', syncTuyaDevices
 export type Zigbee2MqttConfigPageQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type Zigbee2MqttConfigPageQuery = { __typename?: 'Query', zigbee2MqttConfig?: { __typename?: 'Zigbee2MqttConfig', broker: string, username: string, password: string, useWss: boolean, enabled: boolean } | null };
+export type Zigbee2MqttConfigPageQuery = { __typename?: 'Query', zigbee2MqttConfig?: { __typename?: 'Zigbee2MqttConfig', broker: string, username: string, password: string, useWss: boolean, enabled: boolean, scanScheduleEnabled: boolean, scanHour?: number | null, scanMinute?: number | null, scanStartedAt?: any | null } | null };
 
 export type UpdateZigbee2MqttConfigMutationVariables = Exact<{
   input: Zigbee2MqttConfigInput;
 }>;
 
 
-export type UpdateZigbee2MqttConfigMutation = { __typename?: 'Mutation', updateZigbee2MqttConfig: { __typename?: 'Zigbee2MqttConfig', broker: string, username: string, password: string, useWss: boolean, enabled: boolean } };
+export type UpdateZigbee2MqttConfigMutation = { __typename?: 'Mutation', updateZigbee2MqttConfig: { __typename?: 'Zigbee2MqttConfig', broker: string, username: string, password: string, useWss: boolean, enabled: boolean, scanScheduleEnabled: boolean, scanHour?: number | null, scanMinute?: number | null, scanStartedAt?: any | null } };
 
 export type TestZigbee2MqttConnectionMutationVariables = Exact<{
   input: Zigbee2MqttConfigInput;
@@ -2669,6 +2783,23 @@ export type TestZigbee2MqttConnectionMutationVariables = Exact<{
 
 
 export type TestZigbee2MqttConnectionMutation = { __typename?: 'Mutation', testZigbee2MqttConnection: { __typename?: 'ConnectionTestResult', success: boolean, message: string } };
+
+export type ScanZigbee2MqttNetworkMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ScanZigbee2MqttNetworkMutation = { __typename?: 'Mutation', scanZigbee2MqttNetwork: boolean };
+
+export type Zigbee2MqttLastScanQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type Zigbee2MqttLastScanQuery = { __typename?: 'Query', networkTopologies: Array<{ __typename?: 'NetworkTopology', provider: string, scannedAt: any }> };
+
+export type Zigbee2MqttScanUpdatesSubscriptionVariables = Exact<{
+  provider?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type Zigbee2MqttScanUpdatesSubscription = { __typename?: 'Subscription', networkTopologyUpdated: { __typename?: 'NetworkTopologyEvent', provider: string, scannedAt: any, nodeCount: number, linkCount: number } };
 
 export type LoginMutationVariables = Exact<{
   input: LoginInput;
@@ -3036,6 +3167,10 @@ export const MapPageScenesDocument = {"kind":"Document","definitions":[{"kind":"
 export const MapPageSceneActiveChangedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"MapPageSceneActiveChanged"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sceneActiveChanged"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sceneId"}},{"kind":"Field","name":{"kind":"Name","value":"activatedAt"}}]}}]}}]} as unknown as DocumentNode<MapPageSceneActiveChangedSubscription, MapPageSceneActiveChangedSubscriptionVariables>;
 export const MapPageApplySceneDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MapPageApplyScene"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sceneId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"applyScene"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"sceneId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sceneId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<MapPageApplySceneMutation, MapPageApplySceneMutationVariables>;
 export const MapPageSetDisplayColorDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MapPageSetDisplayColor"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"UpdateDeviceInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateDevice"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"displayColor"}},{"kind":"Field","name":{"kind":"Name","value":"displayBrightness"}}]}}]}}]} as unknown as DocumentNode<MapPageSetDisplayColorMutation, MapPageSetDisplayColorMutationVariables>;
+export const MapNetworkTopologiesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"MapNetworkTopologies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"networkTopologies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"nodes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"deviceId"}},{"kind":"Field","name":{"kind":"Name","value":"role"}}]}},{"kind":"Field","name":{"kind":"Name","value":"links"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"target"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"quality"}},{"kind":"Field","name":{"kind":"Name","value":"stale"}}]}}]}}]}}]} as unknown as DocumentNode<MapNetworkTopologiesQuery, MapNetworkTopologiesQueryVariables>;
+export const MapPageTopologyUpdatedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"MapPageTopologyUpdated"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"networkTopologyUpdated"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}}]}}]}}]} as unknown as DocumentNode<MapPageTopologyUpdatedSubscription, MapPageTopologyUpdatedSubscriptionVariables>;
+export const MapPageDeviceTxDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"MapPageDeviceTx"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deviceStateChanged"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deviceId"}}]}}]}}]} as unknown as DocumentNode<MapPageDeviceTxSubscription, MapPageDeviceTxSubscriptionVariables>;
+export const MapPageActionTxDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"MapPageActionTx"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deviceActionFired"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deviceId"}}]}}]}}]} as unknown as DocumentNode<MapPageActionTxSubscription, MapPageActionTxSubscriptionVariables>;
 export const SetupStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"setupStatus"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setupStatus"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"hasInitialUser"}}]}}]}}]} as unknown as DocumentNode<SetupStatusQuery, SetupStatusQueryVariables>;
 export const GroupCommandsSetDeviceStateDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"GroupCommandsSetDeviceState"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"deviceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"state"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"DeviceStateInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setDeviceState"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"deviceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"deviceId"}}},{"kind":"Argument","name":{"kind":"Name","value":"state"},"value":{"kind":"Variable","name":{"kind":"Name","value":"state"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"state"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"on"}},{"kind":"Field","name":{"kind":"Name","value":"brightness"}}]}}]}}]}}]} as unknown as DocumentNode<GroupCommandsSetDeviceStateMutation, GroupCommandsSetDeviceStateMutationVariables>;
 export const ActiveAlarmsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ActiveAlarms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"alarms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"latestRowId"}},{"kind":"Field","name":{"kind":"Name","value":"severity"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"firstRaisedAt"}},{"kind":"Field","name":{"kind":"Name","value":"lastRaisedAt"}}]}}]}}]} as unknown as DocumentNode<ActiveAlarmsQuery, ActiveAlarmsQueryVariables>;
@@ -3115,9 +3250,12 @@ export const TuyaConfigPageDocument = {"kind":"Document","definitions":[{"kind":
 export const UpdateTuyaConfigDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateTuyaConfig"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"TuyaConfigInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateTuyaConfig"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"accessId"}},{"kind":"Field","name":{"kind":"Name","value":"accessSecret"}},{"kind":"Field","name":{"kind":"Name","value":"region"}},{"kind":"Field","name":{"kind":"Name","value":"enabled"}}]}}]}}]} as unknown as DocumentNode<UpdateTuyaConfigMutation, UpdateTuyaConfigMutationVariables>;
 export const TestTuyaConnectionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TestTuyaConnection"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"TuyaConfigInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"testTuyaConnection"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"success"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}}]}}]} as unknown as DocumentNode<TestTuyaConnectionMutation, TestTuyaConnectionMutationVariables>;
 export const SyncTuyaDevicesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SyncTuyaDevices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"syncTuyaDevices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<SyncTuyaDevicesMutation, SyncTuyaDevicesMutationVariables>;
-export const Zigbee2MqttConfigPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Zigbee2MqttConfigPage"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"zigbee2MqttConfig"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"broker"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"password"}},{"kind":"Field","name":{"kind":"Name","value":"useWss"}},{"kind":"Field","name":{"kind":"Name","value":"enabled"}}]}}]}}]} as unknown as DocumentNode<Zigbee2MqttConfigPageQuery, Zigbee2MqttConfigPageQueryVariables>;
-export const UpdateZigbee2MqttConfigDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateZigbee2MqttConfig"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Zigbee2MqttConfigInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateZigbee2MqttConfig"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"broker"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"password"}},{"kind":"Field","name":{"kind":"Name","value":"useWss"}},{"kind":"Field","name":{"kind":"Name","value":"enabled"}}]}}]}}]} as unknown as DocumentNode<UpdateZigbee2MqttConfigMutation, UpdateZigbee2MqttConfigMutationVariables>;
+export const Zigbee2MqttConfigPageDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Zigbee2MqttConfigPage"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"zigbee2MqttConfig"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"broker"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"password"}},{"kind":"Field","name":{"kind":"Name","value":"useWss"}},{"kind":"Field","name":{"kind":"Name","value":"enabled"}},{"kind":"Field","name":{"kind":"Name","value":"scanScheduleEnabled"}},{"kind":"Field","name":{"kind":"Name","value":"scanHour"}},{"kind":"Field","name":{"kind":"Name","value":"scanMinute"}},{"kind":"Field","name":{"kind":"Name","value":"scanStartedAt"}}]}}]}}]} as unknown as DocumentNode<Zigbee2MqttConfigPageQuery, Zigbee2MqttConfigPageQueryVariables>;
+export const UpdateZigbee2MqttConfigDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateZigbee2MqttConfig"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Zigbee2MqttConfigInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateZigbee2MqttConfig"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"broker"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"password"}},{"kind":"Field","name":{"kind":"Name","value":"useWss"}},{"kind":"Field","name":{"kind":"Name","value":"enabled"}},{"kind":"Field","name":{"kind":"Name","value":"scanScheduleEnabled"}},{"kind":"Field","name":{"kind":"Name","value":"scanHour"}},{"kind":"Field","name":{"kind":"Name","value":"scanMinute"}},{"kind":"Field","name":{"kind":"Name","value":"scanStartedAt"}}]}}]}}]} as unknown as DocumentNode<UpdateZigbee2MqttConfigMutation, UpdateZigbee2MqttConfigMutationVariables>;
 export const TestZigbee2MqttConnectionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TestZigbee2MqttConnection"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Zigbee2MqttConfigInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"testZigbee2MqttConnection"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"success"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}}]}}]} as unknown as DocumentNode<TestZigbee2MqttConnectionMutation, TestZigbee2MqttConnectionMutationVariables>;
+export const ScanZigbee2MqttNetworkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ScanZigbee2MqttNetwork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"scanZigbee2MqttNetwork"}}]}}]} as unknown as DocumentNode<ScanZigbee2MqttNetworkMutation, ScanZigbee2MqttNetworkMutationVariables>;
+export const Zigbee2MqttLastScanDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Zigbee2MqttLastScan"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"networkTopologies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}}]}}]}}]} as unknown as DocumentNode<Zigbee2MqttLastScanQuery, Zigbee2MqttLastScanQueryVariables>;
+export const Zigbee2MqttScanUpdatesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"Zigbee2MqttScanUpdates"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"provider"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"networkTopologyUpdated"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"provider"},"value":{"kind":"Variable","name":{"kind":"Name","value":"provider"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"scannedAt"}},{"kind":"Field","name":{"kind":"Name","value":"nodeCount"}},{"kind":"Field","name":{"kind":"Name","value":"linkCount"}}]}}]}}]} as unknown as DocumentNode<Zigbee2MqttScanUpdatesSubscription, Zigbee2MqttScanUpdatesSubscriptionVariables>;
 export const LoginDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"login"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"LoginInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"login"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"token"}},{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"avatarPath"}},{"kind":"Field","name":{"kind":"Name","value":"theme"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"mustChangePassword"}}]}}]}}]}}]} as unknown as DocumentNode<LoginMutation, LoginMutationVariables>;
 export const LogsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Logs"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"logs"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"attrs"}}]}}]}}]} as unknown as DocumentNode<LogsQuery, LogsQueryVariables>;
 export const LogStreamDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"LogStream"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"logStream"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"attrs"}}]}}]}}]} as unknown as DocumentNode<LogStreamSubscription, LogStreamSubscriptionVariables>;
