@@ -65,3 +65,47 @@ type z2mBridgeLog struct {
 type z2mAvailability struct {
 	State string `json:"state"`
 }
+
+// The networkmap response uses camelCase keys, unlike the snake_case of
+// bridge/devices — both shapes are zigbee2mqtt's own.
+
+type z2mNetworkmapResponse struct {
+	Status string            `json:"status"`
+	Error  string            `json:"error"`
+	Data   z2mNetworkmapData `json:"data"`
+}
+
+type z2mNetworkmapData struct {
+	Type  string             `json:"type"`
+	Value z2mNetworkmapValue `json:"value"`
+}
+
+type z2mNetworkmapValue struct {
+	Nodes []z2mNetworkmapNode `json:"nodes"`
+	Links []z2mNetworkmapLink `json:"links"`
+}
+
+type z2mNetworkmapNode struct {
+	IEEEAddr       string `json:"ieeeAddr"`
+	FriendlyName   string `json:"friendlyName"`
+	Type           string `json:"type"`
+	NetworkAddress int    `json:"networkAddress"`
+}
+
+type z2mNetworkmapLink struct {
+	Source       z2mNetworkmapEndpoint `json:"source"`
+	Target       z2mNetworkmapEndpoint `json:"target"`
+	LQI          int                   `json:"lqi"`
+	Relationship int                   `json:"relationship"`
+	Routes       []z2mNetworkmapRoute  `json:"routes"`
+}
+
+type z2mNetworkmapEndpoint struct {
+	IEEEAddr       string `json:"ieeeAddr"`
+	NetworkAddress int    `json:"networkAddress"`
+}
+
+type z2mNetworkmapRoute struct {
+	DestinationAddress int    `json:"destinationAddress"`
+	Status             string `json:"status"`
+}

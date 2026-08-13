@@ -49,6 +49,16 @@ const (
 	// The activity room cache subscribes to it because group reshuffles can
 	// change which room a device transitively belongs to.
 	EventGroupMembershipChanged EventType = "group.membership_changed"
+	// EventNetworkTopologyScanned is published by an adapter when a mesh
+	// network scan completes, carrying the freshly parsed
+	// device.NetworkTopology (pre-merge). The topology persister is its only
+	// subscriber.
+	EventNetworkTopologyScanned EventType = "topology.scanned"
+	// EventNetworkTopologyUpdated is published by the topology persister after
+	// a merged snapshot is stored, carrying NetworkTopologyUpdatedEvent. It is
+	// what the GraphQL subscription rides, so consumers can re-query and see
+	// the persisted snapshot.
+	EventNetworkTopologyUpdated EventType = "topology.updated"
 )
 
 // EffectStepActivatedEvent is the payload for EventEffectStepActivated.
@@ -91,6 +101,16 @@ type EffectEndedEvent struct {
 	TargetType string          `json:"targetType"`
 	TargetID   string          `json:"targetId"`
 	Reason     EffectEndReason `json:"reason"`
+}
+
+// NetworkTopologyUpdatedEvent is the payload for EventNetworkTopologyUpdated.
+// It announces that a provider's stored topology snapshot changed; consumers
+// query the store for the snapshot itself.
+type NetworkTopologyUpdatedEvent struct {
+	Provider  string    `json:"provider"`
+	ScannedAt time.Time `json:"scannedAt"`
+	NodeCount int       `json:"nodeCount"`
+	LinkCount int       `json:"linkCount"`
 }
 
 // Event is the generic envelope carried by the bus.

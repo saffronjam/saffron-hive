@@ -31,6 +31,7 @@ const (
 	dispatchAvailability
 	dispatchBridgeDevices
 	dispatchBridgeLog
+	dispatchNetworkmap
 	dispatchBarrier
 )
 
@@ -129,6 +130,12 @@ func (a *ZigbeeAdapter) Start() error {
 		return err
 	}
 
+	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/response/networkmap", 0, func(msg Message) {
+		a.enqueue(incomingMsg{kind: dispatchNetworkmap, payload: copyPayload(msg.Payload())})
+	}); err != nil {
+		return err
+	}
+
 	if err := a.mqtt.Subscribe("zigbee2mqtt/+/availability", 0, func(msg Message) {
 		a.enqueue(incomingMsg{kind: dispatchAvailability, topic: msg.Topic(), payload: copyPayload(msg.Payload())})
 	}); err != nil {
@@ -186,6 +193,8 @@ func (a *ZigbeeAdapter) dispatchLoop() {
 			a.handleBridgeDevices(msg.payload)
 		case dispatchBridgeLog:
 			a.handleBridgeLog(msg.payload)
+		case dispatchNetworkmap:
+			a.handleNetworkmapResponse(msg.payload)
 		case dispatchBarrier:
 			close(msg.ack)
 		}
