@@ -12,6 +12,7 @@
 		Ruler,
 		Scaling,
 		Thermometer,
+		Waypoints,
 	} from "@lucide/svelte";
 	import type { OpeningKind } from "$lib/floorplan";
 	import type { MeasureKind } from "$lib/components/floorplan/floorplan-editor.svelte";
@@ -44,6 +45,7 @@
 	export const mapViews: { id: MapViewId; icon: typeof MousePointer2; label: string }[] = [
 		{ id: "light", icon: Lightbulb, label: "Light" },
 		{ id: "temperature", icon: Thermometer, label: "Temperature" },
+		{ id: "connectivity", icon: Waypoints, label: "Connectivity" },
 	];
 </script>
 
@@ -57,12 +59,14 @@
 		Sofa,
 		Paintbrush,
 		PenLine,
+		Radio,
 		Redo2,
 		Square,
 		SquareDashedMousePointer,
 		SquareSplitHorizontal,
 		Undo2,
 	} from "@lucide/svelte";
+	import type { Component } from "svelte";
 	import { Button } from "$lib/components/ui/button";
 	import {
 		DropdownMenu,
@@ -113,6 +117,17 @@
 		/** The views worth offering; the picker hides below two. */
 		viewOptions: MapViewId[];
 		onviewchange: (view: MapViewId) => void;
+		/** Whether the connectivity view also draws heard-neighbour links. */
+		showNeighbours: boolean;
+		onneighbourstoggle: () => void;
+		/** One entry per mesh provider with a stored topology. */
+		meshSources: {
+			provider: string;
+			label: string;
+			icon: Component<{ class?: string }>;
+			shown: boolean;
+		}[];
+		onsourcetoggle: (provider: string) => void;
 	}
 
 	let {
@@ -148,10 +163,19 @@
 		view,
 		viewOptions,
 		onviewchange,
+		showNeighbours,
+		onneighbourstoggle,
+		meshSources,
+		onsourcetoggle,
 	}: Props = $props();
 
 	const showBrush = $derived(canPaint && view === "light");
 	const showViews = $derived(viewOptions.length > 1);
+	// The connectivity view's own tools sit where the brush button sits: in
+	// this pill, left of the divider. One mesh needs no source picker.
+	const showMeshTools = $derived(view === "connectivity");
+	const showMeshSources = $derived(showMeshTools && meshSources.length > 1);
+	const showTools = $derived(showBrush || showMeshTools);
 	// Picking a view disables the item that was clicked, which cancels the
 	// menu's own close-on-select — so the menu is closed here instead.
 	let viewMenuOpen = $state(false);
@@ -400,7 +424,7 @@
 	{/each}
 </div>
 
-{#if showBrush || showViews}
+{#if showTools || showViews}
 	<div class="{PILL} top-3 {editMode ? 'pointer-events-none opacity-0' : 'opacity-100 delay-150'}">
 		{#if showBrush}
 			<Button
@@ -413,7 +437,31 @@
 				<Paintbrush class="size-3.5" />
 			</Button>
 		{/if}
-		{#if showBrush && showViews}
+		{#if showMeshTools}
+			<Button
+				variant={showNeighbours ? "secondary" : "ghost"}
+				size="icon-sm"
+				disabled={editMode}
+				onclick={press(onneighbourstoggle)}
+				aria-label={showNeighbours ? "Hide neighbour links" : "Show neighbour links"}
+			>
+				<Radio class="size-3.5" />
+			</Button>
+		{/if}
+		{#if showMeshSources}
+			{#each meshSources as source (source.provider)}
+				<Button
+					variant={source.shown ? "secondary" : "ghost"}
+					size="icon-sm"
+					disabled={editMode}
+					onclick={press(() => onsourcetoggle(source.provider))}
+					aria-label={source.shown ? `Hide ${source.label} mesh` : `Show ${source.label} mesh`}
+				>
+					<source.icon class="size-3.5" />
+				</Button>
+			{/each}
+		{/if}
+		{#if showTools && showViews}
 			<div class="mx-1 h-4 w-px bg-border"></div>
 		{/if}
 		{#if showViews}

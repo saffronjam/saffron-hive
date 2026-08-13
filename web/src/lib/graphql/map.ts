@@ -157,3 +157,49 @@ export const SET_DISPLAY_COLOR = graphql(`
     }
   }
 `);
+
+export const NETWORK_TOPOLOGIES_QUERY = graphql(`
+  query MapNetworkTopologies {
+    networkTopologies {
+      provider
+      scannedAt
+      nodes {
+        id
+        deviceId
+        role
+      }
+      links {
+        source
+        target
+        kind
+        quality
+        stale
+      }
+    }
+  }
+`);
+
+export const TOPOLOGY_UPDATED_SUB = graphql(`
+  subscription MapPageTopologyUpdated {
+    networkTopologyUpdated {
+      provider
+      scannedAt
+    }
+  }
+`);
+
+export const DEVICE_TX_SUB = graphql(`
+  subscription MapPageDeviceTx {
+    deviceStateChanged {
+      deviceId
+    }
+  }
+`);
+
+export const DEVICE_ACTION_TX_SUB = graphql(`
+  subscription MapPageActionTx {
+    deviceActionFired {
+      deviceId
+    }
+  }
+`);

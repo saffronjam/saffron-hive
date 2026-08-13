@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from "svelte";
 	import { fly } from "svelte/transition";
+	import { formatRelative } from "$lib/time-format";
+	import { me } from "$lib/stores/me.svelte";
+	import { nowStore } from "$lib/stores/now.svelte";
 	import { getContextClient, queryStore } from "@urql/svelte";
 	import { page } from "$app/state";
 	import { goto, pushState } from "$app/navigation";
@@ -72,13 +75,17 @@
 	} from "$lib/components/floorplan/map-brush-palette.svelte";
 	import {
 		APPLY_SCENE,
+		DEVICE_ACTION_TX_SUB,
+		DEVICE_TX_SUB,
 		FLOORPLAN_QUERY,
 		GROUPS_QUERY,
 		LOCATION_QUERY,
+		NETWORK_TOPOLOGIES_QUERY,
 		ROOMS_QUERY,
 		SCENES_QUERY,
 		SCENE_ACTIVE_SUB,
 		SET_DISPLAY_COLOR,
+		TOPOLOGY_UPDATED_SUB,
 		UPDATE_FLOORPLAN,
 	} from "$lib/graphql/map";
 	import type { Device, DeviceState } from "$lib/gql/graphql";
@@ -109,8 +116,16 @@
 		placementVisibleInView,
 		resolveMapView,
 		TEMP_SOURCE_INTENSITY,
+		type MapViewContext,
 		type MapViewId,
 	} from "$lib/map-views";
+	import {
+		buildMeshLinkViews,
+		placedTopologyNodeCount,
+		topologyNodePositions,
+		type ConnectivityNodePosition,
+		type ConnectivityPlacementInput,
+	} from "$lib/floorplan/connectivity";
 	import { markerGlow } from "$lib/floorplan/glow";
 	import { daylightRgb } from "$lib/floorplan/daylight";
 	import {
@@ -179,7 +194,8 @@
 		newFurnitureId,
 		type FloorplanFurnitureData,
 	} from "$lib/floorplan-editable";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, sentenceCase } from "$lib/utils";
+	import { integrationMeta } from "$lib/integrations";
 
 
 	const client = getContextClient();
@@ -264,6 +280,42 @@
 			brushOpen = false;
 			disarmBrush();
 		}
+	}
+
+	/** One stored mesh snapshot per provider, as the map's query returns it. */
+	interface TopologyView {
+		provider: string;
+		scannedAt: string;
+		nodes: { id: string; deviceId?: string | null; role: string }[];
+		links: { source: string; target: string; kind: string; quality: number; stale: boolean }[];
+	}
+
+	let topologies = $state<TopologyView[]>([]);
+	/** Page-local: whether the connectivity view also draws neighbour links. */
+	let showNeighbours = $state(false);
+	/** Providers the user has switched off; every mesh draws until hidden. */
+	let hiddenMeshSources = $state<Set<string>>(new Set());
+
+	function toggleMeshSource(provider: string) {
+		const next = new Set(hiddenMeshSources);
+		if (!next.delete(provider)) next.add(provider);
+		hiddenMeshSources = next;
+	}
+
+	const meshSources = $derived(
+		topologies.map((t) => ({
+			provider: t.provider,
+			label: sentenceCase(t.provider),
+			icon: integrationMeta(t.provider).icon,
+			shown: !hiddenMeshSources.has(t.provider),
+		})),
+	);
+
+	async function loadTopologies() {
+		const result = await client
+			.query(NETWORK_TOPOLOGIES_QUERY, {}, { requestPolicy: "network-only" })
+			.toPromise();
+		topologies = result.data?.networkTopologies ?? [];
 	}
 
 	let armedBrush = $state<ArmedBrush | null>(null);
@@ -562,8 +614,11 @@
 	/** With nothing on the map to paint, the brush has no reason to be offered. */
 	const canPaint = $derived(placedHasColor || placedHasColorTemp || placedHasSwitchable);
 
+	const viewCtx = $derived<MapViewContext>({
+		topologyProviders: new Set(topologies.map((t) => t.provider)),
+	});
 	/** Offered views come from the unfiltered pool, or there is no way back. */
-	const availableViews = $derived(availableMapViews(placedDevices));
+	const availableViews = $derived(availableMapViews(placedDevices, viewCtx));
 	/**
 	 * The rendered view: the stored preference while its devices exist, light
 	 * otherwise. The fallback is derived, never written back, so a sensor
@@ -574,8 +629,62 @@
 	const visiblePlacements = $derived(
 		editMode
 			? placementViews
-			: placementViews.filter((pl) => placementVisibleInView(mapView, placementDeviceList(pl))),
+			: placementViews.filter((pl) =>
+					placementVisibleInView(mapView, placementDeviceList(pl), viewCtx),
+				),
 	);
+
+	/** Devices the stored snapshots know, keyed the way positions are. */
+	const topologyDeviceIds = $derived(
+		new Set(topologies.flatMap((t) => t.nodes.map((n) => n.deviceId ?? n.id))),
+	);
+	const connectivityInputs = $derived<ConnectivityPlacementInput[]>(
+		visiblePlacements.map((pl) =>
+			pl.kind === "device"
+				? { kind: "device", x: pl.x, y: pl.y, deviceId: pl.device.id }
+				: { kind: "group", x: pl.x, y: pl.y, memberIds: pl.devices.map((d) => d.id) },
+		),
+	);
+	const meshPositions = $derived(
+		!editMode && mapView === "connectivity"
+			? topologyNodePositions(connectivityInputs, topologyDeviceIds)
+			: new Map<string, ConnectivityNodePosition>(),
+	);
+	const meshLinks = $derived(
+		topologies
+			.filter((t) => !hiddenMeshSources.has(t.provider))
+			.flatMap((t) => buildMeshLinkViews(t, meshPositions, { showNeighbours })),
+	);
+	/**
+	 * Per-device TX pulse counters. A device's counter bumps when it reports,
+	 * changing its ring's key so the one-shot animation remounts and replays.
+	 * Bounded by device count; never cleared, since a stale entry just sits
+	 * with its finished, invisible ring.
+	 */
+	let pulseSeqs = $state<Map<string, number>>(new Map());
+	const meshPulses = $derived(
+		!editMode && mapView === "connectivity"
+			? [...pulseSeqs].flatMap(([id, seq]) => {
+					const pos = meshPositions.get(id);
+					return pos ? [{ key: `${id}-${seq}`, x: pos.x, y: pos.y }] : [];
+				})
+			: [],
+	);
+	/** The connectivity caption: snapshot age and how much of the mesh is placed. */
+	const meshCaption = $derived.by(() => {
+		if (editMode || mapView !== "connectivity" || topologies.length === 0) return null;
+		let placed = 0;
+		let total = 0;
+		let latest: Date | null = null;
+		for (const t of topologies) {
+			const counts = placedTopologyNodeCount(t, meshPositions);
+			placed += counts.placed;
+			total += counts.total;
+			const at = new Date(t.scannedAt);
+			if (!latest || at > latest) latest = at;
+		}
+		return { placed, total, scannedAt: latest! };
+	});
 
 	/** Location settings, absent until someone fills them in — then the sun runs. */
 	let location = $state<{ latitude: number; longitude: number; planNorth: number } | null>(null);
@@ -726,6 +835,8 @@
 	 */
 	const combined = $derived.by(() => {
 		if (editMode) return null;
+		// Connectivity draws markers and link lines, no light field at all.
+		if (mapView === "connectivity") return null;
 		const grid = lightGrid;
 		if (!grid) return null;
 		const sources: LightSource[] = [];
@@ -1846,14 +1957,44 @@
 				s.id === ev.sceneId ? { ...s, activatedAt: ev.activatedAt ?? null } : s,
 			);
 		});
+		void loadTopologies();
+		topologySubHandle = client.subscription(TOPOLOGY_UPDATED_SUB, {}).subscribe((r) => {
+			// The event fires only after the merged snapshot is persisted, so
+			// re-querying here always reads the fresh one.
+			if (r.data?.networkTopologyUpdated) void loadTopologies();
+		});
+		// The TX pulses ride the raw event streams, not deviceStore: the store
+		// drops no-change reports, and a report is a transmission either way.
+		txSubHandle = client.subscription(DEVICE_TX_SUB, {}).subscribe((r) => {
+			const id = r.data?.deviceStateChanged.deviceId;
+			if (id) bumpPulse(id);
+		});
+		actionTxSubHandle = client.subscription(DEVICE_ACTION_TX_SUB, {}).subscribe((r) => {
+			const id = r.data?.deviceActionFired.deviceId;
+			if (id) bumpPulse(id);
+		});
 		loading = false;
 	});
 
+	function bumpPulse(deviceId: string) {
+		if (editMode || mapView !== "connectivity") return;
+		if (!meshPositions.has(deviceId)) return;
+		const next = new Map(pulseSeqs);
+		next.set(deviceId, (next.get(deviceId) ?? 0) + 1);
+		pulseSeqs = next;
+	}
+
 	let activeSubHandle: { unsubscribe: () => void } | null = null;
+	let topologySubHandle: { unsubscribe: () => void } | null = null;
+	let txSubHandle: { unsubscribe: () => void } | null = null;
+	let actionTxSubHandle: { unsubscribe: () => void } | null = null;
 
 	onDestroy(() => {
 		pageHeader.reset();
 		activeSubHandle?.unsubscribe();
+		topologySubHandle?.unsubscribe();
+		txSubHandle?.unsubscribe();
+		actionTxSubHandle?.unsubscribe();
 		if (interactingTimer) clearTimeout(interactingTimer);
 		if (sunTimer) clearInterval(sunTimer);
 	});
@@ -2048,6 +2189,9 @@
 						glowGroups={glowData.groups}
 						lightmap={lightmapFrame}
 						outsideGlows={glowData.outside}
+						{meshLinks}
+						txPulses={meshPulses}
+						hideReadings={mapView === "connectivity"}
 						placements={visiblePlacements}
 						{furniture}
 						{draftFurniture}
@@ -2123,6 +2267,10 @@
 				view={mapView}
 				viewOptions={availableViews}
 				onviewchange={setMapView}
+				{showNeighbours}
+				onneighbourstoggle={() => (showNeighbours = !showNeighbours)}
+				{meshSources}
+				onsourcetoggle={toggleMeshSource}
 			/>
 
 			<div
@@ -2157,6 +2305,25 @@
 							ariaLabel="Wall thickness in meters"
 							onValueChange={setSelectedWallThickness}
 						/>
+					</div>
+				{/if}
+			</div>
+
+			<div
+				class="absolute bottom-3 left-3 z-10 rounded-lg bg-card/90 shadow-card px-3 py-2 text-xs backdrop-blur-sm transition-opacity duration-200 {meshCaption
+					? 'opacity-100'
+					: 'pointer-events-none opacity-0'}"
+			>
+				{#if meshCaption}
+					<div class="font-medium">
+						Mesh scanned {formatRelative(
+							meshCaption.scannedAt,
+							nowStore.current,
+							me.user?.timeFormat ?? "24h",
+						)}
+					</div>
+					<div class="text-muted-foreground">
+						{meshCaption.placed} of {meshCaption.total} devices placed
 					</div>
 				{/if}
 			</div>
