@@ -282,10 +282,21 @@ If you find yourself wanting a third spelling for the same concept, you're on th
 
 ### Gate
 Run `just prepare-for-commit` once a feature or change is complete, and fix
-anything it reports before considering the work done. It is the authoritative
-gate: it runs deps, `sqlc-check`, `gqlgen-check`, `codegen-check`, `format`,
-`lint`, `typecheck`, `errcheck`, and `test`. CI runs the same checks, so a
-clean run here is what a green CI looks like.
+anything it reports before considering the work done. It runs deps,
+`sqlc-check`, `gqlgen-check`, `codegen-check`, `format`, `lint`, `typecheck`,
+`errcheck`, and `test`.
+
+**It is not the whole of CI.** CI additionally runs both end-to-end suites,
+which `prepare-for-commit` leaves out because each needs a container runtime
+and takes minutes. `just e2e` runs them together:
+
+- `just e2e-go` — the in-process Go suite against a real Mosquitto container.
+- `just e2e-ts` — builds the release image and drives the frontend against it.
+
+Run `just e2e` before a release, and whenever a change touches the GraphQL
+schema, a migration, or anything the e2e harnesses set up. A required field
+added to an input is the classic case: every caller has to be updated, and
+both harnesses are callers that nothing else type-checks.
 
 ### Go
 - **gofmt** — formatting (standard, no config)

@@ -210,6 +210,7 @@ async function configureZigbee2MQTT(graphqlUrl: string, token: string): Promise<
           password: "",
           useWss: false,
           enabled: true,
+          scanScheduleEnabled: false,
         },
       },
     }),

@@ -60,6 +60,7 @@ const DEVICE_QUERY = graphql(`
 `);
 
 interface BridgeDevice {
+  ieee_address: string;
   friendly_name: string;
   type: string;
 }
@@ -104,16 +105,27 @@ const DEVICE_STATE_CHANGED_SUB = graphql(`
 const COORDINATOR_TYPE = "Coordinator";
 
 describe("devices", () => {
-  it("should return all non-coordinator devices", async () => {
+  it("should return every device in the bridge registry", async () => {
     const { graphqlClient } = getContext();
     const fixtures = getBridgeDevicesFixture() as BridgeDevice[];
-    const expectedCount = fixtures.filter((d) => d.type !== COORDINATOR_TYPE).length;
 
     const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
-    expect(result.data!.devices).toHaveLength(expectedCount);
+    expect(result.data!.devices).toHaveLength(fixtures.length);
+  });
+
+  it("should register the coordinator as a hub device", async () => {
+    const { graphqlClient } = getContext();
+    const fixtures = getBridgeDevicesFixture() as BridgeDevice[];
+    const coordinator = fixtures.find((d) => d.type === COORDINATOR_TYPE);
+
+    const result = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
+
+    const hub = result.data!.devices.find((d) => d.id === coordinator!.ieee_address);
+    expect(hub).toBeDefined();
+    expect(hub!.type).toBe("hub");
   });
 
   it("should have correct device fields matching fixtures", async () => {
@@ -126,7 +138,6 @@ describe("devices", () => {
 
     const deviceNames = result.data!.devices.map((d) => d.friendlyName);
     for (const fixture of fixtures) {
-      if (fixture.type === COORDINATOR_TYPE) continue;
       expect(deviceNames).toContain(fixture.friendly_name);
     }
 

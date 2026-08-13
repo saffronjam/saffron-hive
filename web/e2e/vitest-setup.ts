@@ -7,19 +7,14 @@ import {
   waitForDevices,
 } from "./setup.js";
 
-const COORDINATOR_TYPE = "Coordinator";
-
 beforeAll(async () => {
   await setupE2E();
 
   const devices = getBridgeDevicesFixture();
   await publishBridgeDevices(devices);
 
-  const nonCoordinatorCount = (devices as Array<{ type: string }>).filter(
-    (d) => d.type !== COORDINATOR_TYPE,
-  ).length;
-
-  await waitForDevices(nonCoordinatorCount, 15_000);
+  // Every entry registers, the coordinator included: it becomes a hub device.
+  await waitForDevices((devices as unknown[]).length, 15_000);
 }, 120_000);
 
 afterAll(async () => {
