@@ -10,7 +10,7 @@ export interface ProfileState {
   "activity.advanced": boolean;
   "map.viewport"?: { x: number; y: number; k: number };
   "map.brushRadius"?: number;
-  "map.view"?: "light" | "temperature";
+  "map.view"?: "light" | "temperature" | "connectivity";
 }
 
 export const PROFILE_STORAGE_KEY = "saffron-hive-profile";
