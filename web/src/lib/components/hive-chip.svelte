@@ -17,6 +17,7 @@
 		Palette,
 		Plug,
 		Power,
+		Router,
 		Sparkles,
 		Speaker,
 		Sun,
@@ -59,6 +60,8 @@
 				return "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30";
 			case "speaker":
 				return "bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/30";
+			case "hub":
+				return "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30";
 			case "temperature":
 				return "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30";
 			case "humidity":
@@ -105,6 +108,8 @@
 				return Plug;
 			case "speaker":
 				return Speaker;
+			case "hub":
+				return Router;
 			case "room":
 				return DoorOpen;
 			case "group":

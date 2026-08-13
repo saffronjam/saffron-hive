@@ -21,7 +21,9 @@ var (
 	sqlStore   *store.DB
 )
 
-const expectedDeviceCount = 8
+// Every entry in bridge_devices.json, the coordinator included — it registers
+// as a hub device.
+const expectedDeviceCount = 9
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()

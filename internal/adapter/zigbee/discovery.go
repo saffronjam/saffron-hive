@@ -110,11 +110,13 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 	incoming := make(map[device.DeviceID]struct{})
 
 	for _, d := range devices {
-		if strings.EqualFold(d.Type, "coordinator") {
-			continue
-		}
-
+		// The coordinator registers as a hub: a placeable, room-assignable
+		// device that the connectivity map anchors its mesh on, kept out of
+		// every command and watch path by device.EnabledDevices.
 		devType := detectDeviceType(d.Definition.Exposes)
+		if strings.EqualFold(d.Type, "coordinator") {
+			devType = device.Hub
+		}
 		id := device.DeviceID(d.IEEEAddress)
 		incoming[id] = struct{}{}
 

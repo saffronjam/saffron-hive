@@ -38,6 +38,11 @@ const (
 	Climate DeviceType = "climate"
 	// Speaker represents an audio output device.
 	Speaker DeviceType = "speaker"
+	// Hub represents a network's point of entry (a Zigbee coordinator, a
+	// Thread border router): a real box on the wall that belongs to a room
+	// and a spot on the floor plan, but takes no commands and reports no
+	// state, so EnabledDevices keeps it out of every command and watch path.
+	Hub DeviceType = "hub"
 	// Unknown represents a device whose type could not be determined.
 	Unknown DeviceType = "unknown"
 )
@@ -165,13 +170,15 @@ func AdapterFingerprint(d Device) string {
 	return b.String()
 }
 
-// EnabledDevices returns the subset of devs that are neither removed nor
-// disabled — the set that command fan-out, selector evaluation and health
-// monitoring operate on. Display and history paths use the unfiltered list.
+// EnabledDevices returns the subset of devs that command fan-out, selector
+// evaluation and health monitoring operate on: not removed, not disabled, and
+// not a hub — a hub is placeable and room-assignable but never commanded,
+// watched or health-checked. Display and history paths use the unfiltered
+// list.
 func EnabledDevices(devs []Device) []Device {
 	out := make([]Device, 0, len(devs))
 	for _, d := range devs {
-		if d.Removed || d.Disabled {
+		if d.Removed || d.Disabled || d.Type == Hub {
 			continue
 		}
 		out = append(out, d)

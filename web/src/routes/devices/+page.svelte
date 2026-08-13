@@ -45,6 +45,7 @@
 		{ value: "light", label: "Light" },
 		{ value: "sensor", label: "Sensor" },
 		{ value: "switch", label: "Switch" },
+		{ value: "hub", label: "Hub" },
 	];
 
 	const enabledOptions = [

@@ -56,3 +56,19 @@ func TestDeviceIDIsString(t *testing.T) {
 		t.Fatal("different DeviceIDs should not be equal")
 	}
 }
+
+// TestEnabledDevicesExcludesHub pins the chokepoint: a hub is placeable and
+// room-assignable but must never reach command fan-out, selector evaluation
+// or health monitoring, all of which filter through EnabledDevices.
+func TestEnabledDevicesExcludesHub(t *testing.T) {
+	devs := []Device{
+		{ID: "light", Type: Light},
+		{ID: "hub", Type: Hub},
+		{ID: "removed", Type: Light, Removed: true},
+		{ID: "disabled", Type: Light, Disabled: true},
+	}
+	got := EnabledDevices(devs)
+	if len(got) != 1 || got[0].ID != "light" {
+		t.Fatalf("want only the plain light, got %+v", got)
+	}
+}

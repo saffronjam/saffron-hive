@@ -1,7 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Component } from "svelte";
-import { AirVent, Lightbulb, Thermometer, MousePointerClick, Plug, Package } from "@lucide/svelte";
+import {
+  AirVent,
+  Lightbulb,
+  Thermometer,
+  MousePointerClick,
+  Plug,
+  Package,
+  Router,
+} from "@lucide/svelte";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -35,6 +43,8 @@ export function deviceIcon(type: string): Component {
       return Plug;
     case "climate":
       return AirVent;
+    case "hub":
+      return Router;
     default:
       return Package;
   }

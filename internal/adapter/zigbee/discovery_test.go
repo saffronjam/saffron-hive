@@ -288,7 +288,7 @@ func TestDiscoverDevices_Multiple(t *testing.T) {
 	}
 }
 
-func TestDiscoverDevices_SkipCoordinator(t *testing.T) {
+func TestDiscoverDevices_CoordinatorRegistersAsHub(t *testing.T) {
 	adapter, mqtt, _, sw := newTestAdapter()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
@@ -303,11 +303,18 @@ func TestDiscoverDevices_SkipCoordinator(t *testing.T) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	if len(sw.devices) != 1 {
-		t.Fatalf("expected 1 device (coordinator skipped), got %d", len(sw.devices))
+	if len(sw.devices) != 2 {
+		t.Fatalf("expected 2 devices, got %d", len(sw.devices))
 	}
-	if _, ok := sw.devices[device.DeviceID("0xcoord")]; ok {
-		t.Fatal("coordinator should have been skipped")
+	coord, ok := sw.devices[device.DeviceID("0xcoord")]
+	if !ok {
+		t.Fatal("coordinator should register as a device")
+	}
+	if coord.Type != device.Hub {
+		t.Fatalf("coordinator should register as hub, got %q", coord.Type)
+	}
+	if len(coord.Capabilities) != 0 {
+		t.Fatalf("hub must carry no capabilities, got %v", coord.Capabilities)
 	}
 }
 
