@@ -19,17 +19,20 @@ func (q *Queries) DeleteZigbee2MQTTConfig(ctx context.Context) error {
 }
 
 const getZigbee2MQTTConfig = `-- name: GetZigbee2MQTTConfig :one
-SELECT broker, username, password, use_wss, enabled
+SELECT broker, username, password, use_wss, enabled, scan_schedule_enabled, scan_hour, scan_minute
 FROM zigbee2mqtt_config
 WHERE id = 1
 `
 
 type GetZigbee2MQTTConfigRow struct {
-	Broker   string
-	Username string
-	Password string
-	UseWss   bool
-	Enabled  bool
+	Broker              string
+	Username            string
+	Password            string
+	UseWss              bool
+	Enabled             bool
+	ScanScheduleEnabled bool
+	ScanHour            *int64
+	ScanMinute          *int64
 }
 
 func (q *Queries) GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error) {
@@ -41,27 +44,36 @@ func (q *Queries) GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfi
 		&i.Password,
 		&i.UseWss,
 		&i.Enabled,
+		&i.ScanScheduleEnabled,
+		&i.ScanHour,
+		&i.ScanMinute,
 	)
 	return i, err
 }
 
 const upsertZigbee2MQTTConfig = `-- name: UpsertZigbee2MQTTConfig :exec
-INSERT INTO zigbee2mqtt_config (id, broker, username, password, use_wss, enabled)
-VALUES (1, ?, ?, ?, ?, ?)
+INSERT INTO zigbee2mqtt_config (id, broker, username, password, use_wss, enabled, scan_schedule_enabled, scan_hour, scan_minute)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
-    broker   = excluded.broker,
-    username = excluded.username,
-    password = excluded.password,
-    use_wss  = excluded.use_wss,
-    enabled  = excluded.enabled
+    broker                = excluded.broker,
+    username              = excluded.username,
+    password              = excluded.password,
+    use_wss               = excluded.use_wss,
+    enabled               = excluded.enabled,
+    scan_schedule_enabled = excluded.scan_schedule_enabled,
+    scan_hour             = excluded.scan_hour,
+    scan_minute           = excluded.scan_minute
 `
 
 type UpsertZigbee2MQTTConfigParams struct {
-	Broker   string
-	Username string
-	Password string
-	UseWss   bool
-	Enabled  bool
+	Broker              string
+	Username            string
+	Password            string
+	UseWss              bool
+	Enabled             bool
+	ScanScheduleEnabled bool
+	ScanHour            *int64
+	ScanMinute          *int64
 }
 
 func (q *Queries) UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) error {
@@ -71,6 +83,9 @@ func (q *Queries) UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2
 		arg.Password,
 		arg.UseWss,
 		arg.Enabled,
+		arg.ScanScheduleEnabled,
+		arg.ScanHour,
+		arg.ScanMinute,
 	)
 	return err
 }

@@ -97,3 +97,47 @@ func TestZigbee2MQTTConfigDelete(t *testing.T) {
 		t.Fatalf("delete on empty table must be a no-op: %v", err)
 	}
 }
+
+// TestZigbee2MQTTConfigScanSchedule pins that the scan time survives the
+// schedule being switched off: hour and minute are independent columns, so
+// disabling writes them back unchanged and re-enabling restores them.
+func TestZigbee2MQTTConfigScanSchedule(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+
+	hour, minute := int64(4), int64(30)
+	if err := s.UpsertZigbee2MQTTConfig(ctx, Zigbee2MQTTConfig{
+		Broker:              "mqtt.example.com:1883",
+		Enabled:             true,
+		ScanScheduleEnabled: true,
+		ScanHour:            &hour,
+		ScanMinute:          &minute,
+	}); err != nil {
+		t.Fatalf("upsert with schedule: %v", err)
+	}
+
+	got, err := s.GetZigbee2MQTTConfig(ctx)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if !got.ScanScheduleEnabled || got.ScanHour == nil || *got.ScanHour != hour ||
+		got.ScanMinute == nil || *got.ScanMinute != minute {
+		t.Fatalf("schedule round trip mismatch: %+v", got)
+	}
+
+	off := *got
+	off.ScanScheduleEnabled = false
+	if err := s.UpsertZigbee2MQTTConfig(ctx, off); err != nil {
+		t.Fatalf("upsert disabled: %v", err)
+	}
+	got, err = s.GetZigbee2MQTTConfig(ctx)
+	if err != nil {
+		t.Fatalf("get after disable: %v", err)
+	}
+	if got.ScanScheduleEnabled {
+		t.Fatal("schedule must be off")
+	}
+	if got.ScanHour == nil || *got.ScanHour != hour || got.ScanMinute == nil || *got.ScanMinute != minute {
+		t.Fatalf("disabling the schedule must keep the stored time, got %+v", got)
+	}
+}

@@ -20,11 +20,14 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 		return nil, fmt.Errorf("get zigbee2mqtt config: %w", err)
 	}
 	return &Zigbee2MQTTConfig{
-		Broker:   row.Broker,
-		Username: row.Username,
-		Password: row.Password,
-		UseWSS:   row.UseWss,
-		Enabled:  row.Enabled,
+		Broker:              row.Broker,
+		Username:            row.Username,
+		Password:            row.Password,
+		UseWSS:              row.UseWss,
+		Enabled:             row.Enabled,
+		ScanScheduleEnabled: row.ScanScheduleEnabled,
+		ScanHour:            row.ScanHour,
+		ScanMinute:          row.ScanMinute,
 	}, nil
 }
 
@@ -32,11 +35,14 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 // configuration row.
 func (s *DB) UpsertZigbee2MQTTConfig(ctx context.Context, cfg Zigbee2MQTTConfig) error {
 	if err := s.q.UpsertZigbee2MQTTConfig(ctx, sqlite.UpsertZigbee2MQTTConfigParams{
-		Broker:   cfg.Broker,
-		Username: cfg.Username,
-		Password: cfg.Password,
-		UseWss:   cfg.UseWSS,
-		Enabled:  cfg.Enabled,
+		Broker:              cfg.Broker,
+		Username:            cfg.Username,
+		Password:            cfg.Password,
+		UseWss:              cfg.UseWSS,
+		Enabled:             cfg.Enabled,
+		ScanScheduleEnabled: cfg.ScanScheduleEnabled,
+		ScanHour:            cfg.ScanHour,
+		ScanMinute:          cfg.ScanMinute,
 	}); err != nil {
 		return fmt.Errorf("upsert zigbee2mqtt config: %w", err)
 	}

@@ -345,13 +345,19 @@ type StateHistoryPoint struct {
 }
 
 // Zigbee2MQTTConfig represents the singleton Zigbee2MQTT integration
-// configuration: the MQTT broker the zigbee2mqtt bridge publishes to.
+// configuration: the MQTT broker the zigbee2mqtt bridge publishes to, and the
+// opt-in daily topology-scan schedule. ScanHour/ScanMinute stay set while the
+// schedule is disabled so re-enabling restores the chosen time; nil means
+// never set.
 type Zigbee2MQTTConfig struct {
-	Broker   string
-	Username string
-	Password string
-	UseWSS   bool
-	Enabled  bool
+	Broker              string
+	Username            string
+	Password            string
+	UseWSS              bool
+	Enabled             bool
+	ScanScheduleEnabled bool
+	ScanHour            *int64
+	ScanMinute          *int64
 }
 
 // TuyaConfig represents the singleton Tuya cloud integration configuration.
