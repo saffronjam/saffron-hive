@@ -19,6 +19,7 @@ All Go application code lives here. The `internal/` directory is a Go convention
 - `logging/` — custom slog `TeeHandler` that writes to stderr **and** captures entries into a ring buffer, which the frontend `/logs` page streams via a GraphQL subscription.
 - `pubsub/` — tiny in-process fan-out primitives. Used by services (activity, alarms, GraphQL subscription resolvers) to broadcast events to per-subscriber buffered channels.
 - `scene/` — scene apply runtime (building command fan-out, default payloads), expected-state snapshot at apply time, and the watcher that compares incoming device-state events against the snapshot to flip `scenes.activated_at`.
+- `topology/` — mesh-topology persister: subscribes to `topology.scanned`, merges each scan with the stored snapshot (carrying stale parent links forward for devices that slept through it), persists, and announces `topology.updated`. Powers the map's connectivity view.
 - `store/` — database layer. `queries/*.sql` (sqlc input) → `sqlite/` (sqlc-generated Go, committed). Domain-facing wrapper methods on `*store.DB` live in `users.go`, `scenes.go`, etc. `migrations/` holds the golang-migrate schema migrations (unchanged by the sqlc pipeline). See `store/CLAUDE.md` for the query gate patterns.
 - `version/` — build-time version string (single const injected via ldflags at build).
 
@@ -46,6 +47,7 @@ graph/               → device/, eventbus/, activity/, alarms/, auth/, automati
 history/             → device/, eventbus/, narrow historyStore interface
 pubsub/              → stdlib only
 scene/               → device/, eventbus/, effect/, narrow sceneStore interface
+topology/            → device/, eventbus/, narrow Store interface
 store/               → device/, store/sqlite/ (generated)
 config/, logging/, version/  → stdlib only
 ```

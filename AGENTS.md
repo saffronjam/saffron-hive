@@ -44,6 +44,8 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `effect.step_activated` — an effect runner entered/exited a step (powers the effect editor live view)
 - `effect.ended` — an effect run terminated (manual stop, drift, preempt, or natural completion)
 - `room.membership_changed` / `group.membership_changed` — room/group composition changed; subscribers (activity room cache) refresh their derived views
+- `topology.scanned` — an adapter finished a mesh network scan; carries the parsed `device.NetworkTopology`. The topology persister merges it with the stored snapshot (carrying stale parent links forward for nodes that slept through the scan) and persists it
+- `topology.updated` — the topology persister stored a merged snapshot; carries provider, scan time and counts. The GraphQL subscription rides this so clients re-query only after persistence
 
 Flow: MQTT message arrives -> adapter parses MQTT DTO -> maps to domain types -> publishes event on bus -> subscribers react (state store, automation engine, GraphQL subscription resolvers).
 
