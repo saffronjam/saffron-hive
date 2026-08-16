@@ -34,7 +34,7 @@
 	<p class="px-1.5 py-1 text-xs font-medium text-muted-foreground">Detached rooms</p>
 	{#each rooms as room (room.id)}
 		<div
-			class="flex cursor-grab items-center gap-2 rounded-md px-1.5 py-1 text-sm text-muted-foreground hover:bg-accent/50"
+			class="flex cursor-grab touch-pan-y items-center gap-2 rounded-md px-1.5 py-1 text-sm text-muted-foreground select-none hover:bg-accent/50"
 			use:holdDrag={{
 				mouseImmediate: true,
 				onstart: (e) => ondragstart(room, e),
