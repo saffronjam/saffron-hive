@@ -1,6 +1,8 @@
 <script lang="ts" generics="Row">
 	import { flip } from "svelte/animate";
 	import { onDestroy } from "svelte";
+	import { get } from "svelte/store";
+	import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
 	import {
 		Table,
 		TableBody,
@@ -34,6 +36,88 @@
 	}: Props = $props();
 
 	const columnByKey = $derived(new Map(columns.map((c) => [c.key, c])));
+
+	// Only long lists window. A short table costs little to build and keeps
+	// find-in-page working across all of it.
+	const VIRTUALIZE_ABOVE = 30;
+	// Small on purpose: the whole point is to render fewer rows than fit on
+	// screen plus a margin. A large overscan on a tall viewport renders the
+	// entire list and saves nothing.
+	const OVERSCAN = 3;
+	const FALLBACK_ROW_HEIGHT = 48;
+
+	let bodyEl = $state<HTMLElement | null>(null);
+	const virtualized = $derived(rows.length > VIRTUALIZE_ABOVE);
+
+	// Rows are uniform, so one real measurement beats a guess. Taken from the
+	// first rendered row once it exists; until then the fallback is close
+	// enough that the scrollbar is not visibly wrong.
+	let rowHeight = $state(FALLBACK_ROW_HEIGHT);
+	$effect(() => {
+		if (!virtualized || !bodyEl) return;
+		const first = bodyEl.querySelector<HTMLElement>("tr[data-virtual-row]");
+		const measured = first?.offsetHeight ?? 0;
+		if (measured > 0 && Math.abs(measured - rowHeight) > 1) rowHeight = measured;
+	});
+
+	// Neither wrapper caps its height, so despite `overflow-x-auto` computing
+	// `overflow-y` to `auto` they never scroll vertically — the document does.
+	// The virtualizer therefore needs the table's offset from the top of the
+	// page, remeasured whenever what sits above it reflows.
+	let scrollMargin = $state(0);
+	$effect(() => {
+		const el = bodyEl;
+		if (!virtualized || !el) return;
+		void rows.length;
+
+		const remeasure = () => {
+			scrollMargin = el.getBoundingClientRect().top + window.scrollY;
+		};
+		remeasure();
+		const observer = new ResizeObserver(remeasure);
+		observer.observe(document.body);
+		// Also the table itself: a kept-alive page toggles between display:none
+		// and visible, which zeroes and restores this element's own size without
+		// necessarily changing the body's.
+		observer.observe(el);
+		window.addEventListener("resize", remeasure);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", remeasure);
+		};
+	});
+
+	const virtualizer = createWindowVirtualizer({
+		count: 0,
+		estimateSize: () => FALLBACK_ROW_HEIGHT,
+		overscan: OVERSCAN,
+	});
+
+	$effect(() => {
+		get(virtualizer).setOptions({
+			count: virtualized ? rows.length : 0,
+			estimateSize: () => rowHeight,
+			overscan: OVERSCAN,
+			scrollMargin,
+			getItemKey: (index) => {
+				const row = rows[index];
+				return row ? rowId(row) : index;
+			},
+		});
+		get(virtualizer).measure();
+	});
+
+	const virtualItems = $derived(virtualized ? $virtualizer.getVirtualItems() : []);
+	// Spacers stand in for the rows outside the window so the page still scrolls
+	// the full height of the list. They are `<tr>`s rather than absolute
+	// positioning because a table takes its column widths from its rows.
+	const padTop = $derived(virtualItems.length ? virtualItems[0].start - scrollMargin : 0);
+	const padBottom = $derived(
+		virtualItems.length
+			? get(virtualizer).getTotalSize() -
+					(virtualItems[virtualItems.length - 1].end - scrollMargin)
+			: 0,
+	);
 
 	let dragKey = $state<string | null>(null);
 	// Ephemeral override of the visible column order while a drag is in
@@ -313,28 +397,47 @@
 				</th>
 			</TableRow>
 		</TableHeader>
-		<TableBody>
-			{#each rows as row (rowId(row))}
-				{@const extra = rowAttrs?.(row) ?? {}}
-				<TableRow {...extra}>
-					{#each visibleColumns as col (col.key)}
-						<td
-							animate:flipDuringColumnDrag={FLIP_OPTS}
-							data-col-key={col.key}
-							class={cn(
-								"px-2 py-1.5 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0",
-								col.cellClass,
-								dragKey === col.key && "opacity-70",
-							)}
-						>
-							{#if col.cell}
-								{@render col.cell(row)}
-							{/if}
-						</td>
-					{/each}
-					<td></td>
-				</TableRow>
-			{/each}
+		<TableBody bind:ref={bodyEl}>
+			{#if virtualized}
+				{#if padTop > 0}
+					<tr aria-hidden="true" style="height: {padTop}px;"></tr>
+				{/if}
+				{#each virtualItems as item (item.key)}
+					{@const row = rows[item.index]}
+					{#if row}
+						{@render bodyRow(row)}
+					{/if}
+				{/each}
+				{#if padBottom > 0}
+					<tr aria-hidden="true" style="height: {padBottom}px;"></tr>
+				{/if}
+			{:else}
+				{#each rows as row (rowId(row))}
+					{@render bodyRow(row)}
+				{/each}
+			{/if}
 		</TableBody>
 	</Table>
 </div>
+
+{#snippet bodyRow(row: Row)}
+	{@const extra = rowAttrs?.(row) ?? {}}
+	<TableRow data-virtual-row="" {...extra}>
+		{#each visibleColumns as col (col.key)}
+			<td
+				animate:flipDuringColumnDrag={FLIP_OPTS}
+				data-col-key={col.key}
+				class={cn(
+					"px-2 py-1.5 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+					col.cellClass,
+					dragKey === col.key && "opacity-70",
+				)}
+			>
+				{#if col.cell}
+					{@render col.cell(row)}
+				{/if}
+			</td>
+		{/each}
+		<td></td>
+	</TableRow>
+{/snippet}
