@@ -6,6 +6,7 @@
 	import { graphql } from "$lib/gql";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile } from "$lib/stores/profile.svelte";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { deviceStore } from "$lib/stores/devices";
 	import ActivityNavigationTable, {
 		type ActivityEvent,
@@ -59,26 +60,13 @@
 		}
 	`);
 
-	const ROOMS_QUERY = graphql(`
-		query ActivityRooms {
-			rooms {
-				id
-				name
-			}
-		}
-	`);
-
-	interface RoomInfo {
-		id: string;
-		name: string;
-	}
 
 	const PAGE_SIZE = 50;
 
 	const client = getContextClient();
 	let events = $state<ActivityEvent[]>([]);
 	let recentIds = $state(new Set<string>());
-	let rooms = $state<RoomInfo[]>([]);
+	const rooms = $derived(roomsStore.items);
 	let advanced = $state<boolean>(profile.get("activity.advanced", false));
 	let searchState = $state<SearchState>({ chips: [], freeText: "" });
 	let subUnsub: (() => void) | null = null;
@@ -271,11 +259,6 @@
 		}
 	}
 
-	async function loadRooms() {
-		const res = await client.query<{ rooms: RoomInfo[] }>(ROOMS_QUERY, {}).toPromise();
-		if (res.data) rooms = res.data.rooms;
-	}
-
 	function startSubscription() {
 		if (!client) return;
 		if (subUnsub) {
@@ -303,7 +286,6 @@
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Activity" }];
-		void loadRooms();
 		loadInitial().then(() => {
 			ready = true;
 			startSubscription();

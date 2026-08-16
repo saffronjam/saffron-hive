@@ -1,7 +1,9 @@
 <script lang="ts" module>
-	export type GroupTag = "LIGHT" | "SENSOR";
+	import { GroupTag } from "$lib/gql/graphql";
 
-	export const ALL_GROUP_TAGS: GroupTag[] = ["LIGHT", "SENSOR"];
+	export { GroupTag };
+
+	export const ALL_GROUP_TAGS: GroupTag[] = [GroupTag.Light, GroupTag.Sensor];
 </script>
 
 <script lang="ts">

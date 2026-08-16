@@ -5,6 +5,7 @@
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { SCENE_DETAIL_QUERY as SCENE_QUERY } from "$lib/graphql/details";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import SceneEditorComponent from "$lib/components/scene-editor.svelte";
@@ -19,14 +20,16 @@
 	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import { isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
+	import { deviceStore, isSceneTarget, type Device } from "$lib/stores/devices";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { groupsStore } from "$lib/stores/groups.svelte";
+	import { scenesStore } from "$lib/stores/scenes.svelte";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import {
 		sceneToEditorState,
 		stringifyPayload,
 		staticFieldsOf,
 		type SceneData,
-		type GroupData,
-		type RoomData,
 		type ActionPayload,
 		type EditableTarget,
 		type TargetKind,
@@ -44,345 +47,6 @@
 	} from "$lib/target-resolve";
 
 	const sceneId = $derived($page.params.id);
-
-	const SCENE_QUERY = graphql(`
-		query Scene($id: ID!) {
-			scene(id: $id) {
-				id
-				name
-				icon
-				actions {
-					targetType
-					targetId
-					name
-					expression {
-						connector
-						subject
-						op
-						values
-					}
-					target {
-						... on Device {
-							__typename
-							id
-							# Aliased because Group.name and Room.name in the sibling arms are
-							# non-null, and GraphQL will not merge fields of differing nullability.
-							deviceName: name
-							type
-							capabilities { name type values valueMin valueMax unit access }
-							available
-							disabled
-							friendlyName
-							seen
-							lastSeen
-							state {
-								on
-								brightness
-								colorTemp
-								color { r g b x y }
-								transition
-								temperature
-								humidity
-								pressure
-								illuminance
-								battery
-								power
-								voltage
-								current
-								energy
-							}
-						}
-						... on Group {
-							__typename
-							id
-							name
-							icon
-							members {
-								id
-								memberType
-								memberId
-							}
-							resolvedDevices {
-								id
-								name
-								type
-								source
-								available
-								disabled
-								friendlyName
-								seen
-								lastSeen
-								capabilities { name type values valueMin valueMax unit access }
-								state {
-									on
-									brightness
-									colorTemp
-									color { r g b x y }
-									transition
-									temperature
-									humidity
-									pressure
-									illuminance
-									battery
-									power
-									voltage
-									current
-									energy
-								}
-							}
-						}
-						... on Room {
-							__typename
-							id
-							name
-							icon
-							resolvedDevices {
-								id
-								name
-								type
-								source
-								available
-								disabled
-								friendlyName
-								seen
-								lastSeen
-								capabilities { name type values valueMin valueMax unit access }
-								state {
-									on
-									brightness
-									colorTemp
-									color { r g b x y }
-									transition
-									temperature
-									humidity
-									pressure
-									illuminance
-									battery
-									power
-									voltage
-									current
-									energy
-								}
-							}
-						}
-					}
-				}
-				devicePayloads {
-					deviceId
-					payload
-				}
-				activatedAt
-			}
-		}
-	`);
-
-	const SCENE_ACTIVE_SUB = graphql(`
-		subscription SceneEditSceneActiveChanged {
-			sceneActiveChanged {
-				sceneId
-				activatedAt
-			}
-		}
-	`);
-
-	const DEVICES_QUERY = graphql(`
-		query SceneEditDevices {
-			devices {
-				id
-				name
-				icon
-				type
-				tags
-				source
-				available
-				disabled
-				friendlyName
-				seen
-				lastSeen
-				capabilities { name type values valueMin valueMax unit access }
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const GROUPS_QUERY = graphql(`
-		query SceneEditGroups {
-			groups {
-				id
-				name
-				icon
-				members {
-					id
-					memberType
-					memberId
-				}
-				resolvedDevices {
-					id
-					name
-					type
-					source
-					available
-					disabled
-					friendlyName
-					seen
-					lastSeen
-					capabilities { name type values valueMin valueMax unit access }
-					state {
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-						temperature
-						humidity
-						pressure
-						illuminance
-						battery
-						power
-						voltage
-						current
-						energy
-					}
-				}
-			}
-		}
-	`);
-
-	const ROOMS_QUERY = graphql(`
-		query SceneEditRooms {
-			rooms {
-				id
-				name
-				icon
-				members {
-					id
-					memberType
-					memberId
-					device {
-						id
-						name
-						type
-						source
-						available
-						disabled
-						friendlyName
-						seen
-						lastSeen
-						capabilities { name type values valueMin valueMax unit access }
-						state {
-							on
-							brightness
-							colorTemp
-							color { r g b x y }
-							transition
-							temperature
-							humidity
-							pressure
-							illuminance
-							battery
-							power
-							voltage
-							current
-							energy
-						}
-					}
-					group {
-						id
-						name
-						icon
-						members {
-							id
-							memberType
-							memberId
-							device {
-								id
-								name
-								type
-								source
-								available
-								disabled
-								friendlyName
-								seen
-							}
-							group { id name icon }
-							room { id name icon }
-						}
-						resolvedDevices {
-							id
-							name
-							type
-							source
-							available
-							disabled
-							friendlyName
-							seen
-							lastSeen
-							capabilities { name type values valueMin valueMax unit access }
-							state {
-								on
-								brightness
-								colorTemp
-								color { r g b x y }
-								transition
-								temperature
-								humidity
-								pressure
-								illuminance
-								battery
-								power
-								voltage
-								current
-								energy
-							}
-						}
-					}
-				}
-				resolvedDevices {
-					id
-					name
-					type
-					source
-					available
-					disabled
-					friendlyName
-					seen
-					lastSeen
-					capabilities { name type values valueMin valueMax unit access }
-					state {
-						on
-						brightness
-						colorTemp
-						color { r g b x y }
-						transition
-						temperature
-						humidity
-						pressure
-						illuminance
-						battery
-						power
-						voltage
-						current
-						energy
-					}
-				}
-			}
-		}
-	`);
 
 	const UPDATE_SCENE = graphql(`
 		mutation SceneEditUpdate($id: ID!, $input: UpdateSceneInput!) {
@@ -523,14 +187,6 @@
 		}
 	`);
 
-	const APPLY_SCENE = graphql(`
-		mutation SceneEditApply($id: ID!) {
-			applyScene(sceneId: $id) {
-				id
-			}
-		}
-	`);
-
 	const EFFECTS_QUERY = graphql(`
 		query SceneEditEffects {
 			effects {
@@ -550,79 +206,26 @@
 		}
 	`);
 
-	const DEVICE_STATE_CHANGED = graphql(`
-		subscription DeviceStateChanged {
-			deviceStateChanged {
-				deviceId
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
 	interface SceneQueryResult {
 		scene: SceneData | null;
-	}
-
-	interface DevicesQueryResult {
-		devices: Device[];
-	}
-
-	interface GroupsQueryResult {
-		groups: GroupData[];
 	}
 
 	interface UpdateSceneResult {
 		updateScene: SceneData;
 	}
 
-	interface RoomsQueryResult {
-		rooms: RoomData[];
-	}
-
 	interface SetDeviceStateResult {
 		setDeviceState: { id: string };
-	}
-
-	interface DeviceStateChangedResult {
-		deviceStateChanged: {
-			deviceId: string;
-			state: DeviceState;
-		};
 	}
 
 	const clientRef = getContextClient();
 	let scene = $state<SceneData | null>(null);
 
-	let activeSubHandle: { unsubscribe: () => void } | null = null;
-
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: "Scene" }];
-		if (clientRef) {
-			activeSubHandle = clientRef.subscription(SCENE_ACTIVE_SUB, {}).subscribe((r) => {
-				const ev = r.data?.sceneActiveChanged;
-				if (!ev || !scene || ev.sceneId !== scene.id) return;
-				scene = { ...scene, activatedAt: ev.activatedAt ?? null } as SceneData;
-			});
-		}
 	});
 	onDestroy(() => {
 		pageHeader.reset();
-		activeSubHandle?.unsubscribe();
 	});
 
 	$effect(() => {
@@ -632,7 +235,7 @@
 	});
 
 	$effect(() => {
-		const sceneActive = scene?.activatedAt != null;
+		const sceneActive = scene !== null && scenesStore.byId.get(scene.id)?.activatedAt != null;
 		pageHeader.actions = [
 			{
 				label: "Activate",
@@ -646,9 +249,11 @@
 			{ label: "Save", saving, onclick: handleSave, disabled: saving || !sceneName.trim() || !isDirty, hideLabelOnMobile: true },
 		];
 	});
-	let allDevices = $state<Device[]>([]);
-	let allGroups = $state<GroupData[]>([]);
-	let allRooms = $state<RoomData[]>([]);
+	// Dropped at the source so the whole page follows: the target tree, its
+	// reachable counts, the Add drawer and every resolution.
+	const allDevices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const allGroups = $derived(groupsStore.items);
+	const allRooms = $derived(roomsStore.items);
 	let allEffects = $state<EffectSummary[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
@@ -911,10 +516,12 @@
 		if (!clientRef || !scene) return;
 		activating = true;
 		errors.clear();
-		const result = await clientRef.mutation(APPLY_SCENE, { id: scene.id }).toPromise();
-		activating = false;
-		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+		try {
+			await scenesStore.apply(clientRef, scene.id);
+		} catch (e) {
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not apply the scene."));
+		} finally {
+			activating = false;
 		}
 	}
 
@@ -947,35 +554,6 @@
 			});
 
 		client
-			.query<DevicesQueryResult>(DEVICES_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					// Dropped at the source so the whole page follows: the target tree,
-					// its reachable counts, the Add drawer and every resolution.
-					allDevices = result.data.devices.filter((d) => !d.disabled);
-				}
-			});
-
-		client
-			.query<GroupsQueryResult>(GROUPS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					allGroups = result.data.groups;
-				}
-			});
-
-		client
-			.query<RoomsQueryResult>(ROOMS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					allRooms = result.data.rooms;
-				}
-			});
-
-		client
 			.query(EFFECTS_QUERY, {})
 			.toPromise()
 			.then((result) => {
@@ -993,17 +571,6 @@
 				allEffects = [...timelineEffects, ...nativeEffects];
 			});
 
-		const { unsubscribe: unsubState } = client
-			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, {})
-			.subscribe((result) => {
-				if (result.data) {
-					const { deviceId, state } = result.data.deviceStateChanged;
-					allDevices = allDevices.map((d) =>
-						d.id === deviceId ? { ...d, state } : d
-					);
-				}
-			});
-		unsubscribers.push(unsubState);
 	});
 
 	onDestroy(() => {

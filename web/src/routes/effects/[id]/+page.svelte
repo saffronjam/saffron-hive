@@ -7,6 +7,9 @@
 	import { getContextClient } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
+	import { EFFECT_DETAIL_QUERY as EFFECT_QUERY } from "$lib/graphql/details";
+	import { effectsStore } from "$lib/stores/effects.svelte";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
@@ -29,34 +32,6 @@
 	import { EffectKind, type Effect, type EffectClip, type EffectTrack } from "$lib/gql/graphql";
 
 	const effectId = $derived(page.params.id);
-
-	const EFFECT_QUERY = graphql(`
-		query EffectEdit($id: ID!) {
-			effect(id: $id) {
-				id
-				name
-				icon
-				kind
-				nativeName
-				loop
-				durationMs
-				requiredCapabilities
-				tracks {
-					id
-					index
-					name
-					clips {
-						id
-						startMs
-						transitionMinMs
-						transitionMaxMs
-						kind
-						config
-					}
-				}
-			}
-		}
-	`);
 
 	const UPDATE_EFFECT = graphql(`
 		mutation EffectEditUpdate($input: UpdateEffectInput!) {
@@ -84,12 +59,6 @@
 		}
 	`);
 
-	const DELETE_EFFECT = graphql(`
-		mutation EffectEditDelete($id: ID!) {
-			deleteEffect(id: $id)
-		}
-	`);
-
 	type EffectClipData = Pick<
 		EffectClip,
 		"id" | "startMs" | "transitionMinMs" | "transitionMaxMs" | "kind" | "config"
@@ -114,10 +83,6 @@
 		> & {
 			tracks: EffectTrackData[];
 		};
-	}
-
-	interface DeleteEffectResult {
-		deleteEffect: boolean;
 	}
 
 	const clientRef = getContextClient();
@@ -241,6 +206,10 @@
 		savedLoop = loop;
 		savedDurationMs = durationMs;
 		savedTracksJson = JSON.stringify(editableToInputTracks(tracks));
+
+		// The editor's own query carries the full track detail the list does not,
+		// so the shared summary is re-read rather than patched from this result.
+		void effectsStore.refresh(clientRef);
 	}
 
 	async function handleSave() {
@@ -300,15 +269,14 @@
 		deleteLoading = true;
 		errors.clear();
 
-		const result = await clientRef
-			.mutation<DeleteEffectResult>(DELETE_EFFECT, { id: effectData.id })
-			.toPromise();
-		deleteLoading = false;
-
-		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+		try {
+			await effectsStore.delete(clientRef, effectData.id);
+		} catch (e) {
+			deleteLoading = false;
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the effect."));
 			return;
 		}
+		deleteLoading = false;
 
 		deleteConfirmOpen = false;
 		toast.success("Effect deleted");

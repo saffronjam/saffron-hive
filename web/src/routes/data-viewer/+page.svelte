@@ -15,6 +15,8 @@
 	import { sourceKey, type StateHistorySource } from "$lib/state-history-source";
 	import BucketResolutionSelect from "$lib/components/bucket-resolution-select.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { deviceStore } from "$lib/stores/devices";
 	import { graphql } from "$lib/gql";
 	import { queryStore, getContextClient } from "@urql/svelte";
@@ -93,34 +95,8 @@
 
 	const client = getContextClient();
 
-	const ROOMS_QUERY = graphql(`
-		query DataViewerRooms {
-			rooms {
-				id
-				name
-				icon
-			}
-		}
-	`);
-
-	const GROUPS_QUERY = graphql(`
-		query DataViewerGroups {
-			groups {
-				id
-				name
-				icon
-			}
-		}
-	`);
-
-	const roomsQuery = queryStore({ client, query: ROOMS_QUERY });
-	const groupsQuery = queryStore({ client, query: GROUPS_QUERY });
-
-	type RoomLite = { id: string; name: string; icon?: string | null };
-	type GroupLite = { id: string; name: string; icon?: string | null };
-
-	const rooms = $derived<RoomLite[]>($roomsQuery.data?.rooms ?? []);
-	const groups = $derived<GroupLite[]>($groupsQuery.data?.groups ?? []);
+	const rooms = $derived(roomsStore.items);
+	const groups = $derived(groupsStore.items);
 
 	const roomsById = $derived(new Map(rooms.map((r) => [r.id, r])));
 	const groupsById = $derived(new Map(groups.map((g) => [g.id, g])));
@@ -134,7 +110,7 @@
 	let initialApplied = $state(false);
 	$effect(() => {
 		if (initialApplied) return;
-		if ($roomsQuery.fetching || $groupsQuery.fetching) return;
+		if (!roomsStore.hydrated || !groupsStore.hydrated) return;
 		const initial: StateHistorySource[] = [];
 		const seen = new Set<string>();
 		for (const tok of rawSourceTokens) {

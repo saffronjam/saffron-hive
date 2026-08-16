@@ -8,27 +8,9 @@
 	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { deviceSupportsCaps } from "$lib/effect-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
-	import { deviceSupportsNativeEffect, type Device } from "$lib/stores/devices";
-
-	interface GroupSummary {
-		id: string;
-		name: string;
-		icon?: string | null;
-		members: { id: string; memberType: string; memberId: string }[];
-	}
-
-	interface RoomSummary {
-		id: string;
-		name: string;
-		icon?: string | null;
-		members: { id: string; memberType: string; memberId: string }[];
-	}
-
-	interface TargetDrawerQueryResult {
-		devices: Device[];
-		groups: GroupSummary[];
-		rooms: RoomSummary[];
-	}
+	import { deviceStore, deviceSupportsNativeEffect, type Device } from "$lib/stores/devices";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { groupsStore } from "$lib/stores/groups.svelte";
 
 	interface BaseProps {
 		open: boolean;
@@ -51,52 +33,6 @@
 		onstarted,
 	}: Props = $props();
 
-	const RUN_TARGETS_QUERY = graphql(`
-		query EffectRunTargetDrawerData {
-			devices {
-				id
-				name
-				source
-				type
-				tags
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				disabled
-				friendlyName
-				seen
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-			groups {
-				id
-				name
-				icon
-				members { id memberType memberId }
-			}
-			rooms {
-				id
-				name
-				icon
-				members { id memberType memberId }
-			}
-		}
-	`);
-
 	const RUN_EFFECT = graphql(`
 		mutation EffectRunTargetDrawerRunEffect($effectId: ID!, $targetType: String!, $targetId: ID!) {
 			runEffect(effectId: $effectId, targetType: $targetType, targetId: $targetId) {
@@ -115,17 +51,13 @@
 
 	const client = getContextClient();
 	let drawerOpen = $state(false);
-	let devices = $state<Device[]>([]);
-	let groups = $state<GroupSummary[]>([]);
-	let rooms = $state<RoomSummary[]>([]);
-	let dataLoaded = $state(false);
+	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const groups = $derived(groupsStore.items);
+	const rooms = $derived(roomsStore.items);
 	let starting = $state(false);
 
 	$effect(() => {
 		drawerOpen = open;
-		if (open && !dataLoaded) {
-			void fetchData();
-		}
 	});
 
 	$effect(() => {
@@ -134,15 +66,6 @@
 		}
 	});
 
-	async function fetchData() {
-		const result = await client.query<TargetDrawerQueryResult>(RUN_TARGETS_QUERY, {}).toPromise();
-		if (result.data) {
-			devices = result.data.devices.filter((d) => !d.disabled);
-			groups = result.data.groups;
-			rooms = result.data.rooms;
-			dataLoaded = true;
-		}
-	}
 
 	const groupsLite = $derived<GroupLite[]>(
 		groups.map((g) => ({

@@ -8,7 +8,9 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
 	import { deviceDisplayName, deviceIcon } from "$lib/utils";
-	import { deviceStore } from "$lib/stores/devices";
+	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
 		Tooltip,
@@ -41,8 +43,9 @@
 	import { graphql } from "$lib/gql";
 	const deviceId = $derived($page.params.id ?? "");
 
-	let device = $state<Device | null>(null);
-	let loading = $state(true);
+	// deviceStore already holds every field this page renders and keeps it live
+	// over the shared subscriptions, so there is nothing to fetch here.
+	const device = $derived($deviceStore[deviceId] ?? null);
 	// metadataName holds only the override, so "" is a real state meaning
 	// "unset"; fallbackName is what the device shows when it is empty.
 	let metadataName = $state("");
@@ -99,113 +102,9 @@
 		memberId: string;
 	}
 
-	interface GroupInfo {
-		id: string;
-		name: string;
-		members: GroupMember[];
-	}
-
-	interface RoomInfo {
-		id: string;
-		name: string;
-		members: { id: string; memberType: string; memberId: string }[];
-	}
-
-	let groups = $state<GroupInfo[]>([]);
-	let rooms = $state<RoomInfo[]>([]);
+	const groups = $derived(groupsStore.items);
+	const rooms = $derived(roomsStore.items);
 	let pickerOpen = $state(false);
-
-	const DEVICE_QUERY = graphql(`
-		query Device($id: ID!) {
-			device(id: $id) {
-				id
-				name
-				icon
-				tags
-				source
-				type
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				disabled
-				friendlyName
-				seen
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					occupancy
-					battery
-					power
-					voltage
-					current
-					energy
-					targetTemperature
-					hvacMode
-					fanMode
-					swing
-				}
-			}
-		}
-	`);
-
-	const GROUPS_QUERY = graphql(`
-		query DeviceDetailGroups {
-			groups {
-				id
-				name
-				members {
-					id
-					memberType
-					memberId
-				}
-			}
-		}
-	`);
-
-	const ROOMS_QUERY = graphql(`
-		query DeviceDetailRooms {
-			rooms {
-				id
-				name
-				members {
-					id
-					memberType
-					memberId
-				}
-			}
-		}
-	`);
-
-	const ADD_ROOM_MEMBER = graphql(`
-		mutation DeviceDetailAddRoomMember($input: AddRoomMemberInput!) {
-			addRoomMember(input: $input) { id }
-		}
-	`);
-
-	const REMOVE_ROOM_MEMBER = graphql(`
-		mutation DeviceDetailRemoveRoomMember($id: ID!) {
-			removeRoomMember(id: $id)
-		}
-	`);
-
-	const ADD_GROUP_MEMBER = graphql(`
-		mutation DeviceDetailAddGroupMember($input: AddGroupMemberInput!) {
-			addGroupMember(input: $input) { id }
-		}
-	`);
-
-	const REMOVE_GROUP_MEMBER = graphql(`
-		mutation DeviceDetailRemoveGroupMember($id: ID!) {
-			removeGroupMember(id: $id)
-		}
-	`);
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
@@ -229,71 +128,6 @@
 		}
 	`);
 
-	const DEVICE_STATE_CHANGED = graphql(`
-		subscription DeviceDetailDeviceStateChanged($deviceId: ID) {
-			deviceStateChanged(deviceId: $deviceId) {
-				deviceId
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					occupancy
-					battery
-					power
-					voltage
-					current
-					energy
-					targetTemperature
-					hvacMode
-					fanMode
-					swing
-				}
-			}
-		}
-	`);
-
-	const DEVICE_AVAILABILITY_CHANGED = graphql(`
-		subscription DeviceAvailabilityChanged {
-			deviceAvailabilityChanged {
-				deviceId
-				available
-			}
-		}
-	`);
-
-	interface DeviceQueryResult {
-		device: Device | null;
-	}
-
-	interface GroupsQueryResult {
-		groups: GroupInfo[];
-	}
-
-	interface RoomsQueryResult {
-		rooms: RoomInfo[];
-	}
-
-	interface DeviceStateChangedResult {
-		deviceStateChanged: {
-			deviceId: string;
-			state: DeviceState;
-		};
-	}
-
-	interface DeviceAvailabilityChangedResult {
-		deviceAvailabilityChanged: {
-			deviceId: string;
-			available: boolean;
-		};
-	}
-
-	let unsubscribers: (() => void)[] = [];
 	const clientRef = getContextClient();
 
 	const light = $derived(device?.type === "light" ? device.state : null);
@@ -351,40 +185,12 @@
 		return result;
 	});
 
-	async function refreshMemberships() {
-		if (!clientRef) return;
-		const [r, g] = await Promise.all([
-			clientRef.query<RoomsQueryResult>(ROOMS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
-			clientRef.query<GroupsQueryResult>(GROUPS_QUERY, {}, { requestPolicy: "network-only" }).toPromise(),
-		]);
-		if (r.data) rooms = r.data.rooms;
-		if (g.data) groups = g.data.groups;
-	}
-
-	let pendingPicks = 0;
-
 	async function handlePickerSelect(type: "room" | "group", id: string) {
 		if (!clientRef) return;
-		pendingPicks++;
-		try {
-			if (type === "room") {
-				await clientRef
-					.mutation(ADD_ROOM_MEMBER, {
-						input: { roomId: id, memberType: "device", memberId: deviceId },
-					})
-					.toPromise();
-			} else {
-				await clientRef
-					.mutation(ADD_GROUP_MEMBER, {
-						input: { groupId: id, memberType: "device", memberId: deviceId },
-					})
-					.toPromise();
-			}
-		} finally {
-			pendingPicks--;
-			if (pendingPicks === 0) {
-				await refreshMemberships();
-			}
+		if (type === "room") {
+			await roomsStore.addMember(clientRef, id, "device", deviceId);
+		} else {
+			await groupsStore.addMember(clientRef, id, "device", deviceId);
 		}
 	}
 
@@ -393,15 +199,10 @@
 		const row = membershipData.find((r) => r.id === rowId);
 		if (!row) return;
 		if (row.kind === "room") {
-			await clientRef
-				.mutation(REMOVE_ROOM_MEMBER, { id: row.roomMemberId })
-				.toPromise();
+			await roomsStore.removeMember(clientRef, row.roomMemberId);
 		} else {
-			await clientRef
-				.mutation(REMOVE_GROUP_MEMBER, { id: row.groupMemberId })
-				.toPromise();
+			await groupsStore.removeMember(clientRef, row.groupMemberId);
 		}
-		await refreshMemberships();
 	}
 
 	const formattedLastSeen = $derived.by(() => {
@@ -456,13 +257,6 @@
 			const updatedIcon = result.data.updateDevice.icon ?? null;
 			const updatedTags = [...result.data.updateDevice.tags] as DeviceTag[];
 			const updatedDisabled = result.data.updateDevice.disabled;
-			device = {
-				...device,
-				name: updatedName,
-				icon: updatedIcon,
-				tags: updatedTags,
-				disabled: updatedDisabled,
-			};
 			metadataName = updatedName ?? "";
 			savedMetadataName = updatedName ?? "";
 			metadataIcon = updatedIcon;
@@ -495,78 +289,19 @@
 		void clientRef.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
 	}
 
-	onMount(() => {
-		const client = clientRef;
-
-		client
-			.query<DeviceQueryResult>(DEVICE_QUERY, { id: deviceId })
-			.toPromise()
-			.then((result) => {
-				loading = false;
-				if (result.data?.device) {
-					device = result.data.device;
-					metadataName = result.data.device.name ?? "";
-					savedMetadataName = result.data.device.name ?? "";
-					metadataIcon = result.data.device.icon ?? null;
-					savedMetadataIcon = result.data.device.icon ?? null;
-					metadataTags = [...result.data.device.tags] as DeviceTag[];
-					savedMetadataTags = [...result.data.device.tags] as DeviceTag[];
-					metadataDisabled = result.data.device.disabled;
-					savedMetadataDisabled = result.data.device.disabled;
-				} else {
-					error = "Device not found";
-				}
-			})
-			.catch(() => {
-				loading = false;
-				error = "Failed to load device";
-			});
-
-		client
-			.query<GroupsQueryResult>(GROUPS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					groups = result.data.groups;
-				}
-			});
-
-		client
-			.query<RoomsQueryResult>(ROOMS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					rooms = result.data.rooms;
-				}
-			});
-
-		const { unsubscribe: unsubState } = client
-			.subscription<DeviceStateChangedResult>(DEVICE_STATE_CHANGED, { deviceId })
-			.subscribe((result) => {
-				if (result.data && result.data.deviceStateChanged.deviceId === deviceId) {
-					if (device) {
-						device = { ...device, state: result.data.deviceStateChanged.state };
-					}
-				}
-			});
-		unsubscribers.push(unsubState);
-
-		const { unsubscribe: unsubAvail } = client
-			.subscription<DeviceAvailabilityChangedResult>(DEVICE_AVAILABILITY_CHANGED, {})
-			.subscribe((result) => {
-				if (result.data && result.data.deviceAvailabilityChanged.deviceId === deviceId) {
-					if (device) {
-						device = { ...device, available: result.data.deviceAvailabilityChanged.available };
-					}
-				}
-			});
-		unsubscribers.push(unsubAvail);
-	});
-
-	onDestroy(() => {
-		for (const unsub of unsubscribers) {
-			unsub();
-		}
+	// Seed the metadata form from the store once the device is known.
+	let metadataSeeded = false;
+	$effect(() => {
+		if (metadataSeeded || !device) return;
+		metadataSeeded = true;
+		metadataName = device.name ?? "";
+		savedMetadataName = device.name ?? "";
+		metadataIcon = device.icon ?? null;
+		savedMetadataIcon = device.icon ?? null;
+		metadataTags = [...device.tags] as DeviceTag[];
+		savedMetadataTags = [...device.tags] as DeviceTag[];
+		metadataDisabled = device.disabled;
+		savedMetadataDisabled = device.disabled;
 	});
 
 	let historyFrom = $state<Date>(new Date(Date.now() - 24 * 60 * 60 * 1000));
@@ -580,7 +315,7 @@
 		<ErrorBanner class="mb-4" message={error} />
 	{/if}
 
-	{#if loading}
+	{#if !$devicesHydrated}
 		<div class="space-y-4">
 			<div class="h-48 animate-pulse rounded-xl shadow-card bg-card"></div>
 			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>

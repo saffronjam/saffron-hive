@@ -6,6 +6,7 @@
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { AUTOMATION_DETAIL_QUERY as AUTOMATION_QUERY } from "$lib/graphql/details";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -58,7 +59,10 @@
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
-	import type { Device } from "$lib/stores/devices";
+	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { groupsStore } from "$lib/stores/groups.svelte";
+	import { scenesStore } from "$lib/stores/scenes.svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import {
 		type TriggerConfig,
@@ -164,29 +168,6 @@
 		};
 	}
 
-	const AUTOMATION_QUERY = graphql(`
-		query Automation($id: ID!) {
-			automation(id: $id) {
-				id
-				name
-				icon
-				enabled
-				nodes {
-					id
-					type
-					config
-					positionX
-					positionY
-					runtimeState
-				}
-				edges {
-					fromNodeId
-					toNodeId
-				}
-			}
-		}
-	`);
-
 	const UPDATE_AUTOMATION = graphql(`
 		mutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {
 			updateAutomation(id: $id, input: $input) {
@@ -231,77 +212,6 @@
 		}
 	`);
 
-	const DEVICES_QUERY = graphql(`
-		query AutomationEditDevices {
-			devices {
-				id
-				name
-				type
-				tags
-				source
-				capabilities { name type values valueMin valueMax unit access }
-				available
-				disabled
-				friendlyName
-				seen
-				lastSeen
-				state {
-					on
-					brightness
-					colorTemp
-					color { r g b x y }
-					transition
-					temperature
-					humidity
-					pressure
-					illuminance
-					battery
-					power
-					voltage
-					current
-					energy
-				}
-			}
-		}
-	`);
-
-	const GROUPS_QUERY = graphql(`
-		query AutomationEditGroups {
-			groups {
-				id
-				name
-				members {
-					id
-					memberType
-					memberId
-				}
-			}
-		}
-	`);
-
-	const ROOMS_QUERY = graphql(`
-		query AutomationEditRooms {
-			rooms {
-				id
-				name
-				resolvedDevices { id }
-			}
-		}
-	`);
-
-	const SCENES_QUERY = graphql(`
-		query AutomationEditScenes {
-			scenes {
-				id
-				name
-				rooms {
-					id
-					name
-				}
-			}
-		}
-	`);
-
 	const EFFECTS_QUERY = graphql(`
 		query AutomationEditEffects {
 			effects {
@@ -314,10 +224,6 @@
 			}
 		}
 	`);
-
-	interface ScenesQueryResult {
-		scenes: { id: string; name: string; rooms: { id: string; name: string }[] }[];
-	}
 
 	interface EffectsQueryResult {
 		effects: { id: string; name: string }[];
@@ -389,10 +295,12 @@
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
 
-	let devices = $state<Device[]>([]);
-	let groups = $state<GroupData[]>([]);
-	let rooms = $state<RoomData[]>([]);
-	let scenes = $state<{ id: string; name: string; rooms: { id: string; name: string }[] }[]>([]);
+	// Dropped at the source so every target picker, capability union and
+	// selector on this page follows.
+	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const groups = $derived(groupsStore.items);
+	const rooms = $derived(roomsStore.items);
+	const scenes = $derived(scenesStore.items);
 	let effects = $state<EffectOption[]>([]);
 
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -1358,44 +1266,6 @@
 						takeSnapshot();
 					}
 				});
-
-		client
-			.query<DevicesQueryResult>(DEVICES_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					// Dropped at the source so every target picker, capability union
-					// and selector on this page follows.
-					devices = result.data.devices.filter((d) => !d.disabled);
-				}
-			});
-
-		client
-			.query<GroupsQueryResult>(GROUPS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					groups = result.data.groups;
-				}
-			});
-
-		client
-			.query<RoomsQueryResult>(ROOMS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					rooms = result.data.rooms;
-				}
-			});
-
-		client
-			.query<ScenesQueryResult>(SCENES_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (result.data) {
-					scenes = result.data.scenes;
-				}
-			});
 
 		client
 			.query<EffectsQueryResult>(EFFECTS_QUERY, {})

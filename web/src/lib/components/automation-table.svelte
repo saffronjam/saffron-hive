@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import type { Automation } from "$lib/stores/automations.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
@@ -22,41 +23,18 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { GitMerge, Play, Workflow, Zap } from "@lucide/svelte";
 
-	interface AutomationNode {
-		id: string;
-		type: string;
-		config: string;
-	}
-
-	interface AutomationEdge {
-		id: string;
-		fromNodeId: string;
-		toNodeId: string;
-	}
-
-	interface AutomationData {
-		id: string;
-		name: string;
-		icon?: string | null;
-		enabled: boolean;
-		lastFiredAt?: string | null;
-		nodes: AutomationNode[];
-		edges: AutomationEdge[];
-		createdBy?: { id: string; username: string; name: string } | null;
-	}
-
 	interface Props {
-		automations: AutomationData[];
+		automations: Automation[];
 		selection: TableSelection;
-		ontoggle: (a: AutomationData, enabled: boolean) => void;
-		ondelete: (a: AutomationData) => void;
-		onrename: (a: AutomationData, newName: string) => void;
-		oniconchange: (a: AutomationData, icon: string | null) => void;
+		ontoggle: (a: Automation, enabled: boolean) => void;
+		ondelete: (a: Automation) => void;
+		onrename: (a: Automation, newName: string) => void;
+		oniconchange: (a: Automation, icon: string | null) => void;
 	}
 
 	let { automations, selection, ontoggle, ondelete, onrename, oniconchange }: Props = $props();
 
-	const COLUMNS: ColumnDef<AutomationData>[] = [
+	const COLUMNS: ColumnDef<Automation>[] = [
 		{
 			key: "select",
 			label: "",
@@ -127,7 +105,7 @@
 	<TableHeaderCheckbox {selection} orderedIds={displayIds} />
 {/snippet}
 
-{#snippet selectCell(a: AutomationData)}
+{#snippet selectCell(a: Automation)}
 	<TableRowCheckbox
 		id={a.id}
 		{selection}
@@ -136,24 +114,24 @@
 	/>
 {/snippet}
 
-{#snippet iconCell(a: AutomationData)}
+{#snippet iconCell(a: Automation)}
 	<IconCell value={a.icon} onselect={(icon) => oniconchange(a, icon)} fallback={Workflow} />
 {/snippet}
 
-{#snippet nameCell(a: AutomationData)}
+{#snippet nameCell(a: Automation)}
 	<InlineEditName
 		name={a.name}
 		onsave={(newName) => onrename(a, newName)}
 	/>
 {/snippet}
 
-{#snippet metaCell(a: AutomationData)}
+{#snippet metaCell(a: Automation)}
 	<span class="text-xs text-muted-foreground whitespace-nowrap">
 		{a.nodes.length} node{a.nodes.length === 1 ? "" : "s"}
 	</span>
 {/snippet}
 
-{#snippet compositionCell(a: AutomationData)}
+{#snippet compositionCell(a: Automation)}
 	{@const c = automationNodeCounts(a.nodes)}
 	{#if c.trigger === 0 && c.operator === 0 && c.action === 0}
 		<span class="text-muted-foreground">—</span>
@@ -181,7 +159,7 @@
 	{/if}
 {/snippet}
 
-{#snippet lastTriggeredCell(a: AutomationData)}
+{#snippet lastTriggeredCell(a: Automation)}
 	<span class="text-xs text-muted-foreground whitespace-nowrap">
 		{#if a.lastFiredAt}
 			<Tooltip>
@@ -202,13 +180,13 @@
 	</span>
 {/snippet}
 
-{#snippet createdByCell(a: AutomationData)}
+{#snippet createdByCell(a: Automation)}
 	<CreatedByCell user={a.createdBy} />
 {/snippet}
 
 {#snippet actionsHead()}<ActionsHead />{/snippet}
 
-{#snippet actionsCell(a: AutomationData)}
+{#snippet actionsCell(a: Automation)}
 	<RowActionsCell
 		editHref={`/automations/${a.id}`}
 		ondelete={() => ondelete(a)}
