@@ -73,6 +73,12 @@
 		 */
 		onclick?: (entity: T) => void;
 		/**
+		 * Fired when the pointer first reaches the card. Cards that link to an
+		 * editor use it to warm that editor's query — see
+		 * `$lib/actions/prefetch-detail`.
+		 */
+		onpointerenter?: (entity: T) => void;
+		/**
 		 * Replaces the default icon block (IconPicker / static icon) entirely.
 		 * Consumers render their own icon UI here — typically a button wrapped
 		 * in a Popover. The snippet receives helpers for the standard tinted
@@ -144,6 +150,7 @@
 		readOnly = false,
 		class: extraClass = "",
 		onclick,
+		onpointerenter,
 		iconArea,
 		brightnessFill = null,
 		dragOpts,
@@ -244,6 +251,7 @@
 	role={onclick ? "button" : undefined}
 	tabindex={onclick ? 0 : undefined}
 	onclick={onclick ? () => onclick(entity) : undefined}
+	onpointerenter={onpointerenter ? () => onpointerenter(entity) : undefined}
 	onkeydown={onclick ? handleKeydown : undefined}
 	use:brightnessDrag={dragOpts ?? { initial: () => 0, onpreview: () => {}, oncommit: () => {}, enabled: () => false }}
 >
