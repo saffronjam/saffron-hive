@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
+	import LazyTooltip from "$lib/components/lazy-tooltip.svelte";
 	import { Pencil, Trash2 } from "@lucide/svelte";
 
 	interface Props {
@@ -28,19 +28,25 @@
 <div class="flex items-center justify-end gap-1">
 	{@render leading?.()}
 	{#if editHref}
-		<Tooltip>
-			<TooltipTrigger>
-				<Button variant="ghost" size="icon-sm" href={editHref} aria-label={editLabel}>
+		<LazyTooltip content={editTooltip}>
+			{#snippet children(props)}
+				<Button
+					{...props}
+					variant="ghost"
+					size="icon-sm"
+					href={editHref}
+					aria-label={editLabel}
+				>
 					<Pencil class="size-4" />
 				</Button>
-			</TooltipTrigger>
-			<TooltipContent>{editTooltip}</TooltipContent>
-		</Tooltip>
+			{/snippet}
+		</LazyTooltip>
 	{/if}
 	{#if ondelete}
-		<Tooltip>
-			<TooltipTrigger>
+		<LazyTooltip content={deleteTooltip}>
+			{#snippet children(props)}
 				<Button
+					{...props}
 					variant="ghost"
 					size="icon-sm"
 					onclick={ondelete}
@@ -49,8 +55,7 @@
 				>
 					<Trash2 class="size-4" />
 				</Button>
-			</TooltipTrigger>
-			<TooltipContent>{deleteTooltip}</TooltipContent>
-		</Tooltip>
+			{/snippet}
+		</LazyTooltip>
 	{/if}
 </div>
