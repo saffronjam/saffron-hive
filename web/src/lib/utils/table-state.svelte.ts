@@ -228,8 +228,11 @@ function compare(
   if (typeof a === "boolean" && typeof b === "boolean") {
     return a === b ? 0 : a ? -1 : 1;
   }
-  return String(a).localeCompare(String(b), undefined, { sensitivity: "base" });
+  return collator.compare(String(a), String(b));
 }
+
+/** Hoisted: constructing a collator per comparison is far slower than reusing one. */
+const collator = new Intl.Collator(undefined, { sensitivity: "base" });
 
 function reconcileOrder(stored: string[], defaultOrder: string[]): string[] {
   const valid = new Set(defaultOrder);

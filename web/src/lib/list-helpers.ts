@@ -5,12 +5,10 @@ import { deviceDisplayName } from "$lib/utils";
  * Stable comparator for device list ordering: case-insensitive name, then id tiebreak.
  * Produces a deterministic order across reloads regardless of insertion order.
  */
+const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+
 export function compareDevicesByName(a: Device, b: Device): number {
-  return (
-    deviceDisplayName(a).localeCompare(deviceDisplayName(b), undefined, {
-      sensitivity: "base",
-    }) || a.id.localeCompare(b.id)
-  );
+  return collator.compare(deviceDisplayName(a), deviceDisplayName(b)) || a.id.localeCompare(b.id);
 }
 
 /**
