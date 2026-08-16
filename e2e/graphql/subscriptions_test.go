@@ -314,3 +314,54 @@ func TestSubscriptions_DeviceRemoved(t *testing.T) {
 		t.Fatal("timed out waiting for deviceRemoved subscription event")
 	}
 }
+
+func TestSubscriptions_DeviceUpdated(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Bedroom Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	ch, cleanup, wsErr := wsSubscribe(
+		`subscription { deviceUpdated { id name } }`,
+		nil,
+	)
+	if wsErr != nil {
+		t.Fatalf("subscribe: %v", wsErr)
+	}
+	defer cleanup()
+
+	time.Sleep(200 * time.Millisecond)
+
+	if _, err := graphqlMutation(`mutation($id: ID!) {
+		updateDevice(id: $id, input: { name: "Renamed From Another Tab" }) { id name }
+	}`, map[string]any{"id": deviceID}); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) {
+			updateDevice(id: $id, input: { name: null }) { id }
+		}`, map[string]any{"id": deviceID})
+	})
+
+	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case data := <-ch:
+			var event struct {
+				DeviceUpdated struct {
+					ID   string `json:"id"`
+					Name string `json:"name"`
+				} `json:"deviceUpdated"`
+			}
+			if json.Unmarshal(data, &event) == nil &&
+				event.DeviceUpdated.ID == deviceID &&
+				event.DeviceUpdated.Name == "Renamed From Another Tab" {
+				return true
+			}
+		default:
+		}
+		return false
+	})
+	if !ok {
+		t.Fatal("no deviceUpdated event for the rename")
+	}
+}

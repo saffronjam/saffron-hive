@@ -300,6 +300,17 @@ func (s *DB) ListGroupMembers(ctx context.Context, groupID string) ([]GroupMembe
 	return members, nil
 }
 
+// GetGroupMemberGroupID returns the group a membership belongs to. Callers that
+// need to report the updated group after removing a member read this first,
+// since the membership row is gone once the delete lands.
+func (s *DB) GetGroupMemberGroupID(ctx context.Context, id string) (string, error) {
+	groupID, err := s.q.GetGroupMemberGroupID(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("get group member group id: %w", err)
+	}
+	return groupID, nil
+}
+
 // RemoveGroupMember deletes a group member by its ID.
 func (s *DB) RemoveGroupMember(ctx context.Context, id string) error {
 	if err := s.q.RemoveGroupMember(ctx, id); err != nil {

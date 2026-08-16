@@ -125,8 +125,10 @@ type Querier interface {
 	// before hitting these queries and unmarshals on read.
 	GetFloorplan(ctx context.Context) (Floorplan, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
+	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
 	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
+	GetRoomMemberRoomID(ctx context.Context, id string) (string, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
 	GetTuyaConfig(ctx context.Context) (GetTuyaConfigRow, error)

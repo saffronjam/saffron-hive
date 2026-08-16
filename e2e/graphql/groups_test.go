@@ -95,7 +95,7 @@ func TestGroups_AddDeviceMember(t *testing.T) {
 	}
 
 	data, err = graphqlMutation(`mutation($input: AddGroupMemberInput!) {
-		addGroupMember(input: $input) { id memberType memberId }
+		addGroupMember(input: $input) { id members { id memberType memberId } }
 	}`, map[string]any{
 		"input": map[string]any{
 			"groupId":    groupID,
@@ -337,7 +337,7 @@ func TestGroups_RemoveGroupMember(t *testing.T) {
 	}
 
 	data, err = graphqlMutation(`mutation($input: AddGroupMemberInput!) {
-		addGroupMember(input: $input) { id }
+		addGroupMember(input: $input) { id members { id } }
 	}`, map[string]any{
 		"input": map[string]any{
 			"groupId":    groupID,
@@ -349,14 +349,20 @@ func TestGroups_RemoveGroupMember(t *testing.T) {
 		t.Fatalf("add member: %v", err)
 	}
 	var memberResult struct {
-		AddGroupMember struct{ ID string } `json:"addGroupMember"`
+		AddGroupMember struct {
+			ID      string
+			Members []struct{ ID string }
+		} `json:"addGroupMember"`
 	}
 	if err := json.Unmarshal(data, &memberResult); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	memberID := memberResult.AddGroupMember.ID
+	if len(memberResult.AddGroupMember.Members) != 1 {
+		t.Fatalf("members after add = %+v, want one", memberResult.AddGroupMember.Members)
+	}
+	memberID := memberResult.AddGroupMember.Members[0].ID
 
-	_, err = graphqlMutation(`mutation($id: ID!) { removeGroupMember(id: $id) }`, map[string]any{"id": memberID})
+	_, err = graphqlMutation(`mutation($id: ID!) { removeGroupMember(id: $id) { id members { id } } }`, map[string]any{"id": memberID})
 	if err != nil {
 		t.Fatalf("remove member: %v", err)
 	}

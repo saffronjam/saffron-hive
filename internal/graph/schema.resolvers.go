@@ -572,7 +572,7 @@ func (r *mutationResolver) DeleteGroup(ctx context.Context, id string) (bool, er
 }
 
 // AddGroupMember is the resolver for the addGroupMember field.
-func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.GroupMember, error) {
+func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.Group, error) {
 	memberType := device.GroupMemberType(input.MemberType)
 	if memberType != device.GroupMemberDevice && memberType != device.GroupMemberGroup && memberType != device.GroupMemberRoom {
 		return nil, fmt.Errorf("invalid member type %q: must be %q, %q, or %q", input.MemberType, device.GroupMemberDevice, device.GroupMemberGroup, device.GroupMemberRoom)
@@ -591,27 +591,29 @@ func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGr
 	}
 
 	memberID := uuid.New().String()
-	m, err := r.Store.AddGroupMember(ctx, store.AddGroupMemberParams{
+	if _, err := r.Store.AddGroupMember(ctx, store.AddGroupMemberParams{
 		ID:         memberID,
 		GroupID:    input.GroupID,
 		MemberType: memberType,
 		MemberID:   input.MemberID,
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	r.publishGroupMembershipChanged()
-	return mapGroupMember(ctx, r.StateReader, r.Store, m), nil
+	return r.loadGroup(ctx, input.GroupID)
 }
 
 // RemoveGroupMember is the resolver for the removeGroupMember field.
-func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (bool, error) {
-	err := r.Store.RemoveGroupMember(ctx, id)
+func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (*model.Group, error) {
+	groupID, err := r.Store.GetGroupMemberGroupID(ctx, id)
 	if err != nil {
-		return false, err
+		return nil, fmt.Errorf("group member %q not found: %w", id, err)
+	}
+	if err := r.Store.RemoveGroupMember(ctx, id); err != nil {
+		return nil, err
 	}
 	r.publishGroupMembershipChanged()
-	return true, nil
+	return r.loadGroup(ctx, groupID)
 }
 
 // CreateRoom is the resolver for the createRoom field.
@@ -664,7 +666,7 @@ func (r *mutationResolver) DeleteRoom(ctx context.Context, id string) (bool, err
 }
 
 // AddRoomMember is the resolver for the addRoomMember field.
-func (r *mutationResolver) AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.RoomMember, error) {
+func (r *mutationResolver) AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.Room, error) {
 	memberType := device.RoomMemberType(input.MemberType)
 	if memberType != device.RoomMemberDevice && memberType != device.RoomMemberGroup {
 		return nil, fmt.Errorf("%w %q: must be %q or %q", device.ErrInvalidRoomMemberType, input.MemberType, device.RoomMemberDevice, device.RoomMemberGroup)
@@ -679,26 +681,29 @@ func (r *mutationResolver) AddRoomMember(ctx context.Context, input model.AddRoo
 	}
 
 	memberID := uuid.New().String()
-	m, err := r.Store.AddRoomMember(ctx, store.AddRoomMemberParams{
+	if _, err := r.Store.AddRoomMember(ctx, store.AddRoomMemberParams{
 		ID:         memberID,
 		RoomID:     input.RoomID,
 		MemberType: memberType,
 		MemberID:   input.MemberID,
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	r.publishRoomMembershipChanged()
-	return mapRoomMember(ctx, r.StateReader, r.Store, m), nil
+	return r.loadRoom(ctx, input.RoomID)
 }
 
 // RemoveRoomMember is the resolver for the removeRoomMember field.
-func (r *mutationResolver) RemoveRoomMember(ctx context.Context, id string) (bool, error) {
+func (r *mutationResolver) RemoveRoomMember(ctx context.Context, id string) (*model.Room, error) {
+	roomID, err := r.Store.GetRoomMemberRoomID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("room member %q not found: %w", id, err)
+	}
 	if err := r.Store.RemoveRoomMember(ctx, id); err != nil {
-		return false, err
+		return nil, err
 	}
 	r.publishRoomMembershipChanged()
-	return true, nil
+	return r.loadRoom(ctx, roomID)
 }
 
 // UpdateFloorplan is the resolver for the updateFloorplan field.
@@ -2106,26 +2111,6 @@ func (r *queryResolver) Settings(ctx context.Context) ([]*model.Setting, error) 
 	return result, nil
 }
 
-// SearchPlaces is the resolver for the searchPlaces field.
-func (r *queryResolver) SearchPlaces(ctx context.Context, query string) ([]*model.Place, error) {
-	if r.Places == nil {
-		return nil, fmt.Errorf("place search is not configured")
-	}
-	found, err := r.Places.Search(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*model.Place, 0, len(found))
-	for _, p := range found {
-		out = append(out, &model.Place{
-			Name:      p.Name,
-			Latitude:  p.Latitude,
-			Longitude: p.Longitude,
-		})
-	}
-	return out, nil
-}
-
 // Logs is the resolver for the logs field.
 func (r *queryResolver) Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error) {
 	entries := r.LogBuffer.Entries()
@@ -2515,6 +2500,42 @@ func (r *subscriptionResolver) DeviceAdded(ctx context.Context) (<-chan *model.D
 					return
 				}
 				d, ok := r.StateReader.GetDevice(device.DeviceID(evt.DeviceID))
+				if !ok {
+					continue
+				}
+				md := mapDeviceFromReader(r.StateReader, d)
+				select {
+				case out <- md:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+// DeviceUpdated is the resolver for the deviceUpdated field.
+func (r *subscriptionResolver) DeviceUpdated(ctx context.Context) (<-chan *model.Device, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventDeviceUpdated)
+	out := make(chan *model.Device, 1)
+
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				// The event carries the freshly written row, so there is no
+				// read-back race with the in-memory store's own refresh.
+				d, ok := evt.Payload.(device.Device)
 				if !ok {
 					continue
 				}

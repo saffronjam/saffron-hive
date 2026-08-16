@@ -24,11 +24,14 @@ const ADD_GROUP_MEMBER = graphql(`
   mutation E2EAddGroupMember($input: AddGroupMemberInput!) {
     addGroupMember(input: $input) {
       id
-      memberType
-      memberId
-      device {
+      members {
         id
-        name
+        memberType
+        memberId
+        device {
+          id
+          name
+        }
       }
     }
   }
@@ -87,7 +90,12 @@ const UPDATE_GROUP = graphql(`
 
 const REMOVE_GROUP_MEMBER = graphql(`
   mutation E2ERemoveGroupMember($id: ID!) {
-    removeGroupMember(id: $id)
+    removeGroupMember(id: $id) {
+      id
+      members {
+        id
+      }
+    }
   }
 `);
 
@@ -143,8 +151,9 @@ describe("groups", () => {
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
-    expect(result.data!.addGroupMember.memberType).toBe("device");
-    expect(result.data!.addGroupMember.memberId).toBe(deviceId);
+    expect(result.data!.addGroupMember.members).toHaveLength(1);
+    expect(result.data!.addGroupMember.members[0].memberType).toBe("device");
+    expect(result.data!.addGroupMember.members[0].memberId).toBe(deviceId);
   });
 
   it("should query group with resolved devices", async () => {
@@ -260,14 +269,14 @@ describe("groups", () => {
       })
       .toPromise();
     expect(memberResult.data).toBeDefined();
-    const memberId = memberResult.data!.addGroupMember.id;
+    const memberId = memberResult.data!.addGroupMember.members[0].id;
 
     const removeResult = await graphqlClient
       .mutation(REMOVE_GROUP_MEMBER, { id: memberId })
       .toPromise();
     expect(removeResult.error).toBeUndefined();
     expect(removeResult.data).toBeDefined();
-    expect(removeResult.data!.removeGroupMember).toBe(true);
+    expect(removeResult.data!.removeGroupMember.members).toHaveLength(0);
 
     const queryResult = await graphqlClient.query(GROUP_QUERY, { id: gId }).toPromise();
     expect(queryResult.data).toBeDefined();

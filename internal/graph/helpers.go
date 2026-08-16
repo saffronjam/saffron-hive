@@ -227,6 +227,31 @@ func (r *Resolver) publishGroupMembershipChanged() {
 	})
 }
 
+// loadRoom reads a room and its members and maps it for the API. Mutations that
+// change membership return this so the caller receives the recomputed
+// `resolvedDevices` rather than having to derive it.
+func (r *Resolver) loadRoom(ctx context.Context, id string) (*model.Room, error) {
+	rm, err := r.Store.GetRoom(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("room %q not found: %w", id, err)
+	}
+	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
+}
+
+// loadGroup reads a group and its members and maps it for the API. Serves the
+// same purpose as loadRoom for group membership mutations.
+func (r *Resolver) loadGroup(ctx context.Context, id string) (*model.Group, error) {
+	g, err := r.Store.GetGroup(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("group %q not found: %w", id, err)
+	}
+	members, err := r.Store.ListGroupMembers(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return mapGroup(ctx, r.StateReader, r.Store, g, members), nil
+}
+
 func currentUserID(ctx context.Context) *string {
 	u, ok := auth.UserFromContext(ctx)
 	if !ok {

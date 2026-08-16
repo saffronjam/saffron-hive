@@ -223,6 +223,17 @@ func (s *DB) ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, 
 	return members, nil
 }
 
+// GetRoomMemberRoomID returns the room a membership belongs to. Callers that
+// need to report the updated room after removing a member read this first,
+// since the membership row is gone once the delete lands.
+func (s *DB) GetRoomMemberRoomID(ctx context.Context, id string) (string, error) {
+	roomID, err := s.q.GetRoomMemberRoomID(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("get room member room id: %w", err)
+	}
+	return roomID, nil
+}
+
 // RemoveRoomMember deletes a room membership by its ID.
 func (s *DB) RemoveRoomMember(ctx context.Context, id string) error {
 	if err := s.q.RemoveRoomMember(ctx, id); err != nil {

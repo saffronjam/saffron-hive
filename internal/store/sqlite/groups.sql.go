@@ -144,6 +144,17 @@ func (q *Queries) GetGroup(ctx context.Context, id string) (GetGroupRow, error) 
 	return i, err
 }
 
+const getGroupMemberGroupID = `-- name: GetGroupMemberGroupID :one
+SELECT group_id FROM group_members WHERE id = ?
+`
+
+func (q *Queries) GetGroupMemberGroupID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getGroupMemberGroupID, id)
+	var group_id string
+	err := row.Scan(&group_id)
+	return group_id, err
+}
+
 const listAllGroupMemberships = `-- name: ListAllGroupMemberships :many
 SELECT id, group_id, member_type, member_id FROM group_members
 `

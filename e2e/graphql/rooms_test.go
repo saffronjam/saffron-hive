@@ -101,19 +101,25 @@ func TestRooms_RemoveMember(t *testing.T) {
 	memberID := mustAddRoomMemberE2E(t, roomID, "device", deviceID)
 
 	data, err := graphqlMutation(`mutation($id: ID!) {
-		removeRoomMember(id: $id)
+		removeRoomMember(id: $id) { id members { id } }
 	}`, map[string]any{"id": memberID})
 	if err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	var ok struct {
-		RemoveRoomMember bool `json:"removeRoomMember"`
+	var removed struct {
+		RemoveRoomMember struct {
+			ID      string
+			Members []struct{ ID string }
+		} `json:"removeRoomMember"`
 	}
-	if err := json.Unmarshal(data, &ok); err != nil {
+	if err := json.Unmarshal(data, &removed); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if !ok.RemoveRoomMember {
-		t.Fatal("removeRoomMember returned false")
+	if removed.RemoveRoomMember.ID != roomID {
+		t.Errorf("removeRoomMember room id = %q, want %q", removed.RemoveRoomMember.ID, roomID)
+	}
+	if len(removed.RemoveRoomMember.Members) != 0 {
+		t.Errorf("members in mutation result = %+v, want empty", removed.RemoveRoomMember.Members)
 	}
 
 	got := mustQueryRoom(t, roomID)
@@ -189,10 +195,13 @@ func mustCreateGroupE2E(t *testing.T, name string) string {
 	return result.CreateGroup.ID
 }
 
+// mustAddRoomMemberE2E adds a member and returns its membership id. The
+// mutation reports the updated room, so the id is read back out of the
+// member list.
 func mustAddRoomMemberE2E(t *testing.T, roomID, memberType, memberID string) string {
 	t.Helper()
 	data, err := graphqlMutation(`mutation($input: AddRoomMemberInput!) {
-		addRoomMember(input: $input) { id }
+		addRoomMember(input: $input) { id members { id memberType memberId } }
 	}`, map[string]any{
 		"input": map[string]any{
 			"roomId":     roomID,
@@ -204,18 +213,33 @@ func mustAddRoomMemberE2E(t *testing.T, roomID, memberType, memberID string) str
 		t.Fatalf("add room member: %v", err)
 	}
 	var result struct {
-		AddRoomMember struct{ ID string } `json:"addRoomMember"`
+		AddRoomMember struct {
+			ID      string
+			Members []struct {
+				ID         string
+				MemberType string `json:"memberType"`
+				MemberID   string `json:"memberId"`
+			}
+		} `json:"addRoomMember"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	return result.AddRoomMember.ID
+	for _, m := range result.AddRoomMember.Members {
+		if m.MemberType == memberType && m.MemberID == memberID {
+			return m.ID
+		}
+	}
+	t.Fatalf("room %q has no %s member %q after add", roomID, memberType, memberID)
+	return ""
 }
 
+// mustAddGroupMemberE2E adds a member and returns its membership id, read back
+// out of the updated group the mutation reports.
 func mustAddGroupMemberE2E(t *testing.T, groupID, memberType, memberID string) string {
 	t.Helper()
 	data, err := graphqlMutation(`mutation($input: AddGroupMemberInput!) {
-		addGroupMember(input: $input) { id }
+		addGroupMember(input: $input) { id members { id memberType memberId } }
 	}`, map[string]any{
 		"input": map[string]any{
 			"groupId":    groupID,
@@ -227,10 +251,23 @@ func mustAddGroupMemberE2E(t *testing.T, groupID, memberType, memberID string) s
 		t.Fatalf("add group member: %v", err)
 	}
 	var result struct {
-		AddGroupMember struct{ ID string } `json:"addGroupMember"`
+		AddGroupMember struct {
+			ID      string
+			Members []struct {
+				ID         string
+				MemberType string `json:"memberType"`
+				MemberID   string `json:"memberId"`
+			}
+		} `json:"addGroupMember"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	return result.AddGroupMember.ID
+	for _, m := range result.AddGroupMember.Members {
+		if m.MemberType == memberType && m.MemberID == memberID {
+			return m.ID
+		}
+	}
+	t.Fatalf("group %q has no %s member %q after add", groupID, memberType, memberID)
+	return ""
 }

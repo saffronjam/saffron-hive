@@ -52,6 +52,9 @@ SELECT id, group_id, member_type, member_id
 FROM group_members
 WHERE group_id = ?;
 
+-- name: GetGroupMemberGroupID :one
+SELECT group_id FROM group_members WHERE id = ?;
+
 -- name: RemoveGroupMember :exec
 DELETE FROM group_members WHERE id = ?;
 

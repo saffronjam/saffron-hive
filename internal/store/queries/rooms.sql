@@ -58,6 +58,9 @@ SELECT id, room_id, member_type, member_id
 FROM room_members
 WHERE room_id = ?;
 
+-- name: GetRoomMemberRoomID :one
+SELECT room_id FROM room_members WHERE id = ?;
+
 -- name: RemoveRoomMember :exec
 DELETE FROM room_members WHERE id = ?;
 

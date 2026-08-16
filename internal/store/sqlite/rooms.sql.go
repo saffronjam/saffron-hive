@@ -150,6 +150,17 @@ func (q *Queries) GetRoom(ctx context.Context, id string) (GetRoomRow, error) {
 	return i, err
 }
 
+const getRoomMemberRoomID = `-- name: GetRoomMemberRoomID :one
+SELECT room_id FROM room_members WHERE id = ?
+`
+
+func (q *Queries) GetRoomMemberRoomID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getRoomMemberRoomID, id)
+	var room_id string
+	err := row.Scan(&room_id)
+	return room_id, err
+}
+
 const listRoomMembers = `-- name: ListRoomMembers :many
 SELECT id, room_id, member_type, member_id
 FROM room_members

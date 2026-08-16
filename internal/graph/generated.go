@@ -416,12 +416,6 @@ type ComplexityRoot struct {
 		ScannedAt func(childComplexity int) int
 	}
 
-	Place struct {
-		Latitude  func(childComplexity int) int
-		Longitude func(childComplexity int) int
-		Name      func(childComplexity int) int
-	}
-
 	Query struct {
 		ActiveEffects          func(childComplexity int) int
 		Activity               func(childComplexity int, filter *model.ActivityFilter) int
@@ -445,7 +439,6 @@ type ComplexityRoot struct {
 		Rooms                  func(childComplexity int) int
 		Scene                  func(childComplexity int, id string) int
 		Scenes                 func(childComplexity int) int
-		SearchPlaces           func(childComplexity int, query string) int
 		Settings               func(childComplexity int) int
 		SetupStatus            func(childComplexity int) int
 		StateHistory           func(childComplexity int, filter model.StateHistoryFilter) int
@@ -531,6 +524,7 @@ type ComplexityRoot struct {
 		DeviceAvailabilityChanged func(childComplexity int) int
 		DeviceRemoved             func(childComplexity int) int
 		DeviceStateChanged        func(childComplexity int, deviceID *string) int
+		DeviceUpdated             func(childComplexity int) int
 		EffectStepActivated       func(childComplexity int, runID *string) int
 		LogStream                 func(childComplexity int) int
 		NetworkTopologyUpdated    func(childComplexity int, provider *string) int
@@ -608,13 +602,13 @@ type MutationResolver interface {
 	CreateGroup(ctx context.Context, input model.CreateGroupInput) (*model.Group, error)
 	UpdateGroup(ctx context.Context, id string, input model.UpdateGroupInput) (*model.Group, error)
 	DeleteGroup(ctx context.Context, id string) (bool, error)
-	AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.GroupMember, error)
-	RemoveGroupMember(ctx context.Context, id string) (bool, error)
+	AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.Group, error)
+	RemoveGroupMember(ctx context.Context, id string) (*model.Group, error)
 	CreateRoom(ctx context.Context, input model.CreateRoomInput) (*model.Room, error)
 	UpdateRoom(ctx context.Context, id string, input model.UpdateRoomInput) (*model.Room, error)
 	DeleteRoom(ctx context.Context, id string) (bool, error)
-	AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.RoomMember, error)
-	RemoveRoomMember(ctx context.Context, id string) (bool, error)
+	AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.Room, error)
+	RemoveRoomMember(ctx context.Context, id string) (*model.Room, error)
 	UpdateFloorplan(ctx context.Context, input model.UpdateFloorplanInput) (*model.Floorplan, error)
 	UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error)
 	TestZigbee2MqttConnection(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.ConnectionTestResult, error)
@@ -671,7 +665,6 @@ type QueryResolver interface {
 	TuyaConfig(ctx context.Context) (*model.TuyaConfig, error)
 	NetworkTopologies(ctx context.Context) ([]*model.NetworkTopology, error)
 	Settings(ctx context.Context) ([]*model.Setting, error)
-	SearchPlaces(ctx context.Context, query string) ([]*model.Place, error)
 	Logs(ctx context.Context, search *string, limit *int) ([]*model.LogEntry, error)
 	Activity(ctx context.Context, filter *model.ActivityFilter) ([]*model.ActivityEvent, error)
 	Alarms(ctx context.Context, filter *model.AlarmFilter) ([]*model.Alarm, error)
@@ -688,6 +681,7 @@ type SubscriptionResolver interface {
 	DeviceActionFired(ctx context.Context, deviceID *string) (<-chan *model.DeviceActionEvent, error)
 	DeviceAvailabilityChanged(ctx context.Context) (<-chan *model.DeviceAvailabilityEvent, error)
 	DeviceAdded(ctx context.Context) (<-chan *model.Device, error)
+	DeviceUpdated(ctx context.Context) (<-chan *model.Device, error)
 	DeviceRemoved(ctx context.Context) (<-chan string, error)
 	AutomationNodeActivated(ctx context.Context, automationID *string) (<-chan *model.AutomationNodeActivationEvent, error)
 	SceneActiveChanged(ctx context.Context) (<-chan *model.SceneActiveEvent, error)
@@ -2609,25 +2603,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.NetworkTopologyEvent.ScannedAt(childComplexity), true
 
-	case "Place.latitude":
-		if e.ComplexityRoot.Place.Latitude == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Place.Latitude(childComplexity), true
-	case "Place.longitude":
-		if e.ComplexityRoot.Place.Longitude == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Place.Longitude(childComplexity), true
-	case "Place.name":
-		if e.ComplexityRoot.Place.Name == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Place.Name(childComplexity), true
-
 	case "Query.activeEffects":
 		if e.ComplexityRoot.Query.ActiveEffects == nil {
 			break
@@ -2811,17 +2786,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Scenes(childComplexity), true
-	case "Query.searchPlaces":
-		if e.ComplexityRoot.Query.SearchPlaces == nil {
-			break
-		}
-
-		args, err := ec.field_Query_searchPlaces_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.SearchPlaces(childComplexity, args["query"].(string)), true
 	case "Query.settings":
 		if e.ComplexityRoot.Query.Settings == nil {
 			break
@@ -3170,6 +3134,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.DeviceStateChanged(childComplexity, args["deviceId"].(*string)), true
+	case "Subscription.deviceUpdated":
+		if e.ComplexityRoot.Subscription.DeviceUpdated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Subscription.DeviceUpdated(childComplexity), true
 	case "Subscription.effectStepActivated":
 		if e.ComplexityRoot.Subscription.EffectStepActivated == nil {
 			break
@@ -4350,16 +4320,6 @@ type Setting {
   value: String!
 }
 
-"""
-A place found by name, for filling in the coordinates the sun is computed from.
-"""
-type Place {
-  """Human-readable name, specific enough to tell two matches apart."""
-  name: String!
-  latitude: Float!
-  longitude: Float!
-}
-
 type LogEntry {
   timestamp: DateTime!
   level: String!
@@ -4714,11 +4674,6 @@ type Query {
   """Every provider's stored mesh snapshot. Empty until a scan completes."""
   networkTopologies: [NetworkTopology!]! @auth
   settings: [Setting!]! @auth
-  """
-  Places matching a search term, resolved through an OpenStreetMap geocoder.
-  Empty for a blank term, and an error when the geocoder cannot be reached.
-  """
-  searchPlaces(query: String!): [Place!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
   activity(filter: ActivityFilter): [ActivityEvent!]! @auth
   alarms(filter: AlarmFilter): [Alarm!]! @auth
@@ -4758,13 +4713,23 @@ type Mutation {
   createGroup(input: CreateGroupInput!): Group! @auth
   updateGroup(id: ID!, input: UpdateGroupInput!): Group! @auth
   deleteGroup(id: ID!): Boolean! @auth
-  addGroupMember(input: AddGroupMemberInput!): GroupMember! @auth
-  removeGroupMember(id: ID!): Boolean! @auth
+  """
+  Adds a member and returns the whole group, so a caller holding the group
+  can apply the result without recomputing ` + "`" + `resolvedDevices` + "`" + ` itself.
+  """
+  addGroupMember(input: AddGroupMemberInput!): Group! @auth
+  "Removes a member by membership id and returns the group it belonged to."
+  removeGroupMember(id: ID!): Group! @auth
   createRoom(input: CreateRoomInput!): Room! @auth
   updateRoom(id: ID!, input: UpdateRoomInput!): Room! @auth
   deleteRoom(id: ID!): Boolean! @auth
-  addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
-  removeRoomMember(id: ID!): Boolean! @auth
+  """
+  Adds a member and returns the whole room, so a caller holding the room
+  can apply the result without recomputing ` + "`" + `resolvedDevices` + "`" + ` itself.
+  """
+  addRoomMember(input: AddRoomMemberInput!): Room! @auth
+  "Removes a member by membership id and returns the room it belonged to."
+  removeRoomMember(id: ID!): Room! @auth
   """
   Upserts the floorplan row and replaces its vertices, walls, rooms, and
   placements with the input's sets in one transaction. Returns the saved plan.
@@ -4857,6 +4822,12 @@ type Subscription {
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
   deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
   deviceAdded: Device! @auth
+  """
+  Fires when a device's user-owned metadata changes — name override, icon,
+  tags, display colour, disabled — carrying the full updated device. This is
+  what keeps a second open tab's rename in step without a reload.
+  """
+  deviceUpdated: Device! @auth
   deviceRemoved: ID! @auth
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
   sceneActiveChanged: SceneActiveEvent! @auth
@@ -5702,17 +5673,6 @@ func (ec *executionContext) field_Query_scene_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_searchPlaces_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "query", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["query"] = arg0
 	return args, nil
 }
 
@@ -13042,7 +13002,7 @@ func (ec *executionContext) _Mutation_addGroupMember(ctx context.Context, field 
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.Auth == nil {
-					var zeroVal *model.GroupMember
+					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0)
@@ -13051,7 +13011,7 @@ func (ec *executionContext) _Mutation_addGroupMember(ctx context.Context, field 
 			next = directive1
 			return next
 		},
-		ec.marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember,
+		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
 		true,
 		true,
 	)
@@ -13066,19 +13026,21 @@ func (ec *executionContext) fieldContext_Mutation_addGroupMember(ctx context.Con
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_GroupMember_id(ctx, field)
-			case "memberType":
-				return ec.fieldContext_GroupMember_memberType(ctx, field)
-			case "memberId":
-				return ec.fieldContext_GroupMember_memberId(ctx, field)
-			case "device":
-				return ec.fieldContext_GroupMember_device(ctx, field)
-			case "group":
-				return ec.fieldContext_GroupMember_group(ctx, field)
-			case "room":
-				return ec.fieldContext_GroupMember_room(ctx, field)
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type GroupMember", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
 	}
 	defer func() {
@@ -13110,7 +13072,7 @@ func (ec *executionContext) _Mutation_removeGroupMember(ctx context.Context, fie
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.Auth == nil {
-					var zeroVal bool
+					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0)
@@ -13119,7 +13081,7 @@ func (ec *executionContext) _Mutation_removeGroupMember(ctx context.Context, fie
 			next = directive1
 			return next
 		},
-		ec.marshalNBoolean2bool,
+		ec.marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroup,
 		true,
 		true,
 	)
@@ -13132,7 +13094,23 @@ func (ec *executionContext) fieldContext_Mutation_removeGroupMember(ctx context.
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Group_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Group_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Group_icon(ctx, field)
+			case "tags":
+				return ec.fieldContext_Group_tags(ctx, field)
+			case "members":
+				return ec.fieldContext_Group_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Group_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Group_createdBy(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
 		},
 	}
 	defer func() {
@@ -13354,7 +13332,7 @@ func (ec *executionContext) _Mutation_addRoomMember(ctx context.Context, field g
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.Auth == nil {
-					var zeroVal *model.RoomMember
+					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0)
@@ -13363,7 +13341,7 @@ func (ec *executionContext) _Mutation_addRoomMember(ctx context.Context, field g
 			next = directive1
 			return next
 		},
-		ec.marshalNRoomMember2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember,
+		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
 		true,
 		true,
 	)
@@ -13378,17 +13356,19 @@ func (ec *executionContext) fieldContext_Mutation_addRoomMember(ctx context.Cont
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_RoomMember_id(ctx, field)
-			case "memberType":
-				return ec.fieldContext_RoomMember_memberType(ctx, field)
-			case "memberId":
-				return ec.fieldContext_RoomMember_memberId(ctx, field)
-			case "device":
-				return ec.fieldContext_RoomMember_device(ctx, field)
-			case "group":
-				return ec.fieldContext_RoomMember_group(ctx, field)
+				return ec.fieldContext_Room_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Room_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Room_icon(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type RoomMember", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
 	}
 	defer func() {
@@ -13420,7 +13400,7 @@ func (ec *executionContext) _Mutation_removeRoomMember(ctx context.Context, fiel
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.Auth == nil {
-					var zeroVal bool
+					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0)
@@ -13429,7 +13409,7 @@ func (ec *executionContext) _Mutation_removeRoomMember(ctx context.Context, fiel
 			next = directive1
 			return next
 		},
-		ec.marshalNBoolean2bool,
+		ec.marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom,
 		true,
 		true,
 	)
@@ -13442,7 +13422,21 @@ func (ec *executionContext) fieldContext_Mutation_removeRoomMember(ctx context.C
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Room_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Room_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Room_icon(ctx, field)
+			case "members":
+				return ec.fieldContext_Room_members(ctx, field)
+			case "resolvedDevices":
+				return ec.fieldContext_Room_resolvedDevices(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Room_createdBy(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Room", field.Name)
 		},
 	}
 	defer func() {
@@ -15922,93 +15916,6 @@ func (ec *executionContext) fieldContext_NetworkTopologyEvent_linkCount(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Place_name(ctx context.Context, field graphql.CollectedField, obj *model.Place) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Place_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Place_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Place",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Place_latitude(ctx context.Context, field graphql.CollectedField, obj *model.Place) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Place_latitude,
-		func(ctx context.Context) (any, error) {
-			return obj.Latitude, nil
-		},
-		nil,
-		ec.marshalNFloat2float64,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Place_latitude(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Place",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Place_longitude(ctx context.Context, field graphql.CollectedField, obj *model.Place) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Place_longitude,
-		func(ctx context.Context) (any, error) {
-			return obj.Longitude, nil
-		},
-		nil,
-		ec.marshalNFloat2float64,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Place_longitude(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Place",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -17181,68 +17088,6 @@ func (ec *executionContext) fieldContext_Query_settings(_ context.Context, field
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Setting", field.Name)
 		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_searchPlaces(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_searchPlaces,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().SearchPlaces(ctx, fc.Args["query"].(string))
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.Auth == nil {
-					var zeroVal []*model.Place
-					return zeroVal, errors.New("directive auth is not implemented")
-				}
-				return ec.Directives.Auth(ctx, nil, directive0)
-			}
-
-			next = directive1
-			return next
-		},
-		ec.marshalNPlace2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPlaceᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_searchPlaces(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "name":
-				return ec.fieldContext_Place_name(ctx, field)
-			case "latitude":
-				return ec.fieldContext_Place_latitude(ctx, field)
-			case "longitude":
-				return ec.fieldContext_Place_longitude(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Place", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_searchPlaces_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -19418,6 +19263,80 @@ func (ec *executionContext) _Subscription_deviceAdded(ctx context.Context, field
 }
 
 func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "tags":
+				return ec.fieldContext_Device_tags(ctx, field)
+			case "capabilities":
+				return ec.fieldContext_Device_capabilities(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_deviceUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_deviceUpdated,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Subscription().DeviceUpdated(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_deviceUpdated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Subscription",
 		Field:      field,
@@ -27299,55 +27218,6 @@ func (ec *executionContext) _NetworkTopologyEvent(ctx context.Context, sel ast.S
 	return out
 }
 
-var placeImplementors = []string{"Place"}
-
-func (ec *executionContext) _Place(ctx context.Context, sel ast.SelectionSet, obj *model.Place) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, placeImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Place")
-		case "name":
-			out.Values[i] = ec._Place_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "latitude":
-			out.Values[i] = ec._Place_latitude(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "longitude":
-			out.Values[i] = ec._Place_longitude(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -27749,28 +27619,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_settings(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "searchPlaces":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_searchPlaces(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -28547,6 +28395,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_deviceAvailabilityChanged(ctx, fields[0])
 	case "deviceAdded":
 		return ec._Subscription_deviceAdded(ctx, fields[0])
+	case "deviceUpdated":
+		return ec._Subscription_deviceUpdated(ctx, fields[0])
 	case "deviceRemoved":
 		return ec._Subscription_deviceRemoved(ctx, fields[0])
 	case "automationNodeActivated":
@@ -30346,10 +30196,6 @@ func (ec *executionContext) marshalNGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffron
 	return ec._Group(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNGroupMember2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMember(ctx context.Context, sel ast.SelectionSet, v model.GroupMember) graphql.Marshaler {
-	return ec._GroupMember(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNGroupMember2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GroupMember) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -30606,32 +30452,6 @@ func (ec *executionContext) marshalNNetworkTopologyEvent2ᚖgithubᚗcomᚋsaffr
 	return ec._NetworkTopologyEvent(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNPlace2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPlaceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Place) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNPlace2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPlace(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNPlace2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPlace(ctx context.Context, sel ast.SelectionSet, v *model.Place) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Place(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNRaiseAlarmInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRaiseAlarmInput(ctx context.Context, v any) (model.RaiseAlarmInput, error) {
 	res, err := ec.unmarshalInputRaiseAlarmInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -30665,10 +30485,6 @@ func (ec *executionContext) marshalNRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._Room(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNRoomMember2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMember(ctx context.Context, sel ast.SelectionSet, v model.RoomMember) graphql.Marshaler {
-	return ec._RoomMember(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNRoomMember2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RoomMember) graphql.Marshaler {

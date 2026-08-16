@@ -672,6 +672,19 @@ func (m *mockStore) ListGroupMembers(_ context.Context, groupID string) ([]store
 	return m.groupMembers[groupID], nil
 }
 
+func (m *mockStore) GetGroupMemberGroupID(_ context.Context, id string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for groupID, members := range m.groupMembers {
+		for _, member := range members {
+			if member.ID == id {
+				return groupID, nil
+			}
+		}
+	}
+	return "", sql.ErrNoRows
+}
+
 func (m *mockStore) RemoveGroupMember(_ context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -896,6 +909,17 @@ func (m *mockStore) BatchAddRoomMembers(_ context.Context, _ string, members []s
 
 func (m *mockStore) ListRoomMembers(_ context.Context, _ string) ([]store.RoomMember, error) {
 	return nil, nil
+}
+
+// Room memberships are not tracked by the mock, so every membership id is
+// reported as belonging to the single room the room fixtures use.
+func (m *mockStore) GetRoomMemberRoomID(_ context.Context, _ string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id := range m.rooms {
+		return id, nil
+	}
+	return "", sql.ErrNoRows
 }
 
 func (m *mockStore) RemoveRoomMember(_ context.Context, _ string) error {

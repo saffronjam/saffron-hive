@@ -778,16 +778,6 @@ type Setting {
   value: String!
 }
 
-"""
-A place found by name, for filling in the coordinates the sun is computed from.
-"""
-type Place {
-  """Human-readable name, specific enough to tell two matches apart."""
-  name: String!
-  latitude: Float!
-  longitude: Float!
-}
-
 type LogEntry {
   timestamp: DateTime!
   level: String!
@@ -1142,11 +1132,6 @@ type Query {
   """Every provider's stored mesh snapshot. Empty until a scan completes."""
   networkTopologies: [NetworkTopology!]! @auth
   settings: [Setting!]! @auth
-  """
-  Places matching a search term, resolved through an OpenStreetMap geocoder.
-  Empty for a blank term, and an error when the geocoder cannot be reached.
-  """
-  searchPlaces(query: String!): [Place!]! @auth
   logs(search: String, limit: Int): [LogEntry!]! @auth
   activity(filter: ActivityFilter): [ActivityEvent!]! @auth
   alarms(filter: AlarmFilter): [Alarm!]! @auth
@@ -1186,13 +1171,23 @@ type Mutation {
   createGroup(input: CreateGroupInput!): Group! @auth
   updateGroup(id: ID!, input: UpdateGroupInput!): Group! @auth
   deleteGroup(id: ID!): Boolean! @auth
-  addGroupMember(input: AddGroupMemberInput!): GroupMember! @auth
-  removeGroupMember(id: ID!): Boolean! @auth
+  """
+  Adds a member and returns the whole group, so a caller holding the group
+  can apply the result without recomputing `resolvedDevices` itself.
+  """
+  addGroupMember(input: AddGroupMemberInput!): Group! @auth
+  "Removes a member by membership id and returns the group it belonged to."
+  removeGroupMember(id: ID!): Group! @auth
   createRoom(input: CreateRoomInput!): Room! @auth
   updateRoom(id: ID!, input: UpdateRoomInput!): Room! @auth
   deleteRoom(id: ID!): Boolean! @auth
-  addRoomMember(input: AddRoomMemberInput!): RoomMember! @auth
-  removeRoomMember(id: ID!): Boolean! @auth
+  """
+  Adds a member and returns the whole room, so a caller holding the room
+  can apply the result without recomputing `resolvedDevices` itself.
+  """
+  addRoomMember(input: AddRoomMemberInput!): Room! @auth
+  "Removes a member by membership id and returns the room it belonged to."
+  removeRoomMember(id: ID!): Room! @auth
   """
   Upserts the floorplan row and replaces its vertices, walls, rooms, and
   placements with the input's sets in one transaction. Returns the saved plan.
@@ -1285,6 +1280,12 @@ type Subscription {
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
   deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
   deviceAdded: Device! @auth
+  """
+  Fires when a device's user-owned metadata changes — name override, icon,
+  tags, display colour, disabled — carrying the full updated device. This is
+  what keeps a second open tab's rename in step without a reload.
+  """
+  deviceUpdated: Device! @auth
   deviceRemoved: ID! @auth
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
   sceneActiveChanged: SceneActiveEvent! @auth

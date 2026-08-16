@@ -11,7 +11,6 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
-	"github.com/saffronjam/saffron-hive/internal/geocode"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
@@ -134,6 +133,7 @@ type GraphStore interface {
 	AddGroupMember(ctx context.Context, params store.AddGroupMemberParams) (store.GroupMember, error)
 	BatchAddGroupDevices(ctx context.Context, groupID string, deviceIDs []string) (int64, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]store.GroupMember, error)
+	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
 	RemoveGroupMember(ctx context.Context, id string) error
 	ListGroupsContainingMember(ctx context.Context, memberType device.GroupMemberType, memberID string) ([]store.Group, error)
 
@@ -147,6 +147,7 @@ type GraphStore interface {
 	AddRoomMember(ctx context.Context, params store.AddRoomMemberParams) (store.RoomMember, error)
 	BatchAddRoomMembers(ctx context.Context, roomID string, members []store.RoomMemberInput) (int64, error)
 	ListRoomMembers(ctx context.Context, roomID string) ([]store.RoomMember, error)
+	GetRoomMemberRoomID(ctx context.Context, id string) (string, error)
 	RemoveRoomMember(ctx context.Context, id string) error
 	ListRoomsContainingMember(ctx context.Context, memberType device.RoomMemberType, memberID string) ([]store.Room, error)
 
@@ -196,12 +197,6 @@ type GraphStore interface {
 
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
-// PlaceSearcher turns a place name into coordinates. Kept as an interface so
-// the resolver does not care which geocoder answers.
-type PlaceSearcher interface {
-	Search(ctx context.Context, query string) ([]geocode.Place, error)
-}
-
 type Resolver struct {
 	StateReader         device.StateReader
 	Store               GraphStore
@@ -221,7 +216,6 @@ type Resolver struct {
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter
 	BootstrapToken      BootstrapTokenChecker
-	Places              PlaceSearcher
 	// AvatarDir is the filesystem directory where per-user avatar files live.
 	// Used by deleteUser to remove the file alongside the row.
 	AvatarDir string
