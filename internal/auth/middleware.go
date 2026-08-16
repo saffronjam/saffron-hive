@@ -38,7 +38,7 @@ type UserLookup interface {
 func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if isWebSocketUpgrade(r) {
+			if IsWebSocketUpgrade(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -105,7 +105,10 @@ type errStr string
 
 func (e errStr) Error() string { return string(e) }
 
-func isWebSocketUpgrade(r *http.Request) bool {
+// IsWebSocketUpgrade reports whether a request is a WebSocket handshake.
+// Middleware that wraps the ResponseWriter must let these through untouched,
+// since the upgrade needs the original writer's http.Hijacker.
+func IsWebSocketUpgrade(r *http.Request) bool {
 	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		return false
 	}

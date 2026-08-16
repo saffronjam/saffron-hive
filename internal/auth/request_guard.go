@@ -39,7 +39,7 @@ var genericInvalidBodyResponse = []byte(`{"errors":[{"message":"invalid request 
 func RequestGuard(maxBytes int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodGet || isWebSocketUpgrade(r) {
+			if r.Method == http.MethodGet || IsWebSocketUpgrade(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
