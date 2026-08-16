@@ -39,6 +39,7 @@
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
+	import { sessionTeardown } from "$lib/session";
 	import { me, cachedAvatarPath } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
 	import { version } from "$lib/version";
@@ -121,7 +122,7 @@
 
 	function logout() {
 		handleNav();
-		auth.clearToken();
+		sessionTeardown();
 		void goto("/login", { replaceState: true });
 	}
 </script>

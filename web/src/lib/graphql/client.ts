@@ -1,7 +1,14 @@
-import { Client, fetchExchange, mapExchange, subscriptionExchange } from "@urql/svelte";
+import {
+  cacheExchange,
+  Client,
+  fetchExchange,
+  mapExchange,
+  subscriptionExchange,
+} from "@urql/svelte";
 import { createClient as createWSClient } from "graphql-ws";
 import { goto } from "$app/navigation";
 import { auth } from "$lib/stores/auth.svelte";
+import { sessionTeardown } from "$lib/session";
 
 const REFRESH_HEADER = "X-Refreshed-Token";
 
@@ -30,7 +37,7 @@ async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit):
     auth.setToken(refreshed);
   }
   if (response.status === 401) {
-    auth.clearToken();
+    sessionTeardown();
     if (typeof window !== "undefined" && window.location.pathname !== "/login") {
       void goto("/login");
     }
@@ -50,6 +57,10 @@ export function createGraphQLClient(endpoint = "/graphql"): Client {
   return new Client({
     url: endpoint,
     fetch: authenticatedFetch as typeof fetch,
+    // Serve a repeat query from the document cache immediately, then revalidate
+    // in the background. Anything backed by a shared store in $lib/stores never
+    // reaches the network at all; this covers everything else.
+    requestPolicy: "cache-and-network",
     exchanges: [
       mapExchange({
         onError(error) {
@@ -57,13 +68,14 @@ export function createGraphQLClient(endpoint = "/graphql"): Client {
             error.response?.status === 401 ||
             error.graphQLErrors.some((e) => e.extensions?.code === "UNAUTHENTICATED");
           if (unauth) {
-            auth.clearToken();
+            sessionTeardown();
             if (typeof window !== "undefined" && window.location.pathname !== "/login") {
               void goto("/login");
             }
           }
         },
       }),
+      cacheExchange,
       fetchExchange,
       subscriptionExchange({
         forwardSubscription(request) {

@@ -22,6 +22,7 @@
 	import SaveButton from "$lib/components/save-button.svelte";
 	import SegmentedControl from "$lib/components/segmented-control.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
+	import { sessionTeardown } from "$lib/session";
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
@@ -239,7 +240,7 @@
 			}
 			passwordOpen = false;
 			toast.info("Please log in again with your new password.");
-			auth.clearToken();
+			sessionTeardown();
 			await goto("/login");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to change password");
@@ -257,7 +258,7 @@
 				throw new Error(result.error?.message ?? "Failed to sign out everywhere");
 			}
 			toast.success("Signed out of every device. Please log in again.");
-			auth.clearToken();
+			sessionTeardown();
 			goto("/login");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to sign out everywhere");
