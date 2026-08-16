@@ -11,6 +11,9 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 - `target-tree.ts` — tree-structured target views.
 - `list-helpers.ts` — list/array shape helpers (e.g. `groupMemberBreakdown`).
 - `integrations.ts` — `integrationMeta(provider)` returns the icon, one-line description and delete semantics (`keepsDevices`) for an integration provider id, with a `PlugZap` fallback for unknown providers. Use it anywhere a provider is rendered — the integrations list, the add dialog, and each detail page.
+- `entity-cache.ts` — `loadSnapshot` / `saveSnapshot` / `clearSnapshot` / `clearAllSnapshots` over a `Storage`, keyed `hive:cache:<name>` and stamped with a schema version. Pure, so it is unit-testable; reads are synchronous so a store can paint before the first frame. Every path degrades to empty rather than throwing.
+- `session.ts` — `sessionTeardown()` ends an authenticated session: stops and clears every store, drops the disk snapshots, clears `me` and the token. Call it from every logout path, including the involuntary 401s in `graphql/client.ts`.
+- `prefetch-detail.ts` — `prefetchDetail(client, kind, id)` warms a scene / automation / effect editor's query on card hover.
 - `redacted-secret.ts` — `REDACTED_SECRET`, `hasStoredSecret(fetched)`, `secretToSend(typed, stored)`. The API returns a placeholder in place of a stored secret and accepts it back as "keep the stored value"; use these for any secret input so a blank field never wipes the stored value.
 
 ## Mutation helpers
@@ -35,7 +38,18 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 - `popover-guard.ts` — module-level "popover just dismissed" stamp. `markPopoverDismissed()` / `popoverDismissedRecently()`. Required for cards with whole-card `onclick` to suppress the bubble-up of an outside-click that just closed a popover.
 - `actions/` — Svelte actions:
   - `brightness-drag.ts` — press-and-drag horizontal brightness control. Wires onto `EntityCard` via the `dragOpts` prop. Tap (no movement past threshold) falls through to the host's `onclick`; drag commits via `oncommit`.
+- Kept-alive pages: the sidebar's main pages live in `components/*-page.svelte`
+  (dashboard, map, devices, rooms, groups, scenes, automations, effects,
+  alarms), mounted once by the root layout's `KEPT_PAGES` registry and hidden
+  when not the active route, so returning to one costs no rebuild. Their
+  `routes/**/+page.svelte` files are empty shells that only make the URL
+  resolve. Each page takes a `visible` prop and must gate on it: page-header
+  writes, URL-reading effects, polls, global listeners and one-shot work. A
+  page that cannot scope its globals to visibility (data-viewer writes the URL;
+  activity grows its feed unboundedly) stays a normal route.
 - `stores/` — Svelte stores:
+  - `entity-store.svelte.ts` — `createEntityStore({ name, version, query, select })`, the primitive every shared list is built on. Hydrates from its disk snapshot at module evaluation, fetches once on `start`, revalidates on window focus after `staleAfterMs`, and exposes `items` / `byId` / `hydrated` / `error` plus `upsert` / `remove` / `removeMany` / `replaceAll` / `refresh` / `clear`. Bump `version` whenever the selection set changes so old snapshots are discarded.
+  - `rooms.svelte.ts`, `groups.svelte.ts`, `scenes.svelte.ts`, `automations.svelte.ts`, `effects.svelte.ts`, `floorplan.svelte.ts` — the shared lists, each owning its own mutations so a write lands in the cache without a follow-up fetch. They hold ids and membership only; join `deviceStore` for device detail. `scenesStore` also owns the single `sceneActiveChanged` subscription and the optimistic `apply`.
   - `devices.ts` — `deviceStore` (writable Map of live device state) + `devicesHydrated` (readable boolean for first-snapshot complete).
   - `theme.ts` — dark/light mode toggle, persisted to localStorage.
   - `profile.svelte.ts` — user profile reactive store.

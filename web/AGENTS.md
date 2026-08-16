@@ -24,6 +24,8 @@ The codebase has matured patterns for the things people repeatedly need to build
 | Numeric input | `src/lib/components/number-input.svelte` (with `allowDecimal` / `allowNegative` / `nullable`). |
 | Mobile detection | `IsMobile` in `src/lib/hooks/is-mobile.svelte.ts` (768 px breakpoint). |
 | Live device state | `deviceStore` (writable store) + `devicesHydrated` (readable boolean) in `src/lib/stores/devices.ts`. |
+| Rooms, groups, scenes, automations, effects, floor plan | The shared stores in `src/lib/stores/` — `roomsStore`, `groupsStore`, `scenesStore`, `automationsStore`, `effectsStore`, `floorplanStore`. Read `.items` / `.byId` / `.hydrated`; write through their methods. Never query these root fields from a page. |
+| A new shared list of entities | `createEntityStore` in `src/lib/stores/entity-store.svelte.ts` — snapshot persistence, focus revalidation and teardown come with it. |
 | Editor keyboard guard | `isEditableTarget` (skip global shortcuts when typing). |
 | Snapshot-based undo/redo | `HistoryStack`. |
 
@@ -49,7 +51,7 @@ The built output (`web/dist/`) is embedded into the Go binary via `go:embed`. Th
 
 - `src/lib/gql/graphql.ts` — all schema types (`Device`, `Scene`, etc.) + operation types (`DevicesListQuery`, `UpdateSceneMutation`, …).
 - `src/lib/gql/gql.ts` + `index.ts` — the `graphql()` helper that takes a query string and returns a `TypedDocumentNode<Data, Variables>`.
-- `src/lib/gql/fragment-masking.ts` — ready for fragment introduction (no fragments used today).
+- `src/lib/gql/fragment-masking.ts` — fragment plumbing. Masking is off (`presetConfig.fragmentMasking: false` in `codegen.ts`), so a spread inlines into the parent type and reads like a hand-written selection.
 
 Regenerate with `just codegen` (or `cd web && bun run codegen`). `just codegen-check` fails when the committed output drifts from the SQL; it runs in `prepare-for-commit` and CI.
 
@@ -101,7 +103,37 @@ const result = await client.mutation(UPDATE_DEVICE, { id, input }).toPromise();
 if (result.data) deviceStore.updateName(id, result.data.updateDevice.name);
 ```
 
-**Operation names must be unique across the whole document set.** graphql-codegen rejects duplicates at build time. Use `<PageContext><Action>` naming when the same entity is queried from multiple pages — e.g. `query DashboardDevices { … }` vs `query DevicesList { … }`.
+**Read shared stores before writing a query.** Devices, rooms, groups, scenes,
+automations, effects and the floor plan are each fetched once at the root layout
+and held in a store under `$lib/stores`. Pages read them synchronously, so
+navigation between pages costs no network at all. A page-scoped query is for
+fields genuinely specific to that page — an editor's full graph, a chart's
+history window — not for a second copy of a list a store already holds.
+
+Every write to a store-backed entity goes through that store's method
+(`roomsStore.update`, `scenesStore.apply`, …) rather than a page-level mutation.
+The store applies the returned entity to its own cache, which is what lets the
+page skip a follow-up refetch.
+
+**Stores hold structure; `deviceStore` holds devices.** A room or group carries
+`members { memberType memberId }` and `resolvedDevices { id }` and nothing more.
+Join through `$deviceStore` for a device's name, state or capabilities, and
+through `roomsStore` / `groupsStore` for a nested room or group. Selecting a
+device's fields inside a room query duplicates data that is already live
+somewhere else, and the copy goes stale.
+
+**Shared selection sets are fragments.** A selection used by more than one
+document — a store's query plus the mutations that return the same entity —
+lives in a `fragment` in the store module. Fragment masking is off, so a spread
+resolves to a plain inlined type and needs no unwrapping at the point of use.
+
+**Operation names must be unique across the whole document set.** graphql-codegen
+rejects duplicates at build time. Name a page-scoped document
+`<PageContext><Action>`, e.g. `query EffectsPageNativeOptions { … }`.
+
+**Detail queries that a store cannot cover** (the scene, automation and effect
+editors) live in `$lib/graphql/details.ts` so the list page can warm one into
+the cache on hover via `prefetchDetail` from `$lib/prefetch-detail`.
 
 ## Theme
 
