@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 import { toast } from "svelte-sonner";
 import { deviceDisplayName } from "$lib/utils";
+import { clearSnapshot, loadSnapshot, saveSnapshot } from "$lib/entity-cache";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import {
@@ -231,23 +232,130 @@ const DEVICE_REMOVED = graphql(`
   }
 `);
 
-export const devicesHydrated = writable(false);
+const DEVICE_UPDATED = graphql(`
+  subscription DeviceStoreUpdated {
+    deviceUpdated {
+      id
+      name
+      icon
+      displayColor
+      displayBrightness
+      source
+      type
+      tags
+      capabilities {
+        name
+        type
+        values
+        valueMin
+        valueMax
+        unit
+        access
+      }
+      available
+      disabled
+      friendlyName
+      seen
+      lastSeen
+      state {
+        on
+        brightness
+        colorTemp
+        targetTemperature
+        hvacMode
+        fanMode
+        swing
+        color {
+          r
+          g
+          b
+          x
+          y
+        }
+        transition
+        temperature
+        humidity
+        pressure
+        illuminance
+        occupancy
+        battery
+        power
+        voltage
+        current
+        energy
+      }
+    }
+  }
+`);
+
+/** Cache name and schema version for the disk snapshot. Bump on any change to `DEVICES_QUERY`. */
+const SNAPSHOT_NAME = "devices";
+const SNAPSHOT_VERSION = 1;
+const PERSIST_DEBOUNCE_MS = 250;
+
+function storage(): Storage | null {
+  return typeof window === "undefined" ? null : window.localStorage;
+}
+
+const restoredDevices = loadSnapshot<Device>(storage(), SNAPSHOT_NAME, SNAPSHOT_VERSION);
+
+function toMap(devices: Device[]): DeviceMap {
+  const map: DeviceMap = {};
+  for (const device of devices) {
+    map[device.id] = device;
+  }
+  return map;
+}
+
+/**
+ * True once the device list is safe to render. A restored snapshot counts, so
+ * the list paints on the first frame after a cold start and the network
+ * reconcile corrects it a moment later.
+ */
+export const devicesHydrated = writable(restoredDevices !== null);
 
 function createDeviceStore() {
-  const { subscribe, set } = writable<DeviceMap>({});
-  let current: DeviceMap = {};
-  subscribe((v) => {
-    current = v;
-  });
+  let current: DeviceMap = restoredDevices ? toMap(restoredDevices) : {};
   let started = false;
   let unsubFns: Array<() => void> = [];
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistSuspended = false;
+
+  const { subscribe, set } = writable<DeviceMap>(current);
+  // Subscribing emits synchronously, so everything `persist` touches must
+  // already be initialized above this line. That first emit carries the value
+  // just restored from disk, so it is not worth writing straight back.
+  persistSuspended = true;
+  subscribe((v) => {
+    current = v;
+    persist();
+  });
+  persistSuspended = false;
+
+  function persist() {
+    if (persistSuspended || persistTimer !== null) return;
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      saveSnapshot(storage(), SNAPSHOT_NAME, SNAPSHOT_VERSION, Object.values(current));
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
+  function cancelPendingPersist() {
+    if (persistTimer === null) return;
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+
+  /** Empties the map without letting the write-through schedule a blank snapshot. */
+  function emptyWithoutPersisting() {
+    cancelPendingPersist();
+    persistSuspended = true;
+    set({});
+    persistSuspended = false;
+  }
 
   function hydrate(devices: Device[]) {
-    const map: DeviceMap = {};
-    for (const device of devices) {
-      map[device.id] = device;
-    }
-    set(map);
+    set(toMap(devices));
   }
 
   function updateState(deviceId: string, state: DeviceState) {
@@ -344,11 +452,24 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, disabled } });
   }
 
+  /**
+   * Replaces a device outright. Rides the deviceUpdated subscription, whose
+   * payload is the authoritative row after a metadata change — including one
+   * made in another tab.
+   */
+  function replaceDevice(device: Device) {
+    set({ ...current, [device.id]: device });
+  }
+
   function removeDevice(deviceId: string) {
     if (!(deviceId in current)) return;
     const { [deviceId]: _, ...rest } = current;
     set(rest);
   }
+
+  const STALE_AFTER_MS = 30_000;
+  let lastFetchedAt = 0;
+  let revalidateListener: (() => void) | null = null;
 
   return {
     subscribe,
@@ -372,8 +493,25 @@ function createDeviceStore() {
       const res = await client.query(DEVICES_QUERY, {}).toPromise();
       if (res.data?.devices) {
         hydrate(res.data.devices as Device[]);
+        devicesHydrated.set(true);
+        lastFetchedAt = Date.now();
       }
-      devicesHydrated.set(true);
+
+      revalidateListener = () => {
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+        if (Date.now() - lastFetchedAt < STALE_AFTER_MS) return;
+        void client
+          .query(DEVICES_QUERY, {}, { requestPolicy: "network-only" })
+          .toPromise()
+          .then((r) => {
+            if (!r.data?.devices) return;
+            hydrate(r.data.devices as Device[]);
+            devicesHydrated.set(true);
+            lastFetchedAt = Date.now();
+          });
+      };
+      window.addEventListener("focus", revalidateListener);
+      document.addEventListener("visibilitychange", revalidateListener);
 
       const s1 = client.subscription(DEVICE_STATE_CHANGED, {}).subscribe((r) => {
         if (!r.data) return;
@@ -396,15 +534,34 @@ function createDeviceStore() {
         if (!r.data) return;
         removeDevice(r.data.deviceRemoved);
       });
-      unsubFns = [s1.unsubscribe, s2.unsubscribe, s3.unsubscribe, s4.unsubscribe];
+      const s5 = client.subscription(DEVICE_UPDATED, {}).subscribe((r) => {
+        if (!r.data) return;
+        replaceDevice(r.data.deviceUpdated as Device);
+      });
+      unsubFns = [s1.unsubscribe, s2.unsubscribe, s3.unsubscribe, s4.unsubscribe, s5.unsubscribe];
     },
 
     stop() {
+      if (revalidateListener) {
+        window.removeEventListener("focus", revalidateListener);
+        document.removeEventListener("visibilitychange", revalidateListener);
+        revalidateListener = null;
+      }
+      lastFetchedAt = 0;
       for (const u of unsubFns) u();
       unsubFns = [];
       started = false;
-      set({});
+      cancelPendingPersist();
+      saveSnapshot(storage(), SNAPSHOT_NAME, SNAPSHOT_VERSION, Object.values(current));
+      emptyWithoutPersisting();
       devicesHydrated.set(false);
+    },
+
+    /** Drops in-memory and on-disk data. Used when a session ends. */
+    clear() {
+      emptyWithoutPersisting();
+      devicesHydrated.set(false);
+      clearSnapshot(storage(), SNAPSHOT_NAME);
     },
   };
 }
