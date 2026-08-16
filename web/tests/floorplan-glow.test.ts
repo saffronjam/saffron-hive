@@ -153,7 +153,10 @@ describe("markerGlow", () => {
   });
 
   it("keeps a switched-off light's colour so it can fade rather than vanish", () => {
-    const glow = markerGlow(source({ lights: [{ id: "d-1", state: { ...lit, on: false } }] }), new Set())!;
+    const glow = markerGlow(
+      source({ lights: [{ id: "d-1", state: { ...lit, on: false } }] }),
+      new Set(),
+    )!;
     expect(glow.rgb).toBeTruthy();
     expect(glow.opacity).toBe(0);
   });
@@ -273,4 +276,4 @@ describe("display brightness", () => {
     )!;
     expect(view.opacity).toBe(1);
   });
-})
+});

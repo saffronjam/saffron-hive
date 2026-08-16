@@ -329,6 +329,11 @@ describe("poleOfInaccessibility", () => {
   });
 
   it("falls back to the middle for a degenerate outline", () => {
-    expect(poleOfInaccessibility([{ x: 1, y: 1 }, { x: 3, y: 1 }])).toEqual({ x: 2, y: 1 });
+    expect(
+      poleOfInaccessibility([
+        { x: 1, y: 1 },
+        { x: 3, y: 1 },
+      ]),
+    ).toEqual({ x: 2, y: 1 });
   });
 });

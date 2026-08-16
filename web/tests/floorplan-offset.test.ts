@@ -195,7 +195,9 @@ describe("wallOutline junctions", () => {
         wallOutline(
           w,
           verts,
-          walls.filter((o) => o.id !== w.id && (o.a === w.a || o.a === w.b || o.b === w.a || o.b === w.b)),
+          walls.filter(
+            (o) => o.id !== w.id && (o.a === w.a || o.a === w.b || o.b === w.a || o.b === w.b),
+          ),
         )[0],
     );
   }

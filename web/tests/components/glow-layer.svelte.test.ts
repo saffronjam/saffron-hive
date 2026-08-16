@@ -76,7 +76,14 @@ describe("GlowLayer", () => {
     // A room dragged toward the bottom grows the grid's rows while cols and
     // origin stay put; fading across that would stretch the old frame.
     const canvas = { width: 2 * SCALE, height: 3 * SCALE };
-    expect(needsSnap(frame({ cols: 2, rows: 3 }), frame({ cols: 2, rows: 5, height: 3.9 }), canvas, SCALE)).toBe(true);
+    expect(
+      needsSnap(
+        frame({ cols: 2, rows: 3 }),
+        frame({ cols: 2, rows: 5, height: 3.9 }),
+        canvas,
+        SCALE,
+      ),
+    ).toBe(true);
   });
 
   it("snaps when the grid moves without changing shape", () => {
@@ -125,5 +132,4 @@ describe("GlowLayer", () => {
     blendBytes(from, to, 1, out);
     expect(out[0]).toBe(200);
   });
-
 });

@@ -52,7 +52,16 @@ const sample: FloorplanData = {
     { memberType: "group", memberId: "grp-1", x: 3, y: 4 },
   ],
   furniture: [
-    { id: "furn-1", kind: "bed-double", x: 2, y: 1, width: 1.8, height: 2, rotation: 90, occluder: false },
+    {
+      id: "furn-1",
+      kind: "bed-double",
+      x: 2,
+      y: 1,
+      width: 1.8,
+      height: 2,
+      rotation: 90,
+      occluder: false,
+    },
   ],
 };
 

@@ -22,12 +22,24 @@ function device(overrides: Partial<Device>): Device {
 }
 
 const bulb = device({ id: "bulb", type: "light" });
-const tempSensor = device({ id: "temp", type: "sensor", state: { temperature: 21.5 } as Device["state"] });
-const motionSensor = device({ id: "motion", type: "sensor", state: { occupancy: true } as Device["state"] });
+const tempSensor = device({
+  id: "temp",
+  type: "sensor",
+  state: { temperature: 21.5 } as Device["state"],
+});
+const motionSensor = device({
+  id: "motion",
+  type: "sensor",
+  state: { occupancy: true } as Device["state"],
+});
 const plug = device({ id: "plug", type: "plug" });
 const speaker = device({ id: "speaker", type: "speaker" });
 const button = device({ id: "button", type: "button" });
-const warmButton = device({ id: "warm-button", type: "button", state: { temperature: 22 } as Device["state"] });
+const warmButton = device({
+  id: "warm-button",
+  type: "button",
+  state: { temperature: 22 } as Device["state"],
+});
 const hub = device({ id: "hub", type: "hub" });
 const cloudPlug = device({ id: "cloud-plug", type: "plug", source: "tuya" });
 

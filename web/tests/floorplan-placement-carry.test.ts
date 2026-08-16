@@ -14,7 +14,12 @@ function rect(id: string, x: number, y: number, w: number, h: number): PlanGraph
   });
   return {
     vertices: [v("nw", x, y), v("ne", x + w, y), v("se", x + w, y + h), v("sw", x, y + h)],
-    walls: [wall("t", "nw", "ne"), wall("r", "ne", "se"), wall("b", "se", "sw"), wall("l", "sw", "nw")],
+    walls: [
+      wall("t", "nw", "ne"),
+      wall("r", "ne", "se"),
+      wall("b", "se", "sw"),
+      wall("l", "sw", "nw"),
+    ],
   };
 }
 

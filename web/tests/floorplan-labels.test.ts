@@ -59,9 +59,7 @@ describe("planLabels", () => {
   });
 
   it("drops the areas in live mode, where they are not an editing aid", () => {
-    const labels = planLabels(
-      input({ faces: [square("f")], faceNames: ["Kitchen"], live: true }),
-    );
+    const labels = planLabels(input({ faces: [square("f")], faceNames: ["Kitchen"], live: true }));
     expect(labels.map((l) => l.text)).toEqual(["Kitchen"]);
     expect(labels[0].dy).toBe(0);
   });
@@ -151,14 +149,18 @@ describe("scratch measurements", () => {
   const box = { id: "m2", kind: "rect" as const, a: { x: 1, y: 1 }, b: { x: 4, y: 3 } };
 
   it("says how long a line is, at its middle", () => {
-    const [label] = planLabels(input({ measures: [line] })).filter((l) => l.id.startsWith("measure-"));
+    const [label] = planLabels(input({ measures: [line] })).filter((l) =>
+      l.id.startsWith("measure-"),
+    );
     expect(label.text).toBe("5.00 m");
     expect(label.x).toBeCloseTo(1.5, 6);
     expect(label.y).toBeCloseTo(2, 6);
   });
 
   it("says a box's area and both of its sides", () => {
-    const labels = planLabels(input({ measures: [box] })).filter((l) => l.id.startsWith("measure-"));
+    const labels = planLabels(input({ measures: [box] })).filter((l) =>
+      l.id.startsWith("measure-"),
+    );
     expect(labels.map((l) => l.text)).toEqual(["6.00 m²", "3.00 m", "2.00 m"]);
   });
 

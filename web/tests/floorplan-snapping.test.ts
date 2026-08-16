@@ -160,11 +160,10 @@ describe("snapGuides", () => {
   });
 
   it("draws nothing for a grid snap, which needs no explaining", () => {
-    const guides = snapGuides(
-      { point: { x: 1, y: 1 }, indicator: { kind: "grid" } },
-      graph,
-      { x: 1, y: 1 },
-    );
+    const guides = snapGuides({ point: { x: 1, y: 1 }, indicator: { kind: "grid" } }, graph, {
+      x: 1,
+      y: 1,
+    });
     expect(guides).toEqual({ segment: null, ray: null, vertex: null });
   });
 });

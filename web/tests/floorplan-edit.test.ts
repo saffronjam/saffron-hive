@@ -187,8 +187,7 @@ describe("stampRoom", () => {
   it("stamps the same room from either pair of opposite corners", () => {
     const forward = stampRoom(empty, { x: 0, y: 0 }, { x: 4, y: 3 }, 0.1, mint());
     const backward = stampRoom(empty, { x: 4, y: 3 }, { x: 0, y: 0 }, 0.1, mint());
-    const corners = (g: PlanGraph) =>
-      g.vertices.map((v) => `${v.x},${v.y}`).sort();
+    const corners = (g: PlanGraph) => g.vertices.map((v) => `${v.x},${v.y}`).sort();
     expect(corners(backward)).toEqual(corners(forward));
   });
 
@@ -358,11 +357,13 @@ describe("addRoomClipped", () => {
     const next = addRoomClipped(graph, { x: 2, y: 1 }, { x: 7, y: 3 }, 0.1, mintIds(), faces);
     // The far side of the new room is untouched, so it still closes a face.
     expect(detectFaces(next).length).toBeGreaterThan(1);
-    expect(next.walls.some((w) => {
-      const from = next.vertices.find((v) => v.id === w.a)!;
-      const to = next.vertices.find((v) => v.id === w.b)!;
-      return Math.min(from.x, to.x) >= 6.999;
-    })).toBe(true);
+    expect(
+      next.walls.some((w) => {
+        const from = next.vertices.find((v) => v.id === w.a)!;
+        const to = next.vertices.find((v) => v.id === w.b)!;
+        return Math.min(from.x, to.x) >= 6.999;
+      }),
+    ).toBe(true);
   });
 
   it("keeps a room sharing an edge whole, since sharing is not overlapping", () => {
@@ -521,11 +522,13 @@ describe("trimWallsInsideFaces on a room dragged over another", () => {
     const dragged = drag(twoRooms(), -8);
     const next = trimWallsInsideFaces(dragged, draggedWalls, staying(dragged));
     expect(detectFaces(next).length).toBeGreaterThan(1);
-    expect(next.walls.some((w) => {
-      const from = next.vertices.find((v) => v.id === w.a)!;
-      const to = next.vertices.find((v) => v.id === w.b)!;
-      return Math.min(from.x, to.x) >= 5.999;
-    })).toBe(true);
+    expect(
+      next.walls.some((w) => {
+        const from = next.vertices.find((v) => v.id === w.a)!;
+        const to = next.vertices.find((v) => v.id === w.b)!;
+        return Math.min(from.x, to.x) >= 5.999;
+      }),
+    ).toBe(true);
   });
 
   it("leaves the room it was dragged over alone", () => {
@@ -668,9 +671,9 @@ describe("clampWallDrag", () => {
   it("never turns the room inside out", () => {
     const width = (d: number) => 3 - d;
     for (const asked of [3.5, 10]) {
-      expect(width(clampWallDrag(room(), movingLeftWall, rightwards, asked))).toBeGreaterThanOrEqual(
-        MIN_WALL_LENGTH_M - 1e-9,
-      );
+      expect(
+        width(clampWallDrag(room(), movingLeftWall, rightwards, asked)),
+      ).toBeGreaterThanOrEqual(MIN_WALL_LENGTH_M - 1e-9);
     }
   });
 
@@ -705,13 +708,7 @@ describe("clampWallDrag with a short joint in the way", () => {
   function jointed(): PlanGraph {
     const at = (id: string, x: number, y: number) => ({ id, x, y });
     return {
-      vertices: [
-        at("a", 0, 0),
-        at("b", 3, 0),
-        at("c", 3, 2),
-        at("d", 0, 2),
-        at("joint", 2.9, 2),
-      ],
+      vertices: [at("a", 0, 0), at("b", 3, 0), at("c", 3, 2), at("d", 0, 2), at("joint", 2.9, 2)],
       walls: [
         { id: "bottom", a: "a", b: "b", thickness: 0.1 },
         { id: "right", a: "b", b: "c", thickness: 0.1 },

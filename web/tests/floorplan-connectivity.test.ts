@@ -45,10 +45,7 @@ describe("topologyNodePositions", () => {
 
   it("prefers a device's own marker over its group membership", () => {
     const positions = topologyNodePositions(
-      [
-        { kind: "group", x: 10, y: 10, memberIds: ["g1", "r1"] },
-        devicePlacement("r1", 2, 3),
-      ],
+      [{ kind: "group", x: 10, y: 10, memberIds: ["g1", "r1"] }, devicePlacement("r1", 2, 3)],
       inTopology,
     );
     expect(positions.get("r1")).toEqual({ x: 2, y: 3, anchor: "placement" });
@@ -130,10 +127,7 @@ describe("buildMeshLinkViews", () => {
     // r1 and s1 both reachable only through one group: same point, and the
     // parent link between them would be a line of zero length.
     const shared = topologyNodePositions(
-      [
-        devicePlacement("hub", 0, 0),
-        { kind: "group", x: 5, y: 5, memberIds: ["r1", "s1"] },
-      ],
+      [devicePlacement("hub", 0, 0), { kind: "group", x: 5, y: 5, memberIds: ["r1", "s1"] }],
       inTopology,
     );
     expect(shared.get("r1")).toEqual(shared.get("s1"));

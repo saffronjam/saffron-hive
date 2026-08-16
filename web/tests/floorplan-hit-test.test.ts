@@ -76,12 +76,26 @@ describe("hitFace", () => {
 
   it("prefers the smaller of two rooms that both contain the point", () => {
     const faces = [
-      { vertexIds: ["big"], area: 100, polygon: [
-        { x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 },
-      ] },
-      { vertexIds: ["small"], area: 4, polygon: [
-        { x: 1, y: 1 }, { x: 3, y: 1 }, { x: 3, y: 3 }, { x: 1, y: 3 },
-      ] },
+      {
+        vertexIds: ["big"],
+        area: 100,
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+      },
+      {
+        vertexIds: ["small"],
+        area: 4,
+        polygon: [
+          { x: 1, y: 1 },
+          { x: 3, y: 1 },
+          { x: 3, y: 3 },
+          { x: 1, y: 3 },
+        ],
+      },
     ];
     expect(hitFace(faces, { x: 2, y: 2 })).toBe(1);
   });

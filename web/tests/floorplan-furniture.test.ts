@@ -41,7 +41,10 @@ describe("the catalogue", () => {
       expect(kind.size.width, kind.id).toBeGreaterThan(0);
       expect(kind.size.height, kind.id).toBeGreaterThan(0);
       const shapes = kind.draw(kind.size.width, kind.size.height);
-      expect(shapes.some((s) => s.role === "body"), `${kind.id} has a body`).toBe(true);
+      expect(
+        shapes.some((s) => s.role === "body"),
+        `${kind.id} has a body`,
+      ).toBe(true);
     }
   });
 
@@ -318,7 +321,10 @@ describe("stretching a sofa", () => {
   });
 
   it("holds the arm rests at their real width however wide it is stretched", () => {
-    expect(armWidth("sofa-straight", 3.6, 0.9)).toBeCloseTo(armWidth("sofa-straight", 2.1, 0.9)!, 6);
+    expect(armWidth("sofa-straight", 3.6, 0.9)).toBeCloseTo(
+      armWidth("sofa-straight", 2.1, 0.9)!,
+      6,
+    );
     expect(armWidth("sofa-side", 2.4, 0.9)).toBeCloseTo(armWidth("sofa-side", 0.9, 0.9)!, 6);
   });
 

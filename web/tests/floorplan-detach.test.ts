@@ -340,7 +340,12 @@ describe("detachFace where a neighbour wraps a corner", () => {
     const graph = wrapped();
     const faces = detectFaces(graph);
     const square = faces.find((f) => f.vertexIds.length === 4)!;
-    return detachFace(graph, square, faces.filter((f) => f !== square), mint());
+    return detachFace(
+      graph,
+      square,
+      faces.filter((f) => f !== square),
+      mint(),
+    );
   }
 
   it("takes a copy of the corner both shared walls meet at", () => {
