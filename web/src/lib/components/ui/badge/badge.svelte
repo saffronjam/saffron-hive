@@ -19,6 +19,15 @@
 	});
 
 	export type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
+	// tv() runs tailwind-merge per call, and badges appear dozens of times per
+	// list page. Six variants exist, so the class strings are computed once.
+	const variantClass = new Map(
+		(["default", "secondary", "destructive", "outline", "ghost", "link"] as const).map((v) => [
+			v,
+			badgeVariants({ variant: v }),
+		]),
+	);
 </script>
 
 <script lang="ts">
@@ -42,7 +51,9 @@
 	bind:this={ref}
 	data-slot="badge"
 	{href}
-	class={cn(badgeVariants({ variant }), className)}
+	class={className
+		? cn(variantClass.get(variant ?? "default"), className)
+		: variantClass.get(variant ?? "default")}
 	{...restProps}
 >
 	{@render children?.()}
