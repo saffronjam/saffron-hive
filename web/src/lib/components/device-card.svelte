@@ -13,12 +13,7 @@
 	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
-	import {
-		Tooltip,
-		TooltipContent,
-		TooltipProvider,
-		TooltipTrigger,
-	} from "$lib/components/ui/tooltip/index.js";
+	import LazyTooltip from "$lib/components/lazy-tooltip.svelte";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
@@ -95,6 +90,26 @@
 		device.capabilities.find((c) => c.name === "action")?.values ?? [],
 	);
 	const hasActions = $derived(actionValues.length > 0);
+
+	// Closed bits-ui menus still mount their portals, so a grid of cards pays
+	// for every menu nobody has opened. Both menus here are click-activated:
+	// dormant is an identical-looking plain button, and the first click mounts
+	// the real menu already open. Closing works normally from there — the
+	// menu's own dismiss layer exists once it is mounted.
+	let eventMenuArmed = $state(false);
+	let eventMenuOpen = $state(false);
+	let actionsMenuArmed = $state(false);
+	let actionsMenuOpen = $state(false);
+
+	function openEventMenu() {
+		eventMenuArmed = true;
+		eventMenuOpen = true;
+	}
+
+	function openActionsMenu() {
+		actionsMenuArmed = true;
+		actionsMenuOpen = true;
+	}
 	const sensorReadings = $derived(
 		isSensor ? aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius") : [],
 	);
@@ -208,41 +223,39 @@
 					<DeviceQuickControls {device} />
 				{/if}
 				{#if hasActions && !device.disabled}
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger>
-								{#snippet child({ props })}
-									<span {...props} class="inline-flex">
-										<DropdownMenu>
-											<DropdownMenuTrigger class="inline-flex h-8 items-center">
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													aria-label={`Trigger ${device.name} event`}
-												>
-													<MousePointerClick class="size-4" />
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" class="max-h-80 overflow-y-auto">
-												{#each actionValues as action (action)}
-													<DropdownMenuItem onclick={() => handleActionClick(action)}>
-														{sentenceCase(action)}
-													</DropdownMenuItem>
-												{/each}
-											</DropdownMenuContent>
-										</DropdownMenu>
-									</span>
-								{/snippet}
-							</TooltipTrigger>
-							<TooltipContent>Trigger event</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+					{#if !eventMenuArmed}
+						<LazyTooltip content="Trigger event">
+							{#snippet children(props)}
+								{@render eventButton({ ...props, onclick: openEventMenu })}
+							{/snippet}
+						</LazyTooltip>
+					{:else}
+						<LazyTooltip content="Trigger event">
+							{#snippet children(props)}
+								<span {...props} class="inline-flex">
+									<DropdownMenu bind:open={eventMenuOpen}>
+										<DropdownMenuTrigger class="inline-flex h-8 items-center">
+											{@render eventButton({})}
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end" class="max-h-80 overflow-y-auto">
+											{#each actionValues as action (action)}
+												<DropdownMenuItem onclick={() => handleActionClick(action)}>
+													{sentenceCase(action)}
+												</DropdownMenuItem>
+											{/each}
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</span>
+							{/snippet}
+						</LazyTooltip>
+					{/if}
 				{/if}
-				<DropdownMenu>
+				{#if !actionsMenuArmed}
+					{@render actionsButton({ onclick: openActionsMenu })}
+				{:else}
+				<DropdownMenu bind:open={actionsMenuOpen}>
 					<DropdownMenuTrigger class="inline-flex h-8 items-center">
-						<Button variant="ghost" size="icon-sm" aria-label="Device actions">
-							<EllipsisVertical class="size-4" />
-						</Button>
+						{@render actionsButton({})}
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
 						<DropdownMenuItem>
@@ -269,6 +282,7 @@
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
+				{/if}
 			</div>
 		</div>
 		{#if roomChips.length > 0 || groupChips.length > 0}
@@ -318,3 +332,16 @@
 		{/if}
 	</CardContent>
 </Card>
+
+{#snippet eventButton(props: Record<string, unknown>)}
+	<Button {...props} variant="ghost" size="icon-sm" aria-label={`Trigger ${device.name} event`}>
+		<MousePointerClick class="size-4" />
+	</Button>
+{/snippet}
+
+{#snippet actionsButton(props: Record<string, unknown>)}
+	<Button {...props} variant="ghost" size="icon-sm" aria-label="Device actions">
+		<EllipsisVertical class="size-4" />
+	</Button>
+{/snippet}
+

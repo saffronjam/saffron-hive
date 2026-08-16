@@ -25,11 +25,14 @@
 		value: string | null | undefined;
 		onselect: (icon: string | null) => void;
 		children: Snippet;
+		/**
+		 * Bindable so a caller that defers mounting this picker until the first
+		 * click can open it in the same gesture.
+		 */
+		open?: boolean;
 	}
 
-	let { value, onselect, children }: Props = $props();
-
-	let open = $state(false);
+	let { value, onselect, children, open = $bindable(false) }: Props = $props();
 	let query = $state("");
 	let debouncedQuery = $state("");
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;

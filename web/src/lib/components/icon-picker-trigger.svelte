@@ -8,9 +8,17 @@
 		ariaLabel?: string;
 		class?: string;
 		children: Snippet;
+		onclick?: () => void;
 	}
 
-	let { size = "md", disabled = false, ariaLabel, class: className, children }: Props = $props();
+	let {
+		size = "md",
+		disabled = false,
+		ariaLabel,
+		class: className,
+		children,
+		onclick,
+	}: Props = $props();
 
 	const sizeClass = $derived(size === "sm" ? "h-8 w-8" : size === "lg" ? "h-10 w-10" : "h-9 w-9");
 </script>
@@ -18,6 +26,7 @@
 <button
 	type="button"
 	{disabled}
+	{onclick}
 	aria-label={ariaLabel}
 	class={cn(
 		"relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted transition-colors",

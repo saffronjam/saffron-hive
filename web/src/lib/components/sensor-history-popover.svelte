@@ -38,7 +38,17 @@
 	}: Props = $props();
 
 	let open = $state(false);
+	// One of these sits on every sensor row, and the popover behind it is only
+	// ever reached by a click. Building it eagerly costs a floating-ui setup per
+	// row, so until the first click there is just the trigger button.
+	let mounted = $state(false);
 	const RANGE_MS = 12 * 60 * 60 * 1000;
+
+	function activate(e: MouseEvent) {
+		e.stopPropagation();
+		mounted = true;
+		open = true;
+	}
 
 	$effect(() => {
 		if (!open) return;
@@ -99,6 +109,11 @@
 	});
 </script>
 
+{#if !mounted}
+	<button type="button" class={triggerClass} onclick={activate}>
+		{@render children()}
+	</button>
+{:else}
 <Popover
 	bind:open
 	onOpenChange={(o) => {
@@ -119,3 +134,4 @@
 		<StateHistoryChart {sources} {fields} {from} {to} height="h-48" showChips={false} />
 	</PopoverContent>
 </Popover>
+{/if}

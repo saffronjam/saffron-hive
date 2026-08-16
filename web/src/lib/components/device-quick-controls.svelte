@@ -8,7 +8,7 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
+	import LazyTooltip from "$lib/components/lazy-tooltip.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -192,38 +192,77 @@
 	}
 
 	const isOn = $derived(device.state?.on ?? false);
+
+	// A closed bits-ui Popover still mounts its portal, so on a list row these
+	// cost as much as an open one. Build them on first hover or click instead.
+	let climateArmed = $state(false);
+	let climateOpen = $state(false);
+	let colorArmed = $state(false);
+	let colorOpen = $state(false);
+
+	// Hover only builds the popover; the click that follows lands on the real
+	// trigger and opens it. A click with no hover first (touch, keyboard) has to
+	// do both, or the first press would appear to do nothing.
+	function armClimate() {
+		climateArmed = true;
+	}
+
+	function openClimate() {
+		climateArmed = true;
+		climateOpen = true;
+	}
+
+	function armColor() {
+		colorArmed = true;
+	}
+
+	function openColor() {
+		colorArmed = true;
+		colorOpen = true;
+	}
 </script>
 
 {#if showOnOff && hasOnOff}
-	<Tooltip>
-		<TooltipTrigger class="inline-flex h-8 items-center">
-			<Switch
-				checked={isOn}
-				onCheckedChange={handleToggle}
-				disabled={!device.available}
-				aria-label={`Toggle ${device.name}`}
-			/>
-		</TooltipTrigger>
-		<TooltipContent>{isOn ? "Turn off" : "Turn on"}</TooltipContent>
-	</Tooltip>
+	<LazyTooltip content={isOn ? "Turn off" : "Turn on"}>
+		{#snippet children(props)}
+			<span {...props} class="inline-flex h-8 items-center">
+				<Switch
+					checked={isOn}
+					onCheckedChange={handleToggle}
+					disabled={!device.available}
+					aria-label={`Toggle ${device.name}`}
+				/>
+			</span>
+		{/snippet}
+	</LazyTooltip>
 {/if}
 
-{#if hasClimatePopover}
-	<Popover>
+{#snippet climateButton(props: Record<string, unknown>)}
+	<Button
+		{...props}
+		variant="ghost"
+		size="icon-sm"
+		aria-label={`Adjust ${device.name} climate`}
+		disabled={!device.available}
+	>
+		<Thermometer class="size-4" />
+	</Button>
+{/snippet}
+
+{#if hasClimatePopover && !climateArmed}
+	{@render climateButton({ onpointerenter: armClimate, onfocusin: armClimate, onclick: openClimate })}
+{:else if hasClimatePopover}
+	<Popover bind:open={climateOpen}>
 		<PopoverTrigger class="inline-flex h-8 items-center">
-			<Tooltip>
-				<TooltipTrigger class="inline-flex h-8 items-center">
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						aria-label={`Adjust ${device.name} climate`}
-						disabled={!device.available}
-					>
-						<Thermometer class="size-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>Climate</TooltipContent>
-			</Tooltip>
+			{#snippet child({ props })}
+				<span {...props} class="inline-flex h-8 items-center">
+					<LazyTooltip content="Climate">
+						{#snippet children(tipProps)}
+							{@render climateButton(tipProps)}
+						{/snippet}
+					</LazyTooltip>
+				</span>
+			{/snippet}
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-3" align="end">
 			{#if targetTempCap}
@@ -314,33 +353,44 @@
 	</Popover>
 {/if}
 
-{#if hasPopover}
-	<Popover>
+{#snippet adjustButton(props: Record<string, unknown>)}
+	{#if variant === "swatch"}
+		<button
+			{...props}
+			type="button"
+			aria-label={`Adjust ${device.name}`}
+			disabled={!device.available}
+			class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+		>
+			<HiveColorSwatch color={deviceTint(device)} />
+		</button>
+	{:else}
+		<Button
+			{...props}
+			variant="ghost"
+			size="icon-sm"
+			aria-label={`Adjust ${device.name}`}
+			disabled={!device.available}
+		>
+			<Palette class="size-4" />
+		</Button>
+	{/if}
+{/snippet}
+
+{#if hasPopover && !colorArmed}
+	{@render adjustButton({ onpointerenter: armColor, onfocusin: armColor, onclick: openColor })}
+{:else if hasPopover}
+	<Popover bind:open={colorOpen}>
 		<PopoverTrigger class="inline-flex h-8 items-center">
-			<Tooltip>
-				<TooltipTrigger class="inline-flex h-8 items-center">
-					{#if variant === "swatch"}
-						<button
-							type="button"
-							aria-label={`Adjust ${device.name}`}
-							disabled={!device.available}
-							class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-						>
-							<HiveColorSwatch color={deviceTint(device)} />
-						</button>
-					{:else}
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label={`Adjust ${device.name}`}
-							disabled={!device.available}
-						>
-							<Palette class="size-4" />
-						</Button>
-					{/if}
-				</TooltipTrigger>
-				<TooltipContent>Adjust</TooltipContent>
-			</Tooltip>
+			{#snippet child({ props })}
+				<span {...props} class="inline-flex h-8 items-center">
+					<LazyTooltip content="Adjust">
+						{#snippet children(tipProps)}
+							{@render adjustButton(tipProps)}
+						{/snippet}
+					</LazyTooltip>
+				</span>
+			{/snippet}
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-4" align="end">
 			<div class="space-y-2">
