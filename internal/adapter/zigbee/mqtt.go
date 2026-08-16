@@ -17,7 +17,7 @@ type MQTTClient interface {
 	Publish(topic string, qos byte, retained bool, payload []byte) error
 	Connect() error
 	Disconnect(quiesce uint)
-	IsConnected() bool
+	IsConnectionOpen() bool
 }
 
 type fakeMessage struct {
@@ -62,8 +62,8 @@ func (f *FakeMQTTClient) Disconnect(_ uint) {
 	f.connected = false
 }
 
-// IsConnected returns the connection state.
-func (f *FakeMQTTClient) IsConnected() bool {
+// IsConnectionOpen returns the connection state.
+func (f *FakeMQTTClient) IsConnectionOpen() bool {
 	return f.connected
 }
 

@@ -45,6 +45,12 @@ docker run -d \
 `HIVE_ALLOWED_ORIGINS` gates WebSocket upgrades, so set it to whatever hostname
 you serve the dashboard from or subscriptions will be rejected.
 
+`HIVE_MQTT_CLIENT_ID` sets the identity Hive presents to the MQTT broker, and
+defaults to one derived from the hostname. Every process pointed at a broker
+needs its own: a broker disconnects whichever client already holds an ID when a
+second one presents it, so a shared ID leaves two instances evicting each other.
+Set it only where a broker ACL wants a fixed name.
+
 Migrations do not run automatically. Apply them before serving on every deploy:
 
 ```bash

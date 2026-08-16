@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -13,6 +14,7 @@ func clearEnv(t *testing.T) {
 		"HIVE_DB_PATH",
 		"HIVE_LISTEN_ADDR",
 		"HIVE_LOG_LEVEL",
+		"HIVE_MQTT_CLIENT_ID",
 	} {
 		t.Setenv(key, "")
 		_ = os.Unsetenv(key)
@@ -64,5 +66,58 @@ func TestConfigDefaults(t *testing.T) {
 	}
 	if cfg.HasInitUser() {
 		t.Error("HasInitUser() = true, want false when init envs are empty")
+	}
+}
+
+func TestMQTTClientIDFromEnv(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("HIVE_MQTT_CLIENT_ID", "hive-kitchen")
+
+	if got := Parse().MQTTClientID; got != "hive-kitchen" {
+		t.Errorf("MQTTClientID = %q, want %q", got, "hive-kitchen")
+	}
+}
+
+// A broker evicts whichever client already holds an ID when a second client
+// presents it, so the default must not be a value two hosts can both land on.
+func TestMQTTClientIDDefaultCarriesHostname(t *testing.T) {
+	clearEnv(t)
+
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		t.Skip("hostname unavailable")
+	}
+
+	got := Parse().MQTTClientID
+	want := truncateClientID("saffron-hive-" + sanitizeClientID(host))
+	if got != want {
+		t.Errorf("MQTTClientID = %q, want %q", got, want)
+	}
+	if got == "saffron-hive" {
+		t.Error("MQTTClientID fell back to the bare prefix despite a usable hostname")
+	}
+}
+
+func TestSubClientIDStaysDistinctFromBase(t *testing.T) {
+	base := "saffron-hive-nuc"
+
+	got := SubClientID(base, "test")
+	if got != "saffron-hive-nuc-test" {
+		t.Errorf("SubClientID = %q, want %q", got, "saffron-hive-nuc-test")
+	}
+	if got == base {
+		t.Error("SubClientID collided with the base client ID")
+	}
+}
+
+func TestClientIDSanitizedAndBounded(t *testing.T) {
+	got := SubClientID("saffron-hive", "wei rd/hö:st")
+	if want := "saffron-hive-wei-rd-h--st"; got != want {
+		t.Errorf("SubClientID = %q, want %q", got, want)
+	}
+
+	long := SubClientID("saffron-hive", strings.Repeat("x", 200))
+	if len(long) != maxMQTTClientID {
+		t.Errorf("len(SubClientID) = %d, want %d", len(long), maxMQTTClientID)
 	}
 }

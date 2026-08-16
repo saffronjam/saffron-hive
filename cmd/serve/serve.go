@@ -34,7 +34,6 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
-	"github.com/saffronjam/saffron-hive/internal/geocode"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
@@ -128,9 +127,10 @@ func Run(ctx context.Context) error {
 	}
 
 	mgr := &adapterManager{
-		store:    sqlStore,
-		bus:      bus,
-		memStore: memStore,
+		store:        sqlStore,
+		bus:          bus,
+		memStore:     memStore,
+		mqttClientID: cfg.MQTTClientID,
 	}
 
 	// bgWG tracks every long-running background goroutine so shutdown waits
@@ -222,7 +222,6 @@ func Run(ctx context.Context) error {
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
 		BootstrapToken:      bootstrapTokenStore,
-		Places:              geocode.New(),
 		AvatarDir:           avatarDir,
 	}
 
@@ -248,9 +247,11 @@ func Run(ctx context.Context) error {
 	gqlSrv.SetErrorPresenter(graph.ErrorPresenter)
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(
-		auth.RequestGuard(auth.MaxGraphQLRequestBytes)(
-			auth.Middleware(authSvc, sqlStore)(gqlSrv),
+	mux.Handle("/graphql", GzipGraphQL(
+		auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(
+			auth.RequestGuard(auth.MaxGraphQLRequestBytes)(
+				auth.Middleware(authSvc, sqlStore)(gqlSrv),
+			),
 		),
 	))
 	mux.Handle("/api/avatars", auth.RequireAuth(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
@@ -401,6 +402,7 @@ type adapterManager struct {
 	store              *store.DB
 	bus                eventbus.EventBus
 	memStore           *device.MemoryStore
+	mqttClientID       string
 	scanStartedAt      time.Time
 	scanCron           *cron.Cron
 }
@@ -472,16 +474,18 @@ func (m *adapterManager) stopScanCronLocked() {
 	}
 }
 
-// Zigbee2MQTTConnected reports whether the managed broker client is currently
-// connected. False whenever the integration is unconfigured, disabled, or its
-// adapter failed to start.
+// Zigbee2MQTTConnected reports whether the managed broker client holds a live
+// link. False whenever the integration is unconfigured, disabled, its adapter
+// failed to start, or a reconnect is in flight — commands published during a
+// reconnect are discarded, so that window is downtime the alarm monitor should
+// see.
 func (m *adapterManager) Zigbee2MQTTConnected() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.client == nil {
 		return false
 	}
-	return m.client.IsConnected()
+	return m.client.IsConnectionOpen()
 }
 
 // Zigbee2MQTTEnabled reports whether the integration is configured and switched
@@ -542,7 +546,7 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 		Username: cfg.Username,
 		Password: cfg.Password,
 		UseWSS:   cfg.UseWSS,
-		ClientID: "saffron-hive",
+		ClientID: m.mqttClientID,
 	})
 
 	adapter := zigbee.NewZigbeeAdapter(client, m.bus, m.memStore, m.memStore)
@@ -573,19 +577,21 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 		}
 	}
 
-	serveLogger.Info("Zigbee2MQTT connected", "broker", cfg.Broker)
+	serveLogger.Info("Zigbee2MQTT connected", "broker", cfg.Broker, "client_id", m.mqttClientID)
 	return nil
 }
 
 // TestZigbee2MQTT opens a throwaway broker connection with the given credentials
-// and reports whether it succeeded, leaving the running adapter untouched.
+// and reports whether it succeeded, leaving the running adapter untouched. Its
+// client ID is derived from the adapter's so the test connection displaces
+// neither the adapter nor another host's test.
 func (m *adapterManager) TestZigbee2MQTT(_ context.Context, cfg store.Zigbee2MQTTConfig) error {
 	client := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   cfg.Broker,
 		Username: cfg.Username,
 		Password: cfg.Password,
 		UseWSS:   cfg.UseWSS,
-		ClientID: "saffron-hive-test",
+		ClientID: config.SubClientID(m.mqttClientID, "test"),
 	})
 	if err := client.Connect(); err != nil {
 		return err

@@ -7,9 +7,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
+	"github.com/saffronjam/saffron-hive/internal/config"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	_ "modernc.org/sqlite"
@@ -27,12 +27,9 @@ func Run(ctx context.Context, topic string) error {
 		topic = DefaultTopic
 	}
 
-	dbPath := os.Getenv("HIVE_DB_PATH")
-	if dbPath == "" {
-		dbPath = "saffron-hive.db"
-	}
+	appCfg := config.Parse()
 
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	db, err := sql.Open("sqlite", appCfg.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -51,7 +48,7 @@ func Run(ctx context.Context, topic string) error {
 		Username: cfg.Username,
 		Password: cfg.Password,
 		UseWSS:   cfg.UseWSS,
-		ClientID: "saffron-hive-mqttprint",
+		ClientID: config.SubClientID(appCfg.MQTTClientID, "mqttprint"),
 	})
 
 	// Subscriptions must be registered before Connect so they are issued from

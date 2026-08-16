@@ -15,9 +15,15 @@ import (
 // the first SUBSCRIBE races the WSS transport coming up.
 const readyTimeout = 30 * time.Second
 
+// maxReconnectInterval caps the exponential backoff paho applies between
+// reconnection attempts. Its own ceiling is minutes long, which leaves the
+// adapter parked well past the point a broker or network blip has cleared.
+const maxReconnectInterval = 30 * time.Second
+
 // PahoClient wraps the paho MQTT client to implement MQTTClient.
 type PahoClient struct {
-	client mqtt.Client
+	client   mqtt.Client
+	clientID string
 
 	mu        sync.Mutex
 	subs      []pahoSub
@@ -48,6 +54,7 @@ func NewPahoClient(cfg PahoConfig) *PahoClient {
 	brokerURL := fmt.Sprintf("%s://%s", scheme, cfg.Broker)
 
 	p := &PahoClient{
+		clientID:  cfg.ClientID,
 		connected: make(chan struct{}, 1),
 	}
 
@@ -55,9 +62,11 @@ func NewPahoClient(cfg PahoConfig) *PahoClient {
 		AddBroker(brokerURL).
 		SetClientID(cfg.ClientID).
 		SetAutoReconnect(true).
+		SetMaxReconnectInterval(maxReconnectInterval).
 		SetConnectTimeout(10 * time.Second).
 		SetKeepAlive(30 * time.Second).
-		SetOnConnectHandler(p.onConnect)
+		SetOnConnectHandler(p.onConnect).
+		SetConnectionLostHandler(p.onConnectionLost)
 
 	if cfg.Username != "" {
 		opts.SetUsername(cfg.Username)
@@ -103,6 +112,15 @@ func (p *PahoClient) onConnect(c mqtt.Client) {
 	}
 }
 
+// onConnectionLost records why the broker link dropped. Auto-reconnect handles
+// recovery, so this is purely a signal: without it the link can drop and
+// re-establish repeatedly while every publish silently succeeds, since paho
+// discards QoS 0 messages handed to it mid-reconnect. A broker evicting a
+// duplicate client ID surfaces here as a stream of losses on both processes.
+func (p *PahoClient) onConnectionLost(_ mqtt.Client, err error) {
+	logger.Warn("mqtt connection lost, reconnecting", "client_id", p.clientID, "error", err)
+}
+
 // Connect establishes the MQTT connection and blocks until an OnConnectHandler
 // cycle has successfully applied every registered subscription. Callers must
 // register their subscriptions via Subscribe BEFORE calling Connect so the
@@ -131,9 +149,11 @@ func (p *PahoClient) Disconnect(quiesce uint) {
 	p.client.Disconnect(quiesce)
 }
 
-// IsConnected returns whether the client is currently connected.
-func (p *PahoClient) IsConnected() bool {
-	return p.client.IsConnected()
+// IsConnectionOpen reports whether the broker link is live at this moment. It
+// is false while a reconnect is in flight — the window in which paho accepts
+// QoS 0 publishes and discards them.
+func (p *PahoClient) IsConnectionOpen() bool {
+	return p.client.IsConnectionOpen()
 }
 
 // Subscribe registers a callback for the given topic. When Connect() is
