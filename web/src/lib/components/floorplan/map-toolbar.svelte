@@ -53,6 +53,7 @@
 	import {
 		ClipboardPaste,
 		Copy,
+		Crosshair,
 		DoorOpen,
 		Layers,
 		Magnet,
@@ -117,6 +118,8 @@
 		/** The views worth offering; the picker hides below two. */
 		viewOptions: MapViewId[];
 		onviewchange: (view: MapViewId) => void;
+		/** Frame the whole plan in the viewport. */
+		onfit: () => void;
 		/** Whether the connectivity view also draws heard-neighbour links. */
 		showNeighbours: boolean;
 		onneighbourstoggle: () => void;
@@ -163,6 +166,7 @@
 		view,
 		viewOptions,
 		onviewchange,
+		onfit,
 		showNeighbours,
 		onneighbourstoggle,
 		meshSources,
@@ -180,8 +184,12 @@
 	// menu's own close-on-select — so the menu is closed here instead.
 	let viewMenuOpen = $state(false);
 
+	// The box is width-bounded and stays put; the row inside it scrolls, so a
+	// toolbar too wide for a phone stays reachable without resizing itself.
 	const PILL =
-		"absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm transition-opacity duration-150";
+		"absolute left-1/2 -translate-x-1/2 z-10 max-w-[calc(100%-1.5rem)] rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm transition-opacity duration-150";
+	const ROW = "no-scrollbar flex items-center gap-1 overflow-x-auto";
+	const DIVIDER = "mx-1 h-4 w-px shrink-0 bg-border";
 
 	const tools: { id: EditorTool; icon: typeof MousePointer2; label: string }[] = [
 		{ id: "select", icon: MousePointer2, label: "Select" },
@@ -201,142 +209,146 @@
 
 <!-- Two pills, each centering itself: the swap cannot jitter the width. -->
 <div class="{PILL} top-3 {editMode ? 'opacity-100 delay-150' : 'pointer-events-none opacity-0'}">
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={press(onundo)}
-				disabled={!editMode || !canUndo}
-				aria-label="Undo"
-			>
-				<Undo2 class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>Undo</TooltipContent>
-	</Tooltip>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={press(onredo)}
-				disabled={!editMode || !canRedo}
-				aria-label="Redo"
-			>
-				<Redo2 class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>Redo</TooltipContent>
-	</Tooltip>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={press(oncopy)}
-				disabled={!editMode || selectedWallCount === 0}
-				aria-label="Copy selected walls"
-			>
-				<Copy class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>
-			{selectedWallCount === 0 ? "Select walls to copy" : "Copy selected walls"}
-		</TooltipContent>
-	</Tooltip>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={press(onpaste)}
-				disabled={!editMode || !hasCopyBuffer}
-				aria-label="Paste copied walls"
-			>
-				<ClipboardPaste class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>{hasCopyBuffer ? "Paste copied walls" : "Nothing copied yet"}</TooltipContent>
-	</Tooltip>
-	<div class="mx-1 h-4 w-px bg-border"></div>
-	{#each tools as t (t.id)}
+	<div class={ROW}>
 		<Tooltip>
-			<TooltipTrigger>
+			<TooltipTrigger class="shrink-0">
 				<Button
-					variant={editMode && tool === t.id ? "secondary" : "ghost"}
+					variant="ghost"
 					size="icon-sm"
-					onclick={press(() => ontool(t.id))}
-					disabled={!editMode}
-					aria-label={t.label}
+					onclick={press(onundo)}
+					disabled={!editMode || !canUndo}
+					aria-label="Undo"
 				>
-					<t.icon class="size-3.5" />
+					<Undo2 class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>{t.label}</TooltipContent>
+			<TooltipContent>Undo</TooltipContent>
 		</Tooltip>
-	{/each}
-	<div class="mx-1 h-4 w-px bg-border"></div>
-	<!-- Latches for Alt and Shift, which a touch screen cannot hold down. -->
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant={editMode && !snapOff ? "secondary" : "ghost"}
-				size="icon-sm"
-				onclick={press(onsnaptoggle)}
-				disabled={!editMode}
-				aria-label="Snap to the grid and to walls"
-			>
-				<Magnet class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>{snapOff ? "Turn snapping on" : "Turn snapping off (or hold Alt)"}</TooltipContent>
-	</Tooltip>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant={editMode && additive ? "secondary" : "ghost"}
-				size="icon-sm"
-				onclick={press(onadditivetoggle)}
-				disabled={!editMode}
-				aria-label="Add to the selection"
-			>
-				<SquareDashedMousePointer class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>
-			{additive ? "Stop adding to the selection" : "Add to the selection (or hold Shift)"}
-		</TooltipContent>
-	</Tooltip>
-	<div class="mx-1 h-4 w-px bg-border"></div>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={press(onlinkroom)}
-				disabled={!editMode}
-				aria-label="Link a Hive room"
-			>
-				<DoorOpen class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>Link a Hive room</TooltipContent>
-	</Tooltip>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={press(onfurniture)}
-				disabled={!editMode}
-				aria-label="Furniture"
-			>
-				<Sofa class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>Furniture</TooltipContent>
-	</Tooltip>
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={press(onredo)}
+					disabled={!editMode || !canRedo}
+					aria-label="Redo"
+				>
+					<Redo2 class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>Redo</TooltipContent>
+		</Tooltip>
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={press(oncopy)}
+					disabled={!editMode || selectedWallCount === 0}
+					aria-label="Copy selected walls"
+				>
+					<Copy class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>
+				{selectedWallCount === 0 ? "Select walls to copy" : "Copy selected walls"}
+			</TooltipContent>
+		</Tooltip>
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={press(onpaste)}
+					disabled={!editMode || !hasCopyBuffer}
+					aria-label="Paste copied walls"
+				>
+					<ClipboardPaste class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>{hasCopyBuffer ? "Paste copied walls" : "Nothing copied yet"}</TooltipContent>
+		</Tooltip>
+		<div class={DIVIDER}></div>
+		{#each tools as t (t.id)}
+			<Tooltip>
+				<TooltipTrigger class="shrink-0">
+					<Button
+						variant={editMode && tool === t.id ? "secondary" : "ghost"}
+						size="icon-sm"
+						onclick={press(() => ontool(t.id))}
+						disabled={!editMode}
+						aria-label={t.label}
+					>
+						<t.icon class="size-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{t.label}</TooltipContent>
+			</Tooltip>
+		{/each}
+		<div class={DIVIDER}></div>
+		<!-- Latches for Alt and Shift, which a touch screen cannot hold down. -->
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant={editMode && !snapOff ? "secondary" : "ghost"}
+					size="icon-sm"
+					onclick={press(onsnaptoggle)}
+					disabled={!editMode}
+					aria-label="Snap to the grid and to walls"
+				>
+					<Magnet class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>
+				{snapOff ? "Turn snapping on" : "Turn snapping off (or hold Alt)"}
+			</TooltipContent>
+		</Tooltip>
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant={editMode && additive ? "secondary" : "ghost"}
+					size="icon-sm"
+					onclick={press(onadditivetoggle)}
+					disabled={!editMode}
+					aria-label="Add to the selection"
+				>
+					<SquareDashedMousePointer class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>
+				{additive ? "Stop adding to the selection" : "Add to the selection (or hold Shift)"}
+			</TooltipContent>
+		</Tooltip>
+		<div class={DIVIDER}></div>
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={press(onlinkroom)}
+					disabled={!editMode}
+					aria-label="Link a Hive room"
+				>
+					<DoorOpen class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>Link a Hive room</TooltipContent>
+		</Tooltip>
+		<Tooltip>
+			<TooltipTrigger class="shrink-0">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={press(onfurniture)}
+					disabled={!editMode}
+					aria-label="Furniture"
+				>
+					<Sofa class="size-3.5" />
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>Furniture</TooltipContent>
+		</Tooltip>
+	</div>
 </div>
 
 <div
@@ -344,22 +356,24 @@
 		? 'opacity-100'
 		: 'pointer-events-none opacity-0'}"
 >
-	{#each furnitureModes as m (m.id)}
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant={furnitureMode === m.id ? "secondary" : "ghost"}
-					size="icon-sm"
-					onclick={press(() => onfurnituremode(m.id))}
-					disabled={!editMode || !furnitureSelected}
-					aria-label={m.label}
-				>
-					<m.icon class="size-3.5" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>{m.label}</TooltipContent>
-		</Tooltip>
-	{/each}
+	<div class={ROW}>
+		{#each furnitureModes as m (m.id)}
+			<Tooltip>
+				<TooltipTrigger class="shrink-0">
+					<Button
+						variant={furnitureMode === m.id ? "secondary" : "ghost"}
+						size="icon-sm"
+						onclick={press(() => onfurnituremode(m.id))}
+						disabled={!editMode || !furnitureSelected}
+						aria-label={m.label}
+					>
+						<m.icon class="size-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{m.label}</TooltipContent>
+			</Tooltip>
+		{/each}
+	</div>
 </div>
 
 <div
@@ -367,39 +381,41 @@
 		? 'opacity-100'
 		: 'pointer-events-none opacity-0'}"
 >
-	{#each measureKinds as k (k.id)}
+	<div class={ROW}>
+		{#each measureKinds as k (k.id)}
+			<Tooltip>
+				<TooltipTrigger class="shrink-0">
+					<Button
+						variant={measureKind === k.id ? "secondary" : "ghost"}
+						size="icon-sm"
+						onclick={press(() => onmeasurekind(k.id))}
+						disabled={!editMode}
+						aria-label={k.label}
+					>
+						<k.icon class="size-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{k.label}</TooltipContent>
+			</Tooltip>
+		{/each}
+		<div class={DIVIDER}></div>
 		<Tooltip>
-			<TooltipTrigger>
+			<TooltipTrigger class="shrink-0">
 				<Button
-					variant={measureKind === k.id ? "secondary" : "ghost"}
+					variant={keepMeasures ? "secondary" : "ghost"}
 					size="icon-sm"
-					onclick={press(() => onmeasurekind(k.id))}
+					onclick={press(onkeepmeasures)}
 					disabled={!editMode}
-					aria-label={k.label}
+					aria-label="Keep measurements on the plan"
 				>
-					<k.icon class="size-3.5" />
+					<Pin class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>{k.label}</TooltipContent>
+			<TooltipContent>
+				{keepMeasures ? "Clear them as you go" : "Keep measurements on the plan"}
+			</TooltipContent>
 		</Tooltip>
-	{/each}
-	<div class="mx-1 h-4 w-px bg-border"></div>
-	<Tooltip>
-		<TooltipTrigger>
-			<Button
-				variant={keepMeasures ? "secondary" : "ghost"}
-				size="icon-sm"
-				onclick={press(onkeepmeasures)}
-				disabled={!editMode}
-				aria-label="Keep measurements on the plan"
-			>
-				<Pin class="size-3.5" />
-			</Button>
-		</TooltipTrigger>
-		<TooltipContent>
-			{keepMeasures ? "Clear them as you go" : "Keep measurements on the plan"}
-		</TooltipContent>
-	</Tooltip>
+	</div>
 </div>
 
 <div
@@ -407,29 +423,32 @@
 		? 'opacity-100'
 		: 'pointer-events-none opacity-0'}"
 >
-	{#each openingKinds as k (k.id)}
-		<Tooltip>
-			<TooltipTrigger>
-				<Button
-					variant={openingKind === k.id ? "secondary" : "ghost"}
-					size="icon-sm"
-					onclick={press(() => onopeningkind(k.id))}
-					aria-label={k.label}
-				>
-					<k.icon class="size-3.5" />
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent>{k.label}</TooltipContent>
-		</Tooltip>
-	{/each}
+	<div class={ROW}>
+		{#each openingKinds as k (k.id)}
+			<Tooltip>
+				<TooltipTrigger class="shrink-0">
+					<Button
+						variant={openingKind === k.id ? "secondary" : "ghost"}
+						size="icon-sm"
+						onclick={press(() => onopeningkind(k.id))}
+						aria-label={k.label}
+					>
+						<k.icon class="size-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{k.label}</TooltipContent>
+			</Tooltip>
+		{/each}
+	</div>
 </div>
 
-{#if showTools || showViews}
-	<div class="{PILL} top-3 {editMode ? 'pointer-events-none opacity-0' : 'opacity-100 delay-150'}">
+<div class="{PILL} top-3 {editMode ? 'pointer-events-none opacity-0' : 'opacity-100 delay-150'}">
+	<div class={ROW}>
 		{#if showBrush}
 			<Button
 				variant={brushOpen ? "secondary" : "ghost"}
 				size="icon-sm"
+				class="shrink-0"
 				disabled={editMode}
 				onclick={press(onbrushtoggle)}
 				aria-label="Paint brush"
@@ -441,6 +460,7 @@
 			<Button
 				variant={showNeighbours ? "secondary" : "ghost"}
 				size="icon-sm"
+				class="shrink-0"
 				disabled={editMode}
 				onclick={press(onneighbourstoggle)}
 				aria-label={showNeighbours ? "Hide neighbour links" : "Show neighbour links"}
@@ -453,6 +473,7 @@
 				<Button
 					variant={source.shown ? "secondary" : "ghost"}
 					size="icon-sm"
+					class="shrink-0"
 					disabled={editMode}
 					onclick={press(() => onsourcetoggle(source.provider))}
 					aria-label={source.shown ? `Hide ${source.label} mesh` : `Show ${source.label} mesh`}
@@ -461,12 +482,12 @@
 				</Button>
 			{/each}
 		{/if}
-		{#if showTools && showViews}
-			<div class="mx-1 h-4 w-px bg-border"></div>
+		{#if showTools}
+			<div class={DIVIDER}></div>
 		{/if}
 		{#if showViews}
 			<DropdownMenu bind:open={viewMenuOpen}>
-				<DropdownMenuTrigger>
+				<DropdownMenuTrigger class="shrink-0">
 					<Button variant="ghost" size="icon-sm" disabled={editMode} aria-label="Map view">
 						<Layers class="size-3.5" />
 					</Button>
@@ -487,5 +508,15 @@
 				</DropdownMenuContent>
 			</DropdownMenu>
 		{/if}
+		<Button
+			variant="ghost"
+			size="icon-sm"
+			class="shrink-0"
+			disabled={editMode}
+			onclick={press(onfit)}
+			aria-label="Frame the whole plan"
+		>
+			<Crosshair class="size-3.5" />
+		</Button>
 	</div>
-{/if}
+</div>

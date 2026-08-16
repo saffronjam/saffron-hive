@@ -87,13 +87,20 @@
 		getViewportCenterWorld: () => PlanPoint;
 		/** Screen point of a world point, for anchoring chrome to a piece. */
 		worldToClient: (p: PlanPoint) => { left: number; top: number } | null;
+		/** Frame the whole plan — walls, markers and furniture — in the viewport. */
+		fitToContent: () => void;
 	}
 </script>
 
 <script lang="ts">
 	import { untrack } from "svelte";
 	import { select } from "d3-selection";
-	import { zoom as d3zoom, zoomIdentity, type D3ZoomEvent } from "d3-zoom";
+	import {
+		zoom as d3zoom,
+		zoomIdentity,
+		type D3ZoomEvent,
+		type ZoomBehavior,
+	} from "d3-zoom";
 	import {
 		DEFAULT_GRID_SIZE,
 		DEFAULT_WALL_THICKNESS,
@@ -386,6 +393,9 @@
 		};
 	}
 
+	/** The live d3 behaviour, so `fitToContent` can drive the same transform. */
+	let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
+
 	// The zoom wiring must depend on the element alone: the initial
 	// zoom.transform dispatch runs the zoom handler synchronously, and any
 	// state read inside this effect (transform, props touched by the handler)
@@ -428,12 +438,33 @@
 					transform = { x: e.transform.x, y: e.transform.y, k: e.transform.k };
 					onviewportchange?.();
 				});
+			zoomBehavior = zoom;
 			sel.call(zoom);
 			sel.call(zoom.transform, zoomIdentity.translate(transform.x, transform.y).scale(transform.k));
 			return () => {
+				zoomBehavior = null;
 				sel.on(".zoom", null);
 			};
 		});
+	});
+
+	/**
+	 * Chrome's long-press recognizer fires a haptic pulse and a selection/context
+	 * gesture while a finger rests on the plan — painting is exactly that. It can
+	 * only be stopped by cancelling the touch up front: `touch-action: none` makes
+	 * the derived pointerdown non-cancelable, and `contextmenu` arrives too late.
+	 * The plan's own hold-to-menu supplies the one deliberate buzz instead.
+	 */
+	$effect(() => {
+		const el = svgEl;
+		if (!el) return;
+		const cancel = (e: TouchEvent) => {
+			// Marker popovers are real HTML inside foreignObject and need their click.
+			if ((e.target as Element | null)?.closest?.("foreignObject")) return;
+			e.preventDefault();
+		};
+		el.addEventListener("touchstart", cancel, { passive: false });
+		return () => el.removeEventListener("touchstart", cancel);
 	});
 
 	interface DragState {
@@ -545,6 +576,37 @@
 		};
 	}
 
+	/** Margin the framed plan keeps from the viewport edge, in screen pixels. */
+	const FIT_MARGIN_PX = 24;
+
+	function fitToContent() {
+		if (!svgEl || !zoomBehavior || width === 0 || height === 0) return;
+		const pts: Point[] = [
+			...graph.vertices.map((v) => ({ x: v.x, y: v.y })),
+			...placements.map((pl) => ({ x: pl.x, y: pl.y })),
+			...furniture.flatMap(furnitureCorners),
+		];
+		const b = pts.length > 0 ? polygonBounds(pts) : null;
+		// A blank plan, or one collapsed to a point, has no span to fit — those
+		// land at 1:1 centred on whatever is there.
+		const spanX = (b?.width ?? 0) * PX_PER_M;
+		const spanY = (b?.height ?? 0) * PX_PER_M;
+		const usableX = Math.max(width - FIT_MARGIN_PX * 2, 1);
+		const usableY = Math.max(height - FIT_MARGIN_PX * 2, 1);
+		const fit = Math.min(
+			spanX > 0 ? usableX / spanX : Infinity,
+			spanY > 0 ? usableY / spanY : Infinity,
+		);
+		const k = Math.min(Math.max(Number.isFinite(fit) ? fit : 1, 0.2), 8);
+		const cx = b ? (b.minX + b.maxX) / 2 : 0;
+		const cy = b ? (b.minY + b.maxY) / 2 : 0;
+		const x = width / 2 - cx * PX_PER_M * k;
+		const y = height / 2 - cy * PX_PER_M * k;
+		// Routed through d3 rather than written straight to `transform`, so its
+		// own transform stays in step and the next gesture does not jump.
+		select(svgEl).call(zoomBehavior.transform, zoomIdentity.translate(x, y).scale(k));
+	}
+
 	$effect(() => {
 		onready?.({
 			cancelDraw,
@@ -554,6 +616,7 @@
 			worldToClient,
 			faceClientRect,
 			getViewportCenterWorld,
+			fitToContent,
 		});
 	});
 
@@ -1175,6 +1238,9 @@
 			timer: setTimeout(() => {
 				faceHold = null;
 				drag = null;
+				// The hold has claimed this press: the release must not also read as
+				// a click, or the menu opens on top of a selection or a marker toggle.
+				pressed = null;
 				try {
 					navigator.vibrate?.(15);
 				} catch {

@@ -41,6 +41,8 @@
 	let { hasColor, hasColorTemp, hasSwitchable, armed, onarm, radiusPx, onradiuschange }: Props =
 		$props();
 
+	const DIVIDER = "mx-1 h-4 w-px shrink-0 bg-border";
+
 	const COLOR_PRESETS: { r: number; g: number; b: number }[] = [
 		{ r: 239, g: 68, b: 68 },
 		{ r: 249, g: 115, b: 22 },
@@ -110,138 +112,149 @@
 	);
 </script>
 
+<!-- The box is width-bounded and stays put; the row inside it scrolls, so a
+     palette too wide for a phone stays reachable without resizing itself. -->
 <div
-	class="absolute top-14 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm"
+	class="absolute top-14 left-1/2 -translate-x-1/2 z-10 max-w-[calc(100%-1.5rem)] rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm"
 >
-	<!-- A swatch says what it paints, so none of these need words. -->
-	{#if hasColor}
-		{#each COLOR_PRESETS as c (css(c))}
-			<Button
-				variant={colorArmed(c) ? "secondary" : "ghost"}
-				size="icon-sm"
-				onclick={(e) => {
-					dropPointerFocus(e);
-					armColor(c);
-				}}
-				aria-label="Paint color {css(c)}"
-			>
-				<HiveColorSwatch color={css(c)} class="h-4 w-4" />
-			</Button>
-		{/each}
-	{/if}
-	{#if hasColorTemp}
-		{#if beforeTemps}
-			<div class="mx-1 h-4 w-px bg-border"></div>
-		{/if}
-		{#each TEMP_PRESETS as mireds (mireds)}
-			<Button
-				variant={tempArmed(mireds) ? "secondary" : "ghost"}
-				size="icon-sm"
-				onclick={(e) => {
-					dropPointerFocus(e);
-					armTemp(mireds);
-				}}
-				aria-label="Paint white temperature {mireds} mireds"
-			>
-				<HiveColorSwatch color={css(miredToRgb(mireds))} class="h-4 w-4" />
-			</Button>
-		{/each}
-	{/if}
-	{#if hasSwitchable}
-		{#if beforePower}
-			<div class="mx-1 h-4 w-px bg-border"></div>
-		{/if}
-		<Button
-			variant={powerArmed(true) ? "secondary" : "ghost"}
-			size="icon-sm"
-			onclick={(e) => { dropPointerFocus(e); armPower(true); }}
-			aria-label="Paint lights on"
-		>
-			<Power class="size-3.5" />
-		</Button>
-		<Button
-			variant={powerArmed(false) ? "secondary" : "ghost"}
-			size="icon-sm"
-			onclick={(e) => { dropPointerFocus(e); armPower(false); }}
-			aria-label="Paint lights off"
-		>
-			<PowerOff class="size-3.5" />
-		</Button>
-	{/if}
-	{#if beforeSize}
-		<div class="mx-1 h-4 w-px bg-border"></div>
-	{/if}
-	<Button
-		variant="ghost"
-		size="icon-sm"
-		disabled={radiusPx <= MIN_BRUSH_RADIUS_PX}
-		onclick={(e) => {
-			dropPointerFocus(e);
-			onradiuschange(stepBrushRadius(radiusPx, -1));
-		}}
-		aria-label="Smaller brush"
-	>
-		<Minus class="size-3.5" />
-	</Button>
-	<div class="w-9 text-center text-xs tabular-nums text-muted-foreground">{radiusPx}</div>
-	<Button
-		variant="ghost"
-		size="icon-sm"
-		disabled={radiusPx >= MAX_BRUSH_RADIUS_PX}
-		onclick={(e) => {
-			dropPointerFocus(e);
-			onradiuschange(stepBrushRadius(radiusPx, 1));
-		}}
-		aria-label="Larger brush"
-	>
-		<Plus class="size-3.5" />
-	</Button>
-	{#if showCustom}
-	<div class="mx-1 h-4 w-px bg-border"></div>
-	<Popover
-		bind:open={customOpen}
-		onOpenChange={(open) => {
-			if (!open) markPopoverDismissed();
-		}}
-	>
-		<PopoverTrigger>
-			{#snippet child({ props })}
+	<div class="no-scrollbar flex items-center gap-1 overflow-x-auto">
+		<!-- A swatch says what it paints, so none of these need words. -->
+		{#if hasColor}
+			{#each COLOR_PRESETS as c (css(c))}
 				<Button
-					{...props}
-					variant={customArmed ? "secondary" : "ghost"}
+					variant={colorArmed(c) ? "secondary" : "ghost"}
 					size="icon-sm"
-					aria-label="Pick a custom brush value"
+					class="shrink-0"
+					onclick={(e) => {
+						dropPointerFocus(e);
+						armColor(c);
+					}}
+					aria-label="Paint color {css(c)}"
 				>
-					<Palette class="size-3.5" />
+					<HiveColorSwatch color={css(c)} class="h-4 w-4" />
 				</Button>
-			{/snippet}
-		</PopoverTrigger>
-		<PopoverContent class="w-72 p-3" align="center">
-			<LightColorPicker
-				color={customColor}
-				colorTemp={customTemp}
-				{hasColor}
-				{hasColorTemp}
-				hasBrightness={false}
-				oncolorchange={(c) => onarm({ kind: "color", color: { r: c.r, g: c.g, b: c.b } })}
-				ontempchange={(mireds) => onarm({ kind: "temp", mireds })}
-			/>
-		</PopoverContent>
-	</Popover>
-	{/if}
-	<div
-		class="ml-1 flex items-center transition-opacity duration-300 ease-out"
-		style="opacity: {armed ? 1 : 0.35}"
-		title={swatchLabel}
-	>
-		{#if armed?.kind === "power"}
-			{#if armed.on}
-				<Power class="size-4 text-muted-foreground" />
-			{:else}
-				<PowerOff class="size-4 text-muted-foreground" />
-			{/if}
-		{:else}
-			<HiveColorSwatch color={armedCss} class="h-4 w-4" />
+			{/each}
 		{/if}
+		{#if hasColorTemp}
+			{#if beforeTemps}
+				<div class={DIVIDER}></div>
+			{/if}
+			{#each TEMP_PRESETS as mireds (mireds)}
+				<Button
+					variant={tempArmed(mireds) ? "secondary" : "ghost"}
+					size="icon-sm"
+					class="shrink-0"
+					onclick={(e) => {
+						dropPointerFocus(e);
+						armTemp(mireds);
+					}}
+					aria-label="Paint white temperature {mireds} mireds"
+				>
+					<HiveColorSwatch color={css(miredToRgb(mireds))} class="h-4 w-4" />
+				</Button>
+			{/each}
+		{/if}
+		{#if hasSwitchable}
+			{#if beforePower}
+				<div class={DIVIDER}></div>
+			{/if}
+			<Button
+				variant={powerArmed(true) ? "secondary" : "ghost"}
+				size="icon-sm"
+				class="shrink-0"
+				onclick={(e) => { dropPointerFocus(e); armPower(true); }}
+				aria-label="Paint lights on"
+			>
+				<Power class="size-3.5" />
+			</Button>
+			<Button
+				variant={powerArmed(false) ? "secondary" : "ghost"}
+				size="icon-sm"
+				class="shrink-0"
+				onclick={(e) => { dropPointerFocus(e); armPower(false); }}
+				aria-label="Paint lights off"
+			>
+				<PowerOff class="size-3.5" />
+			</Button>
+		{/if}
+		{#if beforeSize}
+			<div class={DIVIDER}></div>
+		{/if}
+		<Button
+			variant="ghost"
+			size="icon-sm"
+			class="shrink-0"
+			disabled={radiusPx <= MIN_BRUSH_RADIUS_PX}
+			onclick={(e) => {
+				dropPointerFocus(e);
+				onradiuschange(stepBrushRadius(radiusPx, -1));
+			}}
+			aria-label="Smaller brush"
+		>
+			<Minus class="size-3.5" />
+		</Button>
+		<div class="w-9 shrink-0 text-center text-xs tabular-nums text-muted-foreground">{radiusPx}</div>
+		<Button
+			variant="ghost"
+			size="icon-sm"
+			class="shrink-0"
+			disabled={radiusPx >= MAX_BRUSH_RADIUS_PX}
+			onclick={(e) => {
+				dropPointerFocus(e);
+				onradiuschange(stepBrushRadius(radiusPx, 1));
+			}}
+			aria-label="Larger brush"
+		>
+			<Plus class="size-3.5" />
+		</Button>
+		{#if showCustom}
+			<div class={DIVIDER}></div>
+			<Popover
+				bind:open={customOpen}
+				onOpenChange={(open) => {
+					if (!open) markPopoverDismissed();
+				}}
+			>
+				<PopoverTrigger>
+					{#snippet child({ props })}
+						<Button
+							{...props}
+							variant={customArmed ? "secondary" : "ghost"}
+							size="icon-sm"
+							class="shrink-0"
+							aria-label="Pick a custom brush value"
+						>
+							<Palette class="size-3.5" />
+						</Button>
+					{/snippet}
+				</PopoverTrigger>
+				<PopoverContent class="w-72 p-3" align="center">
+					<LightColorPicker
+						color={customColor}
+						colorTemp={customTemp}
+						{hasColor}
+						{hasColorTemp}
+						hasBrightness={false}
+						oncolorchange={(c) => onarm({ kind: "color", color: { r: c.r, g: c.g, b: c.b } })}
+						ontempchange={(mireds) => onarm({ kind: "temp", mireds })}
+					/>
+				</PopoverContent>
+			</Popover>
+		{/if}
+		<div
+			class="ml-1 flex shrink-0 items-center transition-opacity duration-300 ease-out"
+			style="opacity: {armed ? 1 : 0.35}"
+			title={swatchLabel}
+		>
+			{#if armed?.kind === "power"}
+				{#if armed.on}
+					<Power class="size-4 text-muted-foreground" />
+				{:else}
+					<PowerOff class="size-4 text-muted-foreground" />
+				{/if}
+			{:else}
+				<HiveColorSwatch color={armedCss} class="h-4 w-4" />
+			{/if}
+		</div>
 	</div>
 </div>
