@@ -1,0 +1,3 @@
+-- The deleted rows held user-entered coordinates that cannot be reconstructed;
+-- rolling back restores the schema's ability to hold them, which the key-value
+-- table never lost. Nothing to do.

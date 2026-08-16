@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CELL_INDOOR,
   CELL_OUTDOOR,
-  CELL_PORTAL,
   CELL_SOLID,
   CELL_KIND_MASK,
   CELL_OCCLUDER,
   combineLight,
-  computeDaylight,
   lampField,
   rasterisePlan,
   worldToCell,
@@ -16,15 +14,9 @@ import {
 import { detectFaces } from "$lib/floorplan";
 import type { PlanGraph, PlanOpening, PlanWall, Point } from "$lib/floorplan";
 import { temperatureToRgb } from "$lib/device-tint";
-import type { SunPosition } from "$lib/sun";
 import type { FloorplanFurnitureData } from "$lib/floorplan-editable";
 
-function sun(elevation: number, azimuth: number): SunPosition {
-  return { elevation, azimuth };
-}
-
 /** Plan drawn with north up, so a compass bearing reads straight off the screen. */
-const NORTH_UP = 0;
 
 interface RoomSpec {
   x: number;
@@ -143,9 +135,14 @@ describe("rasterisePlan classification", () => {
 
   it("seals a room built from the thinnest walls", () => {
     const grid = build(plan({ x: 0, y: 0, w: 4, h: 3, thickness: 0.02 }));
-    const field = computeDaylight(grid, sun(45, 180), NORTH_UP);
-    for (let i = 0; i < field.length; i++) {
-      expect(field[i]).toBe(0);
+    // A lamp outside the sealed room must not reach any indoor cell.
+    const field = lampField(grid, { x: 6, y: 6 });
+    for (let cy = 0; cy < grid.height; cy++) {
+      for (let cx = 0; cx < grid.width; cx++) {
+        const idx = cy * grid.width + cx;
+        if (grid.faceIndex[idx] < 0) continue;
+        expect(field[idx]).toBe(0);
+      }
     }
   });
 
@@ -170,136 +167,11 @@ describe("rasterisePlan classification", () => {
     expect(faces[innerFace].area).toBeCloseTo(4, 1);
   });
 
-  it("collects exterior windows as sky sources, and only them", () => {
-    const graph = plan(
-      {
-        x: 0,
-        y: 0,
-        w: 4,
-        h: 3,
-        openings: {
-          top: [opening("window", 0.5, 1.2)],
-          bottom: [opening("door", 0.5, 0.9)],
-          right: [opening("window", 0.5, 1)],
-        },
-      },
-      { x: 4, y: 0, w: 3, h: 3 },
-    );
-    const grid = rasterisePlan(graph, detectFaces(graph))!;
-    // The top window is exterior; the right one sits between two rooms and the
-    // door is never a sky source.
-    expect(grid.windows).toHaveLength(1);
-    const [window] = grid.windows;
-    expect(Math.abs(window.a.x - window.b.x)).toBeCloseTo(1.2, 6);
-    expect(window.a.y).toBeCloseTo(0, 6);
-    expect(window.samples).toHaveLength(4);
-    const portal = worldToCell(grid, { x: 2, y: 0 })!;
-    expect(grid.cells[portal.cy * grid.width + portal.cx] & CELL_PORTAL).toBe(CELL_PORTAL);
-  });
-
   it("caps the grid and coarsens cells for an outsized plan", () => {
     const grid = build(plan({ x: 0, y: 0, w: 200, h: 100 }));
     expect(grid.width).toBeLessThanOrEqual(512);
     expect(grid.height).toBeLessThanOrEqual(512);
     expect(grid.cellM).toBeGreaterThan(0.15);
-  });
-});
-
-describe("computeDaylight direct sun", () => {
-  const southWindow = () =>
-    plan({ x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)] } });
-
-  it("lights a band the width of the window, not the room", () => {
-    const grid = build(southWindow());
-    const field = computeDaylight(grid, sun(30, 180), NORTH_UP);
-    const inBand = lightAt(grid, field, 2, 2.5);
-    const offBand = lightAt(grid, field, 0.5, 2.5);
-    expect(inBand).toBeGreaterThan(0);
-    expect(offBand).toBeLessThan(inBand * 0.5);
-  });
-
-  it("pools near the window at noon and throws deep at dusk", () => {
-    const grid = build(southWindow());
-    const noon = computeDaylight(grid, sun(60, 180), NORTH_UP);
-    const evening = computeDaylight(grid, sun(8, 180), NORTH_UP);
-    const nearWindow = { x: 2, y: 2.6 };
-    const deep = { x: 2, y: 0.4 };
-    const noonRatio = lightAt(grid, noon, deep.x, deep.y) / lightAt(grid, noon, nearWindow.x, nearWindow.y);
-    const eveningRatio =
-      lightAt(grid, evening, deep.x, deep.y) / lightAt(grid, evening, nearWindow.x, nearWindow.y);
-    expect(eveningRatio).toBeGreaterThan(noonRatio);
-  });
-
-  it("carries sun through a doorway into the next room", () => {
-    const graph = plan(
-      { x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)] } },
-      { x: 0, y: -3, w: 4, h: 3, openings: { bottom: [opening("door", 0.5, 1)] } },
-    );
-    const grid = build(graph);
-    const field = computeDaylight(grid, sun(10, 180), NORTH_UP);
-    const behindDoor = lightAt(grid, field, 2, -1);
-    const behindWall = lightAt(grid, field, 3.5, -1);
-    expect(behindDoor).toBeGreaterThan(0);
-    expect(behindWall).toBeLessThan(behindDoor);
-  });
-
-  it("carries sun through an interior window the same way", () => {
-    const graph = plan(
-      { x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)] } },
-      { x: 0, y: -3, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)] } },
-    );
-    const grid = build(graph);
-    // The shared wall's window is not a sky source...
-    expect(grid.windows).toHaveLength(1);
-    // ...but the low sun still shines straight through both panes.
-    const field = computeDaylight(grid, sun(10, 180), NORTH_UP);
-    expect(lightAt(grid, field, 2, -1)).toBeGreaterThan(0);
-  });
-
-  it("is fully dark at night", () => {
-    const grid = build(southWindow());
-    const field = computeDaylight(grid, sun(-20, 180), NORTH_UP);
-    expect(field.every((v) => v === 0)).toBe(true);
-  });
-});
-
-describe("computeDaylight sky light", () => {
-  it("falls off with distance from the window", () => {
-    const grid = build(
-      plan({ x: 0, y: 0, w: 4, h: 6, openings: { bottom: [opening("window", 0.5, 1.2)] } }),
-    );
-    const field = computeDaylight(grid, sun(-1, 0), NORTH_UP);
-    const near = lightAt(grid, field, 2, 5.5);
-    const mid = lightAt(grid, field, 2, 4);
-    const far = lightAt(grid, field, 2, 2);
-    expect(near).toBeGreaterThan(mid);
-    expect(mid).toBeGreaterThan(far);
-    expect(far).toBeGreaterThan(0);
-  });
-
-  it("gives a wider window more light", () => {
-    const narrow = build(
-      plan({ x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 0.6)] } }),
-    );
-    const wide = build(
-      plan({ x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.8)] } }),
-    );
-    const at = { x: 2, y: 2 };
-    const narrowLight = lightAt(narrow, computeDaylight(narrow, sun(-1, 0), NORTH_UP), at.x, at.y);
-    const wideLight = lightAt(wide, computeDaylight(wide, sun(-1, 0), NORTH_UP), at.x, at.y);
-    expect(wideLight).toBeGreaterThan(narrowLight * 1.5);
-  });
-
-  it("is blocked by an interior wall", () => {
-    // Two rooms; the window is in the left one, and the shared wall has no
-    // opening at all, so the right room sees no sky.
-    const graph = plan(
-      { x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)] } },
-      { x: 4, y: 0, w: 4, h: 3 },
-    );
-    const grid = build(graph);
-    const field = computeDaylight(grid, sun(-1, 0), NORTH_UP);
-    expect(lightAt(grid, field, 6, 1.5)).toBe(0);
   });
 });
 
@@ -325,9 +197,9 @@ describe("the bounce", () => {
       ],
     };
     const grid = build(graph);
-    // Daytime, sun on the window side: the bar is sunlit, the leg sees none of
-    // it directly — anything in the leg arrived by bouncing round the corner.
-    const field = computeDaylight(grid, sun(30, 0), NORTH_UP);
+    // A lamp in the bar: the leg sees none of it directly — anything in the
+    // leg arrived by bouncing round the corner.
+    const field = lampField(grid, { x: 1, y: 0.5 });
     const nearCorner = lightAt(grid, field, 1, 2.6);
     const deepInLeg = lightAt(grid, field, 1, 3.5);
     expect(nearCorner).toBeGreaterThan(0);
@@ -341,7 +213,7 @@ describe("the bounce", () => {
       { x: 3, y: 3, w: 3, h: 3 },
     );
     const grid = build(graph);
-    const field = computeDaylight(grid, sun(45, 0), NORTH_UP);
+    const field = lampField(grid, { x: 1.5, y: 1.5 });
     for (let cy = 0; cy < grid.height; cy++) {
       for (let cx = 0; cx < grid.width; cx++) {
         const idx = cy * grid.width + cx;
@@ -403,9 +275,9 @@ describe("combineLight", () => {
     const grid = build(
       plan({ x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)] } }),
     );
-    const daylight = computeDaylight(grid, sun(45, 180), NORTH_UP);
+    const lamp = lampField(grid, { x: 2, y: 2.5 });
     const { rgba } = combineLight(grid, [
-      { field: daylight, rgb: { r: 255, g: 128, b: 0 }, intensity: 1 },
+      { field: lamp, rgb: { r: 255, g: 128, b: 0 }, intensity: 1 },
     ]);
     const lit = worldToCell(grid, { x: 2, y: 2.5 })!;
     const litIdx = (lit.cy * grid.width + lit.cx) * 4;
@@ -423,15 +295,21 @@ describe("combineLight", () => {
 
   it("ranks rendered brightness: windowed room, then door-connected, then sealed", () => {
     const graph = plan(
-      { x: 0, y: 0, w: 4, h: 3, openings: { bottom: [opening("window", 0.5, 1.2)], right: [opening("door", 0.5, 1)] } },
+      {
+        x: 0,
+        y: 0,
+        w: 4,
+        h: 3,
+        openings: { bottom: [opening("window", 0.5, 1.2)], right: [opening("door", 0.5, 1)] },
+      },
       { x: 4, y: 0, w: 4, h: 3 },
       { x: 8, y: 0, w: 4, h: 3 },
     );
     const faces = detectFaces(graph);
     const grid = rasterisePlan(graph, faces)!;
-    const daylight = computeDaylight(grid, sun(45, 180), NORTH_UP);
+    const lamp = lampField(grid, { x: 2, y: 1.5 });
     const { rgba } = combineLight(grid, [
-      { field: daylight, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
+      { field: lamp, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
     ]);
     const byX = (x: number) => {
       const cell = worldToCell(grid, { x, y: 1.5 })!;
@@ -451,9 +329,7 @@ describe("combineLight", () => {
     );
     const grid = build(graph);
     const field = lampField(grid, { x: 2, y: 2.2 });
-    const { rgba } = combineLight(grid, [
-      { field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
-    ]);
+    const { rgba } = combineLight(grid, [{ field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 }]);
     const at = (y: number) => {
       const cell = worldToCell(grid, { x: 2, y })!;
       return rgba[(cell.cy * grid.width + cell.cx) * 4];
@@ -475,12 +351,12 @@ describe("combineLight", () => {
         openings: { bottom: [opening("window", 0.3, 1.2), opening("window", 0.7, 1.2)] },
       }),
     );
-    const daylight = computeDaylight(grid, sun(60, 180), NORTH_UP);
-    const lamp = lampField(grid, { x: 2, y: 2 });
+    const lampA = lampField(grid, { x: 1, y: 1 });
+    const lampB = lampField(grid, { x: 2, y: 2 });
     const { rgba } = combineLight(grid, [
-      { field: daylight, rgb: { r: 255, g: 244, b: 220 }, intensity: 1 },
-      { field: lamp, rgb: { r: 255, g: 200, b: 120 }, intensity: 1 },
-      { field: lamp, rgb: { r: 255, g: 200, b: 120 }, intensity: 1 },
+      { field: lampA, rgb: { r: 255, g: 244, b: 220 }, intensity: 1 },
+      { field: lampB, rgb: { r: 255, g: 200, b: 120 }, intensity: 1 },
+      { field: lampB, rgb: { r: 255, g: 200, b: 120 }, intensity: 1 },
     ]);
     for (let i = 0; i < rgba.length; i++) {
       expect(rgba[i]).toBeLessThanOrEqual(255);
@@ -493,8 +369,8 @@ describe("combineLight", () => {
       { x: 0, y: -3, w: 4, h: 3, openings: { bottom: [opening("door", 0.5, 1)] } },
     );
     const grid = build(graph);
-    const first = computeDaylight(grid, sun(30, 170), NORTH_UP);
-    const second = computeDaylight(grid, sun(30, 170), NORTH_UP);
+    const first = lampField(grid, { x: 2, y: 1.5 });
+    const second = lampField(grid, { x: 2, y: 1.5 });
     expect(second).toEqual(first);
     const combinedA = combineLight(grid, [
       { field: first, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
@@ -572,9 +448,7 @@ describe("furniture that blocks light", () => {
     const graph = room();
     const grid = rasterisePlan(graph, detectFaces(graph), furniture)!;
     const field = lampField(grid, { x: 1, y: 2 });
-    const { rgba } = combineLight(grid, [
-      { field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
-    ]);
+    const { rgba } = combineLight(grid, [{ field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 }]);
     const cell = worldToCell(grid, { x: probeX, y: 2 })!;
     return rgba[(cell.cy * grid.width + cell.cx) * 4];
   }
@@ -607,9 +481,7 @@ describe("furniture that blocks light", () => {
     const piece = box();
     const grid = rasterisePlan(graph, detectFaces(graph), [piece])!;
     const field = lampField(grid, { x: 1, y: 2 });
-    const { rgba } = combineLight(grid, [
-      { field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 },
-    ]);
+    const { rgba } = combineLight(grid, [{ field, rgb: { r: 255, g: 255, b: 255 }, intensity: 1 }]);
     for (let cy = 0; cy < grid.height; cy++) {
       for (let cx = 0; cx < grid.width; cx++) {
         const idx = cy * grid.width + cx;
@@ -669,15 +541,10 @@ describe("render bleed near a neighbouring room", () => {
 
   it("never paints bled light where the neighbour's clip could show it", () => {
     // Rooms 0.3 m apart; a lamp against the hallway's wall facing the kitchen.
-    const graph = plan(
-      { x: 0, y: 0, w: 4, h: 3 },
-      { x: 0, y: 3.3, w: 4, h: 3 },
-    );
+    const graph = plan({ x: 0, y: 0, w: 4, h: 3 }, { x: 0, y: 3.3, w: 4, h: 3 });
     const grid = build(graph);
     const field = lampField(grid, { x: 2, y: 3.8 });
-    const { rgba } = combineLight(grid, [
-      { field, rgb: { r: 0, g: 255, b: 0 }, intensity: 1 },
-    ]);
+    const { rgba } = combineLight(grid, [{ field, rgb: { r: 0, g: 255, b: 0 }, intensity: 1 }]);
     // Every texel the kitchen's clip can show — its interior plus one cell of
     // surround — stays black.
     for (let cy = 0; cy < grid.height; cy++) {

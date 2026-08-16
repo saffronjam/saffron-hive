@@ -1,16 +1,10 @@
 import type { RGB } from "$lib/device-tint";
-import type { SunPosition } from "$lib/sun";
-import { daylightFactor } from "./daylight";
-import { facePairKeys, wallPairKey } from "./detach";
 import { arcLengthAtT, flattenWall, pointInPolygon, vertexMap, wallMetrics } from "./geometry";
-import { openingAnchor } from "./openings";
 import type { WallMetrics } from "./geometry";
-import { openingSpan, solidSpans } from "./openings";
+import { solidSpans } from "./openings";
 import type { Face, PlanGraph, PlanVertex, Point } from "./types";
 import type { FloorplanFurnitureData } from "$lib/floorplan-editable";
 import { furnitureContainsPoint, furnitureCorners } from "./furniture";
-
-const DEG = Math.PI / 180;
 
 /** Grid cell size in meters. Six cells across a 0.9 m door is enough to shape a beam. */
 export const CELL_M = 0.15;
@@ -20,50 +14,6 @@ const GRID_MARGIN_M = 0.45;
 
 /** Cap on grid dimensions; a plan larger than this coarsens its cells instead. */
 const MAX_GRID_DIM = 512;
-
-/** Direct sun's share of full daylight; with {@link SKY_SHARE} it sums to one. */
-const SUN_SHARE = 0.65;
-
-/** The share of daylight arriving as diffuse skylight, off the whole sky at once. */
-const SKY_SHARE = 0.35;
-
-/**
- * Shadow-ray samples per window for the sky pass. Partial occlusion at a
- * doorway edge steps in increments of one sample, so more samples means finer
- * penumbra bands.
- */
-const SKY_SAMPLES = 4;
-
-/**
- * Compresses the sky's dynamic range. The raw subtended angle is a few percent
- * of the hemisphere for most of a room, which is physically true and reads as
- * black on a dashboard; raising it to this power keeps the ordering — nearer
- * and wider still means brighter — while letting the whole room register.
- */
-const SKY_EXPONENT = 0.6;
-
-/** Beyond this a window's sky contribution is under one 8-bit step; bounce carries the rest. */
-const SKY_DISTANCE_CAP_M = 8;
-
-/**
- * Height of a window head above the floor. With the sun's elevation it sets how
- * deep direct sun reaches into a room — the triangle that makes shadows long in
- * the evening and short at noon, which a flat 2D trace cannot see on its own.
- */
-const WINDOW_HEAD_M = 1.6;
-
-/** Bounds on that reach, so a horizon sun does not light a whole building. */
-const SUN_REACH_MIN_M = 1.2;
-const SUN_REACH_MAX_M = 6;
-
-/** Meters over which direct sun rolls off past its reach, instead of a hard edge. */
-const SUN_SHOULDER_M = 1;
-
-/** Elevation below which the reach stops growing, in degrees. */
-const GRAZING_DEG = 5;
-
-/** Fraction of arriving light a surface re-emits as the diffuse bounce. */
-const ALBEDO = 0.45;
 
 /** e-folding distance of bounced light, in meters. */
 const BOUNCE_FALLOFF_M = 1.8;
@@ -104,13 +54,6 @@ export const CELL_PORTAL = 0x04;
 export const CELL_OCCLUDER = 0x08;
 
 /** An exterior window as a sky source: span endpoints and shadow-ray targets. */
-export interface SkyWindow {
-  id: string;
-  a: Point;
-  b: Point;
-  samples: Point[];
-}
-
 /**
  * The sun-independent raster of a plan, rebuilt only when the graph changes.
  *
@@ -129,7 +72,6 @@ export interface LightmapGrid {
   cells: Uint8Array;
   /** Owning face per cell, -1 where none; aligned with the faces given at build. */
   faceIndex: Int16Array;
-  windows: SkyWindow[];
 }
 
 /** The cell a world point falls in, or null outside the grid. */
@@ -203,7 +145,6 @@ export function rasterisePlan(
     cellM,
     cells,
     faceIndex,
-    windows: [],
   };
 
   stampWalls(grid, graph, verts);
@@ -212,7 +153,6 @@ export function rasterisePlan(
   // after, the face would paint straight over it.
   stampFurniture(grid, furniture);
   stampFaces(grid, faces);
-  collectWindows(grid, graph, faces, verts);
   return grid;
 }
 
@@ -345,145 +285,8 @@ function stampFaces(grid: LightmapGrid, faces: Face[]): void {
   }
 }
 
-/**
- * Collect exterior windows as sky sources. A wall is exterior when exactly one
- * face runs along it; a window between two rooms is a gap light can cross but
- * not a source of sky. Sample points sit at sub-span midpoints, off the ends
- * where the wall stamp encroaches.
- */
-function collectWindows(
-  grid: LightmapGrid,
-  graph: PlanGraph,
-  faces: Face[],
-  verts: Map<string, PlanVertex>,
-): void {
-  const faceKeys = faces.map((f) => facePairKeys(f));
-  for (const wall of graph.walls) {
-    const openings = wall.openings ?? [];
-    if (openings.length === 0) continue;
-    const key = wallPairKey(wall);
-    let owner: Face | null = null;
-    let touching = 0;
-    for (let i = 0; i < faceKeys.length; i++) {
-      if (faceKeys[i].has(key)) {
-        touching++;
-        owner = faces[i];
-      }
-    }
-    if (touching !== 1 || !owner) continue;
-
-    for (const opening of openings) {
-      if (opening.kind !== "window") continue;
-      const span = openingSpan(wall, verts, opening);
-      if (span.length < 2) continue;
-
-      const lengths = [0];
-      for (let i = 1; i < span.length; i++) {
-        lengths.push(
-          lengths[i - 1] + Math.hypot(span[i].x - span[i - 1].x, span[i].y - span[i - 1].y),
-        );
-      }
-      const total = lengths[lengths.length - 1];
-      if (total <= 0) continue;
-
-      const at = (sArc: number): Point => {
-        for (let i = 1; i < span.length; i++) {
-          if (lengths[i] >= sArc) {
-            const seg = lengths[i] - lengths[i - 1];
-            const t = seg > 0 ? (sArc - lengths[i - 1]) / seg : 0;
-            return {
-              x: span[i - 1].x + (span[i].x - span[i - 1].x) * t,
-              y: span[i - 1].y + (span[i].y - span[i - 1].y) * t,
-            };
-          }
-        }
-        return span[span.length - 1];
-      };
-
-      // Shadow-ray targets sit a cell inside the room, off the centerline where
-      // the neighbouring outdoor-side cells would block an oblique ray. The
-      // span endpoints stay put: the subtended angle is pure geometry.
-      const { normal } = openingAnchor(wall, verts, opening);
-      const probe = at(total / 2);
-      const step = grid.cellM;
-      const inward = pointInPolygon(
-        { x: probe.x + normal.x * step, y: probe.y + normal.y * step },
-        owner.polygon,
-      )
-        ? normal
-        : { x: -normal.x, y: -normal.y };
-
-      const samples: Point[] = [];
-      for (let k = 0; k < SKY_SAMPLES; k++) {
-        const on = at((total * (2 * k + 1)) / (2 * SKY_SAMPLES));
-        samples.push({ x: on.x + inward.x * step, y: on.y + inward.y * step });
-      }
-      grid.windows.push({ id: opening.id, a: span[0], b: span[span.length - 1], samples });
-
-      for (let sArc = 0; ; sArc += grid.cellM / 2) {
-        const done = sArc >= total;
-        const pOn = at(done ? total : sArc);
-        const cell = worldToCell(grid, pOn);
-        if (cell) {
-          const idx = cell.cy * grid.width + cell.cx;
-          if ((grid.cells[idx] & CELL_KIND_MASK) !== CELL_SOLID) grid.cells[idx] |= CELL_PORTAL;
-        }
-        if (done) break;
-      }
-    }
-  }
-}
-
 /** How close two boundary crossings must be to count as hitting a cell corner. */
 const CORNER_EPS = 1e-9;
-
-/**
- * March from a cell centre along a direction until the ray leaves the indoors,
- * visiting every cell it enters. Returns the distance in meters to the first
- * OUTDOOR cell or the grid edge, or -1 when a SOLID cell blocks it first.
- * Crossing exactly through a cell corner counts as blocked when both cells on
- * either side of the corner are SOLID — light cannot slip between them.
- */
-function marchToOutdoors(grid: LightmapGrid, cx: number, cy: number, dir: Point): number {
-  const len = Math.hypot(dir.x, dir.y);
-  if (len === 0) return -1;
-  const dx = dir.x / len;
-  const dy = dir.y / len;
-  const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
-  const stepY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
-  const tDeltaX = stepX !== 0 ? Math.abs(1 / dx) : Infinity;
-  const tDeltaY = stepY !== 0 ? Math.abs(1 / dy) : Infinity;
-  let tMaxX = stepX !== 0 ? 0.5 * tDeltaX : Infinity;
-  let tMaxY = stepY !== 0 ? 0.5 * tDeltaY : Infinity;
-  let x = cx;
-  let y = cy;
-
-  for (;;) {
-    let t: number;
-    if (Math.abs(tMaxX - tMaxY) < CORNER_EPS) {
-      const sideA = solidAt(grid, x + stepX, y);
-      const sideB = solidAt(grid, x, y + stepY);
-      if (sideA && sideB) return -1;
-      t = tMaxX;
-      x += stepX;
-      y += stepY;
-      tMaxX += tDeltaX;
-      tMaxY += tDeltaY;
-    } else if (tMaxX < tMaxY) {
-      t = tMaxX;
-      x += stepX;
-      tMaxX += tDeltaX;
-    } else {
-      t = tMaxY;
-      y += stepY;
-      tMaxY += tDeltaY;
-    }
-    if (x < 0 || y < 0 || x >= grid.width || y >= grid.height) return t * grid.cellM;
-    const kind = kindAt(grid, x, y);
-    if (kind === CELL_SOLID) return -1;
-    if (kind === CELL_OUTDOOR) return t * grid.cellM;
-  }
-}
 
 function solidAt(grid: LightmapGrid, cx: number, cy: number): boolean {
   if (cx < 0 || cy < 0 || cx >= grid.width || cy >= grid.height) return false;
@@ -533,86 +336,6 @@ function segmentBlocked(grid: LightmapGrid, from: Point, to: Point): boolean {
     if (x < 0 || y < 0 || x >= grid.width || y >= grid.height) return false;
     if (kindAt(grid, x, y) !== CELL_INDOOR) return true;
   }
-}
-
-/** The plan-space unit vector pointing along a compass bearing. */
-function planVector(bearingDeg: number, planNorthDeg: number): Point {
-  const a = (bearingDeg - planNorthDeg) * DEG;
-  return { x: Math.sin(a), y: -Math.cos(a) };
-}
-
-/**
- * Daylight over the grid: direct sun traced per cell, diffuse sky gathered
- * from every exterior window, and one bounce carrying both around corners.
- * Values are raw light, not yet tone-mapped.
- */
-export function computeDaylight(
-  grid: LightmapGrid,
-  sun: SunPosition,
-  planNorthDeg: number,
-): Float32Array {
-  const field = new Float32Array(grid.width * grid.height);
-  const day = daylightFactor(sun.elevation);
-  if (day <= 0) return field;
-
-  if (sun.elevation > 0) {
-    const toSun = planVector(sun.azimuth, planNorthDeg);
-    const reach = Math.min(
-      SUN_REACH_MAX_M,
-      Math.max(
-        SUN_REACH_MIN_M,
-        WINDOW_HEAD_M / Math.tan(Math.max(sun.elevation, GRAZING_DEG) * DEG),
-      ),
-    );
-    const sunBright = SUN_SHARE * day;
-    for (let cy = 0; cy < grid.height; cy++) {
-      for (let cx = 0; cx < grid.width; cx++) {
-        const idx = cy * grid.width + cx;
-        if ((grid.cells[idx] & CELL_KIND_MASK) !== CELL_INDOOR) continue;
-        const escape = marchToOutdoors(grid, cx, cy, toSun);
-        if (escape < 0) continue;
-        const past = escape - reach;
-        const fade = past <= 0 ? 1 : Math.max(0, 1 - past / SUN_SHOULDER_M);
-        if (fade > 0) field[idx] += sunBright * fade;
-      }
-    }
-  }
-
-  if (grid.windows.length > 0) {
-    const skyBright = SKY_SHARE * day;
-    const cap = SKY_DISTANCE_CAP_M;
-    for (let cy = 0; cy < grid.height; cy++) {
-      for (let cx = 0; cx < grid.width; cx++) {
-        const idx = cy * grid.width + cx;
-        if ((grid.cells[idx] & CELL_KIND_MASK) !== CELL_INDOOR) continue;
-        const p = {
-          x: grid.originX + (cx + 0.5) * grid.cellM,
-          y: grid.originY + (cy + 0.5) * grid.cellM,
-        };
-        let sum = 0;
-        for (const window of grid.windows) {
-          const ax = window.a.x - p.x;
-          const ay = window.a.y - p.y;
-          const bx = window.b.x - p.x;
-          const by = window.b.y - p.y;
-          if (Math.min(ax * ax + ay * ay, bx * bx + by * by) > cap * cap) continue;
-          const theta = Math.abs(Math.atan2(ax * by - ay * bx, ax * bx + ay * by));
-          if (theta <= 0) continue;
-          let open = 0;
-          for (const sample of window.samples) {
-            if (!segmentBlocked(grid, p, sample)) open++;
-          }
-          if (open > 0) {
-            sum += Math.pow((theta * (open / window.samples.length)) / Math.PI, SKY_EXPONENT);
-          }
-        }
-        if (sum > 0) field[idx] += skyBright * sum;
-      }
-    }
-  }
-
-  bounce(grid, field, ALBEDO);
-  return field;
 }
 
 /**

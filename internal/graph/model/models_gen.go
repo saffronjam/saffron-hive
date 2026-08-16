@@ -619,14 +619,6 @@ type NetworkTopologyEvent struct {
 	LinkCount int       `json:"linkCount"`
 }
 
-// A place found by name, for filling in the coordinates the sun is computed from.
-type Place struct {
-	// Human-readable name, specific enough to tell two matches apart.
-	Name      string  `json:"name"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-}
-
 type Query struct {
 }
 
