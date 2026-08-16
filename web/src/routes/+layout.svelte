@@ -15,9 +15,25 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
 	import { deviceStore } from "$lib/stores/devices";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { groupsStore } from "$lib/stores/groups.svelte";
+	import { scenesStore } from "$lib/stores/scenes.svelte";
+	import { automationsStore } from "$lib/stores/automations.svelte";
+	import { effectsStore } from "$lib/stores/effects.svelte";
+	import { floorplanStore } from "$lib/stores/floorplan.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
+	import { prefetchIconPacks } from "$lib/components/icons/icon-utils.js";
 	import { onMount, onDestroy } from "svelte";
-	import { goto } from "$app/navigation";
+	import { beforeNavigate, goto } from "$app/navigation";
+	import DevicesPage from "$lib/components/devices-page.svelte";
+	import DashboardPage from "$lib/components/dashboard-page.svelte";
+	import RoomsPage from "$lib/components/rooms-page.svelte";
+	import GroupsPage from "$lib/components/groups-page.svelte";
+	import ScenesPage from "$lib/components/scenes-page.svelte";
+	import AutomationsPage from "$lib/components/automations-page.svelte";
+	import EffectsPage from "$lib/components/effects-page.svelte";
+	import MapPage from "$lib/components/map-page.svelte";
+	import AlarmsPage from "$lib/components/alarms-page.svelte";
 	import { page } from "$app/stores";
 
 	const client = createGraphQLClient();
@@ -33,6 +49,42 @@
 
 	let ready = $state(false);
 	const loader = delayedLoading(() => !ready);
+
+	// The main pages stay mounted (hidden) after their first visit, so a
+	// return costs no rebuild. Each mounts on first visit, not at boot, so
+	// landing anywhere pays only for that page. Two pages are deliberately
+	// absent: the data-viewer writes its filters into the browser URL, which a
+	// hidden page must never do, and activity accumulates its event feed
+	// without bound, which a permanent page would grow for the whole session.
+	const KEPT_PAGES = [
+		{ path: "/", component: DashboardPage },
+		{ path: "/map", component: MapPage },
+		{ path: "/devices", component: DevicesPage },
+		{ path: "/rooms", component: RoomsPage },
+		{ path: "/groups", component: GroupsPage },
+		{ path: "/scenes", component: ScenesPage },
+		{ path: "/automations", component: AutomationsPage },
+		{ path: "/effects", component: EffectsPage },
+		{ path: "/alarms", component: AlarmsPage },
+	];
+	const activePath = $derived($page.url.pathname);
+	let visitedPaths = $state<Record<string, boolean>>({});
+	$effect(() => {
+		if (KEPT_PAGES.some((k) => k.path === activePath)) {
+			visitedPaths[activePath] = true;
+		}
+	});
+
+	// Kept pages never run onDestroy, so the header reset happens here instead —
+	// before the next page mounts, which keeps the ordering deterministic (a
+	// hide-triggered effect could run after the next page's own header write
+	// and clobber it).
+	beforeNavigate((nav) => {
+		const from = nav.from?.url.pathname;
+		if (from && from !== nav.to?.url.pathname && KEPT_PAGES.some((k) => k.path === from)) {
+			pageHeader.reset();
+		}
+	});
 
 	async function gate() {
 		const result = await client.query(SETUP_STATUS_QUERY, {}).toPromise();
@@ -55,6 +107,7 @@
 
 	onMount(() => {
 		void gate();
+		prefetchIconPacks();
 	});
 
 	// Start the alarms store once we know there's an authenticated session.
@@ -64,6 +117,12 @@
 		if (ready && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) && auth.isAuthenticated()) {
 			alarmsStore.start(client);
 			void deviceStore.start(client);
+			void roomsStore.start(client);
+			void groupsStore.start(client);
+			void scenesStore.start(client);
+			void automationsStore.start(client);
+			void effectsStore.start(client);
+			void floorplanStore.start(client);
 			if (!me.user) void me.refresh(client);
 		}
 	});
@@ -71,6 +130,12 @@
 	onDestroy(() => {
 		alarmsStore.stop();
 		deviceStore.stop();
+		roomsStore.stop();
+		groupsStore.stop();
+		scenesStore.stop();
+		automationsStore.stop();
+		effectsStore.stop();
+		floorplanStore.stop();
 	});
 </script>
 
@@ -137,6 +202,13 @@
 				{/if}
 			</header>
 			<main class="min-w-0 flex-1 p-6">
+				{#each KEPT_PAGES as kept (kept.path)}
+					{#if visitedPaths[kept.path]}
+						<div hidden={activePath !== kept.path}>
+							<kept.component visible={activePath === kept.path} />
+						</div>
+					{/if}
+				{/each}
 				{@render children()}
 			</main>
 		</SidebarInset>

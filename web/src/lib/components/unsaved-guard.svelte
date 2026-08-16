@@ -12,16 +12,22 @@
 
 	interface Props {
 		dirty: boolean;
+		/**
+		 * Whether in-app navigation should be intercepted. A page that survives
+		 * navigation loses nothing by being left, so it turns this off and
+		 * keeps only the reload/close prompt, where loss is real.
+		 */
+		blockNavigation?: boolean;
 	}
 
-	let { dirty }: Props = $props();
+	let { dirty, blockNavigation = true }: Props = $props();
 
 	let showDialog = $state(false);
 	let pendingUrl = $state<string | null>(null);
 	let bypassing = false;
 
 	beforeNavigate(({ to, cancel }) => {
-		if (bypassing || !dirty || !to) return;
+		if (!blockNavigation || bypassing || !dirty || !to) return;
 		cancel();
 		pendingUrl = to.url.pathname + to.url.search;
 		showDialog = true;

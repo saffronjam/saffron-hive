@@ -58,3 +58,20 @@ export async function loadLucideData(name: string): Promise<LucideIconData | nul
   const key = kebabToPascal(name);
   return lucideModule[key] ?? null;
 }
+
+/**
+ * Warms both icon packs during idle time. The packs are single multi-megabyte
+ * modules whose parse otherwise lands inside whichever navigation first renders
+ * a custom icon; after this has run, that first render resolves from cache.
+ */
+export function prefetchIconPacks(): void {
+  const warm = () => {
+    void loadMdiPath("");
+    void loadLucideData("");
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(warm, { timeout: 5000 });
+  } else {
+    setTimeout(warm, 2000);
+  }
+}
