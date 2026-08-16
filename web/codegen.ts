@@ -9,6 +9,12 @@ const config: CodegenConfig = {
       config: {
         useTypeImports: true,
       },
+      presetConfig: {
+        // Fragment spreads resolve to plain inlined types, so a shared
+        // selection set reads the same as one written out by hand and needs
+        // no unwrapping at the point of use.
+        fragmentMasking: false,
+      },
     },
   },
 };
