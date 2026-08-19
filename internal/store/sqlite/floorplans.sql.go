@@ -11,6 +11,30 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const createFloorplanDoorBinding = `-- name: CreateFloorplanDoorBinding :exec
+INSERT INTO floorplan_door_bindings (floorplan_id, opening_id, device_id, hinge_side, swing_side)
+VALUES (?1, ?2, ?3, ?4, ?5)
+`
+
+type CreateFloorplanDoorBindingParams struct {
+	FloorplanID string
+	OpeningID   string
+	DeviceID    string
+	HingeSide   string
+	SwingSide   string
+}
+
+func (q *Queries) CreateFloorplanDoorBinding(ctx context.Context, arg CreateFloorplanDoorBindingParams) error {
+	_, err := q.db.ExecContext(ctx, createFloorplanDoorBinding,
+		arg.FloorplanID,
+		arg.OpeningID,
+		arg.DeviceID,
+		arg.HingeSide,
+		arg.SwingSide,
+	)
+	return err
+}
+
 const createFloorplanFurniture = `-- name: CreateFloorplanFurniture :exec
 INSERT INTO floorplan_furniture (id, floorplan_id, kind, x, y, width, height, rotation, occluder)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
@@ -167,6 +191,24 @@ func (q *Queries) CreateFloorplanWall(ctx context.Context, arg CreateFloorplanWa
 	return err
 }
 
+const deleteFloorplanDoorBindingsByDevice = `-- name: DeleteFloorplanDoorBindingsByDevice :exec
+DELETE FROM floorplan_door_bindings WHERE device_id = ?1
+`
+
+func (q *Queries) DeleteFloorplanDoorBindingsByDevice(ctx context.Context, deviceID string) error {
+	_, err := q.db.ExecContext(ctx, deleteFloorplanDoorBindingsByDevice, deviceID)
+	return err
+}
+
+const deleteFloorplanDoorBindingsByFloorplan = `-- name: DeleteFloorplanDoorBindingsByFloorplan :exec
+DELETE FROM floorplan_door_bindings WHERE floorplan_id = ?1
+`
+
+func (q *Queries) DeleteFloorplanDoorBindingsByFloorplan(ctx context.Context, floorplanID string) error {
+	_, err := q.db.ExecContext(ctx, deleteFloorplanDoorBindingsByFloorplan, floorplanID)
+	return err
+}
+
 const deleteFloorplanFurnitureByFloorplan = `-- name: DeleteFloorplanFurnitureByFloorplan :exec
 DELETE FROM floorplan_furniture WHERE floorplan_id = ?1
 `
@@ -248,8 +290,7 @@ ORDER BY created_at
 LIMIT 1
 `
 
-// A floorplan owns five child tables: floorplan_vertices, floorplan_walls,
-// floorplan_openings, floorplan_rooms, floorplan_placements. GetFloorplanGraph
+// A floorplan owns its graph, rooms, placements, furniture, and door bindings. GetFloorplanGraph
 // is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
 // inside one tx. vertex_ids is a JSON TEXT array; the Go wrapper marshals it
 // before hitting these queries and unmarshals on read.
@@ -263,6 +304,60 @@ func (q *Queries) GetFloorplan(ctx context.Context) (Floorplan, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getFloorplanDoorBindingByDevice = `-- name: GetFloorplanDoorBindingByDevice :one
+SELECT floorplan_id, opening_id, device_id, hinge_side, swing_side
+FROM floorplan_door_bindings
+WHERE device_id = ?1
+`
+
+func (q *Queries) GetFloorplanDoorBindingByDevice(ctx context.Context, deviceID string) (FloorplanDoorBinding, error) {
+	row := q.db.QueryRowContext(ctx, getFloorplanDoorBindingByDevice, deviceID)
+	var i FloorplanDoorBinding
+	err := row.Scan(
+		&i.FloorplanID,
+		&i.OpeningID,
+		&i.DeviceID,
+		&i.HingeSide,
+		&i.SwingSide,
+	)
+	return i, err
+}
+
+const listFloorplanDoorBindings = `-- name: ListFloorplanDoorBindings :many
+SELECT floorplan_id, opening_id, device_id, hinge_side, swing_side
+FROM floorplan_door_bindings
+WHERE floorplan_id = ?1
+`
+
+func (q *Queries) ListFloorplanDoorBindings(ctx context.Context, floorplanID string) ([]FloorplanDoorBinding, error) {
+	rows, err := q.db.QueryContext(ctx, listFloorplanDoorBindings, floorplanID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FloorplanDoorBinding
+	for rows.Next() {
+		var i FloorplanDoorBinding
+		if err := rows.Scan(
+			&i.FloorplanID,
+			&i.OpeningID,
+			&i.DeviceID,
+			&i.HingeSide,
+			&i.SwingSide,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFloorplanFurniture = `-- name: ListFloorplanFurniture :many

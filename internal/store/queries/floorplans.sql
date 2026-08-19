@@ -1,5 +1,4 @@
--- A floorplan owns five child tables: floorplan_vertices, floorplan_walls,
--- floorplan_openings, floorplan_rooms, floorplan_placements. GetFloorplanGraph
+-- A floorplan owns its graph, rooms, placements, furniture, and door bindings. GetFloorplanGraph
 -- is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
 -- inside one tx. vertex_ids is a JSON TEXT array; the Go wrapper marshals it
 -- before hitting these queries and unmarshals on read.
@@ -32,6 +31,16 @@ SELECT id, floorplan_id, wall_id, t, width, kind
 FROM floorplan_openings
 WHERE floorplan_id = sqlc.arg('floorplan_id');
 
+-- name: ListFloorplanDoorBindings :many
+SELECT floorplan_id, opening_id, device_id, hinge_side, swing_side
+FROM floorplan_door_bindings
+WHERE floorplan_id = sqlc.arg('floorplan_id');
+
+-- name: GetFloorplanDoorBindingByDevice :one
+SELECT floorplan_id, opening_id, device_id, hinge_side, swing_side
+FROM floorplan_door_bindings
+WHERE device_id = sqlc.arg('device_id');
+
 -- name: ListFloorplanRooms :many
 SELECT id, floorplan_id, name, room_id, vertex_ids
 FROM floorplan_rooms
@@ -59,6 +68,10 @@ VALUES (sqlc.arg('id'), sqlc.arg('floorplan_id'), sqlc.arg('vertex_a'), sqlc.arg
 INSERT INTO floorplan_openings (id, floorplan_id, wall_id, t, width, kind)
 VALUES (sqlc.arg('id'), sqlc.arg('floorplan_id'), sqlc.arg('wall_id'), sqlc.arg('t'), sqlc.arg('width'), sqlc.arg('kind'));
 
+-- name: CreateFloorplanDoorBinding :exec
+INSERT INTO floorplan_door_bindings (floorplan_id, opening_id, device_id, hinge_side, swing_side)
+VALUES (sqlc.arg('floorplan_id'), sqlc.arg('opening_id'), sqlc.arg('device_id'), sqlc.arg('hinge_side'), sqlc.arg('swing_side'));
+
 -- name: CreateFloorplanRoom :exec
 INSERT INTO floorplan_rooms (id, floorplan_id, name, room_id, vertex_ids)
 VALUES (sqlc.arg('id'), sqlc.arg('floorplan_id'), sqlc.narg('name'), sqlc.narg('room_id'), sqlc.arg('vertex_ids'));
@@ -80,6 +93,9 @@ DELETE FROM floorplan_vertices WHERE floorplan_id = sqlc.arg('floorplan_id');
 -- name: DeleteFloorplanOpeningsByFloorplan :exec
 DELETE FROM floorplan_openings WHERE floorplan_id = sqlc.arg('floorplan_id');
 
+-- name: DeleteFloorplanDoorBindingsByFloorplan :exec
+DELETE FROM floorplan_door_bindings WHERE floorplan_id = sqlc.arg('floorplan_id');
+
 -- name: DeleteFloorplanWallsByFloorplan :exec
 DELETE FROM floorplan_walls WHERE floorplan_id = sqlc.arg('floorplan_id');
 
@@ -96,6 +112,9 @@ DELETE FROM floorplan_placements WHERE floorplan_id = sqlc.arg('floorplan_id');
 -- name: DeleteFloorplanPlacementsByMember :exec
 DELETE FROM floorplan_placements
 WHERE member_type = sqlc.arg('member_type') AND member_id = sqlc.arg('member_id');
+
+-- name: DeleteFloorplanDoorBindingsByDevice :exec
+DELETE FROM floorplan_door_bindings WHERE device_id = sqlc.arg('device_id');
 
 -- UnlinkFloorplanRoomsByRoom clears the Hive-room link on the faces that point
 -- at a room being deleted. COALESCE copies the room's name into faces that have
