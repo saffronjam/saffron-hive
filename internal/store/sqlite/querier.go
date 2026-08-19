@@ -57,6 +57,7 @@ type Querier interface {
 	CreateEffect(ctx context.Context, arg CreateEffectParams) error
 	CreateEffectClip(ctx context.Context, arg CreateEffectClipParams) error
 	CreateEffectTrack(ctx context.Context, arg CreateEffectTrackParams) error
+	CreateFloorplanDoorBinding(ctx context.Context, arg CreateFloorplanDoorBindingParams) error
 	CreateFloorplanFurniture(ctx context.Context, arg CreateFloorplanFurnitureParams) error
 	CreateFloorplanOpening(ctx context.Context, arg CreateFloorplanOpeningParams) error
 	CreateFloorplanPlacement(ctx context.Context, arg CreateFloorplanPlacementParams) error
@@ -83,9 +84,10 @@ type Querier interface {
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
-	DeleteDeviceTags(ctx context.Context, deviceID string) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
+	DeleteFloorplanDoorBindingsByDevice(ctx context.Context, deviceID string) error
+	DeleteFloorplanDoorBindingsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanFurnitureByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanOpeningsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanPlacementsByFloorplan(ctx context.Context, floorplanID string) error
@@ -118,12 +120,12 @@ type Querier interface {
 	GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
-	// A floorplan owns five child tables: floorplan_vertices, floorplan_walls,
-	// floorplan_openings, floorplan_rooms, floorplan_placements. GetFloorplanGraph
+	// A floorplan owns its graph, rooms, placements, furniture, and door bindings. GetFloorplanGraph
 	// is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
 	// inside one tx. vertex_ids is a JSON TEXT array; the Go wrapper marshals it
 	// before hitting these queries and unmarshals on read.
 	GetFloorplan(ctx context.Context) (Floorplan, error)
+	GetFloorplanDoorBindingByDevice(ctx context.Context, deviceID string) (FloorplanDoorBinding, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
 	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
@@ -155,13 +157,12 @@ type Querier interface {
 	// Deletion is by alarm_id, removing every row belonging to a logical alarm
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
-	InsertDeviceTag(ctx context.Context, arg InsertDeviceTagParams) error
 	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
+	LatestStateSample(ctx context.Context, arg LatestStateSampleParams) (LatestStateSampleRow, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
-	ListAllDeviceTags(ctx context.Context) ([]DeviceTag, error)
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
 	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
 	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
@@ -169,7 +170,6 @@ type Querier interface {
 	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
-	ListDeviceTags(ctx context.Context, deviceID string) ([]string, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
 	ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error)
@@ -177,6 +177,7 @@ type Querier interface {
 	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
 	ListEnabledAutomations(ctx context.Context) ([]ListEnabledAutomationsRow, error)
+	ListFloorplanDoorBindings(ctx context.Context, floorplanID string) ([]FloorplanDoorBinding, error)
 	ListFloorplanFurniture(ctx context.Context, floorplanID string) ([]FloorplanFurniture, error)
 	ListFloorplanOpenings(ctx context.Context, floorplanID string) ([]FloorplanOpening, error)
 	ListFloorplanPlacements(ctx context.Context, floorplanID string) ([]FloorplanPlacement, error)
@@ -203,17 +204,10 @@ type Querier interface {
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
-	// Groups samples into fixed-size time buckets. bucket_seconds must be > 0.
-	// Per bucket returns AVG(value) and the Unix epoch of the earliest recorded_at
-	// (bucket_start_unix). Returning an INTEGER epoch sidesteps the sqlite driver's
-	// re-serialisation of TIMESTAMP aggregates. The substr(..., 1, 19) keeps
-	// strftime happy across the stored RFC3339Nano form.
-	QueryStateHistoryBucketed(ctx context.Context, arg QueryStateHistoryBucketedParams) ([]QueryStateHistoryBucketedRow, error)
-	// device_ids_json and fields_json are JSON-array strings. An empty array in
-	// fields_json matches every field. device_ids_json must be non-empty (callers
-	// always pick sources explicitly). Time bounds are RFC3339Nano UTC strings so
-	// lexicographic comparison matches chronological order.
+	QueryStateHistoryAnchors(ctx context.Context, arg QueryStateHistoryAnchorsParams) ([]QueryStateHistoryAnchorsRow, error)
+	QueryStateHistoryNumericBucketed(ctx context.Context, arg QueryStateHistoryNumericBucketedParams) ([]QueryStateHistoryNumericBucketedRow, error)
 	QueryStateHistoryRaw(ctx context.Context, arg QueryStateHistoryRawParams) ([]QueryStateHistoryRawRow, error)
+	QueryStateHistoryStatefulBucketed(ctx context.Context, arg QueryStateHistoryStatefulBucketedParams) ([]QueryStateHistoryStatefulBucketedRow, error)
 	RemoveGroupMember(ctx context.Context, id string) error
 	// Cleanup of dangling polymorphic room references when a room is deleted.
 	// group_members.member_id is polymorphic so no FK; mirror the same intent.
@@ -234,9 +228,10 @@ type Querier interface {
 	// The disabled flag, the name override and the seen flag are user-owned, so each
 	// gets its own setter for the same reason the icon column does: UpdateDevice
 	// overwrites every column it names, and the device-removal path calls it with an
-	// otherwise zero-value struct. UpsertDevice leaves all four alone as well, or an
-	// adapter re-sync would undo them.
+	// otherwise zero-value struct. UpsertDevice preserves user-owned values and
+	// reconciles role categories against the adapter-owned type and capabilities.
 	SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error
+	SetDeviceRoles(ctx context.Context, arg SetDeviceRolesParams) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	// UnlinkFloorplanRoomsByRoom clears the Hive-room link on the faces that point

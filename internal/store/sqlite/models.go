@@ -81,33 +81,31 @@ type AutomationNodeState struct {
 }
 
 type Device struct {
-	ID                device.DeviceID
-	Name              *string
-	FriendlyName      string
-	Source            device.Source
-	Type              device.DeviceType
-	Capabilities      string
-	Icon              *string
-	Available         bool
-	Removed           bool
-	Disabled          bool
-	LastSeen          *time.Time
-	Seen              bool
-	DisplayColor      *string
-	DisplayBrightness *int64
+	ID                 device.DeviceID
+	Name               *string
+	FriendlyName       string
+	Source             device.Source
+	Type               device.DeviceType
+	Capabilities       string
+	Icon               *string
+	Available          bool
+	Removed            bool
+	Disabled           bool
+	LastSeen           *time.Time
+	Seen               bool
+	DisplayColor       *string
+	DisplayBrightness  *int64
+	ControlledLoadRole *string
+	ContactRole        *string
 }
 
 type DeviceStateSample struct {
-	ID         int64
-	DeviceID   device.DeviceID
-	Field      string
-	Value      float64
-	RecordedAt time.Time
-}
-
-type DeviceTag struct {
-	DeviceID string
-	Tag      string
+	ID           int64
+	DeviceID     device.DeviceID
+	Field        string
+	NumericValue *float64
+	TextValue    *string
+	RecordedAt   time.Time
 }
 
 type Effect struct {
@@ -145,6 +143,14 @@ type Floorplan struct {
 	Name      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type FloorplanDoorBinding struct {
+	FloorplanID string
+	OpeningID   string
+	DeviceID    string
+	HingeSide   string
+	SwingSide   string
 }
 
 type FloorplanFurniture struct {
