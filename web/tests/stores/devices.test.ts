@@ -6,6 +6,24 @@ import {
   type Device,
   type DeviceState,
 } from "$lib/stores/devices";
+import { CapabilityCategory, type Capability } from "$lib/gql/graphql";
+
+function capability(name: string, type: string): Capability {
+  return {
+    name,
+    type,
+    label: null,
+    description: null,
+    category: CapabilityCategory.State,
+    values: null,
+    valueMin: null,
+    valueMax: null,
+    unit: null,
+    reportsValue: true,
+    canSet: true,
+    canGet: true,
+  };
+}
 
 function empty(): DeviceState {
   return {
@@ -53,8 +71,9 @@ function makeDevice(
     seen: true,
     source: "zigbee2mqtt",
     type,
-    tags: [],
+    roles: { controlledLoad: null, contact: null },
     capabilities: [],
+    configuration: [],
     available: true,
     disabled: false,
     lastSeen: "2026-01-01T00:00:00Z",
@@ -66,8 +85,8 @@ describe("deviceHasCapability", () => {
   it("returns true when the capability is present", () => {
     const d = makeDevice("d1", "Light");
     d.capabilities = [
-      { name: "on_off", type: "binary", access: 7 },
-      { name: "brightness", type: "numeric", access: 7 },
+      capability("on_off", "binary"),
+      capability("brightness", "numeric"),
     ];
     expect(deviceHasCapability(d, "on_off")).toBe(true);
     expect(deviceHasCapability(d, "brightness")).toBe(true);
@@ -75,7 +94,7 @@ describe("deviceHasCapability", () => {
 
   it("returns false when the capability is absent", () => {
     const d = makeDevice("d1", "Light");
-    d.capabilities = [{ name: "on_off", type: "binary", access: 7 }];
+    d.capabilities = [capability("on_off", "binary")];
     expect(deviceHasCapability(d, "power")).toBe(false);
   });
 });

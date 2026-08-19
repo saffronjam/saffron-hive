@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { groupTintStrength } from "$lib/device-tint";
-import { DeviceTag } from "$lib/gql/graphql";
+import { ControlledLoadRole } from "$lib/gql/graphql";
 import type { Device, DeviceState } from "$lib/stores/devices";
 
 function emptyState(): DeviceState {
@@ -25,7 +25,10 @@ function emptyState(): DeviceState {
 function device(
   type: string,
   partial: Partial<DeviceState>,
-  { tags = [], id = type }: { tags?: DeviceTag[]; id?: string } = {},
+  {
+    controlledLoad = null,
+    id = type,
+  }: { controlledLoad?: ControlledLoadRole | null; id?: string } = {},
 ): Device {
   return {
     id,
@@ -33,7 +36,7 @@ function device(
     friendlyName: id,
     source: "zigbee2mqtt",
     type,
-    tags,
+    roles: { controlledLoad, contact: null },
     capabilities: [],
     available: true,
     disabled: false,
@@ -65,13 +68,21 @@ describe("groupTintStrength", () => {
     expect(groupTintStrength([device("light", { on: true })])).toBe(1);
   });
 
-  it("is full strength for a LIGHT-tagged plug that is on", () => {
-    const plug = device("plug", { on: true, power: 12 }, { tags: [DeviceTag.Light] });
+  it("is full strength for a plug with the light role that is on", () => {
+    const plug = device("plug", { on: true, power: 12 }, {
+      controlledLoad: ControlledLoadRole.Light,
+    });
     expect(groupTintStrength([plug])).toBe(1);
   });
 
-  it("ignores a plug that is not tagged as a light", () => {
-    expect(groupTintStrength([device("plug", { on: true, power: 12 })])).toBe(0);
+  it("ignores an appliance plug", () => {
+    expect(
+      groupTintStrength([
+        device("plug", { on: true, power: 12 }, {
+          controlledLoad: ControlledLoadRole.Appliance,
+        }),
+      ]),
+    ).toBe(0);
   });
 
   it("averages only the members that report brightness", () => {

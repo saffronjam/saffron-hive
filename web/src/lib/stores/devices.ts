@@ -5,21 +5,22 @@ import { clearSnapshot, loadSnapshot, saveSnapshot } from "$lib/entity-cache";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import {
-  DeviceTag,
+  ControlledLoadRole,
   type Capability,
   type Color,
   type Device,
+  type DeviceConfigurationEntry,
   type DeviceState,
 } from "$lib/gql/graphql";
 
-export type { Capability, Device, DeviceState };
+export type { Capability, Device, DeviceConfigurationEntry, DeviceState };
 
 export function isLightControlDevice(device: Device): boolean {
-  return device.type === "light" || device.tags.includes(DeviceTag.Light);
+  return device.type === "light" || device.roles.controlledLoad === ControlledLoadRole.Light;
 }
 
 export function isApplianceDevice(device: Device): boolean {
-  return !isLightControlDevice(device) && (device.type === "climate" || device.type === "plug");
+  return device.type === "climate" || device.roles.controlledLoad === ControlledLoadRole.Appliance;
 }
 
 /**
@@ -60,6 +61,10 @@ function statesEqual(
     a.pressure === b.pressure &&
     a.illuminance === b.illuminance &&
     a.occupancy === b.occupancy &&
+    a.contact === b.contact &&
+    a.orientation === b.orientation &&
+    a.devicePosture === b.devicePosture &&
+    a.linkQuality === b.linkQuality &&
     a.battery === b.battery &&
     a.power === b.power &&
     a.voltage === b.voltage &&
@@ -83,15 +88,23 @@ const DEVICES_QUERY = graphql(`
       displayBrightness
       source
       type
-      tags
+      roles {
+        controlledLoad
+        contact
+      }
       capabilities {
         name
         type
+        label
+        description
+        category
         values
         valueMin
         valueMax
         unit
-        access
+        reportsValue
+        canSet
+        canGet
       }
       available
       disabled
@@ -119,11 +132,21 @@ const DEVICES_QUERY = graphql(`
         pressure
         illuminance
         occupancy
+        contact
+        orientation
+        devicePosture
+        linkQuality
         battery
         power
         voltage
         current
         energy
+      }
+      configuration {
+        capability
+        booleanValue
+        numberValue
+        stringValue
       }
     }
   }
@@ -154,11 +177,29 @@ const DEVICE_STATE_CHANGED = graphql(`
         pressure
         illuminance
         occupancy
+        contact
+        orientation
+        devicePosture
+        linkQuality
         battery
         power
         voltage
         current
         energy
+      }
+    }
+  }
+`);
+
+const DEVICE_CONFIGURATION_CHANGED = graphql(`
+  subscription DeviceStoreConfigurationChanged {
+    deviceConfigurationChanged {
+      deviceId
+      values {
+        capability
+        booleanValue
+        numberValue
+        stringValue
       }
     }
   }
@@ -183,15 +224,23 @@ const DEVICE_ADDED = graphql(`
       disabled
       source
       type
-      tags
+      roles {
+        controlledLoad
+        contact
+      }
       capabilities {
         name
         type
+        label
+        description
+        category
         values
         valueMin
         valueMax
         unit
-        access
+        reportsValue
+        canSet
+        canGet
       }
       available
       lastSeen
@@ -216,11 +265,21 @@ const DEVICE_ADDED = graphql(`
         pressure
         illuminance
         occupancy
+        contact
+        orientation
+        devicePosture
+        linkQuality
         battery
         power
         voltage
         current
         energy
+      }
+      configuration {
+        capability
+        booleanValue
+        numberValue
+        stringValue
       }
     }
   }
@@ -242,15 +301,23 @@ const DEVICE_UPDATED = graphql(`
       displayBrightness
       source
       type
-      tags
+      roles {
+        controlledLoad
+        contact
+      }
       capabilities {
         name
         type
+        label
+        description
+        category
         values
         valueMin
         valueMax
         unit
-        access
+        reportsValue
+        canSet
+        canGet
       }
       available
       disabled
@@ -278,11 +345,21 @@ const DEVICE_UPDATED = graphql(`
         pressure
         illuminance
         occupancy
+        contact
+        orientation
+        devicePosture
+        linkQuality
         battery
         power
         voltage
         current
         energy
+      }
+      configuration {
+        capability
+        booleanValue
+        numberValue
+        stringValue
       }
     }
   }
@@ -290,7 +367,7 @@ const DEVICE_UPDATED = graphql(`
 
 /** Cache name and schema version for the disk snapshot. Bump on any change to `DEVICES_QUERY`. */
 const SNAPSHOT_NAME = "devices";
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 3;
 const PERSIST_DEBOUNCE_MS = 250;
 
 function storage(): Storage | null {
@@ -372,6 +449,17 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, available } });
   }
 
+  function updateConfiguration(deviceId: string, values: DeviceConfigurationEntry[]) {
+    const device = current[deviceId];
+    if (!device || values.length === 0) return;
+    const byCapability = new Map(device.configuration.map((value) => [value.capability, value]));
+    for (const value of values) byCapability.set(value.capability, value);
+    const configuration = [...byCapability.values()].sort((a, b) =>
+      a.capability.localeCompare(b.capability),
+    );
+    set({ ...current, [deviceId]: { ...device, configuration } });
+  }
+
   /**
    * Adds a device the server just announced. Returns true only the first time a
    * given device is seen, so the caller can tell a genuine discovery from a
@@ -391,7 +479,7 @@ function createDeviceStore() {
         icon: existing.icon ?? null,
         displayColor: existing.displayColor ?? null,
         displayBrightness: existing.displayBrightness ?? null,
-        tags: existing.tags,
+        roles: existing.roles,
         disabled: existing.disabled,
         seen: existing.seen,
       },
@@ -437,12 +525,15 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, displayBrightness } });
   }
 
-  function updateTags(deviceId: string, tags: Device["tags"]) {
+  function updateRoles(deviceId: string, roles: Device["roles"]) {
     const device = current[deviceId];
     if (!device) return;
-    if (device.tags.length === tags.length && device.tags.every((tag, i) => tag === tags[i]))
+    if (
+      device.roles.controlledLoad === roles.controlledLoad &&
+      device.roles.contact === roles.contact
+    )
       return;
-    set({ ...current, [deviceId]: { ...device, tags } });
+    set({ ...current, [deviceId]: { ...device, roles } });
   }
 
   function updateDisabled(deviceId: string, disabled: boolean) {
@@ -476,12 +567,13 @@ function createDeviceStore() {
     hydrate,
     updateState,
     updateAvailability,
+    updateConfiguration,
     addDevice,
     updateName,
     updateIcon,
     updateDisplayColor,
     updateDisplayBrightness,
-    updateTags,
+    updateRoles,
     updateDisabled,
     markSeen,
     removeDevice,
@@ -523,6 +615,13 @@ function createDeviceStore() {
         const { deviceId, available } = r.data.deviceAvailabilityChanged;
         updateAvailability(deviceId, available);
       });
+      const configurationSub = client
+        .subscription(DEVICE_CONFIGURATION_CHANGED, {})
+        .subscribe((r) => {
+          if (!r.data) return;
+          const { deviceId, values } = r.data.deviceConfigurationChanged;
+          updateConfiguration(deviceId, values as DeviceConfigurationEntry[]);
+        });
       const s3 = client.subscription(DEVICE_ADDED, {}).subscribe((r) => {
         if (!r.data) return;
         const device = r.data.deviceAdded as Device;
@@ -538,7 +637,14 @@ function createDeviceStore() {
         if (!r.data) return;
         replaceDevice(r.data.deviceUpdated as Device);
       });
-      unsubFns = [s1.unsubscribe, s2.unsubscribe, s3.unsubscribe, s4.unsubscribe, s5.unsubscribe];
+      unsubFns = [
+        s1.unsubscribe,
+        s2.unsubscribe,
+        configurationSub.unsubscribe,
+        s3.unsubscribe,
+        s4.unsubscribe,
+        s5.unsubscribe,
+      ];
     },
 
     stop() {
@@ -594,7 +700,7 @@ export interface SceneCapabilities {
 }
 
 function hasWritableCapability(device: Device, name: string): boolean {
-  return device.capabilities.some((c) => c.name === name && (c.access & 2) !== 0);
+  return device.capabilities.some((c) => c.name === name && c.canSet);
 }
 
 export function deviceSceneCapabilities(device: Device): SceneCapabilities {

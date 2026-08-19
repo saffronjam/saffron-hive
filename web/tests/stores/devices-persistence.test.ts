@@ -4,7 +4,7 @@ import { deviceStore, devicesHydrated } from "$lib/stores/devices";
 import { cacheKey, saveSnapshot } from "$lib/entity-cache";
 
 const SNAPSHOT = "devices";
-const VERSION = 1;
+const VERSION = 3;
 
 // Re-importing drags the whole generated GraphQL graph along, so the two cases
 // that genuinely need a fresh module evaluation get a wide budget and the rest
@@ -20,7 +20,7 @@ function makeDevice(id: string, name: string) {
     displayBrightness: null,
     source: "zigbee2mqtt",
     type: "light",
-    tags: [],
+    roles: { controlledLoad: null, contact: null },
     capabilities: [],
     available: true,
     disabled: false,
