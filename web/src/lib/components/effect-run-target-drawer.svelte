@@ -112,7 +112,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),

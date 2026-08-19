@@ -276,7 +276,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${deviceDisplayName(d)} ${d.type}`,
 				})),
@@ -424,7 +424,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${deviceDisplayName(d)} ${d.type}`,
 				})),
@@ -791,7 +791,7 @@
 										entity={room}
 										devices={roomDevices(room)}
 										fallbackIcon={DoorOpen}
-										subtitle="{room.resolvedDevices.length} device{room.resolvedDevices.length === 1 ? '' : 's'}"
+										stateSummary
 										editHref={`/rooms?edit=${encodeURIComponent(room.id)}`}
 										ondelete={(r) => (deleteConfirmRoom = r)}
 										onrename={handleRename}

@@ -265,7 +265,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),
@@ -556,7 +556,7 @@
 		if (availableDevices.length > 0) {
 			result.push({ heading: "Devices", items: availableDevices.map((d) => ({
 				type: "device" as const, id: d.id, name: deviceDisplayName(d),
-				icon: deviceIcon(d.type), iconRef: d.icon ?? null,
+				icon: deviceIcon(d.type, d.roles.contact), iconRef: d.icon ?? null,
 				searchValue: `${deviceDisplayName(d)} ${d.type}`,
 			}))});
 		}
@@ -746,7 +746,7 @@
 										entity={group}
 										devices={flattenGroupDevices(group)}
 										fallbackIcon={GroupIcon}
-										subtitle="{group.members.length} member{group.members.length === 1 ? '' : 's'}{group.members.length > 0 ? ' · ' + groupMemberBreakdown(group.members) : ''}"
+										stateSummary
 										editHref={`/groups?edit=${encodeURIComponent(group.id)}`}
 										ondelete={(g) => (deleteConfirmGroup = g)}
 										onrename={handleRename}
