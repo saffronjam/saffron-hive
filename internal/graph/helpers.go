@@ -284,7 +284,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		DisplayBrightness: displayBrightnessToModel(d.DisplayBrightness),
 		Source:            string(d.Source),
 		Type:              string(d.Type),
-		Tags:              deviceTagsToModel(d.Tags),
+		Roles:             deviceRolesToModel(d.Roles),
 		Capabilities:      mapCapabilities(d.Capabilities),
 		Available:         available,
 		Disabled:          d.Disabled,
@@ -292,6 +292,11 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		LastSeen:          &lastSeen,
 	}
 	md.State = resolveDeviceStateFromReader(sr, d.ID)
+	if reader, ok := sr.(device.ConfigurationReader); ok {
+		md.Configuration = mapConfigurationValues(reader.GetDeviceConfiguration(d.ID))
+	} else {
+		md.Configuration = []*model.DeviceConfigurationEntry{}
+	}
 	return md
 }
 
@@ -301,41 +306,97 @@ func mapCapabilities(caps []device.Capability) []*model.Capability {
 	}
 	result := make([]*model.Capability, len(caps))
 	for i, c := range caps {
-		var unit *string
-		if c.Unit != "" {
-			unit = &c.Unit
+		unit := optionalString(c.Unit)
+		label := optionalString(c.Label)
+		description := optionalString(c.Description)
+		category := model.CapabilityCategoryState
+		switch c.EffectiveCategory() {
+		case device.CapabilityCategoryConfiguration:
+			category = model.CapabilityCategoryConfiguration
+		case device.CapabilityCategoryDiagnostic:
+			category = model.CapabilityCategoryDiagnostic
 		}
 		result[i] = &model.Capability{
-			Name:     c.Name,
-			Type:     c.Type,
-			Values:   c.Values,
-			ValueMin: c.ValueMin,
-			ValueMax: c.ValueMax,
-			Unit:     unit,
-			Access:   c.Access,
+			Name:         c.Name,
+			Type:         c.Type,
+			Label:        label,
+			Description:  description,
+			Category:     category,
+			Values:       c.Values,
+			ValueMin:     c.ValueMin,
+			ValueMax:     c.ValueMax,
+			Unit:         unit,
+			ReportsValue: c.ReportsValue(),
+			CanSet:       c.CanSet(),
+			CanGet:       c.CanGet(),
 		}
 	}
 	return result
 }
 
-func deviceTagsToModel(tags []device.DeviceTag) []model.DeviceTag {
-	out := make([]model.DeviceTag, 0, len(tags))
-	for _, t := range tags {
-		switch t {
-		case device.DeviceTagLight:
-			out = append(out, model.DeviceTagLight)
-		}
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func mapConfigurationValues(values []device.ConfigurationValue) []*model.DeviceConfigurationEntry {
+	out := make([]*model.DeviceConfigurationEntry, 0, len(values))
+	for _, value := range values {
+		out = append(out, &model.DeviceConfigurationEntry{
+			Capability:   value.Capability,
+			BooleanValue: value.BooleanValue,
+			NumberValue:  value.NumberValue,
+			StringValue:  value.StringValue,
+		})
 	}
 	return out
 }
 
-func deviceTagsFromModel(tags []model.DeviceTag) []device.DeviceTag {
-	out := make([]device.DeviceTag, 0, len(tags))
-	for _, t := range tags {
-		switch t {
-		case model.DeviceTagLight:
-			out = append(out, device.DeviceTagLight)
+func deviceRolesToModel(roles device.DeviceRoles) *model.DeviceRoles {
+	out := &model.DeviceRoles{}
+	if roles.ControlledLoad != nil {
+		role := model.ControlledLoadRoleAppliance
+		if *roles.ControlledLoad == device.ControlledLoadRoleLight {
+			role = model.ControlledLoadRoleLight
 		}
+		out.ControlledLoad = &role
+	}
+	if roles.Contact != nil {
+		role := model.ContactRoleGeneral
+		switch *roles.Contact {
+		case device.ContactRoleDoor:
+			role = model.ContactRoleDoor
+		case device.ContactRoleWindow:
+			role = model.ContactRoleWindow
+		}
+		out.Contact = &role
+	}
+	return out
+}
+
+func deviceRolesFromModel(roles *model.UpdateDeviceRolesInput) device.DeviceRoles {
+	if roles == nil {
+		return device.DeviceRoles{}
+	}
+	out := device.DeviceRoles{}
+	if role := roles.ControlledLoad.Value(); role != nil {
+		value := device.ControlledLoadRoleAppliance
+		if *role == model.ControlledLoadRoleLight {
+			value = device.ControlledLoadRoleLight
+		}
+		out.ControlledLoad = &value
+	}
+	if role := roles.Contact.Value(); role != nil {
+		value := device.ContactRoleGeneral
+		switch *role {
+		case model.ContactRoleDoor:
+			value = device.ContactRoleDoor
+		case model.ContactRoleWindow:
+			value = device.ContactRoleWindow
+		}
+		out.Contact = &value
 	}
 	return out
 }
@@ -491,6 +552,10 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 		Pressure:          ds.Pressure,
 		Illuminance:       ds.Illuminance,
 		Occupancy:         ds.Occupancy,
+		Contact:           ds.Contact,
+		Orientation:       ds.Orientation,
+		DevicePosture:     ds.DevicePosture,
+		LinkQuality:       ds.LinkQuality,
 		Battery:           ds.Battery,
 		Power:             ds.Power,
 		Voltage:           ds.Voltage,
@@ -880,6 +945,15 @@ func mapFloorplan(fp *store.Floorplan) *model.Floorplan {
 			Kind:   modelOpeningKind(o.Kind),
 		}
 	}
+	mf.DoorBindings = make([]*model.FloorplanDoorBinding, len(fp.DoorBindings))
+	for i, binding := range fp.DoorBindings {
+		mf.DoorBindings[i] = &model.FloorplanDoorBinding{
+			OpeningID: binding.OpeningID,
+			DeviceID:  string(binding.DeviceID),
+			HingeSide: modelDoorHingeSide(binding.HingeSide),
+			SwingSide: modelDoorSwingSide(binding.SwingSide),
+		}
+	}
 	mf.Rooms = make([]*model.FloorplanRoom, len(fp.Rooms))
 	for i, r := range fp.Rooms {
 		mf.Rooms[i] = &model.FloorplanRoom{
@@ -932,6 +1006,34 @@ func openingKindFromModel(k model.FloorplanOpeningKind) store.FloorplanOpeningKi
 		return store.FloorplanOpeningCased
 	}
 	return store.FloorplanOpeningDoor
+}
+
+func modelDoorHingeSide(side store.FloorplanDoorHingeSide) model.FloorplanDoorHingeSide {
+	if side == store.FloorplanDoorHingeEnd {
+		return model.FloorplanDoorHingeSideEnd
+	}
+	return model.FloorplanDoorHingeSideStart
+}
+
+func doorHingeSideFromModel(side model.FloorplanDoorHingeSide) store.FloorplanDoorHingeSide {
+	if side == model.FloorplanDoorHingeSideEnd {
+		return store.FloorplanDoorHingeEnd
+	}
+	return store.FloorplanDoorHingeStart
+}
+
+func modelDoorSwingSide(side store.FloorplanDoorSwingSide) model.FloorplanDoorSwingSide {
+	if side == store.FloorplanDoorSwingRight {
+		return model.FloorplanDoorSwingSideRight
+	}
+	return model.FloorplanDoorSwingSideLeft
+}
+
+func doorSwingSideFromModel(side model.FloorplanDoorSwingSide) store.FloorplanDoorSwingSide {
+	if side == model.FloorplanDoorSwingSideRight {
+		return store.FloorplanDoorSwingRight
+	}
+	return store.FloorplanDoorSwingLeft
 }
 
 func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
@@ -1404,7 +1506,7 @@ func validateFloorplanInput(ctx context.Context, store GraphStore, input model.U
 	for _, w := range input.Walls {
 		wallIDs[w.ID] = true
 	}
-	openingIDs := make(map[string]bool, len(input.Openings))
+	openings := make(map[string]model.FloorplanOpeningKind, len(input.Openings))
 	for _, o := range input.Openings {
 		if !wallIDs[o.WallID] {
 			return fmt.Errorf("opening %q references wall %q, which is not part of the plan", o.ID, o.WallID)
@@ -1415,16 +1517,45 @@ func validateFloorplanInput(ctx context.Context, store GraphStore, input model.U
 		if o.Width <= 0 {
 			return fmt.Errorf("opening %q has width %v, which is not positive", o.ID, o.Width)
 		}
-		if openingIDs[o.ID] {
+		if _, exists := openings[o.ID]; exists {
 			return fmt.Errorf("opening %q appears more than once on the plan", o.ID)
 		}
-		openingIDs[o.ID] = true
+		openings[o.ID] = o.Kind
+	}
+	boundOpenings := make(map[string]bool, len(input.DoorBindings))
+	boundDevices := make(map[string]bool, len(input.DoorBindings))
+	for _, binding := range input.DoorBindings {
+		kind, exists := openings[binding.OpeningID]
+		if !exists {
+			return fmt.Errorf("door binding references opening %q, which is not part of the plan", binding.OpeningID)
+		}
+		if kind != model.FloorplanOpeningKindDoor {
+			return fmt.Errorf("door binding opening %q is not a door", binding.OpeningID)
+		}
+		if boundOpenings[binding.OpeningID] {
+			return fmt.Errorf("opening %q has more than one door sensor", binding.OpeningID)
+		}
+		if boundDevices[binding.DeviceID] {
+			return fmt.Errorf("device %q is attached to more than one door", binding.DeviceID)
+		}
+		boundOpenings[binding.OpeningID] = true
+		boundDevices[binding.DeviceID] = true
+		d, err := store.GetDevice(ctx, device.DeviceID(binding.DeviceID))
+		if err != nil {
+			return fmt.Errorf("door sensor %q not found: %w", binding.DeviceID, err)
+		}
+		if d.Roles.Contact == nil || *d.Roles.Contact != device.ContactRoleDoor {
+			return fmt.Errorf("device %q does not have the door contact role", binding.DeviceID)
+		}
 	}
 	placed := make(map[device.TargetType]map[string]bool, 2)
 	for _, p := range input.Placements {
 		memberType := device.TargetType(p.MemberType)
 		switch memberType {
 		case device.TargetDevice:
+			if boundDevices[p.MemberID] {
+				return fmt.Errorf("door sensor %q cannot also have a floorplan placement", p.MemberID)
+			}
 			if _, err := store.GetDevice(ctx, device.DeviceID(p.MemberID)); err != nil {
 				return fmt.Errorf("device %q not found: %w", p.MemberID, err)
 			}
@@ -1538,6 +1669,9 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		if err := validateToggleDeviceStateActions(inputNodes); err != nil {
 			return err
 		}
+		if err := validateConfigureDeviceActions(ctx, store, inputNodes); err != nil {
+			return err
+		}
 		if err := validateCycleScenesActions(ctx, store, inputNodes); err != nil {
 			return err
 		}
@@ -1552,6 +1686,40 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		msgs = append(msgs, err.Error())
 	}
 	return fmt.Errorf("automation validation failed: %s", strings.Join(msgs, "; "))
+}
+
+func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var outer struct {
+			ActionType string `json:"action_type"`
+			TargetType string `json:"target_type"`
+			TargetID   string `json:"target_id"`
+			Payload    string `json:"payload"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil || outer.ActionType != automation.ActionConfigureDevice {
+			continue
+		}
+		if automation.TargetType(outer.TargetType) != automation.TargetDevice || outer.TargetID == "" {
+			return fmt.Errorf("node %s: configure_device requires a device target", n.ID)
+		}
+		var payload struct {
+			Settings []device.ConfigurationValue `json:"settings"`
+		}
+		if err := json.Unmarshal([]byte(outer.Payload), &payload); err != nil {
+			return fmt.Errorf("node %s: invalid configure_device payload JSON", n.ID)
+		}
+		d, err := store.GetDevice(ctx, device.DeviceID(outer.TargetID))
+		if err != nil {
+			return fmt.Errorf("node %s: configure_device target %q not found", n.ID, outer.TargetID)
+		}
+		if err := device.ValidateConfigurationValues(d, payload.Settings); err != nil {
+			return fmt.Errorf("node %s: %w", n.ID, err)
+		}
+	}
+	return nil
 }
 
 // validateRunEffectActions checks every run_effect action node: the payload

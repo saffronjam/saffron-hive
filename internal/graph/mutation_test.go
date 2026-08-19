@@ -66,7 +66,8 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 		ID:           "ac",
 		FriendlyName: "Cloud Name",
 		Source:       "tuya",
-		Type:         device.Climate,
+		Type:         device.Plug,
+		Capabilities: []device.Capability{{Name: device.CapOnOff, Access: 3}},
 		Available:    true,
 		LastSeen:     now,
 	})
@@ -74,25 +75,29 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 		ID:           "ac",
 		FriendlyName: "Mobile Air Conditioner",
 		Source:       "tuya",
-		Type:         device.Climate,
+		Type:         device.Plug,
+		Capabilities: []device.Capability{{Name: device.CapOnOff, Access: 3}},
 		Available:    true,
 		LastSeen:     now,
 	})
 
 	resp := env.query(t, `mutation($id: ID!, $input: UpdateDeviceInput!) {
-		updateDevice(id: $id, input: $input) { id name tags }
+		updateDevice(id: $id, input: $input) { id name roles { controlledLoad contact } }
 	}`, map[string]any{
 		"id":    "ac",
-		"input": map[string]any{"name": "AC", "tags": []any{"LIGHT"}},
+		"input": map[string]any{"name": "AC", "roles": map[string]any{"controlledLoad": "LIGHT"}},
 	})
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 	var data struct {
 		UpdateDevice struct {
-			ID   string   `json:"id"`
-			Name string   `json:"name"`
-			Tags []string `json:"tags"`
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Roles struct {
+				ControlledLoad string  `json:"controlledLoad"`
+				Contact        *string `json:"contact"`
+			} `json:"roles"`
 		} `json:"updateDevice"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -101,19 +106,21 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	if data.UpdateDevice.Name != "AC" {
 		t.Fatalf("got mutation name %q, want AC", data.UpdateDevice.Name)
 	}
-	if len(data.UpdateDevice.Tags) != 1 || data.UpdateDevice.Tags[0] != "LIGHT" {
-		t.Fatalf("got mutation tags %#v, want [LIGHT]", data.UpdateDevice.Tags)
+	if data.UpdateDevice.Roles.ControlledLoad != "LIGHT" || data.UpdateDevice.Roles.Contact != nil {
+		t.Fatalf("got mutation roles %#v, want LIGHT controlled load", data.UpdateDevice.Roles)
 	}
 
-	resp = env.query(t, `query { devices { id name tags } }`, nil)
+	resp = env.query(t, `query { devices { id name roles { controlledLoad contact } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 	var listData struct {
 		Devices []struct {
-			ID   string   `json:"id"`
-			Name string   `json:"name"`
-			Tags []string `json:"tags"`
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Roles struct {
+				ControlledLoad string `json:"controlledLoad"`
+			} `json:"roles"`
 		} `json:"devices"`
 	}
 	if err := json.Unmarshal(resp.Data, &listData); err != nil {
@@ -122,8 +129,25 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 	if len(listData.Devices) != 1 || listData.Devices[0].Name != "AC" {
 		t.Fatalf("got devices %#v, want AC", listData.Devices)
 	}
-	if len(listData.Devices[0].Tags) != 1 || listData.Devices[0].Tags[0] != "LIGHT" {
-		t.Fatalf("got devices %#v, want LIGHT tag", listData.Devices)
+	if listData.Devices[0].Roles.ControlledLoad != "LIGHT" {
+		t.Fatalf("got devices %#v, want LIGHT controlled load role", listData.Devices)
+	}
+}
+
+func TestMutationUpdateDeviceRejectsInapplicableRole(t *testing.T) {
+	env := newTestEnv(t)
+	d := device.Device{ID: "ac", FriendlyName: "AC", Type: device.Climate}
+	env.stateReader.addDevice(d)
+	env.store.putDevice(d)
+
+	resp := env.query(t, `mutation($id: ID!, $input: UpdateDeviceInput!) {
+		updateDevice(id: $id, input: $input) { id }
+	}`, map[string]any{
+		"id":    "ac",
+		"input": map[string]any{"roles": map[string]any{"controlledLoad": "LIGHT"}},
+	})
+	if len(resp.Errors) == 0 {
+		t.Fatal("expected an inapplicable controlled-load role to fail")
 	}
 }
 

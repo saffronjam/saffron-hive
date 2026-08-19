@@ -82,7 +82,7 @@ func (m *mockStateReader) applyUserFields(d device.Device) {
 		}
 		m.devices[i].Name = d.Name
 		m.devices[i].Icon = d.Icon
-		m.devices[i].Tags = d.Tags
+		m.devices[i].Roles = d.Roles
 		m.devices[i].Disabled = d.Disabled
 		return
 	}
@@ -192,8 +192,11 @@ func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDevicePar
 	d.Available = params.Available
 	d.Removed = params.Removed
 	d.LastSeen = params.LastSeen
-	if params.SetTags {
-		d.Tags = params.Tags
+	if params.SetRoles {
+		if err := device.ValidateDeviceRoles(d, params.Roles); err != nil {
+			return device.Device{}, err
+		}
+		d.Roles = params.Roles
 	}
 	m.devices[params.ID] = d
 	return d, nil
@@ -940,14 +943,17 @@ func (m *mockStore) ReplaceFloorplan(_ context.Context, params store.ReplaceFloo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.floorplan = &store.Floorplan{
-		ID:         params.ID,
-		Name:       params.Name,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		Vertices:   params.Vertices,
-		Walls:      params.Walls,
-		Rooms:      params.Rooms,
-		Placements: params.Placements,
+		ID:           params.ID,
+		Name:         params.Name,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		Vertices:     params.Vertices,
+		Walls:        params.Walls,
+		Openings:     params.Openings,
+		DoorBindings: params.DoorBindings,
+		Rooms:        params.Rooms,
+		Placements:   params.Placements,
+		Furniture:    params.Furniture,
 	}
 	return nil
 }
