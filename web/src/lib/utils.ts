@@ -3,13 +3,17 @@ import { twMerge } from "tailwind-merge";
 import type { Component } from "svelte";
 import {
   AirVent,
+  DoorOpen,
   Lightbulb,
+  Magnet,
   Thermometer,
   MousePointerClick,
+  PanelTopOpen,
   Plug,
   Package,
   Router,
 } from "@lucide/svelte";
+import { ContactRole } from "$lib/gql/graphql";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -31,7 +35,19 @@ export function deviceDisplayName(d: {
   return d.name || d.friendlyName || d.id;
 }
 
-export function deviceIcon(type: string): Component {
+export function contactIcon(role?: ContactRole | null): Component {
+  switch (role) {
+    case ContactRole.Door:
+      return DoorOpen;
+    case ContactRole.Window:
+      return PanelTopOpen;
+    default:
+      return Magnet;
+  }
+}
+
+export function deviceIcon(type: string, contactRole?: ContactRole | null): Component {
+  if (contactRole != null) return contactIcon(contactRole);
   switch (type) {
     case "light":
       return Lightbulb;

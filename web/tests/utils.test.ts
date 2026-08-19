@@ -1,6 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { Lightbulb, Thermometer, MousePointerClick, Plug, Package } from "@lucide/svelte";
-import { cn, deviceIcon } from "$lib/utils";
+import {
+  DoorOpen,
+  Lightbulb,
+  Magnet,
+  MousePointerClick,
+  Package,
+  PanelTopOpen,
+  Plug,
+  Thermometer,
+} from "@lucide/svelte";
+import { ContactRole } from "$lib/gql/graphql";
+import { cn, contactIcon, deviceIcon } from "$lib/utils";
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -42,6 +52,12 @@ describe("deviceIcon", () => {
     expect(deviceIcon("sensor")).toBe(Thermometer);
   });
 
+  it("uses the contact role before the broad device type", () => {
+    expect(deviceIcon("sensor", ContactRole.General)).toBe(Magnet);
+    expect(deviceIcon("sensor", ContactRole.Door)).toBe(DoorOpen);
+    expect(deviceIcon("sensor", ContactRole.Window)).toBe(PanelTopOpen);
+  });
+
   it("returns MousePointerClick for button", () => {
     expect(deviceIcon("button")).toBe(MousePointerClick);
   });
@@ -54,5 +70,17 @@ describe("deviceIcon", () => {
     expect(deviceIcon("unknown")).toBe(Package);
     expect(deviceIcon("switch")).toBe(Package);
     expect(deviceIcon("")).toBe(Package);
+  });
+});
+
+describe("contactIcon", () => {
+  it("defaults to a generic magnetic contact", () => {
+    expect(contactIcon()).toBe(Magnet);
+    expect(contactIcon(ContactRole.General)).toBe(Magnet);
+  });
+
+  it("maps structural contact roles to their icons", () => {
+    expect(contactIcon(ContactRole.Door)).toBe(DoorOpen);
+    expect(contactIcon(ContactRole.Window)).toBe(PanelTopOpen);
   });
 });
