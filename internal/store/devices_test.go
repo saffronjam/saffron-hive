@@ -186,7 +186,7 @@ func TestUpdateDevice(t *testing.T) {
 	}
 }
 
-func TestUpdateDeviceTags(t *testing.T) {
+func TestUpdateDeviceRoles(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
@@ -195,6 +195,7 @@ func TestUpdateDeviceTags(t *testing.T) {
 		FriendlyName: "Lava lamp",
 		Source:       device.SourceZigbee2MQTT,
 		Type:         device.Plug,
+		Capabilities: []device.Capability{{Name: device.CapOnOff, Access: 3}},
 	})
 	if err != nil {
 		t.Fatalf("create device: %v", err)
@@ -203,33 +204,96 @@ func TestUpdateDeviceTags(t *testing.T) {
 	updated, err := s.UpdateDevice(ctx, UpdateDeviceParams{
 		ID:        "dev-1",
 		Available: true,
-		SetTags:   true,
-		Tags:      []device.DeviceTag{device.DeviceTagLight, device.DeviceTagLight, device.DeviceTag("BAD")},
+		SetRoles:  true,
+		Roles: device.DeviceRoles{
+			ControlledLoad: device.Ptr(device.ControlledLoadRoleLight),
+		},
 	})
 	if err != nil {
-		t.Fatalf("set tags: %v", err)
+		t.Fatalf("set roles: %v", err)
 	}
-	if len(updated.Tags) != 1 || updated.Tags[0] != device.DeviceTagLight {
-		t.Fatalf("got tags %#v, want [LIGHT]", updated.Tags)
+	if updated.Roles.ControlledLoad == nil || *updated.Roles.ControlledLoad != device.ControlledLoadRoleLight {
+		t.Fatalf("got roles %#v, want light", updated.Roles)
 	}
 
 	listed, err := s.ListDevices(ctx)
 	if err != nil {
 		t.Fatalf("list devices: %v", err)
 	}
-	if len(listed) != 1 || len(listed[0].Tags) != 1 || listed[0].Tags[0] != device.DeviceTagLight {
-		t.Fatalf("listed tags %#v, want [LIGHT]", listed)
+	if len(listed) != 1 || listed[0].Roles.ControlledLoad == nil || *listed[0].Roles.ControlledLoad != device.ControlledLoadRoleLight {
+		t.Fatalf("listed roles %#v, want light", listed)
 	}
 
-	updated, err = s.UpdateDevice(ctx, UpdateDeviceParams{
-		ID:      "dev-1",
-		SetTags: true,
+	_, err = s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:       "dev-1",
+		SetRoles: true,
+	})
+	if err == nil {
+		t.Fatal("expected a missing applicable role to be rejected")
+	}
+}
+
+func TestUpsertDeviceReconcilesRoles(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	controlledCapabilities := []device.Capability{{Name: device.CapOnOff, Access: 3}}
+
+	created, err := s.CreateDevice(ctx, CreateDeviceParams{
+		ID:           "dev-1",
+		FriendlyName: "Plug",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Plug,
+		Capabilities: controlledCapabilities,
 	})
 	if err != nil {
-		t.Fatalf("clear tags: %v", err)
+		t.Fatalf("create device: %v", err)
 	}
-	if len(updated.Tags) != 0 {
-		t.Fatalf("got tags %#v, want none", updated.Tags)
+	if created.Roles.ControlledLoad == nil || *created.Roles.ControlledLoad != device.ControlledLoadRoleAppliance {
+		t.Fatalf("created role = %v, want appliance", created.Roles.ControlledLoad)
+	}
+
+	if _, err := s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:       "dev-1",
+		SetRoles: true,
+		Roles:    device.DeviceRoles{ControlledLoad: device.Ptr(device.ControlledLoadRoleLight)},
+	}); err != nil {
+		t.Fatalf("set light role: %v", err)
+	}
+	if err := s.UpsertDevice(ctx, CreateDeviceParams{
+		ID:           "dev-1",
+		FriendlyName: "Plug",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Plug,
+		Capabilities: controlledCapabilities,
+	}); err != nil {
+		t.Fatalf("re-sync plug: %v", err)
+	}
+	preserved, err := s.GetDevice(ctx, "dev-1")
+	if err != nil {
+		t.Fatalf("get preserved device: %v", err)
+	}
+	if preserved.Roles.ControlledLoad == nil || *preserved.Roles.ControlledLoad != device.ControlledLoadRoleLight {
+		t.Fatalf("preserved role = %v, want light", preserved.Roles.ControlledLoad)
+	}
+
+	if err := s.UpsertDevice(ctx, CreateDeviceParams{
+		ID:           "dev-1",
+		FriendlyName: "Contact",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Sensor,
+		Capabilities: []device.Capability{{Name: device.CapContact, Access: 1}},
+	}); err != nil {
+		t.Fatalf("reclassify device: %v", err)
+	}
+	reclassified, err := s.GetDevice(ctx, "dev-1")
+	if err != nil {
+		t.Fatalf("get reclassified device: %v", err)
+	}
+	if reclassified.Roles.ControlledLoad != nil {
+		t.Fatalf("controlled-load role = %v, want inapplicable", reclassified.Roles.ControlledLoad)
+	}
+	if reclassified.Roles.Contact == nil || *reclassified.Roles.Contact != device.ContactRoleGeneral {
+		t.Fatalf("contact role = %v, want general", reclassified.Roles.Contact)
 	}
 }
 

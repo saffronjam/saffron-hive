@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,12 +17,15 @@ func (s *DB) CreateDevice(ctx context.Context, params CreateDeviceParams) (devic
 	if err != nil {
 		return device.Device{}, fmt.Errorf("create device: %w", err)
 	}
+	roles := device.DefaultDeviceRoles(device.Device{Type: params.Type, Capabilities: params.Capabilities})
 	if err := s.q.CreateDevice(ctx, sqlite.CreateDeviceParams{
-		ID:           params.ID,
-		FriendlyName: params.FriendlyName,
-		Source:       params.Source,
-		Type:         params.Type,
-		Capabilities: capsJSON,
+		ID:                 params.ID,
+		FriendlyName:       params.FriendlyName,
+		Source:             params.Source,
+		Type:               params.Type,
+		Capabilities:       capsJSON,
+		ControlledLoadRole: controlledLoadRoleString(roles.ControlledLoad),
+		ContactRole:        contactRoleString(roles.Contact),
 	}); err != nil {
 		return device.Device{}, fmt.Errorf("create device: %w", err)
 	}
@@ -34,12 +39,15 @@ func (s *DB) UpsertDevice(ctx context.Context, params CreateDeviceParams) error 
 	if err != nil {
 		return fmt.Errorf("upsert device: %w", err)
 	}
+	roles := device.DefaultDeviceRoles(device.Device{Type: params.Type, Capabilities: params.Capabilities})
 	if err := s.q.UpsertDevice(ctx, sqlite.UpsertDeviceParams{
-		ID:           params.ID,
-		FriendlyName: params.FriendlyName,
-		Source:       params.Source,
-		Type:         params.Type,
-		Capabilities: capsJSON,
+		ID:                 params.ID,
+		FriendlyName:       params.FriendlyName,
+		Source:             params.Source,
+		Type:               params.Type,
+		Capabilities:       capsJSON,
+		ControlledLoadRole: controlledLoadRoleString(roles.ControlledLoad),
+		ContactRole:        contactRoleString(roles.Contact),
 	}); err != nil {
 		return fmt.Errorf("upsert device: %w", err)
 	}
@@ -52,10 +60,6 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 	if err != nil {
 		return device.Device{}, fmt.Errorf("get device: %w", err)
 	}
-	tags, err := s.q.ListDeviceTags(ctx, string(id))
-	if err != nil {
-		return device.Device{}, fmt.Errorf("list device tags: %w", err)
-	}
 	return device.Device{
 		ID:                row.ID,
 		Name:              row.Name,
@@ -65,7 +69,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 		DisplayBrightness: row.DisplayBrightness,
 		Source:            row.Source,
 		Type:              row.Type,
-		Tags:              deviceTagsFromStrings(tags),
+		Roles:             deviceRolesFromStrings(row.ControlledLoadRole, row.ContactRole),
 		Capabilities:      unmarshalCapabilities(row.Capabilities),
 		Available:         row.Available,
 		Removed:           row.Removed,
@@ -81,10 +85,6 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list devices: %w", err)
 	}
-	tagsByDevice, err := s.loadAllDeviceTags(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var devices []device.Device
 	for _, r := range rows {
 		devices = append(devices, device.Device{
@@ -96,7 +96,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 			DisplayBrightness: r.DisplayBrightness,
 			Source:            r.Source,
 			Type:              r.Type,
-			Tags:              tagsByDevice[r.ID],
+			Roles:             deviceRolesFromStrings(r.ControlledLoadRole, r.ContactRole),
 			Capabilities:      unmarshalCapabilities(r.Capabilities),
 			Available:         r.Available,
 			Removed:           r.Removed,
@@ -114,10 +114,6 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 	if err != nil {
 		return nil, fmt.Errorf("list devices by source: %w", err)
 	}
-	tagsByDevice, err := s.loadAllDeviceTags(ctx)
-	if err != nil {
-		return nil, err
-	}
 	var devices []device.Device
 	for _, r := range rows {
 		devices = append(devices, device.Device{
@@ -129,7 +125,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 			DisplayBrightness: r.DisplayBrightness,
 			Source:            r.Source,
 			Type:              r.Type,
-			Tags:              tagsByDevice[r.ID],
+			Roles:             deviceRolesFromStrings(r.ControlledLoadRole, r.ContactRole),
 			Capabilities:      unmarshalCapabilities(r.Capabilities),
 			Available:         r.Available,
 			Removed:           r.Removed,
@@ -145,6 +141,22 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 // The icon column is intentionally not part of this update path; user-set icons
 // must persist across MQTT-driven re-syncs. Use UpdateDeviceIcon for icon changes.
 func (s *DB) UpdateDevice(ctx context.Context, params UpdateDeviceParams) (device.Device, error) {
+	if params.SetRoles {
+		current, err := s.GetDevice(ctx, params.ID)
+		if err != nil {
+			return device.Device{}, fmt.Errorf("get device for role update: %w", err)
+		}
+		if err := device.ValidateDeviceRoles(current, params.Roles); err != nil {
+			return device.Device{}, fmt.Errorf("set device roles: %w", err)
+		}
+		if params.Roles.Contact == nil || *params.Roles.Contact != device.ContactRoleDoor {
+			if _, err := s.q.GetFloorplanDoorBindingByDevice(ctx, string(params.ID)); err == nil {
+				return device.Device{}, fmt.Errorf("Detach this sensor from its map door before changing its contact role.")
+			} else if !errors.Is(err, sql.ErrNoRows) {
+				return device.Device{}, fmt.Errorf("get floorplan door binding for role update: %w", err)
+			}
+		}
+	}
 	lastSeen := params.LastSeen
 	var lastSeenArg *time.Time
 	if !lastSeen.IsZero() {
@@ -159,17 +171,13 @@ func (s *DB) UpdateDevice(ctx context.Context, params UpdateDeviceParams) (devic
 		}); err != nil {
 			return fmt.Errorf("update device: %w", err)
 		}
-		if params.SetTags {
-			if err := q.DeleteDeviceTags(ctx, string(params.ID)); err != nil {
-				return fmt.Errorf("clear device tags: %w", err)
-			}
-			for _, tag := range dedupeDeviceTags(params.Tags) {
-				if err := q.InsertDeviceTag(ctx, sqlite.InsertDeviceTagParams{
-					DeviceID: string(params.ID),
-					Tag:      string(tag),
-				}); err != nil {
-					return fmt.Errorf("insert device tag: %w", err)
-				}
+		if params.SetRoles {
+			if err := q.SetDeviceRoles(ctx, sqlite.SetDeviceRolesParams{
+				ControlledLoadRole: controlledLoadRoleString(params.Roles.ControlledLoad),
+				ContactRole:        contactRoleString(params.Roles.Contact),
+				ID:                 params.ID,
+			}); err != nil {
+				return fmt.Errorf("set device roles: %w", err)
 			}
 		}
 		return nil
@@ -180,51 +188,33 @@ func (s *DB) UpdateDevice(ctx context.Context, params UpdateDeviceParams) (devic
 	return s.GetDevice(ctx, params.ID)
 }
 
-func dedupeDeviceTags(tags []device.DeviceTag) []device.DeviceTag {
-	if len(tags) == 0 {
-		return nil
+func deviceRolesFromStrings(controlledLoad, contact *string) device.DeviceRoles {
+	var roles device.DeviceRoles
+	if controlledLoad != nil {
+		role := device.ControlledLoadRole(*controlledLoad)
+		roles.ControlledLoad = &role
 	}
-	seen := make(map[device.DeviceTag]bool, len(tags))
-	out := make([]device.DeviceTag, 0, len(tags))
-	for _, t := range tags {
-		if !device.IsValidDeviceTag(t) || seen[t] {
-			continue
-		}
-		seen[t] = true
-		out = append(out, t)
+	if contact != nil {
+		role := device.ContactRole(*contact)
+		roles.Contact = &role
 	}
-	return out
+	return roles
 }
 
-func (s *DB) loadAllDeviceTags(ctx context.Context) (map[device.DeviceID][]device.DeviceTag, error) {
-	rows, err := s.q.ListAllDeviceTags(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list all device tags: %w", err)
-	}
-	out := make(map[device.DeviceID][]device.DeviceTag, len(rows))
-	for _, r := range rows {
-		id := device.DeviceID(r.DeviceID)
-		tag := device.DeviceTag(r.Tag)
-		if !device.IsValidDeviceTag(tag) {
-			continue
-		}
-		out[id] = append(out[id], tag)
-	}
-	return out, nil
-}
-
-func deviceTagsFromStrings(tags []string) []device.DeviceTag {
-	if len(tags) == 0 {
+func controlledLoadRoleString(role *device.ControlledLoadRole) *string {
+	if role == nil {
 		return nil
 	}
-	out := make([]device.DeviceTag, 0, len(tags))
-	for _, t := range tags {
-		tag := device.DeviceTag(t)
-		if device.IsValidDeviceTag(tag) {
-			out = append(out, tag)
-		}
+	value := string(*role)
+	return &value
+}
+
+func contactRoleString(role *device.ContactRole) *string {
+	if role == nil {
+		return nil
 	}
-	return out
+	value := string(*role)
+	return &value
 }
 
 // SetDeviceDisabled toggles the user-owned disabled flag and returns the updated
@@ -363,6 +353,9 @@ func (s *DB) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 			MemberID:   string(id),
 		}); err != nil {
 			return fmt.Errorf("delete floorplan placement for device: %w", err)
+		}
+		if err := q.DeleteFloorplanDoorBindingsByDevice(ctx, string(id)); err != nil {
+			return fmt.Errorf("delete floorplan door binding for device: %w", err)
 		}
 		if err := q.DeleteDevice(ctx, id); err != nil {
 			return fmt.Errorf("delete device: %w", err)
