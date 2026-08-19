@@ -18,9 +18,12 @@ const STATE_HISTORY_QUERY = graphql(`
     stateHistory(filter: $filter) {
       deviceId
       field
+      valueType
       points {
         at
-        value
+        numberValue
+        booleanValue
+        textValue
       }
     }
   }

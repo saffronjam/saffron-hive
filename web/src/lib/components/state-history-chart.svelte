@@ -1,4 +1,6 @@
 <script lang="ts" module>
+	import type { ContactRole as ContactRoleType } from "$lib/gql/graphql";
+
 	export interface SeriesInfo {
 		key: string;
 		sourceKey: string;
@@ -6,6 +8,8 @@
 		field: string;
 		color: string;
 		label: string;
+		contactRole?: ContactRoleType | null;
+		valueType: "NUMBER" | "BOOLEAN" | "TEXT";
 	}
 
 	export function fieldLabel(field: string): string {
@@ -26,6 +30,10 @@
 		voltage: "oklch(0.7 0.22 330)",
 		current: "oklch(0.68 0.2 265)",
 		energy: "oklch(0.65 0.22 300)",
+		contact: "var(--destructive)",
+		orientation: "var(--brand)",
+		devicePosture: "var(--destructive)",
+		linkQuality: "var(--brand)",
 	};
 	export const FALLBACK_COLOR = "oklch(0.7 0.15 280)";
 	export const PRIMARY_SENSOR_FIELDS = new Set([
@@ -40,7 +48,7 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { AggregatedHistoryTargetType } from "$lib/gql/graphql";
+	import { AggregatedHistoryTargetType, ContactRole } from "$lib/gql/graphql";
 	import type { CombinedError } from "@urql/core";
 	import { ChartContainer, type ChartConfig } from "$lib/components/ui/chart/index.js";
 	import { LineChart, Spline, ChartClipPath, Tooltip } from "layerchart";
@@ -56,6 +64,11 @@
 	import { deviceStore } from "$lib/stores/devices";
 	import { me } from "$lib/stores/me.svelte";
 	import { temperatureValue, temperatureUnitLabel } from "$lib/sensor-format";
+	import {
+		booleanStepPath,
+		buildDiscreteTimeline,
+		type DiscreteSegment,
+	} from "$lib/state-history-discrete";
 
 	import { sourceKey, type StateHistorySource } from "$lib/state-history-source";
 	export type { StateHistorySource } from "$lib/state-history-source";
@@ -102,7 +115,8 @@
 
 	interface RawSeries {
 		field: string;
-		points: { at: string; value: number }[];
+		valueType: "NUMBER" | "BOOLEAN" | "TEXT";
+		points: { at: string; value: number | boolean | string }[];
 	}
 
 	const STATE_HISTORY_QUERY = graphql(`
@@ -110,9 +124,12 @@
 			stateHistory(filter: $filter) {
 				deviceId
 				field
+				valueType
 				points {
 					at
-					value
+					numberValue
+					booleanValue
+					textValue
 				}
 			}
 		}
@@ -163,7 +180,11 @@
 						source: s,
 						series: (result.data?.stateHistory ?? []).map((row) => ({
 							field: row.field,
-							points: row.points.map((p) => ({ at: p.at as string, value: p.value })),
+							valueType: row.valueType,
+							points: row.points.map((p) => ({
+								at: p.at as string,
+								value: p.numberValue ?? p.booleanValue ?? p.textValue ?? "",
+							})),
 						})) as RawSeries[],
 						error: result.error,
 					}));
@@ -193,6 +214,7 @@
 					source: s,
 					series: (result.data?.aggregatedStateHistory ?? []).map((row) => ({
 						field: row.field,
+						valueType: "NUMBER" as const,
 						points: row.points.map((p) => ({ at: p.at as string, value: p.value })),
 					})) as RawSeries[],
 					error: result.error,
@@ -241,6 +263,14 @@
 		}
 	}
 
+	function seriesLabel(source: StateHistorySource, field: string): string {
+		if (source.kind !== "device" || field !== "contact") return fieldLabel(field);
+		const role = $deviceStore[source.id]?.roles.contact;
+		if (role === ContactRole.Door) return "Door";
+		if (role === ContactRole.Window) return "Window";
+		return "Contact";
+	}
+
 	interface Row {
 		at: Date;
 		[seriesKey: string]: Date | number | null;
@@ -259,7 +289,12 @@
 					sourceName: sName,
 					field: s.field,
 					color: FIELD_COLOR[s.field] ?? FALLBACK_COLOR,
-					label: fieldLabel(s.field),
+					label: seriesLabel(source, s.field),
+					contactRole:
+						source.kind === "device" && s.field === "contact"
+							? ($deviceStore[source.id]?.roles.contact ?? null)
+							: null,
+					valueType: s.valueType,
 				});
 			}
 		}
@@ -326,6 +361,9 @@
 	});
 
 	const activeSeries = $derived(allSeries.filter((s) => !disabledKeys.has(s.key)));
+	const activeNumericSeries = $derived(activeSeries.filter((s) => s.valueType === "NUMBER"));
+	const activeBooleanSeries = $derived(activeSeries.filter((s) => s.valueType === "BOOLEAN"));
+	const activeTextSeries = $derived(activeSeries.filter((s) => s.valueType === "TEXT"));
 
 	function toggle(key: string) {
 		if (disabledKeys.has(key)) disabledKeys.delete(key);
@@ -338,8 +376,10 @@
 			const sk = sourceKey(source);
 			const raw = rawSeriesBySource.get(sk) ?? [];
 			for (const s of raw) {
+				if (s.valueType !== "NUMBER") continue;
 				const seriesKey = `${sk}__${s.field}`;
 				for (const p of s.points) {
+					if (typeof p.value !== "number") continue;
 					const at = new Date(p.at);
 					const ts = at.getTime();
 					let row = byTs.get(ts);
@@ -371,7 +411,7 @@
 	const tempUnit = $derived(me.user?.temperatureUnit ?? "celsius");
 
 	const lineSeries = $derived(
-		activeSeries.map((s) => {
+		activeNumericSeries.map((s) => {
 			const isTemp = s.field === "temperature";
 			const unit = tempUnit;
 			return {
@@ -387,6 +427,87 @@
 		}),
 	);
 
+	interface BooleanLane {
+		key: string;
+		label: string;
+		color: string;
+		trueLabel: string;
+		falseLabel: string;
+		unknownWidth: number;
+		segments: DiscreteSegment<boolean>[];
+		path: string;
+		currentValue: boolean | null;
+	}
+
+	interface TextLane {
+		key: string;
+		label: string;
+		color: string;
+		unknownWidth: number;
+		segments: DiscreteSegment<string>[];
+		currentValue: string | null;
+	}
+
+	function booleanLabels(field: string): { trueLabel: string; falseLabel: string } {
+		if (field === "contact") return { trueLabel: "Closed", falseLabel: "Open" };
+		if (field === "occupancy") return { trueLabel: "Occupied", falseLabel: "Clear" };
+		return { trueLabel: "On", falseLabel: "Off" };
+	}
+
+	const booleanLanes = $derived.by<BooleanLane[]>(() => {
+		const lanes: BooleanLane[] = [];
+		for (const info of activeBooleanSeries) {
+			const source = sources.find((candidate) => sourceKey(candidate) === info.sourceKey);
+			if (!source) continue;
+			const raw = (rawSeriesBySource.get(info.sourceKey) ?? []).find(
+				(series) => series.field === info.field,
+			);
+			if (!raw) continue;
+			const timeline = buildDiscreteTimeline(
+				raw.points.filter(
+					(point): point is { at: string; value: boolean } => typeof point.value === "boolean",
+				),
+				from,
+				to,
+			);
+			const labels = booleanLabels(info.field);
+			lanes.push({
+				key: info.key,
+				label: info.label,
+				color: info.color,
+				...labels,
+				...timeline,
+				path: booleanStepPath(timeline.segments),
+			});
+		}
+		return lanes;
+	});
+
+	const textLanes = $derived.by<TextLane[]>(() => {
+		const lanes: TextLane[] = [];
+		for (const info of activeTextSeries) {
+			const source = sources.find((candidate) => sourceKey(candidate) === info.sourceKey);
+			if (!source) continue;
+			const raw = (rawSeriesBySource.get(info.sourceKey) ?? []).find(
+				(series) => series.field === info.field,
+			);
+			if (!raw) continue;
+			const timeline = buildDiscreteTimeline(
+				raw.points.filter(
+					(point): point is { at: string; value: string } => typeof point.value === "string",
+				),
+				from,
+				to,
+			);
+			lanes.push({ key: info.key, label: info.label, color: info.color, ...timeline });
+		}
+		return lanes;
+	});
+
+	const hasSamples = $derived(
+		[...rawSeriesBySource.values()].some((series) => series.some((item) => item.points.length > 0)),
+	);
+
 	const chartConfig = $derived.by<ChartConfig>(() => {
 		const cfg: ChartConfig = {};
 		for (const s of allSeries) {
@@ -399,6 +520,20 @@
 	const xTickCount = $derived(
 		Math.max(2, Math.min(12, Math.floor(chartWidth / 110))),
 	);
+	let discreteWidth = $state(0);
+	const discreteTickCount = $derived(
+		Math.max(2, Math.min(12, Math.floor(discreteWidth / 110))),
+	);
+	const discreteTicks = $derived.by(() => {
+		const count = discreteTickCount;
+		const start = from.getTime();
+		const duration = Math.max(1, to.getTime() - start);
+		return Array.from({ length: count }, (_, index) => ({
+			at: new Date(start + duration * (index / (count - 1))),
+			left: (index / (count - 1)) * 100,
+			align: index === 0 ? "start" : index === count - 1 ? "end" : "middle",
+		}));
+	});
 
 	function formatXTick(d: Date): string {
 		const mode = me.user?.timeFormat ?? "24h";
@@ -491,84 +626,192 @@
 
 <svelte:window onpointerdown={onWindowPointerDown} onpointerup={onWindowPointerUp} />
 
-<div class="w-full {height}" bind:clientWidth={chartWidth} bind:this={chartEl}>
-<ChartContainer config={chartConfig} class="w-full h-full">
-	{#if historyFetching && allSeries.length === 0}
-		<div class="flex h-full items-center justify-center text-sm text-muted-foreground">
-			Loading…
-		</div>
-	{:else if historyError}
-		<div class="flex h-full items-center justify-center text-sm text-destructive">
-			{historyError.message}
-		</div>
-	{:else if rows.length === 0}
-		<div class="flex h-full items-center justify-center text-sm text-muted-foreground">
-			No samples in the selected range.
-		</div>
-	{:else if lineSeries.length === 0}
-		<div class="flex h-full items-center justify-center text-sm text-muted-foreground">
-			All series hidden — enable at least one below.
-		</div>
-	{:else}
-		<LineChart
-			bind:context={chartContext}
-			data={rows}
-			x={(d: Row) => d.at}
-			xDomain={[from, to]}
-			yNice
-			series={lineSeries}
-			padding={{ left: 40, bottom: 32, right: 8, top: 8 }}
-			props={{
-				spline: { opacity: 1 },
-				highlight: { opacity: 1 },
-				xAxis: { ticks: xTickCount, format: formatXTick },
-				// A finite radius is what makes a tap away from the samples read as
-				// "nothing here" rather than snapping to the nearest column.
-				tooltip: { context: { radius: usePinned ? PINNED_HIT_RADIUS : Infinity } },
-			}}
-		>
-			{#snippet marks({ context })}
-				<ChartClipPath>
-					{#each context.series.visibleSeries as s (s.key)}
-						<Spline seriesKey={s.key} opacity={1} curve={curveMonotoneX} />
-					{/each}
-				</ChartClipPath>
-			{/snippet}
-			{#snippet tooltip({ context })}
-				{#if !usePinned}
-					<Tooltip.Root {context}>
-						{#snippet children({ data })}
-							{@const visible = context.tooltip.series.filter((s) => s.visible)}
-							{@const groups = groupTooltipSeries(visible)}
-							<Tooltip.Header
-								value={context.x(data)}
-								format={(d: Date) => formatTooltip(d, me.user?.timeFormat ?? "24h")}
-							/>
-							{#each groups as g, gi (g.sourceKey)}
-								{#if g.sourceName && groups.length > 1}
-									<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
-										{g.sourceName}
-									</div>
-								{/if}
-								<Tooltip.List>
-									{#each g.items as s (s.key)}
-										<Tooltip.Item
-											label={s.label}
-											value={formatTooltipValue(s.value, s.key)}
-											color={s.color}
-											valueAlign="right"
-										/>
-									{/each}
-								</Tooltip.List>
+{#if historyFetching && allSeries.length === 0}
+	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">Loading…</div>
+{:else if historyError}
+	<div class="flex w-full {height} items-center justify-center text-sm text-destructive">
+		{historyError.message}
+	</div>
+{:else if !hasSamples}
+	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">
+		No samples in the selected range.
+	</div>
+{:else if activeSeries.length === 0}
+	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">
+		All series hidden — enable at least one below.
+	</div>
+{:else}
+	{#if lineSeries.length > 0}
+		<div class="w-full {height}" bind:clientWidth={chartWidth} bind:this={chartEl}>
+			<ChartContainer config={chartConfig} class="h-full w-full">
+				<LineChart
+					bind:context={chartContext}
+					data={rows}
+					x={(d: Row) => d.at}
+					xDomain={[from, to]}
+					yNice
+					series={lineSeries}
+					padding={{ left: 40, bottom: 32, right: 8, top: 8 }}
+					props={{
+						spline: { opacity: 1 },
+						highlight: { opacity: 1 },
+						xAxis: { ticks: xTickCount, format: formatXTick },
+						tooltip: { context: { radius: usePinned ? PINNED_HIT_RADIUS : Infinity } },
+					}}
+				>
+					{#snippet marks({ context })}
+						<ChartClipPath>
+							{#each context.series.visibleSeries as s (s.key)}
+								<Spline seriesKey={s.key} opacity={1} curve={curveMonotoneX} />
 							{/each}
-						{/snippet}
-					</Tooltip.Root>
-				{/if}
-			{/snippet}
-		</LineChart>
+						</ChartClipPath>
+					{/snippet}
+					{#snippet tooltip({ context })}
+						{#if !usePinned}
+							<Tooltip.Root {context}>
+								{#snippet children({ data })}
+									{@const visible = context.tooltip.series.filter((s) => s.visible)}
+									{@const groups = groupTooltipSeries(visible)}
+									<Tooltip.Header
+										value={context.x(data)}
+										format={(d: Date) => formatTooltip(d, me.user?.timeFormat ?? "24h")}
+									/>
+									{#each groups as g, gi (g.sourceKey)}
+										{#if g.sourceName && groups.length > 1}
+											<div class="text-xs font-medium text-muted-foreground" class:mt-2={gi > 0}>
+												{g.sourceName}
+											</div>
+										{/if}
+										<Tooltip.List>
+											{#each g.items as s (s.key)}
+												<Tooltip.Item
+													label={s.label}
+													value={formatTooltipValue(s.value, s.key)}
+													color={s.color}
+													valueAlign="right"
+												/>
+											{/each}
+										</Tooltip.List>
+									{/each}
+								{/snippet}
+							</Tooltip.Root>
+						{/if}
+					{/snippet}
+				</LineChart>
+			</ChartContainer>
+		</div>
 	{/if}
-</ChartContainer>
-</div>
+
+	{#if booleanLanes.length > 0 || textLanes.length > 0}
+		<div class="mt-3 space-y-2">
+			{#if lineSeries.length === 0}
+				<div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_4rem] sm:gap-3">
+					<div></div>
+					<div class="relative h-5" bind:clientWidth={discreteWidth}>
+						{#each discreteTicks as tick (tick.left)}
+							<span
+								class="absolute top-0 text-[10px] tabular-nums text-muted-foreground {tick.align ===
+								'middle'
+									? '-translate-x-1/2'
+									: tick.align === 'end'
+										? '-translate-x-full'
+										: ''}"
+								style:left={`${tick.left}%`}
+							>
+								{formatXTick(tick.at)}
+							</span>
+						{/each}
+					</div>
+					<div></div>
+				</div>
+			{/if}
+
+			{#each booleanLanes as lane (lane.key)}
+				<div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-2 text-xs sm:grid-cols-[7rem_minmax(0,1fr)_4rem] sm:gap-3">
+					<div class="flex min-w-0 items-center gap-2 text-muted-foreground">
+						<span class="size-2 shrink-0 rounded-full" style:background={lane.color}></span>
+						<span class="truncate">{lane.label}</span>
+					</div>
+					<div class="relative h-10 overflow-hidden rounded-md bg-muted/30">
+						<div class="absolute inset-x-0 top-[20%] border-t border-border/50"></div>
+						<div class="absolute inset-x-0 bottom-[20%] border-t border-border/50"></div>
+						{#if lane.unknownWidth > 0}
+							<div
+								class="absolute inset-y-0 flex items-center justify-center overflow-hidden border-r border-border/60 bg-muted/40 text-[10px] text-muted-foreground"
+								style:width={`${lane.unknownWidth}%`}
+								title="Unknown before the first recorded state"
+							>
+								{#if lane.unknownWidth >= 10}<span class="truncate px-1">Unknown</span>{/if}
+							</div>
+						{/if}
+						{#each lane.segments as segment, index (`${lane.key}-${index}-${segment.left}`)}
+							<div
+								class="absolute inset-y-0 min-w-px"
+								style:left={`${segment.left}%`}
+								style:width={`${segment.width}%`}
+								style:background={`color-mix(in srgb, ${lane.color} ${segment.value ? 12 : 5}%, var(--card))`}
+								title={`${segment.value ? lane.trueLabel : lane.falseLabel} · ${formatTooltip(segment.start, me.user?.timeFormat ?? "24h")} – ${formatTooltip(segment.end, me.user?.timeFormat ?? "24h")}`}
+							></div>
+						{/each}
+						<svg
+							class="pointer-events-none absolute inset-0 size-full"
+							viewBox="0 0 100 40"
+							preserveAspectRatio="none"
+							aria-hidden="true"
+						>
+							<path
+								d={lane.path}
+								fill="none"
+								stroke={lane.color}
+								stroke-width="2"
+								stroke-linejoin="round"
+								vector-effect="non-scaling-stroke"
+							/>
+						</svg>
+					</div>
+					<div class="grid h-10 grid-rows-2 items-center text-[10px] leading-none text-muted-foreground">
+						<span class:text-foreground={lane.currentValue === true}>{lane.trueLabel}</span>
+						<span class:text-foreground={lane.currentValue === false}>{lane.falseLabel}</span>
+					</div>
+				</div>
+			{/each}
+
+			{#each textLanes as lane (lane.key)}
+				<div class="grid grid-cols-[5.5rem_minmax(0,1fr)_3rem] items-center gap-2 text-xs sm:grid-cols-[7rem_minmax(0,1fr)_4rem] sm:gap-3">
+					<div class="flex min-w-0 items-center gap-2 text-muted-foreground">
+						<span class="size-2 shrink-0 rounded-full" style:background={lane.color}></span>
+						<span class="truncate">{lane.label}</span>
+					</div>
+					<div class="relative h-7 overflow-hidden rounded-md bg-muted/30">
+						{#if lane.unknownWidth > 0}
+							<div
+								class="absolute inset-y-0 flex items-center justify-center overflow-hidden border-r border-border/60 bg-muted/40 text-[10px] text-muted-foreground"
+								style:width={`${lane.unknownWidth}%`}
+								title="Unknown before the first recorded state"
+							>
+								{#if lane.unknownWidth >= 10}<span class="truncate px-1">Unknown</span>{/if}
+							</div>
+						{/if}
+						{#each lane.segments as segment, index (`${lane.key}-${index}-${segment.left}`)}
+							<div
+								class="absolute inset-y-0 flex min-w-px items-center overflow-hidden border-l border-background px-1.5 text-foreground"
+								style:left={`${segment.left}%`}
+								style:width={`${segment.width}%`}
+								style:background={`color-mix(in srgb, ${lane.color} 12%, var(--card))`}
+								title={`${fieldLabel(segment.value)} · ${formatTooltip(segment.start, me.user?.timeFormat ?? "24h")} – ${formatTooltip(segment.end, me.user?.timeFormat ?? "24h")}`}
+							>
+								{#if segment.width >= 8}<span class="truncate">{fieldLabel(segment.value)}</span>{/if}
+							</div>
+						{/each}
+					</div>
+					<span class="truncate text-[10px] text-foreground" title={lane.currentValue ?? "Unknown"}>
+						{lane.currentValue ? fieldLabel(lane.currentValue) : "Unknown"}
+					</span>
+				</div>
+			{/each}
+		</div>
+	{/if}
+{/if}
 
 {#if usePinned && reading}
 	<!--
@@ -638,6 +881,7 @@
 			<HiveChip
 				type={s.field}
 				label={s.label}
+				contactRole={s.contactRole}
 				active={!disabledKeys.has(s.key)}
 				onclick={() => toggle(s.key)}
 			/>

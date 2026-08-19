@@ -254,7 +254,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${d.name} ${d.type}`,
 				})),
@@ -288,7 +288,9 @@
 						source: src,
 						key: k,
 						name: dev?.name ?? src.id,
-						icon: deviceIcon(dev?.type ?? "device"),
+						icon: dev
+							? deviceIcon(dev.type, dev.roles.contact)
+							: deviceIcon("device"),
 						iconRef: dev?.icon ?? null,
 						series: seriesByKey.get(k) ?? [],
 					};
@@ -433,6 +435,7 @@
 											<HiveChip
 												type={s.field}
 												label={s.label}
+												contactRole={s.contactRole}
 												active={!disabledKeys.has(s.key)}
 												onclick={() => toggleFieldKey(s.key)}
 											/>
