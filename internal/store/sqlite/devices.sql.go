@@ -41,16 +41,25 @@ func (q *Queries) ClearDeviceIcon(ctx context.Context, id device.DeviceID) error
 
 const createDevice = `-- name: CreateDevice :exec
 
-INSERT INTO devices (id, friendly_name, source, type, capabilities, available, removed)
-VALUES (?, ?, ?, ?, ?, false, false)
+INSERT INTO devices (
+    id, friendly_name, source, type, capabilities,
+    controlled_load_role, contact_role, available, removed
+)
+VALUES (
+    ?1, ?2, ?3,
+    ?4, ?5,
+    ?6, ?7, false, false
+)
 `
 
 type CreateDeviceParams struct {
-	ID           device.DeviceID
-	FriendlyName string
-	Source       device.Source
-	Type         device.DeviceType
-	Capabilities string
+	ID                 device.DeviceID
+	FriendlyName       string
+	Source             device.Source
+	Type               device.DeviceType
+	Capabilities       string
+	ControlledLoadRole *string
+	ContactRole        *string
 }
 
 // Capabilities is stored as a JSON TEXT blob; the Go wrapper marshals it
@@ -62,6 +71,8 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) erro
 		arg.Source,
 		arg.Type,
 		arg.Capabilities,
+		arg.ControlledLoadRole,
+		arg.ContactRole,
 	)
 	return err
 }
@@ -76,26 +87,28 @@ func (q *Queries) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE id = ?
 `
 
 type GetDeviceRow struct {
-	ID                device.DeviceID
-	Name              *string
-	FriendlyName      string
-	Icon              *string
-	DisplayColor      *string
-	DisplayBrightness *int64
-	Source            device.Source
-	Type              device.DeviceType
-	Capabilities      string
-	Available         bool
-	Removed           bool
-	Disabled          bool
-	Seen              bool
-	LastSeen          *time.Time
+	ID                 device.DeviceID
+	Name               *string
+	FriendlyName       string
+	Icon               *string
+	DisplayColor       *string
+	DisplayBrightness  *int64
+	Source             device.Source
+	Type               device.DeviceType
+	ControlledLoadRole *string
+	ContactRole        *string
+	Capabilities       string
+	Available          bool
+	Removed            bool
+	Disabled           bool
+	Seen               bool
+	LastSeen           *time.Time
 }
 
 func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error) {
@@ -110,6 +123,8 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 		&i.DisplayBrightness,
 		&i.Source,
 		&i.Type,
+		&i.ControlledLoadRole,
+		&i.ContactRole,
 		&i.Capabilities,
 		&i.Available,
 		&i.Removed,
@@ -121,25 +136,27 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 `
 
 type ListDevicesRow struct {
-	ID                device.DeviceID
-	Name              *string
-	FriendlyName      string
-	Icon              *string
-	DisplayColor      *string
-	DisplayBrightness *int64
-	Source            device.Source
-	Type              device.DeviceType
-	Capabilities      string
-	Available         bool
-	Removed           bool
-	Disabled          bool
-	Seen              bool
-	LastSeen          *time.Time
+	ID                 device.DeviceID
+	Name               *string
+	FriendlyName       string
+	Icon               *string
+	DisplayColor       *string
+	DisplayBrightness  *int64
+	Source             device.Source
+	Type               device.DeviceType
+	ControlledLoadRole *string
+	ContactRole        *string
+	Capabilities       string
+	Available          bool
+	Removed            bool
+	Disabled           bool
+	Seen               bool
+	LastSeen           *time.Time
 }
 
 func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
@@ -160,6 +177,8 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 			&i.DisplayBrightness,
 			&i.Source,
 			&i.Type,
+			&i.ControlledLoadRole,
+			&i.ContactRole,
 			&i.Capabilities,
 			&i.Available,
 			&i.Removed,
@@ -181,26 +200,28 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
 FROM devices
 WHERE source = ?
 `
 
 type ListDevicesBySourceRow struct {
-	ID                device.DeviceID
-	Name              *string
-	FriendlyName      string
-	Icon              *string
-	DisplayColor      *string
-	DisplayBrightness *int64
-	Source            device.Source
-	Type              device.DeviceType
-	Capabilities      string
-	Available         bool
-	Removed           bool
-	Disabled          bool
-	Seen              bool
-	LastSeen          *time.Time
+	ID                 device.DeviceID
+	Name               *string
+	FriendlyName       string
+	Icon               *string
+	DisplayColor       *string
+	DisplayBrightness  *int64
+	Source             device.Source
+	Type               device.DeviceType
+	ControlledLoadRole *string
+	ContactRole        *string
+	Capabilities       string
+	Available          bool
+	Removed            bool
+	Disabled           bool
+	Seen               bool
+	LastSeen           *time.Time
 }
 
 func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error) {
@@ -221,6 +242,8 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 			&i.DisplayBrightness,
 			&i.Source,
 			&i.Type,
+			&i.ControlledLoadRole,
+			&i.ContactRole,
 			&i.Capabilities,
 			&i.Available,
 			&i.Removed,
@@ -313,10 +336,28 @@ type SetDeviceNameParams struct {
 // The disabled flag, the name override and the seen flag are user-owned, so each
 // gets its own setter for the same reason the icon column does: UpdateDevice
 // overwrites every column it names, and the device-removal path calls it with an
-// otherwise zero-value struct. UpsertDevice leaves all four alone as well, or an
-// adapter re-sync would undo them.
+// otherwise zero-value struct. UpsertDevice preserves user-owned values and
+// reconciles role categories against the adapter-owned type and capabilities.
 func (q *Queries) SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error {
 	_, err := q.db.ExecContext(ctx, setDeviceName, arg.Name, arg.ID)
+	return err
+}
+
+const setDeviceRoles = `-- name: SetDeviceRoles :exec
+UPDATE devices
+SET controlled_load_role = ?1,
+    contact_role = ?2
+WHERE id = ?3
+`
+
+type SetDeviceRolesParams struct {
+	ControlledLoadRole *string
+	ContactRole        *string
+	ID                 device.DeviceID
+}
+
+func (q *Queries) SetDeviceRoles(ctx context.Context, arg SetDeviceRolesParams) error {
+	_, err := q.db.ExecContext(ctx, setDeviceRoles, arg.ControlledLoadRole, arg.ContactRole, arg.ID)
 	return err
 }
 
@@ -386,22 +427,39 @@ func (q *Queries) UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconPara
 }
 
 const upsertDevice = `-- name: UpsertDevice :exec
-INSERT INTO devices (id, friendly_name, source, type, capabilities, available, removed)
-VALUES (?, ?, ?, ?, ?, false, false)
+INSERT INTO devices (
+    id, friendly_name, source, type, capabilities,
+    controlled_load_role, contact_role, available, removed
+)
+VALUES (
+    ?1, ?2, ?3,
+    ?4, ?5,
+    ?6, ?7, false, false
+)
 ON CONFLICT(id) DO UPDATE SET
     friendly_name = excluded.friendly_name,
     source        = excluded.source,
     type          = excluded.type,
     capabilities  = excluded.capabilities,
+    controlled_load_role = CASE
+        WHEN excluded.controlled_load_role IS NULL THEN NULL
+        ELSE COALESCE(devices.controlled_load_role, excluded.controlled_load_role)
+    END,
+    contact_role = CASE
+        WHEN excluded.contact_role IS NULL THEN NULL
+        ELSE COALESCE(devices.contact_role, excluded.contact_role)
+    END,
     removed       = false
 `
 
 type UpsertDeviceParams struct {
-	ID           device.DeviceID
-	FriendlyName string
-	Source       device.Source
-	Type         device.DeviceType
-	Capabilities string
+	ID                 device.DeviceID
+	FriendlyName       string
+	Source             device.Source
+	Type               device.DeviceType
+	Capabilities       string
+	ControlledLoadRole *string
+	ContactRole        *string
 }
 
 // Refreshes every adapter-owned column, including the friendly name, and clears
@@ -414,6 +472,8 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) erro
 		arg.Source,
 		arg.Type,
 		arg.Capabilities,
+		arg.ControlledLoadRole,
+		arg.ContactRole,
 	)
 	return err
 }
