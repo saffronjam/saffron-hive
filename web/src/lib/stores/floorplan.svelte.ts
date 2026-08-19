@@ -29,6 +29,12 @@ graphql(`
       width
       kind
     }
+    doorBindings {
+      openingId
+      deviceId
+      hingeSide
+      swingSide
+    }
     rooms {
       id
       name

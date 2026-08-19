@@ -26,6 +26,20 @@ export interface PlanOpening {
   kind: OpeningKind;
 }
 
+/** Which endpoint of an opening carries the door hinge. */
+export type DoorHingeSide = "start" | "end";
+
+/** Which side of the directed wall a door opens into. */
+export type DoorSwingSide = "left" | "right";
+
+/** A contact sensor attached to an architectural door opening. */
+export interface PlanDoorBinding {
+  openingId: string;
+  deviceId: string;
+  hingeSide: DoorHingeSide;
+  swingSide: DoorSwingSide;
+}
+
 /**
  * A wall segment between two vertices, referenced by id. An optional quadratic
  * bezier control point makes the wall curved; curved walls are flattened to

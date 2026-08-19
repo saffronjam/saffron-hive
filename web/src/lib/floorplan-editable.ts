@@ -1,6 +1,17 @@
 import { matchFaces } from "$lib/floorplan";
-import type { Face, OpeningKind, PlanGraph, PlanOpening, PlanRoomMeta } from "$lib/floorplan";
-import { FloorplanOpeningKind } from "$lib/gql/graphql";
+import type {
+  Face,
+  OpeningKind,
+  PlanDoorBinding,
+  PlanGraph,
+  PlanOpening,
+  PlanRoomMeta,
+} from "$lib/floorplan";
+import {
+  FloorplanDoorHingeSide,
+  FloorplanDoorSwingSide,
+  FloorplanOpeningKind,
+} from "$lib/gql/graphql";
 import { placementKey } from "$lib/floorplan/placement-conflicts";
 import type {
   Placement,
@@ -41,6 +52,13 @@ export interface FloorplanRoomData {
   vertexIds: string[];
 }
 
+export interface FloorplanDoorBindingData {
+  openingId: string;
+  deviceId: string;
+  hingeSide: FloorplanDoorHingeSide;
+  swingSide: FloorplanDoorSwingSide;
+}
+
 /** A marker on the plan: a device or a group, at a point in world meters. */
 export type FloorplanPlacementData = Placement;
 
@@ -67,6 +85,7 @@ export interface FloorplanData {
   walls: FloorplanWallData[];
   /** Persisted flat, keyed by wall; nested into their walls by `floorplanToGraph`. */
   openings: FloorplanOpeningData[];
+  doorBindings: FloorplanDoorBindingData[];
   rooms: FloorplanRoomData[];
   /** `memberType` arrives from GraphQL as a plain string and is narrowed here. */
   placements: { memberType: string; memberId: string; x: number; y: number }[];
@@ -80,6 +99,7 @@ export interface UpdateFloorplanInputData {
   vertices: FloorplanVertexData[];
   walls: Required<FloorplanWallData>[];
   openings: FloorplanOpeningData[];
+  doorBindings: FloorplanDoorBindingData[];
   rooms: { id: string; name: string | null; roomId: string | null; vertexIds: string[] }[];
   placements: FloorplanPlacementData[];
   furniture: FloorplanFurnitureData[];
@@ -131,6 +151,7 @@ export function floorplanToGraph(data: FloorplanData): {
   rooms: PlanRoomMeta[];
   placements: FloorplanPlacementData[];
   furniture: FloorplanFurnitureData[];
+  doorBindings: PlanDoorBinding[];
 } {
   const byWall = new Map<string, PlanOpening[]>();
   for (const o of data.openings) {
@@ -171,7 +192,13 @@ export function floorplanToGraph(data: FloorplanData): {
     y: p.y,
   }));
   const furniture: FloorplanFurnitureData[] = data.furniture.map((f) => ({ ...f }));
-  return { graph, rooms, placements, furniture };
+  const doorBindings: PlanDoorBinding[] = data.doorBindings.map((binding) => ({
+    openingId: binding.openingId,
+    deviceId: binding.deviceId,
+    hingeSide: binding.hingeSide === FloorplanDoorHingeSide.End ? "end" : "start",
+    swingSide: binding.swingSide === FloorplanDoorSwingSide.Right ? "right" : "left",
+  }));
+  return { graph, rooms, placements, furniture, doorBindings };
 }
 
 /** Build the `updateFloorplan` mutation input from the editor's working state. */
@@ -182,6 +209,7 @@ export function buildUpdateFloorplanInput(
   rooms: PlanRoomMeta[],
   placements: FloorplanPlacementData[],
   furniture: FloorplanFurnitureData[],
+  doorBindings: PlanDoorBinding[],
 ): UpdateFloorplanInputData {
   return {
     id: planId,
@@ -204,6 +232,14 @@ export function buildUpdateFloorplanInput(
         kind: OPENING_KIND_TO_API[o.kind],
       })),
     ),
+    doorBindings: doorBindings.map((binding) => ({
+      openingId: binding.openingId,
+      deviceId: binding.deviceId,
+      hingeSide:
+        binding.hingeSide === "end" ? FloorplanDoorHingeSide.End : FloorplanDoorHingeSide.Start,
+      swingSide:
+        binding.swingSide === "right" ? FloorplanDoorSwingSide.Right : FloorplanDoorSwingSide.Left,
+    })),
     rooms: rooms.map((r) => ({
       id: r.id,
       name: r.name,

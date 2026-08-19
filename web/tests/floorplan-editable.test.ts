@@ -6,7 +6,11 @@ import {
   type FloorplanData,
 } from "$lib/floorplan-editable";
 import type { Face, PlanRoomMeta } from "$lib/floorplan";
-import { FloorplanOpeningKind } from "$lib/gql/graphql";
+import {
+  FloorplanDoorHingeSide,
+  FloorplanDoorSwingSide,
+  FloorplanOpeningKind,
+} from "$lib/gql/graphql";
 
 function makeFace(vertexIds: string[], area = 1): Face {
   return {
@@ -43,6 +47,14 @@ const sample: FloorplanData = {
   openings: [
     { id: "open-1", wallId: "wall-1", t: 0.25, width: 0.9, kind: FloorplanOpeningKind.Door },
     { id: "open-2", wallId: "wall-1", t: 0.75, width: 1.2, kind: FloorplanOpeningKind.Window },
+  ],
+  doorBindings: [
+    {
+      openingId: "open-1",
+      deviceId: "door-1",
+      hingeSide: FloorplanDoorHingeSide.End,
+      swingSide: FloorplanDoorSwingSide.Right,
+    },
   ],
   rooms: [
     { id: "froom-1", name: "Kitchen", roomId: "room-9", vertexIds: ["vtx-a", "vtx-b", "vtx-c"] },
@@ -111,8 +123,16 @@ describe("floorplanToGraph", () => {
 
 describe("buildUpdateFloorplanInput", () => {
   it("round-trips a loaded plan unchanged", () => {
-    const { graph, rooms, placements, furniture } = floorplanToGraph(sample);
-    const input = buildUpdateFloorplanInput("fplan-1", "Home", graph, rooms, placements, furniture);
+    const { graph, rooms, placements, furniture, doorBindings } = floorplanToGraph(sample);
+    const input = buildUpdateFloorplanInput(
+      "fplan-1",
+      "Home",
+      graph,
+      rooms,
+      placements,
+      furniture,
+      doorBindings,
+    );
     expect(input.id).toBe("fplan-1");
     expect(input.vertices).toEqual(sample.vertices);
     expect(input.walls).toEqual(sample.walls);
@@ -121,6 +141,7 @@ describe("buildUpdateFloorplanInput", () => {
     ]);
     expect(input.placements).toEqual(sample.placements);
     expect(input.openings).toEqual(sample.openings);
+    expect(input.doorBindings).toEqual(sample.doorBindings);
     expect(input.furniture).toEqual(sample.furniture);
   });
 
@@ -144,6 +165,7 @@ describe("buildUpdateFloorplanInput", () => {
       [],
       [],
       [],
+      [],
     );
     expect(input.openings).toEqual([
       {
@@ -161,6 +183,7 @@ describe("buildUpdateFloorplanInput", () => {
       "fplan-1",
       "Home",
       { vertices: [], walls: [{ id: "wall-1", a: "x", b: "y", thickness: 0.1 }] },
+      [],
       [],
       [],
       [],

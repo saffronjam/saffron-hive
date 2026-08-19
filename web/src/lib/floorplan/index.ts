@@ -1,6 +1,9 @@
 export type {
   Face,
   OpeningKind,
+  DoorHingeSide,
+  DoorSwingSide,
+  PlanDoorBinding,
   PlanGraph,
   PlanOpening,
   PlanRoomMeta,
@@ -8,6 +11,14 @@ export type {
   PlanWall,
   Point,
 } from "./types";
+export {
+  doorBindingGeometry,
+  doorBindingViews,
+  doorLeafAngle,
+  doorSnapTarget,
+  pruneDoorBindings,
+} from "./door-bindings";
+export type { DoorBindingGeometry, DoorBindingView, DoorSnapTarget } from "./door-bindings";
 export {
   CURVE_SEGMENTS,
   DEFAULT_WALL_THICKNESS,
