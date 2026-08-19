@@ -111,7 +111,11 @@
 		actionsMenuOpen = true;
 	}
 	const sensorReadings = $derived(
-		isSensor ? aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius") : [],
+		isSensor
+			? aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius", {
+					includeGeneralContact: true,
+				})
+			: [],
 	);
 	const tintDevice = $derived(
 		device.state?.brightness != null
@@ -203,7 +207,7 @@
 				<IconCell
 					value={device.icon}
 					onselect={(icon) => oniconchange(device.id, icon)}
-					fallback={deviceIcon(device.type)}
+					fallback={deviceIcon(device.type, device.roles.contact)}
 					size="sm"
 					iconClass="size-4 {mutedTextClass}"
 				/>
@@ -344,4 +348,3 @@
 		<EllipsisVertical class="size-4" />
 	</Button>
 {/snippet}
-

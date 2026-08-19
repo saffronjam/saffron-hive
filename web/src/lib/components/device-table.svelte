@@ -144,7 +144,7 @@
 	<IconCell
 		value={row.device.icon}
 		onselect={(icon) => oniconchange(row.device.id, icon)}
-		fallback={deviceIcon(row.device.type)}
+		fallback={deviceIcon(row.device.type, row.device.roles.contact)}
 	/>
 {/snippet}
 
@@ -193,6 +193,7 @@
 		{@const readings = aggregateSensorReadings(
 			[row.device],
 			me.user?.temperatureUnit ?? "celsius",
+			{ includeGeneralContact: true },
 		)}
 		{#if readings.length === 0}
 			<span class="text-sm text-muted-foreground">—</span>

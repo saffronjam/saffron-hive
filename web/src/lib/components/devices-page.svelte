@@ -146,7 +146,10 @@
 				id
 				name
 				icon
-				tags
+				roles {
+					controlledLoad
+					contact
+				}
 				disabled
 				friendlyName
 				seen
