@@ -125,6 +125,106 @@ func TestReplaceFloorplanRoundtripsOpenings(t *testing.T) {
 	}
 }
 
+func TestReplaceFloorplanRoundtripsDoorBindings(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	if err := s.UpsertDevice(ctx, CreateDeviceParams{
+		ID:           "door-1",
+		FriendlyName: "Entry contact",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Sensor,
+		Capabilities: []device.Capability{{Name: device.CapContact, Access: 1}},
+	}); err != nil {
+		t.Fatalf("upsert device: %v", err)
+	}
+	if err := s.ReplaceFloorplan(ctx, ReplaceFloorplanParams{
+		ID:       "fp-1",
+		Name:     "Home",
+		Vertices: []FloorplanVertex{{ID: "vtx-a"}, {ID: "vtx-b", X: 4}},
+		Walls:    []FloorplanWall{{ID: "wall-1", VertexA: "vtx-a", VertexB: "vtx-b", Thickness: 0.1}},
+		Openings: []FloorplanOpening{{ID: "open-1", WallID: "wall-1", T: 0.5, Width: 0.9, Kind: FloorplanOpeningDoor}},
+		DoorBindings: []FloorplanDoorBinding{{
+			OpeningID: "open-1",
+			DeviceID:  "door-1",
+			HingeSide: FloorplanDoorHingeEnd,
+			SwingSide: FloorplanDoorSwingRight,
+		}},
+	}); err != nil {
+		t.Fatalf("replace floorplan: %v", err)
+	}
+
+	fp, err := s.GetFloorplanGraph(ctx)
+	if err != nil {
+		t.Fatalf("get floorplan: %v", err)
+	}
+	if len(fp.DoorBindings) != 1 {
+		t.Fatalf("door bindings = %d, want 1", len(fp.DoorBindings))
+	}
+	want := FloorplanDoorBinding{OpeningID: "open-1", DeviceID: "door-1", HingeSide: FloorplanDoorHingeEnd, SwingSide: FloorplanDoorSwingRight}
+	if fp.DoorBindings[0] != want {
+		t.Fatalf("door binding = %+v, want %+v", fp.DoorBindings[0], want)
+	}
+}
+
+func TestDoorBindingBlocksRoleChangeAndIsClearedWithDevice(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	d, err := s.CreateDevice(ctx, CreateDeviceParams{
+		ID:           "door-1",
+		FriendlyName: "Entry contact",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Sensor,
+		Capabilities: []device.Capability{{Name: device.CapContact, Access: 1}},
+	})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+	d, err = s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:        d.ID,
+		Available: d.Available,
+		SetRoles:  true,
+		Roles:     device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)},
+	})
+	if err != nil {
+		t.Fatalf("set door role: %v", err)
+	}
+	if err := s.ReplaceFloorplan(ctx, ReplaceFloorplanParams{
+		ID:       "fp-1",
+		Name:     "Home",
+		Vertices: []FloorplanVertex{{ID: "vtx-a"}, {ID: "vtx-b", X: 4}},
+		Walls:    []FloorplanWall{{ID: "wall-1", VertexA: "vtx-a", VertexB: "vtx-b", Thickness: 0.1}},
+		Openings: []FloorplanOpening{{ID: "open-1", WallID: "wall-1", T: 0.5, Width: 0.9, Kind: FloorplanOpeningDoor}},
+		DoorBindings: []FloorplanDoorBinding{{
+			OpeningID: "open-1",
+			DeviceID:  d.ID,
+			HingeSide: FloorplanDoorHingeStart,
+			SwingSide: FloorplanDoorSwingLeft,
+		}},
+	}); err != nil {
+		t.Fatalf("replace floorplan: %v", err)
+	}
+
+	_, err = s.UpdateDevice(ctx, UpdateDeviceParams{
+		ID:       d.ID,
+		SetRoles: true,
+		Roles:    device.DeviceRoles{Contact: device.Ptr(device.ContactRoleWindow)},
+	})
+	if err == nil || err.Error() != "Detach this sensor from its map door before changing its contact role." {
+		t.Fatalf("role update error = %v", err)
+	}
+
+	if err := s.DeleteDevice(ctx, d.ID); err != nil {
+		t.Fatalf("delete device: %v", err)
+	}
+	fp, err := s.GetFloorplanGraph(ctx)
+	if err != nil {
+		t.Fatalf("get floorplan: %v", err)
+	}
+	if len(fp.DoorBindings) != 0 {
+		t.Fatalf("door bindings after delete = %+v", fp.DoorBindings)
+	}
+}
+
 func TestReplaceFloorplanRejectsOutOfRangeOpenings(t *testing.T) {
 	base := ReplaceFloorplanParams{
 		ID:       "fp-1",

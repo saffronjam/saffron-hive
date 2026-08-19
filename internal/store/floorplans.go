@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
 
 // GetFloorplanGraph loads the floorplan together with its vertices, walls,
-// openings, rooms, and placements. Returns nil when no floorplan has been
+// openings, door bindings, rooms, and placements. Returns nil when no floorplan has been
 // saved yet.
 func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 	row, err := s.q.GetFloorplan(ctx)
@@ -69,6 +70,20 @@ func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 		}
 	}
 
+	doorBindings, err := s.q.ListFloorplanDoorBindings(ctx, fp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list floorplan door bindings: %w", err)
+	}
+	fp.DoorBindings = make([]FloorplanDoorBinding, len(doorBindings))
+	for i, binding := range doorBindings {
+		fp.DoorBindings[i] = FloorplanDoorBinding{
+			OpeningID: binding.OpeningID,
+			DeviceID:  device.DeviceID(binding.DeviceID),
+			HingeSide: FloorplanDoorHingeSide(binding.HingeSide),
+			SwingSide: FloorplanDoorSwingSide(binding.SwingSide),
+		}
+	}
+
 	rooms, err := s.q.ListFloorplanRooms(ctx, fp.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list floorplan rooms: %w", err)
@@ -114,7 +129,7 @@ func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 }
 
 // ReplaceFloorplan atomically upserts the floorplan row and replaces its
-// vertices, walls, openings, rooms, placements and furniture with the given
+// vertices, walls, openings, door bindings, rooms, placements and furniture with the given
 // sets.
 // Deletes run children-first and inserts parents-first so the foreign keys
 // hold at every point inside the transaction.
@@ -134,6 +149,9 @@ func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams
 		}
 		if err := q.DeleteFloorplanRoomsByFloorplan(ctx, params.ID); err != nil {
 			return fmt.Errorf("delete floorplan rooms: %w", err)
+		}
+		if err := q.DeleteFloorplanDoorBindingsByFloorplan(ctx, params.ID); err != nil {
+			return fmt.Errorf("delete floorplan door bindings: %w", err)
 		}
 		if err := q.DeleteFloorplanOpeningsByFloorplan(ctx, params.ID); err != nil {
 			return fmt.Errorf("delete floorplan openings: %w", err)
@@ -177,6 +195,17 @@ func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams
 				Kind:        string(o.Kind),
 			}); err != nil {
 				return fmt.Errorf("create floorplan opening: %w", err)
+			}
+		}
+		for _, binding := range params.DoorBindings {
+			if err := q.CreateFloorplanDoorBinding(ctx, sqlite.CreateFloorplanDoorBindingParams{
+				FloorplanID: params.ID,
+				OpeningID:   binding.OpeningID,
+				DeviceID:    string(binding.DeviceID),
+				HingeSide:   string(binding.HingeSide),
+				SwingSide:   string(binding.SwingSide),
+			}); err != nil {
+				return fmt.Errorf("create floorplan door binding: %w", err)
 			}
 		}
 		for _, r := range params.Rooms {
