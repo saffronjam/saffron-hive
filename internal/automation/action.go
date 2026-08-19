@@ -19,6 +19,7 @@ const (
 	ActionSetDeviceState    = "set_device_state"
 	ActionToggleDeviceState = "toggle_device_state"
 	ActionChangeValue       = "change_value"
+	ActionConfigureDevice   = "configure_device"
 	ActionActivateScene     = "activate_scene"
 	ActionCycleScenes       = "cycle_scenes"
 	ActionRaiseAlarm        = "raise_alarm"
@@ -153,6 +154,8 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 		})
 	case ActionChangeValue:
 		a.executeChangeValue(cfg)
+	case ActionConfigureDevice:
+		a.executeConfigureDevice(cfg)
 	case ActionActivateScene:
 		a.executeActivateScene(cfg.Payload)
 	case ActionCycleScenes:
@@ -164,6 +167,48 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 	case ActionRunEffect:
 		a.executeRunEffect(cfg)
 	}
+}
+
+type configureDevicePayload struct {
+	Settings []device.ConfigurationValue `json:"settings"`
+}
+
+func (a *ActionExecutor) executeConfigureDevice(cfg ActionConfig) {
+	if cfg.TargetType != TargetDevice || cfg.TargetID == "" {
+		return
+	}
+	id := device.DeviceID(cfg.TargetID)
+	d, ok := a.reader.GetDevice(id)
+	if !ok {
+		logger.Warn("configure_device target not found", "device_id", id, "automation_id", cfg.AutomationID)
+		return
+	}
+	var payload configureDevicePayload
+	if err := json.Unmarshal([]byte(cfg.Payload), &payload); err != nil {
+		logger.Error("invalid configure_device payload", "device_id", id, "automation_id", cfg.AutomationID, "error", err)
+		return
+	}
+	if err := device.ValidateConfigurationValues(d, payload.Settings); err != nil {
+		logger.Warn("configure_device validation failed", "device_id", id, "automation_id", cfg.AutomationID, "error", err)
+		return
+	}
+	settings := payload.Settings
+	if reader, ok := a.reader.(device.ConfigurationReader); ok {
+		settings = device.ConfigurationChanges(reader.GetDeviceConfiguration(id), settings)
+	}
+	if len(settings) == 0 {
+		return
+	}
+	a.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventConfigurationRequested,
+		DeviceID:  string(id),
+		Timestamp: time.Now(),
+		Payload: device.ConfigurationRequest{
+			DeviceID: id,
+			Values:   settings,
+			Origin:   device.OriginAutomation(cfg.AutomationID),
+		},
+	})
 }
 
 type changeValuePayload struct {
@@ -262,7 +307,7 @@ func (a *ActionExecutor) executeChangeValue(cfg ActionConfig) {
 			break
 		}
 	}
-	if !capFound || capability.Type != "numeric" || capability.Access&4 == 0 || capability.ValueMin == nil || capability.ValueMax == nil {
+	if !capFound || capability.Type != "numeric" || !capability.CanSet() || capability.ValueMin == nil || capability.ValueMax == nil {
 		logger.Debug("change_value: device does not expose settable numeric field",
 			"automation_id", cfg.AutomationID, "device_id", deviceID, "field", p.Field)
 		return

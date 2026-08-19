@@ -532,6 +532,10 @@ func (e *Engine) executeAction(node Node, automationID string) {
 	}
 	actionCfg.AutomationID = automationID
 	actionCfg.NodeID = node.ID
+	if actionCfg.ActionType == ActionConfigureDevice && actionCfg.TargetType != TargetDevice {
+		logger.Warn("configure_device requires a device target", "automation_id", automationID, "node_id", node.ID, "target_type", actionCfg.TargetType)
+		return
+	}
 
 	// Alarm, run-effect, and cycle-scenes actions are not target-scoped via
 	// the resolver: alarms fire exactly once per activation; run-effect
