@@ -243,7 +243,8 @@ func collectChecks(
 				},
 			})
 
-			if ss, ok := reader.GetDeviceState(d.ID); ok && ss != nil && ss.Battery != nil && *ss.Battery < BatteryLowThreshold {
+			state, _ := reader.GetDeviceState(d.ID)
+			if state != nil && state.Battery != nil && *state.Battery < BatteryLowThreshold {
 				batteryID := fmt.Sprintf("system.battery_low.%s", string(d.ID))
 				checks = append(checks, check{
 					alarmID: batteryID,
@@ -252,7 +253,7 @@ func collectChecks(
 						AlarmID:  batteryID,
 						Severity: store.AlarmSeverityLow,
 						Kind:     store.AlarmKindAuto,
-						Message:  fmt.Sprintf("Device %q battery is %.0f%%", d.DisplayName(), *ss.Battery),
+						Message:  fmt.Sprintf("Device %q battery is %.0f%%", d.DisplayName(), *state.Battery),
 						Source:   MonitorSource,
 					},
 				})
@@ -260,6 +261,20 @@ func collectChecks(
 				batteryID := fmt.Sprintf("system.battery_low.%s", string(d.ID))
 				checks = append(checks, check{alarmID: batteryID, active: false})
 			}
+
+			postureID := fmt.Sprintf("system.device_posture_abnormal.%s", string(d.ID))
+			abnormalPosture := state != nil && state.DevicePosture != nil && *state.DevicePosture == "abnormal"
+			checks = append(checks, check{
+				alarmID: postureID,
+				active:  abnormalPosture,
+				raise: RaiseParams{
+					AlarmID:  postureID,
+					Severity: store.AlarmSeverityMedium,
+					Kind:     store.AlarmKindAuto,
+					Message:  fmt.Sprintf("Device %q reports abnormal posture", d.DisplayName()),
+					Source:   MonitorSource,
+				},
+			})
 		}
 	}
 
