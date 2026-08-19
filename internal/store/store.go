@@ -28,8 +28,8 @@ type UpdateDeviceParams struct {
 	Available bool
 	Removed   bool
 	LastSeen  time.Time
-	SetTags   bool
-	Tags      []device.DeviceTag
+	SetRoles  bool
+	Roles     device.DeviceRoles
 }
 
 // UpdateDeviceIconParams holds the parameters for updating a device's icon.
@@ -309,39 +309,44 @@ type GroupMember struct {
 
 // InsertStateSampleParams holds the parameters for inserting a single device state sample.
 type InsertStateSampleParams struct {
-	DeviceID   device.DeviceID
-	Field      string
-	Value      float64
-	RecordedAt time.Time
+	DeviceID     device.DeviceID
+	Field        string
+	NumericValue *float64
+	TextValue    *string
+	Deduplicate  bool
+	RecordedAt   time.Time
 }
 
 // StateSample represents a single recorded device state field value at a point in time.
 type StateSample struct {
-	ID         int64
-	DeviceID   device.DeviceID
-	Field      string
-	Value      float64
-	RecordedAt time.Time
+	ID           int64
+	DeviceID     device.DeviceID
+	Field        string
+	NumericValue *float64
+	TextValue    *string
+	RecordedAt   time.Time
 }
 
-// StateHistoryQuery parameterises a device state history lookup. When
-// BucketSeconds is > 0 the result is averaged over fixed-size time buckets;
-// when it is 0 raw samples are returned. Fields empty means "every field".
+// StateHistoryQuery parameterises a device state history lookup. Numeric
+// measurements are averaged in buckets while stateful values retain the last
+// value in each bucket. Fields empty means "every field".
 type StateHistoryQuery struct {
-	DeviceIDs     []device.DeviceID
-	Fields        []string
-	From          time.Time
-	To            time.Time
-	BucketSeconds int
-	Limit         int
+	DeviceIDs      []device.DeviceID
+	Fields         []string
+	StatefulFields []string
+	From           time.Time
+	To             time.Time
+	BucketSeconds  int
+	Limit          int
 }
 
 // StateHistoryPoint is one point on a device-state time series.
 type StateHistoryPoint struct {
-	DeviceID device.DeviceID
-	Field    string
-	At       time.Time
-	Value    float64
+	DeviceID     device.DeviceID
+	Field        string
+	At           time.Time
+	NumericValue *float64
+	TextValue    *string
 }
 
 // Zigbee2MQTTConfig represents the singleton Zigbee2MQTT integration
@@ -674,16 +679,17 @@ type Effect struct {
 // Floorplan is a full floor plan: the plan row plus its wall graph, the gaps
 // cut into it, derived room faces, and placements. World units are meters.
 type Floorplan struct {
-	ID         string
-	Name       string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	Vertices   []FloorplanVertex
-	Walls      []FloorplanWall
-	Openings   []FloorplanOpening
-	Rooms      []FloorplanRoom
-	Placements []FloorplanPlacement
-	Furniture  []FloorplanFurniture
+	ID           string
+	Name         string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Vertices     []FloorplanVertex
+	Walls        []FloorplanWall
+	Openings     []FloorplanOpening
+	DoorBindings []FloorplanDoorBinding
+	Rooms        []FloorplanRoom
+	Placements   []FloorplanPlacement
+	Furniture    []FloorplanFurniture
 }
 
 // FloorplanVertex is one endpoint in the centerline wall graph.
@@ -730,6 +736,30 @@ type FloorplanOpening struct {
 	Kind   FloorplanOpeningKind
 }
 
+// FloorplanDoorHingeSide identifies which endpoint of an opening carries its hinge.
+type FloorplanDoorHingeSide string
+
+const (
+	FloorplanDoorHingeStart FloorplanDoorHingeSide = "start"
+	FloorplanDoorHingeEnd   FloorplanDoorHingeSide = "end"
+)
+
+// FloorplanDoorSwingSide identifies the side of the directed wall into which a door opens.
+type FloorplanDoorSwingSide string
+
+const (
+	FloorplanDoorSwingLeft  FloorplanDoorSwingSide = "left"
+	FloorplanDoorSwingRight FloorplanDoorSwingSide = "right"
+)
+
+// FloorplanDoorBinding connects a door opening to its contact sensor and posture.
+type FloorplanDoorBinding struct {
+	OpeningID string
+	DeviceID  device.DeviceID
+	HingeSide FloorplanDoorHingeSide
+	SwingSide FloorplanDoorSwingSide
+}
+
 // FloorplanRoom is a derived face of the wall graph. Name is the user's label
 // (nil when anonymous); RoomID links the face to a Hive room (nil when
 // unlinked, at most one face per room). VertexIDs holds the face's vertex ids
@@ -769,12 +799,13 @@ type FloorplanFurniture struct {
 // ReplaceFloorplanParams bundles the whole plan for a single-transaction
 // replace: the plan row is upserted and every child list is swapped.
 type ReplaceFloorplanParams struct {
-	ID         string
-	Name       string
-	Vertices   []FloorplanVertex
-	Walls      []FloorplanWall
-	Openings   []FloorplanOpening
-	Rooms      []FloorplanRoom
-	Placements []FloorplanPlacement
-	Furniture  []FloorplanFurniture
+	ID           string
+	Name         string
+	Vertices     []FloorplanVertex
+	Walls        []FloorplanWall
+	Openings     []FloorplanOpening
+	DoorBindings []FloorplanDoorBinding
+	Rooms        []FloorplanRoom
+	Placements   []FloorplanPlacement
+	Furniture    []FloorplanFurniture
 }
