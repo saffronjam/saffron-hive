@@ -35,7 +35,7 @@ function makeDevice(i: number): Device {
     displayBrightness: null,
     source: "zigbee2mqtt",
     type: "light",
-    tags: [],
+    roles: { controlledLoad: null, contact: null },
     capabilities: [
       {
         name: "on_off",
@@ -44,7 +44,9 @@ function makeDevice(i: number): Device {
         valueMin: null,
         valueMax: null,
         unit: null,
-        access: 7,
+        reportsValue: true,
+        canSet: true,
+        canGet: true,
       },
       {
         name: "brightness",
@@ -53,7 +55,9 @@ function makeDevice(i: number): Device {
         valueMin: 0,
         valueMax: 254,
         unit: null,
-        access: 7,
+        reportsValue: true,
+        canSet: true,
+        canGet: true,
       },
       {
         name: "color_temp",
@@ -62,7 +66,9 @@ function makeDevice(i: number): Device {
         valueMin: 150,
         valueMax: 500,
         unit: "mired",
-        access: 7,
+        reportsValue: true,
+        canSet: true,
+        canGet: true,
       },
     ],
     available: true,

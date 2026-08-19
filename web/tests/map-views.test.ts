@@ -14,7 +14,7 @@ function device(overrides: Partial<Device>): Device {
     id: "d",
     type: "light",
     source: "zigbee2mqtt",
-    tags: [],
+    roles: { controlledLoad: null, contact: null },
     capabilities: [],
     state: null,
     ...overrides,
