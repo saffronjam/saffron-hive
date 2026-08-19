@@ -50,6 +50,15 @@ func doorInput(id string, t, width float64) *model.FloorplanOpeningInput {
 	}
 }
 
+func doorBinding(openingID, deviceID string) *model.FloorplanDoorBindingInput {
+	return &model.FloorplanDoorBindingInput{
+		OpeningID: openingID,
+		DeviceID:  deviceID,
+		HingeSide: model.FloorplanDoorHingeSideStart,
+		SwingSide: model.FloorplanDoorSwingSideLeft,
+	}
+}
+
 func seedRoom(t *testing.T, st *mockStore, id, name string) {
 	t.Helper()
 	if _, err := st.CreateRoom(context.Background(), store.CreateRoomParams{ID: id, Name: name}); err != nil {
@@ -149,6 +158,77 @@ func TestValidateFloorplanInput_RejectsDuplicateOpeningID(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "open-1") {
 		t.Errorf("error should name the duplicated opening id: %v", err)
+	}
+}
+
+func TestValidateFloorplanInput_AcceptsDoorBinding(t *testing.T) {
+	st := newMockStore()
+	st.putDevice(device.Device{ID: "door-1", Roles: device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)}})
+	input := openingInput(doorInput("open-1", 0.5, 0.9))
+	input.DoorBindings = []*model.FloorplanDoorBindingInput{doorBinding("open-1", "door-1")}
+	if err := validateFloorplanInput(context.Background(), st, input); err != nil {
+		t.Fatalf("valid door binding rejected: %v", err)
+	}
+}
+
+func TestValidateFloorplanInput_RejectsInvalidDoorBindings(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		openings   []*model.FloorplanOpeningInput
+		devices    []device.Device
+		bindings   []*model.FloorplanDoorBindingInput
+		placements []*model.FloorplanPlacementInput
+		want       string
+	}{
+		{
+			name:     "unknown opening",
+			devices:  []device.Device{{ID: "door-1", Roles: device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)}}},
+			bindings: []*model.FloorplanDoorBindingInput{doorBinding("missing", "door-1")},
+			want:     "missing",
+		},
+		{
+			name:     "window opening",
+			openings: []*model.FloorplanOpeningInput{{ID: "open-1", WallID: "wall-1", T: 0.5, Width: 0.9, Kind: model.FloorplanOpeningKindWindow}},
+			devices:  []device.Device{{ID: "door-1", Roles: device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)}}},
+			bindings: []*model.FloorplanDoorBindingInput{doorBinding("open-1", "door-1")},
+			want:     "not a door",
+		},
+		{
+			name:     "non-door device",
+			openings: []*model.FloorplanOpeningInput{doorInput("open-1", 0.5, 0.9)},
+			devices:  []device.Device{{ID: "contact-1", Roles: device.DeviceRoles{Contact: device.Ptr(device.ContactRoleGeneral)}}},
+			bindings: []*model.FloorplanDoorBindingInput{doorBinding("open-1", "contact-1")},
+			want:     "door contact role",
+		},
+		{
+			name:     "device bound twice",
+			openings: []*model.FloorplanOpeningInput{doorInput("open-1", 0.25, 0.9), doorInput("open-2", 0.75, 0.9)},
+			devices:  []device.Device{{ID: "door-1", Roles: device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)}}},
+			bindings: []*model.FloorplanDoorBindingInput{doorBinding("open-1", "door-1"), doorBinding("open-2", "door-1")},
+			want:     "more than one door",
+		},
+		{
+			name:       "direct placement",
+			openings:   []*model.FloorplanOpeningInput{doorInput("open-1", 0.5, 0.9)},
+			devices:    []device.Device{{ID: "door-1", Roles: device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)}}},
+			bindings:   []*model.FloorplanDoorBindingInput{doorBinding("open-1", "door-1")},
+			placements: []*model.FloorplanPlacementInput{devicePlacement("door-1", 1, 1)},
+			want:       "cannot also",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			st := newMockStore()
+			for _, d := range tc.devices {
+				st.putDevice(d)
+			}
+			input := openingInput(tc.openings...)
+			input.DoorBindings = tc.bindings
+			input.Placements = tc.placements
+			err := validateFloorplanInput(context.Background(), st, input)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want one containing %q", err, tc.want)
+			}
+		})
 	}
 }
 
@@ -252,14 +332,15 @@ func TestUpdateFloorplan_RejectsInvalidInputBeforeSaving(t *testing.T) {
 		}
 	`, map[string]any{
 		"input": map[string]any{
-			"id":         "fp-1",
-			"name":       "Home",
-			"vertices":   []any{},
-			"walls":      []any{},
-			"openings":   []any{},
-			"rooms":      []any{map[string]any{"id": "fr-1", "roomId": "missing-room", "vertexIds": []any{}}},
-			"placements": []any{},
-			"furniture":  []any{},
+			"id":           "fp-1",
+			"name":         "Home",
+			"vertices":     []any{},
+			"walls":        []any{},
+			"openings":     []any{},
+			"doorBindings": []any{},
+			"rooms":        []any{map[string]any{"id": "fr-1", "roomId": "missing-room", "vertexIds": []any{}}},
+			"placements":   []any{},
+			"furniture":    []any{},
 		},
 	})
 	if len(resp.Errors) == 0 {
