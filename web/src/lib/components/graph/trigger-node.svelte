@@ -162,7 +162,7 @@
 
 	const selectedDeviceCapabilities = $derived.by((): Capability[] => {
 		if (!selectedDevice) return [];
-		return selectedDevice.capabilities.filter((c) => (c.access & 1) !== 0);
+		return selectedDevice.capabilities.filter((c) => c.reportsValue);
 	});
 
 	const selectedCapability = $derived.by((): Capability | undefined => {

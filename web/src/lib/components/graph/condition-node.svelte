@@ -24,7 +24,9 @@
 		generateConditionExpr,
 		validateConditionConfig,
 	} from "./condition-expr";
+	import { capabilityToExprProperty } from "./trigger-expr";
 	import type { GroupLite, RoomLite } from "$lib/target-resolve";
+	import { CapabilityCategory } from "$lib/gql/graphql";
 
 	interface ConditionNodeData extends Record<string, unknown> {
 		config: ConditionConfig;
@@ -51,7 +53,12 @@
 	const ON_OFF_CAPABILITY: Capability = {
 		name: "on_off",
 		type: "binary",
-		access: 1,
+		label: null,
+		description: null,
+		category: CapabilityCategory.State,
+		reportsValue: true,
+		canSet: false,
+		canGet: false,
 		values: null,
 		valueMin: null,
 		valueMax: null,
@@ -135,10 +142,6 @@
 		update({ weekdays: next });
 	}
 
-	function capabilityToExprProperty(capName: string): string {
-		return capName === "on_off" ? "on" : capName;
-	}
-
 	function handleTargetChange(value: string | undefined) {
 		if (!value) return;
 		const [kind, ...idParts] = value.split(":");
@@ -201,7 +204,7 @@
 			return [ON_OFF_CAPABILITY];
 		}
 		if (!selectedDevice) return [];
-		return selectedDevice.capabilities.filter((c) => (c.access & 1) !== 0);
+		return selectedDevice.capabilities.filter((c) => c.reportsValue);
 	});
 
 	const selectedCapability = $derived.by((): Capability | undefined => {
