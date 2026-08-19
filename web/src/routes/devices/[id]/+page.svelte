@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/stores";
-	import { onMount, onDestroy } from "svelte";
+	import { onMount, onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
 	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
@@ -11,6 +11,7 @@
 	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
+	import { floorplanStore } from "$lib/stores/floorplan.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
 		Tooltip,
@@ -25,17 +26,24 @@
 	import ClimateControls from "$lib/components/climate-controls.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
+	import DeviceConfigurationEditor from "$lib/components/device-configuration-editor.svelte";
 	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
 	import BucketResolutionSelect from "$lib/components/bucket-resolution-select.svelte";
 	import DateRangePicker from "$lib/components/date-range-picker.svelte";
 	import PlugDisplay from "$lib/components/plug-display.svelte";
 	import MemberTable from "$lib/components/member-table.svelte";
-	import DeviceTagsSelect, { type DeviceTag } from "$lib/components/device-tags-select.svelte";
+	import DeviceRolesEditor from "$lib/components/device-roles-editor.svelte";
+	import type { ContactRole, ControlledLoadRole, DeviceRoles } from "$lib/gql/graphql";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { membershipRowsForDevice } from "$lib/memberships";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { sentenceCase } from "$lib/utils";
+	import {
+		configurationContains,
+		configurationEntriesEqual,
+		writableConfigurationCapabilities,
+	} from "$lib/device-configuration";
 	import { ArrowLeft, Ban, Copy, Check, DoorOpen, Group as GroupIcon, Save } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -46,26 +54,29 @@
 	// deviceStore already holds every field this page renders and keeps it live
 	// over the shared subscriptions, so there is nothing to fetch here.
 	const device = $derived($deviceStore[deviceId] ?? null);
+	const contactMapped = $derived(
+		floorplanStore.current?.doorBindings.some((binding) => binding.deviceId === deviceId) ?? false,
+	);
 	// metadataName holds only the override, so "" is a real state meaning
 	// "unset"; fallbackName is what the device shows when it is empty.
 	let metadataName = $state("");
 	let savedMetadataName = $state("");
 	let metadataIcon = $state<string | null>(null);
 	let savedMetadataIcon = $state<string | null>(null);
-	let metadataTags = $state<DeviceTag[]>([]);
-	let savedMetadataTags = $state<DeviceTag[]>([]);
+	let metadataRoles = $state<DeviceRoles>({ controlledLoad: null, contact: null });
+	let savedMetadataRoles = $state<DeviceRoles>({ controlledLoad: null, contact: null });
 	let metadataDisabled = $state(false);
 	let savedMetadataDisabled = $state(false);
 	const fallbackName = $derived(device ? device.friendlyName || device.id : "");
 	let savingMetadata = $state(false);
-	function tagsEqual(a: DeviceTag[], b: DeviceTag[]): boolean {
-		return a.length === b.length && a.every((tag, i) => tag === b[i]);
+	function rolesEqual(a: DeviceRoles, b: DeviceRoles): boolean {
+		return a.controlledLoad === b.controlledLoad && a.contact === b.contact;
 	}
 	const metadataDirty = $derived(
 		metadataName.trim() !== savedMetadataName ||
 			metadataIcon !== savedMetadataIcon ||
 			metadataDisabled !== savedMetadataDisabled ||
-			!tagsEqual(metadataTags, savedMetadataTags)
+			!rolesEqual(metadataRoles, savedMetadataRoles)
 	);
 
 	onMount(() => {
@@ -114,13 +125,25 @@
 		}
 	`);
 
+	const SET_DEVICE_CONFIGURATION = graphql(`
+		mutation DeviceDetailSetConfiguration(
+			$deviceId: ID!
+			$settings: [DeviceConfigurationEntryInput!]!
+		) {
+			setDeviceConfiguration(deviceId: $deviceId, settings: $settings)
+		}
+	`);
+
 	const UPDATE_DEVICE = graphql(`
 		mutation DeviceDetailUpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
 			updateDevice(id: $id, input: $input) {
 				id
 				name
 				icon
-				tags
+				roles {
+					controlledLoad
+					contact
+				}
 				disabled
 				friendlyName
 				seen
@@ -135,6 +158,18 @@
 	const sensor = $derived(device?.type === "sensor" ? device.state : null);
 	const climate = $derived(device?.type === "climate" ? device.state : null);
 	const isButton = $derived(device?.type === "button");
+	const configurationCapabilities = $derived(
+		writableConfigurationCapabilities(device?.capabilities ?? []),
+	);
+	let configurationDeviceId = $state("");
+	let configurationBaseline = $state<Device["configuration"]>([]);
+	let configurationDraft = $state<Device["configuration"]>([]);
+	let configurationPending = $state<Device["configuration"] | null>(null);
+	let configurationSaving = $state(false);
+	let configurationTimer: ReturnType<typeof setTimeout> | null = null;
+	const configurationDirty = $derived(
+		!configurationEntriesEqual(configurationDraft, configurationBaseline),
+	);
 
 	const membershipData = $derived(membershipRowsForDevice(deviceId, rooms, groups));
 
@@ -235,12 +270,20 @@
 		const input: {
 			name?: string;
 			icon?: string | null;
-			tags?: DeviceTag[];
+			roles?: {
+				controlledLoad?: ControlledLoadRole | null;
+				contact?: ContactRole | null;
+			};
 			disabled?: boolean;
 		} = {};
 		if (name !== savedMetadataName) input.name = name;
 		if (metadataIcon !== savedMetadataIcon) input.icon = metadataIcon;
-		if (!tagsEqual(metadataTags, savedMetadataTags)) input.tags = metadataTags;
+		if (!rolesEqual(metadataRoles, savedMetadataRoles)) {
+			input.roles = {
+				controlledLoad: metadataRoles.controlledLoad,
+				contact: metadataRoles.contact,
+			};
+		}
 		if (metadataDisabled !== savedMetadataDisabled) input.disabled = metadataDisabled;
 		const result = await clientRef
 			.mutation(UPDATE_DEVICE, { id: currentDeviceId, input })
@@ -255,19 +298,19 @@
 		if (result.data?.updateDevice) {
 			const updatedName = result.data.updateDevice.name ?? null;
 			const updatedIcon = result.data.updateDevice.icon ?? null;
-			const updatedTags = [...result.data.updateDevice.tags] as DeviceTag[];
+			const updatedRoles = { ...result.data.updateDevice.roles } as DeviceRoles;
 			const updatedDisabled = result.data.updateDevice.disabled;
 			metadataName = updatedName ?? "";
 			savedMetadataName = updatedName ?? "";
 			metadataIcon = updatedIcon;
 			savedMetadataIcon = updatedIcon;
-			metadataTags = [...updatedTags];
-			savedMetadataTags = [...updatedTags];
+			metadataRoles = { ...updatedRoles };
+			savedMetadataRoles = { ...updatedRoles };
 			metadataDisabled = updatedDisabled;
 			savedMetadataDisabled = updatedDisabled;
 			deviceStore.updateName(currentDeviceId, updatedName);
 			deviceStore.updateIcon(currentDeviceId, updatedIcon);
-			deviceStore.updateTags(currentDeviceId, updatedTags);
+			deviceStore.updateRoles(currentDeviceId, updatedRoles);
 			deviceStore.updateDisabled(currentDeviceId, updatedDisabled);
 		}
 	}
@@ -289,6 +332,81 @@
 		void clientRef.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
 	}
 
+	function clearConfigurationTimer() {
+		if (configurationTimer === null) return;
+		clearTimeout(configurationTimer);
+		configurationTimer = null;
+	}
+
+	async function applyConfiguration() {
+		if (!clientRef || !device || !configurationDirty) return;
+		const baseline = new Map(configurationBaseline.map((entry) => [entry.capability, entry]));
+		const changes = configurationDraft.filter((entry) => {
+			const previous = baseline.get(entry.capability);
+			return !previous || !configurationEntriesEqual([entry], [previous]);
+		});
+		if (changes.length === 0) return;
+
+		configurationSaving = true;
+		error = null;
+		const settings = changes.map((entry) => ({
+			capability: entry.capability,
+			booleanValue: entry.booleanValue,
+			numberValue: entry.numberValue,
+			stringValue: entry.stringValue,
+		}));
+		const result = await clientRef
+			.mutation(SET_DEVICE_CONFIGURATION, { deviceId: device.id, settings })
+			.toPromise();
+		configurationSaving = false;
+		if (result.error) {
+			error = result.error.message;
+			return;
+		}
+		if (configurationContains(device.configuration, changes)) {
+			configurationBaseline = device.configuration.map((entry) => ({ ...entry }));
+			configurationDraft = configurationBaseline.map((entry) => ({ ...entry }));
+			configurationPending = null;
+			return;
+		}
+		configurationPending = changes.map((entry) => ({ ...entry }));
+		clearConfigurationTimer();
+		configurationTimer = setTimeout(() => {
+			configurationTimer = null;
+			configurationPending = null;
+			error = "The device did not confirm its settings. You can try applying them again.";
+		}, 15_000);
+	}
+
+	$effect(() => {
+		const currentDeviceId = device?.id ?? "";
+		const confirmed = (device?.configuration ?? []).map((entry) => ({ ...entry }));
+		untrack(() => {
+			if (configurationDeviceId !== currentDeviceId) {
+				configurationDeviceId = currentDeviceId;
+				configurationBaseline = confirmed;
+				configurationDraft = confirmed.map((entry) => ({ ...entry }));
+				configurationPending = null;
+				clearConfigurationTimer();
+				return;
+			}
+			const draftWasClean = configurationEntriesEqual(
+				configurationDraft,
+				configurationBaseline,
+			);
+			const pendingConfirmed =
+				configurationPending !== null && configurationContains(confirmed, configurationPending);
+			configurationBaseline = confirmed;
+			if (draftWasClean || pendingConfirmed) {
+				configurationDraft = confirmed.map((entry) => ({ ...entry }));
+			}
+			if (pendingConfirmed) {
+				configurationPending = null;
+				clearConfigurationTimer();
+			}
+		});
+	});
+
 	// Seed the metadata form from the store once the device is known.
 	let metadataSeeded = false;
 	$effect(() => {
@@ -298,8 +416,8 @@
 		savedMetadataName = device.name ?? "";
 		metadataIcon = device.icon ?? null;
 		savedMetadataIcon = device.icon ?? null;
-		metadataTags = [...device.tags] as DeviceTag[];
-		savedMetadataTags = [...device.tags] as DeviceTag[];
+		metadataRoles = { ...device.roles };
+		savedMetadataRoles = { ...device.roles };
 		metadataDisabled = device.disabled;
 		savedMetadataDisabled = device.disabled;
 	});
@@ -307,6 +425,8 @@
 	let historyFrom = $state<Date>(new Date(Date.now() - 24 * 60 * 60 * 1000));
 	let historyTo = $state<Date>(new Date());
 	let historyBucketSeconds = $state<number>(0);
+
+	onDestroy(clearConfigurationTimer);
 </script>
 
 <div>
@@ -330,7 +450,7 @@
 					<IconCell
 						value={metadataIcon}
 						onselect={(icon) => (metadataIcon = icon)}
-						fallback={deviceIcon(device.type)}
+						fallback={deviceIcon(device.type, device.roles.contact)}
 						size="lg"
 						iconClass="size-5 text-muted-foreground"
 					/>
@@ -346,14 +466,17 @@
 						}}
 					/>
 				</div>
-				<div class="mt-4 flex items-center gap-3">
-					<span class="w-16 text-sm font-medium text-foreground">Tags</span>
-					<DeviceTagsSelect
-						value={metadataTags}
-						onchange={(next) => (metadataTags = next)}
-						disabled={savingMetadata}
-					/>
-				</div>
+				{#if metadataRoles.controlledLoad != null || metadataRoles.contact != null}
+					<div class="mt-4 flex items-start gap-3">
+						<span class="w-16 pt-2 text-sm font-medium text-foreground">Roles</span>
+						<DeviceRolesEditor
+							value={metadataRoles}
+							onchange={(next) => (metadataRoles = next)}
+							disabled={savingMetadata}
+							{contactMapped}
+						/>
+					</div>
+				{/if}
 				<div class="mt-4 flex items-center gap-3">
 					<label class="w-16 text-sm font-medium text-foreground" for="device-enabled">
 						Enabled
@@ -492,13 +615,42 @@
 				{:else if plug}
 					<PlugDisplay state={plug} oncommand={handleDeviceCommand} />
 				{:else if sensor}
-					<SensorDisplay state={sensor} />
+					<SensorDisplay state={sensor} contactRole={device.roles.contact} />
 				{:else if isButton}
 					<ButtonDisplay lastSeen={device.lastSeen} />
 				{:else}
 					<Card>
 						<CardContent class="py-8 text-center">
 							<p class="text-muted-foreground">No state information available for this device.</p>
+						</CardContent>
+					</Card>
+				{/if}
+
+				{#if configurationCapabilities.length > 0}
+					<Card>
+						<CardHeader>
+							<div class="flex items-center justify-between gap-4">
+								<CardTitle>Settings</CardTitle>
+								<Button
+									size="sm"
+									onclick={applyConfiguration}
+									disabled={!configurationDirty || configurationSaving || configurationPending !== null || device.disabled}
+								>
+									{configurationSaving
+										? "Applying…"
+										: configurationPending
+											? "Waiting for device…"
+											: "Apply"}
+								</Button>
+							</div>
+						</CardHeader>
+						<CardContent>
+							<DeviceConfigurationEditor
+								capabilities={device.capabilities}
+								values={configurationDraft}
+								onchange={(values) => (configurationDraft = values)}
+								disabled={device.disabled || configurationSaving || configurationPending !== null}
+							/>
 						</CardContent>
 					</Card>
 				{/if}
