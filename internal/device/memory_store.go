@@ -9,20 +9,51 @@ import (
 // MemoryStore is an in-memory implementation of StateStore.
 // It is safe for concurrent use.
 type MemoryStore struct {
-	mu      sync.RWMutex
-	devices map[DeviceID]Device
-	states  map[DeviceID]DeviceState
-	groups  map[GroupID]Group
-	members map[GroupID][]GroupMember
+	mu            sync.RWMutex
+	devices       map[DeviceID]Device
+	states        map[DeviceID]DeviceState
+	configuration map[DeviceID]map[string]ConfigurationValue
+	groups        map[GroupID]Group
+	members       map[GroupID][]GroupMember
 }
 
 // NewMemoryStore creates a new empty MemoryStore.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		devices: make(map[DeviceID]Device),
-		states:  make(map[DeviceID]DeviceState),
-		groups:  make(map[GroupID]Group),
-		members: make(map[GroupID][]GroupMember),
+		devices:       make(map[DeviceID]Device),
+		states:        make(map[DeviceID]DeviceState),
+		configuration: make(map[DeviceID]map[string]ConfigurationValue),
+		groups:        make(map[GroupID]Group),
+		members:       make(map[GroupID][]GroupMember),
+	}
+}
+
+// GetDeviceConfiguration returns the confirmed settings reported for a device.
+func (s *MemoryStore) GetDeviceConfiguration(id DeviceID) []ConfigurationValue {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	values := s.configuration[id]
+	out := make([]ConfigurationValue, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return SortConfigurationValues(out)
+}
+
+// UpdateDeviceConfiguration merges a partial confirmed-settings update.
+func (s *MemoryStore) UpdateDeviceConfiguration(id DeviceID, values []ConfigurationValue) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.devices[id]; !ok {
+		return
+	}
+	current := s.configuration[id]
+	if current == nil {
+		current = make(map[string]ConfigurationValue)
+		s.configuration[id] = current
+	}
+	for _, value := range values {
+		current[value.Capability] = value
 	}
 }
 
@@ -66,26 +97,29 @@ func (s *MemoryStore) ListDevices() []Device {
 }
 
 // Register inserts a device, or merges adapter-owned fields into an existing
-// one. Name, Icon, Tags, Disabled and Seen are user-owned: once a device is known, a
+// one. Name, Icon, Roles, Disabled and Seen are user-owned: once a device is known, a
 // re-registration from an adapter (re-discovery, periodic sync) keeps those
 // values and updates only the adapter-owned fields (FriendlyName, Source, Type,
-// Capabilities, Available, LastSeen). This mirrors the UpsertDevice query so the
-// in-memory store and the database agree on which fields a re-sync may
-// overwrite.
+// Capabilities, Available, LastSeen). Roles are preserved while their category
+// applies, defaulted when a category becomes applicable, and cleared otherwise.
+// This mirrors the UpsertDevice query so the in-memory store and the database
+// agree on which fields a re-sync may overwrite.
 func (s *MemoryStore) Register(d Device) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if existing, ok := s.devices[d.ID]; ok {
 		d.Name = existing.Name
 		d.Icon = existing.Icon
-		d.Tags = existing.Tags
+		d.Roles = ReconcileDeviceRoles(d, existing.Roles)
 		d.Disabled = existing.Disabled
 		d.Seen = existing.Seen
+	} else {
+		d.Roles = ReconcileDeviceRoles(d, d.Roles)
 	}
 	s.devices[d.ID] = d
 }
 
-// UpdateUserFields copies the user-owned metadata (name, icon, tags, disabled,
+// UpdateUserFields copies the user-owned metadata (name, icon, roles, disabled,
 // seen) off src onto the registered device, leaving runtime state (availability,
 // last seen, reported state) untouched. A nil name clears the override so the
 // device falls back to the name its integration reports. If the device is not
@@ -103,7 +137,7 @@ func (s *MemoryStore) UpdateUserFields(src Device) {
 	}
 	d.Name = src.Name
 	d.Icon = src.Icon
-	d.Tags = src.Tags
+	d.Roles = src.Roles
 	d.Disabled = src.Disabled
 	d.Seen = src.Seen
 	s.devices[src.ID] = d

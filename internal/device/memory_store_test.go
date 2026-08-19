@@ -34,20 +34,22 @@ func TestRegisterAndGetDevice(t *testing.T) {
 func TestRegisterPreservesUserOwnedFieldsOnReRegister(t *testing.T) {
 	s := NewMemoryStore()
 	icon := "lamp"
+	lightRole := ControlledLoadRoleLight
 	s.Register(Device{
 		ID:           "light-1",
 		Name:         Ptr("Desk Lamp"),
 		FriendlyName: "old_friendly",
 		Icon:         &icon,
-		Tags:         []DeviceTag{DeviceTagLight},
-		Type:         Light,
+		Roles:        DeviceRoles{ControlledLoad: &lightRole},
+		Type:         Plug,
+		Capabilities: []Capability{{Name: CapOnOff, Access: CapabilityAccessState | CapabilityAccessSet}},
 		Disabled:     true,
 	})
 
 	s.Register(Device{
 		ID:           "light-1",
 		FriendlyName: "0x00124b00",
-		Type:         Light,
+		Type:         Plug,
 		Capabilities: []Capability{{Name: CapBrightness}},
 		Available:    true,
 	})
@@ -65,14 +67,42 @@ func TestRegisterPreservesUserOwnedFieldsOnReRegister(t *testing.T) {
 	if got.Icon == nil || *got.Icon != "lamp" {
 		t.Fatalf("re-register clobbered icon: got %v", got.Icon)
 	}
-	if len(got.Tags) != 1 || got.Tags[0] != DeviceTagLight {
-		t.Fatalf("re-register clobbered tags: got %v", got.Tags)
+	if got.Roles.ControlledLoad != nil {
+		t.Fatalf("inapplicable controlled-load role was not cleared: got %v", got.Roles.ControlledLoad)
 	}
 	if len(got.Capabilities) != 1 || got.Capabilities[0].Name != CapBrightness {
 		t.Fatalf("re-register did not update capabilities: got %v", got.Capabilities)
 	}
 	if !got.Available {
 		t.Fatal("re-register did not update availability")
+	}
+}
+
+func TestRegisterReconcilesDeviceRoles(t *testing.T) {
+	s := NewMemoryStore()
+	capabilities := []Capability{{Name: CapOnOff, Access: CapabilityAccessState | CapabilityAccessSet}}
+	s.Register(Device{ID: "plug", Type: Plug, Capabilities: capabilities})
+
+	got, _ := s.GetDevice("plug")
+	if got.Roles.ControlledLoad == nil || *got.Roles.ControlledLoad != ControlledLoadRoleAppliance {
+		t.Fatalf("new plug role = %v, want appliance", got.Roles.ControlledLoad)
+	}
+
+	got.Roles.ControlledLoad = Ptr(ControlledLoadRoleLight)
+	s.UpdateUserFields(got)
+	s.Register(Device{ID: "plug", Type: Plug, Capabilities: capabilities})
+	got, _ = s.GetDevice("plug")
+	if got.Roles.ControlledLoad == nil || *got.Roles.ControlledLoad != ControlledLoadRoleLight {
+		t.Fatalf("re-register role = %v, want light", got.Roles.ControlledLoad)
+	}
+
+	s.Register(Device{ID: "plug", Type: Sensor, Capabilities: []Capability{{Name: CapContact, Access: CapabilityAccessState}}})
+	got, _ = s.GetDevice("plug")
+	if got.Roles.ControlledLoad != nil {
+		t.Fatalf("controlled-load role = %v, want inapplicable", got.Roles.ControlledLoad)
+	}
+	if got.Roles.Contact == nil || *got.Roles.Contact != ContactRoleGeneral {
+		t.Fatalf("new contact role = %v, want general", got.Roles.Contact)
 	}
 }
 
@@ -83,11 +113,12 @@ func TestUpdateUserFields(t *testing.T) {
 	before, _ := s.GetDevice("light-1")
 
 	icon := "bulb"
+	contactRole := ContactRoleDoor
 	s.UpdateUserFields(Device{
-		ID:   "light-1",
-		Name: Ptr("New Name"),
-		Icon: &icon,
-		Tags: []DeviceTag{DeviceTagLight},
+		ID:    "light-1",
+		Name:  Ptr("New Name"),
+		Icon:  &icon,
+		Roles: DeviceRoles{Contact: &contactRole},
 	})
 
 	got, _ := s.GetDevice("light-1")
@@ -97,8 +128,8 @@ func TestUpdateUserFields(t *testing.T) {
 	if got.Icon == nil || *got.Icon != "bulb" {
 		t.Fatalf("icon not updated: got %v", got.Icon)
 	}
-	if len(got.Tags) != 1 || got.Tags[0] != DeviceTagLight {
-		t.Fatalf("tags not updated: got %v", got.Tags)
+	if got.Roles.Contact == nil || *got.Roles.Contact != ContactRoleDoor {
+		t.Fatalf("roles not updated: got %v", got.Roles)
 	}
 	if !got.Available {
 		t.Fatal("availability should be left intact")
