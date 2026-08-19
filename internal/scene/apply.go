@@ -265,7 +265,7 @@ func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired
 
 func hasWritableCapability(d device.Device, name string) bool {
 	for _, c := range d.Capabilities {
-		if c.Name == name && c.Access&2 != 0 {
+		if c.Name == name && c.CanSet() {
 			return true
 		}
 	}
