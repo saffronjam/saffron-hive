@@ -12,9 +12,11 @@
 		Gauge,
 		Group as GroupIcon,
 		Lightbulb,
+		Magnet,
 		MousePointerClick,
 		Package,
 		Palette,
+		PanelTopOpen,
 		Plug,
 		Power,
 		Router,
@@ -25,9 +27,11 @@
 		Thermometer,
 		Zap,
 	} from "@lucide/svelte";
+	import { ContactRole } from "$lib/gql/graphql";
 
 	interface Props {
 		type: string;
+		contactRole?: ContactRole | null;
 		label?: string;
 		iconOverride?: string | null;
 		href?: string;
@@ -38,6 +42,7 @@
 
 	let {
 		type,
+		contactRole = null,
 		label,
 		iconOverride,
 		href,
@@ -70,6 +75,14 @@
 				return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30";
 			case "illuminance":
 				return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
+			case "contact":
+				return "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30";
+			case "orientation":
+				return "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30";
+			case "devicePosture":
+				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
+			case "linkQuality":
+				return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30";
 			case "battery":
 				return "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30";
 			case "on":
@@ -124,6 +137,16 @@
 				return Gauge;
 			case "illuminance":
 				return Sun;
+			case "contact":
+				if (contactRole === ContactRole.Door) return DoorOpen;
+				if (contactRole === ContactRole.Window) return PanelTopOpen;
+				return Magnet;
+			case "orientation":
+				return Gauge;
+			case "devicePosture":
+				return Activity;
+			case "linkQuality":
+				return Router;
 			case "battery":
 				return Battery;
 			case "on":

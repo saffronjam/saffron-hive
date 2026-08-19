@@ -80,6 +80,13 @@ describe("stateSummary", () => {
       );
     });
 
+    it("includes contact state before numeric readings", () => {
+      expect(stateSummary(state({ contact: false, temperature: 21 }), "sensor")).toBe(
+        "Open / 21.0°C",
+      );
+      expect(stateSummary(state({ contact: true }), "sensor")).toBe("Closed");
+    });
+
     it("formats only temperature when humidity missing", () => {
       expect(stateSummary(state({ temperature: 19 }), "sensor")).toBe("19.0\u00b0C");
     });

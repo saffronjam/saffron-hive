@@ -23,6 +23,7 @@ export function stateSummary(state: DeviceState | null | undefined, type: string
 
   if (type === "sensor") {
     const parts: string[] = [];
+    if (state.contact != null) parts.push(state.contact ? "Closed" : "Open");
     if (state.temperature != null) parts.push(`${state.temperature.toFixed(1)}\u00b0C`);
     if (state.humidity != null) parts.push(`${state.humidity.toFixed(0)}% RH`);
     if (parts.length > 0) return parts.join(" / ");
