@@ -22,6 +22,7 @@
 	} from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
+	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { Palette } from "@lucide/svelte";
 
 	interface Props {
@@ -29,6 +30,7 @@
 		devices: Device[];
 		fallbackIcon: Component;
 		subtitle?: string;
+		stateSummary?: boolean;
 		onrename?: (entity: T, newName: string) => void;
 		oniconchange?: (entity: T, icon: string | null) => void;
 		editHref?: string;
@@ -47,6 +49,7 @@
 		devices: allDevices,
 		fallbackIcon,
 		subtitle,
+		stateSummary = false,
 		onrename,
 		oniconchange,
 		editHref,
@@ -76,7 +79,9 @@
 	);
 	const sensors = $derived(devices.filter((d) => d.type === "sensor"));
 	const sensorReadings = $derived(
-		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius"),
+		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius").filter(
+			(reading) => !stateSummary || reading.field !== "contact",
+		),
 	);
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
@@ -130,6 +135,10 @@
 		});
 	});
 
+	const resolvedSubtitle = $derived(
+		stateSummary ? deviceCollectionSummary(effectiveDevices) : subtitle,
+	);
+
 	$effect(() => {
 		if (togglePending === "off") {
 			const stillOn = onOffDevices.some((d) => d.state?.on);
@@ -174,7 +183,7 @@
 <EntityCard
 	{entity}
 	{fallbackIcon}
-	{subtitle}
+	subtitle={resolvedSubtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	{tintStrength}
 	{editHref}

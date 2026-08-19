@@ -13,6 +13,7 @@
 	import { popoverDismissedRecently } from "$lib/popover-guard";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
+	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
 
 	interface Props {
@@ -30,7 +31,9 @@
 
 	const sensors = $derived(devices.filter((d) => d.type === "sensor"));
 	const sensorReadings = $derived(
-		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius"),
+		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius").filter(
+			(reading) => reading.field !== "contact",
+		),
 	);
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
@@ -91,13 +94,7 @@
 		enabled: () => dimmableLights.length > 0,
 	});
 
-	const subtitle = $derived(
-		lights.length === 0
-			? undefined
-			: isOn
-				? `On · ${onLights.length} of ${lights.length} light${lights.length === 1 ? "" : "s"}`
-				: "Off",
-	);
+	const subtitle = $derived(deviceCollectionSummary(devices));
 </script>
 
 <EntityCard

@@ -44,6 +44,7 @@
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
 	import { me } from "$lib/stores/me.svelte";
+	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
 
 	interface RoomEntity {
@@ -114,7 +115,9 @@
 
 	const sensors = $derived(roomDevices.filter((d) => d.type === "sensor"));
 	const sensorReadings = $derived(
-		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius"),
+		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius").filter(
+			(reading) => reading.field !== "contact",
+		),
 	);
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
@@ -267,7 +270,7 @@
 				entity: { id: dev.id, name: deviceDisplayName(dev), icon: dev.icon ?? null },
 				devices: [dev],
 				isGroup: false,
-				fallbackIcon: deviceIcon(dev.type) ?? Lightbulb,
+				fallbackIcon: deviceIcon(dev.type, dev.roles.contact) ?? Lightbulb,
 			});
 		}
 
@@ -320,7 +323,7 @@
 			<EntityCard
 				entity={room}
 				fallbackIcon={DoorOpen}
-				subtitle={isOn ? "On" : "Off"}
+				subtitle={deviceCollectionSummary(roomDevices)}
 				tintColors={tintColors.length > 0 ? tintColors : null}
 				{tintStrength}
 				tintInactive={!roomBrightnessActive}
