@@ -81,6 +81,7 @@
 
 	const actionOptions = [
 		{ value: "set_device_state", label: "Set device state" },
+		{ value: "configure_device", label: "Configure device" },
 		{ value: "activate_scene", label: "Activate scene" },
 		{ value: "raise_alarm", label: "Raise alarm" },
 		{ value: "clear_alarm", label: "Clear alarm" },

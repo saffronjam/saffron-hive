@@ -1,11 +1,56 @@
 import { describe, expect, it } from "vitest";
 import {
-  eventTypeForMode,
+	capabilityToExprProperty,
+	eventTypeForMode,
   generateFilterExpr,
-  normalizeTriggerConfig,
-  serializeTriggerConfig,
+	normalizeTriggerConfig,
+	serializeTriggerConfig,
+	validateActionConfig,
   type TriggerConfig,
 } from "$lib/components/graph/trigger-expr";
+
+describe("capabilityToExprProperty", () => {
+	it.each([
+		["on_off", "on"],
+		["color_temp", "colorTemp"],
+		["target_temperature", "targetTemperature"],
+		["device_posture", "devicePosture"],
+		["link_quality", "linkQuality"],
+		["orientation", "orientation"],
+	])("maps %s to %s", (capability, property) => {
+		expect(capabilityToExprProperty(capability)).toBe(property);
+	});
+});
+
+describe("configure_device action validation", () => {
+	it("requires a direct device and at least one typed setting", () => {
+		expect(
+			validateActionConfig({
+				actionType: "configure_device",
+				targetType: "group",
+				targetId: "group-1",
+				payload: '{"settings":[]}',
+			}),
+		).toMatchObject({ field: "target" });
+		expect(
+			validateActionConfig({
+				actionType: "configure_device",
+				targetType: "device",
+				targetId: "sensor-1",
+				payload: '{"settings":[]}',
+			}),
+		).toMatchObject({ field: "payload" });
+		expect(
+			validateActionConfig({
+				actionType: "configure_device",
+				targetType: "device",
+				targetId: "sensor-1",
+				payload:
+					'{"settings":[{"capability":"fall_detection","booleanValue":true}]}',
+			}),
+		).toBeNull();
+	});
+});
 
 function roundTrip(cfg: TriggerConfig): TriggerConfig {
   const serialized = serializeTriggerConfig(cfg);

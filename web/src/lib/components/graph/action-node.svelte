@@ -14,6 +14,7 @@
 	import { validateActionConfig } from "./trigger-expr";
 	import DeviceStateEditor from "./device-state-editor.svelte";
 	import ChangeValueEditor from "./change-value-editor.svelte";
+	import DeviceConfigurationEditor from "$lib/components/device-configuration-editor.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
@@ -28,7 +29,8 @@
 		type TargetKind,
 	} from "$lib/target-resolve";
 	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
-	import type { Device } from "$lib/gql/graphql";
+	import type { Device, DeviceConfigurationEntry } from "$lib/gql/graphql";
+	import { writableConfigurationCapabilities } from "$lib/device-configuration";
 
 	interface ActionConfig {
 		actionType: string;
@@ -98,6 +100,7 @@
 
 	const actionTypes = [
 		{ value: "set_device_state", label: "Set State" },
+		{ value: "configure_device", label: "Configure Device" },
 		{ value: "toggle_device_state", label: "Toggle State" },
 		{ value: "change_value", label: "Change Value" },
 		{ value: "activate_scene", label: "Activate Scene" },
@@ -133,6 +136,8 @@
 			payload = JSON.stringify({ scenes: [] });
 		} else if (value === "change_value" && !isChangeValuePayload(payload)) {
 			payload = JSON.stringify({ field: "", delta: 0, mode: "percent" });
+		} else if (value === "configure_device") {
+			payload = JSON.stringify({ settings: [] });
 		} else if (value === "toggle_device_state") {
 			payload = "";
 		}
@@ -241,6 +246,38 @@
 
 	const parsedPayload = $derived(safeParse(data.config.payload));
 
+	const configurationValues = $derived.by<DeviceConfigurationEntry[]>(() => {
+		if (!Array.isArray(parsedPayload.settings)) return [];
+		const values: DeviceConfigurationEntry[] = [];
+		for (const item of parsedPayload.settings) {
+			if (typeof item !== "object" || item === null) continue;
+			const entry = item as Record<string, unknown>;
+			if (typeof entry.capability !== "string") continue;
+			values.push({
+				capability: entry.capability,
+				booleanValue: typeof entry.booleanValue === "boolean" ? entry.booleanValue : null,
+				numberValue: typeof entry.numberValue === "number" ? entry.numberValue : null,
+				stringValue: typeof entry.stringValue === "string" ? entry.stringValue : null,
+			});
+		}
+		return values;
+	});
+
+	function updateConfigurationValues(values: DeviceConfigurationEntry[]) {
+		if (!data.onConfigChange) return;
+		data.onConfigChange({
+			...data.config,
+			payload: JSON.stringify({
+				settings: values.map((entry) => ({
+					capability: entry.capability,
+					booleanValue: entry.booleanValue,
+					numberValue: entry.numberValue,
+					stringValue: entry.stringValue,
+				})),
+			}),
+		});
+	}
+
 	function updateRaiseField(field: "alarm_id" | "severity" | "kind" | "message", value: string) {
 		if (!data.onConfigChange) return;
 		const next = { ...parsedPayload, [field]: value };
@@ -271,6 +308,7 @@
 		const allGroups = data.groups ?? [];
 		const allRooms = data.rooms ?? [];
 		const isChangeValue = data.config.actionType === "change_value";
+		const isConfigureDevice = data.config.actionType === "configure_device";
 		const supportsChangeValue = (kind: "device" | "group" | "room", id: string) =>
 			settableNumericCapabilities(
 				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms),
@@ -278,8 +316,14 @@
 		const items: TargetItem[] = [];
 		for (const d of allDevices) {
 			if (isChangeValue && !supportsChangeValue("device", d.id)) continue;
+			if (
+				isConfigureDevice &&
+				(d.disabled || writableConfigurationCapabilities(d.capabilities).length === 0)
+			)
+				continue;
 			items.push({ kind: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type });
 		}
+		if (isConfigureDevice) return items;
 		for (const g of allGroups) {
 			if (isChangeValue && !supportsChangeValue("group", g.id)) continue;
 			items.push({ kind: "group", id: g.id, name: g.name });
@@ -319,11 +363,20 @@
 			targetType: kind,
 			targetId: id,
 			targetName: item?.name ?? "",
+			payload:
+				data.config.actionType === "configure_device"
+					? JSON.stringify({ settings: [] })
+					: data.config.payload,
 		});
 	}
 
 	const targetDisplay = $derived(
 		data.config.targetName || (data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "No target"),
+	);
+	const selectedDevice = $derived(
+		data.config.targetType === "device"
+			? (data.devices ?? []).find((device) => device.id === data.config.targetId)
+			: undefined,
 	);
 
 	const isFanoutAction = $derived(FANOUT_ACTIONS.includes(data.config.actionType));
@@ -658,7 +711,21 @@
 				</HiveSelectAutocomplete>
 				{/if}
 
-				{#if data.config.actionType === "set_device_state"}
+				{#if data.config.actionType === "configure_device"}
+					{#if selectedDevice}
+						<DeviceConfigurationEditor
+							capabilities={selectedDevice.capabilities}
+							values={configurationValues}
+							defaults={selectedDevice.configuration}
+							onchange={updateConfigurationValues}
+							selectable
+							compact
+							disabled={!data.editable}
+						/>
+					{:else}
+						<p class="text-[11px] text-muted-foreground">Pick a device to configure.</p>
+					{/if}
+				{:else if data.config.actionType === "set_device_state"}
 					{#if advanced}
 						<DeviceStateEditor
 							target={null}
@@ -791,6 +858,11 @@
 						{sign}{delta}{mode} {parsedPayload.field}
 					</p>
 				{/if}
+			{:else if data.config.actionType === "configure_device"}
+				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
+				<p class="truncate text-xs text-muted-foreground">
+					{configurationValues.length} {configurationValues.length === 1 ? "setting" : "settings"}
+				</p>
 			{:else}
 				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
 				{#if data.config.actionType !== "activate_scene" && data.config.payload}

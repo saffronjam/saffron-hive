@@ -99,6 +99,20 @@ describe("referencedDeviceIds", () => {
     ).toEqual(["light-42"]);
   });
 
+  it("extracts the target_id for a configure_device action", () => {
+    expect(
+      referencedDeviceIds({
+        type: "action",
+        config: JSON.stringify({
+          action_type: "configure_device",
+          target_type: "device",
+          target_id: "sensor-1",
+          payload: '{"settings":[]}',
+        }),
+      }),
+    ).toEqual(["sensor-1"]);
+  });
+
   it("skips set_device_state actions that target a group or room", () => {
     expect(
       referencedDeviceIds({

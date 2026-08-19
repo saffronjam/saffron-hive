@@ -51,6 +51,12 @@ export const TIMING_PRESETS: { value: number; label: string }[] = [
 
 const capToExprProperty: Record<string, string> = {
   on_off: "on",
+  color_temp: "colorTemp",
+  target_temperature: "targetTemperature",
+  hvac_mode: "hvacMode",
+  fan_mode: "fanMode",
+  device_posture: "devicePosture",
+  link_quality: "linkQuality",
 };
 
 export function capabilityToExprProperty(capName: string): string {
@@ -568,6 +574,41 @@ export function validateActionConfig(
     }
     if (parsed.mode !== undefined && parsed.mode !== "absolute" && parsed.mode !== "percent") {
       return { field: "payload", message: "Mode must be absolute or percent" };
+    }
+    return null;
+  }
+  if (config.actionType === "configure_device") {
+    if (config.targetType !== "device" || !config.targetId) {
+      return { field: "target", message: "Pick a device" };
+    }
+    let parsed: { settings?: unknown };
+    try {
+      parsed = JSON.parse(config.payload || "{}") as { settings?: unknown };
+    } catch {
+      return { field: "payload", message: "Payload must be valid JSON" };
+    }
+    if (!Array.isArray(parsed.settings) || parsed.settings.length === 0) {
+      return { field: "payload", message: "Add at least one setting" };
+    }
+    for (const setting of parsed.settings) {
+      if (typeof setting !== "object" || setting === null) {
+        return { field: "payload", message: "Invalid setting" };
+      }
+      const value = setting as Record<string, unknown>;
+      if (typeof value.capability !== "string" || value.capability === "") {
+        return { field: "payload", message: "Invalid setting" };
+      }
+      const typedValues = [value.booleanValue, value.numberValue, value.stringValue].filter(
+        (candidate) => candidate !== null && candidate !== undefined,
+      );
+      if (
+        typedValues.length !== 1 ||
+        (typeof typedValues[0] !== "boolean" &&
+          typeof typedValues[0] !== "number" &&
+          typeof typedValues[0] !== "string")
+      ) {
+        return { field: "payload", message: "Invalid setting value" };
+      }
     }
     return null;
   }
