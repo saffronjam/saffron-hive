@@ -1,4 +1,4 @@
-import type { Capability, Device } from "$lib/gql/graphql";
+import { ContactRole, ControlledLoadRole, type Capability, type Device } from "$lib/gql/graphql";
 
 export interface GroupLite {
   id: string;
@@ -50,8 +50,18 @@ export const CLAUSE_OPS = [
 ] as const;
 export type ClauseOp = (typeof CLAUSE_OPS)[number]["value"];
 
-/** Device kinds selectable for device_type / device_role clauses. */
-export const CLAUSE_KINDS = ["light", "plug", "climate", "speaker", "sensor", "button"] as const;
+/** Physical classifications selectable for device_type clauses. */
+export const CLAUSE_DEVICE_TYPES = [
+  "light",
+  "plug",
+  "climate",
+  "speaker",
+  "sensor",
+  "button",
+] as const;
+
+/** Physical and semantic classifications selectable for device_role clauses. */
+export const CLAUSE_DEVICE_ROLES = [...CLAUSE_DEVICE_TYPES, "appliance", "door", "window"] as const;
 
 /** One rule in a target expression. connector is absent on the first clause. */
 export interface Clause {
@@ -61,13 +71,13 @@ export interface Clause {
   values: string[];
 }
 
-const ROLE_TAGS: Record<string, string> = { LIGHT: "light" };
-
-function deviceRoles(d: Pick<Device, "type" | "tags">): string[] {
+function deviceRoles(d: Pick<Device, "type" | "roles">): string[] {
   const out = new Set<string>([d.type]);
-  for (const t of d.tags ?? []) {
-    if (ROLE_TAGS[t]) out.add(ROLE_TAGS[t]);
-  }
+  if (d.type === "light" || d.roles.controlledLoad === ControlledLoadRole.Light) out.add("light");
+  if (d.type === "climate" || d.roles.controlledLoad === ControlledLoadRole.Appliance)
+    out.add("appliance");
+  if (d.roles.contact === ContactRole.Door) out.add("door");
+  if (d.roles.contact === ContactRole.Window) out.add("window");
   return Array.from(out);
 }
 
@@ -200,8 +210,8 @@ export function resolveTargetDevices(
 
 /**
  * Capability union across a set of devices. Capabilities are deduped by
- * `name`; numeric min/max are widened to cover all members. Access is
- * bitwise-OR'd so a cap is "settable" if any member exposes set access.
+ * `name`; numeric min/max are widened to cover all members. Access flags are
+ * merged so a capability is usable when any member supports the operation.
  */
 export function capabilityUnion(devices: Device[]): Capability[] {
   const byName = new Map<string, Capability>();
@@ -213,7 +223,9 @@ export function capabilityUnion(devices: Device[]): Capability[] {
         continue;
       }
       const merged: Capability = { ...prev };
-      merged.access = (prev.access ?? 0) | (c.access ?? 0);
+      merged.reportsValue = prev.reportsValue || c.reportsValue;
+      merged.canSet = prev.canSet || c.canSet;
+      merged.canGet = prev.canGet || c.canGet;
       if (c.valueMin != null) {
         merged.valueMin = prev.valueMin != null ? Math.min(prev.valueMin, c.valueMin) : c.valueMin;
       }
@@ -241,11 +253,10 @@ export function hasCapability(caps: Capability[], name: string): boolean {
 }
 
 /**
- * Capabilities that are numeric and settable (have set-access in the access
- * bitmask). Powers target-list filtering and field-options listing for the
+ * Capabilities that are numeric and settable. Powers target-list filtering and field-options listing for the
  * `change_value` automation action — adding a new numeric, settable
  * capability in the device layer makes it eligible here automatically.
  */
 export function settableNumericCapabilities(caps: Capability[]): Capability[] {
-  return caps.filter((c) => c.type === "numeric" && (c.access & 4) !== 0);
+  return caps.filter((c) => c.type === "numeric" && c.canSet);
 }

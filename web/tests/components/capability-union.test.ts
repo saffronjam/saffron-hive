@@ -9,7 +9,12 @@ import {
   type GroupLite,
   type RoomLite,
 } from "$lib/target-resolve";
-import type { Device } from "$lib/gql/graphql";
+import {
+  CapabilityCategory,
+  ContactRole,
+  ControlledLoadRole,
+  type Device,
+} from "$lib/gql/graphql";
 
 function cap(
   name: string,
@@ -23,7 +28,12 @@ function cap(
     valueMin: null,
     valueMax: null,
     unit: null,
-    access: 7,
+    label: null,
+    description: null,
+    category: CapabilityCategory.State,
+    reportsValue: true,
+    canSet: true,
+    canGet: true,
     ...over,
   };
 }
@@ -37,11 +47,12 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     seen: true,
     source: "zigbee2mqtt",
     type: "light",
-    tags: [],
+    roles: { controlledLoad: null, contact: null },
     available: true,
     disabled: false,
     lastSeen: null,
     capabilities: caps,
+    configuration: [],
     state: null,
   };
 }
@@ -51,7 +62,10 @@ const light = dev("light-1", [
   cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254 }),
   cap("color"),
 ]);
-const plug = dev("plug-1", [cap("on_off"), cap("power", { type: "numeric", access: 1 })]);
+const plug = dev("plug-1", [
+  cap("on_off"),
+  cap("power", { type: "numeric", canSet: false, canGet: false }),
+]);
 const bulb = dev("light-2", [
   cap("on_off"),
   cap("brightness", { type: "numeric", valueMin: 1, valueMax: 100 }),
@@ -180,11 +194,13 @@ describe("capabilityUnion", () => {
     expect(bri?.valueMax).toBe(254); // max(254, 100) — light
   });
 
-  it("bitwise-ORs access flags so 'set' from any member sticks", () => {
-    const a = dev("a", [cap("on_off", { access: 1 })]); // published only
-    const b = dev("b", [cap("on_off", { access: 4 })]); // set only
+  it("merges access semantics across members", () => {
+    const a = dev("a", [cap("on_off", { canSet: false, canGet: false })]);
+    const b = dev("b", [cap("on_off", { reportsValue: false, canGet: false })]);
     const u = capabilityUnion([a, b]);
-    expect(u[0].access).toBe(5);
+    expect(u[0].reportsValue).toBe(true);
+    expect(u[0].canSet).toBe(true);
+    expect(u[0].canGet).toBe(false);
   });
 });
 
@@ -210,27 +226,27 @@ describe("capabilityUnionForTarget + hasCapability", () => {
 });
 
 describe("settableNumericCapabilities", () => {
-  it("returns numeric capabilities that have the set-access bit", () => {
+  it("returns settable numeric capabilities", () => {
     const caps = [
-      cap("on_off", { type: "binary", access: 7 }),
-      cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254, access: 7 }),
-      cap("color_temp", { type: "numeric", valueMin: 150, valueMax: 500, access: 7 }),
+      cap("on_off", { type: "binary" }),
+      cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254 }),
+      cap("color_temp", { type: "numeric", valueMin: 150, valueMax: 500 }),
     ];
     const result = settableNumericCapabilities(caps);
     expect(result.map((c) => c.name).sort()).toEqual(["brightness", "color_temp"]);
   });
 
-  it("excludes numeric capabilities without set access (read-only sensors)", () => {
+  it("excludes read-only numeric capabilities", () => {
     const caps = [
-      cap("temperature", { type: "numeric", valueMin: -40, valueMax: 80, access: 1 }),
-      cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254, access: 7 }),
+      cap("temperature", { type: "numeric", valueMin: -40, valueMax: 80, canSet: false }),
+      cap("brightness", { type: "numeric", valueMin: 0, valueMax: 254 }),
     ];
     const result = settableNumericCapabilities(caps);
     expect(result.map((c) => c.name)).toEqual(["brightness"]);
   });
 
   it("returns an empty list when no settable numeric capabilities exist", () => {
-    const caps = [cap("on_off", { type: "binary", access: 7 })];
+    const caps = [cap("on_off", { type: "binary" })];
     expect(settableNumericCapabilities(caps)).toEqual([]);
   });
 });
@@ -303,5 +319,53 @@ describe("disabled devices", () => {
     const caps = capabilityUnionForTarget({ type: "group", id: "g1" }, [light, offPlug], [grp], []);
     expect(hasCapability(caps, "power")).toBe(false);
     expect(hasCapability(caps, "color")).toBe(true);
+  });
+});
+
+describe("semantic device roles", () => {
+  const appliancePlug = {
+    ...plug,
+    type: "plug",
+    roles: { controlledLoad: ControlledLoadRole.Appliance, contact: null },
+  };
+  const lightPlug = {
+    ...plug,
+    id: "light-plug",
+    type: "plug",
+    roles: { controlledLoad: ControlledLoadRole.Light, contact: null },
+  };
+  const climate = {
+    ...plug,
+    id: "climate",
+    type: "climate",
+    roles: { controlledLoad: null, contact: null },
+  };
+  const door = {
+    ...plug,
+    id: "door",
+    type: "sensor",
+    roles: { controlledLoad: null, contact: ContactRole.Door },
+  };
+  const generalContact = {
+    ...plug,
+    id: "contact",
+    type: "sensor",
+    roles: { controlledLoad: null, contact: ContactRole.General },
+  };
+  const devices = [appliancePlug, lightPlug, climate, door, generalContact] as Device[];
+
+  it("resolves inherent and selected appliance roles", () => {
+    const expression = [{ subject: "device_role", op: "is", values: ["appliance"] }];
+    expect(evaluateExpression(expression, devices, [], []).map((device) => device.id).sort()).toEqual([
+      "climate",
+      "plug-1",
+    ]);
+  });
+
+  it("resolves door roles without including general contacts", () => {
+    const expression = [{ subject: "device_role", op: "is", values: ["door"] }];
+    expect(evaluateExpression(expression, devices, [], []).map((device) => device.id)).toEqual([
+      "door",
+    ]);
   });
 });

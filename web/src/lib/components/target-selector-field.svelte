@@ -7,7 +7,8 @@
 	import {
 		CLAUSE_SUBJECTS,
 		CLAUSE_OPS,
-		CLAUSE_KINDS,
+		CLAUSE_DEVICE_ROLES,
+		CLAUSE_DEVICE_TYPES,
 		evaluateExpression,
 		type Clause,
 		type GroupLite,
@@ -73,8 +74,13 @@
 	);
 
 	function valueOptions(subject: string): Option[] {
-		if (subject === "device_type" || subject === "device_role")
-			return CLAUSE_KINDS.map((k) => ({ value: k, label: k.charAt(0).toUpperCase() + k.slice(1) }));
+		if (subject === "device_type" || subject === "device_role") {
+			const kinds = subject === "device_type" ? CLAUSE_DEVICE_TYPES : CLAUSE_DEVICE_ROLES;
+			return kinds.map((kind) => ({
+				value: kind,
+				label: kind.charAt(0).toUpperCase() + kind.slice(1),
+			}));
+		}
 		if (subject === "room") return rooms.map((r) => ({ value: r.id, label: r.name ?? r.id }));
 		if (subject === "group") return groups.map((g) => ({ value: g.id, label: g.name ?? g.id }));
 		return devices.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
