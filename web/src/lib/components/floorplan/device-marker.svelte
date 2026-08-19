@@ -83,7 +83,9 @@
 	const isSensor = $derived(device.type === "sensor");
 	const reading = $derived(
 		live && showReading && isSensor
-			? (aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius")[0] ?? null)
+			? (aggregateSensorReadings([device], me.user?.temperatureUnit ?? "celsius", {
+					includeGeneralContact: true,
+				})[0] ?? null)
 			: null,
 	);
 
@@ -131,7 +133,12 @@
 	/>
 	<foreignObject x="-8" y="-8" width="16" height="16" class="pointer-events-none">
 		<div class="flex h-4 w-4 items-center justify-center text-foreground">
-			<HiveIcon type={device.type} iconOverride={device.icon} class="size-4" />
+			<HiveIcon
+				type={device.type}
+				contactRole={device.roles.contact}
+				iconOverride={device.icon}
+				class="size-4"
+			/>
 		</div>
 	</foreignObject>
 
@@ -175,7 +182,11 @@
 	{#if reading}
 		<foreignObject x="-45" y="17" width="90" height="28" class="pointer-events-none">
 			<div class="flex justify-center">
-				<HiveChip type={reading.field} label="{reading.value} {reading.unit}" />
+				<HiveChip
+					type={reading.field}
+					label="{reading.value} {reading.unit}"
+					contactRole={device.roles.contact}
+				/>
 			</div>
 		</foreignObject>
 	{/if}

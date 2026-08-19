@@ -13,6 +13,8 @@
 		ExternalLink,
 		Ban,
 		Check,
+		FlipHorizontal2,
+		FlipVertical2,
 		Frame,
 		Link as LinkIcon,
 		Lock,
@@ -80,7 +82,7 @@
 		SET_DISPLAY_COLOR,
 		TOPOLOGY_UPDATED_SUB,
 	} from "$lib/graphql/map";
-	import type { Device, DeviceState } from "$lib/gql/graphql";
+	import { ContactRole, type Device, type DeviceState } from "$lib/gql/graphql";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
@@ -152,6 +154,7 @@
 		MAX_WALL_THICKNESS,
 		MIN_WALL_THICKNESS,
 		detectFaces,
+		doorSnapTarget,
 		faceBounds,
 		faceContainingPoint,
 		facePairKeys,
@@ -161,6 +164,7 @@
 		nearestPointInFace,
 		addRoomClipped,
 		normalizeGraph,
+		pruneDoorBindings,
 		snapRectOffset,
 		removeOpenings,
 		setOpeningKind,
@@ -170,6 +174,7 @@
 		type Face,
 		type OpeningKind,
 		type PlanGraph,
+		type PlanDoorBinding,
 		type PlanRoomMeta,
 		faceKey,
 		type PlanVertex,
@@ -218,6 +223,7 @@
 	let graph = $state<PlanGraph>({ vertices: [], walls: [] });
 	let rooms = $state<PlanRoomMeta[]>([]);
 	let placements = $state<FloorplanPlacementData[]>([]);
+	let doorBindings = $state<PlanDoorBinding[]>([]);
 	let furniture = $state<FloorplanFurnitureData[]>([]);
 	let draftFurniture = $state<FloorplanFurnitureData | null>(null);
 	let measureKind = $state<MeasureKind>("line");
@@ -253,6 +259,8 @@
 	let draftLabel = $state<{ point: Point; text: string } | null>(null);
 	let draftRoom = $state<{ a: Point; b: Point } | null>(null);
 	let draftPlacement = $state<PlacementView | null>(null);
+	let draftDoorBinding = $state<PlanDoorBinding | null>(null);
+	let draggedDoorDeviceId = $state<string | null>(null);
 
 	let brushOpen = $state(false);
 	let brushRadiusPx = $state(profile.get("map.brushRadius", undefined) ?? BRUSH_RADIUS_PX);
@@ -411,6 +419,8 @@
 	let markerMenuOpen = $state(false);
 	let openingMenu = $state<{ x: number; y: number; openingId: string } | null>(null);
 	let openingMenuOpen = $state(false);
+	let doorSensorMenu = $state<{ x: number; y: number; deviceId: string } | null>(null);
+	let doorSensorMenuOpen = $state(false);
 	let colorPickDeviceId = $state<string | null>(null);
 	let colorPickAt = $state<{ x: number; y: number }>({ x: 0, y: 0 });
 	let colorPickBoxEl = $state<HTMLDivElement | null>(null);
@@ -498,6 +508,21 @@
 			}),
 	);
 	const liveDeviceById = $derived(new Map(liveDevices.map((d) => [d.id, d])));
+	const boundDoorDeviceIds = $derived(new Set(doorBindings.map((binding) => binding.deviceId)));
+	const doorSensors = $derived(
+		doorBindings.flatMap((binding) => {
+			const device = deviceById.get(binding.deviceId);
+			return device ? [{ binding, device }] : [];
+		}),
+	);
+	const visibleDoorSensors = $derived(
+		doorSensors.filter(({ device }) => device.id !== draggedDoorDeviceId),
+	);
+	const draftDoorSensor = $derived.by(() => {
+		if (!draftDoorBinding) return null;
+		const device = deviceById.get(draftDoorBinding.deviceId);
+		return device ? { binding: draftDoorBinding, device } : null;
+	});
 	const hiveRoomById = $derived(
 		new Map(hiveRooms.map((r) => [r.id, { name: r.name ?? r.id, icon: r.icon }])),
 	);
@@ -540,18 +565,23 @@
 				placementKey(p),
 				resolveTargetDevices({ type: p.memberType, id: p.memberId }, pool, hiveGroups, hiveRooms, {
 					includeDisabled: true,
-				}),
+				}).filter((device) => !boundDoorDeviceIds.has(device.id)),
 			);
 		}
 		return out;
 	});
 	/** Device ids carrying a marker of their own — a group's glow skips them. */
 	const placedDeviceIds = $derived(
-		new Set(placements.filter((p) => p.memberType === "device").map((p) => p.memberId)),
+		new Set(
+			placements
+				.filter((p) => p.memberType === "device" && !boundDoorDeviceIds.has(p.memberId))
+				.map((p) => p.memberId),
+		),
 	);
 	const placementViews = $derived(
 		placements.flatMap((p): PlacementView[] => {
 			if (p.memberType === "device") {
+				if (boundDoorDeviceIds.has(p.memberId)) return [];
 				const device = (editMode ? deviceById : liveDeviceById).get(p.memberId);
 				return device ? [{ kind: "device", device, x: p.x, y: p.y }] : [];
 			}
@@ -861,6 +891,7 @@
 		graph: PlanGraph;
 		rooms: PlanRoomMeta[];
 		placements: FloorplanPlacementData[];
+		doorBindings: PlanDoorBinding[];
 		furniture: FloorplanFurnitureData[];
 		deviceDisplay: Record<string, DeviceDisplay>;
 	}
@@ -883,6 +914,7 @@
 			graph: $state.snapshot(graph),
 			rooms: $state.snapshot(rooms),
 			placements: $state.snapshot(placements),
+			doorBindings: $state.snapshot(doorBindings),
 			furniture: $state.snapshot(furniture),
 			deviceDisplay: $state.snapshot(deviceDisplay),
 		};
@@ -899,6 +931,7 @@
 		graph = plain.graph;
 		rooms = plain.rooms;
 		placements = plain.placements;
+		doorBindings = plain.doorBindings ?? [];
 		furniture = plain.furniture ?? [];
 		deviceDisplay = plain.deviceDisplay ?? {};
 		selection = { ...emptySelection };
@@ -918,6 +951,7 @@
 		// undo restores walls and lights together.
 		const before = history.current;
 		graph = normalized;
+		doorBindings = pruneDoorBindings(normalized, doorBindings);
 		rooms = nextRooms;
 		if (before) {
 			const carried = carryPlacements({
@@ -1224,18 +1258,39 @@
 		return p;
 	}
 
-	function handlePlacementPreview(ref: PlacementRef, p: Point) {
+	function handlePlacementPreview(ref: PlacementRef, p: Point, alt: boolean) {
+		const device = ref.memberType === "device" ? deviceById.get(ref.memberId) : null;
+		const target = device && isDoorSensor(device) ? doorTarget(p, alt) : null;
+		if (device && !bindingDragPlacementOrigin) {
+			bindingDragPlacementOrigin = $state.snapshot(placements);
+		}
+		draftDoorBinding = target ? { ...target.binding, deviceId: device!.id } : null;
+		const point = target?.geometry.center ?? (alt ? p : gridSnap(p));
 		const key = placementKey(ref);
 		placements = placements.map((pl) =>
-			placementKey(pl) === key ? { ...pl, x: p.x, y: p.y } : pl,
+			placementKey(pl) === key ? { ...pl, x: point.x, y: point.y } : pl,
 		);
 		const home = homeFaceFor(ref);
-		highlightFaceKey = home && !pointInPolygon(p, home.polygon) ? faceKey(home) : null;
+		highlightFaceKey =
+			!target && home && !pointInPolygon(point, home.polygon) ? faceKey(home) : null;
 	}
 
 	function handlePlacementDrop(ref: PlacementRef, p: Point, alt: boolean) {
+		const device = ref.memberType === "device" ? deviceById.get(ref.memberId) : null;
+		const target = device && isDoorSensor(device) ? doorTarget(p, alt) : null;
+		if (device && target) {
+			const base = bindingDragPlacementOrigin ?? $state.snapshot(placements);
+			bindingDragPlacementOrigin = null;
+			draftDoorBinding = null;
+			highlightFaceKey = null;
+			requestDoorBinding({ ...target.binding, deviceId: device.id }, base);
+			return;
+		}
+		bindingDragPlacementOrigin = null;
+		draftDoorBinding = null;
 		const key = placementKey(ref);
-		const settled = settlePlacement(ref, p, alt);
+		const snapped = alt ? p : gridSnap(p);
+		const settled = settlePlacement(ref, snapped, alt);
 		placements = placements.map((pl) =>
 			placementKey(pl) === key ? { ...pl, x: settled.x, y: settled.y } : pl,
 		);
@@ -1249,8 +1304,28 @@
 		takeSnapshot();
 	}
 
-	let pendingPlacement = $state<{ placement: Placement; conflict: PlacementConflict } | null>(null);
+	let pendingPlacement = $state<{
+		placement: Placement;
+		conflict: PlacementConflict;
+		detachDoorDeviceId: string | null;
+	} | null>(null);
 	let conflictOpen = $state(false);
+	let bindingDragPlacementOrigin: FloorplanPlacementData[] | null = null;
+	let pendingDoorBinding = $state<{
+		binding: PlanDoorBinding;
+		conflict: PlacementConflict;
+		replaced: PlanDoorBinding | null;
+	} | null>(null);
+	let doorConflictOpen = $state(false);
+
+	function isDoorSensor(device: Device): boolean {
+		return device.roles.contact === ContactRole.Door;
+	}
+
+	function doorTarget(point: Point, alt: boolean) {
+		if (alt || snapOff || !editorApi) return null;
+		return doorSnapTarget(graph, point, 28 / editorApi.getZoom());
+	}
 
 	function refLabel(ref: PlacementRef): string {
 		if (ref.memberType === "group") {
@@ -1265,15 +1340,18 @@
 	 * displacement and the insertion ship as one list assignment plus one
 	 * snapshot, so undo restores both halves together.
 	 */
-	function requestPlacement(placement: Placement) {
+	function requestPlacement(placement: Placement, detachDoorDeviceId: string | null = null) {
 		const existing = $state.snapshot(placements);
 		const conflict = placementConflicts(placement, existing, deviceIdsForRef);
 		if (needsConfirmation(placement, conflict)) {
-			pendingPlacement = { placement, conflict };
+			pendingPlacement = { placement, conflict, detachDoorDeviceId };
 			conflictOpen = true;
 			return;
 		}
 		placements = applyPlacement(existing, placement, conflict);
+		if (detachDoorDeviceId) {
+			doorBindings = doorBindings.filter((binding) => binding.deviceId !== detachDoorDeviceId);
+		}
 		takeSnapshot();
 	}
 
@@ -1283,12 +1361,66 @@
 		pendingPlacement = null;
 		if (!pending) return;
 		placements = applyPlacement($state.snapshot(placements), pending.placement, pending.conflict);
+		if (pending.detachDoorDeviceId) {
+			doorBindings = doorBindings.filter(
+				(binding) => binding.deviceId !== pending.detachDoorDeviceId,
+			);
+		}
 		takeSnapshot();
 	}
 
 	function cancelPlacement() {
 		conflictOpen = false;
 		pendingPlacement = null;
+	}
+
+	function requestDoorBinding(
+		binding: PlanDoorBinding,
+		basePlacements: FloorplanPlacementData[] = $state.snapshot(placements),
+	) {
+		const ref = { memberType: "device" as const, memberId: binding.deviceId };
+		const conflict = placementConflicts(ref, basePlacements, deviceIdsForRef);
+		const replaced =
+			doorBindings.find(
+				(existing) =>
+					existing.openingId === binding.openingId && existing.deviceId !== binding.deviceId,
+			) ?? null;
+		if (replaced || needsConfirmation(ref, conflict)) {
+			placements = basePlacements;
+			pendingDoorBinding = { binding, conflict, replaced };
+			doorConflictOpen = true;
+			return;
+		}
+		applyDoorBinding(binding, conflict, basePlacements);
+	}
+
+	function applyDoorBinding(
+		binding: PlanDoorBinding,
+		conflict: PlacementConflict,
+		basePlacements: FloorplanPlacementData[] = $state.snapshot(placements),
+	) {
+		const displaced = new Set(conflict.displaced.map(placementKey));
+		placements = basePlacements.filter((placement) => !displaced.has(placementKey(placement)));
+		doorBindings = [
+			...doorBindings.filter(
+				(existing) =>
+					existing.deviceId !== binding.deviceId && existing.openingId !== binding.openingId,
+			),
+			binding,
+		];
+		takeSnapshot();
+	}
+
+	function confirmDoorBinding() {
+		const pending = pendingDoorBinding;
+		doorConflictOpen = false;
+		pendingDoorBinding = null;
+		if (pending) applyDoorBinding(pending.binding, pending.conflict);
+	}
+
+	function cancelDoorBinding() {
+		doorConflictOpen = false;
+		pendingDoorBinding = null;
 	}
 
 	function startRoomDrag(kind: "hive-room" | "detached", id: string, text: string, e: PointerEvent) {
@@ -1302,6 +1434,34 @@
 		externalDrag = { kind: "placement", placement: view };
 		draftPlacement = view;
 		moveExternalDrag(e);
+	}
+
+	function handleDoorSensorDragStart(deviceId: string) {
+		draggedDoorDeviceId = deviceId;
+	}
+
+	function handleDoorSensorPreview(deviceId: string, point: Point, alt: boolean) {
+		const device = deviceById.get(deviceId);
+		if (!device) return;
+		const target = doorTarget(point, alt);
+		draftDoorBinding = target ? { ...target.binding, deviceId } : null;
+		const at = target?.geometry.center ?? (alt ? point : gridSnap(point));
+		draftPlacement = { kind: "device", device, x: at.x, y: at.y };
+	}
+
+	function handleDoorSensorDrop(deviceId: string, point: Point, alt: boolean) {
+		const target = doorTarget(point, alt);
+		draftDoorBinding = null;
+		draftPlacement = null;
+		draggedDoorDeviceId = null;
+		if (target) {
+			requestDoorBinding({ ...target.binding, deviceId });
+			return;
+		}
+		const ref = { memberType: "device" as const, memberId: deviceId };
+		const snapped = alt ? point : gridSnap(point);
+		const settled = clearOfOccluders(settlePlacement(ref, snapped, alt));
+		requestPlacement({ ...ref, x: settled.x, y: settled.y }, deviceId);
 	}
 
 	function startGroupDrag(group: PanelGroup, e: PointerEvent) {
@@ -1409,11 +1569,15 @@
 			return;
 		}
 		if (externalDrag.kind === "placement" && dragged) {
-			const snapped = e.altKey ? p : gridSnap(p);
+			const alt = e.altKey || snapOff;
+			const device = dragged.kind === "device" ? dragged.device : null;
+			const target = device && isDoorSensor(device) ? doorTarget(p, alt) : null;
+			draftDoorBinding = target ? { ...target.binding, deviceId: device!.id } : null;
+			const snapped = target?.geometry.center ?? (alt ? p : gridSnap(p));
 			draftPlacement = { ...dragged, x: snapped.x, y: snapped.y };
 			const home = homeFaceFor(placementViewRef(dragged));
 			highlightFaceKey =
-				home && !pointInPolygon(snapped, home.polygon) && !e.altKey ? faceKey(home) : null;
+				!target && home && !pointInPolygon(snapped, home.polygon) && !alt ? faceKey(home) : null;
 		} else {
 			draftLabel = { point: p, text: externalDrag.text ?? "" };
 			const face = faceContainingPoint(faces, p);
@@ -1440,8 +1604,15 @@
 		}
 		if (drag.kind === "placement" && drag.placement) {
 			const ref = placementViewRef(drag.placement);
-			const snapped = e.altKey ? p : gridSnap(p);
-			const settled = clearOfOccluders(settlePlacement(ref, snapped, e.altKey));
+			const alt = e.altKey || snapOff;
+			const device = drag.placement.kind === "device" ? drag.placement.device : null;
+			const target = device && isDoorSensor(device) ? doorTarget(p, alt) : null;
+			if (device && target) {
+				requestDoorBinding({ ...target.binding, deviceId: device.id });
+				return;
+			}
+			const snapped = alt ? p : gridSnap(p);
+			const settled = clearOfOccluders(settlePlacement(ref, snapped, alt));
 			requestPlacement({ ...ref, x: settled.x, y: settled.y });
 			return;
 		}
@@ -1462,6 +1633,8 @@
 		draftLabel = null;
 		draftRoom = null;
 		draftPlacement = null;
+		draftDoorBinding = null;
+		draggedDoorDeviceId = null;
 		draftFurniture = null;
 		highlightFaceKey = null;
 	}
@@ -1507,7 +1680,15 @@
 		if (saving || !isDirty) return;
 		saving = true;
 		try {
-			const input = buildUpdateFloorplanInput(planId, planName, graph, rooms, placements, furniture);
+			const input = buildUpdateFloorplanInput(
+				planId,
+				planName,
+				graph,
+				rooms,
+				placements,
+				furniture,
+				doorBindings,
+			);
 			try {
 				await floorplanStore.save(client, input);
 			} catch (e) {
@@ -1644,6 +1825,65 @@
 		changedDisplay = false;
 	}
 
+	function handleDoorSensorMenu(deviceId: string, clientX: number, clientY: number) {
+		if (!editMode) return;
+		faceMenuOpen = false;
+		markerMenuOpen = false;
+		openingMenuOpen = false;
+		doorSensorMenu = { x: clientX, y: clientY, deviceId };
+		doorSensorMenuOpen = true;
+	}
+
+	function closeDoorSensorMenu(): string | null {
+		const id = doorSensorMenu?.deviceId ?? null;
+		doorSensorMenuOpen = false;
+		doorSensorMenu = null;
+		return id;
+	}
+
+	function menuOpenDoorSensorDevice() {
+		const id = closeDoorSensorMenu();
+		if (id) goto(`/devices/${id}`);
+	}
+
+	function detachDoorSensor(deviceId: string) {
+		doorBindings = doorBindings.filter((binding) => binding.deviceId !== deviceId);
+		takeSnapshot();
+	}
+
+	function menuDetachDoorSensor() {
+		const id = closeDoorSensorMenu();
+		if (id) detachDoorSensor(id);
+	}
+
+	function updateDoorSensorBinding(
+		deviceId: string,
+		update: (binding: PlanDoorBinding) => PlanDoorBinding,
+	) {
+		doorBindings = doorBindings.map((binding) =>
+			binding.deviceId === deviceId ? update(binding) : binding,
+		);
+		takeSnapshot();
+	}
+
+	function menuFlipDoorHinge() {
+		const id = closeDoorSensorMenu();
+		if (!id) return;
+		updateDoorSensorBinding(id, (binding) => ({
+			...binding,
+			hingeSide: binding.hingeSide === "start" ? "end" : "start",
+		}));
+	}
+
+	function menuFlipDoorSwing() {
+		const id = closeDoorSensorMenu();
+		if (!id) return;
+		updateDoorSensorBinding(id, (binding) => ({
+			...binding,
+			swingSide: binding.swingSide === "left" ? "right" : "left",
+		}));
+	}
+
 	const colorPickDevice = $derived(
 		colorPickDeviceId ? (allDevices.find((d) => d.id === colorPickDeviceId) ?? null) : null,
 	);
@@ -1697,9 +1937,16 @@
 		}
 		return null;
 	});
+	const openingMenuBinding = $derived.by(() => {
+		const menu = openingMenu;
+		return menu
+			? (doorBindings.find((binding) => binding.openingId === menu.openingId) ?? null)
+			: null;
+	});
 
 	function menuSetOpeningKind(kind: OpeningKind) {
 		const m = openingMenu;
+		if (m && openingMenuBinding && kind !== "door") return;
 		openingMenuOpen = false;
 		openingMenu = null;
 		if (!m) return;
@@ -1715,6 +1962,7 @@
 
 	function menuRemoveOpening() {
 		const m = openingMenu;
+		if (m && openingMenuBinding) return;
 		openingMenuOpen = false;
 		openingMenu = null;
 		if (m) dropOpenings([m.openingId]);
@@ -1859,6 +2107,7 @@
 			graph = converted.graph;
 			rooms = converted.rooms;
 			placements = converted.placements;
+			doorBindings = converted.doorBindings;
 			furniture = converted.furniture;
 		} else {
 			planId = newPlanId();
@@ -1990,6 +2239,7 @@
 		panelRoomDevices.map((device) => ({
 			device,
 			placed: placedKeys.has(placementKey({ memberType: "device", memberId: device.id })),
+			attached: boundDoorDeviceIds.has(device.id),
 		})),
 	);
 	/** Groups reaching into the selected room, derived from device-set overlap. */
@@ -2105,6 +2355,8 @@
 						txPulses={meshPulses}
 						hideReadings={mapView === "connectivity"}
 						placements={visiblePlacements}
+						doorSensors={visibleDoorSensors}
+						{draftDoorSensor}
 						{furniture}
 						{draftFurniture}
 						selectedFurnitureId={selection.furnitureId}
@@ -2124,6 +2376,15 @@
 						onsnapshot={takeSnapshot}
 						onplacementpreview={handlePlacementPreview}
 						onplacementdrop={handlePlacementDrop}
+						ondoorsensordragstart={handleDoorSensorDragStart}
+						ondoorsensorpreview={handleDoorSensorPreview}
+						ondoorsensordrop={handleDoorSensorDrop}
+						ondoorsensorcancel={() => {
+							draftDoorBinding = null;
+							draftPlacement = null;
+							draggedDoorDeviceId = null;
+						}}
+						ondoorsensormenu={handleDoorSensorMenu}
 						onmarkertap={handleMarkerTap}
 						onmarkermenu={handleMarkerMenu}
 						{openingKind}
@@ -2317,6 +2578,7 @@
 			ondragend={endExternalDrag}
 			ondragcancel={clearExternalDrag}
 			onremoveplacement={removePlacement}
+			ondetachdoor={detachDoorSensor}
 			onclose={() => (selection = { ...emptySelection })}
 		/>
 	{/key}
@@ -2389,18 +2651,50 @@
 		</DropdownMenuItem>
 </PlanPointMenu>
 
+<PlanPointMenu
+	bind:open={doorSensorMenuOpen}
+	at={doorSensorMenu}
+	onclose={() => (doorSensorMenu = null)}
+>
+	<DropdownMenuItem onclick={menuOpenDoorSensorDevice}>
+		<ExternalLink class="size-3.5" />
+		Open device
+	</DropdownMenuItem>
+	<DropdownMenuItem onclick={menuFlipDoorHinge}>
+		<FlipHorizontal2 class="size-3.5" />
+		Flip hinge
+	</DropdownMenuItem>
+	<DropdownMenuItem onclick={menuFlipDoorSwing}>
+		<FlipVertical2 class="size-3.5" />
+		Flip swing side
+	</DropdownMenuItem>
+	<DropdownMenuSeparator />
+	<DropdownMenuItem onclick={menuDetachDoorSensor}>
+		<Unlink class="size-3.5" />
+		Detach sensor
+	</DropdownMenuItem>
+</PlanPointMenu>
+
 <PlanPointMenu bind:open={openingMenuOpen} at={openingMenu} onclose={() => (openingMenu = null)}>
 		{#each openingKinds as k (k.id)}
-			<DropdownMenuItem disabled={openingMenuKind === k.id} onclick={() => menuSetOpeningKind(k.id)}>
+			<DropdownMenuItem
+				disabled={openingMenuKind === k.id || (openingMenuBinding !== null && k.id !== "door")}
+				onclick={() => menuSetOpeningKind(k.id)}
+			>
 				<k.icon class="size-3.5" />
 				{k.label}
 			</DropdownMenuItem>
 		{/each}
 		<DropdownMenuSeparator />
-		<DropdownMenuItem onclick={menuRemoveOpening}>
+		<DropdownMenuItem disabled={openingMenuBinding !== null} onclick={menuRemoveOpening}>
 			<X class="size-3.5" />
 			Remove opening
 		</DropdownMenuItem>
+		{#if openingMenuBinding}
+			<div class="px-2 pt-1.5 pb-1 text-xs text-muted-foreground">
+				Detach the sensor before changing or removing this door.
+			</div>
+		{/if}
 </PlanPointMenu>
 
 <PlanPointMenu bind:open={faceMenuOpen} at={faceMenu}>
@@ -2466,6 +2760,35 @@
 			<div class="mt-2 flex flex-wrap gap-1.5">
 				{#each pendingPlacement.conflict.displaced as d (placementKey(d))}
 					<HiveChip type={d.memberType} label={refLabel(d)} />
+				{/each}
+			</div>
+		</div>
+	{/if}
+</ConfirmDialog>
+
+<ConfirmDialog
+	bind:open={doorConflictOpen}
+	title={pendingDoorBinding?.replaced ? "Door already has a sensor" : "Already on the map"}
+	description="Attaching this sensor removes the conflicting map representation."
+	confirmLabel={pendingDoorBinding?.replaced ? "Replace and attach" : "Remove and attach"}
+	variant="default"
+	onconfirm={confirmDoorBinding}
+	oncancel={cancelDoorBinding}
+>
+	{#if pendingDoorBinding}
+		<div class="rounded-lg bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+			<div class="flex flex-wrap gap-1.5">
+				{#if pendingDoorBinding.replaced}
+					<HiveChip
+						type="device"
+						label={refLabel({
+							memberType: "device",
+							memberId: pendingDoorBinding.replaced.deviceId,
+						})}
+					/>
+				{/if}
+				{#each pendingDoorBinding.conflict.displaced as displaced (placementKey(displaced))}
+					<HiveChip type={displaced.memberType} label={refLabel(displaced)} />
 				{/each}
 			</div>
 		</div>

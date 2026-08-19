@@ -1,7 +1,11 @@
 <script lang="ts" module>
 	import { placementKey } from "$lib/floorplan/placement-conflicts";
 	import type { PlacementRef } from "$lib/floorplan/placement-conflicts";
-	import type { Face as PlanFace, Point as PlanPoint } from "$lib/floorplan";
+	import type {
+		Face as PlanFace,
+		PlanDoorBinding,
+		Point as PlanPoint,
+	} from "$lib/floorplan";
 	import type { Device as PlanDevice } from "$lib/gql/graphql";
 
 	export type EditorTool = "select" | "wall" | "rect" | "opening" | "measure";
@@ -57,6 +61,11 @@
 				x: number;
 				y: number;
 		  };
+
+	export interface DoorSensorView {
+		binding: PlanDoorBinding;
+		device: PlanDevice;
+	}
 
 	/** The target a marker stands for. */
 	export function placementViewRef(pl: PlacementView): PlacementRef {
@@ -147,6 +156,7 @@
 		type PlanVertex,
 		type PlanWall,
 		type Point,
+		doorBindingViews as buildDoorBindingViews,
 		type SnapResult,
 	} from "$lib/floorplan";
 	import {
@@ -171,6 +181,7 @@
 	import type { DeviceState } from "$lib/gql/graphql";
 	import { fade } from "svelte/transition";
 	import FurniturePiece from "$lib/components/floorplan/furniture-piece.svelte";
+	import DoorLeaf from "$lib/components/floorplan/door-leaf.svelte";
 	import type { FloorplanFurnitureData } from "$lib/floorplan-editable";
 	import {
 		furnitureContainsPoint,
@@ -276,8 +287,17 @@
 		ondetach?: (graph: PlanGraph, prevFaceKey: string, idMap: Map<string, string>) => void;
 		/** A multi-commit gesture (wall polyline) ended; take one snapshot. */
 		onsnapshot: () => void;
-		onplacementpreview?: (ref: PlacementRef, p: Point) => void;
+		onplacementpreview?: (ref: PlacementRef, p: Point, alt: boolean) => void;
 		onplacementdrop?: (ref: PlacementRef, p: Point, alt: boolean) => void;
+		/** Door-role contact sensors attached to architectural doors. */
+		doorSensors?: DoorSensorView[];
+		/** Inferred door posture while a sensor is near an attachment target. */
+		draftDoorSensor?: DoorSensorView | null;
+		ondoorsensordragstart?: (deviceId: string) => void;
+		ondoorsensorpreview?: (deviceId: string, p: Point, alt: boolean) => void;
+		ondoorsensordrop?: (deviceId: string, p: Point, alt: boolean) => void;
+		ondoorsensorcancel?: () => void;
+		ondoorsensormenu?: (deviceId: string, clientX: number, clientY: number) => void;
 		/** Fires on every pan/zoom step so screen-anchored chrome can follow. */
 		onviewportchange?: () => void;
 		onready?: (api: FloorplanEditorApi) => void;
@@ -334,6 +354,13 @@
 		onsnapshot,
 		onplacementpreview,
 		onplacementdrop,
+		doorSensors = [],
+		draftDoorSensor = null,
+		ondoorsensordragstart,
+		ondoorsensorpreview,
+		ondoorsensordrop,
+		ondoorsensorcancel,
+		ondoorsensormenu,
 		onviewportchange,
 		onready,
 	}: Props = $props();
@@ -468,7 +495,16 @@
 	});
 
 	interface DragState {
-		kind: "vertex" | "wall" | "face" | "marker" | "opening" | "openingEdge" | "bend" | "furniture";
+		kind:
+			| "vertex"
+			| "wall"
+			| "face"
+			| "marker"
+			| "doorSensor"
+			| "opening"
+			| "openingEdge"
+			| "bend"
+			| "furniture";
 		pointerId: number;
 		start: Point;
 		moved: boolean;
@@ -478,6 +514,7 @@
 		origin?: Map<string, Point>;
 		faceIndex?: number;
 		placementRef?: PlacementRef;
+		doorDeviceId?: string;
 		openingId?: string;
 		/** Arc length of the end a width drag pivots around, in meters. */
 		openingAnchorS?: number;
@@ -503,6 +540,17 @@
 	function hitMarker(p: Point): PlacementView | null {
 		const grab = grabAt(p);
 		return grab?.kind === "marker" ? placements[grab.index] : null;
+	}
+
+	function hitDoorSensor(p: Point) {
+		if (live) return null;
+		for (let i = boundDoorViews.length - 1; i >= 0; i--) {
+			const view = boundDoorViews[i];
+			if (Math.hypot(view.geometry.center.x - p.x, view.geometry.center.y - p.y) <= 16 / pxPerM) {
+				return view;
+			}
+		}
+		return null;
 	}
 
 	interface DrawState {
@@ -648,8 +696,9 @@
 		if (tool !== prevTool || live !== prevLive) {
 			prevTool = tool;
 			prevLive = live;
-			untrack(() => {
+		untrack(() => {
 				cancelDraw();
+				if (drag?.kind === "doorSensor") ondoorsensorcancel?.();
 				drag = null;
 				marquee = null;
 				hover = null;
@@ -672,6 +721,27 @@
 
 
 	const allOpeningViews = $derived(buildOpeningViews(graph));
+	const boundDoorViews = $derived.by(() => {
+		const devices = new Map(doorSensors.map((sensor) => [sensor.binding.openingId, sensor.device]));
+		return buildDoorBindingViews(
+			graph,
+			doorSensors.map((sensor) => sensor.binding),
+		).flatMap((view) => {
+			const device = devices.get(view.binding.openingId);
+			return device ? [{ ...view, device }] : [];
+		});
+	});
+	const draftDoorView = $derived.by(() => {
+		if (!draftDoorSensor) return null;
+		const view = buildDoorBindingViews(graph, [draftDoorSensor.binding])[0];
+		return view ? { ...view, device: draftDoorSensor.device } : null;
+	});
+	const boundOpeningIds = $derived(
+		new Set([
+			...boundDoorViews.map((view) => view.opening.id),
+			...(draftDoorView ? [draftDoorView.opening.id] : []),
+		]),
+	);
 	/** The openings the pointer can act on; none in live mode, where none are editable. */
 	const openingViews = $derived(live ? [] : allOpeningViews);
 	/**
@@ -683,10 +753,11 @@
 	const strokedOpenings = $derived(
 		allOpeningViews.filter(
 			(v) =>
-				v.opening.kind === "window" ||
-				v.opening.kind === "door" ||
-				selectedOpeningSet.has(v.opening.id) ||
-				(hover?.kind === "opening" && hover.id === v.opening.id),
+				!boundOpeningIds.has(v.opening.id) &&
+				(v.opening.kind === "window" ||
+					v.opening.kind === "door" ||
+					selectedOpeningSet.has(v.opening.id) ||
+					(hover?.kind === "opening" && hover.id === v.opening.id)),
 		),
 	);
 
@@ -1008,6 +1079,22 @@
 			}
 		}
 
+		const doorSensor = hitDoorSensor(p);
+		if (doorSensor) {
+			e.preventDefault();
+			armDoorSensorHold(doorSensor.device.id, e);
+			ondoorsensordragstart?.(doorSensor.device.id);
+			drag = {
+				kind: "doorSensor",
+				pointerId: e.pointerId,
+				start: p,
+				moved: false,
+				doorDeviceId: doorSensor.device.id,
+			};
+			svgEl.setPointerCapture(e.pointerId);
+			return;
+		}
+
 		const grab = grabAt(p);
 		if (grab?.kind === "marker") {
 			const m = placements[grab.index];
@@ -1211,6 +1298,7 @@
 	/** Drop every in-flight single-pointer gesture without committing anything. */
 	function abandonGesture() {
 		clearFaceHold();
+		if (drag?.kind === "doorSensor") ondoorsensorcancel?.();
 		drag = null;
 		faceDragBase = null;
 		faceDragDetach = null;
@@ -1237,6 +1325,7 @@
 			y: e.clientY,
 			timer: setTimeout(() => {
 				faceHold = null;
+				if (drag?.kind === "doorSensor") ondoorsensorcancel?.();
 				drag = null;
 				// The hold has claimed this press: the release must not also read as
 				// a click, or the menu opens on top of a selection or a marker toggle.
@@ -1264,6 +1353,11 @@
 	function armMarkerHold(placement: PlacementView, e: PointerEvent) {
 		if (!onmarkermenu) return;
 		armHold(e, () => onmarkermenu(placement, e.clientX, e.clientY));
+	}
+
+	function armDoorSensorHold(deviceId: string, e: PointerEvent) {
+		if (!ondoorsensormenu) return;
+		armHold(e, () => ondoorsensormenu(deviceId, e.clientX, e.clientY));
 	}
 
 	function armOpeningHold(openingId: string, e: PointerEvent) {
@@ -1301,7 +1395,8 @@
 		faceDragBase = null;
 		wallDragBase = null;
 		faceDragDetach = null;
-		if (d.moved && d.kind !== "marker") oncommit(graph, { snapshot: true });
+		if (d.kind === "doorSensor") ondoorsensorcancel?.();
+		else if (d.moved && d.kind !== "marker") oncommit(graph, { snapshot: true });
 	}
 
 	function handleContextMenu(e: MouseEvent) {
@@ -1321,6 +1416,11 @@
 		if (!svgEl) return;
 		const e = { clientX, clientY };
 		const p = clientToWorld(clientX, clientY);
+		const doorSensor = hitDoorSensor(p);
+		if (doorSensor && ondoorsensormenu) {
+			ondoorsensormenu(doorSensor.device.id, e.clientX, e.clientY);
+			return;
+		}
 		// Markers sit above faces, so they claim the menu first — and they carry
 		// one in live mode too, where the face menu is an editing affordance.
 		const marker = hitMarker(p);
@@ -1397,8 +1497,10 @@
 			// without this a slow touch drag would open the room menu and drop
 			// the gesture mid-flight.
 			clearFaceHold();
-			if (drag.kind === "marker" && drag.placementRef) {
-				onplacementpreview?.(drag.placementRef, markerSnap(p, noSnap(e)));
+			if (drag.kind === "doorSensor" && drag.doorDeviceId) {
+				ondoorsensorpreview?.(drag.doorDeviceId, p, noSnap(e));
+			} else if (drag.kind === "marker" && drag.placementRef) {
+				onplacementpreview?.(drag.placementRef, p, noSnap(e));
 			} else if (drag.kind === "vertex" && drag.vertexId) {
 				const snap = resolveSnap(p, {
 					graph,
@@ -1639,8 +1741,10 @@
 									noSnap(e),
 								);
 					onfurniturecommit?.(settled);
+				} else if (d.kind === "doorSensor" && d.doorDeviceId) {
+					ondoorsensordrop?.(d.doorDeviceId, p, noSnap(e));
 				} else if (d.kind === "marker" && d.placementRef) {
-					onplacementdrop?.(d.placementRef, markerSnap(p, noSnap(e)), noSnap(e));
+					onplacementdrop?.(d.placementRef, p, noSnap(e));
 				} else if (d.kind === "face" && d.origin) {
 					oncommit(clipDraggedRoom(d.origin), { snapshot: true });
 				} else {
@@ -1664,6 +1768,10 @@
 				return;
 			}
 			// A press that never moved is a click: selection.
+			if (d.kind === "doorSensor") {
+				ondoorsensorcancel?.();
+				return;
+			}
 			applyClickSelection(e, p);
 			return;
 		}
@@ -1715,7 +1823,7 @@
 			const to = markerSnap({ x: from.x + dx, y: from.y + dy }, alt);
 			const ref = placementViewRef(pl);
 			if (commit) onplacementdrop?.(ref, to, alt);
-			else onplacementpreview?.(ref, to);
+			else onplacementpreview?.(ref, to, alt);
 		}
 	}
 
@@ -2104,6 +2212,30 @@
 				</g>
 
 				<g>
+					{#each boundDoorViews as view (view.binding.openingId)}
+						<DoorLeaf
+							geometry={view.geometry}
+							open={view.device.state?.contact === false}
+							showArc={!live}
+							active={selectedOpeningSet.has(view.opening.id) ||
+								(hover?.kind === "opening" && hover.id === view.opening.id)}
+							muted={view.device.disabled ||
+								!view.device.available ||
+								view.device.state?.contact == null}
+						/>
+					{/each}
+					{#if draftDoorView}
+						<DoorLeaf
+							geometry={draftDoorView.geometry}
+							open={true}
+							showArc={true}
+							active={true}
+							draft={true}
+						/>
+					{/if}
+				</g>
+
+				<g>
 					{#each openingViews.filter((v) => selectedOpeningSet.has(v.opening.id)) as { opening, span } (opening.id)}
 						{#each [span[0], span[span.length - 1]] as end, i (i)}
 							<circle
@@ -2267,6 +2399,16 @@
 				{/if}
 
 				<g>
+					{#if !live}
+						{#each boundDoorViews as view (view.binding.deviceId)}
+							<DeviceMarker
+								device={view.device}
+								x={view.geometry.center.x}
+								y={view.geometry.center.y}
+								{pxPerM}
+							/>
+						{/each}
+					{/if}
 					{#each placements as pl (placementViewKey(pl))}
 						{@const key = placementViewKey(pl)}
 						<!-- A marker leaving the map fades over the same 300 ms as the

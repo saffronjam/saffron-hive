@@ -4,6 +4,7 @@
 	export interface DeviceRow {
 		device: Device;
 		placed: boolean;
+		attached: boolean;
 	}
 
 	/** The group half of a panel row: what it takes to render and drag one out. */
@@ -50,6 +51,7 @@
 		ondragend: (e: PointerEvent) => void;
 		ondragcancel: () => void;
 		onremoveplacement: (ref: PlacementRef) => void;
+		ondetachdoor: (deviceId: string) => void;
 		onclose: () => void;
 	}
 
@@ -65,6 +67,7 @@
 		ondragend,
 		ondragcancel,
 		onremoveplacement,
+		ondetachdoor,
 		onclose,
 	}: Props = $props();
 
@@ -98,7 +101,7 @@
 		{/if}
 	</div>
 
-	{#if deviceRows.some((r) => !r.placed) || groupRows.some((r) => !r.placed)}
+	{#if deviceRows.some((r) => !r.placed && !r.attached) || groupRows.some((r) => !r.placed)}
 		<p class="mt-1 text-xs text-muted-foreground">Drag a device or group onto the plan.</p>
 	{/if}
 
@@ -144,9 +147,9 @@
 				class="flex touch-pan-y items-center gap-2 rounded-md px-1.5 py-1 text-sm select-none {row
 					.device.disabled
 					? 'opacity-60'
-					: ''} {row.placed ? 'text-muted-foreground' : 'cursor-grab hover:bg-accent/50'}"
+					: ''} {row.placed || row.attached ? 'text-muted-foreground' : 'cursor-grab hover:bg-accent/50'}"
 				use:holdDrag={{
-					disabled: row.placed,
+					disabled: row.placed || row.attached,
 					mouseImmediate: true,
 					onstart: (e) => ondevicedragstart(row.device, e),
 					onmove: ondragmove,
@@ -154,14 +157,22 @@
 					oncancel: ondragcancel,
 				}}
 			>
-				<HiveIcon type={row.device.type} iconOverride={row.device.icon} class="size-4 shrink-0" />
+				<HiveIcon
+					type={row.device.type}
+					contactRole={row.device.roles.contact}
+					iconOverride={row.device.icon}
+					class="size-4 shrink-0"
+				/>
 				<span class="min-w-0 flex-1 truncate">{deviceDisplayName(row.device)}</span>
-				{#if row.placed}
-					<span class="text-xs">Placed</span>
+				{#if row.placed || row.attached}
+					<span class="text-xs">{row.attached ? "Attached" : "Placed"}</span>
 					<Button
 						variant="ghost"
 						size="icon-xs"
-						onclick={() => onremoveplacement({ memberType: "device", memberId: row.device.id })}
+						onclick={() =>
+							row.attached
+								? ondetachdoor(row.device.id)
+								: onremoveplacement({ memberType: "device", memberId: row.device.id })}
 						aria-label="Remove from map"
 					>
 						<X class="size-3.5" />
