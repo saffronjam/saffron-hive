@@ -84,7 +84,7 @@
 
 	function isScenePickerTarget(d: Device): boolean {
 		const has = (n: string) =>
-			d.capabilities.some((c) => c.name === n && (c.access & 2) !== 0);
+			d.capabilities.some((c) => c.name === n && c.canSet);
 		return has("on_off") || has("state") || has("brightness") || has("color") || has("color_temp");
 	}
 
@@ -119,7 +119,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${deviceDisplayName(d)} ${d.type}`,
 				})),

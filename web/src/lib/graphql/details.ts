@@ -37,7 +37,12 @@ export const SCENE_DETAIL_QUERY = graphql(`
               valueMin
               valueMax
               unit
-              access
+              canSet
+              reportsValue
+              canGet
+              category
+              label
+              description
             }
             available
             disabled
@@ -94,7 +99,12 @@ export const SCENE_DETAIL_QUERY = graphql(`
                 valueMin
                 valueMax
                 unit
-                access
+                canSet
+                reportsValue
+                canGet
+                category
+                label
+                description
               }
               state {
                 on
@@ -142,7 +152,12 @@ export const SCENE_DETAIL_QUERY = graphql(`
                 valueMin
                 valueMax
                 unit
-                access
+                canSet
+                reportsValue
+                canGet
+                category
+                label
+                description
               }
               state {
                 on

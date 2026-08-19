@@ -490,6 +490,7 @@
 		{#if isDeviceRow}
 			<HiveIcon
 				type={node.target.deviceType ?? "device"}
+				contactRole={deviceForRow?.roles.contact}
 				class="size-4 shrink-0 text-muted-foreground"
 			/>
 		{:else}
@@ -607,7 +608,11 @@
 	{@const leafHasRich =
 		leafCaps.hasBrightness || leafCaps.hasColor || leafCaps.hasColorTemp}
 	<div class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60">
-		<HiveIcon type={device.type} class="size-4 shrink-0 text-muted-foreground" />
+		<HiveIcon
+			type={device.type}
+			contactRole={device.roles.contact}
+			class="size-4 shrink-0 text-muted-foreground"
+		/>
 		<span class="truncate text-sm">{device.name}</span>
 		<span class="flex-1"></span>
 		<div

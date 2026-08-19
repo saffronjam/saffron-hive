@@ -72,7 +72,7 @@
 							# non-null, and GraphQL will not merge fields of differing nullability.
 							deviceName: name
 							type
-							capabilities { name type values valueMin valueMax unit access }
+							capabilities { name type values valueMin valueMax unit canSet reportsValue canGet category label description }
 							available
 							disabled
 							friendlyName
@@ -115,7 +115,7 @@
 								friendlyName
 								seen
 								lastSeen
-								capabilities { name type values valueMin valueMax unit access }
+								capabilities { name type values valueMin valueMax unit canSet reportsValue canGet category label description }
 								state {
 									on
 									brightness
@@ -149,7 +149,7 @@
 								friendlyName
 								seen
 								lastSeen
-								capabilities { name type values valueMin valueMax unit access }
+								capabilities { name type values valueMin valueMax unit canSet reportsValue canGet category label description }
 								state {
 									on
 									brightness
@@ -327,7 +327,7 @@
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type),
+					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
 					searchValue: `${deviceDisplayName(d)} ${d.type}`,
 				})),
