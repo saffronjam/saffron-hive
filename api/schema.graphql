@@ -9,14 +9,32 @@ setupStatus, me).
 """
 directive @auth on FIELD_DEFINITION
 
+enum CapabilityCategory {
+  STATE
+  CONFIGURATION
+  DIAGNOSTIC
+}
+
 type Capability {
   name: String!
   type: String!
+  label: String
+  description: String
+  category: CapabilityCategory!
   values: [String!]
   valueMin: Float
   valueMax: Float
   unit: String
-  access: Int!
+  reportsValue: Boolean!
+  canSet: Boolean!
+  canGet: Boolean!
+}
+
+type DeviceConfigurationEntry {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
 }
 
 type Device {
@@ -45,7 +63,7 @@ type Device {
   displayBrightness: Int
   source: String!
   type: String!
-  tags: [DeviceTag!]!
+  roles: DeviceRoles!
   capabilities: [Capability!]!
   available: Boolean!
   """
@@ -64,10 +82,23 @@ type Device {
   seen: Boolean!
   lastSeen: DateTime
   state: DeviceState
+  configuration: [DeviceConfigurationEntry!]!
 }
 
-enum DeviceTag {
+enum ControlledLoadRole {
+  APPLIANCE
   LIGHT
+}
+
+enum ContactRole {
+  GENERAL
+  DOOR
+  WINDOW
+}
+
+type DeviceRoles {
+  controlledLoad: ControlledLoadRole
+  contact: ContactRole
 }
 
 """
@@ -87,6 +118,11 @@ type DeviceState {
   pressure: Float
   illuminance: Float
   occupancy: Boolean
+  """True means closed; false means open."""
+  contact: Boolean
+  orientation: String
+  devicePosture: String
+  linkQuality: Float
   battery: Float
   power: Float
   voltage: Float
@@ -408,6 +444,7 @@ type Floorplan {
   vertices: [FloorplanVertex!]!
   walls: [FloorplanWall!]!
   openings: [FloorplanOpening!]!
+  doorBindings: [FloorplanDoorBinding!]!
   rooms: [FloorplanRoom!]!
   placements: [FloorplanPlacement!]!
   furniture: [FloorplanFurniture!]!
@@ -457,6 +494,24 @@ type FloorplanOpening {
   kind: FloorplanOpeningKind!
 }
 
+enum FloorplanDoorHingeSide {
+  START
+  END
+}
+
+enum FloorplanDoorSwingSide {
+  LEFT
+  RIGHT
+}
+
+"""Connects one door-role contact sensor to one architectural door."""
+type FloorplanDoorBinding {
+  openingId: ID!
+  deviceId: ID!
+  hingeSide: FloorplanDoorHingeSide!
+  swingSide: FloorplanDoorSwingSide!
+}
+
 """
 A derived face of the wall graph. name is the user's label (null when
 anonymous); roomId links the face to a Hive room (null when unlinked, at most
@@ -499,7 +554,20 @@ type FloorplanFurniture {
   occluder: Boolean!
 }
 
+enum StateSeriesValueType {
+  NUMBER
+  BOOLEAN
+  TEXT
+}
+
 type StateSeriesPoint {
+  at: DateTime!
+  numberValue: Float
+  booleanValue: Boolean
+  textValue: String
+}
+
+type NumericSeriesPoint {
   at: DateTime!
   value: Float!
 }
@@ -507,6 +575,7 @@ type StateSeriesPoint {
 type StateSeries {
   deviceId: ID!
   field: String!
+  valueType: StateSeriesValueType!
   points: [StateSeriesPoint!]!
 }
 
@@ -520,7 +589,7 @@ input StateHistoryFilter {
 
 type AggregatedSeries {
   field: String!
-  points: [StateSeriesPoint!]!
+  points: [NumericSeriesPoint!]!
 }
 
 enum AggregatedHistoryTargetType {
@@ -545,6 +614,11 @@ input AggregatedStateHistoryFilter {
 type DeviceStateEvent {
   deviceId: ID!
   state: DeviceState!
+}
+
+type DeviceConfigurationEvent {
+  deviceId: ID!
+  values: [DeviceConfigurationEntry!]!
 }
 
 type DeviceActionEvent {
@@ -903,6 +977,13 @@ input DeviceStateInput {
   swing: String
 }
 
+input DeviceConfigurationEntryInput {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
+}
+
 input ColorInput {
   r: Int!
   g: Int!
@@ -928,8 +1009,13 @@ input UpdateDeviceInput {
   show the device at full strength. Omit the field to leave it alone.
   """
   displayBrightness: Int
-  tags: [DeviceTag!]
+  roles: UpdateDeviceRolesInput
   disabled: Boolean
+}
+
+input UpdateDeviceRolesInput {
+  controlledLoad: ControlledLoadRole
+  contact: ContactRole
 }
 
 input CreateSceneInput {
@@ -1049,6 +1135,7 @@ input UpdateFloorplanInput {
   vertices: [FloorplanVertexInput!]!
   walls: [FloorplanWallInput!]!
   openings: [FloorplanOpeningInput!]!
+  doorBindings: [FloorplanDoorBindingInput!]!
   rooms: [FloorplanRoomInput!]!
   placements: [FloorplanPlacementInput!]!
   furniture: [FloorplanFurnitureInput!]!
@@ -1075,6 +1162,13 @@ input FloorplanOpeningInput {
   t: Float!
   width: Float!
   kind: FloorplanOpeningKind!
+}
+
+input FloorplanDoorBindingInput {
+  openingId: ID!
+  deviceId: ID!
+  hingeSide: FloorplanDoorHingeSide!
+  swingSide: FloorplanDoorSwingSide!
 }
 
 input FloorplanRoomInput {
@@ -1147,6 +1241,7 @@ type Query {
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
   setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device! @auth
+  setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
   EventDeviceActionFired on the in-process event bus. Automations listening
@@ -1277,12 +1372,13 @@ type Mutation {
 
 type Subscription {
   deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth
+  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
   deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
   deviceAdded: Device! @auth
   """
   Fires when a device's user-owned metadata changes — name override, icon,
-  tags, display colour, disabled — carrying the full updated device. This is
+  roles, display colour, disabled — carrying the full updated device. This is
   what keeps a second open tab's rename in step without a reload.
   """
   deviceUpdated: Device! @auth
