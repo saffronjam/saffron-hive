@@ -101,13 +101,13 @@ func TestRecorderFansOutPerField(t *testing.T) {
 	for _, p := range points {
 		byField[p.Field] = p
 	}
-	if p, ok := byField[FieldOn]; !ok || p.Value != 1 {
+	if p, ok := byField[FieldOn]; !ok || p.NumericValue == nil || *p.NumericValue != 1 {
 		t.Errorf("on sample missing or wrong value: %+v", p)
 	}
-	if p, ok := byField[FieldTemperature]; !ok || p.Value != 21.5 {
+	if p, ok := byField[FieldTemperature]; !ok || p.NumericValue == nil || *p.NumericValue != 21.5 {
 		t.Errorf("temperature sample missing or wrong value: %+v", p)
 	}
-	if p, ok := byField[FieldHumidity]; !ok || p.Value != 55.2 {
+	if p, ok := byField[FieldHumidity]; !ok || p.NumericValue == nil || *p.NumericValue != 55.2 {
 		t.Errorf("humidity sample missing or wrong value: %+v", p)
 	}
 	firstAt := points[0].At
@@ -115,6 +115,67 @@ func TestRecorderFansOutPerField(t *testing.T) {
 		if !p.At.Equal(firstAt) {
 			t.Errorf("fan-out samples should share a recorded_at; got %v vs %v", firstAt, p.At)
 		}
+	}
+}
+
+func TestRecorderPersistsMultistateSensorFields(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := newTestStore(t)
+	bus := eventbus.NewChannelBus()
+	go RunRecorder(ctx, bus, s)
+	time.Sleep(20 * time.Millisecond)
+
+	contact := false
+	orientation := "up"
+	posture := "abnormal"
+	linkQuality := 172.0
+	bus.Publish(eventbus.Event{
+		Type:     eventbus.EventDeviceStateChanged,
+		DeviceID: "sensor-1",
+		Payload: device.DeviceStateChange{State: device.DeviceState{
+			Contact:       &contact,
+			Orientation:   &orientation,
+			DevicePosture: &posture,
+			LinkQuality:   &linkQuality,
+		}},
+	})
+
+	var points []store.StateHistoryPoint
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var err error
+		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
+			DeviceIDs: []device.DeviceID{"sensor-1"},
+			From:      time.Now().Add(-time.Hour),
+			To:        time.Now().Add(time.Hour),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(points) == 4 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(points) != 4 {
+		t.Fatalf("expected four multistate samples, got %+v", points)
+	}
+	byField := map[string]store.StateHistoryPoint{}
+	for _, point := range points {
+		byField[point.Field] = point
+	}
+	if value := byField[FieldContact].NumericValue; value == nil || *value != 0 {
+		t.Fatalf("unexpected contact sample: %+v", byField[FieldContact])
+	}
+	if value := byField[FieldOrientation].TextValue; value == nil || *value != "up" {
+		t.Fatalf("unexpected orientation sample: %+v", byField[FieldOrientation])
+	}
+	if value := byField[FieldDevicePosture].TextValue; value == nil || *value != "abnormal" {
+		t.Fatalf("unexpected posture sample: %+v", byField[FieldDevicePosture])
+	}
+	if value := byField[FieldLinkQuality].NumericValue; value == nil || *value != 172 {
+		t.Fatalf("unexpected link quality sample: %+v", byField[FieldLinkQuality])
 	}
 }
 
@@ -165,7 +226,9 @@ func TestRecorderRecordsOccupancyAsZeroOrOne(t *testing.T) {
 		if p.Field != FieldOccupancy {
 			t.Errorf("expected field %q, got %q", FieldOccupancy, p.Field)
 		}
-		values[p.Value] = true
+		if p.NumericValue != nil {
+			values[*p.NumericValue] = true
+		}
 	}
 	if !values[1] || !values[0] {
 		t.Errorf("expected one sample at 1 and one at 0, got %+v", points)

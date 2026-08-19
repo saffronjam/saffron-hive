@@ -16,10 +16,10 @@ func TestRetentionPrunesOlderSamplesFromSetting(t *testing.T) {
 	now := time.Now().UTC()
 	for _, age := range []time.Duration{72 * time.Hour, 36 * time.Hour, 1 * time.Hour} {
 		if _, err := s.InsertStateSample(ctx, store.InsertStateSampleParams{
-			DeviceID:   "sensor-1",
-			Field:      FieldTemperature,
-			Value:      20,
-			RecordedAt: now.Add(-age),
+			DeviceID:     "sensor-1",
+			Field:        FieldTemperature,
+			NumericValue: device.Ptr(20.0),
+			RecordedAt:   now.Add(-age),
 		}); err != nil {
 			t.Fatalf("insert: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestRetentionPrunesOlderSamplesFromSetting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query: %v", err)
 	}
-	if len(points) != 1 {
-		t.Fatalf("expected only the 1-hour-old sample to survive, got %d", len(points))
+	if len(points) != 2 {
+		t.Fatalf("expected the pre-cutoff baseline and 1-hour-old sample to survive, got %d", len(points))
 	}
 }

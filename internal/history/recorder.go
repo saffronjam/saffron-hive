@@ -54,37 +54,46 @@ func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
 	deviceID := device.DeviceID(evt.DeviceID)
 
 	type sample struct {
-		field string
-		value float64
-		ok    bool
+		field   string
+		numeric *float64
+		text    *string
 	}
 	samples := []sample{
-		{FieldOn, boolToFloat(ds.On), ds.On != nil},
-		{FieldBrightness, ptrIntToFloat(ds.Brightness), ds.Brightness != nil},
-		{FieldColorTemp, ptrIntToFloat(ds.ColorTemp), ds.ColorTemp != nil},
-		{FieldTargetTemp, ptrFloat(ds.TargetTemperature), ds.TargetTemperature != nil},
-		{FieldTemperature, ptrFloat(ds.Temperature), ds.Temperature != nil},
-		{FieldHumidity, ptrFloat(ds.Humidity), ds.Humidity != nil},
-		{FieldPressure, ptrFloat(ds.Pressure), ds.Pressure != nil},
-		{FieldIlluminance, ptrFloat(ds.Illuminance), ds.Illuminance != nil},
-		{FieldBattery, ptrFloat(ds.Battery), ds.Battery != nil},
-		{FieldPower, ptrFloat(ds.Power), ds.Power != nil},
-		{FieldVoltage, ptrFloat(ds.Voltage), ds.Voltage != nil},
-		{FieldCurrent, ptrFloat(ds.Current), ds.Current != nil},
-		{FieldEnergy, ptrFloat(ds.Energy), ds.Energy != nil},
-		{FieldOccupancy, boolToFloat(ds.Occupancy), ds.Occupancy != nil},
+		{FieldOn, boolToNumber(ds.On), nil},
+		{FieldBrightness, intToNumber(ds.Brightness), nil},
+		{FieldColorTemp, intToNumber(ds.ColorTemp), nil},
+		{FieldTargetTemp, ds.TargetTemperature, nil},
+		{FieldTemperature, ds.Temperature, nil},
+		{FieldHumidity, ds.Humidity, nil},
+		{FieldPressure, ds.Pressure, nil},
+		{FieldIlluminance, ds.Illuminance, nil},
+		{FieldBattery, ds.Battery, nil},
+		{FieldPower, ds.Power, nil},
+		{FieldVoltage, ds.Voltage, nil},
+		{FieldCurrent, ds.Current, nil},
+		{FieldEnergy, ds.Energy, nil},
+		{FieldOccupancy, boolToNumber(ds.Occupancy), nil},
+		{FieldContact, boolToNumber(ds.Contact), nil},
+		{FieldOrientation, nil, ds.Orientation},
+		{FieldDevicePosture, nil, ds.DevicePosture},
+		{FieldLinkQuality, ds.LinkQuality, nil},
+		{FieldHvacMode, nil, ds.HvacMode},
+		{FieldFanMode, nil, ds.FanMode},
+		{FieldSwing, nil, ds.Swing},
 	}
 
 	inserted := 0
 	for _, sm := range samples {
-		if !sm.ok {
+		if sm.numeric == nil && sm.text == nil {
 			continue
 		}
 		if _, err := s.InsertStateSample(ctx, store.InsertStateSampleParams{
-			DeviceID:   deviceID,
-			Field:      sm.field,
-			Value:      sm.value,
-			RecordedAt: recordedAt,
+			DeviceID:     deviceID,
+			Field:        sm.field,
+			NumericValue: sm.numeric,
+			TextValue:    sm.text,
+			Deduplicate:  IsStatefulField(sm.field),
+			RecordedAt:   recordedAt,
 		}); err != nil {
 			logger.Error("failed to insert state sample",
 				"device_id", evt.DeviceID,
@@ -100,23 +109,21 @@ func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
 	}
 }
 
-func boolToFloat(b *bool) float64 {
-	if b != nil && *b {
-		return 1
+func boolToNumber(value *bool) *float64 {
+	if value == nil {
+		return nil
 	}
-	return 0
+	number := 0.0
+	if *value {
+		number = 1
+	}
+	return &number
 }
 
-func ptrFloat(f *float64) float64 {
-	if f == nil {
-		return 0
+func intToNumber(value *int) *float64 {
+	if value == nil {
+		return nil
 	}
-	return *f
-}
-
-func ptrIntToFloat(i *int) float64 {
-	if i == nil {
-		return 0
-	}
-	return float64(*i)
+	number := float64(*value)
+	return &number
 }
