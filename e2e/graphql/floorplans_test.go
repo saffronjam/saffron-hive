@@ -5,9 +5,11 @@ package graphql_test
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 const floorplanFields = `
@@ -15,6 +17,7 @@ const floorplanFields = `
 	vertices { id x y }
 	walls { id vertexA vertexB thickness curveX curveY }
 	openings { id wallId t width kind }
+	doorBindings { openingId deviceId hingeSide swingSide }
 	rooms { id name roomId vertexIds }
 	placements { memberType memberId x y }
 	furniture { id kind x y width height rotation occluder }
@@ -43,6 +46,12 @@ type floorplanResult struct {
 		Width  float64 `json:"width"`
 		Kind   string  `json:"kind"`
 	} `json:"openings"`
+	DoorBindings []struct {
+		OpeningID string `json:"openingId"`
+		DeviceID  string `json:"deviceId"`
+		HingeSide string `json:"hingeSide"`
+		SwingSide string `json:"swingSide"`
+	} `json:"doorBindings"`
 	Rooms []struct {
 		ID        string   `json:"id"`
 		Name      *string  `json:"name"`
@@ -119,6 +128,7 @@ func squareFloorplanInput(placements ...map[string]any) map[string]any {
 			{"id": "open-1", "wallId": "wall-1", "t": 0.25, "width": 0.9, "kind": "DOOR"},
 			{"id": "open-2", "wallId": "wall-2", "t": 0.5, "width": 1.2, "kind": "WINDOW"},
 		},
+		"doorBindings": []map[string]any{},
 		"rooms": []map[string]any{
 			{"id": "froom-1", "name": "Studio", "vertexIds": []string{"vtx-a", "vtx-b", "vtx-c", "vtx-d"}},
 		},
@@ -244,6 +254,63 @@ func TestFloorplan_SaveAndQueryRoundtrip(t *testing.T) {
 	}
 }
 
+func TestFloorplan_DoorBindingRoundtripAndIntegrity(t *testing.T) {
+	ctx := context.Background()
+	d, err := sqlStore.CreateDevice(ctx, store.CreateDeviceParams{
+		ID:           "floorplan-door-contact",
+		FriendlyName: "Floorplan door contact",
+		Source:       device.SourceZigbee2MQTT,
+		Type:         device.Sensor,
+		Capabilities: []device.Capability{{Name: device.CapContact, Access: 1}},
+	})
+	if err != nil {
+		t.Fatalf("create door sensor: %v", err)
+	}
+	defer func() { _ = sqlStore.DeleteDevice(ctx, d.ID) }()
+	d, err = sqlStore.UpdateDevice(ctx, store.UpdateDeviceParams{
+		ID:        d.ID,
+		Available: d.Available,
+		SetRoles:  true,
+		Roles:     device.DeviceRoles{Contact: device.Ptr(device.ContactRoleDoor)},
+	})
+	if err != nil {
+		t.Fatalf("set door role: %v", err)
+	}
+
+	input := squareFloorplanInput()
+	input["doorBindings"] = []map[string]any{
+		{
+			"openingId": "open-1",
+			"deviceId":  string(d.ID),
+			"hingeSide": "END",
+			"swingSide": "RIGHT",
+		},
+	}
+	saved := saveFloorplan(t, input)
+	if len(saved.DoorBindings) != 1 {
+		t.Fatalf("door bindings = %+v, want one", saved.DoorBindings)
+	}
+	binding := saved.DoorBindings[0]
+	if binding.OpeningID != "open-1" || binding.DeviceID != string(d.ID) || binding.HingeSide != "END" || binding.SwingSide != "RIGHT" {
+		t.Fatalf("door binding = %+v", binding)
+	}
+
+	_, err = graphqlMutation(`mutation($id: ID!) {
+		updateDevice(id: $id, input: { roles: { contact: WINDOW } }) { id }
+	}`, map[string]any{"id": string(d.ID)})
+	if err == nil || !strings.Contains(err.Error(), "Detach this sensor from its map door") {
+		t.Fatalf("role update error = %v", err)
+	}
+
+	if err := sqlStore.DeleteDevice(ctx, d.ID); err != nil {
+		t.Fatalf("delete door sensor: %v", err)
+	}
+	fp := queryFloorplan(t)
+	if fp == nil || len(fp.DoorBindings) != 0 {
+		t.Fatalf("door bindings after device delete = %+v", fp)
+	}
+}
+
 func TestFloorplan_SecondSaveReplaces(t *testing.T) {
 	saveFloorplan(t, squareFloorplanInput())
 
@@ -257,10 +324,11 @@ func TestFloorplan_SecondSaveReplaces(t *testing.T) {
 		"walls": []map[string]any{
 			{"id": "wall-pq", "vertexA": "vtx-p", "vertexB": "vtx-q", "thickness": 0.1},
 		},
-		"openings":   []map[string]any{},
-		"rooms":      []map[string]any{},
-		"placements": []map[string]any{},
-		"furniture":  []map[string]any{},
+		"openings":     []map[string]any{},
+		"doorBindings": []map[string]any{},
+		"rooms":        []map[string]any{},
+		"placements":   []map[string]any{},
+		"furniture":    []map[string]any{},
 	}
 	saved := saveFloorplan(t, replacement)
 	if saved.Name != "Home v2" {

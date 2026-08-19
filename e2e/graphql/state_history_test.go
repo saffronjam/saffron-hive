@@ -10,11 +10,14 @@ import (
 
 type stateSeriesResponse struct {
 	StateHistory []struct {
-		DeviceID string `json:"deviceId"`
-		Field    string `json:"field"`
-		Points   []struct {
-			At    string  `json:"at"`
-			Value float64 `json:"value"`
+		DeviceID  string `json:"deviceId"`
+		Field     string `json:"field"`
+		ValueType string `json:"valueType"`
+		Points    []struct {
+			At           string   `json:"at"`
+			NumberValue  *float64 `json:"numberValue"`
+			BooleanValue *bool    `json:"booleanValue"`
+			TextValue    *string  `json:"textValue"`
 		} `json:"points"`
 	} `json:"stateHistory"`
 }
@@ -38,7 +41,10 @@ func TestStateHistory_FansOutPerField(t *testing.T) {
 	var lastRaw []byte
 	ok := pollUntil(5*time.Second, 200*time.Millisecond, func() bool {
 		data, qErr := graphqlQuery(`query($filter: StateHistoryFilter!) {
-			stateHistory(filter: $filter) { deviceId field points { at value } }
+			stateHistory(filter: $filter) {
+				deviceId field valueType
+				points { at numberValue booleanValue textValue }
+			}
 		}`, map[string]any{
 			"filter": map[string]any{
 				"deviceIds": []string{sensorID},
@@ -60,7 +66,9 @@ func TestStateHistory_FansOutPerField(t *testing.T) {
 	}
 	found := map[string]bool{}
 	for _, s := range last.StateHistory {
-		found[s.Field] = true
+		if len(s.Points) > 0 && s.ValueType == "NUMBER" && s.Points[0].NumberValue != nil {
+			found[s.Field] = true
+		}
 	}
 	for _, want := range []string{"temperature", "humidity", "battery"} {
 		if !found[want] {
@@ -87,7 +95,10 @@ func TestStateHistory_RecordsOccupancy(t *testing.T) {
 	var lastRaw []byte
 	ok := pollUntil(5*time.Second, 200*time.Millisecond, func() bool {
 		data, qErr := graphqlQuery(`query($filter: StateHistoryFilter!) {
-			stateHistory(filter: $filter) { deviceId field points { at value } }
+			stateHistory(filter: $filter) {
+				deviceId field valueType
+				points { at numberValue booleanValue textValue }
+			}
 		}`, map[string]any{
 			"filter": map[string]any{
 				"deviceIds": []string{motionID},
@@ -121,9 +132,12 @@ func TestStateHistory_RecordsOccupancy(t *testing.T) {
 		if len(s.Points) == 0 {
 			t.Fatal("occupancy series has no points")
 		}
+		if s.ValueType != "BOOLEAN" {
+			t.Errorf("occupancy series value type %q, want BOOLEAN", s.ValueType)
+		}
 		for _, p := range s.Points {
-			if p.Value != 0 && p.Value != 1 {
-				t.Errorf("occupancy sample value %v, want 0 or 1", p.Value)
+			if p.BooleanValue == nil {
+				t.Error("occupancy sample has no boolean value")
 			}
 		}
 	}
@@ -160,7 +174,12 @@ func TestStateHistoryFields_ReturnsFullList(t *testing.T) {
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	for _, want := range []string{"on", "brightness", "temperature", "humidity", "battery", "power", "occupancy"} {
+	for _, want := range []string{
+		"on", "brightness", "colorTemp", "targetTemperature", "temperature", "humidity",
+		"pressure", "illuminance", "battery", "power", "voltage", "current", "energy",
+		"occupancy", "contact", "orientation", "devicePosture", "linkQuality", "hvacMode",
+		"fanMode", "swing",
+	} {
 		seen := false
 		for _, f := range result.StateHistoryFields {
 			if f == want {
