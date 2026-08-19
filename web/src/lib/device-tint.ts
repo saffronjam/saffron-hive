@@ -1,4 +1,7 @@
 import { isLightControlDevice, type Device, type DeviceState } from "$lib/stores/devices";
+import { ContactRole } from "$lib/gql/graphql";
+import { formatContactSummary, summarizeContacts } from "$lib/contact-summary";
+import { contactIcon } from "$lib/utils";
 import type { ActionPayload, StaticActionPayload } from "$lib/scene-editable";
 import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
@@ -268,7 +271,7 @@ export function deviceTintBase(device: Device): string | null {
   const state: DeviceState | null | undefined = device.state;
   if (!state) return null;
   // A device with no colour of its own wears the one the user gave it, so a
-  // LIGHT-tagged switch stands for the bulb it actually turns on.
+  // A plug with the light role stands for the bulb it actually turns on.
   if (state.color == null && state.colorTemp == null && device.displayColor) {
     return device.displayColor;
   }
@@ -435,8 +438,31 @@ const READING_SPECS: ReadingSpec[] = [
 export function aggregateSensorReadings(
   devices: Device[],
   temperatureUnit: TemperatureUnit = "celsius",
+  options: { includeGeneralContact?: boolean } = {},
 ): AggregatedReading[] {
   const result: AggregatedReading[] = [];
+  const contactRoles = options.includeGeneralContact
+    ? [ContactRole.General, ContactRole.Door, ContactRole.Window]
+    : [ContactRole.Door, ContactRole.Window];
+  for (const role of contactRoles) {
+    const summary = summarizeContacts(devices, role);
+    if (!summary) continue;
+    const value =
+      devices.length === 1
+        ? summary.open === 1
+          ? "Open"
+          : summary.closed === 1
+            ? "Closed"
+            : "Unknown"
+        : formatContactSummary(summary);
+    result.push({
+      field: "contact",
+      label: summary.label,
+      value,
+      unit: "",
+      icon: contactIcon(summary.role),
+    });
+  }
   for (const spec of READING_SPECS) {
     let sum = 0;
     let count = 0;
