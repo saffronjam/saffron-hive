@@ -20,7 +20,7 @@ func detectDeviceType(exposes []z2mFeature) device.DeviceType {
 		}
 	}
 
-	var hasOnOff, hasAction, hasEnv bool
+	var hasOnOff, hasAction, hasSensor bool
 	for _, f := range flattenFeatures(exposes) {
 		switch f.Property {
 		case "state":
@@ -29,46 +29,90 @@ func detectDeviceType(exposes []z2mFeature) device.DeviceType {
 			}
 		case "action":
 			hasAction = true
-		case "temperature", "humidity", "pressure", "illuminance", "occupancy":
-			hasEnv = true
+		case "temperature", "humidity", "pressure", "illuminance", "occupancy", "contact", "orientation", "device_posture":
+			hasSensor = true
 		}
 	}
 
 	switch {
-	case hasAction && !hasOnOff:
-		return device.Button
 	case hasOnOff:
 		return device.Plug
-	case hasEnv:
+	case hasSensor:
 		return device.Sensor
+	case hasAction:
+		return device.Button
 	}
 	return device.Unknown
 }
 
 var knownCapabilities = map[string]string{
-	"state":       device.CapOnOff,
-	"brightness":  device.CapBrightness,
-	"color_temp":  device.CapColorTemp,
-	"color":       device.CapColor,
-	"temperature": device.CapTemperature,
-	"humidity":    device.CapHumidity,
-	"pressure":    device.CapPressure,
-	"illuminance": device.CapIlluminance,
-	"occupancy":   device.CapOccupancy,
-	"battery":     device.CapBattery,
-	"action":      device.CapAction,
-	"effect":      device.CapEffect,
-	"power":       device.CapPower,
-	"voltage":     device.CapVoltage,
-	"current":     device.CapCurrent,
-	"energy":      device.CapEnergy,
+	"state":          device.CapOnOff,
+	"brightness":     device.CapBrightness,
+	"color_temp":     device.CapColorTemp,
+	"color":          device.CapColor,
+	"temperature":    device.CapTemperature,
+	"humidity":       device.CapHumidity,
+	"pressure":       device.CapPressure,
+	"illuminance":    device.CapIlluminance,
+	"occupancy":      device.CapOccupancy,
+	"contact":        device.CapContact,
+	"orientation":    device.CapOrientation,
+	"device_posture": device.CapDevicePosture,
+	"linkquality":    device.CapLinkQuality,
+	"battery":        device.CapBattery,
+	"action":         device.CapAction,
+	"effect":         device.CapEffect,
+	"power":          device.CapPower,
+	"voltage":        device.CapVoltage,
+	"current":        device.CapCurrent,
+	"energy":         device.CapEnergy,
+}
+
+var configurationProperties = map[string]struct{}{
+	"orientation_detection": {},
+	"movement_detection":    {},
+	"fall_detection":        {},
+	"vibration_detection":   {},
+	"triple_tap_detection":  {},
+}
+
+func featureCategory(f z2mFeature) device.CapabilityCategory {
+	switch f.Category {
+	case "config":
+		return device.CapabilityCategoryConfiguration
+	case "diagnostic":
+		return device.CapabilityCategoryDiagnostic
+	}
+	if _, ok := configurationProperties[f.Property]; ok {
+		return device.CapabilityCategoryConfiguration
+	}
+	return device.CapabilityCategoryState
+}
+
+func capabilityName(f z2mFeature) (string, bool) {
+	if name, ok := knownCapabilities[f.Property]; ok {
+		return name, true
+	}
+	if featureCategory(f) == device.CapabilityCategoryConfiguration && f.Property != "" {
+		switch f.Type {
+		case "binary", "numeric", "enum", "text":
+			return f.Property, true
+		}
+	}
+	return "", false
 }
 
 func extractCapabilities(exposes []z2mFeature) []device.Capability {
+	capabilities, _ := extractCapabilitiesWithConfiguration(exposes)
+	return capabilities
+}
+
+func extractCapabilitiesWithConfiguration(exposes []z2mFeature) ([]device.Capability, map[string]z2mFeature) {
 	seen := make(map[string]struct{})
 	var caps []device.Capability
+	configuration := make(map[string]z2mFeature)
 	for _, f := range flattenFeatures(exposes) {
-		capName, ok := knownCapabilities[f.Property]
+		capName, ok := capabilityName(f)
 		if !ok {
 			continue
 		}
@@ -77,16 +121,22 @@ func extractCapabilities(exposes []z2mFeature) []device.Capability {
 		}
 		seen[capName] = struct{}{}
 		caps = append(caps, device.Capability{
-			Name:     capName,
-			Type:     f.Type,
-			Values:   f.Values,
-			ValueMin: f.ValueMin,
-			ValueMax: f.ValueMax,
-			Unit:     f.Unit,
-			Access:   f.Access,
+			Name:        capName,
+			Type:        f.Type,
+			Label:       f.Label,
+			Description: f.Description,
+			Category:    featureCategory(f),
+			Values:      f.Values,
+			ValueMin:    f.ValueMin,
+			ValueMax:    f.ValueMax,
+			Unit:        f.Unit,
+			Access:      device.CapabilityAccess(f.Access),
 		})
+		if featureCategory(f) == device.CapabilityCategoryConfiguration {
+			configuration[capName] = f
+		}
 	}
-	return caps
+	return caps, configuration
 }
 
 func flattenFeatures(features []z2mFeature) []z2mFeature {
@@ -120,12 +170,13 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		id := device.DeviceID(d.IEEEAddress)
 		incoming[id] = struct{}{}
 
+		capabilities, configuration := extractCapabilitiesWithConfiguration(d.Definition.Exposes)
 		dev := device.Device{
 			ID:           id,
 			FriendlyName: d.FriendlyName,
 			Source:       device.SourceZigbee2MQTT,
 			Type:         devType,
-			Capabilities: extractCapabilities(d.Definition.Exposes),
+			Capabilities: capabilities,
 			Available:    true,
 		}
 
@@ -138,6 +189,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		a.nameToID[d.FriendlyName] = id
 		a.idToName[id] = d.FriendlyName
 		a.knownDevices[id] = print
+		a.configurationFeatures[id] = configuration
 		a.mu.Unlock()
 
 		// zigbee2mqtt republishes the whole device list on every join, leave and
@@ -172,6 +224,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 	}
 	for _, id := range removed {
 		delete(a.knownDevices, id)
+		delete(a.configurationFeatures, id)
 	}
 	a.mu.Unlock()
 

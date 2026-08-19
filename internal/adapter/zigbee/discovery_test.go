@@ -345,10 +345,10 @@ func TestExtractCapabilities_Light(t *testing.T) {
 				{Type: "numeric", Property: "color_temp", Access: 7, ValueMin: ptr(150.0), ValueMax: ptr(500.0)},
 			},
 		},
-		{Property: "linkquality"},
+		{Type: "numeric", Property: "linkquality", Access: 1, Category: "diagnostic"},
 	}
 	caps := extractCapabilities(exposes)
-	assertCapNames(t, caps, []string{device.CapOnOff, device.CapBrightness, device.CapColorTemp})
+	assertCapNames(t, caps, []string{device.CapOnOff, device.CapBrightness, device.CapColorTemp, device.CapLinkQuality})
 }
 
 func TestExtractCapabilities_LightWithColor(t *testing.T) {
@@ -372,10 +372,10 @@ func TestExtractCapabilities_Sensor(t *testing.T) {
 		{Type: "numeric", Property: "temperature", Access: 1, Unit: "°C", ValueMin: ptr(-20.0), ValueMax: ptr(60.0)},
 		{Type: "numeric", Property: "humidity", Access: 1, Unit: "%", ValueMin: ptr(0.0), ValueMax: ptr(100.0)},
 		{Type: "numeric", Property: "battery", Access: 1, Unit: "%", ValueMin: ptr(0.0), ValueMax: ptr(100.0)},
-		{Property: "linkquality"},
+		{Type: "numeric", Property: "linkquality", Access: 1, Category: "diagnostic"},
 	}
 	caps := extractCapabilities(exposes)
-	assertCapNames(t, caps, []string{device.CapTemperature, device.CapHumidity, device.CapBattery})
+	assertCapNames(t, caps, []string{device.CapTemperature, device.CapHumidity, device.CapBattery, device.CapLinkQuality})
 }
 
 func TestExtractCapabilities_SmartPlug(t *testing.T) {
@@ -390,20 +390,20 @@ func TestExtractCapabilities_SmartPlug(t *testing.T) {
 		{Type: "numeric", Property: "voltage", Access: 1, Unit: "V"},
 		{Type: "numeric", Property: "current", Access: 1, Unit: "A"},
 		{Type: "numeric", Property: "energy", Access: 1, Unit: "kWh"},
-		{Property: "linkquality"},
+		{Type: "numeric", Property: "linkquality", Access: 1, Category: "diagnostic"},
 	}
 	caps := extractCapabilities(exposes)
-	assertCapNames(t, caps, []string{device.CapOnOff, device.CapPower, device.CapVoltage, device.CapCurrent, device.CapEnergy})
+	assertCapNames(t, caps, []string{device.CapOnOff, device.CapPower, device.CapVoltage, device.CapCurrent, device.CapEnergy, device.CapLinkQuality})
 }
 
 func TestExtractCapabilities_Switch(t *testing.T) {
 	exposes := []z2mFeature{
 		{Type: "enum", Property: "action", Access: 1, Values: []string{"single", "double", "hold"}},
 		{Type: "numeric", Property: "battery", Access: 1, Unit: "%"},
-		{Property: "linkquality"},
+		{Type: "numeric", Property: "linkquality", Access: 1, Category: "diagnostic"},
 	}
 	caps := extractCapabilities(exposes)
-	assertCapNames(t, caps, []string{device.CapAction, device.CapBattery})
+	assertCapNames(t, caps, []string{device.CapAction, device.CapBattery, device.CapLinkQuality})
 }
 
 func TestExtractCapabilities_Empty(t *testing.T) {
@@ -415,12 +415,72 @@ func TestExtractCapabilities_Empty(t *testing.T) {
 
 func TestExtractCapabilities_DiagnosticOnly(t *testing.T) {
 	exposes := []z2mFeature{
-		{Property: "linkquality"},
+		{Type: "numeric", Property: "linkquality", Access: 1, Category: "diagnostic"},
 		{Property: "color_temp_startup"},
 	}
 	caps := extractCapabilities(exposes)
-	if len(caps) != 0 {
-		t.Fatalf("expected empty capabilities for diagnostic-only features, got %v", capNames(caps))
+	assertCapNames(t, caps, []string{device.CapLinkQuality})
+	if caps[0].Category != device.CapabilityCategoryDiagnostic {
+		t.Fatalf("expected link quality to be diagnostic, got %q", caps[0].Category)
+	}
+}
+
+func TestExtractCapabilities_AqaraP100(t *testing.T) {
+	exposes := []z2mFeature{
+		{Type: "binary", Property: "contact", Label: "Contact", Access: 1},
+		{Type: "enum", Property: "orientation", Label: "Orientation", Access: 1, Values: []string{"up", "down", "left", "right", "front", "back"}},
+		{Type: "enum", Property: "device_posture", Label: "Device posture", Access: 1, Values: []string{"normal", "abnormal"}},
+		{Type: "enum", Property: "action", Label: "Action", Access: 1, Values: []string{"single", "double", "hold"}},
+		{Type: "binary", Property: "orientation_detection", Label: "Orientation detection", Category: "config", Access: 7, ValueOn: []byte("true"), ValueOff: []byte("false")},
+		{Type: "binary", Property: "movement_detection", Label: "Movement detection", Category: "config", Access: 7, ValueOn: []byte(`"ON"`), ValueOff: []byte(`"OFF"`)},
+		{Type: "binary", Property: "fall_detection", Label: "Fall detection", Category: "config", Access: 7},
+		{Type: "binary", Property: "vibration_detection", Label: "Vibration detection", Category: "config", Access: 7},
+		{Type: "binary", Property: "triple_tap_detection", Label: "Triple tap detection", Category: "config", Access: 7},
+		{Type: "numeric", Property: "battery", Label: "Battery", Access: 1, Unit: "%"},
+		{Type: "numeric", Property: "linkquality", Label: "Link quality", Category: "diagnostic", Access: 1},
+	}
+
+	caps, configuration := extractCapabilitiesWithConfiguration(exposes)
+	assertCapNames(t, caps, []string{
+		device.CapContact,
+		device.CapOrientation,
+		device.CapDevicePosture,
+		device.CapAction,
+		"orientation_detection",
+		"movement_detection",
+		"fall_detection",
+		"vibration_detection",
+		"triple_tap_detection",
+		device.CapBattery,
+		device.CapLinkQuality,
+	})
+	if len(configuration) != 5 {
+		t.Fatalf("expected five configuration features, got %d", len(configuration))
+	}
+	for name := range configurationProperties {
+		capability := findCap(t, caps, name)
+		if capability.Category != device.CapabilityCategoryConfiguration {
+			t.Fatalf("expected %s to be configuration, got %q", name, capability.Category)
+		}
+		if !capability.ReportsValue() || !capability.CanSet() || !capability.CanGet() {
+			t.Fatalf("expected %s access 7 to report, set and get", name)
+		}
+	}
+	if detectDeviceType(exposes) != device.Sensor {
+		t.Fatal("P100 must be classified as a sensor even though it also reports actions")
+	}
+}
+
+func TestExtractCapabilities_AqaraDoorWindowT1(t *testing.T) {
+	exposes := []z2mFeature{
+		{Type: "binary", Property: "contact", Label: "Contact", Access: 1},
+		{Type: "numeric", Property: "battery", Label: "Battery", Access: 1, Unit: "%"},
+		{Type: "numeric", Property: "linkquality", Label: "Link quality", Category: "diagnostic", Access: 1},
+	}
+	caps := extractCapabilities(exposes)
+	assertCapNames(t, caps, []string{device.CapContact, device.CapBattery, device.CapLinkQuality})
+	if detectDeviceType(exposes) != device.Sensor {
+		t.Fatal("Door and Window Sensor T1 must be classified as a sensor")
 	}
 }
 
