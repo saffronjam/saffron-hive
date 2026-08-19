@@ -61,11 +61,12 @@ type ZigbeeAdapter struct {
 	stateWriter StateWriter
 	stateReader StateReader
 
-	mu           sync.RWMutex
-	ieeeToID     map[string]device.DeviceID
-	nameToID     map[string]device.DeviceID
-	idToName     map[device.DeviceID]string
-	knownDevices map[device.DeviceID]string
+	mu                    sync.RWMutex
+	ieeeToID              map[string]device.DeviceID
+	nameToID              map[string]device.DeviceID
+	idToName              map[device.DeviceID]string
+	knownDevices          map[device.DeviceID]string
+	configurationFeatures map[device.DeviceID]map[string]z2mFeature
 
 	// pendingOrigin holds the origin of the most recent outgoing command per
 	// device. The next inbound state echo claims (and clears) the entry so the
@@ -73,8 +74,9 @@ type ZigbeeAdapter struct {
 	// Best-effort: state arriving without a pending origin is treated as drift
 	// (zero origin); subsequent foreign updates after a tagged echo are also
 	// untagged because the entry is cleared on first read.
-	pendingOriginMu sync.Mutex
-	pendingOrigin   map[device.DeviceID]device.CommandOrigin
+	pendingOriginMu            sync.Mutex
+	pendingOrigin              map[device.DeviceID]device.CommandOrigin
+	pendingConfigurationOrigin map[device.DeviceID]device.CommandOrigin
 
 	// dispatchCh decouples paho's reader goroutine from the handlers that do
 	// the actual parsing, state writes, and event bus publishes. Paho's
@@ -88,26 +90,29 @@ type ZigbeeAdapter struct {
 	// visibility from logs. Read-only once Stop has returned.
 	droppedIn atomic.Int64
 
-	stopCh         chan struct{}
-	cmdCh          <-chan eventbus.Event
-	nativeEffectCh <-chan eventbus.Event
+	stopCh          chan struct{}
+	cmdCh           <-chan eventbus.Event
+	configurationCh <-chan eventbus.Event
+	nativeEffectCh  <-chan eventbus.Event
 }
 
 // NewZigbeeAdapter creates a new adapter with the given dependencies.
 func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr StateReader) *ZigbeeAdapter {
 	return &ZigbeeAdapter{
-		mqtt:          mqtt,
-		bus:           bus,
-		stateWriter:   sw,
-		stateReader:   sr,
-		ieeeToID:      make(map[string]device.DeviceID),
-		nameToID:      make(map[string]device.DeviceID),
-		idToName:      make(map[device.DeviceID]string),
-		knownDevices:  make(map[device.DeviceID]string),
-		pendingOrigin: make(map[device.DeviceID]device.CommandOrigin),
-		stopCh:        make(chan struct{}),
-		dispatchCh:    make(chan incomingMsg, dispatchBufferSize),
-		dispatchDone:  make(chan struct{}),
+		mqtt:                       mqtt,
+		bus:                        bus,
+		stateWriter:                sw,
+		stateReader:                sr,
+		ieeeToID:                   make(map[string]device.DeviceID),
+		nameToID:                   make(map[string]device.DeviceID),
+		idToName:                   make(map[device.DeviceID]string),
+		knownDevices:               make(map[device.DeviceID]string),
+		configurationFeatures:      make(map[device.DeviceID]map[string]z2mFeature),
+		pendingOrigin:              make(map[device.DeviceID]device.CommandOrigin),
+		pendingConfigurationOrigin: make(map[device.DeviceID]device.CommandOrigin),
+		stopCh:                     make(chan struct{}),
+		dispatchCh:                 make(chan incomingMsg, dispatchBufferSize),
+		dispatchDone:               make(chan struct{}),
 	}
 }
 
@@ -160,6 +165,8 @@ func (a *ZigbeeAdapter) Start() error {
 
 	a.cmdCh = a.bus.Subscribe(eventbus.EventCommandRequested)
 	go a.commandLoop()
+	a.configurationCh = a.bus.Subscribe(eventbus.EventConfigurationRequested)
+	go a.configurationLoop()
 
 	a.nativeEffectCh = a.bus.Subscribe(eventbus.EventNativeEffectRequested)
 	go a.nativeEffectLoop()
@@ -231,6 +238,9 @@ func (a *ZigbeeAdapter) Stop() {
 	if a.nativeEffectCh != nil {
 		a.bus.Unsubscribe(a.nativeEffectCh)
 	}
+	if a.configurationCh != nil {
+		a.bus.Unsubscribe(a.configurationCh)
+	}
 	a.mqtt.Disconnect(250)
 
 	close(a.dispatchCh)
@@ -238,6 +248,24 @@ func (a *ZigbeeAdapter) Stop() {
 	case <-a.dispatchDone:
 	case <-time.After(2 * time.Second):
 		logger.Warn("dispatch loop did not drain within 2s of Stop")
+	}
+}
+
+func (a *ZigbeeAdapter) configurationLoop() {
+	for {
+		select {
+		case <-a.stopCh:
+			return
+		case evt, ok := <-a.configurationCh:
+			if !ok {
+				return
+			}
+			req, ok := evt.Payload.(device.ConfigurationRequest)
+			if !ok || !a.acceptsCommand(req.DeviceID) {
+				continue
+			}
+			a.handleConfigurationRequest(req)
+		}
 	}
 }
 
@@ -385,6 +413,21 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		logger.Error("failed to map device state", "device", friendlyName, "error", err)
 		return
 	}
+	configuration, err := a.mapConfiguration(id, statePayload)
+	if err != nil {
+		logger.Error("failed to map device configuration", "device", friendlyName, "error", err)
+	} else if len(configuration) > 0 {
+		if writer, ok := a.stateWriter.(device.ConfigurationWriter); ok {
+			writer.UpdateDeviceConfiguration(id, configuration)
+		}
+		origin := a.consumePendingConfigurationOrigin(id)
+		a.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventDeviceConfigurationChanged,
+			DeviceID:  string(id),
+			Timestamp: now,
+			Payload:   device.ConfigurationChange{Values: configuration, Origin: origin},
+		})
+	}
 	if !hasAnyField(state) {
 		return
 	}
@@ -402,6 +445,23 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		Timestamp: now,
 		Payload:   device.DeviceStateChange{State: state, Origin: origin},
 	})
+}
+
+func (a *ZigbeeAdapter) recordPendingConfigurationOrigin(id device.DeviceID, origin device.CommandOrigin) {
+	if origin.IsZero() {
+		return
+	}
+	a.pendingOriginMu.Lock()
+	a.pendingConfigurationOrigin[id] = origin
+	a.pendingOriginMu.Unlock()
+}
+
+func (a *ZigbeeAdapter) consumePendingConfigurationOrigin(id device.DeviceID) device.CommandOrigin {
+	a.pendingOriginMu.Lock()
+	defer a.pendingOriginMu.Unlock()
+	origin := a.pendingConfigurationOrigin[id]
+	delete(a.pendingConfigurationOrigin, id)
+	return origin
 }
 
 func (a *ZigbeeAdapter) recordPendingOrigin(id device.DeviceID, origin device.CommandOrigin) {
@@ -431,5 +491,6 @@ func hasAnyField(s device.DeviceState) bool {
 		s.Color != nil || s.Transition != nil ||
 		s.Temperature != nil || s.Humidity != nil || s.Pressure != nil ||
 		s.Illuminance != nil || s.Occupancy != nil || s.Battery != nil ||
+		s.Contact != nil || s.Orientation != nil || s.DevicePosture != nil || s.LinkQuality != nil ||
 		s.Power != nil || s.Voltage != nil || s.Current != nil || s.Energy != nil
 }
