@@ -47,21 +47,28 @@ const (
 	Unknown DeviceType = "unknown"
 )
 
-// DeviceTag marks user-owned device roles that supplement the adapter-detected type.
-type DeviceTag string
+// ControlledLoadRole describes what a switchable plug powers.
+type ControlledLoadRole string
 
 const (
-	DeviceTagLight DeviceTag = "LIGHT"
+	ControlledLoadRoleAppliance ControlledLoadRole = "appliance"
+	ControlledLoadRoleLight     ControlledLoadRole = "light"
 )
 
-// IsValidDeviceTag reports whether t is a supported device tag.
-func IsValidDeviceTag(t DeviceTag) bool {
-	switch t {
-	case DeviceTagLight:
-		return true
-	default:
-		return false
-	}
+// ContactRole describes what a contact-capable device observes.
+type ContactRole string
+
+const (
+	ContactRoleGeneral ContactRole = "general"
+	ContactRoleDoor    ContactRole = "door"
+	ContactRoleWindow  ContactRole = "window"
+)
+
+// DeviceRoles contains the user-owned semantic roles applicable to a device.
+// A nil field means the role category does not apply to that device.
+type DeviceRoles struct {
+	ControlledLoad *ControlledLoadRole `json:"controlledLoad,omitempty"`
+	Contact        *ContactRole        `json:"contact,omitempty"`
 }
 
 // Capability constants for known device capabilities.
@@ -75,6 +82,10 @@ const (
 	CapPressure          = "pressure"
 	CapIlluminance       = "illuminance"
 	CapOccupancy         = "occupancy"
+	CapContact           = "contact"
+	CapOrientation       = "orientation"
+	CapDevicePosture     = "device_posture"
+	CapLinkQuality       = "link_quality"
 	CapBattery           = "battery"
 	CapAction            = "action"
 	CapEffect            = "effect"
@@ -88,16 +99,61 @@ const (
 	CapSwing             = "swing"
 )
 
+// CapabilityAccess is the access bitmask reported by an adapter.
+type CapabilityAccess int
+
+const (
+	CapabilityAccessState CapabilityAccess = 1
+	CapabilityAccessSet   CapabilityAccess = 2
+	CapabilityAccessGet   CapabilityAccess = 4
+)
+
+// CapabilityCategory separates live state, device configuration, and
+// diagnostic readings without relying on capability names.
+type CapabilityCategory string
+
+const (
+	CapabilityCategoryState         CapabilityCategory = "state"
+	CapabilityCategoryConfiguration CapabilityCategory = "configuration"
+	CapabilityCategoryDiagnostic    CapabilityCategory = "diagnostic"
+)
+
 // Capability describes a single device capability with optional rich metadata
 // extracted from the protocol adapter (e.g. zigbee2mqtt exposes).
 type Capability struct {
-	Name     string   `json:"name"`               // canonical name (e.g. "on_off", "brightness", "action")
-	Type     string   `json:"type"`               // feature type: "binary", "numeric", "enum", "text", "composite"
-	Values   []string `json:"values,omitempty"`   // for enum types (e.g. ["single","double","hold"])
-	ValueMin *float64 `json:"valueMin,omitempty"` // for numeric types
-	ValueMax *float64 `json:"valueMax,omitempty"` // for numeric types
-	Unit     string   `json:"unit,omitempty"`     // for numeric types (e.g. "°C", "%", "lux")
-	Access   int      `json:"access"`             // bitmask: 1=published, 2=get, 4=set
+	Name        string             `json:"name"`
+	Type        string             `json:"type"`
+	Label       string             `json:"label,omitempty"`
+	Description string             `json:"description,omitempty"`
+	Category    CapabilityCategory `json:"category,omitempty"`
+	Values      []string           `json:"values,omitempty"`
+	ValueMin    *float64           `json:"valueMin,omitempty"`
+	ValueMax    *float64           `json:"valueMax,omitempty"`
+	Unit        string             `json:"unit,omitempty"`
+	Access      CapabilityAccess   `json:"access"`
+}
+
+// ReportsValue reports whether the adapter publishes this capability.
+func (c Capability) ReportsValue() bool {
+	return c.Access&CapabilityAccessState != 0
+}
+
+// CanSet reports whether the capability accepts writes.
+func (c Capability) CanSet() bool {
+	return c.Access&CapabilityAccessSet != 0
+}
+
+// CanGet reports whether the capability accepts explicit reads.
+func (c Capability) CanGet() bool {
+	return c.Access&CapabilityAccessGet != 0
+}
+
+// EffectiveCategory treats an omitted category as ordinary state.
+func (c Capability) EffectiveCategory() CapabilityCategory {
+	if c.Category == "" {
+		return CapabilityCategoryState
+	}
+	return c.Category
 }
 
 // Device is the protocol-agnostic representation of a home automation device.
@@ -116,7 +172,7 @@ type Device struct {
 	DisplayBrightness *int64       `json:"displayBrightness,omitempty"`
 	Source            Source       `json:"source"`
 	Type              DeviceType   `json:"type"`
-	Tags              []DeviceTag  `json:"tags"`
+	Roles             DeviceRoles  `json:"roles"`
 	Capabilities      []Capability `json:"capabilities"`
 	Available         bool         `json:"available"`
 	Removed           bool         `json:"removed"`
@@ -161,7 +217,23 @@ func AdapterFingerprint(d Device) string {
 		b.WriteByte(':')
 		b.WriteString(c.Type)
 		b.WriteByte(':')
-		b.WriteString(strconv.Itoa(c.Access))
+		b.WriteString(strconv.Itoa(int(c.Access)))
+		b.WriteByte(':')
+		b.WriteString(string(c.EffectiveCategory()))
+		b.WriteByte(':')
+		b.WriteString(c.Label)
+		b.WriteByte(':')
+		b.WriteString(c.Description)
+		b.WriteByte(':')
+		b.WriteString(c.Unit)
+		b.WriteByte(':')
+		if c.ValueMin != nil {
+			b.WriteString(strconv.FormatFloat(*c.ValueMin, 'g', -1, 64))
+		}
+		b.WriteByte(':')
+		if c.ValueMax != nil {
+			b.WriteString(strconv.FormatFloat(*c.ValueMax, 'g', -1, 64))
+		}
 		for _, v := range c.Values {
 			b.WriteByte(',')
 			b.WriteString(v)

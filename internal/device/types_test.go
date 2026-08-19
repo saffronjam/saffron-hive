@@ -22,12 +22,28 @@ func TestDeviceTypeConstants(t *testing.T) {
 	}
 }
 
-func TestDeviceTagValidation(t *testing.T) {
-	if !IsValidDeviceTag(DeviceTagLight) {
-		t.Fatal("LIGHT should be a valid device tag")
+func TestDeviceRoleDefaultsAndValidation(t *testing.T) {
+	plug := Device{
+		Type: Plug,
+		Capabilities: []Capability{{
+			Name:   CapOnOff,
+			Access: CapabilityAccessState | CapabilityAccessSet,
+		}},
 	}
-	if IsValidDeviceTag(DeviceTag("UNKNOWN")) {
-		t.Fatal("UNKNOWN should not be a valid device tag")
+	roles := DefaultDeviceRoles(plug)
+	if roles.ControlledLoad == nil || *roles.ControlledLoad != ControlledLoadRoleAppliance {
+		t.Fatalf("controlled load role = %v, want appliance", roles.ControlledLoad)
+	}
+	if err := ValidateDeviceRoles(plug, roles); err != nil {
+		t.Fatalf("validate defaults: %v", err)
+	}
+	roles.ControlledLoad = Ptr(ControlledLoadRoleLight)
+	if err := ValidateDeviceRoles(plug, roles); err != nil {
+		t.Fatalf("validate light role: %v", err)
+	}
+	roles.Contact = Ptr(ContactRoleDoor)
+	if err := ValidateDeviceRoles(plug, roles); err == nil {
+		t.Fatal("contact role should be rejected without a reporting contact capability")
 	}
 }
 
