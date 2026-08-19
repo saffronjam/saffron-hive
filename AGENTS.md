@@ -27,6 +27,7 @@ Events have a generic envelope (type, device ID, timestamp) with a typed payload
 
 Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `device.state_changed` — device reported new state (partial update, pointer fields for optional values)
+- `device.configuration_changed` — device reported confirmed settings (partial typed update)
 - `device.action_fired` — momentary action (a button press) — distinct from a persistent state change; occupancy is persistent (true for the whole occupied window) and rides `device.state_changed`
 - `device.availability_changed` — device online/offline
 - `device.added` / `device.removed` — device registry changes
@@ -34,8 +35,9 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
   adapter-owned field changed (friendly name, type, capabilities); persistence
   refreshes those columns. Adapters compare `device.AdapterFingerprint` across
   syncs so an unchanged re-report publishes nothing
-- `device.updated` — a device's user-owned metadata (name override, icon, tags, disabled) changed; carries the updated device so caches (in-memory store) refresh those fields. Never published by an adapter — that is what `device.synced` is for
+- `device.updated` — a device's user-owned metadata (name override, icon, roles, disabled) changed; carries the updated device so caches (in-memory store) refresh those fields. Never published by an adapter — that is what `device.synced` is for
 - `command.requested` — user or automation wants to set a device state
+- `configuration.requested` — user or automation wants to write device settings
 - `native_effect.requested` — a request to start a named external effect program on a device
 - `scene.applied` — a scene was applied (commands fanned out)
 - `scene.activated` / `scene.deactivated` — scene became / stopped being the current device state (powers the dashboard's live scene-active feedback)

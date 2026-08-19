@@ -681,7 +681,7 @@ func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) 
 //
 // Zigbee2MQTT keeps its device rows. Device ids are IEEE addresses, so
 // reconfiguring the integration recovers every device onto its original row with
-// its name, icon, tags, room and scene references intact; deleting them would
+// its name, icon, roles, room and scene references intact; deleting them would
 // instead orphan those references. Tuya purges, because its cloud ids are
 // re-derived on every sync.
 func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string) (int, error) {
