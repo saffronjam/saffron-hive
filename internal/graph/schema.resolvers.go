@@ -44,8 +44,8 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 		Available: d.Available,
 		Removed:   d.Removed,
 		LastSeen:  d.LastSeen,
-		SetTags:   input.Tags.IsSet(),
-		Tags:      deviceTagsFromModel(input.Tags.Value()),
+		SetRoles:  input.Roles.IsSet(),
+		Roles:     deviceRolesFromModel(input.Roles.Value()),
 	})
 	if err != nil {
 		return nil, err
@@ -161,6 +161,41 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 	})
 
 	return mapDeviceFromReader(r.StateReader, d), nil
+}
+
+// SetDeviceConfiguration is the resolver for the setDeviceConfiguration field.
+func (r *mutationResolver) SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceConfigurationEntryInput) (bool, error) {
+	id := device.DeviceID(deviceID)
+	d, ok := r.StateReader.GetDevice(id)
+	if !ok {
+		return false, fmt.Errorf("device %q not found", deviceID)
+	}
+	values := make([]device.ConfigurationValue, 0, len(settings))
+	for _, setting := range settings {
+		if setting == nil {
+			return false, fmt.Errorf("configuration setting must not be null")
+		}
+		values = append(values, device.ConfigurationValue{
+			Capability:   setting.Capability,
+			BooleanValue: setting.BooleanValue.Value(),
+			NumberValue:  setting.NumberValue.Value(),
+			StringValue:  setting.StringValue.Value(),
+		})
+	}
+	if err := device.ValidateConfigurationValues(d, values); err != nil {
+		return false, err
+	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventConfigurationRequested,
+		DeviceID:  deviceID,
+		Timestamp: time.Now(),
+		Payload: device.ConfigurationRequest{
+			DeviceID: id,
+			Values:   values,
+			Origin:   device.OriginUser(),
+		},
+	})
+	return true, nil
 }
 
 // SimulateDeviceAction is the resolver for the simulateDeviceAction field.
@@ -713,14 +748,15 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 	}
 
 	params := store.ReplaceFloorplanParams{
-		ID:         input.ID,
-		Name:       input.Name,
-		Vertices:   make([]store.FloorplanVertex, len(input.Vertices)),
-		Walls:      make([]store.FloorplanWall, len(input.Walls)),
-		Openings:   make([]store.FloorplanOpening, len(input.Openings)),
-		Rooms:      make([]store.FloorplanRoom, len(input.Rooms)),
-		Placements: make([]store.FloorplanPlacement, len(input.Placements)),
-		Furniture:  make([]store.FloorplanFurniture, len(input.Furniture)),
+		ID:           input.ID,
+		Name:         input.Name,
+		Vertices:     make([]store.FloorplanVertex, len(input.Vertices)),
+		Walls:        make([]store.FloorplanWall, len(input.Walls)),
+		Openings:     make([]store.FloorplanOpening, len(input.Openings)),
+		DoorBindings: make([]store.FloorplanDoorBinding, len(input.DoorBindings)),
+		Rooms:        make([]store.FloorplanRoom, len(input.Rooms)),
+		Placements:   make([]store.FloorplanPlacement, len(input.Placements)),
+		Furniture:    make([]store.FloorplanFurniture, len(input.Furniture)),
 	}
 	for i, v := range input.Vertices {
 		params.Vertices[i] = store.FloorplanVertex{ID: v.ID, X: v.X, Y: v.Y}
@@ -742,6 +778,14 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 			T:      o.T,
 			Width:  o.Width,
 			Kind:   openingKindFromModel(o.Kind),
+		}
+	}
+	for i, binding := range input.DoorBindings {
+		params.DoorBindings[i] = store.FloorplanDoorBinding{
+			OpeningID: binding.OpeningID,
+			DeviceID:  device.DeviceID(binding.DeviceID),
+			HingeSide: doorHingeSideFromModel(binding.HingeSide),
+			SwingSide: doorSwingSideFromModel(binding.SwingSide),
 		}
 	}
 	for i, room := range input.Rooms {
@@ -1813,14 +1857,18 @@ func (r *queryResolver) StateHistory(ctx context.Context, filter model.StateHist
 				fields = append(fields, f)
 			}
 		}
+		if len(fields) == 0 {
+			return []*model.StateSeries{}, nil
+		}
 	}
 
 	points, err := r.Store.QueryStateHistory(ctx, store.StateHistoryQuery{
-		DeviceIDs:     deviceIDs,
-		Fields:        fields,
-		From:          from,
-		To:            to,
-		BucketSeconds: bucket,
+		DeviceIDs:      deviceIDs,
+		Fields:         fields,
+		StatefulFields: history.StatefulFields(),
+		From:           from,
+		To:             to,
+		BucketSeconds:  bucket,
 	})
 	if err != nil {
 		return nil, err
@@ -1836,17 +1884,28 @@ func (r *queryResolver) StateHistory(ctx context.Context, filter model.StateHist
 		key := seriesKey{deviceID: string(p.DeviceID), field: p.Field}
 		series, ok := seriesMap[key]
 		if !ok {
+			valueType := model.StateSeriesValueTypeNumber
+			switch history.Kind(p.Field) {
+			case history.ValueKindBoolean:
+				valueType = model.StateSeriesValueTypeBoolean
+			case history.ValueKindText:
+				valueType = model.StateSeriesValueTypeText
+			}
 			series = &model.StateSeries{
-				DeviceID: key.deviceID,
-				Field:    key.field,
+				DeviceID:  key.deviceID,
+				Field:     key.field,
+				ValueType: valueType,
 			}
 			seriesMap[key] = series
 			order = append(order, key)
 		}
-		series.Points = append(series.Points, &model.StateSeriesPoint{
-			At:    p.At,
-			Value: p.Value,
-		})
+		point := &model.StateSeriesPoint{At: p.At, NumberValue: p.NumericValue, TextValue: p.TextValue}
+		if history.Kind(p.Field) == history.ValueKindBoolean && p.NumericValue != nil {
+			value := *p.NumericValue != 0
+			point.NumberValue = nil
+			point.BooleanValue = &value
+		}
+		series.Points = append(series.Points, point)
 	}
 	result := make([]*model.StateSeries, 0, len(order))
 	for _, key := range order {
@@ -1926,13 +1985,16 @@ func (r *queryResolver) AggregatedStateHistory(ctx context.Context, filter model
 		return []*model.AggregatedSeries{}, nil
 	}
 
-	var fields []string
+	fields := history.NumericFields()
 	if fv := filter.Fields.Value(); len(fv) > 0 {
 		fields = make([]string, 0, len(fv))
 		for _, f := range fv {
-			if history.IsKnownField(f) {
+			if history.Kind(f) == history.ValueKindNumber {
 				fields = append(fields, f)
 			}
+		}
+		if len(fields) == 0 {
+			return []*model.AggregatedSeries{}, nil
 		}
 	}
 
@@ -1960,6 +2022,9 @@ func (r *queryResolver) AggregatedStateHistory(ctx context.Context, filter model
 	fieldOrder := make([]string, 0, 8)
 	fieldSeen := make(map[string]bool, 8)
 	for _, p := range points {
+		if p.NumericValue == nil || history.Kind(p.Field) != history.ValueKindNumber {
+			continue
+		}
 		if !fieldSeen[p.Field] {
 			fieldSeen[p.Field] = true
 			fieldOrder = append(fieldOrder, p.Field)
@@ -1970,7 +2035,7 @@ func (r *queryResolver) AggregatedStateHistory(ctx context.Context, filter model
 			agg = &bucketAgg{at: p.At}
 			aggs[key] = agg
 		}
-		agg.sum += p.Value
+		agg.sum += *p.NumericValue
 		agg.n++
 	}
 
@@ -1986,12 +2051,12 @@ func (r *queryResolver) AggregatedStateHistory(ctx context.Context, filter model
 		sort.Slice(bucketsForField, func(i, j int) bool {
 			return bucketsForField[i].at.Before(bucketsForField[j].at)
 		})
-		series.Points = make([]*model.StateSeriesPoint, 0, len(bucketsForField))
+		series.Points = make([]*model.NumericSeriesPoint, 0, len(bucketsForField))
 		for _, b := range bucketsForField {
 			if b.n == 0 {
 				continue
 			}
-			series.Points = append(series.Points, &model.StateSeriesPoint{
+			series.Points = append(series.Points, &model.NumericSeriesPoint{
 				At:    b.at,
 				Value: b.sum / float64(b.n),
 			})
@@ -2403,6 +2468,39 @@ func (r *subscriptionResolver) DeviceStateChanged(ctx context.Context, deviceID 
 		}
 	}()
 
+	return out, nil
+}
+
+// DeviceConfigurationChanged is the resolver for the deviceConfigurationChanged field.
+func (r *subscriptionResolver) DeviceConfigurationChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceConfigurationEvent, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventDeviceConfigurationChanged)
+	out := make(chan *model.DeviceConfigurationEvent, 1)
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				if deviceID != nil && evt.DeviceID != *deviceID {
+					continue
+				}
+				change, ok := evt.Payload.(device.ConfigurationChange)
+				if !ok {
+					continue
+				}
+				select {
+				case out <- &model.DeviceConfigurationEvent{DeviceID: evt.DeviceID, Values: mapConfigurationValues(change.Values)}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
 	return out, nil
 }
 

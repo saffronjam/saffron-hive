@@ -262,22 +262,22 @@ func TestQueryStateHistory(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		env.store.stateSamples = append(env.store.stateSamples, store.StateHistoryPoint{
-			DeviceID: "s1",
-			Field:    "temperature",
-			At:       now.Add(time.Duration(i) * time.Minute),
-			Value:    20.0 + float64(i),
+			DeviceID:     "s1",
+			Field:        "temperature",
+			At:           now.Add(time.Duration(i) * time.Minute),
+			NumericValue: device.Ptr(20.0 + float64(i)),
 		})
 		env.store.stateSamples = append(env.store.stateSamples, store.StateHistoryPoint{
-			DeviceID: "s1",
-			Field:    "humidity",
-			At:       now.Add(time.Duration(i) * time.Minute),
-			Value:    40.0 + float64(i),
+			DeviceID:     "s1",
+			Field:        "humidity",
+			At:           now.Add(time.Duration(i) * time.Minute),
+			NumericValue: device.Ptr(40.0 + float64(i)),
 		})
 	}
 
 	from := now
 	to := now.Add(9 * time.Minute)
-	resp := env.query(t, `query($filter: StateHistoryFilter!) { stateHistory(filter: $filter) { deviceId field points { at value } } }`,
+	resp := env.query(t, `query($filter: StateHistoryFilter!) { stateHistory(filter: $filter) { deviceId field valueType points { at numberValue } } }`,
 		map[string]any{
 			"filter": map[string]any{
 				"deviceIds": []string{"s1"},
@@ -295,8 +295,8 @@ func TestQueryStateHistory(t *testing.T) {
 			DeviceID string `json:"deviceId"`
 			Field    string `json:"field"`
 			Points   []struct {
-				At    string  `json:"at"`
-				Value float64 `json:"value"`
+				At          string  `json:"at"`
+				NumberValue float64 `json:"numberValue"`
 			} `json:"points"`
 		} `json:"stateHistory"`
 	}
