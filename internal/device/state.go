@@ -41,6 +41,10 @@ type DeviceState struct {
 	Pressure          *float64 `json:"pressure,omitempty"`
 	Illuminance       *float64 `json:"illuminance,omitempty"`
 	Occupancy         *bool    `json:"occupancy,omitempty"`
+	Contact           *bool    `json:"contact,omitempty"`
+	Orientation       *string  `json:"orientation,omitempty"`
+	DevicePosture     *string  `json:"devicePosture,omitempty"`
+	LinkQuality       *float64 `json:"linkQuality,omitempty"`
 	Battery           *float64 `json:"battery,omitempty"`
 	Power             *float64 `json:"power,omitempty"`
 	Voltage           *float64 `json:"voltage,omitempty"`

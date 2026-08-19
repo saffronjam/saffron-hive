@@ -37,6 +37,18 @@ func MergeDeviceState(current, update DeviceState) DeviceState {
 	if update.Occupancy != nil {
 		current.Occupancy = update.Occupancy
 	}
+	if update.Contact != nil {
+		current.Contact = update.Contact
+	}
+	if update.Orientation != nil {
+		current.Orientation = update.Orientation
+	}
+	if update.DevicePosture != nil {
+		current.DevicePosture = update.DevicePosture
+	}
+	if update.LinkQuality != nil {
+		current.LinkQuality = update.LinkQuality
+	}
 	if update.Battery != nil {
 		current.Battery = update.Battery
 	}
