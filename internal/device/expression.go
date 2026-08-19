@@ -52,29 +52,40 @@ type Clause struct {
 // result AND/OR clause depending on its connector.
 type Expression []Clause
 
-// deviceRoles returns the logical roles a device fills: its physical type plus
-// any roles its tags promote it into (a LIGHT-tagged plug is also a light).
+// deviceRoles returns the physical and semantic roles a device fills.
 func deviceRoles(d Device) map[string]struct{} {
 	roles := map[string]struct{}{string(d.Type): {}}
-	for _, t := range d.Tags {
-		if v, ok := tagRoles[t]; ok {
-			roles[v] = struct{}{}
-		}
+	if d.Type == Light || d.Roles.ControlledLoad != nil && *d.Roles.ControlledLoad == ControlledLoadRoleLight {
+		roles[string(Light)] = struct{}{}
+	}
+	if d.Type == Climate || d.Roles.ControlledLoad != nil && *d.Roles.ControlledLoad == ControlledLoadRoleAppliance {
+		roles["appliance"] = struct{}{}
+	}
+	if d.Roles.Contact != nil && *d.Roles.Contact != ContactRoleGeneral {
+		roles[string(*d.Roles.Contact)] = struct{}{}
 	}
 	return roles
 }
 
-var tagRoles = map[DeviceTag]string{
-	DeviceTagLight: string(Light),
-}
-
-var selectableKinds = map[string]struct{}{
+var selectableTypes = map[string]struct{}{
 	string(Light):   {},
 	string(Sensor):  {},
 	string(Button):  {},
 	string(Plug):    {},
 	string(Climate): {},
 	string(Speaker): {},
+}
+
+var selectableRoles = map[string]struct{}{
+	string(Light):   {},
+	string(Sensor):  {},
+	string(Button):  {},
+	string(Plug):    {},
+	string(Climate): {},
+	string(Speaker): {},
+	"appliance":     {},
+	"door":          {},
+	"window":        {},
 }
 
 // EvaluateExpression resolves a target expression to a sorted device-ID set.
@@ -194,10 +205,17 @@ func ValidateExpression(expr Expression) error {
 		} else if c.Connector != ConnectorAnd && c.Connector != ConnectorOr {
 			return fmt.Errorf("clause %d: connector must be %q or %q", i, ConnectorAnd, ConnectorOr)
 		}
-		if c.Subject == SubjectDeviceType || c.Subject == SubjectDeviceRole {
+		if c.Subject == SubjectDeviceType {
 			for _, v := range c.Values {
-				if _, ok := selectableKinds[v]; !ok {
-					return fmt.Errorf("clause %d: unknown device kind %q", i, v)
+				if _, ok := selectableTypes[v]; !ok {
+					return fmt.Errorf("clause %d: unknown device type %q", i, v)
+				}
+			}
+		}
+		if c.Subject == SubjectDeviceRole {
+			for _, v := range c.Values {
+				if _, ok := selectableRoles[v]; !ok {
+					return fmt.Errorf("clause %d: unknown device role %q", i, v)
 				}
 			}
 		}

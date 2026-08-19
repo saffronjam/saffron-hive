@@ -26,8 +26,8 @@ func (s stubResolver) ResolveTargetDeviceIDs(_ context.Context, t TargetType, id
 func evalFixture() (*MemoryStore, stubResolver) {
 	s := NewMemoryStore()
 	s.Register(Device{ID: "lamp", Type: Light})
-	s.Register(Device{ID: "fan", Type: Plug})
-	s.Register(Device{ID: "lamp-plug", Type: Plug, Tags: []DeviceTag{DeviceTagLight}})
+	s.Register(Device{ID: "fan", Type: Plug, Capabilities: []Capability{{Name: CapOnOff, Access: 3}}})
+	s.Register(Device{ID: "lamp-plug", Type: Plug, Capabilities: []Capability{{Name: CapOnOff, Access: 3}}, Roles: DeviceRoles{ControlledLoad: Ptr(ControlledLoadRoleLight)}})
 	s.Register(Device{ID: "temp", Type: Sensor})
 	res := stubResolver{
 		rooms:  map[string][]DeviceID{"living": {"lamp", "fan", "lamp-plug", "temp"}},
@@ -48,7 +48,7 @@ func TestEvaluateExpression_RoomAndDeviceType(t *testing.T) {
 	}
 }
 
-func TestEvaluateExpression_RoomAndDeviceRoleCatchesTaggedPlug(t *testing.T) {
+func TestEvaluateExpression_RoomAndDeviceRoleCatchesLightPlug(t *testing.T) {
 	s, res := evalFixture()
 	expr := Expression{
 		{Subject: SubjectRoom, Op: OpIs, Values: []string{"living"}},
@@ -56,7 +56,38 @@ func TestEvaluateExpression_RoomAndDeviceRoleCatchesTaggedPlug(t *testing.T) {
 	}
 	got := EvaluateExpression(context.Background(), s, res, expr)
 	if want := []DeviceID{"lamp", "lamp-plug"}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v (role should catch the LIGHT-tagged plug)", got, want)
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestEvaluateExpression_SemanticRoles(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "climate", Type: Climate})
+	s.Register(Device{
+		ID:           "appliance-plug",
+		Type:         Plug,
+		Capabilities: []Capability{{Name: CapOnOff, Access: 3}},
+	})
+	s.Register(Device{
+		ID:           "door",
+		Type:         Sensor,
+		Capabilities: []Capability{{Name: CapContact, Access: 1}},
+		Roles:        DeviceRoles{Contact: Ptr(ContactRoleDoor)},
+	})
+	s.Register(Device{
+		ID:           "general-contact",
+		Type:         Sensor,
+		Capabilities: []Capability{{Name: CapContact, Access: 1}},
+	})
+	res := stubResolver{}
+
+	appliances := Expression{{Subject: SubjectDeviceRole, Op: OpIs, Values: []string{"appliance"}}}
+	if got := EvaluateExpression(context.Background(), s, res, appliances); !reflect.DeepEqual(got, []DeviceID{"appliance-plug", "climate"}) {
+		t.Fatalf("appliance role = %v", got)
+	}
+	doors := Expression{{Subject: SubjectDeviceRole, Op: OpIs, Values: []string{"door"}}}
+	if got := EvaluateExpression(context.Background(), s, res, doors); !reflect.DeepEqual(got, []DeviceID{"door"}) {
+		t.Fatalf("door role = %v", got)
 	}
 }
 
@@ -98,7 +129,7 @@ func TestEvaluateExpression_Empty(t *testing.T) {
 func TestValidateExpression(t *testing.T) {
 	good := Expression{
 		{Subject: SubjectRoom, Op: OpIs, Values: []string{"living"}},
-		{Connector: ConnectorAnd, Subject: SubjectDeviceType, Op: OpIs, Values: []string{"light"}},
+		{Connector: ConnectorAnd, Subject: SubjectDeviceRole, Op: OpIsOneOf, Values: []string{"light", "appliance", "door", "window"}},
 	}
 	if err := ValidateExpression(good); err != nil {
 		t.Fatalf("valid expression rejected: %v", err)
@@ -110,6 +141,7 @@ func TestValidateExpression(t *testing.T) {
 		{{Subject: SubjectRoom, Op: OpIs, Values: nil}},
 		{{Connector: ConnectorAnd, Subject: SubjectRoom, Op: OpIs, Values: []string{"x"}}},
 		{{Subject: SubjectDeviceType, Op: OpIs, Values: []string{"unknown"}}},
+		{{Subject: SubjectDeviceType, Op: OpIs, Values: []string{"door"}}},
 		{
 			{Subject: SubjectRoom, Op: OpIs, Values: []string{"x"}},
 			{Subject: SubjectRoom, Op: OpIs, Values: []string{"y"}}, // missing connector
