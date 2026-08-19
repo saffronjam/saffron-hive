@@ -125,13 +125,18 @@ type ComplexityRoot struct {
 	}
 
 	Capability struct {
-		Access   func(childComplexity int) int
-		Name     func(childComplexity int) int
-		Type     func(childComplexity int) int
-		Unit     func(childComplexity int) int
-		ValueMax func(childComplexity int) int
-		ValueMin func(childComplexity int) int
-		Values   func(childComplexity int) int
+		CanGet       func(childComplexity int) int
+		CanSet       func(childComplexity int) int
+		Category     func(childComplexity int) int
+		Description  func(childComplexity int) int
+		Label        func(childComplexity int) int
+		Name         func(childComplexity int) int
+		ReportsValue func(childComplexity int) int
+		Type         func(childComplexity int) int
+		Unit         func(childComplexity int) int
+		ValueMax     func(childComplexity int) int
+		ValueMin     func(childComplexity int) int
+		Values       func(childComplexity int) int
 	}
 
 	Color struct {
@@ -150,6 +155,7 @@ type ComplexityRoot struct {
 	Device struct {
 		Available         func(childComplexity int) int
 		Capabilities      func(childComplexity int) int
+		Configuration     func(childComplexity int) int
 		Disabled          func(childComplexity int) int
 		DisplayBrightness func(childComplexity int) int
 		DisplayColor      func(childComplexity int) int
@@ -158,10 +164,10 @@ type ComplexityRoot struct {
 		Icon              func(childComplexity int) int
 		LastSeen          func(childComplexity int) int
 		Name              func(childComplexity int) int
+		Roles             func(childComplexity int) int
 		Seen              func(childComplexity int) int
 		Source            func(childComplexity int) int
 		State             func(childComplexity int) int
-		Tags              func(childComplexity int) int
 		Type              func(childComplexity int) int
 	}
 
@@ -176,19 +182,40 @@ type ComplexityRoot struct {
 		DeviceID  func(childComplexity int) int
 	}
 
+	DeviceConfigurationEntry struct {
+		BooleanValue func(childComplexity int) int
+		Capability   func(childComplexity int) int
+		NumberValue  func(childComplexity int) int
+		StringValue  func(childComplexity int) int
+	}
+
+	DeviceConfigurationEvent struct {
+		DeviceID func(childComplexity int) int
+		Values   func(childComplexity int) int
+	}
+
+	DeviceRoles struct {
+		Contact        func(childComplexity int) int
+		ControlledLoad func(childComplexity int) int
+	}
+
 	DeviceState struct {
 		Battery           func(childComplexity int) int
 		Brightness        func(childComplexity int) int
 		Color             func(childComplexity int) int
 		ColorTemp         func(childComplexity int) int
+		Contact           func(childComplexity int) int
 		Current           func(childComplexity int) int
+		DevicePosture     func(childComplexity int) int
 		Energy            func(childComplexity int) int
 		FanMode           func(childComplexity int) int
 		Humidity          func(childComplexity int) int
 		HvacMode          func(childComplexity int) int
 		Illuminance       func(childComplexity int) int
+		LinkQuality       func(childComplexity int) int
 		Occupancy         func(childComplexity int) int
 		On                func(childComplexity int) int
+		Orientation       func(childComplexity int) int
 		Power             func(childComplexity int) int
 		Pressure          func(childComplexity int) int
 		Swing             func(childComplexity int) int
@@ -242,14 +269,22 @@ type ComplexityRoot struct {
 	}
 
 	Floorplan struct {
-		Furniture  func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Openings   func(childComplexity int) int
-		Placements func(childComplexity int) int
-		Rooms      func(childComplexity int) int
-		Vertices   func(childComplexity int) int
-		Walls      func(childComplexity int) int
+		DoorBindings func(childComplexity int) int
+		Furniture    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Name         func(childComplexity int) int
+		Openings     func(childComplexity int) int
+		Placements   func(childComplexity int) int
+		Rooms        func(childComplexity int) int
+		Vertices     func(childComplexity int) int
+		Walls        func(childComplexity int) int
+	}
+
+	FloorplanDoorBinding struct {
+		DeviceID  func(childComplexity int) int
+		HingeSide func(childComplexity int) int
+		OpeningID func(childComplexity int) int
+		SwingSide func(childComplexity int) int
 	}
 
 	FloorplanFurniture struct {
@@ -376,6 +411,7 @@ type ComplexityRoot struct {
 		RunEffect                   func(childComplexity int, effectID string, targetType string, targetID string) int
 		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
 		ScanZigbee2MqttNetwork      func(childComplexity int) int
+		SetDeviceConfiguration      func(childComplexity int, deviceID string, settings []*model.DeviceConfigurationEntryInput) int
 		SetDeviceState              func(childComplexity int, deviceID string, state model.DeviceStateInput) int
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
@@ -414,6 +450,11 @@ type ComplexityRoot struct {
 		NodeCount func(childComplexity int) int
 		Provider  func(childComplexity int) int
 		ScannedAt func(childComplexity int) int
+	}
+
+	NumericSeriesPoint struct {
+		At    func(childComplexity int) int
+		Value func(childComplexity int) int
 	}
 
 	Query struct {
@@ -505,30 +546,34 @@ type ComplexityRoot struct {
 	}
 
 	StateSeries struct {
-		DeviceID func(childComplexity int) int
-		Field    func(childComplexity int) int
-		Points   func(childComplexity int) int
+		DeviceID  func(childComplexity int) int
+		Field     func(childComplexity int) int
+		Points    func(childComplexity int) int
+		ValueType func(childComplexity int) int
 	}
 
 	StateSeriesPoint struct {
-		At    func(childComplexity int) int
-		Value func(childComplexity int) int
+		At           func(childComplexity int) int
+		BooleanValue func(childComplexity int) int
+		NumberValue  func(childComplexity int) int
+		TextValue    func(childComplexity int) int
 	}
 
 	Subscription struct {
-		ActivityStream            func(childComplexity int, advanced *bool) int
-		AlarmEvent                func(childComplexity int) int
-		AutomationNodeActivated   func(childComplexity int, automationID *string) int
-		DeviceActionFired         func(childComplexity int, deviceID *string) int
-		DeviceAdded               func(childComplexity int) int
-		DeviceAvailabilityChanged func(childComplexity int) int
-		DeviceRemoved             func(childComplexity int) int
-		DeviceStateChanged        func(childComplexity int, deviceID *string) int
-		DeviceUpdated             func(childComplexity int) int
-		EffectStepActivated       func(childComplexity int, runID *string) int
-		LogStream                 func(childComplexity int) int
-		NetworkTopologyUpdated    func(childComplexity int, provider *string) int
-		SceneActiveChanged        func(childComplexity int) int
+		ActivityStream             func(childComplexity int, advanced *bool) int
+		AlarmEvent                 func(childComplexity int) int
+		AutomationNodeActivated    func(childComplexity int, automationID *string) int
+		DeviceActionFired          func(childComplexity int, deviceID *string) int
+		DeviceAdded                func(childComplexity int) int
+		DeviceAvailabilityChanged  func(childComplexity int) int
+		DeviceConfigurationChanged func(childComplexity int, deviceID *string) int
+		DeviceRemoved              func(childComplexity int) int
+		DeviceStateChanged         func(childComplexity int, deviceID *string) int
+		DeviceUpdated              func(childComplexity int) int
+		EffectStepActivated        func(childComplexity int, runID *string) int
+		LogStream                  func(childComplexity int) int
+		NetworkTopologyUpdated     func(childComplexity int, provider *string) int
+		SceneActiveChanged         func(childComplexity int) int
 	}
 
 	TargetClause struct {
@@ -589,6 +634,7 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error)
 	SetDeviceState(ctx context.Context, deviceID string, state model.DeviceStateInput) (*model.Device, error)
+	SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceConfigurationEntryInput) (bool, error)
 	SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error)
 	ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error)
 	CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error)
@@ -678,6 +724,7 @@ type QueryResolver interface {
 }
 type SubscriptionResolver interface {
 	DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error)
+	DeviceConfigurationChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceConfigurationEvent, error)
 	DeviceActionFired(ctx context.Context, deviceID *string) (<-chan *model.DeviceActionEvent, error)
 	DeviceAvailabilityChanged(ctx context.Context) (<-chan *model.DeviceAvailabilityEvent, error)
 	DeviceAdded(ctx context.Context) (<-chan *model.Device, error)
@@ -1035,18 +1082,48 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AutomationNodeActivationEvent.NodeID(childComplexity), true
 
-	case "Capability.access":
-		if e.ComplexityRoot.Capability.Access == nil {
+	case "Capability.canGet":
+		if e.ComplexityRoot.Capability.CanGet == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Capability.Access(childComplexity), true
+		return e.ComplexityRoot.Capability.CanGet(childComplexity), true
+	case "Capability.canSet":
+		if e.ComplexityRoot.Capability.CanSet == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capability.CanSet(childComplexity), true
+	case "Capability.category":
+		if e.ComplexityRoot.Capability.Category == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capability.Category(childComplexity), true
+	case "Capability.description":
+		if e.ComplexityRoot.Capability.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capability.Description(childComplexity), true
+	case "Capability.label":
+		if e.ComplexityRoot.Capability.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capability.Label(childComplexity), true
 	case "Capability.name":
 		if e.ComplexityRoot.Capability.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Capability.Name(childComplexity), true
+	case "Capability.reportsValue":
+		if e.ComplexityRoot.Capability.ReportsValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capability.ReportsValue(childComplexity), true
 	case "Capability.type":
 		if e.ComplexityRoot.Capability.Type == nil {
 			break
@@ -1134,6 +1211,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Capabilities(childComplexity), true
+	case "Device.configuration":
+		if e.ComplexityRoot.Device.Configuration == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Configuration(childComplexity), true
 	case "Device.disabled":
 		if e.ComplexityRoot.Device.Disabled == nil {
 			break
@@ -1182,6 +1265,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Name(childComplexity), true
+	case "Device.roles":
+		if e.ComplexityRoot.Device.Roles == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Roles(childComplexity), true
 	case "Device.seen":
 		if e.ComplexityRoot.Device.Seen == nil {
 			break
@@ -1200,12 +1289,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.State(childComplexity), true
-	case "Device.tags":
-		if e.ComplexityRoot.Device.Tags == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Device.Tags(childComplexity), true
 	case "Device.type":
 		if e.ComplexityRoot.Device.Type == nil {
 			break
@@ -1245,6 +1328,57 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DeviceAvailabilityEvent.DeviceID(childComplexity), true
 
+	case "DeviceConfigurationEntry.booleanValue":
+		if e.ComplexityRoot.DeviceConfigurationEntry.BooleanValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceConfigurationEntry.BooleanValue(childComplexity), true
+	case "DeviceConfigurationEntry.capability":
+		if e.ComplexityRoot.DeviceConfigurationEntry.Capability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceConfigurationEntry.Capability(childComplexity), true
+	case "DeviceConfigurationEntry.numberValue":
+		if e.ComplexityRoot.DeviceConfigurationEntry.NumberValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceConfigurationEntry.NumberValue(childComplexity), true
+	case "DeviceConfigurationEntry.stringValue":
+		if e.ComplexityRoot.DeviceConfigurationEntry.StringValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceConfigurationEntry.StringValue(childComplexity), true
+
+	case "DeviceConfigurationEvent.deviceId":
+		if e.ComplexityRoot.DeviceConfigurationEvent.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceConfigurationEvent.DeviceID(childComplexity), true
+	case "DeviceConfigurationEvent.values":
+		if e.ComplexityRoot.DeviceConfigurationEvent.Values == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceConfigurationEvent.Values(childComplexity), true
+
+	case "DeviceRoles.contact":
+		if e.ComplexityRoot.DeviceRoles.Contact == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceRoles.Contact(childComplexity), true
+	case "DeviceRoles.controlledLoad":
+		if e.ComplexityRoot.DeviceRoles.ControlledLoad == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceRoles.ControlledLoad(childComplexity), true
+
 	case "DeviceState.battery":
 		if e.ComplexityRoot.DeviceState.Battery == nil {
 			break
@@ -1269,12 +1403,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceState.ColorTemp(childComplexity), true
+	case "DeviceState.contact":
+		if e.ComplexityRoot.DeviceState.Contact == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.Contact(childComplexity), true
 	case "DeviceState.current":
 		if e.ComplexityRoot.DeviceState.Current == nil {
 			break
 		}
 
 		return e.ComplexityRoot.DeviceState.Current(childComplexity), true
+	case "DeviceState.devicePosture":
+		if e.ComplexityRoot.DeviceState.DevicePosture == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.DevicePosture(childComplexity), true
 	case "DeviceState.energy":
 		if e.ComplexityRoot.DeviceState.Energy == nil {
 			break
@@ -1305,6 +1451,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceState.Illuminance(childComplexity), true
+	case "DeviceState.linkQuality":
+		if e.ComplexityRoot.DeviceState.LinkQuality == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.LinkQuality(childComplexity), true
 	case "DeviceState.occupancy":
 		if e.ComplexityRoot.DeviceState.Occupancy == nil {
 			break
@@ -1317,6 +1469,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceState.On(childComplexity), true
+	case "DeviceState.orientation":
+		if e.ComplexityRoot.DeviceState.Orientation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.Orientation(childComplexity), true
 	case "DeviceState.power":
 		if e.ComplexityRoot.DeviceState.Power == nil {
 			break
@@ -1533,6 +1691,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.EffectTrack.Name(childComplexity), true
 
+	case "Floorplan.doorBindings":
+		if e.ComplexityRoot.Floorplan.DoorBindings == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Floorplan.DoorBindings(childComplexity), true
 	case "Floorplan.furniture":
 		if e.ComplexityRoot.Floorplan.Furniture == nil {
 			break
@@ -1581,6 +1745,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Floorplan.Walls(childComplexity), true
+
+	case "FloorplanDoorBinding.deviceId":
+		if e.ComplexityRoot.FloorplanDoorBinding.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanDoorBinding.DeviceID(childComplexity), true
+	case "FloorplanDoorBinding.hingeSide":
+		if e.ComplexityRoot.FloorplanDoorBinding.HingeSide == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanDoorBinding.HingeSide(childComplexity), true
+	case "FloorplanDoorBinding.openingId":
+		if e.ComplexityRoot.FloorplanDoorBinding.OpeningID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanDoorBinding.OpeningID(childComplexity), true
+	case "FloorplanDoorBinding.swingSide":
+		if e.ComplexityRoot.FloorplanDoorBinding.SwingSide == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FloorplanDoorBinding.SwingSide(childComplexity), true
 
 	case "FloorplanFurniture.height":
 		if e.ComplexityRoot.FloorplanFurniture.Height == nil {
@@ -2340,6 +2529,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ScanZigbee2MqttNetwork(childComplexity), true
+	case "Mutation.setDeviceConfiguration":
+		if e.ComplexityRoot.Mutation.SetDeviceConfiguration == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setDeviceConfiguration_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetDeviceConfiguration(childComplexity, args["deviceId"].(string), args["settings"].([]*model.DeviceConfigurationEntryInput)), true
 	case "Mutation.setDeviceState":
 		if e.ComplexityRoot.Mutation.SetDeviceState == nil {
 			break
@@ -2602,6 +2802,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.NetworkTopologyEvent.ScannedAt(childComplexity), true
+
+	case "NumericSeriesPoint.at":
+		if e.ComplexityRoot.NumericSeriesPoint.At == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NumericSeriesPoint.At(childComplexity), true
+	case "NumericSeriesPoint.value":
+		if e.ComplexityRoot.NumericSeriesPoint.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NumericSeriesPoint.Value(childComplexity), true
 
 	case "Query.activeEffects":
 		if e.ComplexityRoot.Query.ActiveEffects == nil {
@@ -3052,6 +3265,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.StateSeries.Points(childComplexity), true
+	case "StateSeries.valueType":
+		if e.ComplexityRoot.StateSeries.ValueType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeries.ValueType(childComplexity), true
 
 	case "StateSeriesPoint.at":
 		if e.ComplexityRoot.StateSeriesPoint.At == nil {
@@ -3059,12 +3278,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.StateSeriesPoint.At(childComplexity), true
-	case "StateSeriesPoint.value":
-		if e.ComplexityRoot.StateSeriesPoint.Value == nil {
+	case "StateSeriesPoint.booleanValue":
+		if e.ComplexityRoot.StateSeriesPoint.BooleanValue == nil {
 			break
 		}
 
-		return e.ComplexityRoot.StateSeriesPoint.Value(childComplexity), true
+		return e.ComplexityRoot.StateSeriesPoint.BooleanValue(childComplexity), true
+	case "StateSeriesPoint.numberValue":
+		if e.ComplexityRoot.StateSeriesPoint.NumberValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeriesPoint.NumberValue(childComplexity), true
+	case "StateSeriesPoint.textValue":
+		if e.ComplexityRoot.StateSeriesPoint.TextValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StateSeriesPoint.TextValue(childComplexity), true
 
 	case "Subscription.activityStream":
 		if e.ComplexityRoot.Subscription.ActivityStream == nil {
@@ -3117,6 +3348,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.DeviceAvailabilityChanged(childComplexity), true
+	case "Subscription.deviceConfigurationChanged":
+		if e.ComplexityRoot.Subscription.DeviceConfigurationChanged == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_deviceConfigurationChanged_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.DeviceConfigurationChanged(childComplexity, args["deviceId"].(*string)), true
 	case "Subscription.deviceRemoved":
 		if e.ComplexityRoot.Subscription.DeviceRemoved == nil {
 			break
@@ -3422,9 +3664,11 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputCreateSceneInput,
 		ec.unmarshalInputCreateUserInput,
+		ec.unmarshalInputDeviceConfigurationEntryInput,
 		ec.unmarshalInputDeviceStateInput,
 		ec.unmarshalInputEffectClipInput,
 		ec.unmarshalInputEffectTrackInput,
+		ec.unmarshalInputFloorplanDoorBindingInput,
 		ec.unmarshalInputFloorplanFurnitureInput,
 		ec.unmarshalInputFloorplanOpeningInput,
 		ec.unmarshalInputFloorplanPlacementInput,
@@ -3442,6 +3686,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateAutomationInput,
 		ec.unmarshalInputUpdateCurrentUserInput,
 		ec.unmarshalInputUpdateDeviceInput,
+		ec.unmarshalInputUpdateDeviceRolesInput,
 		ec.unmarshalInputUpdateEffectInput,
 		ec.unmarshalInputUpdateFloorplanInput,
 		ec.unmarshalInputUpdateGroupInput,
@@ -3551,14 +3796,32 @@ setupStatus, me).
 """
 directive @auth on FIELD_DEFINITION
 
+enum CapabilityCategory {
+  STATE
+  CONFIGURATION
+  DIAGNOSTIC
+}
+
 type Capability {
   name: String!
   type: String!
+  label: String
+  description: String
+  category: CapabilityCategory!
   values: [String!]
   valueMin: Float
   valueMax: Float
   unit: String
-  access: Int!
+  reportsValue: Boolean!
+  canSet: Boolean!
+  canGet: Boolean!
+}
+
+type DeviceConfigurationEntry {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
 }
 
 type Device {
@@ -3587,7 +3850,7 @@ type Device {
   displayBrightness: Int
   source: String!
   type: String!
-  tags: [DeviceTag!]!
+  roles: DeviceRoles!
   capabilities: [Capability!]!
   available: Boolean!
   """
@@ -3606,10 +3869,23 @@ type Device {
   seen: Boolean!
   lastSeen: DateTime
   state: DeviceState
+  configuration: [DeviceConfigurationEntry!]!
 }
 
-enum DeviceTag {
+enum ControlledLoadRole {
+  APPLIANCE
   LIGHT
+}
+
+enum ContactRole {
+  GENERAL
+  DOOR
+  WINDOW
+}
+
+type DeviceRoles {
+  controlledLoad: ControlledLoadRole
+  contact: ContactRole
 }
 
 """
@@ -3629,6 +3905,11 @@ type DeviceState {
   pressure: Float
   illuminance: Float
   occupancy: Boolean
+  """True means closed; false means open."""
+  contact: Boolean
+  orientation: String
+  devicePosture: String
+  linkQuality: Float
   battery: Float
   power: Float
   voltage: Float
@@ -3950,6 +4231,7 @@ type Floorplan {
   vertices: [FloorplanVertex!]!
   walls: [FloorplanWall!]!
   openings: [FloorplanOpening!]!
+  doorBindings: [FloorplanDoorBinding!]!
   rooms: [FloorplanRoom!]!
   placements: [FloorplanPlacement!]!
   furniture: [FloorplanFurniture!]!
@@ -3999,6 +4281,24 @@ type FloorplanOpening {
   kind: FloorplanOpeningKind!
 }
 
+enum FloorplanDoorHingeSide {
+  START
+  END
+}
+
+enum FloorplanDoorSwingSide {
+  LEFT
+  RIGHT
+}
+
+"""Connects one door-role contact sensor to one architectural door."""
+type FloorplanDoorBinding {
+  openingId: ID!
+  deviceId: ID!
+  hingeSide: FloorplanDoorHingeSide!
+  swingSide: FloorplanDoorSwingSide!
+}
+
 """
 A derived face of the wall graph. name is the user's label (null when
 anonymous); roomId links the face to a Hive room (null when unlinked, at most
@@ -4041,7 +4341,20 @@ type FloorplanFurniture {
   occluder: Boolean!
 }
 
+enum StateSeriesValueType {
+  NUMBER
+  BOOLEAN
+  TEXT
+}
+
 type StateSeriesPoint {
+  at: DateTime!
+  numberValue: Float
+  booleanValue: Boolean
+  textValue: String
+}
+
+type NumericSeriesPoint {
   at: DateTime!
   value: Float!
 }
@@ -4049,6 +4362,7 @@ type StateSeriesPoint {
 type StateSeries {
   deviceId: ID!
   field: String!
+  valueType: StateSeriesValueType!
   points: [StateSeriesPoint!]!
 }
 
@@ -4062,7 +4376,7 @@ input StateHistoryFilter {
 
 type AggregatedSeries {
   field: String!
-  points: [StateSeriesPoint!]!
+  points: [NumericSeriesPoint!]!
 }
 
 enum AggregatedHistoryTargetType {
@@ -4087,6 +4401,11 @@ input AggregatedStateHistoryFilter {
 type DeviceStateEvent {
   deviceId: ID!
   state: DeviceState!
+}
+
+type DeviceConfigurationEvent {
+  deviceId: ID!
+  values: [DeviceConfigurationEntry!]!
 }
 
 type DeviceActionEvent {
@@ -4445,6 +4764,13 @@ input DeviceStateInput {
   swing: String
 }
 
+input DeviceConfigurationEntryInput {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
+}
+
 input ColorInput {
   r: Int!
   g: Int!
@@ -4470,8 +4796,13 @@ input UpdateDeviceInput {
   show the device at full strength. Omit the field to leave it alone.
   """
   displayBrightness: Int
-  tags: [DeviceTag!]
+  roles: UpdateDeviceRolesInput
   disabled: Boolean
+}
+
+input UpdateDeviceRolesInput {
+  controlledLoad: ControlledLoadRole
+  contact: ContactRole
 }
 
 input CreateSceneInput {
@@ -4591,6 +4922,7 @@ input UpdateFloorplanInput {
   vertices: [FloorplanVertexInput!]!
   walls: [FloorplanWallInput!]!
   openings: [FloorplanOpeningInput!]!
+  doorBindings: [FloorplanDoorBindingInput!]!
   rooms: [FloorplanRoomInput!]!
   placements: [FloorplanPlacementInput!]!
   furniture: [FloorplanFurnitureInput!]!
@@ -4617,6 +4949,13 @@ input FloorplanOpeningInput {
   t: Float!
   width: Float!
   kind: FloorplanOpeningKind!
+}
+
+input FloorplanDoorBindingInput {
+  openingId: ID!
+  deviceId: ID!
+  hingeSide: FloorplanDoorHingeSide!
+  swingSide: FloorplanDoorSwingSide!
 }
 
 input FloorplanRoomInput {
@@ -4689,6 +5028,7 @@ type Query {
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
   setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device! @auth
+  setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
   EventDeviceActionFired on the in-process event bus. Automations listening
@@ -4819,12 +5159,13 @@ type Mutation {
 
 type Subscription {
   deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth
+  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
   deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
   deviceAdded: Device! @auth
   """
   Fires when a device's user-owned metadata changes — name override, icon,
-  tags, display colour, disabled — carrying the full updated device. This is
+  roles, display colour, disabled — carrying the full updated device. This is
   what keeps a second open tab's rename in step without a reload.
   """
   deviceUpdated: Device! @auth
@@ -5313,6 +5654,22 @@ func (ec *executionContext) field_Mutation_runNativeEffect_args(ctx context.Cont
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_setDeviceConfiguration_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "settings", ec.unmarshalNDeviceConfigurationEntryInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryInputᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["settings"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setDeviceState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5710,6 +6067,17 @@ func (ec *executionContext) field_Subscription_automationNodeActivated_args(ctx 
 }
 
 func (ec *executionContext) field_Subscription_deviceActionFired_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_deviceConfigurationChanged_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalOID2ᚖstring)
@@ -6406,7 +6774,7 @@ func (ec *executionContext) _AggregatedSeries_points(ctx context.Context, field 
 			return obj.Points, nil
 		},
 		nil,
-		ec.marshalNStateSeriesPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesPointᚄ,
+		ec.marshalNNumericSeriesPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNumericSeriesPointᚄ,
 		true,
 		true,
 	)
@@ -6421,11 +6789,11 @@ func (ec *executionContext) fieldContext_AggregatedSeries_points(_ context.Conte
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "at":
-				return ec.fieldContext_StateSeriesPoint_at(ctx, field)
+				return ec.fieldContext_NumericSeriesPoint_at(ctx, field)
 			case "value":
-				return ec.fieldContext_StateSeriesPoint_value(ctx, field)
+				return ec.fieldContext_NumericSeriesPoint_value(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type StateSeriesPoint", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type NumericSeriesPoint", field.Name)
 		},
 	}
 	return fc, nil
@@ -7526,6 +7894,93 @@ func (ec *executionContext) fieldContext_Capability_type(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Capability_label(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Capability_label,
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Capability_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capability_description(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Capability_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Capability_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capability_category(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Capability_category,
+		func(ctx context.Context) (any, error) {
+			return obj.Category, nil
+		},
+		nil,
+		ec.marshalNCapabilityCategory2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCapabilityCategory,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Capability_category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CapabilityCategory does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Capability_values(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7642,30 +8097,88 @@ func (ec *executionContext) fieldContext_Capability_unit(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Capability_access(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
+func (ec *executionContext) _Capability_reportsValue(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Capability_access,
+		ec.fieldContext_Capability_reportsValue,
 		func(ctx context.Context) (any, error) {
-			return obj.Access, nil
+			return obj.ReportsValue, nil
 		},
 		nil,
-		ec.marshalNInt2int,
+		ec.marshalNBoolean2bool,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Capability_access(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Capability_reportsValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Capability",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capability_canSet(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Capability_canSet,
+		func(ctx context.Context) (any, error) {
+			return obj.CanSet, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Capability_canSet(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capability_canGet(ctx context.Context, field graphql.CollectedField, obj *model.Capability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Capability_canGet,
+		func(ctx context.Context) (any, error) {
+			return obj.CanGet, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Capability_canGet(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8106,30 +8619,36 @@ func (ec *executionContext) fieldContext_Device_type(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Device_tags(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+func (ec *executionContext) _Device_roles(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Device_tags,
+		ec.fieldContext_Device_roles,
 		func(ctx context.Context) (any, error) {
-			return obj.Tags, nil
+			return obj.Roles, nil
 		},
 		nil,
-		ec.marshalNDeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ,
+		ec.marshalNDeviceRoles2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceRoles,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Device_tags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Device_roles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Device",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type DeviceTag does not have child fields")
+			switch field.Name {
+			case "controlledLoad":
+				return ec.fieldContext_DeviceRoles_controlledLoad(ctx, field)
+			case "contact":
+				return ec.fieldContext_DeviceRoles_contact(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeviceRoles", field.Name)
 		},
 	}
 	return fc, nil
@@ -8163,6 +8682,12 @@ func (ec *executionContext) fieldContext_Device_capabilities(_ context.Context, 
 				return ec.fieldContext_Capability_name(ctx, field)
 			case "type":
 				return ec.fieldContext_Capability_type(ctx, field)
+			case "label":
+				return ec.fieldContext_Capability_label(ctx, field)
+			case "description":
+				return ec.fieldContext_Capability_description(ctx, field)
+			case "category":
+				return ec.fieldContext_Capability_category(ctx, field)
 			case "values":
 				return ec.fieldContext_Capability_values(ctx, field)
 			case "valueMin":
@@ -8171,8 +8696,12 @@ func (ec *executionContext) fieldContext_Device_capabilities(_ context.Context, 
 				return ec.fieldContext_Capability_valueMax(ctx, field)
 			case "unit":
 				return ec.fieldContext_Capability_unit(ctx, field)
-			case "access":
-				return ec.fieldContext_Capability_access(ctx, field)
+			case "reportsValue":
+				return ec.fieldContext_Capability_reportsValue(ctx, field)
+			case "canSet":
+				return ec.fieldContext_Capability_canSet(ctx, field)
+			case "canGet":
+				return ec.fieldContext_Capability_canGet(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Capability", field.Name)
 		},
@@ -8340,6 +8869,14 @@ func (ec *executionContext) fieldContext_Device_state(_ context.Context, field g
 				return ec.fieldContext_DeviceState_illuminance(ctx, field)
 			case "occupancy":
 				return ec.fieldContext_DeviceState_occupancy(ctx, field)
+			case "contact":
+				return ec.fieldContext_DeviceState_contact(ctx, field)
+			case "orientation":
+				return ec.fieldContext_DeviceState_orientation(ctx, field)
+			case "devicePosture":
+				return ec.fieldContext_DeviceState_devicePosture(ctx, field)
+			case "linkQuality":
+				return ec.fieldContext_DeviceState_linkQuality(ctx, field)
 			case "battery":
 				return ec.fieldContext_DeviceState_battery(ctx, field)
 			case "power":
@@ -8360,6 +8897,45 @@ func (ec *executionContext) fieldContext_Device_state(_ context.Context, field g
 				return ec.fieldContext_DeviceState_swing(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeviceState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Device_configuration(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_configuration,
+		func(ctx context.Context) (any, error) {
+			return obj.Configuration, nil
+		},
+		nil,
+		ec.marshalNDeviceConfigurationEntry2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_configuration(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "capability":
+				return ec.fieldContext_DeviceConfigurationEntry_capability(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_DeviceConfigurationEntry_booleanValue(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_DeviceConfigurationEntry_numberValue(ctx, field)
+			case "stringValue":
+				return ec.fieldContext_DeviceConfigurationEntry_stringValue(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeviceConfigurationEntry", field.Name)
 		},
 	}
 	return fc, nil
@@ -8505,6 +9081,248 @@ func (ec *executionContext) fieldContext_DeviceAvailabilityEvent_available(_ con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceConfigurationEntry_capability(ctx context.Context, field graphql.CollectedField, obj *model.DeviceConfigurationEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceConfigurationEntry_capability,
+		func(ctx context.Context) (any, error) {
+			return obj.Capability, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceConfigurationEntry_capability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceConfigurationEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceConfigurationEntry_booleanValue(ctx context.Context, field graphql.CollectedField, obj *model.DeviceConfigurationEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceConfigurationEntry_booleanValue,
+		func(ctx context.Context) (any, error) {
+			return obj.BooleanValue, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceConfigurationEntry_booleanValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceConfigurationEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceConfigurationEntry_numberValue(ctx context.Context, field graphql.CollectedField, obj *model.DeviceConfigurationEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceConfigurationEntry_numberValue,
+		func(ctx context.Context) (any, error) {
+			return obj.NumberValue, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceConfigurationEntry_numberValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceConfigurationEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceConfigurationEntry_stringValue(ctx context.Context, field graphql.CollectedField, obj *model.DeviceConfigurationEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceConfigurationEntry_stringValue,
+		func(ctx context.Context) (any, error) {
+			return obj.StringValue, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceConfigurationEntry_stringValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceConfigurationEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceConfigurationEvent_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.DeviceConfigurationEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceConfigurationEvent_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceConfigurationEvent_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceConfigurationEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceConfigurationEvent_values(ctx context.Context, field graphql.CollectedField, obj *model.DeviceConfigurationEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceConfigurationEvent_values,
+		func(ctx context.Context) (any, error) {
+			return obj.Values, nil
+		},
+		nil,
+		ec.marshalNDeviceConfigurationEntry2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceConfigurationEvent_values(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceConfigurationEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "capability":
+				return ec.fieldContext_DeviceConfigurationEntry_capability(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_DeviceConfigurationEntry_booleanValue(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_DeviceConfigurationEntry_numberValue(ctx, field)
+			case "stringValue":
+				return ec.fieldContext_DeviceConfigurationEntry_stringValue(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeviceConfigurationEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceRoles_controlledLoad(ctx context.Context, field graphql.CollectedField, obj *model.DeviceRoles) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceRoles_controlledLoad,
+		func(ctx context.Context) (any, error) {
+			return obj.ControlledLoad, nil
+		},
+		nil,
+		ec.marshalOControlledLoadRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐControlledLoadRole,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceRoles_controlledLoad(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceRoles",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ControlledLoadRole does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceRoles_contact(ctx context.Context, field graphql.CollectedField, obj *model.DeviceRoles) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceRoles_contact,
+		func(ctx context.Context) (any, error) {
+			return obj.Contact, nil
+		},
+		nil,
+		ec.marshalOContactRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐContactRole,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceRoles_contact(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceRoles",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ContactRole does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8807,6 +9625,122 @@ func (ec *executionContext) fieldContext_DeviceState_occupancy(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_contact(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_contact,
+		func(ctx context.Context) (any, error) {
+			return obj.Contact, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_contact(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_orientation(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_orientation,
+		func(ctx context.Context) (any, error) {
+			return obj.Orientation, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_orientation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_devicePosture(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_devicePosture,
+		func(ctx context.Context) (any, error) {
+			return obj.DevicePosture, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_devicePosture(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_linkQuality(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_linkQuality,
+		func(ctx context.Context) (any, error) {
+			return obj.LinkQuality, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_linkQuality(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9146,6 +10080,14 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 				return ec.fieldContext_DeviceState_illuminance(ctx, field)
 			case "occupancy":
 				return ec.fieldContext_DeviceState_occupancy(ctx, field)
+			case "contact":
+				return ec.fieldContext_DeviceState_contact(ctx, field)
+			case "orientation":
+				return ec.fieldContext_DeviceState_orientation(ctx, field)
+			case "devicePosture":
+				return ec.fieldContext_DeviceState_devicePosture(ctx, field)
+			case "linkQuality":
+				return ec.fieldContext_DeviceState_linkQuality(ctx, field)
 			case "battery":
 				return ec.fieldContext_DeviceState_battery(ctx, field)
 			case "power":
@@ -10148,6 +11090,45 @@ func (ec *executionContext) fieldContext_Floorplan_openings(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _Floorplan_doorBindings(ctx context.Context, field graphql.CollectedField, obj *model.Floorplan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Floorplan_doorBindings,
+		func(ctx context.Context) (any, error) {
+			return obj.DoorBindings, nil
+		},
+		nil,
+		ec.marshalNFloorplanDoorBinding2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBindingᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Floorplan_doorBindings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Floorplan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "openingId":
+				return ec.fieldContext_FloorplanDoorBinding_openingId(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_FloorplanDoorBinding_deviceId(ctx, field)
+			case "hingeSide":
+				return ec.fieldContext_FloorplanDoorBinding_hingeSide(ctx, field)
+			case "swingSide":
+				return ec.fieldContext_FloorplanDoorBinding_swingSide(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FloorplanDoorBinding", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Floorplan_rooms(ctx context.Context, field graphql.CollectedField, obj *model.Floorplan) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10268,6 +11249,122 @@ func (ec *executionContext) fieldContext_Floorplan_furniture(_ context.Context, 
 				return ec.fieldContext_FloorplanFurniture_occluder(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type FloorplanFurniture", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanDoorBinding_openingId(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanDoorBinding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanDoorBinding_openingId,
+		func(ctx context.Context) (any, error) {
+			return obj.OpeningID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanDoorBinding_openingId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanDoorBinding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanDoorBinding_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanDoorBinding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanDoorBinding_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanDoorBinding_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanDoorBinding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanDoorBinding_hingeSide(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanDoorBinding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanDoorBinding_hingeSide,
+		func(ctx context.Context) (any, error) {
+			return obj.HingeSide, nil
+		},
+		nil,
+		ec.marshalNFloorplanDoorHingeSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorHingeSide,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanDoorBinding_hingeSide(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanDoorBinding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type FloorplanDoorHingeSide does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FloorplanDoorBinding_swingSide(ctx context.Context, field graphql.CollectedField, obj *model.FloorplanDoorBinding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_FloorplanDoorBinding_swingSide,
+		func(ctx context.Context) (any, error) {
+			return obj.SwingSide, nil
+		},
+		nil,
+		ec.marshalNFloorplanDoorSwingSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorSwingSide,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_FloorplanDoorBinding_swingSide(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FloorplanDoorBinding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type FloorplanDoorSwingSide does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11342,8 +12439,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -11356,6 +12453,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -11539,8 +12638,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -11553,6 +12652,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -12021,8 +13122,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -12035,6 +13136,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -12107,8 +13210,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -12121,6 +13224,8 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -12133,6 +13238,60 @@ func (ec *executionContext) fieldContext_Mutation_setDeviceState(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setDeviceState_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setDeviceConfiguration(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setDeviceConfiguration,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetDeviceConfiguration(ctx, fc.Args["deviceId"].(string), fc.Args["settings"].([]*model.DeviceConfigurationEntryInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setDeviceConfiguration(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setDeviceConfiguration_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13501,6 +14660,8 @@ func (ec *executionContext) fieldContext_Mutation_updateFloorplan(ctx context.Co
 				return ec.fieldContext_Floorplan_walls(ctx, field)
 			case "openings":
 				return ec.fieldContext_Floorplan_openings(ctx, field)
+			case "doorBindings":
+				return ec.fieldContext_Floorplan_doorBindings(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Floorplan_rooms(ctx, field)
 			case "placements":
@@ -13878,8 +15039,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -13892,6 +15053,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -15916,6 +17079,64 @@ func (ec *executionContext) fieldContext_NetworkTopologyEvent_linkCount(_ contex
 	return fc, nil
 }
 
+func (ec *executionContext) _NumericSeriesPoint_at(ctx context.Context, field graphql.CollectedField, obj *model.NumericSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NumericSeriesPoint_at,
+		func(ctx context.Context) (any, error) {
+			return obj.At, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NumericSeriesPoint_at(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NumericSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NumericSeriesPoint_value(ctx context.Context, field graphql.CollectedField, obj *model.NumericSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NumericSeriesPoint_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NumericSeriesPoint_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NumericSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -15969,8 +17190,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -15983,6 +17204,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -16044,8 +17267,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -16058,6 +17281,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -16643,6 +17868,8 @@ func (ec *executionContext) fieldContext_Query_floorplan(_ context.Context, fiel
 				return ec.fieldContext_Floorplan_walls(ctx, field)
 			case "openings":
 				return ec.fieldContext_Floorplan_openings(ctx, field)
+			case "doorBindings":
+				return ec.fieldContext_Floorplan_doorBindings(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Floorplan_rooms(ctx, field)
 			case "placements":
@@ -16698,6 +17925,8 @@ func (ec *executionContext) fieldContext_Query_stateHistory(ctx context.Context,
 				return ec.fieldContext_StateSeries_deviceId(ctx, field)
 			case "field":
 				return ec.fieldContext_StateSeries_field(ctx, field)
+			case "valueType":
+				return ec.fieldContext_StateSeries_valueType(ctx, field)
 			case "points":
 				return ec.fieldContext_StateSeries_points(ctx, field)
 			}
@@ -17972,8 +19201,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -17986,6 +19215,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -18169,8 +19400,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -18183,6 +19414,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -18970,6 +20203,35 @@ func (ec *executionContext) fieldContext_StateSeries_field(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _StateSeries_valueType(ctx context.Context, field graphql.CollectedField, obj *model.StateSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeries_valueType,
+		func(ctx context.Context) (any, error) {
+			return obj.ValueType, nil
+		},
+		nil,
+		ec.marshalNStateSeriesValueType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesValueType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeries_valueType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type StateSeriesValueType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _StateSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.StateSeries) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -18996,8 +20258,12 @@ func (ec *executionContext) fieldContext_StateSeries_points(_ context.Context, f
 			switch field.Name {
 			case "at":
 				return ec.fieldContext_StateSeriesPoint_at(ctx, field)
-			case "value":
-				return ec.fieldContext_StateSeriesPoint_value(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_StateSeriesPoint_numberValue(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_StateSeriesPoint_booleanValue(ctx, field)
+			case "textValue":
+				return ec.fieldContext_StateSeriesPoint_textValue(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StateSeriesPoint", field.Name)
 		},
@@ -19034,23 +20300,23 @@ func (ec *executionContext) fieldContext_StateSeriesPoint_at(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _StateSeriesPoint_value(ctx context.Context, field graphql.CollectedField, obj *model.StateSeriesPoint) (ret graphql.Marshaler) {
+func (ec *executionContext) _StateSeriesPoint_numberValue(ctx context.Context, field graphql.CollectedField, obj *model.StateSeriesPoint) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_StateSeriesPoint_value,
+		ec.fieldContext_StateSeriesPoint_numberValue,
 		func(ctx context.Context) (any, error) {
-			return obj.Value, nil
+			return obj.NumberValue, nil
 		},
 		nil,
-		ec.marshalNFloat2float64,
+		ec.marshalOFloat2ᚖfloat64,
 		true,
-		true,
+		false,
 	)
 }
 
-func (ec *executionContext) fieldContext_StateSeriesPoint_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_StateSeriesPoint_numberValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "StateSeriesPoint",
 		Field:      field,
@@ -19058,6 +20324,64 @@ func (ec *executionContext) fieldContext_StateSeriesPoint_value(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeriesPoint_booleanValue(ctx context.Context, field graphql.CollectedField, obj *model.StateSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeriesPoint_booleanValue,
+		func(ctx context.Context) (any, error) {
+			return obj.BooleanValue, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeriesPoint_booleanValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StateSeriesPoint_textValue(ctx context.Context, field graphql.CollectedField, obj *model.StateSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StateSeriesPoint_textValue,
+		func(ctx context.Context) (any, error) {
+			return obj.TextValue, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StateSeriesPoint_textValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StateSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -19117,6 +20441,66 @@ func (ec *executionContext) fieldContext_Subscription_deviceStateChanged(ctx con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Subscription_deviceStateChanged_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_deviceConfigurationChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_deviceConfigurationChanged,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().DeviceConfigurationChanged(ctx, fc.Args["deviceId"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DeviceConfigurationEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDeviceConfigurationEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_deviceConfigurationChanged(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_DeviceConfigurationEvent_deviceId(ctx, field)
+			case "values":
+				return ec.fieldContext_DeviceConfigurationEvent_values(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeviceConfigurationEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_deviceConfigurationChanged_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -19286,8 +20670,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -19300,6 +20684,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -19360,8 +20746,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceUpdated(_ context.Co
 				return ec.fieldContext_Device_source(ctx, field)
 			case "type":
 				return ec.fieldContext_Device_type(ctx, field)
-			case "tags":
-				return ec.fieldContext_Device_tags(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
 			case "capabilities":
 				return ec.fieldContext_Device_capabilities(ctx, field)
 			case "available":
@@ -19374,6 +20760,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceUpdated(_ context.Co
 				return ec.fieldContext_Device_lastSeen(ctx, field)
 			case "state":
 				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -23153,6 +24541,57 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDeviceConfigurationEntryInput(ctx context.Context, obj any) (model.DeviceConfigurationEntryInput, error) {
+	var it model.DeviceConfigurationEntryInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"capability", "booleanValue", "numberValue", "stringValue"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "capability":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("capability"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Capability = data
+		case "booleanValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("booleanValue"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BooleanValue = graphql.OmittableOf(data)
+		case "numberValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numberValue"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NumberValue = graphql.OmittableOf(data)
+		case "stringValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stringValue"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StringValue = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, obj any) (model.DeviceStateInput, error) {
 	var it model.DeviceStateInput
 	if obj == nil {
@@ -23329,6 +24768,57 @@ func (ec *executionContext) unmarshalInputEffectTrackInput(ctx context.Context, 
 				return it, err
 			}
 			it.Clips = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputFloorplanDoorBindingInput(ctx context.Context, obj any) (model.FloorplanDoorBindingInput, error) {
+	var it model.FloorplanDoorBindingInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"openingId", "deviceId", "hingeSide", "swingSide"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "openingId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("openingId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OpeningID = data
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "hingeSide":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hingeSide"))
+			data, err := ec.unmarshalNFloorplanDoorHingeSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorHingeSide(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HingeSide = data
+		case "swingSide":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("swingSide"))
+			data, err := ec.unmarshalNFloorplanDoorSwingSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorSwingSide(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SwingSide = data
 		}
 	}
 	return it, nil
@@ -24182,7 +25672,7 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "displayColor", "displayBrightness", "tags", "disabled"}
+	fieldsInOrder := [...]string{"name", "icon", "displayColor", "displayBrightness", "roles", "disabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -24217,13 +25707,13 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 				return it, err
 			}
 			it.DisplayBrightness = graphql.OmittableOf(data)
-		case "tags":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
-			data, err := ec.unmarshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx, v)
+		case "roles":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roles"))
+			data, err := ec.unmarshalOUpdateDeviceRolesInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateDeviceRolesInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Tags = graphql.OmittableOf(data)
+			it.Roles = graphql.OmittableOf(data)
 		case "disabled":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disabled"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -24231,6 +25721,43 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 				return it, err
 			}
 			it.Disabled = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateDeviceRolesInput(ctx context.Context, obj any) (model.UpdateDeviceRolesInput, error) {
+	var it model.UpdateDeviceRolesInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"controlledLoad", "contact"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "controlledLoad":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("controlledLoad"))
+			data, err := ec.unmarshalOControlledLoadRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐControlledLoadRole(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ControlledLoad = graphql.OmittableOf(data)
+		case "contact":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contact"))
+			data, err := ec.unmarshalOContactRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐContactRole(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Contact = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -24319,7 +25846,7 @@ func (ec *executionContext) unmarshalInputUpdateFloorplanInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "vertices", "walls", "openings", "rooms", "placements", "furniture"}
+	fieldsInOrder := [...]string{"id", "name", "vertices", "walls", "openings", "doorBindings", "rooms", "placements", "furniture"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -24361,6 +25888,13 @@ func (ec *executionContext) unmarshalInputUpdateFloorplanInput(ctx context.Conte
 				return it, err
 			}
 			it.Openings = data
+		case "doorBindings":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("doorBindings"))
+			data, err := ec.unmarshalNFloorplanDoorBindingInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBindingInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DoorBindings = data
 		case "rooms":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rooms"))
 			data, err := ec.unmarshalNFloorplanRoomInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanRoomInputᚄ(ctx, v)
@@ -25270,6 +26804,15 @@ func (ec *executionContext) _Capability(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "label":
+			out.Values[i] = ec._Capability_label(ctx, field, obj)
+		case "description":
+			out.Values[i] = ec._Capability_description(ctx, field, obj)
+		case "category":
+			out.Values[i] = ec._Capability_category(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "values":
 			out.Values[i] = ec._Capability_values(ctx, field, obj)
 		case "valueMin":
@@ -25278,8 +26821,18 @@ func (ec *executionContext) _Capability(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = ec._Capability_valueMax(ctx, field, obj)
 		case "unit":
 			out.Values[i] = ec._Capability_unit(ctx, field, obj)
-		case "access":
-			out.Values[i] = ec._Capability_access(ctx, field, obj)
+		case "reportsValue":
+			out.Values[i] = ec._Capability_reportsValue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "canSet":
+			out.Values[i] = ec._Capability_canSet(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "canGet":
+			out.Values[i] = ec._Capability_canGet(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -25448,8 +27001,8 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "tags":
-			out.Values[i] = ec._Device_tags(ctx, field, obj)
+		case "roles":
+			out.Values[i] = ec._Device_roles(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -25477,6 +27030,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Device_lastSeen(ctx, field, obj)
 		case "state":
 			out.Values[i] = ec._Device_state(ctx, field, obj)
+		case "configuration":
+			out.Values[i] = ec._Device_configuration(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -25593,6 +27151,133 @@ func (ec *executionContext) _DeviceAvailabilityEvent(ctx context.Context, sel as
 	return out
 }
 
+var deviceConfigurationEntryImplementors = []string{"DeviceConfigurationEntry"}
+
+func (ec *executionContext) _DeviceConfigurationEntry(ctx context.Context, sel ast.SelectionSet, obj *model.DeviceConfigurationEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deviceConfigurationEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeviceConfigurationEntry")
+		case "capability":
+			out.Values[i] = ec._DeviceConfigurationEntry_capability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "booleanValue":
+			out.Values[i] = ec._DeviceConfigurationEntry_booleanValue(ctx, field, obj)
+		case "numberValue":
+			out.Values[i] = ec._DeviceConfigurationEntry_numberValue(ctx, field, obj)
+		case "stringValue":
+			out.Values[i] = ec._DeviceConfigurationEntry_stringValue(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deviceConfigurationEventImplementors = []string{"DeviceConfigurationEvent"}
+
+func (ec *executionContext) _DeviceConfigurationEvent(ctx context.Context, sel ast.SelectionSet, obj *model.DeviceConfigurationEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deviceConfigurationEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeviceConfigurationEvent")
+		case "deviceId":
+			out.Values[i] = ec._DeviceConfigurationEvent_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "values":
+			out.Values[i] = ec._DeviceConfigurationEvent_values(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var deviceRolesImplementors = []string{"DeviceRoles"}
+
+func (ec *executionContext) _DeviceRoles(ctx context.Context, sel ast.SelectionSet, obj *model.DeviceRoles) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deviceRolesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeviceRoles")
+		case "controlledLoad":
+			out.Values[i] = ec._DeviceRoles_controlledLoad(ctx, field, obj)
+		case "contact":
+			out.Values[i] = ec._DeviceRoles_contact(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var deviceStateImplementors = []string{"DeviceState"}
 
 func (ec *executionContext) _DeviceState(ctx context.Context, sel ast.SelectionSet, obj *model.DeviceState) graphql.Marshaler {
@@ -25624,6 +27309,14 @@ func (ec *executionContext) _DeviceState(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = ec._DeviceState_illuminance(ctx, field, obj)
 		case "occupancy":
 			out.Values[i] = ec._DeviceState_occupancy(ctx, field, obj)
+		case "contact":
+			out.Values[i] = ec._DeviceState_contact(ctx, field, obj)
+		case "orientation":
+			out.Values[i] = ec._DeviceState_orientation(ctx, field, obj)
+		case "devicePosture":
+			out.Values[i] = ec._DeviceState_devicePosture(ctx, field, obj)
+		case "linkQuality":
+			out.Values[i] = ec._DeviceState_linkQuality(ctx, field, obj)
 		case "battery":
 			out.Values[i] = ec._DeviceState_battery(ctx, field, obj)
 		case "power":
@@ -26002,6 +27695,11 @@ func (ec *executionContext) _Floorplan(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "doorBindings":
+			out.Values[i] = ec._Floorplan_doorBindings(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "rooms":
 			out.Values[i] = ec._Floorplan_rooms(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -26014,6 +27712,60 @@ func (ec *executionContext) _Floorplan(ctx context.Context, sel ast.SelectionSet
 			}
 		case "furniture":
 			out.Values[i] = ec._Floorplan_furniture(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var floorplanDoorBindingImplementors = []string{"FloorplanDoorBinding"}
+
+func (ec *executionContext) _FloorplanDoorBinding(ctx context.Context, sel ast.SelectionSet, obj *model.FloorplanDoorBinding) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, floorplanDoorBindingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FloorplanDoorBinding")
+		case "openingId":
+			out.Values[i] = ec._FloorplanDoorBinding_openingId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deviceId":
+			out.Values[i] = ec._FloorplanDoorBinding_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hingeSide":
+			out.Values[i] = ec._FloorplanDoorBinding_hingeSide(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "swingSide":
+			out.Values[i] = ec._FloorplanDoorBinding_swingSide(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -26653,6 +28405,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setDeviceConfiguration":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setDeviceConfiguration(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "simulateDeviceAction":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_simulateDeviceAction(ctx, field)
@@ -27192,6 +28951,50 @@ func (ec *executionContext) _NetworkTopologyEvent(ctx context.Context, sel ast.S
 			}
 		case "linkCount":
 			out.Values[i] = ec._NetworkTopologyEvent_linkCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var numericSeriesPointImplementors = []string{"NumericSeriesPoint"}
+
+func (ec *executionContext) _NumericSeriesPoint(ctx context.Context, sel ast.SelectionSet, obj *model.NumericSeriesPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, numericSeriesPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NumericSeriesPoint")
+		case "at":
+			out.Values[i] = ec._NumericSeriesPoint_at(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._NumericSeriesPoint_value(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -28302,6 +30105,11 @@ func (ec *executionContext) _StateSeries(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "valueType":
+			out.Values[i] = ec._StateSeries_valueType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "points":
 			out.Values[i] = ec._StateSeries_points(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -28346,11 +30154,12 @@ func (ec *executionContext) _StateSeriesPoint(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "value":
-			out.Values[i] = ec._StateSeriesPoint_value(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "numberValue":
+			out.Values[i] = ec._StateSeriesPoint_numberValue(ctx, field, obj)
+		case "booleanValue":
+			out.Values[i] = ec._StateSeriesPoint_booleanValue(ctx, field, obj)
+		case "textValue":
+			out.Values[i] = ec._StateSeriesPoint_textValue(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -28389,6 +30198,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "deviceStateChanged":
 		return ec._Subscription_deviceStateChanged(ctx, fields[0])
+	case "deviceConfigurationChanged":
+		return ec._Subscription_deviceConfigurationChanged(ctx, fields[0])
 	case "deviceActionFired":
 		return ec._Subscription_deviceActionFired(ctx, fields[0])
 	case "deviceAvailabilityChanged":
@@ -29496,6 +31307,16 @@ func (ec *executionContext) marshalNCapability2ᚖgithubᚗcomᚋsaffronjamᚋsa
 	return ec._Capability(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNCapabilityCategory2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCapabilityCategory(ctx context.Context, v any) (model.CapabilityCategory, error) {
+	var res model.CapabilityCategory
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCapabilityCategory2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCapabilityCategory(ctx context.Context, sel ast.SelectionSet, v model.CapabilityCategory) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐChangePasswordInput(ctx context.Context, v any) (model.ChangePasswordInput, error) {
 	res, err := ec.unmarshalInputChangePasswordInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -29624,6 +31445,76 @@ func (ec *executionContext) marshalNDeviceAvailabilityEvent2ᚖgithubᚗcomᚋsa
 	return ec._DeviceAvailabilityEvent(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNDeviceConfigurationEntry2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DeviceConfigurationEntry) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDeviceConfigurationEntry2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntry(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDeviceConfigurationEntry2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntry(ctx context.Context, sel ast.SelectionSet, v *model.DeviceConfigurationEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeviceConfigurationEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDeviceConfigurationEntryInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryInputᚄ(ctx context.Context, v any) ([]*model.DeviceConfigurationEntryInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.DeviceConfigurationEntryInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDeviceConfigurationEntryInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNDeviceConfigurationEntryInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEntryInput(ctx context.Context, v any) (*model.DeviceConfigurationEntryInput, error) {
+	res, err := ec.unmarshalInputDeviceConfigurationEntryInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeviceConfigurationEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEvent(ctx context.Context, sel ast.SelectionSet, v model.DeviceConfigurationEvent) graphql.Marshaler {
+	return ec._DeviceConfigurationEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDeviceConfigurationEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceConfigurationEvent(ctx context.Context, sel ast.SelectionSet, v *model.DeviceConfigurationEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeviceConfigurationEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDeviceRoles2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceRoles(ctx context.Context, sel ast.SelectionSet, v *model.DeviceRoles) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeviceRoles(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNDeviceState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceState(ctx context.Context, sel ast.SelectionSet, v *model.DeviceState) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -29651,47 +31542,6 @@ func (ec *executionContext) marshalNDeviceStateEvent2ᚖgithubᚗcomᚋsaffronja
 func (ec *executionContext) unmarshalNDeviceStateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceStateInput(ctx context.Context, v any) (model.DeviceStateInput, error) {
 	res, err := ec.unmarshalInputDeviceStateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx context.Context, v any) (model.DeviceTag, error) {
-	var res model.DeviceTag
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx context.Context, sel ast.SelectionSet, v model.DeviceTag) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) unmarshalNDeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, v any) ([]model.DeviceTag, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]model.DeviceTag, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalNDeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DeviceTag) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
 }
 
 func (ec *executionContext) marshalNEffect2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v model.Effect) graphql.Marshaler {
@@ -29878,6 +31728,72 @@ func (ec *executionContext) marshalNFloorplan2ᚖgithubᚗcomᚋsaffronjamᚋsaf
 		return graphql.Null
 	}
 	return ec._Floorplan(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNFloorplanDoorBinding2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBindingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FloorplanDoorBinding) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNFloorplanDoorBinding2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBinding(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNFloorplanDoorBinding2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBinding(ctx context.Context, sel ast.SelectionSet, v *model.FloorplanDoorBinding) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FloorplanDoorBinding(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNFloorplanDoorBindingInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBindingInputᚄ(ctx context.Context, v any) ([]*model.FloorplanDoorBindingInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.FloorplanDoorBindingInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNFloorplanDoorBindingInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBindingInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNFloorplanDoorBindingInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorBindingInput(ctx context.Context, v any) (*model.FloorplanDoorBindingInput, error) {
+	res, err := ec.unmarshalInputFloorplanDoorBindingInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNFloorplanDoorHingeSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorHingeSide(ctx context.Context, v any) (model.FloorplanDoorHingeSide, error) {
+	var res model.FloorplanDoorHingeSide
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloorplanDoorHingeSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorHingeSide(ctx context.Context, sel ast.SelectionSet, v model.FloorplanDoorHingeSide) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNFloorplanDoorSwingSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorSwingSide(ctx context.Context, v any) (model.FloorplanDoorSwingSide, error) {
+	var res model.FloorplanDoorSwingSide
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloorplanDoorSwingSide2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanDoorSwingSide(ctx context.Context, sel ast.SelectionSet, v model.FloorplanDoorSwingSide) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNFloorplanFurniture2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐFloorplanFurnitureᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FloorplanFurniture) graphql.Marshaler {
@@ -30452,6 +32368,32 @@ func (ec *executionContext) marshalNNetworkTopologyEvent2ᚖgithubᚗcomᚋsaffr
 	return ec._NetworkTopologyEvent(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNNumericSeriesPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNumericSeriesPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NumericSeriesPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNumericSeriesPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNumericSeriesPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNumericSeriesPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNumericSeriesPoint(ctx context.Context, sel ast.SelectionSet, v *model.NumericSeriesPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NumericSeriesPoint(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNRaiseAlarmInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRaiseAlarmInput(ctx context.Context, v any) (model.RaiseAlarmInput, error) {
 	res, err := ec.unmarshalInputRaiseAlarmInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -30753,6 +32695,16 @@ func (ec *executionContext) marshalNStateSeriesPoint2ᚖgithubᚗcomᚋsaffronja
 		return graphql.Null
 	}
 	return ec._StateSeriesPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNStateSeriesValueType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesValueType(ctx context.Context, v any) (model.StateSeriesValueType, error) {
+	var res model.StateSeriesValueType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNStateSeriesValueType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateSeriesValueType(ctx context.Context, sel ast.SelectionSet, v model.StateSeriesValueType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -31318,6 +33270,38 @@ func (ec *executionContext) unmarshalOColorInput2ᚖgithubᚗcomᚋsaffronjamᚋ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalOContactRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐContactRole(ctx context.Context, v any) (*model.ContactRole, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ContactRole)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOContactRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐContactRole(ctx context.Context, sel ast.SelectionSet, v *model.ContactRole) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOControlledLoadRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐControlledLoadRole(ctx context.Context, v any) (*model.ControlledLoadRole, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ControlledLoadRole)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOControlledLoadRole2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐControlledLoadRole(ctx context.Context, sel ast.SelectionSet, v *model.ControlledLoadRole) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) unmarshalODateTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
 	if v == nil {
 		return nil, nil
@@ -31348,43 +33332,6 @@ func (ec *executionContext) marshalODeviceState2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._DeviceState(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, v any) ([]model.DeviceTag, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]model.DeviceTag, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalODeviceTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTagᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DeviceTag) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNDeviceTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceTag(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
 }
 
 func (ec *executionContext) marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v *model.Effect) graphql.Marshaler {
@@ -31698,6 +33645,14 @@ func (ec *executionContext) marshalOTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsa
 		return graphql.Null
 	}
 	return ec._TuyaConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOUpdateDeviceRolesInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateDeviceRolesInput(ctx context.Context, v any) (*model.UpdateDeviceRolesInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputUpdateDeviceRolesInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {

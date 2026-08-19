@@ -74,8 +74,8 @@ type AggregatedHistoryTarget struct {
 }
 
 type AggregatedSeries struct {
-	Field  string              `json:"field"`
-	Points []*StateSeriesPoint `json:"points"`
+	Field  string                `json:"field"`
+	Points []*NumericSeriesPoint `json:"points"`
 }
 
 type AggregatedStateHistoryFilter struct {
@@ -166,13 +166,18 @@ type AutomationNodeInput struct {
 }
 
 type Capability struct {
-	Name     string   `json:"name"`
-	Type     string   `json:"type"`
-	Values   []string `json:"values,omitempty"`
-	ValueMin *float64 `json:"valueMin,omitempty"`
-	ValueMax *float64 `json:"valueMax,omitempty"`
-	Unit     *string  `json:"unit,omitempty"`
-	Access   int      `json:"access"`
+	Name         string             `json:"name"`
+	Type         string             `json:"type"`
+	Label        *string            `json:"label,omitempty"`
+	Description  *string            `json:"description,omitempty"`
+	Category     CapabilityCategory `json:"category"`
+	Values       []string           `json:"values,omitempty"`
+	ValueMin     *float64           `json:"valueMin,omitempty"`
+	ValueMax     *float64           `json:"valueMax,omitempty"`
+	Unit         *string            `json:"unit,omitempty"`
+	ReportsValue bool               `json:"reportsValue"`
+	CanSet       bool               `json:"canSet"`
+	CanGet       bool               `json:"canGet"`
 }
 
 type ChangePasswordInput struct {
@@ -268,7 +273,7 @@ type Device struct {
 	DisplayBrightness *int          `json:"displayBrightness,omitempty"`
 	Source            string        `json:"source"`
 	Type              string        `json:"type"`
-	Tags              []DeviceTag   `json:"tags"`
+	Roles             *DeviceRoles  `json:"roles"`
 	Capabilities      []*Capability `json:"capabilities"`
 	Available         bool          `json:"available"`
 	// When true the device is excluded from every path that commands or watches it:
@@ -280,9 +285,10 @@ type Device struct {
 	// False from the moment an integration discovers a device until the user opens
 	// the device list, which is what marks it as new in the UI. An adapter re-sync
 	// never resets it.
-	Seen     bool         `json:"seen"`
-	LastSeen *time.Time   `json:"lastSeen,omitempty"`
-	State    *DeviceState `json:"state,omitempty"`
+	Seen          bool                        `json:"seen"`
+	LastSeen      *time.Time                  `json:"lastSeen,omitempty"`
+	State         *DeviceState                `json:"state,omitempty"`
+	Configuration []*DeviceConfigurationEntry `json:"configuration"`
 }
 
 func (Device) IsSceneTarget() {}
@@ -298,21 +304,50 @@ type DeviceAvailabilityEvent struct {
 	Available bool   `json:"available"`
 }
 
+type DeviceConfigurationEntry struct {
+	Capability   string   `json:"capability"`
+	BooleanValue *bool    `json:"booleanValue,omitempty"`
+	NumberValue  *float64 `json:"numberValue,omitempty"`
+	StringValue  *string  `json:"stringValue,omitempty"`
+}
+
+type DeviceConfigurationEntryInput struct {
+	Capability   string                      `json:"capability"`
+	BooleanValue graphql.Omittable[*bool]    `json:"booleanValue,omitempty"`
+	NumberValue  graphql.Omittable[*float64] `json:"numberValue,omitempty"`
+	StringValue  graphql.Omittable[*string]  `json:"stringValue,omitempty"`
+}
+
+type DeviceConfigurationEvent struct {
+	DeviceID string                      `json:"deviceId"`
+	Values   []*DeviceConfigurationEntry `json:"values"`
+}
+
+type DeviceRoles struct {
+	ControlledLoad *ControlledLoadRole `json:"controlledLoad,omitempty"`
+	Contact        *ContactRole        `json:"contact,omitempty"`
+}
+
 // Current state of a device across every capability it reports. Every field is
 // nullable — null means the device has not reported (or does not report) that
 // value. Clients typically branch on Device.type to decide which fields to
 // display, but any field may be present on any device.
 type DeviceState struct {
-	On                *bool    `json:"on,omitempty"`
-	Brightness        *int     `json:"brightness,omitempty"`
-	ColorTemp         *int     `json:"colorTemp,omitempty"`
-	Color             *Color   `json:"color,omitempty"`
-	Transition        *float64 `json:"transition,omitempty"`
-	Temperature       *float64 `json:"temperature,omitempty"`
-	Humidity          *float64 `json:"humidity,omitempty"`
-	Pressure          *float64 `json:"pressure,omitempty"`
-	Illuminance       *float64 `json:"illuminance,omitempty"`
-	Occupancy         *bool    `json:"occupancy,omitempty"`
+	On          *bool    `json:"on,omitempty"`
+	Brightness  *int     `json:"brightness,omitempty"`
+	ColorTemp   *int     `json:"colorTemp,omitempty"`
+	Color       *Color   `json:"color,omitempty"`
+	Transition  *float64 `json:"transition,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
+	Humidity    *float64 `json:"humidity,omitempty"`
+	Pressure    *float64 `json:"pressure,omitempty"`
+	Illuminance *float64 `json:"illuminance,omitempty"`
+	Occupancy   *bool    `json:"occupancy,omitempty"`
+	// True means closed; false means open.
+	Contact           *bool    `json:"contact,omitempty"`
+	Orientation       *string  `json:"orientation,omitempty"`
+	DevicePosture     *string  `json:"devicePosture,omitempty"`
+	LinkQuality       *float64 `json:"linkQuality,omitempty"`
 	Battery           *float64 `json:"battery,omitempty"`
 	Power             *float64 `json:"power,omitempty"`
 	Voltage           *float64 `json:"voltage,omitempty"`
@@ -423,14 +458,30 @@ type EffectTrackInput struct {
 // meters. Saved as a whole — updateFloorplan replaces every list in one
 // transaction.
 type Floorplan struct {
-	ID         string                `json:"id"`
-	Name       string                `json:"name"`
-	Vertices   []*FloorplanVertex    `json:"vertices"`
-	Walls      []*FloorplanWall      `json:"walls"`
-	Openings   []*FloorplanOpening   `json:"openings"`
-	Rooms      []*FloorplanRoom      `json:"rooms"`
-	Placements []*FloorplanPlacement `json:"placements"`
-	Furniture  []*FloorplanFurniture `json:"furniture"`
+	ID           string                  `json:"id"`
+	Name         string                  `json:"name"`
+	Vertices     []*FloorplanVertex      `json:"vertices"`
+	Walls        []*FloorplanWall        `json:"walls"`
+	Openings     []*FloorplanOpening     `json:"openings"`
+	DoorBindings []*FloorplanDoorBinding `json:"doorBindings"`
+	Rooms        []*FloorplanRoom        `json:"rooms"`
+	Placements   []*FloorplanPlacement   `json:"placements"`
+	Furniture    []*FloorplanFurniture   `json:"furniture"`
+}
+
+// Connects one door-role contact sensor to one architectural door.
+type FloorplanDoorBinding struct {
+	OpeningID string                 `json:"openingId"`
+	DeviceID  string                 `json:"deviceId"`
+	HingeSide FloorplanDoorHingeSide `json:"hingeSide"`
+	SwingSide FloorplanDoorSwingSide `json:"swingSide"`
+}
+
+type FloorplanDoorBindingInput struct {
+	OpeningID string                 `json:"openingId"`
+	DeviceID  string                 `json:"deviceId"`
+	HingeSide FloorplanDoorHingeSide `json:"hingeSide"`
+	SwingSide FloorplanDoorSwingSide `json:"swingSide"`
 }
 
 // A piece standing on the plan: a bed, a sofa, a plain box. `x`/`y` is its centre
@@ -619,6 +670,11 @@ type NetworkTopologyEvent struct {
 	LinkCount int       `json:"linkCount"`
 }
 
+type NumericSeriesPoint struct {
+	At    time.Time `json:"at"`
+	Value float64   `json:"value"`
+}
+
 type Query struct {
 }
 
@@ -753,14 +809,17 @@ type StateHistoryFilter struct {
 }
 
 type StateSeries struct {
-	DeviceID string              `json:"deviceId"`
-	Field    string              `json:"field"`
-	Points   []*StateSeriesPoint `json:"points"`
+	DeviceID  string               `json:"deviceId"`
+	Field     string               `json:"field"`
+	ValueType StateSeriesValueType `json:"valueType"`
+	Points    []*StateSeriesPoint  `json:"points"`
 }
 
 type StateSeriesPoint struct {
-	At    time.Time `json:"at"`
-	Value float64   `json:"value"`
+	At           time.Time `json:"at"`
+	NumberValue  *float64  `json:"numberValue,omitempty"`
+	BooleanValue *bool     `json:"booleanValue,omitempty"`
+	TextValue    *string   `json:"textValue,omitempty"`
 }
 
 type Subscription struct {
@@ -848,9 +907,14 @@ type UpdateDeviceInput struct {
 	DisplayColor graphql.Omittable[*string] `json:"displayColor,omitempty"`
 	// Sets the floor-plan display brightness (0-254). Pass null to clear it and
 	// show the device at full strength. Omit the field to leave it alone.
-	DisplayBrightness graphql.Omittable[*int]        `json:"displayBrightness,omitempty"`
-	Tags              graphql.Omittable[[]DeviceTag] `json:"tags,omitempty"`
-	Disabled          graphql.Omittable[*bool]       `json:"disabled,omitempty"`
+	DisplayBrightness graphql.Omittable[*int]                    `json:"displayBrightness,omitempty"`
+	Roles             graphql.Omittable[*UpdateDeviceRolesInput] `json:"roles,omitempty"`
+	Disabled          graphql.Omittable[*bool]                   `json:"disabled,omitempty"`
+}
+
+type UpdateDeviceRolesInput struct {
+	ControlledLoad graphql.Omittable[*ControlledLoadRole] `json:"controlledLoad,omitempty"`
+	Contact        graphql.Omittable[*ContactRole]        `json:"contact,omitempty"`
 }
 
 type UpdateEffectInput struct {
@@ -867,14 +931,15 @@ type UpdateEffectInput struct {
 // room, and placement it wants persisted, and the server replaces the stored plan
 // with exactly this set. Ids are client-generated and stable across saves.
 type UpdateFloorplanInput struct {
-	ID         string                     `json:"id"`
-	Name       string                     `json:"name"`
-	Vertices   []*FloorplanVertexInput    `json:"vertices"`
-	Walls      []*FloorplanWallInput      `json:"walls"`
-	Openings   []*FloorplanOpeningInput   `json:"openings"`
-	Rooms      []*FloorplanRoomInput      `json:"rooms"`
-	Placements []*FloorplanPlacementInput `json:"placements"`
-	Furniture  []*FloorplanFurnitureInput `json:"furniture"`
+	ID           string                       `json:"id"`
+	Name         string                       `json:"name"`
+	Vertices     []*FloorplanVertexInput      `json:"vertices"`
+	Walls        []*FloorplanWallInput        `json:"walls"`
+	Openings     []*FloorplanOpeningInput     `json:"openings"`
+	DoorBindings []*FloorplanDoorBindingInput `json:"doorBindings"`
+	Rooms        []*FloorplanRoomInput        `json:"rooms"`
+	Placements   []*FloorplanPlacementInput   `json:"placements"`
+	Furniture    []*FloorplanFurnitureInput   `json:"furniture"`
 }
 
 type UpdateGroupInput struct {
@@ -1183,46 +1248,50 @@ func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-type DeviceTag string
+type CapabilityCategory string
 
 const (
-	DeviceTagLight DeviceTag = "LIGHT"
+	CapabilityCategoryState         CapabilityCategory = "STATE"
+	CapabilityCategoryConfiguration CapabilityCategory = "CONFIGURATION"
+	CapabilityCategoryDiagnostic    CapabilityCategory = "DIAGNOSTIC"
 )
 
-var AllDeviceTag = []DeviceTag{
-	DeviceTagLight,
+var AllCapabilityCategory = []CapabilityCategory{
+	CapabilityCategoryState,
+	CapabilityCategoryConfiguration,
+	CapabilityCategoryDiagnostic,
 }
 
-func (e DeviceTag) IsValid() bool {
+func (e CapabilityCategory) IsValid() bool {
 	switch e {
-	case DeviceTagLight:
+	case CapabilityCategoryState, CapabilityCategoryConfiguration, CapabilityCategoryDiagnostic:
 		return true
 	}
 	return false
 }
 
-func (e DeviceTag) String() string {
+func (e CapabilityCategory) String() string {
 	return string(e)
 }
 
-func (e *DeviceTag) UnmarshalGQL(v any) error {
+func (e *CapabilityCategory) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
 	}
 
-	*e = DeviceTag(str)
+	*e = CapabilityCategory(str)
 	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid DeviceTag", str)
+		return fmt.Errorf("%s is not a valid CapabilityCategory", str)
 	}
 	return nil
 }
 
-func (e DeviceTag) MarshalGQL(w io.Writer) {
+func (e CapabilityCategory) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
-func (e *DeviceTag) UnmarshalJSON(b []byte) error {
+func (e *CapabilityCategory) UnmarshalJSON(b []byte) error {
 	s, err := strconv.Unquote(string(b))
 	if err != nil {
 		return err
@@ -1230,7 +1299,119 @@ func (e *DeviceTag) UnmarshalJSON(b []byte) error {
 	return e.UnmarshalGQL(s)
 }
 
-func (e DeviceTag) MarshalJSON() ([]byte, error) {
+func (e CapabilityCategory) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ContactRole string
+
+const (
+	ContactRoleGeneral ContactRole = "GENERAL"
+	ContactRoleDoor    ContactRole = "DOOR"
+	ContactRoleWindow  ContactRole = "WINDOW"
+)
+
+var AllContactRole = []ContactRole{
+	ContactRoleGeneral,
+	ContactRoleDoor,
+	ContactRoleWindow,
+}
+
+func (e ContactRole) IsValid() bool {
+	switch e {
+	case ContactRoleGeneral, ContactRoleDoor, ContactRoleWindow:
+		return true
+	}
+	return false
+}
+
+func (e ContactRole) String() string {
+	return string(e)
+}
+
+func (e *ContactRole) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ContactRole(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ContactRole", str)
+	}
+	return nil
+}
+
+func (e ContactRole) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ContactRole) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ContactRole) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ControlledLoadRole string
+
+const (
+	ControlledLoadRoleAppliance ControlledLoadRole = "APPLIANCE"
+	ControlledLoadRoleLight     ControlledLoadRole = "LIGHT"
+)
+
+var AllControlledLoadRole = []ControlledLoadRole{
+	ControlledLoadRoleAppliance,
+	ControlledLoadRoleLight,
+}
+
+func (e ControlledLoadRole) IsValid() bool {
+	switch e {
+	case ControlledLoadRoleAppliance, ControlledLoadRoleLight:
+		return true
+	}
+	return false
+}
+
+func (e ControlledLoadRole) String() string {
+	return string(e)
+}
+
+func (e *ControlledLoadRole) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ControlledLoadRole(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ControlledLoadRole", str)
+	}
+	return nil
+}
+
+func (e ControlledLoadRole) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ControlledLoadRole) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ControlledLoadRole) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1353,6 +1534,116 @@ func (e EffectKind) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type FloorplanDoorHingeSide string
+
+const (
+	FloorplanDoorHingeSideStart FloorplanDoorHingeSide = "START"
+	FloorplanDoorHingeSideEnd   FloorplanDoorHingeSide = "END"
+)
+
+var AllFloorplanDoorHingeSide = []FloorplanDoorHingeSide{
+	FloorplanDoorHingeSideStart,
+	FloorplanDoorHingeSideEnd,
+}
+
+func (e FloorplanDoorHingeSide) IsValid() bool {
+	switch e {
+	case FloorplanDoorHingeSideStart, FloorplanDoorHingeSideEnd:
+		return true
+	}
+	return false
+}
+
+func (e FloorplanDoorHingeSide) String() string {
+	return string(e)
+}
+
+func (e *FloorplanDoorHingeSide) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FloorplanDoorHingeSide(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FloorplanDoorHingeSide", str)
+	}
+	return nil
+}
+
+func (e FloorplanDoorHingeSide) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *FloorplanDoorHingeSide) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e FloorplanDoorHingeSide) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type FloorplanDoorSwingSide string
+
+const (
+	FloorplanDoorSwingSideLeft  FloorplanDoorSwingSide = "LEFT"
+	FloorplanDoorSwingSideRight FloorplanDoorSwingSide = "RIGHT"
+)
+
+var AllFloorplanDoorSwingSide = []FloorplanDoorSwingSide{
+	FloorplanDoorSwingSideLeft,
+	FloorplanDoorSwingSideRight,
+}
+
+func (e FloorplanDoorSwingSide) IsValid() bool {
+	switch e {
+	case FloorplanDoorSwingSideLeft, FloorplanDoorSwingSideRight:
+		return true
+	}
+	return false
+}
+
+func (e FloorplanDoorSwingSide) String() string {
+	return string(e)
+}
+
+func (e *FloorplanDoorSwingSide) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FloorplanDoorSwingSide(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FloorplanDoorSwingSide", str)
+	}
+	return nil
+}
+
+func (e FloorplanDoorSwingSide) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *FloorplanDoorSwingSide) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e FloorplanDoorSwingSide) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // What a gap in a wall represents. Daylight reaches a room through WINDOW
 // openings; DOOR and OPENING are bare gaps in the wall body.
 type FloorplanOpeningKind string
@@ -1466,6 +1757,63 @@ func (e *GroupTag) UnmarshalJSON(b []byte) error {
 }
 
 func (e GroupTag) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type StateSeriesValueType string
+
+const (
+	StateSeriesValueTypeNumber  StateSeriesValueType = "NUMBER"
+	StateSeriesValueTypeBoolean StateSeriesValueType = "BOOLEAN"
+	StateSeriesValueTypeText    StateSeriesValueType = "TEXT"
+)
+
+var AllStateSeriesValueType = []StateSeriesValueType{
+	StateSeriesValueTypeNumber,
+	StateSeriesValueTypeBoolean,
+	StateSeriesValueTypeText,
+}
+
+func (e StateSeriesValueType) IsValid() bool {
+	switch e {
+	case StateSeriesValueTypeNumber, StateSeriesValueTypeBoolean, StateSeriesValueTypeText:
+		return true
+	}
+	return false
+}
+
+func (e StateSeriesValueType) String() string {
+	return string(e)
+}
+
+func (e *StateSeriesValueType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = StateSeriesValueType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid StateSeriesValueType", str)
+	}
+	return nil
+}
+
+func (e StateSeriesValueType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *StateSeriesValueType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e StateSeriesValueType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
