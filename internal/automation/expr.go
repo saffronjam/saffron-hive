@@ -130,6 +130,21 @@ func lookupDeviceByName(reader device.StateReader, name string) (map[string]any,
 	if st.Illuminance != nil {
 		result["illuminance"] = *st.Illuminance
 	}
+	if st.Occupancy != nil {
+		result["occupancy"] = *st.Occupancy
+	}
+	if st.Contact != nil {
+		result["contact"] = *st.Contact
+	}
+	if st.Orientation != nil {
+		result["orientation"] = *st.Orientation
+	}
+	if st.DevicePosture != nil {
+		result["devicePosture"] = *st.DevicePosture
+	}
+	if st.LinkQuality != nil {
+		result["linkQuality"] = *st.LinkQuality
+	}
 	if st.Power != nil {
 		result["power"] = *st.Power
 	}
