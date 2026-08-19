@@ -1,5 +1,7 @@
 package zigbee
 
+import "encoding/json"
+
 type z2mBridgeDevice struct {
 	IEEEAddress  string        `json:"ieee_address"`
 	FriendlyName string        `json:"friendly_name"`
@@ -16,15 +18,20 @@ type z2mDefinition struct {
 }
 
 type z2mFeature struct {
-	Type     string       `json:"type"`
-	Name     string       `json:"name"`
-	Property string       `json:"property"`
-	Features []z2mFeature `json:"features"`
-	Access   int          `json:"access"`
-	Values   []string     `json:"values"`
-	ValueMin *float64     `json:"value_min"`
-	ValueMax *float64     `json:"value_max"`
-	Unit     string       `json:"unit"`
+	Type        string          `json:"type"`
+	Name        string          `json:"name"`
+	Property    string          `json:"property"`
+	Label       string          `json:"label"`
+	Description string          `json:"description"`
+	Category    string          `json:"category"`
+	Features    []z2mFeature    `json:"features"`
+	Access      int             `json:"access"`
+	Values      []string        `json:"values"`
+	ValueMin    *float64        `json:"value_min"`
+	ValueMax    *float64        `json:"value_max"`
+	Unit        string          `json:"unit"`
+	ValueOn     json.RawMessage `json:"value_on"`
+	ValueOff    json.RawMessage `json:"value_off"`
 }
 
 type z2mDeviceState struct {
@@ -34,12 +41,16 @@ type z2mDeviceState struct {
 	Color      *z2mColor `json:"color"`
 	ColorMode  string    `json:"color_mode"`
 
-	Temperature *float64 `json:"temperature"`
-	Humidity    *float64 `json:"humidity"`
-	Battery     *float64 `json:"battery"`
-	Pressure    *float64 `json:"pressure"`
-	Illuminance *float64 `json:"illuminance"`
-	Occupancy   *bool    `json:"occupancy"`
+	Temperature   *float64 `json:"temperature"`
+	Humidity      *float64 `json:"humidity"`
+	Battery       *float64 `json:"battery"`
+	Pressure      *float64 `json:"pressure"`
+	Illuminance   *float64 `json:"illuminance"`
+	Occupancy     *bool    `json:"occupancy"`
+	Contact       *bool    `json:"contact"`
+	Orientation   *string  `json:"orientation"`
+	DevicePosture *string  `json:"device_posture"`
+	LinkQuality   *float64 `json:"linkquality"`
 
 	Power   *float64 `json:"power"`
 	Voltage *float64 `json:"voltage"`

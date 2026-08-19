@@ -195,6 +195,26 @@ func TestMapDeviceState_MotionSensorReport(t *testing.T) {
 	}
 }
 
+func TestMapDeviceState_AqaraMultistateReport(t *testing.T) {
+	raw := json.RawMessage(`{"contact":false,"orientation":"up","device_posture":"abnormal","linkquality":164,"battery":88}`)
+	state, _, err := mapDeviceState(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Contact == nil || *state.Contact {
+		t.Fatalf("expected Contact=false for an open contact, got %v", state.Contact)
+	}
+	if state.Orientation == nil || *state.Orientation != "up" {
+		t.Fatalf("expected Orientation=up, got %v", state.Orientation)
+	}
+	if state.DevicePosture == nil || *state.DevicePosture != "abnormal" {
+		t.Fatalf("expected DevicePosture=abnormal, got %v", state.DevicePosture)
+	}
+	if state.LinkQuality == nil || *state.LinkQuality != 164 {
+		t.Fatalf("expected LinkQuality=164, got %v", state.LinkQuality)
+	}
+}
+
 func TestMapDeviceState_PlugMetering(t *testing.T) {
 	raw := json.RawMessage(`{"state":"ON","power":42.5,"voltage":230.1,"current":0.18,"energy":12.3}`)
 	state, _, err := mapDeviceState(raw)
