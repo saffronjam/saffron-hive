@@ -148,7 +148,6 @@
 	});
 
 	onDestroy(() => {
-		pageHeader.reset();
 		if (unsubscribe) {
 			unsubscribe();
 			unsubscribe = null;

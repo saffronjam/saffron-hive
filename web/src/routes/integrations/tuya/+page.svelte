@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
+	import { onMount } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
@@ -203,7 +203,6 @@
 		void loadConfig();
 	});
 
-	onDestroy(() => pageHeader.reset());
 </script>
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">

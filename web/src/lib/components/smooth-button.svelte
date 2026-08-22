@@ -10,7 +10,9 @@
 		variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 		size?: "default" | "sm" | "lg" | "icon" | "icon-sm";
 		disabled?: boolean;
-		onclick: () => void;
+		onclick?: () => void;
+		href?: string;
+		target?: "_blank" | "_self";
 		minDisplayMs?: number;
 		hideLabelOnMobile?: boolean;
 		mobileLabel?: string;
@@ -24,6 +26,8 @@
 		size = "sm",
 		disabled = false,
 		onclick,
+		href,
+		target,
 		minDisplayMs = 600,
 		hideLabelOnMobile = false,
 		mobileLabel,
@@ -93,7 +97,16 @@
 	});
 </script>
 
-<Button {variant} {size} {disabled} {onclick} aria-label={label}>
+<Button
+	{variant}
+	{size}
+	{disabled}
+	{onclick}
+	{href}
+	{target}
+	rel={target === "_blank" ? "noreferrer" : undefined}
+	aria-label={label}
+>
 	{#if Icon}
 		<Icon class="size-4 {iconClass}" />
 	{/if}

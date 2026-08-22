@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
+	import { onMount } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import NumberInput from "$lib/components/number-input.svelte";
@@ -132,7 +132,6 @@
 		loadData();
 	});
 
-	onDestroy(() => pageHeader.reset());
 </script>
 
 <UnsavedGuard dirty={isDirty} />

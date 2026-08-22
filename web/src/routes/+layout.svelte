@@ -14,6 +14,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
+	import { maintenanceStore } from "$lib/stores/maintenance.svelte";
 	import { deviceStore } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
@@ -24,7 +25,7 @@
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { prefetchIconPacks } from "$lib/components/icons/icon-utils.js";
 	import { onMount, onDestroy } from "svelte";
-	import { beforeNavigate, goto } from "$app/navigation";
+	import { goto } from "$app/navigation";
 	import DevicesPage from "$lib/components/devices-page.svelte";
 	import DashboardPage from "$lib/components/dashboard-page.svelte";
 	import RoomsPage from "$lib/components/rooms-page.svelte";
@@ -34,6 +35,7 @@
 	import EffectsPage from "$lib/components/effects-page.svelte";
 	import MapPage from "$lib/components/map-page.svelte";
 	import AlarmsPage from "$lib/components/alarms-page.svelte";
+	import MaintenancePage from "$lib/components/maintenance-page.svelte";
 	import { page } from "$app/stores";
 
 	const client = createGraphQLClient();
@@ -54,8 +56,8 @@
 	// return costs no rebuild. Each mounts on first visit, not at boot, so
 	// landing anywhere pays only for that page. Two pages are deliberately
 	// absent: the data-viewer writes its filters into the browser URL, which a
-	// hidden page must never do, and activity accumulates its event feed
-	// without bound, which a permanent page would grow for the whole session.
+	// hidden page must never do. Activity owns a mode-specific live subscription
+	// and restores its bounded event list from a tab snapshot instead.
 	const KEPT_PAGES = [
 		{ path: "/", component: DashboardPage },
 		{ path: "/map", component: MapPage },
@@ -66,6 +68,7 @@
 		{ path: "/automations", component: AutomationsPage },
 		{ path: "/effects", component: EffectsPage },
 		{ path: "/alarms", component: AlarmsPage },
+		{ path: "/maintenance", component: MaintenancePage },
 	];
 	const activePath = $derived($page.url.pathname);
 	let visitedPaths = $state<Record<string, boolean>>({});
@@ -75,15 +78,19 @@
 		}
 	});
 
-	// Kept pages never run onDestroy, so the header reset happens here instead —
-	// before the next page mounts, which keeps the ordering deterministic (a
-	// hide-triggered effect could run after the next page's own header write
-	// and clobber it).
-	beforeNavigate((nav) => {
-		const from = nav.from?.url.pathname;
-		if (from && from !== nav.to?.url.pathname && KEPT_PAGES.some((k) => k.path === from)) {
-			pageHeader.reset();
+	// The layout clears the shared header before a route's components update it.
+	// Components only write their own header, so destruction order cannot clear
+	// a destination header that is already visible.
+	let headerPath = $state("");
+	$effect.pre(() => {
+		const nextPath = activePath;
+		if (!headerPath) {
+			headerPath = nextPath;
+			return;
 		}
+		if (nextPath === headerPath) return;
+		pageHeader.reset();
+		headerPath = nextPath;
 	});
 
 	async function gate() {
@@ -116,6 +123,7 @@
 	$effect(() => {
 		if (ready && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) && auth.isAuthenticated()) {
 			alarmsStore.start(client);
+			maintenanceStore.start(client);
 			void deviceStore.start(client);
 			void roomsStore.start(client);
 			void groupsStore.start(client);
@@ -129,6 +137,7 @@
 
 	onDestroy(() => {
 		alarmsStore.stop();
+		maintenanceStore.stop();
 		deviceStore.stop();
 		roomsStore.stop();
 		groupsStore.stop();
@@ -194,6 +203,8 @@
 									variant={action.variant ?? "default"}
 									disabled={action.disabled ?? false}
 									onclick={action.onclick}
+									href={action.href}
+									target={action.target}
 									hideLabelOnMobile={action.hideLabelOnMobile ?? false}
 								/>
 							{/if}

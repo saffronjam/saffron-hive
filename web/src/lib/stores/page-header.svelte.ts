@@ -1,17 +1,26 @@
 import type { Component } from "svelte";
 import type { ListView } from "$lib/stores/profile.svelte";
 
-interface HeaderAction {
+interface HeaderActionBase {
   label: string;
   icon?: Component;
   iconClass?: string;
-  onclick: () => void;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   disabled?: boolean;
-  saving?: boolean;
   hideLabelOnMobile?: boolean;
   mobileLabel?: string;
 }
+
+type HeaderAction = HeaderActionBase &
+  (
+    | { saving: boolean; onclick: () => void; href?: never; target?: never }
+    | {
+        saving?: undefined;
+        onclick?: () => void;
+        href?: string;
+        target?: "_blank" | "_self";
+      }
+  );
 
 interface Breadcrumb {
   label: string;
