@@ -87,3 +87,21 @@ export function booleanStepPath(segments: DiscreteSegment<boolean>[]): string {
   }
   return path;
 }
+
+export function discreteValueAt<T extends boolean | string>(
+  segments: DiscreteSegment<T>[],
+  at: Date,
+): T | null {
+  const timestamp = at.getTime();
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    const isLast = index === segments.length - 1;
+    if (
+      timestamp >= segment.start.getTime() &&
+      (timestamp < segment.end.getTime() || (isLast && timestamp <= segment.end.getTime()))
+    ) {
+      return segment.value;
+    }
+  }
+  return null;
+}

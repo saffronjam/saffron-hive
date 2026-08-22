@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { booleanStepPath, buildDiscreteTimeline } from "$lib/state-history-discrete";
+import {
+  booleanStepPath,
+  buildDiscreteTimeline,
+  discreteValueAt,
+} from "$lib/state-history-discrete";
 
 describe("discrete state history", () => {
   const from = new Date("2026-08-18T00:00:00Z");
@@ -69,5 +73,21 @@ describe("discrete state history", () => {
       { left: 10, width: 30, value: "normal" },
       { left: 40, width: 60, value: "abnormal" },
     ]);
+  });
+
+  it("resolves the discrete value at a shared chart timestamp", () => {
+    const timeline = buildDiscreteTimeline(
+      [
+        { at: "2026-08-18T02:00:00Z", value: false },
+        { at: "2026-08-18T06:00:00Z", value: true },
+      ],
+      from,
+      to,
+    );
+
+    expect(discreteValueAt(timeline.segments, new Date("2026-08-18T01:00:00Z"))).toBeNull();
+    expect(discreteValueAt(timeline.segments, new Date("2026-08-18T05:00:00Z"))).toBe(false);
+    expect(discreteValueAt(timeline.segments, new Date("2026-08-18T06:00:00Z"))).toBe(true);
+    expect(discreteValueAt(timeline.segments, to)).toBe(true);
   });
 });

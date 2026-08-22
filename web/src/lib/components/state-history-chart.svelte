@@ -67,6 +67,7 @@
 	import {
 		booleanStepPath,
 		buildDiscreteTimeline,
+		discreteValueAt,
 		type DiscreteSegment,
 	} from "$lib/state-history-discrete";
 
@@ -352,6 +353,33 @@
 		return order.map((id) => bySource.get(id)!);
 	}
 
+	function discreteTooltipSeries(at: Date): TooltipSeriesItem[] {
+		const items: TooltipSeriesItem[] = [];
+		for (const lane of booleanLanes) {
+			const value = discreteValueAt(lane.segments, at);
+			if (value == null) continue;
+			items.push({
+				key: lane.key,
+				label: lane.label,
+				value: value ? lane.trueLabel : lane.falseLabel,
+				color: lane.color,
+				visible: true,
+			});
+		}
+		for (const lane of textLanes) {
+			const value = discreteValueAt(lane.segments, at);
+			if (value == null) continue;
+			items.push({
+				key: lane.key,
+				label: lane.label,
+				value: fieldLabel(value),
+				color: lane.color,
+				visible: true,
+			});
+		}
+		return items;
+	}
+
 	const seenKeys = new Set<string>();
 	const internalDisabled = new SvelteSet<string>();
 	const disabledKeys = $derived(externalDisabled ?? internalDisabled);
@@ -571,6 +599,18 @@
 	let chartContext = $state<ChartCtx | undefined>();
 	let chartEl = $state<HTMLElement | null>(null);
 	let panelEl = $state<HTMLElement | null>(null);
+	let hoveredAt = $state<Date | null>(null);
+	const hoverLeft = $derived.by(() => {
+		if (!hoveredAt) return null;
+		const duration = Math.max(1, to.getTime() - from.getTime());
+		return Math.max(0, Math.min(100, ((hoveredAt.getTime() - from.getTime()) / duration) * 100));
+	});
+
+	$effect(() => {
+		const ctx = chartContext;
+		const data = ctx?.tooltip?.data;
+		hoveredAt = data && ctx ? (ctx.x(data) as Date) : null;
+	});
 
 	// The reading is latched rather than read straight off the tooltip: with no
 	// hide delay the chart drops its data the moment the finger lifts, and the
@@ -592,11 +632,15 @@
 		const data = ctx?.tooltip?.data;
 		if (!data || !ctx || data === latchedData) return;
 		latchedData = data;
+		const at = ctx.x(data) as Date;
 		const series = ctx.tooltip.series as unknown as TooltipSeriesItem[];
 		gestureHadData = true;
 		reading = {
-			at: ctx.x(data) as Date,
-			groups: groupTooltipSeries(series.filter((sr) => sr.visible)),
+			at,
+			groups: groupTooltipSeries([
+				...series.filter((sr) => sr.visible),
+				...discreteTooltipSeries(at),
+			]),
 		};
 	});
 
@@ -670,10 +714,14 @@
 						{#if !usePinned}
 							<Tooltip.Root {context}>
 								{#snippet children({ data })}
-									{@const visible = context.tooltip.series.filter((s) => s.visible)}
+									{@const at = context.x(data) as Date}
+									{@const visible = [
+										...context.tooltip.series.filter((s) => s.visible),
+										...discreteTooltipSeries(at),
+									]}
 									{@const groups = groupTooltipSeries(visible)}
 									<Tooltip.Header
-										value={context.x(data)}
+										value={at}
 										format={(d: Date) => formatTooltip(d, me.user?.timeFormat ?? "24h")}
 									/>
 									{#each groups as g, gi (g.sourceKey)}
@@ -768,6 +816,17 @@
 								vector-effect="non-scaling-stroke"
 							/>
 						</svg>
+						{#if hoverLeft != null && hoveredAt}
+							{@const hoverValue = discreteValueAt(lane.segments, hoveredAt)}
+							{#if hoverValue != null}
+								<span
+									class="pointer-events-none absolute z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card"
+									style:left={`${hoverLeft}%`}
+									style:top={hoverValue ? "20%" : "80%"}
+									style:background={lane.color}
+								></span>
+							{/if}
+						{/if}
 					</div>
 					<div class="grid h-10 grid-rows-2 items-center text-[10px] leading-none text-muted-foreground">
 						<span class:text-foreground={lane.currentValue === true}>{lane.trueLabel}</span>
@@ -803,6 +862,13 @@
 								{#if segment.width >= 8}<span class="truncate">{fieldLabel(segment.value)}</span>{/if}
 							</div>
 						{/each}
+						{#if hoverLeft != null && hoveredAt && discreteValueAt(lane.segments, hoveredAt) != null}
+							<span
+								class="pointer-events-none absolute top-1/2 z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card"
+								style:left={`${hoverLeft}%`}
+								style:background={lane.color}
+							></span>
+						{/if}
 					</div>
 					<span class="truncate text-[10px] text-foreground" title={lane.currentValue ?? "Unknown"}>
 						{lane.currentValue ? fieldLabel(lane.currentValue) : "Unknown"}
