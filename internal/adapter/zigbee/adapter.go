@@ -10,6 +10,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 // dispatchBufferSize bounds the queue between paho's reader goroutine and the
@@ -30,6 +31,7 @@ const (
 	dispatchState dispatchKind = iota
 	dispatchAvailability
 	dispatchBridgeDevices
+	dispatchBridgeGroups
 	dispatchBridgeLog
 	dispatchNetworkmap
 	dispatchBarrier
@@ -94,6 +96,7 @@ type ZigbeeAdapter struct {
 	cmdCh           <-chan eventbus.Event
 	configurationCh <-chan eventbus.Event
 	nativeEffectCh  <-chan eventbus.Event
+	groupCommandCh  <-chan eventbus.Event
 }
 
 // NewZigbeeAdapter creates a new adapter with the given dependencies.
@@ -125,6 +128,12 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 func (a *ZigbeeAdapter) Start() error {
 	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/devices", 0, func(msg Message) {
 		a.enqueue(incomingMsg{kind: dispatchBridgeDevices, payload: copyPayload(msg.Payload())})
+	}); err != nil {
+		return err
+	}
+
+	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/groups", 0, func(msg Message) {
+		a.enqueue(incomingMsg{kind: dispatchBridgeGroups, payload: copyPayload(msg.Payload())})
 	}); err != nil {
 		return err
 	}
@@ -165,6 +174,8 @@ func (a *ZigbeeAdapter) Start() error {
 
 	a.cmdCh = a.bus.Subscribe(eventbus.EventCommandRequested)
 	go a.commandLoop()
+	a.groupCommandCh = a.bus.Subscribe(eventbus.EventProviderGroupCommandRequested)
+	go a.groupCommandLoop()
 	a.configurationCh = a.bus.Subscribe(eventbus.EventConfigurationRequested)
 	go a.configurationLoop()
 
@@ -198,6 +209,8 @@ func (a *ZigbeeAdapter) dispatchLoop() {
 			a.handleAvailability(msg.topic, msg.payload)
 		case dispatchBridgeDevices:
 			a.handleBridgeDevices(msg.payload)
+		case dispatchBridgeGroups:
+			a.handleBridgeGroups(msg.payload)
 		case dispatchBridgeLog:
 			a.handleBridgeLog(msg.payload)
 		case dispatchNetworkmap:
@@ -237,6 +250,9 @@ func (a *ZigbeeAdapter) Stop() {
 	}
 	if a.nativeEffectCh != nil {
 		a.bus.Unsubscribe(a.nativeEffectCh)
+	}
+	if a.groupCommandCh != nil {
+		a.bus.Unsubscribe(a.groupCommandCh)
 	}
 	if a.configurationCh != nil {
 		a.bus.Unsubscribe(a.configurationCh)
@@ -286,6 +302,24 @@ func (a *ZigbeeAdapter) commandLoop() {
 				continue
 			}
 			a.handleCommand(cmd)
+		}
+	}
+}
+
+func (a *ZigbeeAdapter) groupCommandLoop() {
+	for {
+		select {
+		case <-a.stopCh:
+			return
+		case evt, ok := <-a.groupCommandCh:
+			if !ok {
+				return
+			}
+			req, ok := evt.Payload.(device.ProviderGroupCommand)
+			if !ok || req.Provider != string(device.SourceZigbee2MQTT) {
+				continue
+			}
+			a.handleGroupCommand(req)
 		}
 	}
 }
@@ -398,6 +432,16 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 
 	var statePayload json.RawMessage = payload
 	now := time.Now()
+	if ota, present, err := mapOTAStatus(statePayload); err != nil {
+		logger.Error("failed to map device OTA status", "device", friendlyName, "error", err)
+	} else if present {
+		a.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventZigbeeOTAStatusChanged,
+			DeviceID:  string(id),
+			Timestamp: now,
+			Payload:   zigbeemetadata.OTAStatus(ota),
+		})
+	}
 
 	if action, ok := mapAction(statePayload); ok {
 		a.bus.Publish(eventbus.Event{

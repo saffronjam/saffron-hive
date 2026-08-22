@@ -80,6 +80,15 @@ func translateCommand(cmd device.Command) z2mSetPayload {
 	return p
 }
 
+func normalizeBrightnessZero(cmd device.Command, supportsOnOff bool) device.Command {
+	if cmd.Brightness != nil && *cmd.Brightness == 0 && supportsOnOff {
+		off := false
+		cmd.On = &off
+		cmd.Brightness = nil
+	}
+	return cmd
+}
+
 // hasCapability reports whether dev exposes the named capability.
 func hasCapability(dev device.Device, name string) bool {
 	for _, c := range dev.Capabilities {
@@ -105,12 +114,8 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 	// snaps to off (its own interpretation of zero brightness) and the
 	// frontend re-issues commands while the slider is held at zero. Collapse
 	// to a clean OFF here before the payload leaves the adapter.
-	if cmd.Brightness != nil && *cmd.Brightness == 0 {
-		if dev, found := a.stateReader.GetDevice(cmd.DeviceID); found && hasCapability(dev, device.CapOnOff) {
-			off := false
-			cmd.On = &off
-			cmd.Brightness = nil
-		}
+	if dev, found := a.stateReader.GetDevice(cmd.DeviceID); found {
+		cmd = normalizeBrightnessZero(cmd, hasCapability(dev, device.CapOnOff))
 	}
 
 	payload := translateCommand(cmd)
@@ -125,5 +130,38 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
 	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
 		logger.Error("failed to publish command", "topic", topic, "error", err)
+	}
+}
+
+func (a *ZigbeeAdapter) handleGroupCommand(req device.ProviderGroupCommand) {
+	var (
+		data []byte
+		err  error
+	)
+	if req.NativeEffect != "" {
+		data, err = json.Marshal(z2mEffectPayload{Effect: req.NativeEffect})
+	} else {
+		cmd := req.State
+		allSupportOnOff := len(req.MemberIDs) > 0
+		for _, id := range req.MemberIDs {
+			dev, found := a.stateReader.GetDevice(id)
+			if !found || !hasCapability(dev, device.CapOnOff) {
+				allSupportOnOff = false
+				break
+			}
+		}
+		cmd = normalizeBrightnessZero(cmd, allSupportOnOff)
+		data, err = json.Marshal(translateCommand(cmd))
+	}
+	if err != nil {
+		logger.Error("failed to marshal group command", "provider_group_id", req.ProviderGroupID, "error", err)
+		return
+	}
+	for _, id := range req.MemberIDs {
+		a.recordPendingOrigin(id, req.State.Origin)
+	}
+	topic := "zigbee2mqtt/" + req.FriendlyName + "/set"
+	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
+		logger.Error("failed to publish group command", "topic", topic, "provider_group_id", req.ProviderGroupID, "error", err)
 	}
 }
