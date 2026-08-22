@@ -1,6 +1,5 @@
-<script lang="ts" generics="G extends { id: string; name: string; icon?: string | null; members: { memberType: string }[]; createdBy?: { id: string; username: string; name: string } | null }">
+<script lang="ts" generics="G extends { id: string; name?: string | null; friendlyName?: string | null; source: string; icon?: string | null; members: { memberType: string }[]; createdBy?: { id: string; username: string; name: string } | null }">
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
@@ -22,6 +21,9 @@
 	import { me } from "$lib/stores/me.svelte";
 	import type { Device } from "$lib/stores/devices";
 	import { Group as GroupIcon, Plus } from "@lucide/svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { CommandTargetType } from "$lib/gql/graphql";
+	import { groupDisplayName } from "$lib/utils";
 
 	interface Props {
 		groups: G[];
@@ -30,10 +32,11 @@
 		onrename: (group: G, newName: string) => void;
 		oniconchange: (group: G, icon: string | null) => void;
 		onAddTo: (group: G) => void;
+		editHref: (group: G) => string;
 		getDevices?: (group: G) => Device[];
 	}
 
-	let { groups, selection, ondelete, onrename, oniconchange, onAddTo, getDevices }: Props = $props();
+	let { groups, selection, ondelete, onrename, oniconchange, onAddTo, editHref, getDevices }: Props = $props();
 
 	const COLUMNS: ColumnDef<G>[] = [
 		{
@@ -54,8 +57,14 @@
 		{
 			key: "name",
 			label: "Name",
-			sortValue: (g) => g.name,
+			sortValue: (g) => groupDisplayName(g),
 			cell: nameCell,
+		},
+		{
+			key: "source",
+			label: "Source",
+			sortValue: (g) => g.source,
+			cell: sourceCell,
 		},
 		{
 			key: "members",
@@ -75,9 +84,9 @@
 		},
 		{
 			key: "createdBy",
-			label: "Created by",
-			sortValue: (g) => g.createdBy?.name ?? null,
-			cell: createdByCell,
+			label: "Managed by",
+			sortValue: (g) => g.source === "zigbee2mqtt" ? "Zigbee2MQTT" : g.createdBy?.name ?? null,
+			cell: managedByCell,
 		},
 		{
 			key: "actions",
@@ -105,7 +114,7 @@
 		id={g.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {g.name}"
+		ariaLabel="Select {groupDisplayName(g)}"
 	/>
 {/snippet}
 
@@ -114,7 +123,11 @@
 {/snippet}
 
 {#snippet nameCell(g: G)}
-	<InlineEditName name={g.name} onsave={(newName) => onrename(g, newName)} />
+	<InlineEditName name={groupDisplayName(g)} onsave={(newName) => onrename(g, newName)} />
+{/snippet}
+
+{#snippet sourceCell(g: G)}
+	<HiveChip type={g.source === "zigbee2mqtt" ? "hub" : "group"} label={g.source === "zigbee2mqtt" ? "Zigbee" : "Hive"} />
 {/snippet}
 
 {#snippet membersCell(g: G)}
@@ -145,7 +158,7 @@
 		<SensorHistoryPopover
 			target={{ kind: "group", id: g.id }}
 			fields={readings.map((r) => r.field)}
-			title={g.name}
+			title={groupDisplayName(g)}
 			triggerClass="group rounded focus-visible:outline-none"
 		>
 			<div class="flex items-center gap-3 text-sm tabular-nums">
@@ -162,36 +175,39 @@
 	{/if}
 {/snippet}
 
-{#snippet createdByCell(g: G)}
-	<CreatedByCell user={g.createdBy} />
+{#snippet managedByCell(g: G)}
+	{#if g.source === "zigbee2mqtt"}
+		<span class="text-sm text-muted-foreground">Zigbee2MQTT</span>
+	{:else}
+		<CreatedByCell user={g.createdBy} />
+	{/if}
 {/snippet}
 
 {#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(g: G)}
 	<RowActionsCell
-		editHref={`/groups?edit=${g.id}`}
-		ondelete={() => ondelete(g)}
+		editHref={editHref(g)}
+		ondelete={g.source === "hive" ? () => ondelete(g) : undefined}
 		editLabel="Edit group"
 		deleteLabel="Delete group"
 	>
 		{#snippet leading()}
 			{#if getDevices}
-				<CollectionQuickControls devices={getDevices(g)} name={g.name} />
+				<CollectionQuickControls
+					devices={getDevices(g)}
+					name={groupDisplayName(g)}
+				target={{ targetType: CommandTargetType.Group, targetId: g.id }}
+				/>
 			{/if}
-			<Tooltip>
-				<TooltipTrigger>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						onclick={() => onAddTo(g)}
-						aria-label="Add to group"
-					>
-						<Plus class="size-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>Add…</TooltipContent>
-			</Tooltip>
+			{#if g.source === "hive"}<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={() => onAddTo(g)}
+				aria-label="Add to group"
+			>
+				<Plus class="size-4" />
+			</Button>{/if}
 		{/snippet}
 	</RowActionsCell>
 {/snippet}

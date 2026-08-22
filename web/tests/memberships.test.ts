@@ -56,6 +56,21 @@ describe("chipsByDevice", () => {
     expect(result.get("d2")?.groupChips).toEqual([{ id: "g1", name: "All lights", icon: null }]);
   });
 
+  it("uses an integration group name when no override is set", () => {
+    const groups: MembershipGroup[] = [
+      {
+        id: "g1",
+        name: null,
+        friendlyName: "Hall lights",
+        members: [{ id: "m1", memberType: "device", memberId: "d1" }],
+      },
+    ];
+
+    expect(chipsByDevice([], groups).get("d1")?.groupChips).toEqual([
+      { id: "g1", name: "Hall lights", icon: null },
+    ]);
+  });
+
   it("ignores nested group/room members in chips (direct membership only)", () => {
     const groups: MembershipGroup[] = [
       {

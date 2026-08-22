@@ -32,14 +32,16 @@ export interface MembershipGroupMember extends MembershipGroupMemberRef {
 
 export interface MembershipGroupRef {
   id: string;
-  name: string;
+  name?: string | null;
+  friendlyName?: string | null;
   icon?: string | null;
   members: MembershipGroupMemberRef[];
 }
 
 export interface MembershipGroup {
   id: string;
-  name: string;
+  name?: string | null;
+  friendlyName?: string | null;
   icon?: string | null;
   members: MembershipGroupMember[];
 }
@@ -79,7 +81,11 @@ export function chipsByDevice(
     for (const m of group.members) {
       if (m.memberType !== "device") continue;
       const entry = map.get(m.memberId) ?? { roomChips: [], groupChips: [] };
-      entry.groupChips.push({ id: group.id, name: group.name, icon: group.icon ?? null });
+      entry.groupChips.push({
+        id: group.id,
+        name: groupDisplayName(group),
+        icon: group.icon ?? null,
+      });
       map.set(m.memberId, entry);
     }
   }
@@ -135,7 +141,7 @@ export function membershipRowsForDevice(
     if (!member) continue;
     groupRows.push({
       id: `group:${g.id}`,
-      name: g.name,
+      name: groupDisplayName(g),
       kind: "group",
       groupId: g.id,
       groupMemberId: member.id,
@@ -144,3 +150,4 @@ export function membershipRowsForDevice(
 
   return [...roomRows, ...groupRows];
 }
+import { groupDisplayName } from "$lib/utils";

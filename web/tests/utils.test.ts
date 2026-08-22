@@ -10,7 +10,15 @@ import {
   Thermometer,
 } from "@lucide/svelte";
 import { ContactRole } from "$lib/gql/graphql";
-import { cn, contactIcon, deviceIcon } from "$lib/utils";
+import { cn, contactIcon, deviceIcon, groupDisplayName } from "$lib/utils";
+
+describe("groupDisplayName", () => {
+  it("resolves the override, integration name, and id in order", () => {
+    expect(groupDisplayName({ id: "g", name: "Upstairs", friendlyName: "Hall" })).toBe("Upstairs");
+    expect(groupDisplayName({ id: "g", name: null, friendlyName: "Hall" })).toBe("Hall");
+    expect(groupDisplayName({ id: "g", name: null, friendlyName: "" })).toBe("g");
+  });
+});
 
 describe("cn", () => {
   it("merges class names", () => {

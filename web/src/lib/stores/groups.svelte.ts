@@ -16,6 +16,9 @@ graphql(`
   fragment GroupFields on Group {
     id
     name
+    friendlyName
+    source
+    removed
     icon
     tags
     members {
@@ -39,6 +42,12 @@ const GROUPS_QUERY = graphql(`
     groups {
       ...GroupFields
     }
+  }
+`);
+
+const GROUPS_CHANGED = graphql(`
+  subscription GroupsStoreChanged {
+    groupsChanged
   }
 `);
 
@@ -88,10 +97,12 @@ const REMOVE_GROUP_MEMBER = graphql(`
 
 const base = createEntityStore<Group, GroupsStoreQuery>({
   name: "groups",
-  version: 1,
+  version: 3,
   query: GROUPS_QUERY,
   select: (data) => data.groups,
 });
+
+let stopChanges: (() => void) | null = null;
 
 /**
  * Groups, shared across every page.
@@ -113,8 +124,19 @@ export const groupsStore = {
   get error() {
     return base.error;
   },
-  start: base.start,
-  stop: base.stop,
+  async start(client: Client) {
+    await base.start(client);
+    if (stopChanges) return;
+    const subscription = client.subscription(GROUPS_CHANGED, {}).subscribe((result) => {
+      if (result.data?.groupsChanged.length) void base.refresh(client);
+    });
+    stopChanges = () => subscription.unsubscribe();
+  },
+  stop() {
+    stopChanges?.();
+    stopChanges = null;
+    base.stop();
+  },
   clear: base.clear,
   refresh: base.refresh,
 

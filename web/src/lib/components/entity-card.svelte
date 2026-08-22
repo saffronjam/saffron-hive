@@ -1,4 +1,4 @@
-<script lang="ts" generics="T extends { id: string; name: string; icon?: string | null }">
+<script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
 	import type { Snippet, Component } from "svelte";
 	import { brightnessDrag, type BrightnessDragOpts } from "$lib/actions/brightness-drag";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -14,6 +14,7 @@
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { DoorOpen, EllipsisVertical, Pencil, Plus, Trash2 } from "@lucide/svelte";
+	import { groupDisplayName } from "$lib/utils";
 
 	interface Props {
 		entity: T;
@@ -162,6 +163,7 @@
 	const iconBlockClass = $derived(iconAreaSize === "sm" ? "size-7" : "size-10");
 	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
 	const canEditIcon = $derived(iconEditable && !!oniconchange && !readOnly);
+	const displayName = $derived(groupDisplayName(entity));
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!onclick) return;
@@ -290,9 +292,9 @@
 			{/if}
 			<div class="min-w-0 flex-1">
 				{#if readOnly}
-					<h3 class="truncate font-medium text-card-foreground">{entity.name}</h3>
+					<h3 class="truncate font-medium text-card-foreground">{displayName}</h3>
 				{:else}
-					<InlineEditName name={entity.name} onsave={(newName) => onrename?.(entity, newName)} />
+					<InlineEditName name={displayName} onsave={(newName) => onrename?.(entity, newName)} />
 				{/if}
 				{#if subtitle || subtitleTrailing}
 					<p class="text-xs {bodyTextClass}">
@@ -308,7 +310,7 @@
 			{#if !readOnly}
 				<DropdownMenu>
 					<DropdownMenuTrigger>
-						<Button variant="ghost" size="icon-sm" aria-label="{entity.name} actions">
+						<Button variant="ghost" size="icon-sm" aria-label="{displayName} actions">
 							<EllipsisVertical class="size-4" />
 						</Button>
 					</DropdownMenuTrigger>

@@ -2,8 +2,10 @@ import { ContactRole, ControlledLoadRole, type Capability, type Device } from "$
 
 export interface GroupLite {
   id: string;
-  name?: string;
+  name?: string | null;
+  friendlyName?: string | null;
   icon?: string | null;
+  removed?: boolean;
   members: { memberType: string; memberId: string }[];
 }
 
@@ -180,7 +182,7 @@ export function resolveTargetDevices(
       if (seenGroups.has(id)) return;
       seenGroups.add(id);
       const g = groupByID.get(id);
-      if (!g) return;
+      if (!g || g.removed) return;
       for (const m of g.members ?? []) {
         if (m.memberType === "device") walk("device", m.memberId);
         else if (m.memberType === "group") walk("group", m.memberId);

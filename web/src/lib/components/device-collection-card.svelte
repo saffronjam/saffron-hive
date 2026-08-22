@@ -1,4 +1,4 @@
-<script lang="ts" generics="T extends { id: string; name: string; icon?: string | null }">
+<script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
 	import type { Component } from "svelte";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import EntityCard from "$lib/components/entity-card.svelte";
@@ -14,7 +14,6 @@
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import {
 		aggregateSensorReadings,
 		groupTintStrength,
@@ -24,6 +23,8 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { Palette } from "@lucide/svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { groupDisplayName } from "$lib/utils";
 
 	interface Props {
 		entity: T;
@@ -42,6 +43,7 @@
 		ontemp?: (mired: number) => void;
 		addLabel?: string;
 		aggregateTarget?: SensorPopoverTarget;
+		source?: string;
 	}
 
 	let {
@@ -61,11 +63,13 @@
 		ontemp,
 		addLabel,
 		aggregateTarget,
+		source,
 	}: Props = $props();
 
 	// A room or group card aggregates and commands only its enabled members; the
 	// disabled ones stay visible on their own detail page instead.
 	const devices = $derived(allDevices.filter((d) => !d.disabled));
+	const displayName = $derived(groupDisplayName(entity));
 
 	let preview = $state<number | undefined>(undefined);
 	let userTouched = $state(false);
@@ -196,32 +200,22 @@
 >
 	{#snippet leadingActions()}
 		{#if hasOnOff}
-			<Tooltip>
-				<TooltipTrigger class="inline-flex h-8 items-center">
-					<Switch
-						checked={isOn}
-						onCheckedChange={handleToggle}
-						aria-label={`Toggle ${entity.name}`}
-					/>
-				</TooltipTrigger>
-				<TooltipContent>{isOn ? "Turn off" : "Turn on"}</TooltipContent>
-			</Tooltip>
+			<Switch
+				checked={isOn}
+				onCheckedChange={handleToggle}
+				aria-label={`Toggle ${displayName}`}
+			/>
 		{/if}
 		{#if hasPicker}
 			<Popover>
 				<PopoverTrigger class="inline-flex h-8 items-center">
-					<Tooltip>
-						<TooltipTrigger class="inline-flex h-8 items-center">
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								aria-label={`Adjust ${entity.name}`}
-							>
-								<Palette class="size-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Adjust</TooltipContent>
-					</Tooltip>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						aria-label={`Adjust ${displayName}`}
+					>
+						<Palette class="size-4" />
+					</Button>
 				</PopoverTrigger>
 				<PopoverContent class="w-72 p-3" align="end">
 					<LightColorPicker
@@ -238,15 +232,18 @@
 		{/if}
 	{/snippet}
 	{#snippet footer()}
-		{#if hasLights || hasSensors}
+		{#if hasLights || hasSensors || source}
 			<div class="mt-auto flex flex-col gap-2 pt-3">
+				{#if source}
+					<div><HiveChip type={source === "zigbee2mqtt" ? "hub" : "group"} label={source === "zigbee2mqtt" ? "Zigbee" : "Hive"} /></div>
+				{/if}
 				{#if hasSensors}
 					{#if aggregateTarget}
 						<div class="flex justify-end">
 							<SensorHistoryPopover
 								target={aggregateTarget}
 								fields={sensorFields}
-								title={entity.name}
+								title={displayName}
 								align="end"
 								triggerClass="group rounded focus-visible:outline-none"
 							>

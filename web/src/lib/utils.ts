@@ -35,6 +35,15 @@ export function deviceDisplayName(d: {
   return d.name || d.friendlyName || d.id;
 }
 
+/** Resolve a group's user override, integration name, and id in order. */
+export function groupDisplayName(group: {
+  id: string;
+  name?: string | null;
+  friendlyName?: string | null;
+}): string {
+  return group.name || group.friendlyName || group.id;
+}
+
 export function contactIcon(role?: ContactRole | null): Component {
   switch (role) {
     case ContactRole.Door:

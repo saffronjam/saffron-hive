@@ -20,10 +20,10 @@
 	import { deviceStore } from "$lib/stores/devices";
 	import { graphql } from "$lib/gql";
 	import { queryStore, getContextClient } from "@urql/svelte";
-	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, sentenceCase, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { DoorOpen, Group as GroupIcon, House, Layers, Plus, Trash2 } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { onMount, onDestroy, type Component } from "svelte";
+	import { onMount, type Component } from "svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { SvelteSet } from "svelte/reactivity";
@@ -31,10 +31,6 @@
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Data viewer" }];
 	});
-	onDestroy(() => {
-		pageHeader.reset();
-	});
-
 	const ALLOWED_BUCKETS = new Set([0, 60, 300, 3600, 86400]);
 
 	function parseDateParam(raw: string | null): Date | null {
@@ -138,7 +134,7 @@
 				seen.add(k);
 				const g = groupsById.get(parsed.id!);
 				if (!g) continue;
-				initial.push({ kind: "group", id: g.id, name: g.name });
+				initial.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
 			}
 		}
 		sources = initial;
@@ -194,7 +190,7 @@
 		const availableRooms = rooms
 			.filter((r) => !roomTaken.has(r.id))
 			.slice()
-			.sort((a, b) => a.name.localeCompare(b.name));
+			.sort((a, b) => groupDisplayName(a).localeCompare(groupDisplayName(b)));
 		if (availableRooms.length > 0) {
 			result.push({
 				heading: "Rooms",
@@ -215,17 +211,17 @@
 		const availableGroups = groups
 			.filter((g) => !groupTaken.has(g.id))
 			.slice()
-			.sort((a, b) => a.name.localeCompare(b.name));
+			.sort((a, b) => groupDisplayName(a).localeCompare(groupDisplayName(b)));
 		if (availableGroups.length > 0) {
 			result.push({
 				heading: "Groups",
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 					iconRef: g.icon ?? null,
-					searchValue: `${g.name} group`,
+					searchValue: `${groupDisplayName(g)} group`,
 				})),
 			});
 		}
@@ -350,7 +346,7 @@
 			if (sources.some((s) => s.kind === "group" && s.id === id)) return;
 			const g = groupsById.get(id);
 			if (!g) return;
-			sources = [...sources, { kind: "group", id, name: g.name }];
+			sources = [...sources, { kind: "group", id, name: groupDisplayName(g) }];
 		}
 	}
 
