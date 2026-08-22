@@ -83,12 +83,12 @@ func (q *Queries) ClearGroupIcon(ctx context.Context, id string) error {
 
 const createGroup = `-- name: CreateGroup :exec
 
-INSERT INTO groups (id, name, created_by) VALUES (?, ?, ?)
+INSERT INTO groups (id, name, friendly_name, created_by) VALUES (?, ?, '', ?)
 `
 
 type CreateGroupParams struct {
 	ID        string
-	Name      string
+	Name      *string
 	CreatedBy *string
 }
 
@@ -107,8 +107,19 @@ func (q *Queries) DeleteGroup(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteProviderGroupMembers = `-- name: DeleteProviderGroupMembers :exec
+DELETE FROM group_members
+WHERE group_id = ?
+`
+
+func (q *Queries) DeleteProviderGroupMembers(ctx context.Context, groupID string) error {
+	_, err := q.db.ExecContext(ctx, deleteProviderGroupMembers, groupID)
+	return err
+}
+
 const getGroup = `-- name: GetGroup :one
-SELECT g.id, g.name, g.icon, g.created_at, g.updated_at,
+SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+       g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -119,8 +130,12 @@ WHERE g.id = ?
 
 type GetGroupRow struct {
 	ID              string
-	Name            string
+	Name            *string
+	FriendlyName    string
 	Icon            *string
+	Provider        string
+	ProviderGroupID *string
+	Removed         bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -134,7 +149,11 @@ func (q *Queries) GetGroup(ctx context.Context, id string) (GetGroupRow, error) 
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.FriendlyName,
 		&i.Icon,
+		&i.Provider,
+		&i.ProviderGroupID,
+		&i.Removed,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CreatorID,
@@ -155,8 +174,30 @@ func (q *Queries) GetGroupMemberGroupID(ctx context.Context, id string) (string,
 	return group_id, err
 }
 
+const insertProviderGroupMember = `-- name: InsertProviderGroupMember :exec
+INSERT INTO group_members (id, group_id, member_type, member_id, provider_endpoint)
+VALUES (?, ?, 'device', ?, ?)
+`
+
+type InsertProviderGroupMemberParams struct {
+	ID               string
+	GroupID          string
+	MemberID         string
+	ProviderEndpoint *int64
+}
+
+func (q *Queries) InsertProviderGroupMember(ctx context.Context, arg InsertProviderGroupMemberParams) error {
+	_, err := q.db.ExecContext(ctx, insertProviderGroupMember,
+		arg.ID,
+		arg.GroupID,
+		arg.MemberID,
+		arg.ProviderEndpoint,
+	)
+	return err
+}
+
 const listAllGroupMemberships = `-- name: ListAllGroupMemberships :many
-SELECT id, group_id, member_type, member_id FROM group_members
+SELECT id, group_id, member_type, member_id, provider_endpoint FROM group_members
 `
 
 func (q *Queries) ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error) {
@@ -173,6 +214,7 @@ func (q *Queries) ListAllGroupMemberships(ctx context.Context) ([]GroupMember, e
 			&i.GroupID,
 			&i.MemberType,
 			&i.MemberID,
+			&i.ProviderEndpoint,
 		); err != nil {
 			return nil, err
 		}
@@ -188,7 +230,7 @@ func (q *Queries) ListAllGroupMemberships(ctx context.Context) ([]GroupMember, e
 }
 
 const listGroupMembers = `-- name: ListGroupMembers :many
-SELECT id, group_id, member_type, member_id
+SELECT id, group_id, member_type, member_id, provider_endpoint
 FROM group_members
 WHERE group_id = ?
 `
@@ -207,6 +249,7 @@ func (q *Queries) ListGroupMembers(ctx context.Context, groupID string) ([]Group
 			&i.GroupID,
 			&i.MemberType,
 			&i.MemberID,
+			&i.ProviderEndpoint,
 		); err != nil {
 			return nil, err
 		}
@@ -222,18 +265,24 @@ func (q *Queries) ListGroupMembers(ctx context.Context, groupID string) ([]Group
 }
 
 const listGroups = `-- name: ListGroups :many
-SELECT g.id, g.name, g.icon, g.created_at, g.updated_at,
+SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+       g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
 FROM groups g
 LEFT JOIN users u ON u.id = g.created_by
+WHERE g.removed = false
 `
 
 type ListGroupsRow struct {
 	ID              string
-	Name            string
+	Name            *string
+	FriendlyName    string
 	Icon            *string
+	Provider        string
+	ProviderGroupID *string
+	Removed         bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -253,7 +302,11 @@ func (q *Queries) ListGroups(ctx context.Context) ([]ListGroupsRow, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.FriendlyName,
 			&i.Icon,
+			&i.Provider,
+			&i.ProviderGroupID,
+			&i.Removed,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CreatorID,
@@ -274,7 +327,8 @@ func (q *Queries) ListGroups(ctx context.Context) ([]ListGroupsRow, error) {
 }
 
 const listGroupsContainingMember = `-- name: ListGroupsContainingMember :many
-SELECT g.id, g.name, g.icon, g.created_at, g.updated_at,
+SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+       g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -291,8 +345,12 @@ type ListGroupsContainingMemberParams struct {
 
 type ListGroupsContainingMemberRow struct {
 	ID              string
-	Name            string
+	Name            *string
+	FriendlyName    string
 	Icon            *string
+	Provider        string
+	ProviderGroupID *string
+	Removed         bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	CreatorID       *string
@@ -312,7 +370,11 @@ func (q *Queries) ListGroupsContainingMember(ctx context.Context, arg ListGroups
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.FriendlyName,
 			&i.Icon,
+			&i.Provider,
+			&i.ProviderGroupID,
+			&i.Removed,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CreatorID,
@@ -330,6 +392,118 @@ func (q *Queries) ListGroupsContainingMember(ctx context.Context, arg ListGroups
 		return nil, err
 	}
 	return items, nil
+}
+
+const listProviderGroupMembers = `-- name: ListProviderGroupMembers :many
+SELECT gm.id, gm.group_id, gm.member_type, gm.member_id, gm.provider_endpoint
+FROM group_members gm
+JOIN groups g ON g.id = gm.group_id
+WHERE g.provider = ?
+ORDER BY gm.group_id, gm.member_id, gm.provider_endpoint
+`
+
+func (q *Queries) ListProviderGroupMembers(ctx context.Context, provider string) ([]GroupMember, error) {
+	rows, err := q.db.QueryContext(ctx, listProviderGroupMembers, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GroupMember
+	for rows.Next() {
+		var i GroupMember
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.MemberType,
+			&i.MemberID,
+			&i.ProviderEndpoint,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProviderGroups = `-- name: ListProviderGroups :many
+SELECT id, name, friendly_name, icon, provider, provider_group_id, removed,
+       created_at, updated_at, created_by
+FROM groups
+WHERE provider = ?
+ORDER BY id
+`
+
+type ListProviderGroupsRow struct {
+	ID              string
+	Name            *string
+	FriendlyName    string
+	Icon            *string
+	Provider        string
+	ProviderGroupID *string
+	Removed         bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	CreatedBy       *string
+}
+
+func (q *Queries) ListProviderGroups(ctx context.Context, provider string) ([]ListProviderGroupsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProviderGroups, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProviderGroupsRow
+	for rows.Next() {
+		var i ListProviderGroupsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.FriendlyName,
+			&i.Icon,
+			&i.Provider,
+			&i.ProviderGroupID,
+			&i.Removed,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markProviderGroupsRemovedExcept = `-- name: MarkProviderGroupsRemovedExcept :exec
+UPDATE groups
+SET removed = true,
+    updated_at = CASE WHEN removed = false THEN CURRENT_TIMESTAMP ELSE updated_at END
+WHERE provider = ?1
+  AND id NOT IN (
+      SELECT value FROM json_each(CAST(?2 AS TEXT))
+  )
+`
+
+type MarkProviderGroupsRemovedExceptParams struct {
+	Provider string
+	IdsJson  string
+}
+
+func (q *Queries) MarkProviderGroupsRemovedExcept(ctx context.Context, arg MarkProviderGroupsRemovedExceptParams) error {
+	_, err := q.db.ExecContext(ctx, markProviderGroupsRemovedExcept, arg.Provider, arg.IdsJson)
+	return err
 }
 
 const removeGroupMember = `-- name: RemoveGroupMember :exec
@@ -353,10 +527,14 @@ func (q *Queries) RemoveGroupMembersByRoom(ctx context.Context, memberID string)
 }
 
 const resolveGroupIDByName = `-- name: ResolveGroupIDByName :one
-SELECT id FROM groups WHERE name = ? LIMIT 1
+SELECT id
+FROM groups
+WHERE COALESCE(NULLIF(name, ''), NULLIF(friendly_name, ''), id) = ?
+  AND removed = false
+LIMIT 1
 `
 
-func (q *Queries) ResolveGroupIDByName(ctx context.Context, name string) (string, error) {
+func (q *Queries) ResolveGroupIDByName(ctx context.Context, name *string) (string, error) {
 	row := q.db.QueryRowContext(ctx, resolveGroupIDByName, name)
 	var id string
 	err := row.Scan(&id)
@@ -382,11 +560,46 @@ UPDATE groups SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
 
 type UpdateGroupNameParams struct {
-	Name string
+	Name *string
 	ID   string
 }
 
 func (q *Queries) UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error {
 	_, err := q.db.ExecContext(ctx, updateGroupName, arg.Name, arg.ID)
+	return err
+}
+
+const upsertProviderGroup = `-- name: UpsertProviderGroup :exec
+INSERT INTO groups (id, friendly_name, provider, provider_group_id, removed)
+VALUES (?1, ?2, ?3, ?4, false)
+ON CONFLICT(id) DO UPDATE SET
+    friendly_name = excluded.friendly_name,
+    provider = excluded.provider,
+    provider_group_id = excluded.provider_group_id,
+    removed = false,
+    updated_at = CASE
+        WHEN groups.friendly_name != excluded.friendly_name
+          OR groups.provider != excluded.provider
+          OR groups.provider_group_id != excluded.provider_group_id
+          OR groups.removed != false
+        THEN CURRENT_TIMESTAMP
+        ELSE groups.updated_at
+    END
+`
+
+type UpsertProviderGroupParams struct {
+	ID              string
+	FriendlyName    string
+	Provider        string
+	ProviderGroupID *string
+}
+
+func (q *Queries) UpsertProviderGroup(ctx context.Context, arg UpsertProviderGroupParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProviderGroup,
+		arg.ID,
+		arg.FriendlyName,
+		arg.Provider,
+		arg.ProviderGroupID,
+	)
 	return err
 }

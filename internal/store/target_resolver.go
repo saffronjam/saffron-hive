@@ -17,8 +17,9 @@ import (
 // Disabled devices are dropped from the result. This is the resolution every
 // runtime fan-out goes through (scene apply, automation actions, effect runs,
 // selector expressions), so excluding them here is what keeps a disabled device
-// out of all of them. The membership rows themselves are untouched, so
-// re-enabling restores the device everywhere it was.
+// out of all of them. Removed provider groups are inert while their reference
+// rows remain available to editors. Membership rows stay untouched, so an
+// enabled device or returning provider group resumes its existing targets.
 func (s *DB) ResolveTargetDeviceIDs(ctx context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
 	seen := map[string]bool{}
 	devSeen := map[device.DeviceID]bool{}
@@ -112,6 +113,10 @@ func (s *DB) collectGroupDeviceIDs(
 		return
 	}
 	seen[key] = true
+	group, err := s.GetGroup(ctx, groupID)
+	if err != nil || group.Removed {
+		return
+	}
 
 	members, err := s.ListGroupMembers(ctx, groupID)
 	if err != nil {

@@ -20,8 +20,8 @@ func TestCreateGroup(t *testing.T) {
 	if g.ID != "grp-1" {
 		t.Errorf("got ID %q, want %q", g.ID, "grp-1")
 	}
-	if g.Name != "Living Room" {
-		t.Errorf("got Name %q, want %q", g.Name, "Living Room")
+	if g.Name == nil || *g.Name != "Living Room" {
+		t.Errorf("got Name %v, want %q", g.Name, "Living Room")
 	}
 	if g.CreatedAt.IsZero() {
 		t.Error("expected CreatedAt to be set")
@@ -41,8 +41,8 @@ func TestGetGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get group: %v", err)
 	}
-	if g.Name != "Kitchen" {
-		t.Errorf("got Name %q, want %q", g.Name, "Kitchen")
+	if g.Name == nil || *g.Name != "Kitchen" {
+		t.Errorf("got Name %v, want %q", g.Name, "Kitchen")
 	}
 }
 
@@ -88,12 +88,12 @@ func TestUpdateGroup(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 
-	g, err := s.UpdateGroup(ctx, UpdateGroupParams{ID: "grp-1", Name: "New Name"})
+	g, err := s.UpdateGroup(ctx, UpdateGroupParams{ID: "grp-1", Name: device.Ptr("New Name"), SetName: true})
 	if err != nil {
 		t.Fatalf("update group: %v", err)
 	}
-	if g.Name != "New Name" {
-		t.Errorf("got Name %q, want %q", g.Name, "New Name")
+	if g.Name == nil || *g.Name != "New Name" {
+		t.Errorf("got Name %v, want %q", g.Name, "New Name")
 	}
 }
 

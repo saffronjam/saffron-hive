@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -13,10 +16,11 @@ import (
 
 // CreateGroup inserts a new group and returns it.
 func (s *DB) CreateGroup(ctx context.Context, params CreateGroupParams) (Group, error) {
+	name := params.Name
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.CreateGroup(ctx, sqlite.CreateGroupParams{
 			ID:        params.ID,
-			Name:      params.Name,
+			Name:      &name,
 			CreatedBy: params.CreatedBy,
 		}); err != nil {
 			return fmt.Errorf("create group: %w", err)
@@ -48,20 +52,24 @@ func (s *DB) GetGroup(ctx context.Context, id string) (Group, error) {
 		return Group{}, fmt.Errorf("list group tags: %w", err)
 	}
 	return Group{
-		ID:        row.ID,
-		Name:      row.Name,
-		Icon:      row.Icon,
-		Tags:      tags,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
-		CreatedBy: userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
+		ID:              row.ID,
+		Name:            row.Name,
+		FriendlyName:    row.FriendlyName,
+		Icon:            row.Icon,
+		Tags:            tags,
+		Provider:        row.Provider,
+		ProviderGroupID: row.ProviderGroupID,
+		Removed:         row.Removed,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+		CreatedBy:       userRefFromPtrs(row.CreatorID, row.CreatorUsername, row.CreatorName),
 	}, nil
 }
 
 // ResolveGroupIDByName looks up a group ID by exact-match name. The found
 // flag is false (with a nil error) when no group has that name.
 func (s *DB) ResolveGroupIDByName(ctx context.Context, name string) (string, bool, error) {
-	id, err := s.q.ResolveGroupIDByName(ctx, name)
+	id, err := s.q.ResolveGroupIDByName(ctx, &name)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}
@@ -84,28 +92,34 @@ func (s *DB) ListGroups(ctx context.Context) ([]Group, error) {
 	var groups []Group
 	for _, r := range rows {
 		groups = append(groups, Group{
-			ID:        r.ID,
-			Name:      r.Name,
-			Icon:      r.Icon,
-			Tags:      tagsByGroup[r.ID],
-			CreatedAt: r.CreatedAt,
-			UpdatedAt: r.UpdatedAt,
-			CreatedBy: userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+			ID:              r.ID,
+			Name:            r.Name,
+			FriendlyName:    r.FriendlyName,
+			Icon:            r.Icon,
+			Tags:            tagsByGroup[r.ID],
+			Provider:        r.Provider,
+			ProviderGroupID: r.ProviderGroupID,
+			Removed:         r.Removed,
+			CreatedAt:       r.CreatedAt,
+			UpdatedAt:       r.UpdatedAt,
+			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
 		})
 	}
 	return groups, nil
 }
 
-// UpdateGroup updates a group's name and (optionally) its icon and tags, returning the updated group.
+// UpdateGroup updates the selected group fields and returns the updated group.
 // Icon is updated only when params.SetIcon is true; a nil params.Icon clears the column.
 // Tags are replaced wholesale only when params.SetTags is true; an empty Tags slice clears all tags.
 func (s *DB) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error) {
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
-		if err := q.UpdateGroupName(ctx, sqlite.UpdateGroupNameParams{
-			Name: params.Name,
-			ID:   params.ID,
-		}); err != nil {
-			return fmt.Errorf("update group name: %w", err)
+		if params.SetName {
+			if err := q.UpdateGroupName(ctx, sqlite.UpdateGroupNameParams{
+				Name: params.Name,
+				ID:   params.ID,
+			}); err != nil {
+				return fmt.Errorf("update group name: %w", err)
+			}
 		}
 		if params.SetIcon {
 			if params.Icon == nil {
@@ -245,10 +259,11 @@ func (s *DB) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (G
 		return GroupMember{}, fmt.Errorf("add group member: %w", err)
 	}
 	return GroupMember{
-		ID:         params.ID,
-		GroupID:    params.GroupID,
-		MemberType: params.MemberType,
-		MemberID:   params.MemberID,
+		ID:               params.ID,
+		GroupID:          params.GroupID,
+		MemberType:       params.MemberType,
+		MemberID:         params.MemberID,
+		ProviderEndpoint: nil,
 	}, nil
 }
 
@@ -291,10 +306,11 @@ func (s *DB) ListGroupMembers(ctx context.Context, groupID string) ([]GroupMembe
 	var members []GroupMember
 	for _, r := range rows {
 		members = append(members, GroupMember{
-			ID:         r.ID,
-			GroupID:    r.GroupID,
-			MemberType: r.MemberType,
-			MemberID:   r.MemberID,
+			ID:               r.ID,
+			GroupID:          r.GroupID,
+			MemberType:       r.MemberType,
+			MemberID:         r.MemberID,
+			ProviderEndpoint: r.ProviderEndpoint,
 		})
 	}
 	return members, nil
@@ -331,13 +347,166 @@ func (s *DB) ListGroupsContainingMember(ctx context.Context, memberType device.G
 	var groups []Group
 	for _, r := range rows {
 		groups = append(groups, Group{
-			ID:        r.ID,
-			Name:      r.Name,
-			Icon:      r.Icon,
-			CreatedAt: r.CreatedAt,
-			UpdatedAt: r.UpdatedAt,
-			CreatedBy: userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
+			ID:              r.ID,
+			Name:            r.Name,
+			FriendlyName:    r.FriendlyName,
+			Icon:            r.Icon,
+			Provider:        r.Provider,
+			ProviderGroupID: r.ProviderGroupID,
+			Removed:         r.Removed,
+			CreatedAt:       r.CreatedAt,
+			UpdatedAt:       r.UpdatedAt,
+			CreatedBy:       userRefFromPtrs(r.CreatorID, r.CreatorUsername, r.CreatorName),
 		})
 	}
 	return groups, nil
+}
+
+// SyncProviderGroups replaces one provider's group registry atomically and
+// returns the IDs whose provider-owned fields or memberships changed.
+func (s *DB) SyncProviderGroups(ctx context.Context, snapshot device.ProviderGroupsSnapshot) ([]string, error) {
+	if snapshot.Provider == "" {
+		return nil, fmt.Errorf("sync provider groups: provider is empty")
+	}
+
+	var changed []string
+	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		before, err := loadProviderGroupState(ctx, q, snapshot.Provider)
+		if err != nil {
+			return err
+		}
+
+		ids := make([]string, 0, len(snapshot.Groups))
+		seenGroups := make(map[string]struct{}, len(snapshot.Groups))
+		for _, group := range snapshot.Groups {
+			if group.ProviderGroupID == "" {
+				return fmt.Errorf("sync provider groups: provider group id is empty")
+			}
+			id := ProviderGroupID(snapshot.Provider, group.ProviderGroupID)
+			if _, duplicate := seenGroups[id]; duplicate {
+				return fmt.Errorf("sync provider groups: duplicate provider group %q", group.ProviderGroupID)
+			}
+			seenGroups[id] = struct{}{}
+			ids = append(ids, id)
+			providerGroupID := group.ProviderGroupID
+			if err := q.UpsertProviderGroup(ctx, sqlite.UpsertProviderGroupParams{
+				ID:              id,
+				FriendlyName:    group.Name,
+				Provider:        snapshot.Provider,
+				ProviderGroupID: &providerGroupID,
+			}); err != nil {
+				return fmt.Errorf("upsert provider group %s: %w", id, err)
+			}
+			if err := q.DeleteProviderGroupMembers(ctx, id); err != nil {
+				return fmt.Errorf("replace provider group members %s: %w", id, err)
+			}
+			seenMembers := make(map[string]struct{}, len(group.Members))
+			for _, member := range group.Members {
+				endpoint := int64(member.Endpoint)
+				memberKey := string(member.DeviceID) + "\x00" + strconv.FormatInt(endpoint, 10)
+				if _, duplicate := seenMembers[memberKey]; duplicate {
+					continue
+				}
+				seenMembers[memberKey] = struct{}{}
+				if err := q.InsertProviderGroupMember(ctx, sqlite.InsertProviderGroupMemberParams{
+					ID:               ProviderGroupMemberID(id, member.DeviceID, member.Endpoint),
+					GroupID:          id,
+					MemberID:         string(member.DeviceID),
+					ProviderEndpoint: &endpoint,
+				}); err != nil {
+					return fmt.Errorf("insert provider group member %s: %w", member.DeviceID, err)
+				}
+			}
+		}
+
+		idsJSON, err := marshalStringArray(ids)
+		if err != nil {
+			return fmt.Errorf("encode provider group ids: %w", err)
+		}
+		if err := q.MarkProviderGroupsRemovedExcept(ctx, sqlite.MarkProviderGroupsRemovedExceptParams{
+			Provider: snapshot.Provider,
+			IdsJson:  idsJSON,
+		}); err != nil {
+			return fmt.Errorf("mark absent provider groups removed: %w", err)
+		}
+
+		after, err := loadProviderGroupState(ctx, q, snapshot.Provider)
+		if err != nil {
+			return err
+		}
+		changed = changedProviderGroupIDs(before, after)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return changed, nil
+}
+
+// ProviderGroupID returns the stable Hive ID for a provider-owned group.
+func ProviderGroupID(provider, providerGroupID string) string {
+	return provider + ":group:" + providerGroupID
+}
+
+// ProviderGroupMemberID returns the stable row ID for one provider endpoint.
+func ProviderGroupMemberID(groupID string, deviceID device.DeviceID, endpoint int) string {
+	return groupID + ":member:" + string(deviceID) + ":" + strconv.Itoa(endpoint)
+}
+
+type providerGroupState struct {
+	FriendlyName    string
+	ProviderGroupID string
+	Removed         bool
+	Members         []string
+}
+
+func loadProviderGroupState(ctx context.Context, q *sqlite.Queries, provider string) (map[string]providerGroupState, error) {
+	rows, err := q.ListProviderGroups(ctx, provider)
+	if err != nil {
+		return nil, fmt.Errorf("list provider groups: %w", err)
+	}
+	state := make(map[string]providerGroupState, len(rows))
+	for _, row := range rows {
+		providerGroupID := ""
+		if row.ProviderGroupID != nil {
+			providerGroupID = *row.ProviderGroupID
+		}
+		state[row.ID] = providerGroupState{
+			FriendlyName:    row.FriendlyName,
+			ProviderGroupID: providerGroupID,
+			Removed:         row.Removed,
+		}
+	}
+	members, err := q.ListProviderGroupMembers(ctx, provider)
+	if err != nil {
+		return nil, fmt.Errorf("list provider group members: %w", err)
+	}
+	for _, member := range members {
+		entry := state[member.GroupID]
+		endpoint := ""
+		if member.ProviderEndpoint != nil {
+			endpoint = strconv.FormatInt(*member.ProviderEndpoint, 10)
+		}
+		entry.Members = append(entry.Members, string(member.MemberType)+"\x00"+member.MemberID+"\x00"+endpoint)
+		state[member.GroupID] = entry
+	}
+	return state, nil
+}
+
+func changedProviderGroupIDs(before, after map[string]providerGroupState) []string {
+	ids := make(map[string]struct{}, len(before)+len(after))
+	for id := range before {
+		ids[id] = struct{}{}
+	}
+	for id := range after {
+		ids[id] = struct{}{}
+	}
+	changed := make([]string, 0, len(ids))
+	for id := range ids {
+		if !reflect.DeepEqual(before[id], after[id]) {
+			changed = append(changed, id)
+		}
+	}
+	sort.Strings(changed)
+	return changed
 }

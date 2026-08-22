@@ -269,22 +269,45 @@ type CreateGroupParams struct {
 
 // Group represents a group row.
 type Group struct {
-	ID        string
-	Name      string
-	Icon      *string
-	Tags      []device.GroupTag
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	CreatedBy *UserRef
+	ID              string
+	Name            *string
+	FriendlyName    string
+	Icon            *string
+	Tags            []device.GroupTag
+	Provider        string
+	ProviderGroupID *string
+	Removed         bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	CreatedBy       *UserRef
 }
 
-// UpdateGroupParams holds the parameters for updating a group.
+// DisplayName resolves the name to show for a group: the user's override, then
+// the name its integration reports, then the id.
+func (g Group) DisplayName() string {
+	if g.Name != nil && *g.Name != "" {
+		return *g.Name
+	}
+	if g.FriendlyName != "" {
+		return g.FriendlyName
+	}
+	return g.ID
+}
+
+const (
+	GroupProviderHive        = "hive"
+	GroupProviderZigbee2MQTT = "zigbee2mqtt"
+)
+
+// UpdateGroupParams holds the parameters for updating a group. SetName
+// distinguishes leaving the user-owned override untouched from setting or clearing it.
 // SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 // SetTags likewise distinguishes "leave tags alone" from "replace tags with this set"
 // (nil/empty Tags clears all tags when SetTags is true).
 type UpdateGroupParams struct {
 	ID      string
-	Name    string
+	Name    *string
+	SetName bool
 	SetIcon bool
 	Icon    *string
 	SetTags bool
@@ -301,10 +324,11 @@ type AddGroupMemberParams struct {
 
 // GroupMember represents a group member row.
 type GroupMember struct {
-	ID         string
-	GroupID    string
-	MemberType device.GroupMemberType
-	MemberID   string
+	ID               string
+	GroupID          string
+	MemberType       device.GroupMemberType
+	MemberID         string
+	ProviderEndpoint *int64
 }
 
 // InsertStateSampleParams holds the parameters for inserting a single device state sample.
@@ -356,6 +380,7 @@ type StateHistoryPoint struct {
 // never set.
 type Zigbee2MQTTConfig struct {
 	Broker              string
+	FrontendURL         *string
 	Username            string
 	Password            string
 	UseWSS              bool
