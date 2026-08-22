@@ -19,7 +19,8 @@
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
@@ -32,14 +33,16 @@
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import GroupTagsSelect, { type GroupTag } from "$lib/components/group-tags-select.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import {
 		Plus,
 		Group as GroupIcon,
 		DoorOpen,
+		Info,
 		X,
 	} from "@lucide/svelte";
-	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { fly } from "svelte/transition";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
@@ -49,6 +52,7 @@
 	import { groupsStore, type Group, type GroupMember } from "$lib/stores/groups.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { CommandTargetType } from "$lib/gql/graphql";
 
 	interface Props {
 		/**
@@ -93,46 +97,35 @@
 	}
 
 	async function commitGroupBrightness(group: Group, brightness: number) {
-		await commitGroupBrightnessShared(client, flattenGroupDevices(group), brightness);
+		await commitGroupBrightnessShared(client, flattenGroupDevices(group), brightness, { targetType: CommandTargetType.Group, targetId: group.id });
 	}
 
 	async function commitGroupToggle(group: Group, on: boolean) {
-		await commitGroupToggleShared(client, flattenGroupDevices(group), on);
+		await commitGroupToggleShared(client, flattenGroupDevices(group), on, { targetType: CommandTargetType.Group, targetId: group.id });
 	}
 
 	async function commitGroupColor(group: Group, color: { r: number; g: number; b: number }) {
-		await commitGroupColorShared(client, flattenGroupDevices(group), color);
+		await commitGroupColorShared(client, flattenGroupDevices(group), color, { targetType: CommandTargetType.Group, targetId: group.id });
 	}
 
 	async function commitGroupTemp(group: Group, mired: number) {
-		await commitGroupTempShared(client, flattenGroupDevices(group), mired);
+		await commitGroupTempShared(client, flattenGroupDevices(group), mired, { targetType: CommandTargetType.Group, targetId: group.id });
 	}
 
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
-
-	const kindOptions = [
-		{ value: "device", label: "Device" },
-		{ value: "group", label: "Group" },
-		{ value: "room", label: "Room" },
-	];
+	const searchController = createUrlSearchState({
+		active: () => visible && page.url.pathname === "/groups",
+	});
 
 	const emptyOptions = [
 		{ value: "yes", label: "Yes" },
 		{ value: "no", label: "No" },
 	];
+	const sourceOptions = [
+		{ value: "hive", label: "Hive" },
+		{ value: "zigbee2mqtt", label: "Zigbee" },
+	];
 
 	const searchChipConfigs: ChipConfig[] = $derived([
-		{
-			keyword: "kind",
-			label: "Kind",
-			variant: "secondary",
-			options: (input: string) => {
-				const q = input.toLowerCase();
-				return q
-					? kindOptions.filter((o) => o.value.includes(q) || o.label.toLowerCase().includes(q))
-					: kindOptions;
-			},
-		},
 		{
 			keyword: "device",
 			label: "Device",
@@ -156,6 +149,13 @@
 			},
 		},
 		{
+			keyword: "source",
+			label: "Source",
+			variant: "secondary",
+			options: () => sourceOptions,
+			resolveLabel: (value: string) => sourceOptions.find((option) => option.value === value)?.label ?? null,
+		},
+		{
 			keyword: "empty",
 			label: "Empty",
 			variant: "secondary",
@@ -164,19 +164,18 @@
 	]);
 
 	const filteredGroups = $derived.by(() => {
-		const kindValues = searchState.chips.filter((c) => c.keyword === "kind").map((c) => c.value);
-		const deviceValues = searchState.chips
+		const deviceValues = searchController.value.chips
 			.filter((c) => c.keyword === "device")
 			.map((c) => c.value.toLowerCase());
-		const roomValues = searchState.chips
+		const roomValues = searchController.value.chips
 			.filter((c) => c.keyword === "room")
 			.map((c) => c.value.toLowerCase());
-		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
-		const query = searchState.freeText.toLowerCase();
+		const emptyValues = searchController.value.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const sourceValues = searchController.value.chips.filter((c) => c.keyword === "source").map((c) => c.value);
+		const query = searchController.value.freeText.toLowerCase();
 
 		return groups.filter((g) => {
-			if (kindValues.length > 0 && !g.members.some((m) => kindValues.includes(m.memberType)))
-				return false;
+			if (sourceValues.length > 0 && !sourceValues.includes(g.source)) return false;
 			if (
 				deviceValues.length > 0 &&
 				!deviceValues.some((v) =>
@@ -204,7 +203,7 @@
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
-			if (query && !g.name.toLowerCase().includes(query)) return false;
+			if (query && !groupDisplayName(g).toLowerCase().includes(query)) return false;
 			return true;
 		});
 	});
@@ -243,6 +242,7 @@
 	let deleteLoading = $state(false);
 
 	const selection = createTableSelection();
+	$effect(() => selection.setDisabled(groups.filter((group) => group.source !== "hive").map((group) => group.id)));
 	let batchDeleteConfirm = $state(false);
 	let batchDeleteLoading = $state(false);
 
@@ -277,7 +277,7 @@
 				items: grpAvail.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 				})),
@@ -318,16 +318,17 @@
 	const hasPendingChanges = $derived(
 		editNameDirty || editIconDirty || editTagsDirty || pendingAdds.length > 0 || pendingRemovals.size > 0
 	);
+	const providerManaged = $derived(editingGroup?.source === "zigbee2mqtt");
 
 	const urlEditId = $derived(page.url.searchParams.get("edit"));
 
 	$effect(() => {
 		if (!visible) return;
 		if (editingGroup) {
-			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: editingGroup.name }];
+			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: groupDisplayName(editingGroup) }];
 			pageHeader.actions = [
 				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
-				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
+				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading || (editingGroup.source === "hive" && !editName.trim()), hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
@@ -374,11 +375,19 @@
 	}
 
 	function startEditing(group: Group) {
-		goto(`/groups?edit=${encodeURIComponent(group.id)}`, { keepFocus: true, noScroll: true });
+		goto(editGroupHref(group.id), { keepFocus: true, noScroll: true });
+	}
+
+	function editGroupHref(id: string): string {
+		const url = new URL(page.url);
+		url.searchParams.set("edit", id);
+		return `${url.pathname}${url.search}${url.hash}`;
 	}
 
 	function stopEditing() {
-		goto("/groups", { keepFocus: true, noScroll: true });
+		const url = new URL(page.url);
+		url.searchParams.delete("edit");
+		goto(url, { keepFocus: true, noScroll: true });
 	}
 
 	// Sync editing state from URL. When the ?edit=<id> query param changes
@@ -402,7 +411,7 @@
 		const match = groups.find((g) => g.id === id);
 		if (match) {
 			editingGroup = match;
-			editName = match.name;
+			editName = match.name ?? "";
 			editIcon = match.icon ?? null;
 			editTags = [...(match.tags ?? [])];
 			editNameDirty = false;
@@ -423,10 +432,10 @@
 		// the state the editor should show.
 		let latest = editingGroup;
 		try {
-			const nameDirty = editName.trim() && editName.trim() !== editingGroup.name;
+			const nameDirty = editNameDirty;
 			if (nameDirty || editIconDirty || editTagsDirty) {
-				const input: { name?: string; icon?: string | null; tags?: GroupTag[] } = {};
-				if (nameDirty) input.name = editName.trim();
+				const input: { name?: string | null; icon?: string | null; tags?: GroupTag[] } = {};
+				if (nameDirty) input.name = editName.trim() || null;
 				if (editIconDirty) input.icon = editIcon;
 				if (editTagsDirty) input.tags = editTags;
 				latest = await groupsStore.update(client, groupId, input);
@@ -444,7 +453,7 @@
 		}
 
 		editingGroup = latest;
-		editName = latest.name;
+		editName = latest.name ?? "";
 		editIcon = latest.icon ?? null;
 		editTags = [...(latest.tags ?? [])];
 		editNameDirty = false;
@@ -497,7 +506,7 @@
 	}
 
 	function handleAddMember(memberType: "device" | "group" | "room", memberId: string) {
-		if (!editingGroup) return;
+		if (!editingGroup || providerManaged) return;
 		pendingAdds = [...pendingAdds, { memberType, memberId }];
 	}
 
@@ -562,7 +571,7 @@
 		}
 		if (availableGroups.length > 0) {
 			result.push({ heading: "Groups", items: availableGroups.map((g) => ({
-				type: "group" as const, id: g.id, name: g.name, icon: GroupIcon,
+				type: "group" as const, id: g.id, name: groupDisplayName(g), icon: GroupIcon,
 				badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 			}))});
 		}
@@ -583,9 +592,12 @@
 			const name =
 				device !== undefined
 					? deviceDisplayName(device)
-					: (groupsStore.byId.get(m.memberId)?.name ??
-						roomsStore.byId.get(m.memberId)?.name ??
-						m.memberId);
+					: (() => {
+							const group = groupsStore.byId.get(m.memberId);
+							return group
+								? groupDisplayName(group)
+								: (roomsStore.byId.get(m.memberId)?.name ?? m.memberId);
+						})();
 			const type = device?.type ?? m.memberType;
 			const related = allRooms
 				.filter((r) =>
@@ -597,7 +609,7 @@
 					case "device":
 						return `/devices/${m.memberId}`;
 					case "group":
-						return `/groups?edit=${m.memberId}`;
+						return editGroupHref(m.memberId);
 					case "room":
 						return `/rooms?edit=${m.memberId}`;
 					default:
@@ -612,7 +624,7 @@
 	$effect(() => mountTimer.tick());
 </script>
 
-<UnsavedGuard dirty={editNameDirty || editIconDirty || editTagsDirty} />
+<UnsavedGuard dirty={hasPendingChanges} />
 
 <div>
 	{#if errors.message}
@@ -624,9 +636,10 @@
 
 			<div class="space-y-6">
 				<div class="rounded-lg shadow-card bg-card p-4">
-					<label class="mb-2 block text-sm font-medium text-foreground" for="group-name">
-						Group Name
-					</label>
+					<div class="mb-2 flex items-center gap-2">
+						<label class="block text-sm font-medium text-foreground" for="group-name">Group Name</label>
+						{#if providerManaged}<HiveChip type="hub" label="Managed by Zigbee2MQTT" />{/if}
+					</div>
 					<div class="flex items-center gap-3">
 						<IconPicker
 							value={editIcon}
@@ -644,16 +657,20 @@
 						<Input
 							id="group-name"
 							bind:value={editName}
-							oninput={() => (editNameDirty = true)}
-							placeholder="Group name"
+							oninput={() => (editNameDirty = editName !== (editingGroup?.name ?? ""))}
+							placeholder={editingGroup.friendlyName || "Group name"}
 						/>
 					</div>
 					<div class="mt-4">
-						<p class="mb-2 text-sm font-medium text-foreground">Tags</p>
-						<p class="mb-3 text-xs text-muted-foreground">
-							Tags determine how the dashboard auto-generates this group. Tag a group
-							<span class="font-medium">Light</span> to render its members as a single virtual light.
-						</p>
+						<div class="mb-2 flex items-center gap-1.5">
+							<p class="text-sm font-medium text-foreground">Tags</p>
+							<Tooltip>
+								<TooltipTrigger class="text-muted-foreground" aria-label="About group tags">
+									<Info class="size-3.5" />
+								</TooltipTrigger>
+								<TooltipContent>Tags determine how this group appears on the dashboard.</TooltipContent>
+							</Tooltip>
+						</div>
 						<GroupTagsSelect
 							value={editTags}
 							onchange={(next) => {
@@ -669,24 +686,26 @@
 					<MemberTable
 						rows={memberRows}
 						relatedLabel="Rooms"
-						emptyMessage="No members yet. Add devices or groups to this group."
+						emptyMessage={providerManaged ? "No members." : "No members yet. Add devices or groups to this group."}
 						addLabel="Add member"
-						onadd={() => (pickerOpen = true)}
-						onremove={handleRemoveMember}
+						onadd={providerManaged ? undefined : () => (pickerOpen = true)}
+						onremove={providerManaged ? undefined : handleRemoveMember}
 						disabled={editLoading}
 					/>
 				</div>
 			</div>
 		</div>
 
-		<HiveDrawer
-			bind:open={pickerOpen}
-			title="Add Member"
-			description="Search for devices, groups, or rooms to add."
-			multiple
-			groups={pickerDrawerGroups}
-			onselect={handleAddMember}
-		/>
+		{#if !providerManaged}
+			<HiveDrawer
+				bind:open={pickerOpen}
+				title="Add Member"
+				description="Search for devices, groups, or rooms to add."
+				multiple
+				groups={pickerDrawerGroups}
+				onselect={handleAddMember}
+			/>
+		{/if}
 	{:else if groupsStore.hydrated}
 		<div in:fly={{ y: -4, duration: 150 }}>
 			{#if groups.length === 0}
@@ -707,8 +726,7 @@
 				<div class="mb-6 flex items-stretch gap-2">
 					<div class="min-w-0 flex-1">
 						<HiveSearchbar
-							value={searchState}
-							onchange={(v) => (searchState = v)}
+							controller={searchController}
 							chips={searchChipConfigs}
 							placeholder="Search groups..."
 						/>
@@ -746,12 +764,13 @@
 										entity={group}
 										devices={flattenGroupDevices(group)}
 										fallbackIcon={GroupIcon}
+										source={group.source}
 										stateSummary
-										editHref={`/groups?edit=${encodeURIComponent(group.id)}`}
-										ondelete={(g) => (deleteConfirmGroup = g)}
-										onrename={handleRename}
+										editHref={editGroupHref(group.id)}
+										ondelete={group.source === "hive" ? (g) => (deleteConfirmGroup = g) : undefined}
+						onrename={handleRename}
 										oniconchange={handleIconChange}
-										onAddTo={handleAddToGroup}
+										onAddTo={group.source === "hive" ? handleAddToGroup : undefined}
 										onbrightness={(v) => commitGroupBrightness(group, v)}
 										ontoggle={(on) => commitGroupToggle(group, on)}
 										oncolor={(c) => commitGroupColor(group, c)}
@@ -766,6 +785,7 @@
 							<GroupTable
 								groups={filteredGroups}
 								{selection}
+								editHref={(group) => editGroupHref(group.id)}
 								ondelete={(g) => (deleteConfirmGroup = g)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
@@ -823,7 +843,7 @@
 				<DialogHeader>
 					<DialogTitle>Delete Group</DialogTitle>
 					<DialogDescription>
-						Are you sure you want to delete "{deleteConfirmGroup?.name}"? This action cannot be
+						Are you sure you want to delete "{deleteConfirmGroup ? groupDisplayName(deleteConfirmGroup) : ""}"? This action cannot be
 						undone.
 					</DialogDescription>
 				</DialogHeader>
@@ -850,7 +870,7 @@
 
 		<HiveDrawer
 			bind:open={quickAddOpen}
-			title={quickAddGroup ? `Add members to ${quickAddGroup.name}` : "Add members"}
+			title={quickAddGroup ? `Add members to ${groupDisplayName(quickAddGroup)}` : "Add members"}
 			description="Pick one or more devices, groups, or rooms to add."
 			multiple
 			groups={quickAddDrawerGroups}

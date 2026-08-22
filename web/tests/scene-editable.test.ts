@@ -140,7 +140,7 @@ describe("buildTargetInfo", () => {
     const action: SceneAction = {
       targetType: "group",
       targetId: "g1",
-      target: { __typename: "Group", id: "g1", name: "Living Room Lights" },
+      target: { __typename: "Group", id: "g1", groupName: "Living Room Lights" },
       payload: "{}",
     };
     expect(buildTargetInfo(action)).toEqual({
@@ -149,6 +149,7 @@ describe("buildTargetInfo", () => {
       id: "g1",
       name: "Living Room Lights",
       icon: null,
+      removed: false,
     });
   });
 
@@ -243,7 +244,7 @@ describe("sceneToEditorState", () => {
         {
           targetType: "group",
           targetId: "g1",
-          target: { __typename: "Group", id: "g1", name: "Kitchen" },
+          target: { __typename: "Group", id: "g1", groupName: "Kitchen" },
           payload: "{}",
         },
       ],

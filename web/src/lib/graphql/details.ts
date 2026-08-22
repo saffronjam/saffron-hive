@@ -75,7 +75,10 @@ export const SCENE_DETAIL_QUERY = graphql(`
           ... on Group {
             __typename
             id
-            name
+            groupName: name
+            friendlyName
+            source
+            removed
             icon
             members {
               id
@@ -201,6 +204,7 @@ export const AUTOMATION_DETAIL_QUERY = graphql(`
       name
       icon
       enabled
+      compilable
       nodes {
         id
         type

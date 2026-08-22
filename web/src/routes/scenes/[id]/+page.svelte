@@ -17,7 +17,7 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { ArrowLeft, Group, DoorOpen, Clapperboard, Play, X } from "@lucide/svelte";
-	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { deviceStore, isSceneTarget, type Device } from "$lib/stores/devices";
@@ -98,7 +98,10 @@
 						... on Group {
 							__typename
 							id
-							name
+							groupName: name
+							friendlyName
+							source
+							removed
 							icon
 							members {
 								id
@@ -181,9 +184,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation SceneEditSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-			}
+			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 		}
 	`);
 
@@ -215,7 +216,7 @@
 	}
 
 	interface SetDeviceStateResult {
-		setDeviceState: { id: string };
+		setTargetState: boolean;
 	}
 
 	const clientRef = getContextClient();
@@ -223,9 +224,6 @@
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: "Scene" }];
-	});
-	onDestroy(() => {
-		pageHeader.reset();
 	});
 
 	$effect(() => {
@@ -297,7 +295,8 @@
 	const groupsLite = $derived<GroupLite[]>(
 		allGroups.map((g) => ({
 			id: g.id,
-			name: g.name,
+			name: groupDisplayName(g),
+			friendlyName: g.friendlyName,
 			icon: g.icon,
 			members: g.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
 		})),
@@ -339,7 +338,7 @@
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: Group,
 					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 				})),
@@ -437,7 +436,7 @@
 					uid: newTargetUid(),
 					type: "group",
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: (g as unknown as { icon?: string | null }).icon ?? null,
 				},
 			];

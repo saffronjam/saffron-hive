@@ -1,5 +1,5 @@
 import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
-import { deviceDisplayName } from "$lib/utils";
+import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 import type { Clause } from "$lib/target-resolve";
 
 export interface SceneAction {
@@ -14,11 +14,14 @@ export interface SceneAction {
 export interface SceneTargetData {
   __typename: string;
   id: string;
-  /** Group and Room arms only; the Device arm aliases its nullable name below. */
-  name: string;
+  /** Room arm only; nullable names on other arms are aliased below. */
+  name?: string;
+  groupName?: string | null;
   deviceName?: string | null;
   friendlyName?: string | null;
   icon?: string | null;
+  source?: string;
+  removed?: boolean;
   type?: string;
   members?: GroupMemberData[];
   resolvedDevices?: Device[];
@@ -144,6 +147,7 @@ export interface EditableTarget {
   name: string;
   icon?: string | null;
   deviceType?: string;
+  removed?: boolean;
   expression?: Clause[];
 }
 
@@ -259,10 +263,23 @@ export function buildTargetInfo(action: SceneAction): EditableTarget {
   }
   const t = action.target;
   if (t?.__typename === "Group") {
-    return { uid: newTargetUid(), type: "group", id: t.id, name: t.name, icon: t.icon ?? null };
+    return {
+      uid: newTargetUid(),
+      type: "group",
+      id: t.id,
+      name: groupDisplayName({ id: t.id, name: t.groupName, friendlyName: t.friendlyName }),
+      icon: t.icon ?? null,
+      removed: t.removed ?? false,
+    };
   }
   if (t?.__typename === "Room") {
-    return { uid: newTargetUid(), type: "room", id: t.id, name: t.name, icon: t.icon ?? null };
+    return {
+      uid: newTargetUid(),
+      type: "room",
+      id: t.id,
+      name: t.name ?? t.id,
+      icon: t.icon ?? null,
+    };
   }
   return {
     uid: newTargetUid(),

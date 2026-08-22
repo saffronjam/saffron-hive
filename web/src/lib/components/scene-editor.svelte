@@ -500,7 +500,8 @@
 				class="size-4 shrink-0 text-muted-foreground"
 			/>
 		{/if}
-		<span class="truncate text-sm font-medium">{node.target.name}</span>
+		<span class="truncate text-sm font-medium {node.target.removed ? 'text-muted-foreground' : ''}">{node.target.name}</span>
+		{#if node.target.removed}<Badge variant="outline" class="text-[10px] text-muted-foreground">Removed</Badge>{/if}
 		{#if !isDeviceRow}
 			<span class="shrink-0 text-xs text-muted-foreground">{node.devices.length}</span>
 		{/if}
