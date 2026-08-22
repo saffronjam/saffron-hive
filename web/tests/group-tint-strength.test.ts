@@ -69,18 +69,26 @@ describe("groupTintStrength", () => {
   });
 
   it("is full strength for a plug with the light role that is on", () => {
-    const plug = device("plug", { on: true, power: 12 }, {
-      controlledLoad: ControlledLoadRole.Light,
-    });
+    const plug = device(
+      "plug",
+      { on: true, power: 12 },
+      {
+        controlledLoad: ControlledLoadRole.Light,
+      },
+    );
     expect(groupTintStrength([plug])).toBe(1);
   });
 
   it("ignores an appliance plug", () => {
     expect(
       groupTintStrength([
-        device("plug", { on: true, power: 12 }, {
-          controlledLoad: ControlledLoadRole.Appliance,
-        }),
+        device(
+          "plug",
+          { on: true, power: 12 },
+          {
+            controlledLoad: ControlledLoadRole.Appliance,
+          },
+        ),
       ]),
     ).toBe(0);
   });

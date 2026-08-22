@@ -24,12 +24,7 @@ const geometry: DoorBindingGeometry = {
   openAngle: Math.PI / 2,
 };
 
-function render(props: {
-  open: boolean;
-  showArc?: boolean;
-  active?: boolean;
-  muted?: boolean;
-}) {
+function render(props: { open: boolean; showArc?: boolean; active?: boolean; muted?: boolean }) {
   host = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   document.body.appendChild(host);
   instance = mount(DoorLeaf, { target: host, props: { geometry, ...props } });

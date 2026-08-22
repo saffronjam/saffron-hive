@@ -84,10 +84,7 @@ function makeDevice(
 describe("deviceHasCapability", () => {
   it("returns true when the capability is present", () => {
     const d = makeDevice("d1", "Light");
-    d.capabilities = [
-      capability("on_off", "binary"),
-      capability("brightness", "numeric"),
-    ];
+    d.capabilities = [capability("on_off", "binary"), capability("brightness", "numeric")];
     expect(deviceHasCapability(d, "on_off")).toBe(true);
     expect(deviceHasCapability(d, "brightness")).toBe(true);
   });

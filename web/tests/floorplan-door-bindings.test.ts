@@ -29,15 +29,18 @@ describe("door binding geometry", () => {
     ["start", "right", 1.5, 2.5, -Math.PI / 2],
     ["end", "left", 2.5, 1.5, Math.PI / 2],
     ["end", "right", 2.5, 1.5, -Math.PI / 2],
-  ] as const)("orients a %s hinge swinging %s", (hingeSide, swingSide, hingeX, latchX, openAngle) => {
-    const wall = straight.walls[0];
-    const opening = wall.openings![0];
-    const geometry = doorBindingGeometry(straight, wall, opening, { hingeSide, swingSide });
-    expect(geometry.hinge.x).toBeCloseTo(hingeX);
-    expect(geometry.latch.x).toBeCloseTo(latchX);
-    expect(geometry.openAngle).toBeCloseTo(openAngle);
-    expect(geometry.length).toBeCloseTo(1);
-  });
+  ] as const)(
+    "orients a %s hinge swinging %s",
+    (hingeSide, swingSide, hingeX, latchX, openAngle) => {
+      const wall = straight.walls[0];
+      const opening = wall.openings![0];
+      const geometry = doorBindingGeometry(straight, wall, opening, { hingeSide, swingSide });
+      expect(geometry.hinge.x).toBeCloseTo(hingeX);
+      expect(geometry.latch.x).toBeCloseTo(latchX);
+      expect(geometry.openAngle).toBeCloseTo(openAngle);
+      expect(geometry.length).toBeCloseTo(1);
+    },
+  );
 
   it("uses the local opening span on a curved wall", () => {
     const graph: PlanGraph = {

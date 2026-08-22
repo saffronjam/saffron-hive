@@ -43,9 +43,7 @@ describe("device configuration", () => {
       configurationEntry(capability({ name: "sensitivity", type: "numeric", valueMin: 1 })),
     ).toMatchObject({ numberValue: 1 });
     expect(
-      configurationEntry(
-        capability({ name: "mode", type: "enum", values: ["normal", "strict"] }),
-      ),
+      configurationEntry(capability({ name: "mode", type: "enum", values: ["normal", "strict"] })),
     ).toMatchObject({ stringValue: "normal" });
   });
 

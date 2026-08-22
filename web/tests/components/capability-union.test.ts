@@ -9,12 +9,7 @@ import {
   type GroupLite,
   type RoomLite,
 } from "$lib/target-resolve";
-import {
-  CapabilityCategory,
-  ContactRole,
-  ControlledLoadRole,
-  type Device,
-} from "$lib/gql/graphql";
+import { CapabilityCategory, ContactRole, ControlledLoadRole, type Device } from "$lib/gql/graphql";
 
 function cap(
   name: string,
@@ -356,10 +351,11 @@ describe("semantic device roles", () => {
 
   it("resolves inherent and selected appliance roles", () => {
     const expression = [{ subject: "device_role", op: "is", values: ["appliance"] }];
-    expect(evaluateExpression(expression, devices, [], []).map((device) => device.id).sort()).toEqual([
-      "climate",
-      "plug-1",
-    ]);
+    expect(
+      evaluateExpression(expression, devices, [], [])
+        .map((device) => device.id)
+        .sort(),
+    ).toEqual(["climate", "plug-1"]);
   });
 
   it("resolves door roles without including general contacts", () => {
