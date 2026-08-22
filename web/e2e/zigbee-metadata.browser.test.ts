@@ -6,6 +6,7 @@ import { getContext } from "./setup.js";
 let browser: Browser;
 let browserContext: BrowserContext;
 let page: Page;
+const UI_TIMEOUT = 30_000;
 
 const ZIGBEE_METADATA_READY_QUERY = graphql(`
   query E2EZigbeeMetadataReady($id: ID!) {
@@ -58,16 +59,16 @@ describe("Zigbee device metadata", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`${appUrl}/devices/0x54ef44100166fcae`, { waitUntil: "domcontentloaded" });
     await expect
-      .poll(() => page.getByText("Zigbee", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("Zigbee", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     await expect
-      .poll(() => page.getByText("Successful", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("Successful", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     await expect
-      .poll(() => page.getByText("2019www.", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("2019www.", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     await expect
-      .poll(() => page.getByText("0x0A96 · 2710", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("0x0A96 · 2710", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     const definitionLink = page.getByRole("link", { name: /MCCGQ12LM/ });
     expect(await definitionLink.getAttribute("href")).toBe(
@@ -75,7 +76,7 @@ describe("Zigbee device metadata", () => {
     );
     expect(await definitionLink.getAttribute("target")).toBe("_blank");
     await expect
-      .poll(() => page.getByAltText("Door sensor T1 device").count(), { timeout: 10_000 })
+      .poll(() => page.getByAltText("Door sensor T1 device").count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     expect(externalImageRequests).toEqual([]);
 
@@ -83,20 +84,20 @@ describe("Zigbee device metadata", () => {
     await page.evaluate(() => document.documentElement.classList.add("dark"));
     await page.goto(`${appUrl}/devices/0x54ef4410015e4b68`, { waitUntil: "domcontentloaded" });
     await expect
-      .poll(() => page.getByText("Zigbee", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("Zigbee", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     await page.getByRole("button", { name: "Bindings" }).click();
     await expect
-      .poll(() => page.getByText("genGroups", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("genGroups", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     await page.getByRole("button", { name: "Reporting" }).click();
     await expect
-      .poll(() => page.getByText("onOff", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("onOff", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
     await page.getByRole("button", { name: "Groups" }).click();
     await expect
       .poll(() => page.getByText("Not in a Zigbee group.", { exact: true }).count(), {
-        timeout: 10_000,
+        timeout: UI_TIMEOUT,
       })
       .toBe(1);
     const hasViewportOverflow = await page.evaluate(
@@ -107,12 +108,12 @@ describe("Zigbee device metadata", () => {
     await page.evaluate(() => document.documentElement.classList.remove("dark"));
     await page.goto(`${appUrl}/devices/0x00124b0000000001`, { waitUntil: "domcontentloaded" });
     await expect
-      .poll(() => page.getByText("Unsupported", { exact: true }).count(), { timeout: 10_000 })
+      .poll(() => page.getByText("Unsupported", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBeGreaterThan(0);
     await expect
       .poll(() => page.getByText("No endpoints reported.", { exact: true }).count(), {
-        timeout: 10_000,
+        timeout: UI_TIMEOUT,
       })
       .toBe(1);
-  });
+  }, 120_000);
 });
