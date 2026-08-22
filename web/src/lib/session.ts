@@ -1,7 +1,9 @@
 import { clearAllSnapshots } from "$lib/entity-cache";
+import { clearAllSessionSnapshots } from "$lib/session-cache";
 import { resetPrefetchedDetails } from "$lib/prefetch-detail";
 import { auth } from "$lib/stores/auth.svelte";
 import { alarmsStore } from "$lib/stores/alarms.svelte";
+import { maintenanceStore } from "$lib/stores/maintenance.svelte";
 import { deviceStore } from "$lib/stores/devices";
 import { me } from "$lib/stores/me.svelte";
 import { roomsStore } from "$lib/stores/rooms.svelte";
@@ -10,6 +12,7 @@ import { scenesStore } from "$lib/stores/scenes.svelte";
 import { automationsStore } from "$lib/stores/automations.svelte";
 import { effectsStore } from "$lib/stores/effects.svelte";
 import { floorplanStore } from "$lib/stores/floorplan.svelte";
+import { clearDeviceImageCache } from "$lib/device-image-cache";
 
 /**
  * Ends the session: drops every store's data and live subscriptions, wipes the
@@ -23,6 +26,7 @@ import { floorplanStore } from "$lib/stores/floorplan.svelte";
  */
 export function sessionTeardown(): void {
   alarmsStore.stop();
+  maintenanceStore.stop();
   deviceStore.stop();
   roomsStore.stop();
   groupsStore.stop();
@@ -31,6 +35,8 @@ export function sessionTeardown(): void {
   effectsStore.stop();
   floorplanStore.stop();
 
+  alarmsStore.clear();
+  maintenanceStore.clear();
   deviceStore.clear();
   roomsStore.clear();
   groupsStore.clear();
@@ -42,5 +48,7 @@ export function sessionTeardown(): void {
   me.clear();
   resetPrefetchedDetails();
   clearAllSnapshots(typeof window === "undefined" ? null : window.localStorage);
+  clearAllSessionSnapshots(typeof window === "undefined" ? null : window.sessionStorage);
+  void clearDeviceImageCache();
   auth.clearToken();
 }

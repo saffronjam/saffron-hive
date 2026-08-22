@@ -20,10 +20,12 @@ interface SubscriptionSink {
  */
 export function createMockClient() {
   const queue: QueryResult[] = [];
+  const mutationQueue: QueryResult[] = [];
   let last: QueryResult = { data: undefined };
   const sinks = new Set<SubscriptionSink>();
 
   const queries: Array<{ variables: unknown; requestPolicy: string | undefined }> = [];
+  const mutations: Array<{ variables: unknown }> = [];
   let unsubscribeCount = 0;
 
   const client = {
@@ -46,6 +48,11 @@ export function createMockClient() {
         },
       };
     },
+    mutation(_doc: unknown, variables: unknown) {
+      mutations.push({ variables });
+      const result = mutationQueue.shift() ?? { data: undefined };
+      return { toPromise: () => Promise.resolve(result) };
+    },
   };
 
   return {
@@ -55,6 +62,9 @@ export function createMockClient() {
     queueResult(result: QueryResult) {
       queue.push(result);
       last = result;
+    },
+    queueMutationResult(result: QueryResult) {
+      mutationQueue.push(result);
     },
     /** Deliver a payload to every live subscription sink. */
     emit(data: unknown) {
@@ -68,6 +78,9 @@ export function createMockClient() {
     },
     get activeSubscriptions() {
       return sinks.size;
+    },
+    get mutations() {
+      return mutations;
     },
     get unsubscribeCount() {
       return unsubscribeCount;

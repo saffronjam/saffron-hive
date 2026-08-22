@@ -2,6 +2,7 @@ import type { Client } from "@urql/svelte";
 import { toast } from "svelte-sonner";
 import { graphql } from "$lib/gql";
 import type { AlarmSeverity, AlarmKind } from "$lib/gql/graphql";
+import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
 
 export interface Alarm {
   id: string;
@@ -53,6 +54,11 @@ const ALARM_EVENT_SUBSCRIPTION = graphql(`
 
 const TOAST_COALESCE_WINDOW_MS = 2000;
 const TOAST_COALESCE_THRESHOLD = 3;
+const ALARMS_CACHE_VERSION = 1;
+
+function storage(): Storage | null {
+  return typeof window === "undefined" ? null : window.sessionStorage;
+}
 
 const SEVERITY_RANK: Record<AlarmSeverity, number> = {
   HIGH: 3,
@@ -67,8 +73,10 @@ const SEVERITY_RANK: Record<AlarmSeverity, number> = {
  * appear (coalesced to one summary toast when 3+ arrive within 2 seconds).
  */
 function createAlarmsStore() {
-  let list = $state<Alarm[]>([]);
+  const restored = loadSessionSnapshot<Alarm[]>(storage(), "alarms", ALARMS_CACHE_VERSION);
+  let list = $state<Alarm[]>(restored ?? []);
   let started = false;
+  let startGeneration = 0;
   let unsubFn: (() => void) | null = null;
 
   // Toast coalescer. `pendingIds` accumulates within the rolling window; the
@@ -122,6 +130,7 @@ function createAlarmsStore() {
       list.push(alarm);
     }
     list.sort((a, b) => (a.lastRaisedAt < b.lastRaisedAt ? 1 : -1));
+    saveSessionSnapshot(storage(), "alarms", ALARMS_CACHE_VERSION, list);
     if (isNew) {
       pending.push(alarm);
       scheduleFlush();
@@ -130,7 +139,10 @@ function createAlarmsStore() {
 
   function remove(id: string) {
     const idx = list.findIndex((a) => a.id === id);
-    if (idx >= 0) list.splice(idx, 1);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+      saveSessionSnapshot(storage(), "alarms", ALARMS_CACHE_VERSION, list);
+    }
   }
 
   return {
@@ -152,14 +164,20 @@ function createAlarmsStore() {
     async start(client: Client) {
       if (started) return;
       started = true;
+      const generation = ++startGeneration;
 
-      const res = await client.query(ALARMS_QUERY, {}).toPromise();
+      const res = await client
+        .query(ALARMS_QUERY, {}, { requestPolicy: "network-only" })
+        .toPromise();
+      if (!started || generation !== startGeneration) return;
       if (res.data?.alarms) {
         list.length = 0;
         list.push(...(res.data.alarms as Alarm[]));
+        saveSessionSnapshot(storage(), "alarms", ALARMS_CACHE_VERSION, list);
       }
 
       const sub = client.subscription(ALARM_EVENT_SUBSCRIPTION, {}).subscribe((result) => {
+        if (!started || generation !== startGeneration) return;
         const evt = result.data?.alarmEvent;
         if (!evt) return;
         if (evt.kind === "RAISED" && evt.alarm) {
@@ -177,12 +195,16 @@ function createAlarmsStore() {
         unsubFn = null;
       }
       started = false;
-      list.length = 0;
+      startGeneration++;
       pending.length = 0;
       if (flushTimer !== null) {
         clearTimeout(flushTimer);
         flushTimer = null;
       }
+    },
+    clear() {
+      list.length = 0;
+      clearSessionSnapshot(storage(), "alarms");
     },
   };
 }
