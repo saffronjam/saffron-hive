@@ -9,6 +9,7 @@ graphql(`
   fragment EffectFields on Effect {
     id
     name
+    source
     icon
     kind
     nativeName
@@ -59,9 +60,15 @@ const DELETE_EFFECT = graphql(`
   }
 `);
 
+const BATCH_DELETE_EFFECTS = graphql(`
+  mutation EffectsStoreBatchDelete($ids: [ID!]!) {
+    batchDeleteEffects(ids: $ids)
+  }
+`);
+
 const base = createEntityStore<Effect, EffectsStoreQuery>({
   name: "effects",
-  version: 1,
+  version: 2,
   query: EFFECTS_QUERY,
   select: (data) => data.effects,
 });
@@ -110,5 +117,11 @@ export const effectsStore = {
     const result = await client.mutation(DELETE_EFFECT, { id }).toPromise();
     if (result.error) throw result.error;
     base.remove(id);
+  },
+
+  async deleteMany(client: Client, ids: string[]): Promise<void> {
+    const result = await client.mutation(BATCH_DELETE_EFFECTS, { ids }).toPromise();
+    if (result.error) throw result.error;
+    base.removeMany(ids);
   },
 };

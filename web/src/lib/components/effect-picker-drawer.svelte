@@ -45,7 +45,7 @@
 		const out: DrawerGroup<"effect">[] = [];
 		if (timeline.length > 0) {
 			out.push({
-				heading: "Timeline effects",
+				heading: "Hive effects",
 				items: timeline.map((e) => ({
 					type: "effect" as const,
 					id: e.id,
@@ -57,13 +57,13 @@
 		}
 		if (native.length > 0) {
 			out.push({
-				heading: "Native effects",
+				heading: "Zigbee effects",
 				items: native.map((e) => ({
 					type: "effect" as const,
 					id: e.id,
 					name: e.name,
 					icon: Sparkles,
-					badge: "native",
+					badge: "Zigbee",
 				})),
 			});
 		}

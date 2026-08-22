@@ -2,7 +2,7 @@
 	import { page } from "$app/state";
 	import FieldError from "$lib/components/field-error.svelte";
 	import { goto } from "$app/navigation";
-	import { onMount, onDestroy } from "svelte";
+	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
@@ -122,10 +122,6 @@
 		void fetchEffect();
 	});
 
-	onDestroy(() => {
-		pageHeader.reset();
-	});
-
 	$effect(() => {
 		if (effectData) {
 			pageHeader.breadcrumbs = [
@@ -188,7 +184,7 @@
 		}
 
 		if (data.kind === EffectKind.Native) {
-			toast.error("Native effects can't be edited");
+			toast.error("Zigbee effects can't be edited");
 			void goto("/effects");
 			return;
 		}

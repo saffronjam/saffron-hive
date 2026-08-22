@@ -184,7 +184,7 @@
 		{ kind: "set_on_off", label: "On / off" },
 		{ kind: "set_brightness", label: "Brightness" },
 		{ kind: "set_color", label: "Color" },
-		{ kind: "native_effect", label: "Native effect" },
+		{ kind: "native_effect", label: "Zigbee effect" },
 	];
 
 	const requiredCaps = $derived(computeRequiredCapabilities(tracks));
@@ -338,7 +338,7 @@
 			case "set_color":
 				return "Color";
 			case "native_effect":
-				return "Native effect";
+				return "Zigbee effect";
 		}
 	}
 
@@ -357,7 +357,7 @@
 				return `${cfg.temp.mireds} mired`;
 			}
 			case "native_effect":
-				return c.config.config.name || "(native)";
+				return c.config.config.name || "(Zigbee effect)";
 		}
 	}
 
@@ -1075,15 +1075,45 @@
 						name={track.name === "" ? `Track ${trackIndex + 1}` : track.name}
 						onsave={(newName) => renameTrack(track.uid, newName)}
 					/>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						{disabled}
-						onclick={() => removeTrack(track.uid)}
-						aria-label="Remove track"
-					>
-						<Trash2 class="size-3" />
-					</Button>
+					<div class="flex items-center">
+						<DropdownMenu>
+							<DropdownMenuTrigger>
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									{disabled}
+									aria-label="Add clip to {track.name === '' ? `Track ${trackIndex + 1}` : track.name}"
+								>
+									<Plus class="size-3" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" class="min-w-[12rem]">
+								{#each clipTypes as clipType (clipType.kind)}
+									{@const ClipTypeIcon = clipIcon(clipType)}
+									<DropdownMenuItem onclick={() => addClipToTrackAt(track.uid, clipType.kind, 0)}>
+										<ClipTypeIcon class="size-3.5" />
+										{clipType.label}
+									</DropdownMenuItem>
+								{/each}
+								{#if clipboardClip}
+									<DropdownMenuSeparator />
+									<DropdownMenuItem onclick={() => pasteClipOnTrack(track.uid, 0)}>
+										<ClipboardPaste class="size-3.5" />
+										Paste clip
+									</DropdownMenuItem>
+								{/if}
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							{disabled}
+							onclick={() => removeTrack(track.uid)}
+							aria-label="Remove track"
+						>
+							<Trash2 class="size-3" />
+						</Button>
+					</div>
 				</div>
 			{/each}
 			{#if tracks.length === 0}
@@ -1410,9 +1440,9 @@
 			{@const nativeName = clip.config.config.name}
 			{@const selected = nativeOptions.find((o) => o.name === nativeName) ?? null}
 			<div class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				<span>Native effect</span>
+				<span>Zigbee effect</span>
 				{#if nativeOptions.length === 0}
-					<span class="text-[11px]">No native effects available</span>
+					<span class="text-[11px]">No Zigbee effects available</span>
 				{:else}
 					<Select
 						type="single"

@@ -5,7 +5,7 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { toast } from "svelte-sonner";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
-	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { deviceSupportsCaps } from "$lib/effect-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
 	import { deviceStore, deviceSupportsNativeEffect, type Device } from "$lib/stores/devices";
@@ -70,7 +70,8 @@
 	const groupsLite = $derived<GroupLite[]>(
 		groups.map((g) => ({
 			id: g.id,
-			name: g.name,
+			name: groupDisplayName(g),
+			friendlyName: g.friendlyName,
 			icon: g.icon,
 			members: g.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
 		})),
@@ -124,7 +125,7 @@
 				items: eligibleGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 				})),

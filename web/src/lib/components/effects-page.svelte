@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
 	import { measureMount } from "$lib/perf";
 	import { fly } from "svelte/transition";
 	import { getContextClient, queryStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { prefetchDetail } from "$lib/prefetch-detail";
 	import { effectsStore, type Effect as StoredEffect } from "$lib/stores/effects.svelte";
+	import { matchesEffectFilter } from "$lib/effect-search";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
@@ -20,15 +22,22 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import EffectTable from "$lib/components/effect-table.svelte";
 	import EffectRunTargetDrawer from "$lib/components/effect-run-target-drawer.svelte";
+	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
+	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
+	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { Plus, Sparkles, Pencil, Play, Zap } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
+	import { effectCapabilityLabel } from "$lib/effect-display";
 	import { EffectKind, type Effect, type NativeEffectOption } from "$lib/gql/graphql";
 
 	interface Props {
@@ -44,7 +53,7 @@
 
 	type EffectSummary = Pick<
 		Effect,
-		"id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
+		"id" | "name" | "source" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
 	> & {
 		tracks: { id: string; clips: { id: string }[] }[];
 	};
@@ -59,7 +68,7 @@
 		createdBy?: CreatedBy | null;
 	}
 
-	type NativeOption = Pick<NativeEffectOption, "name" | "displayName" | "supportedDeviceCount">;
+	type NativeOption = Pick<NativeEffectOption, "name" | "displayName" | "source" | "supportedDeviceCount">;
 
 	interface NativeCardEntity {
 		id: string;
@@ -74,6 +83,7 @@
 			nativeEffectOptions {
 				name
 				displayName
+				source
 				supportedDeviceCount
 			}
 		}
@@ -89,6 +99,10 @@
 	let newEffectNameInput = $state<HTMLInputElement | null>(null);
 	let deleteConfirm = $state<EffectRow | null>(null);
 	let deleteLoading = $state(false);
+	let view = $state<ListViewMode>(profile.get("view.effects", "card"));
+	const selection = createTableSelection();
+	let batchDeleteConfirm = $state(false);
+	let batchDeleteLoading = $state(false);
 	let runDrawer = $state<
 		| { mode: "timeline"; effectId: string; requiredCapabilities: readonly string[] }
 		| { mode: "native"; nativeName: string; requiredCapabilities: readonly string[] }
@@ -102,6 +116,13 @@
 		pageHeader.actions = [
 			{ label: "Create Effect", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) },
 		];
+		pageHeader.viewToggle = {
+			value: view,
+			onchange: (nextView) => {
+				view = nextView;
+				profile.set("view.effects", nextView);
+			},
+		};
 	});
 
 	async function handleRename(effect: EffectRow, newName: string) {
@@ -137,6 +158,27 @@
 		}
 		deleteLoading = false;
 		deleteConfirm = null;
+	}
+
+	async function handleBatchDelete() {
+		if (!clientRef) return;
+		const ids = selection.selectedIds();
+		if (ids.length === 0) {
+			batchDeleteConfirm = false;
+			return;
+		}
+		batchDeleteLoading = true;
+		errors.clear();
+		try {
+			await effectsStore.deleteMany(clientRef, ids);
+		} catch (e) {
+			batchDeleteLoading = false;
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the effects."));
+			return;
+		}
+		batchDeleteLoading = false;
+		batchDeleteConfirm = false;
+		selection.clear();
 	}
 
 	async function handleCreate(options: { keepOpen?: boolean } = {}) {
@@ -187,11 +229,17 @@
 		};
 	}
 
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const searchController = createUrlSearchState({
+		active: () => visible && page.url.pathname === "/effects",
+	});
 
+	const sourceOptions = [
+		{ value: "hive", label: "Hive" },
+		{ value: "zigbee2mqtt", label: "Zigbee" },
+	];
 	const kindOptions = [
 		{ value: "timeline", label: "Timeline" },
-		{ value: "native", label: "Native" },
+		{ value: "native", label: "Zigbee effect" },
 	];
 
 	const searchChipConfigs: ChipConfig[] = $derived([
@@ -200,36 +248,41 @@
 			label: "Kind",
 			variant: "secondary",
 			options: () => kindOptions,
+			resolveLabel: (value: string) => kindOptions.find((option) => option.value === value)?.label ?? null,
+		},
+		{
+			keyword: "source",
+			label: "Source",
+			variant: "secondary",
+			options: () => sourceOptions,
+			resolveLabel: (value: string) => sourceOptions.find((option) => option.value === value)?.label ?? null,
 		},
 	]);
 
 	const filteredEffects = $derived.by(() => {
-		const kindValues = searchState.chips
+		const kindValues = searchController.value.chips
 			.filter((c) => c.keyword === "kind")
 			.map((c) => c.value);
-		const query = searchState.freeText.toLowerCase();
-		const wantTimeline = kindValues.length === 0 || kindValues.includes("timeline");
-		if (!wantTimeline) return [];
-		return effects.filter((e) => {
-			if (query && !e.name.toLowerCase().includes(query)) return false;
-			return true;
-		});
+		if (kindValues.length > 0 && !kindValues.includes("timeline")) return [];
+		const sourceValues = searchController.value.chips
+			.filter((c) => c.keyword === "source")
+			.map((c) => c.value);
+		const query = searchController.value.freeText;
+		return effects.filter((e) => matchesEffectFilter(e.source, [e.name], sourceValues, query));
 	});
 
 	const filteredNativeOptions = $derived.by(() => {
-		const kindValues = searchState.chips
+		const kindValues = searchController.value.chips
 			.filter((c) => c.keyword === "kind")
 			.map((c) => c.value);
-		const query = searchState.freeText.toLowerCase();
-		const wantNative = kindValues.length === 0 || kindValues.includes("native");
-		if (!wantNative) return [];
-		return nativeOptions.filter((opt) => {
-			if (query) {
-				const hay = `${opt.displayName} ${opt.name}`.toLowerCase();
-				if (!hay.includes(query)) return false;
-			}
-			return true;
-		});
+		if (kindValues.length > 0 && !kindValues.includes("native")) return [];
+		const sourceValues = searchController.value.chips
+			.filter((c) => c.keyword === "source")
+			.map((c) => c.value);
+		const query = searchController.value.freeText;
+		return nativeOptions.filter((opt) =>
+			matchesEffectFilter(opt.source, [opt.displayName, opt.name], sourceValues, query)
+		);
 	});
 
 	function nativeEntity(opt: NativeOption): NativeCardEntity {
@@ -241,20 +294,15 @@
 		};
 	}
 
-	function capLabel(cap: string): string {
-		switch (cap) {
-			case "on_off":
-				return "On/Off";
-			case "color_temp":
-				return "Color temp";
-			case "brightness":
-				return "Brightness";
-			case "color":
-				return "Color";
-			default:
-				return cap;
-		}
-	}
+
+	const filteredIds = $derived([
+		...filteredEffects.map((effect) => effect.id),
+		...filteredNativeOptions.map((option) => `native:${option.name}`),
+	]);
+	$effect(() => {
+		selection.setDisabled(nativeOptions.map((option) => `native:${option.name}`));
+		selection.pruneTo(filteredIds);
+	});
 
 	const hasAnyContent = $derived(effects.length > 0 || nativeOptions.length > 0);
 	const hasAnyMatch = $derived(filteredEffects.length > 0 || filteredNativeOptions.length > 0);
@@ -277,7 +325,7 @@
 					</div>
 					<p class="text-muted-foreground">No effects yet.</p>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Create a timeline effect, or pair a device that exposes native effects.
+						Create a Hive effect, or pair a device that exposes Zigbee effects.
 					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
@@ -288,11 +336,28 @@
 				<div class="mb-6 flex items-stretch gap-2">
 					<div class="min-w-0 flex-1">
 						<HiveSearchbar
-							value={searchState}
-							onchange={(v) => (searchState = v)}
+							controller={searchController}
 							chips={searchChipConfigs}
 							placeholder="Search effects..."
 						/>
+					</div>
+					<div
+						class="flex shrink-0 items-stretch overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+						style:max-width={view === "table" && selection.count > 0 ? "32rem" : "0px"}
+						style:opacity={view === "table" && selection.count > 0 ? "1" : "0"}
+						aria-hidden={!(view === "table" && selection.count > 0)}
+					>
+						<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
+							{#snippet actions()}
+								<Button
+									variant="destructive"
+									size="sm"
+									onclick={() => (batchDeleteConfirm = true)}
+								>
+									Delete
+								</Button>
+							{/snippet}
+						</TableSelectionToolbar>
 					</div>
 				</div>
 
@@ -301,76 +366,95 @@
 						<p class="text-muted-foreground">No effects match your filters.</p>
 					</div>
 				{:else}
-					<AnimatedGrid>
-						{#each filteredEffects as effect (effect.id)}
-							{@const trackCount = effect.tracks.length}
-							{@const clipCount = effect.tracks.reduce((s, t) => s + t.clips.length, 0)}
-							<EntityCard
-								entity={effect}
-								onpointerenter={(e) => prefetchDetail(clientRef, "effect", e.id)}
-								fallbackIcon={Sparkles}
-								subtitle={`${effect.loop ? "Loop" : "Once"} · ${trackCount} track${trackCount === 1 ? "" : "s"} · ${clipCount} clip${clipCount === 1 ? "" : "s"}`}
+					<ListView mode={view}>
+						{#snippet card()}
+							<AnimatedGrid>
+								{#each filteredEffects as effect (effect.id)}
+									{@const trackCount = effect.tracks.length}
+									{@const clipCount = effect.tracks.reduce((s, t) => s + t.clips.length, 0)}
+									<EntityCard
+										entity={effect}
+										onpointerenter={(e) => prefetchDetail(clientRef, "effect", e.id)}
+										fallbackIcon={Sparkles}
+										subtitle={`${effect.loop ? "Loop" : "Once"} · ${trackCount} track${trackCount === 1 ? "" : "s"} · ${clipCount} clip${clipCount === 1 ? "" : "s"}`}
+										onrename={handleRename}
+										oniconchange={handleIconChange}
+										editHref={`/effects/${effect.id}`}
+										ondelete={(e) => (deleteConfirm = e)}
+									>
+										{#snippet leadingActions()}
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												onclick={() => openTimelineRun(effect)}
+												aria-label="Run effect"
+											>
+												<Play class="size-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												href={`/effects/${effect.id}`}
+												aria-label="Edit effect"
+											>
+												<Pencil class="size-4" />
+											</Button>
+										{/snippet}
+										{#snippet footer()}
+											<div class="mt-3 flex flex-wrap items-center gap-1.5">
+												<HiveChip type="group" label="Hive" />
+												{#each effect.requiredCapabilities as cap (cap)}
+													<Badge variant="outline" class="text-[10px]">
+														{effectCapabilityLabel(cap)}
+													</Badge>
+												{/each}
+												{#if effect.requiredCapabilities.length === 0}
+													<span class="text-[11px] text-muted-foreground">No required caps</span>
+												{/if}
+											</div>
+										{/snippet}
+									</EntityCard>
+								{/each}
+								{#each filteredNativeOptions as opt (opt.name)}
+									{@const entity = nativeEntity(opt)}
+									<EntityCard
+										{entity}
+										fallbackIcon={Zap}
+										subtitle="Supported on {opt.supportedDeviceCount} device{opt.supportedDeviceCount === 1 ? '' : 's'}"
+										readOnly
+									>
+										{#snippet leadingActions()}
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												onclick={() => openNativeRun(opt)}
+												aria-label="Run Zigbee effect"
+											>
+												<Play class="size-4" />
+											</Button>
+										{/snippet}
+										{#snippet footer()}
+											<div class="mt-3 flex flex-wrap items-center gap-1.5">
+												<HiveChip type="hub" label="Zigbee" />
+											</div>
+										{/snippet}
+									</EntityCard>
+								{/each}
+							</AnimatedGrid>
+						{/snippet}
+						{#snippet table()}
+							<EffectTable
+								effects={filteredEffects}
+								nativeOptions={filteredNativeOptions}
+								{selection}
+								onrun={openTimelineRun}
+								onrunnative={openNativeRun}
+								ondelete={(effect) => (deleteConfirm = effect)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
-								editHref={`/effects/${effect.id}`}
-								ondelete={(e) => (deleteConfirm = e)}
-							>
-								{#snippet leadingActions()}
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										onclick={() => openTimelineRun(effect)}
-										aria-label="Run effect"
-									>
-										<Play class="size-4" />
-									</Button>
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										href={`/effects/${effect.id}`}
-										aria-label="Edit effect"
-									>
-										<Pencil class="size-4" />
-									</Button>
-								{/snippet}
-								{#snippet footer()}
-									<div class="mt-3 flex flex-wrap items-center gap-1.5">
-										{#each effect.requiredCapabilities as cap (cap)}
-											<Badge variant="outline" class="text-[10px]">{capLabel(cap)}</Badge>
-										{/each}
-										{#if effect.requiredCapabilities.length === 0}
-											<span class="text-[11px] text-muted-foreground">No required caps</span>
-										{/if}
-									</div>
-								{/snippet}
-							</EntityCard>
-						{/each}
-						{#each filteredNativeOptions as opt (opt.name)}
-							{@const entity = nativeEntity(opt)}
-							<EntityCard
-								{entity}
-								fallbackIcon={Zap}
-								subtitle="Supported on {opt.supportedDeviceCount} device{opt.supportedDeviceCount === 1 ? '' : 's'}"
-								readOnly
-							>
-								{#snippet leadingActions()}
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										onclick={() => openNativeRun(opt)}
-										aria-label="Run native effect"
-									>
-										<Play class="size-4" />
-									</Button>
-								{/snippet}
-								{#snippet footer()}
-									<div class="mt-3 flex flex-wrap items-center gap-1.5">
-										<HiveChip type="native" label="Native" iconOverride="lucide:sparkles" />
-									</div>
-								{/snippet}
-							</EntityCard>
-						{/each}
-					</AnimatedGrid>
+							/>
+						{/snippet}
+					</ListView>
 				{/if}
 			{/if}
 		</div>
@@ -451,6 +535,16 @@
 		loading={deleteLoading}
 		onconfirm={handleDelete}
 		oncancel={() => (deleteConfirm = null)}
+	/>
+
+	<ConfirmDialog
+		open={batchDeleteConfirm}
+		title="Delete {selection.count} effect{selection.count === 1 ? '' : 's'}?"
+		description="This permanently deletes the selected effects. Scenes and automations referencing them will need to be updated."
+		confirmLabel="Delete"
+		loading={batchDeleteLoading}
+		onconfirm={handleBatchDelete}
+		oncancel={() => (batchDeleteConfirm = false)}
 	/>
 
 </div>

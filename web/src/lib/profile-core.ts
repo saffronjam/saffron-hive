@@ -2,6 +2,7 @@ export type ListView = "card" | "table";
 
 export interface ProfileState {
   "view.devices": ListView;
+  "view.effects": ListView;
   "view.automations": ListView;
   "view.groups": ListView;
   "view.rooms": ListView;

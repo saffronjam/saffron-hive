@@ -7,7 +7,7 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Zap } from "@lucide/svelte";
 
 	interface Props {
@@ -23,6 +23,7 @@
 				name
 				displayName
 				supportedDeviceCount
+				source
 			}
 		}
 	`);
@@ -42,18 +43,18 @@
 <div class="rounded-lg shadow-card bg-card p-4 flex flex-col gap-3">
 	<div class="flex items-center gap-2 text-sm text-muted-foreground">
 		<Zap class="size-4" />
-		<span>Native effect</span>
+		<span>Zigbee effect</span>
 	</div>
 
 	{#if $optionsStore.fetching && options.length === 0}
 		<p class="text-sm text-muted-foreground">Loading available effects…</p>
 	{:else if $optionsStore.error}
 		<p class="text-sm text-destructive">
-			Could not load native effects: {$optionsStore.error.message}
+			Could not load Zigbee effects: {$optionsStore.error.message}
 		</p>
 	{:else if options.length === 0}
 		<p class="text-sm text-muted-foreground">
-			No devices report any native effects yet.
+			No devices report any Zigbee effects yet.
 		</p>
 	{:else}
 		<div class="flex flex-col gap-2">
@@ -86,7 +87,7 @@
 			</Select>
 			{#if selected}
 				<div class="flex items-center gap-2 text-xs text-muted-foreground">
-					<Badge variant="secondary">native</Badge>
+					<HiveChip type="hub" label="Zigbee" />
 					<span>
 						Supported on {selected.supportedDeviceCount} device{selected.supportedDeviceCount === 1 ? "" : "s"}
 					</span>

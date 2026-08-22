@@ -405,7 +405,7 @@ export function validateNativeEffect(
 ): EffectValidationError | null {
   if (name.trim() === "") return { field: "name", message: "Pick a name" };
   if (!nativeName || nativeName.trim() === "") {
-    return { field: "nativeName", message: "Pick a native effect" };
+    return { field: "nativeName", message: "Pick a Zigbee effect" };
   }
   return null;
 }
