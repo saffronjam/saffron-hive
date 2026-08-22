@@ -11,10 +11,59 @@ package scene
 import (
 	"context"
 	"encoding/json"
+	"reflect"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// DispatchApplyCommands sends a scene plan through structural target dispatch
+// when one direct target produces one shared state. Per-device payloads and
+// mixed targets remain explicit device operations.
+func DispatchApplyCommands(
+	ctx context.Context,
+	commander device.TargetCommander,
+	bus eventbus.Publisher,
+	actions []store.SceneAction,
+	payloads []store.SceneDevicePayload,
+	plan ApplyPlan,
+) error {
+	if commander == nil {
+		for _, cmd := range plan.Commands {
+			bus.Publish(eventbus.Event{Type: eventbus.EventCommandRequested, DeviceID: string(cmd.DeviceID), Timestamp: time.Now(), Payload: cmd})
+		}
+		return nil
+	}
+	if len(actions) == 1 && len(payloads) == 0 && len(plan.Commands) > 0 && actions[0].TargetType != string(device.TargetExpression) && commandsShareState(plan.Commands) {
+		cmd := plan.Commands[0]
+		cmd.DeviceID = ""
+		return commander.CommandTarget(ctx, device.TargetCommand{
+			TargetType: device.TargetType(actions[0].TargetType),
+			TargetID:   actions[0].TargetID,
+			State:      cmd,
+		})
+	}
+	for _, cmd := range plan.Commands {
+		id := cmd.DeviceID
+		cmd.DeviceID = ""
+		if err := commander.CommandTarget(ctx, device.TargetCommand{TargetType: device.TargetDevice, TargetID: string(id), State: cmd}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func commandsShareState(commands []device.Command) bool {
+	first := commands[0]
+	for _, command := range commands[1:] {
+		if command.Origin != first.Origin || !reflect.DeepEqual(CommandToDesired(command), CommandToDesired(first)) {
+			return false
+		}
+	}
+	return true
+}
 
 // DefaultTransitionSeconds is the fade time applied to scene-driven commands
 // for lights with brightness capability so on/off and level changes ease
