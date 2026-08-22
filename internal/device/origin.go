@@ -17,7 +17,7 @@ const (
 	// OriginKindEffect marks commands produced by an effect run step.
 	OriginKindEffect = "effect"
 	// OriginKindUser marks commands produced by an interactive user action
-	// (GraphQL setDeviceState mutation, dashboard control).
+	// (GraphQL setTargetState mutation, dashboard control).
 	OriginKindUser = "user"
 )
 
