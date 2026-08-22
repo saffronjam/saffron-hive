@@ -32,15 +32,22 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/avatars"
 	"github.com/saffronjam/saffron-hive/internal/config"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/deviceimage"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
+	"github.com/saffronjam/saffron-hive/internal/health"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/maintenance"
+	"github.com/saffronjam/saffron-hive/internal/oui"
+	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/version"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 	_ "modernc.org/sqlite"
 )
 
@@ -83,6 +90,10 @@ func Run(ctx context.Context) error {
 	}
 	authSvc := auth.NewService(secret, auth.LoadTTL(ctx, sqlStore))
 	loginLimiter := auth.NewLoginLimiter(auth.LoginLimiterConfig{})
+	addressVendors := oui.New(cfg.DataDir)
+	if err := addressVendors.Load(); err != nil {
+		serveLogger.Warn("load IEEE address registry failed", "error", err)
+	}
 
 	bootstrapTokenStore := NewBootstrapTokenStore(filepath.Join(cfg.DataDir, "bootstrap.token"))
 	if userCount, err := sqlStore.CountUsers(ctx); err != nil {
@@ -152,10 +163,22 @@ func Run(ctx context.Context) error {
 		eventbus.EventDeviceSynced,
 		eventbus.EventDeviceRemoved,
 	)
+	providerGroupCh := bus.Subscribe(eventbus.EventProviderGroupsSynced)
+	zigbeeMetadataCh := bus.Subscribe(
+		eventbus.EventZigbeeMetadataSynced,
+		eventbus.EventZigbeeOTAStatusChanged,
+	)
 	spawn("history.recorder", func() { history.RunRecorder(ctx, bus, sqlStore) })
 	spawn("device.persister", func() { runDevicePersister(ctx, bus, deviceCh, sqlStore) })
+	spawn("provider-group.persister", func() {
+		providergroup.RunPersister(ctx, bus, sqlStore, providerGroupCh)
+	})
+	spawn("zigbee-metadata.persister", func() {
+		zigbeemetadata.RunPersister(ctx, bus, zigbeeMetadataCh, sqlStore)
+	})
 	spawn("topology.persister", func() { topology.RunPersister(ctx, bus, sqlStore) })
 	spawn("auth.login_limiter", func() { loginLimiter.Run(ctx) })
+	spawn("oui.refresh", func() { addressVendors.Run(ctx) })
 
 	activityBuffer := activity.NewBuffer()
 	roomCache := activity.NewRoomCache(sqlStore)
@@ -167,13 +190,14 @@ func Run(ctx context.Context) error {
 	spawn("activity.recorder", func() { activityRecorder.Run(ctx) })
 	spawn("activity.retention", func() { activity.RunRetention(ctx, sqlStore) })
 
-	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, zigbeeTerminator{})
+	targetCommander := targetcommand.New(bus, sqlStore, memStore)
+	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{})
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)
 	}
 	spawn("effect.runner", func() { effectRunner.Run(ctx) })
 
-	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore, effectRunner)
+	sceneWatcher := scene.NewWatcher(bus, sqlStore, targetCommander, memStore, effectRunner)
 	if err := sceneWatcher.Hydrate(ctx); err != nil {
 		serveLogger.Warn("scene watcher hydrate failed", "error", err)
 	}
@@ -181,7 +205,20 @@ func Run(ctx context.Context) error {
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
-	spawn("alarms.monitor", func() { alarms.RunMonitor(ctx, alarmSvc, memStore, mgr) })
+	spawn("alarms.monitor", func() { alarms.RunMonitor(ctx, alarmSvc, memStore, mgr, cfg.DataDir) })
+	maintenanceBuffer := maintenance.NewBuffer()
+	maintenanceSvc := maintenance.NewService(sqlStore, memStore, maintenanceBuffer, cfg.DataDir, health.DiskFreeFraction)
+	maintenanceEvents := bus.Subscribe(
+		eventbus.EventDeviceStateChanged,
+		eventbus.EventDeviceAvailabilityChanged,
+		eventbus.EventDeviceUpdated,
+		eventbus.EventDeviceRemoved,
+		eventbus.EventZigbeeMetadataUpdated,
+	)
+	spawn("maintenance", func() {
+		defer bus.Unsubscribe(maintenanceEvents)
+		maintenance.Run(ctx, maintenanceSvc, maintenanceEvents)
+	})
 
 	if err := mgr.ReconnectZigbee2MQTT(ctx); err != nil {
 		serveLogger.Warn("Zigbee2MQTT integration did not start", "error", err)
@@ -190,7 +227,7 @@ func Run(ctx context.Context) error {
 		serveLogger.Warn("Tuya integration did not start", "error", err)
 	}
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc, effectRunner)
+	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner)
 	spawn("automation.engine", func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			serveLogger.Error("automation engine error", "error", err)
@@ -201,12 +238,18 @@ func Run(ctx context.Context) error {
 	if err := os.MkdirAll(avatarDir, 0o755); err != nil {
 		return fmt.Errorf("create avatar dir: %w", err)
 	}
+	deviceImageCache := deviceimage.NewCache(filepath.Join(cfg.DataDir, "device-images"))
+	if err := deviceImageCache.Init(); err != nil {
+		return fmt.Errorf("create device image cache: %w", err)
+	}
+	defer deviceImageCache.Close()
 
 	engineAdapter := &engineReloader{engine: engine, ctx: ctx}
 	resolver := &graph.Resolver{
 		StateReader:         memStore,
 		Store:               sqlStore,
 		TargetResolver:      sqlStore,
+		TargetCommander:     targetCommander,
 		EventBus:            bus,
 		AutomationReloader:  engineAdapter,
 		AutomationTriggerer: engineAdapter,
@@ -214,6 +257,8 @@ func Run(ctx context.Context) error {
 		ActivityBuffer:      activityBuffer,
 		Alarms:              alarmSvc,
 		AlarmBuffer:         alarmBuffer,
+		Maintenance:         maintenanceSvc,
+		MaintenanceBuffer:   maintenanceBuffer,
 		LevelVar:            levelVar,
 		Zigbee2MQTT:         mgr,
 		Tuya:                mgr,
@@ -222,6 +267,7 @@ func Run(ctx context.Context) error {
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
 		BootstrapToken:      bootstrapTokenStore,
+		AddressVendors:      addressVendors,
 		AvatarDir:           avatarDir,
 	}
 
@@ -255,6 +301,7 @@ func Run(ctx context.Context) error {
 		),
 	))
 	mux.Handle("/api/avatars", auth.RequireAuth(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
+	mux.Handle("/api/device-images/", auth.RequireAuth(authSvc, sqlStore)(deviceimage.NewHandler(deviceImageCache, sqlStore)))
 	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -788,8 +835,8 @@ func (r *engineReloader) Reload() error {
 	return r.engine.Reload(r.ctx)
 }
 
-func (r *engineReloader) FireManualTrigger(ctx context.Context, automationID, nodeID string) error {
-	return r.engine.FireManualTrigger(ctx, automationID, automation.NodeID(nodeID))
+func (r *engineReloader) FireTrigger(ctx context.Context, automationID, nodeID string) error {
+	return r.engine.FireTrigger(ctx, automationID, automation.NodeID(nodeID))
 }
 
 func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {
