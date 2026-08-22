@@ -1102,6 +1102,65 @@ func TestRunnerDrift_ForeignCommandStopsGroupRun(t *testing.T) {
 	t.Fatal("group run did not stop after foreign command on a member within 2s")
 }
 
+func TestRunnerDrift_ProviderGroupCommandStopsOverlappingRun(t *testing.T) {
+	rec := newRecorder()
+	st := newFakeStore()
+	st.put(Effect{
+		ID:         "loop",
+		Kind:       KindTimeline,
+		Loop:       true,
+		DurationMs: 20,
+		Tracks: []Track{{
+			Clips: []Clip{brightnessClip(0, 0, 60)},
+		}},
+	})
+
+	tr := newProgrammableTargets()
+	tr.set("group-1", []device.DeviceID{"dev-a", "dev-b"})
+	reader := newFakeReader()
+	for _, id := range []device.DeviceID{"dev-a", "dev-b"} {
+		reader.addDevice(device.Device{
+			ID: id,
+			Capabilities: []device.Capability{
+				{Name: device.CapOnOff, Access: 7},
+				{Name: device.CapBrightness, Access: 7},
+			},
+		})
+	}
+	r := makeRunnerWithTargets(rec, st, reader, tr, nil)
+	startDriftLoop(t, r)
+
+	target := groupTarget("group-1")
+	if _, err := r.Start(context.Background(), "loop", target); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	waitFor(t, 2, func() int { return len(rec.commands()) }, "group fan-out commands")
+
+	rec.Publish(eventbus.Event{
+		Type:      eventbus.EventProviderGroupCommandRequested,
+		Timestamp: time.Now(),
+		Payload: device.ProviderGroupCommand{
+			MemberIDs: []device.DeviceID{"dev-b", "dev-c"},
+			State: device.Command{
+				On:     boolPtr(false),
+				Origin: device.OriginUser(),
+			},
+		},
+	})
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		r.mu.Lock()
+		_, active := r.active[keyFor(target)]
+		r.mu.Unlock()
+		if !active {
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	t.Fatal("group run did not stop after overlapping provider command within 2s")
+}
+
 func TestRunnerDrift_ForeignCommandStopsNativeAndPublishesTerminator(t *testing.T) {
 	rec := newRecorder()
 	st := newFakeStore()

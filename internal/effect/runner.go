@@ -78,15 +78,16 @@ type activeRun struct {
 // effects to the adapter. It owns the in-memory registry of active runs keyed
 // by target; starting a new run on a target preempts any run already there.
 //
-// A drift goroutine subscribes to EventCommandRequested and stops any run
-// whose currently-resolved device set sees a command whose origin is not the
-// run's own.
+// A drift goroutine subscribes to device and provider-group commands and stops
+// any run whose currently-resolved device set sees a command whose origin is
+// not the run's own.
 type Runner struct {
-	bus     eventbus.EventBus
-	targets device.TargetResolver
-	reader  device.StateReader
-	store   EffectStore
-	term    NativeEffectStopper
+	bus       eventbus.EventBus
+	targets   device.TargetResolver
+	commander device.TargetCommander
+	reader    device.StateReader
+	store     EffectStore
+	term      NativeEffectStopper
 
 	mu     sync.Mutex
 	active map[targetKey]*activeRun
@@ -129,12 +130,18 @@ func NewRunnerWithRand(bus eventbus.EventBus, targets device.TargetResolver, rea
 		active:  make(map[targetKey]*activeRun),
 		rand:    sampler,
 	}
-	r.driftCh = bus.Subscribe(eventbus.EventCommandRequested)
+	if commander, ok := targets.(device.TargetCommander); ok {
+		r.commander = commander
+	}
+	r.driftCh = bus.Subscribe(
+		eventbus.EventCommandRequested,
+		eventbus.EventProviderGroupCommandRequested,
+	)
 	return r
 }
 
-// Run blocks until ctx is done, consuming EventCommandRequested events and
-// stopping any active run whose device set matches a foreign command.
+// Run blocks until ctx is done, consuming command events and stopping any
+// active run whose device set matches a foreign command.
 func (r *Runner) Run(ctx context.Context) {
 	defer r.bus.Unsubscribe(r.driftCh)
 	for {
@@ -400,8 +407,19 @@ func (r *Runner) runNative(ctx context.Context, run *activeRun, eff Effect) {
 	}
 
 	r.publishStep(run, 0, true)
-	for _, did := range devices {
-		device.RequestNativeEffect(r.bus, did, eff.NativeName, device.OriginEffect(run.runID))
+	if r.commander != nil {
+		if err := r.commander.CommandTarget(ctx, device.TargetCommand{
+			TargetType:   run.target.Type,
+			TargetID:     run.target.ID,
+			State:        device.Command{Origin: device.OriginEffect(run.runID)},
+			NativeEffect: eff.NativeName,
+		}); err != nil {
+			logger.Error("native effect target command failed", "run_id", run.runID, "effect_id", eff.ID, "error", err)
+		}
+	} else {
+		for _, did := range devices {
+			device.RequestNativeEffect(r.bus, did, eff.NativeName, device.OriginEffect(run.runID))
+		}
 	}
 	r.publishStep(run, 0, false)
 
@@ -497,6 +515,17 @@ func (r *Runner) publishClip(ctx context.Context, run *activeRun, devices []devi
 		}
 		name := ev.Clip.Config.NativeEffect.Name
 		origin := device.OriginEffect(run.runID)
+		if r.commander != nil {
+			if err := r.commander.CommandTarget(ctx, device.TargetCommand{
+				TargetType:   run.target.Type,
+				TargetID:     run.target.ID,
+				State:        device.Command{Origin: origin},
+				NativeEffect: name,
+			}); err != nil {
+				logger.Error("effect native command failed", "run_id", run.runID, "effect_id", run.effectID, "error", err)
+			}
+			return
+		}
 		for _, did := range devices {
 			device.RequestNativeEffect(r.bus, did, name, origin)
 		}
@@ -511,6 +540,16 @@ func (r *Runner) publishClip(ctx context.Context, run *activeRun, devices []devi
 		tmpl.Transition = &v
 	}
 	tmpl.Origin = device.OriginEffect(run.runID)
+	if r.commander != nil {
+		if err := r.commander.CommandTarget(ctx, device.TargetCommand{
+			TargetType: run.target.Type,
+			TargetID:   run.target.ID,
+			State:      tmpl,
+		}); err != nil {
+			logger.Error("effect target command failed", "run_id", run.runID, "effect_id", run.effectID, "error", err)
+		}
+		return
+	}
 
 	for _, did := range devices {
 		cmd := r.commandForDevice(tmpl, did)
@@ -678,21 +717,40 @@ func fieldsToCommand(fields map[string]any) device.Command {
 }
 
 func (r *Runner) handleDrift(evt eventbus.Event) {
-	cmd, ok := evt.Payload.(device.Command)
-	if !ok {
-		return
-	}
-	if cmd.DeviceID == "" {
+	var memberIDs []device.DeviceID
+	var origin device.CommandOrigin
+	switch evt.Type {
+	case eventbus.EventCommandRequested:
+		cmd, ok := evt.Payload.(device.Command)
+		if !ok || cmd.DeviceID == "" {
+			return
+		}
+		memberIDs = []device.DeviceID{cmd.DeviceID}
+		origin = cmd.Origin
+	case eventbus.EventProviderGroupCommandRequested:
+		cmd, ok := evt.Payload.(device.ProviderGroupCommand)
+		if !ok || len(cmd.MemberIDs) == 0 {
+			return
+		}
+		memberIDs = cmd.MemberIDs
+		origin = cmd.State.Origin
+	default:
 		return
 	}
 
 	r.mu.Lock()
 	var toStop []Target
 	for _, run := range r.active {
-		if _, member := run.members[cmd.DeviceID]; !member {
+		member := false
+		for _, id := range memberIDs {
+			if _, member = run.members[id]; member {
+				break
+			}
+		}
+		if !member {
 			continue
 		}
-		if cmd.Origin.Kind == device.OriginKindEffect && cmd.Origin.ID == run.runID {
+		if origin.Kind == device.OriginKindEffect && origin.ID == run.runID {
 			continue
 		}
 		toStop = append(toStop, run.target)
@@ -704,9 +762,9 @@ func (r *Runner) handleDrift(evt eventbus.Event) {
 			logger.Info("effect run stopped by foreign drift",
 				"target_type", t.Type,
 				"target_id", t.ID,
-				"foreign_origin_kind", cmd.Origin.Kind,
-				"foreign_origin_id", cmd.Origin.ID,
-				"device_id", cmd.DeviceID)
+				"foreign_origin_kind", origin.Kind,
+				"foreign_origin_id", origin.ID,
+				"affected_member_count", len(memberIDs))
 		}
 	}
 }
