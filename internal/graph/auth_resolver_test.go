@@ -1,10 +1,13 @@
 package graph
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,8 +15,10 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // mockBootstrapToken is an in-memory BootstrapTokenChecker so resolver tests
@@ -142,6 +147,7 @@ func TestCreateInitialUserAndLogin(t *testing.T) {
 	if created.CreateInitialUser.User.Username != "alice" {
 		t.Errorf("username = %q", created.CreateInitialUser.User.Username)
 	}
+	assertStoredArgon2idPassword(t, te.store, "alice", "Hunter22-passes")
 	claims, err := svc.Parse(created.CreateInitialUser.Token)
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
@@ -297,5 +303,270 @@ func TestAuthDirectiveAllowsPublicFields(t *testing.T) {
 	}
 	if body.Me != nil {
 		t.Errorf("me = %+v, want null for unauthenticated caller", body.Me)
+	}
+}
+
+func TestLoginPersistsArgon2idAfterBcryptVerification(t *testing.T) {
+	st := newMockStore()
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte("BcryptPassword123"), 12)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword: %v", err)
+	}
+	st.users["u-1"] = store.User{
+		ID:           "u-1",
+		Username:     "alice",
+		Name:         "Alice",
+		PasswordHash: string(bcryptHash),
+	}
+	resolver := &mutationResolver{&Resolver{
+		Store: st,
+		Auth:  auth.NewService([]byte("secret"), time.Hour),
+	}}
+
+	payload, err := resolver.Login(context.Background(), model.LoginInput{
+		Username: "alice",
+		Password: "BcryptPassword123",
+	})
+	if err != nil {
+		t.Fatalf("Login(first): %v", err)
+	}
+	if payload == nil || payload.Token == "" {
+		t.Fatal("Login(first) returned no token")
+	}
+	stored, err := st.GetUserByID(context.Background(), "u-1")
+	if err != nil {
+		t.Fatalf("GetUserByID: %v", err)
+	}
+	if !strings.HasPrefix(stored.PasswordHash, "$argon2id$") {
+		t.Fatalf("password hash was not upgraded: %q", stored.PasswordHash)
+	}
+	if err := auth.VerifyPassword(stored.PasswordHash, "BcryptPassword123"); err != nil {
+		t.Fatalf("upgraded hash does not verify: %v", err)
+	}
+	if st.updatePasswordHashCalls != 1 {
+		t.Fatalf("password hash updates = %d, want 1", st.updatePasswordHashCalls)
+	}
+
+	payload, err = resolver.Login(context.Background(), model.LoginInput{
+		Username: "alice",
+		Password: "BcryptPassword123",
+	})
+	if err != nil {
+		t.Fatalf("Login(second): %v", err)
+	}
+	if payload == nil || payload.Token == "" {
+		t.Fatal("Login(second) returned no token")
+	}
+	if st.updatePasswordHashCalls != 1 {
+		t.Fatalf("Argon2id login rewrote password hash; updates = %d", st.updatePasswordHashCalls)
+	}
+}
+
+func TestLoginWrongPasswordDoesNotUpgradeBcrypt(t *testing.T) {
+	st := newMockStore()
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte("BcryptPassword123"), 12)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword: %v", err)
+	}
+	st.users["u-1"] = store.User{ID: "u-1", Username: "alice", Name: "Alice", PasswordHash: string(bcryptHash)}
+	resolver := &mutationResolver{&Resolver{Store: st, Auth: auth.NewService([]byte("secret"), time.Hour)}}
+
+	payload, err := resolver.Login(context.Background(), model.LoginInput{Username: "alice", Password: "WrongPassword123"})
+	if err == nil {
+		t.Fatal("Login accepted the wrong password")
+	}
+	if payload != nil {
+		t.Fatal("failed login returned an auth payload")
+	}
+	if st.updatePasswordHashCalls != 0 {
+		t.Fatalf("failed login updated password hash %d times", st.updatePasswordHashCalls)
+	}
+	stored, getErr := st.GetUserByID(context.Background(), "u-1")
+	if getErr != nil {
+		t.Fatalf("GetUserByID: %v", getErr)
+	}
+	if stored.PasswordHash != string(bcryptHash) {
+		t.Fatal("failed login changed the stored bcrypt hash")
+	}
+}
+
+func TestLoginRehashPersistenceFailureReturnsNoToken(t *testing.T) {
+	st := newMockStore()
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte("BcryptPassword123"), 12)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword: %v", err)
+	}
+	st.users["u-1"] = store.User{ID: "u-1", Username: "alice", Name: "Alice", PasswordHash: string(bcryptHash)}
+	st.updatePasswordHashErr = errors.New("database unavailable")
+	resolver := &mutationResolver{&Resolver{Store: st, Auth: auth.NewService([]byte("secret"), time.Hour)}}
+
+	payload, err := resolver.Login(context.Background(), model.LoginInput{Username: "alice", Password: "BcryptPassword123"})
+	if err == nil {
+		t.Fatal("Login succeeded despite password-hash persistence failure")
+	}
+	if payload != nil {
+		t.Fatal("password-hash persistence failure returned an auth payload")
+	}
+	if st.updatePasswordHashCalls != 1 {
+		t.Fatalf("password hash updates = %d, want 1", st.updatePasswordHashCalls)
+	}
+	stored, getErr := st.GetUserByID(context.Background(), "u-1")
+	if getErr != nil {
+		t.Fatalf("GetUserByID: %v", getErr)
+	}
+	if stored.PasswordHash != string(bcryptHash) {
+		t.Fatal("failed persistence changed the stored bcrypt hash")
+	}
+}
+
+func TestLoginAbsentUserDoesNotWrite(t *testing.T) {
+	st := newMockStore()
+	resolver := &mutationResolver{&Resolver{Store: st, Auth: auth.NewService([]byte("secret"), time.Hour)}}
+
+	payload, err := resolver.Login(context.Background(), model.LoginInput{Username: "missing", Password: "Password123"})
+	if err == nil {
+		t.Fatal("Login accepted an absent user")
+	}
+	if payload != nil {
+		t.Fatal("absent user returned an auth payload")
+	}
+	if st.updatePasswordHashCalls != 0 {
+		t.Fatalf("absent user updated password hash %d times", st.updatePasswordHashCalls)
+	}
+	if len(st.users) != 0 {
+		t.Fatalf("absent-user login changed user count to %d", len(st.users))
+	}
+}
+
+func TestLoginDurationLogOmitsCredentials(t *testing.T) {
+	st := newMockStore()
+	hash, err := auth.HashPassword("PrivatePassword123")
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	st.users["u-private"] = store.User{
+		ID:           "u-private",
+		Username:     "private-user",
+		Name:         "Private User",
+		PasswordHash: hash,
+	}
+	resolver := &mutationResolver{&Resolver{Store: st, Auth: auth.NewService([]byte("secret"), time.Hour)}}
+
+	previousLogger := slog.Default()
+	var logs bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	payload, err := resolver.Login(context.Background(), model.LoginInput{
+		Username: "private-user",
+		Password: "PrivatePassword123",
+	})
+	if err != nil || payload == nil {
+		t.Fatalf("Login = %+v, %v", payload, err)
+	}
+	output := logs.String()
+	for _, field := range []string{
+		"msg=\"login completed\"",
+		"duration_ms=",
+		"hash_algorithm=argon2id",
+		"rehash=false",
+		"success=true",
+	} {
+		if !strings.Contains(output, field) {
+			t.Errorf("login log missing %q: %s", field, output)
+		}
+	}
+	for _, secret := range []string{"private-user", "PrivatePassword123", hash} {
+		if strings.Contains(output, secret) {
+			t.Errorf("login log contains credential material %q: %s", secret, output)
+		}
+	}
+}
+
+func TestPasswordWritingMutationsStoreArgon2id(t *testing.T) {
+	t.Run("create user", func(t *testing.T) {
+		st := newMockStore()
+		resolver := &mutationResolver{&Resolver{Store: st}}
+		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "admin"})
+		created, err := resolver.CreateUser(ctx, model.CreateUserInput{
+			Username: "created",
+			Name:     "Created User",
+			Password: "CreatePassword123",
+		})
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+		assertStoredArgon2idPasswordByID(t, st, created.ID, "CreatePassword123")
+	})
+
+	t.Run("change password", func(t *testing.T) {
+		st := newMockStore()
+		oldHash, err := auth.HashPassword("OriginalPassword123")
+		if err != nil {
+			t.Fatalf("HashPassword: %v", err)
+		}
+		st.users["u-1"] = store.User{ID: "u-1", Username: "change", Name: "Change", PasswordHash: oldHash}
+		resolver := &mutationResolver{&Resolver{Store: st}}
+		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "u-1"})
+		ok, err := resolver.ChangePassword(ctx, model.ChangePasswordInput{
+			OldPassword: "OriginalPassword123",
+			NewPassword: "ChangedPassword123",
+		})
+		if err != nil || !ok {
+			t.Fatalf("ChangePassword = %v, %v", ok, err)
+		}
+		assertStoredArgon2idPasswordByID(t, st, "u-1", "ChangedPassword123")
+	})
+
+	t.Run("complete first password change", func(t *testing.T) {
+		st := newMockStore()
+		st.users["u-1"] = store.User{ID: "u-1", Username: "first", Name: "First", MustChangePassword: true}
+		resolver := &mutationResolver{&Resolver{Store: st}}
+		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "u-1"})
+		ok, err := resolver.CompleteFirstPasswordChange(ctx, "CompletedPassword123")
+		if err != nil || !ok {
+			t.Fatalf("CompleteFirstPasswordChange = %v, %v", ok, err)
+		}
+		assertStoredArgon2idPasswordByID(t, st, "u-1", "CompletedPassword123")
+	})
+
+	t.Run("reset password", func(t *testing.T) {
+		st := newMockStore()
+		st.users["u-1"] = store.User{ID: "u-1", Username: "reset", Name: "Reset"}
+		resolver := &mutationResolver{&Resolver{Store: st}}
+		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "admin"})
+		ok, err := resolver.ResetUserPassword(ctx, "u-1", "ResetPassword123")
+		if err != nil || !ok {
+			t.Fatalf("ResetUserPassword = %v, %v", ok, err)
+		}
+		assertStoredArgon2idPasswordByID(t, st, "u-1", "ResetPassword123")
+	})
+}
+
+func assertStoredArgon2idPassword(t *testing.T, st *mockStore, username, password string) {
+	t.Helper()
+	user, err := st.GetUserByUsername(context.Background(), username)
+	if err != nil {
+		t.Fatalf("GetUserByUsername(%q): %v", username, err)
+	}
+	assertArgon2idPassword(t, user.PasswordHash, password)
+}
+
+func assertStoredArgon2idPasswordByID(t *testing.T, st *mockStore, id, password string) {
+	t.Helper()
+	user, err := st.GetUserByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("GetUserByID(%q): %v", id, err)
+	}
+	assertArgon2idPassword(t, user.PasswordHash, password)
+}
+
+func assertArgon2idPassword(t *testing.T, hash, password string) {
+	t.Helper()
+	if !strings.HasPrefix(hash, "$argon2id$v=19$m=19456,t=2,p=1$") {
+		t.Fatalf("password hash does not use Hive Argon2id parameters: %q", hash)
+	}
+	if err := auth.VerifyPassword(hash, password); err != nil {
+		t.Fatalf("stored password does not verify: %v", err)
 	}
 }
