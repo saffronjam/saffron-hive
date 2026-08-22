@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -10,7 +10,7 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Textarea } from "$lib/components/ui/textarea/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Play, Trash2, ArrowUp, ArrowDown, X, Clapperboard } from "@lucide/svelte";
+	import { Play, ArrowUp, ArrowDown, X, Clapperboard } from "@lucide/svelte";
 	import { validateActionConfig } from "./trigger-expr";
 	import DeviceStateEditor from "./device-state-editor.svelte";
 	import ChangeValueEditor from "./change-value-editor.svelte";
@@ -41,7 +41,7 @@
 		payload: string;
 	}
 
-	const FANOUT_ACTIONS = ["set_device_state", "toggle_device_state", "change_value"];
+	const FANOUT_ACTIONS = ["set_device_state", "toggle_device_state", "change_value", "run_effect"];
 
 	interface SceneRef {
 		id: string;
@@ -55,7 +55,7 @@
 
 	interface ActionNodeData extends Record<string, unknown> {
 		config: ActionConfig;
-		editable: boolean;
+		readOnly: boolean;
 		activated: boolean;
 		devices?: Device[];
 		groups?: (GroupLite & { name: string })[];
@@ -64,7 +64,6 @@
 		effects?: EffectRef[];
 		runtimeState?: string;
 		onConfigChange?: (config: ActionConfig) => void;
-		onDelete?: () => void;
 	}
 
 	function effectRefKey(ref: EffectRef): string {
@@ -77,6 +76,7 @@
 		name: string;
 		deviceType?: string;
 		rooms?: { id: string; name: string }[];
+		removed?: boolean;
 	}
 
 	function targetKey(t: TargetItem): string {
@@ -93,10 +93,9 @@
 	interface Props {
 		data: ActionNodeData;
 		id: string;
-		selected?: boolean;
 	}
 
-	let { data, id, selected = false }: Props = $props();
+	let { data, id }: Props = $props();
 
 	const actionTypes = [
 		{ value: "set_device_state", label: "Set State" },
@@ -326,7 +325,7 @@
 		if (isConfigureDevice) return items;
 		for (const g of allGroups) {
 			if (isChangeValue && !supportsChangeValue("group", g.id)) continue;
-			items.push({ kind: "group", id: g.id, name: g.name });
+			items.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
 		}
 		for (const r of allRooms) {
 			if (isChangeValue && !supportsChangeValue("room", r.id)) continue;
@@ -351,6 +350,16 @@
 	const selectedTargetKey = $derived(
 		data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "",
 	);
+	const selectedTargetFallback = $derived.by<TargetItem | null>(() => {
+		if (data.config.targetType !== "group" || !data.config.targetId) return null;
+		if (targetItemsList.some((item) => targetKey(item) === selectedTargetKey)) return null;
+		return {
+			kind: "group",
+			id: data.config.targetId,
+			name: data.config.targetName || data.config.targetId,
+			removed: true,
+		};
+	});
 
 	function handleTargetChange(value: string) {
 		if (!data.onConfigChange) return;
@@ -370,9 +379,6 @@
 		});
 	}
 
-	const targetDisplay = $derived(
-		data.config.targetName || (data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "No target"),
-	);
 	const selectedDevice = $derived(
 		data.config.targetType === "device"
 			? (data.devices ?? []).find((device) => device.id === data.config.targetId)
@@ -459,41 +465,25 @@
 <div
 	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-automation-action shadow-automation-action/50 shadow-lg'
-		: selected
-			? 'border-automation-action ring-2 ring-automation-action/30'
-			: 'border-automation-action/40'}"
+		: 'border-automation-action/40'}"
 	data-nodeid={id}
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-action/15 px-3 py-2">
 		<Play class="size-4 text-automation-action" />
 		<span class="text-sm font-medium text-automation-action">Action</span>
-		{#if data.editable}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
-				onclick={(e) => {
-					e.stopPropagation();
-					data.onDelete?.();
-				}}
-				aria-label="Delete action node"
-			>
-				<Trash2 class="size-3.5" />
-			</Button>
-		{/if}
 	</div>
 
-	<div class="space-y-2 p-3 nodrag">
+	<fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-3 nodrag">
 		{#if hasMissingCycleScene}
 			<Badge variant="destructive" class="text-[10px]">Missing scenes</Badge>
 		{/if}
-		{#if data.editable}
 			<Select
 				type="single"
 				value={data.config.actionType}
+				disabled={data.readOnly}
 				onValueChange={handleActionTypeChange}
 			>
-				<SelectTrigger class="w-full text-xs">
+				<SelectTrigger size="sm" class="w-full text-xs">
 					{selectedLabel}
 				</SelectTrigger>
 				<SelectContent>
@@ -514,9 +504,10 @@
 				<Select
 					type="single"
 					value={(parsedPayload.severity as string) ?? "medium"}
+					disabled={data.readOnly}
 					onValueChange={(v) => v && updateRaiseField("severity", v)}
 				>
-					<SelectTrigger class="w-full text-xs">{severityLabel}</SelectTrigger>
+					<SelectTrigger size="sm" class="w-full text-xs">{severityLabel}</SelectTrigger>
 					<SelectContent>
 						{#each SEVERITIES as s (s.value)}
 							<SelectItem value={s.value}>{s.label}</SelectItem>
@@ -526,9 +517,10 @@
 				<Select
 					type="single"
 					value={(parsedPayload.kind as string) ?? "auto"}
+					disabled={data.readOnly}
 					onValueChange={(v) => v && updateRaiseField("kind", v)}
 				>
-					<SelectTrigger class="w-full text-xs">{kindLabel}</SelectTrigger>
+					<SelectTrigger size="sm" class="w-full text-xs">{kindLabel}</SelectTrigger>
 					<SelectContent>
 						{#each ALARM_KINDS as k (k.value)}
 							<SelectItem value={k.value}>{k.label}</SelectItem>
@@ -610,6 +602,7 @@
 							filter={sceneFilter}
 							placeholder="Add scene"
 							size="sm"
+							disabled={data.readOnly}
 							class={validationError?.field === "payload" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 							onchange={(v) => v && addCycleScene(v)}
 						>
@@ -630,15 +623,15 @@
 					{:else if cycleSceneIds.length === 0}
 						<p class="text-[11px] text-muted-foreground">No scenes available — create scenes first.</p>
 					{/if}
-					<p class="text-[10px] text-muted-foreground">Each fire activates the next scene; the index resets when the automation is saved.</p>
 				</div>
 			{:else}
 				{#if isFanoutAction}
-					<div class="flex items-center rounded-md border border-border dark:border-input">
+					<div class="flex w-full items-center rounded-md border border-border dark:border-input">
 						<Button
 							variant={!advanced ? "secondary" : "ghost"}
 							size="xs"
-							class="rounded-r-none border-0"
+							class="flex-1 rounded-r-none border-0"
+							disabled={data.readOnly}
 							onclick={() => setTargetMode("simple")}
 							aria-pressed={!advanced}
 						>
@@ -647,7 +640,8 @@
 						<Button
 							variant={advanced ? "secondary" : "ghost"}
 							size="xs"
-							class="rounded-l-none border-0"
+							class="flex-1 rounded-l-none border-0"
+							disabled={data.readOnly}
 							onclick={() => setTargetMode("advanced")}
 							aria-pressed={advanced}
 						>
@@ -662,21 +656,26 @@
 						devices={data.devices ?? []}
 						groups={data.groups ?? []}
 						rooms={data.rooms ?? []}
+						disabled={data.readOnly}
 					/>
 				{:else}
 				<HiveSelectAutocomplete
 					items={targetItemsList}
 					value={selectedTargetKey}
+					selectedFallback={selectedTargetFallback}
 					getValue={targetKey}
 					getLabel={(t) => t.name}
 					placeholder={data.config.actionType === "activate_scene" ? "Select scene" : "Select target"}
 					size="sm"
+					disabled={data.readOnly}
 					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={handleTargetChange}
 				>
 					{#snippet renderSelected(t: TargetItem)}
-						<span class="truncate">{t.name}</span>
-						{#if t.kind === "device" && t.deviceType}
+						<span class="truncate {t.removed ? 'text-muted-foreground' : ''}">{t.name}</span>
+						{#if t.removed}
+							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">Removed</Badge>
+						{:else if t.kind === "device" && t.deviceType}
 							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
 						{:else if t.kind === "scene"}
 							{#each t.rooms ?? [] as room (room.id)}
@@ -720,7 +719,7 @@
 							onchange={updateConfigurationValues}
 							selectable
 							compact
-							disabled={!data.editable}
+							disabled={data.readOnly}
 						/>
 					{:else}
 						<p class="text-[11px] text-muted-foreground">Pick a device to configure.</p>
@@ -736,7 +735,8 @@
 							devices={data.devices ?? []}
 							groups={data.groups ?? []}
 							rooms={data.rooms ?? []}
-							disabled={!data.editable}
+							disabled={data.readOnly}
+							compact
 						/>
 					{:else if data.config.targetType && data.config.targetId}
 						<DeviceStateEditor
@@ -747,10 +747,9 @@
 							devices={data.devices ?? []}
 							groups={data.groups ?? []}
 							rooms={data.rooms ?? []}
-							disabled={!data.editable}
+							disabled={data.readOnly}
+							compact
 						/>
-					{:else}
-						<p class="text-[11px] text-muted-foreground">Pick a target to configure state.</p>
 					{/if}
 				{:else if data.config.actionType === "toggle_device_state"}
 					<p class="text-[10px] text-muted-foreground">
@@ -767,7 +766,7 @@
 							devices={data.devices ?? []}
 							groups={data.groups ?? []}
 							rooms={data.rooms ?? []}
-							disabled={!data.editable}
+							disabled={data.readOnly}
 						/>
 					{:else if data.config.targetType && data.config.targetId}
 						<ChangeValueEditor
@@ -778,18 +777,17 @@
 							devices={data.devices ?? []}
 							groups={data.groups ?? []}
 							rooms={data.rooms ?? []}
-							disabled={!data.editable}
+							disabled={data.readOnly}
 						/>
-					{:else}
-						<p class="text-[11px] text-muted-foreground">Pick a target to configure delta.</p>
 					{/if}
 				{:else if data.config.actionType === "run_effect"}
 					<Select
 						type="single"
 						value={selectedEffectKey}
+						disabled={data.readOnly}
 						onValueChange={(v) => v && updateEffectSelection(v)}
 					>
-						<SelectTrigger class="w-full text-xs">
+						<SelectTrigger size="sm" class="w-full text-xs">
 							{selectedEffectName || "Select effect"}
 						</SelectTrigger>
 						<SelectContent>
@@ -808,72 +806,10 @@
 					/>
 				{/if}
 			{/if}
-		{:else}
-			<p class="text-xs text-foreground">{selectedLabel}</p>
-			{#if data.config.actionType === "raise_alarm"}
-				<p class="truncate text-xs text-muted-foreground">{(parsedPayload.alarm_id as string) ?? ""}</p>
-				<p class="truncate text-xs text-muted-foreground">
-					{severityLabel} &middot; {kindLabel}
-				</p>
-				<p class="truncate text-xs text-muted-foreground">{(parsedPayload.message as string) ?? ""}</p>
-			{:else if data.config.actionType === "clear_alarm"}
-				<p class="truncate text-xs text-muted-foreground">{(parsedPayload.alarm_id as string) ?? ""}</p>
-			{:else if data.config.actionType === "run_effect"}
-				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
-				<p class="truncate text-xs text-muted-foreground">
-					{selectedEffectName || "No effect"}
-				</p>
-			{:else if data.config.actionType === "cycle_scenes"}
-				{#if cycleSceneIds.length === 0}
-					<p class="text-xs text-muted-foreground">No scenes</p>
-				{:else}
-					<ul class="space-y-0.5">
-						{#each cycleSceneIds as sid, i (sid + ":" + i)}
-							{@const scene = sceneById(sid)}
-							<li
-								class="-mx-1 flex items-center gap-1 rounded-sm border-l-2 px-1 text-xs transition-colors duration-200 {scene
-									? 'text-muted-foreground'
-									: 'text-destructive line-through'} {i === activeCycleIndex
-									? 'border-automation-action bg-automation-action/10'
-									: 'border-transparent'}"
-								aria-current={i === activeCycleIndex ? "true" : undefined}
-							>
-								<span class="flex-1 truncate">{scene?.name ?? `Deleted scene (${sid})`}</span>
-								{#each scene?.rooms ?? [] as room (room.id)}
-									<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
-								{/each}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			{:else if data.config.actionType === "toggle_device_state"}
-				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
-			{:else if data.config.actionType === "change_value"}
-				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
-				{#if typeof parsedPayload.field === "string" && parsedPayload.field !== ""}
-					{@const delta = typeof parsedPayload.delta === "number" ? parsedPayload.delta : 0}
-					{@const mode = parsedPayload.mode === "absolute" ? "" : "%"}
-					{@const sign = delta > 0 ? "+" : ""}
-					<p class="truncate text-xs text-muted-foreground">
-						{sign}{delta}{mode} {parsedPayload.field}
-					</p>
-				{/if}
-			{:else if data.config.actionType === "configure_device"}
-				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
-				<p class="truncate text-xs text-muted-foreground">
-					{configurationValues.length} {configurationValues.length === 1 ? "setting" : "settings"}
-				</p>
-			{:else}
-				<p class="truncate text-xs text-muted-foreground">{targetDisplay}</p>
-				{#if data.config.actionType !== "activate_scene" && data.config.payload}
-					<p class="truncate text-xs font-mono text-muted-foreground">{data.config.payload}</p>
-				{/if}
-			{/if}
-		{/if}
-		{#if validationError && data.editable}
+		{#if validationError && !data.readOnly}
 			<p class="text-[10px] text-destructive">{validationError.message}</p>
 		{/if}
-	</div>
+	</fieldset>
 
 	<Handle type="target" position={Position.Left} class="!bg-automation-action !border-automation-action !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>

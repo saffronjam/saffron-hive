@@ -38,7 +38,7 @@
 		const machine = createHoldDrag({
 			onstart(e) {
 				const node = nodes.find((n) => n.id === activeNodeId);
-				if (!node) {
+				if (!node || node.draggable === false) {
 					machine.reset();
 					releaseCapture();
 					return;
@@ -73,6 +73,8 @@
 			if (!nodeEl || target.closest(".nodrag")) return;
 			const id = nodeEl.getAttribute("data-id");
 			if (!id) return;
+			const node = nodes.find((candidate) => candidate.id === id);
+			if (!node || node.draggable === false) return;
 
 			// Take over the touch so xyflow's own drag never engages; the hold-drag
 			// machine drives the node position only after the hold arms.

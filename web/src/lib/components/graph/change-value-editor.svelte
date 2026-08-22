@@ -78,7 +78,7 @@
 		// Auto-select the sole option when there's exactly one and nothing is
 		// chosen yet. Avoids a dead-end where the user is asked to pick from a
 		// single-item list.
-		if (!target) return;
+		if (!target && capabilities === undefined) return;
 		if (parsed.field === "" && settableCaps.length === 1) {
 			emit({ ...parsed, field: settableCaps[0].name });
 		}
@@ -105,15 +105,16 @@
 	});
 </script>
 
-{#if !target}
-	<p class="text-[11px] text-muted-foreground">Pick a target to configure delta.</p>
-{:else if settableCaps.length === 0}
-	<p class="text-[11px] text-muted-foreground">Target has no adjustable numeric fields.</p>
+{#if settableCaps.length === 0}
+	{#if target || capabilities !== undefined}
+		<p class="text-[11px] text-muted-foreground">Target has no adjustable numeric fields.</p>
+	{/if}
 {:else}
 	<div class="space-y-2">
 		<Select
 			type="single"
 			value={parsed.field}
+			disabled={disabled}
 			onValueChange={(v) => v && setField(v)}
 		>
 			<SelectTrigger class="w-full text-xs">{fieldSelectedLabel}</SelectTrigger>
@@ -134,12 +135,12 @@
 				{disabled}
 				onValueChange={setDelta}
 			/>
-			<div class="flex rounded-md border border-input overflow-hidden">
+			<div class="flex items-center rounded-md border border-border dark:border-input">
 				<Button
 					type="button"
 					variant={parsed.mode === "percent" ? "secondary" : "ghost"}
 					size="sm"
-					class="h-8 rounded-none px-2 text-xs"
+					class="h-7 rounded-r-none border-0 px-2 text-xs"
 					{disabled}
 					onclick={() => setMode("percent")}
 					aria-pressed={parsed.mode === "percent"}
@@ -150,7 +151,7 @@
 					type="button"
 					variant={parsed.mode === "absolute" ? "secondary" : "ghost"}
 					size="sm"
-					class="h-8 rounded-none px-2 text-xs"
+					class="h-7 rounded-l-none border-0 px-2 text-xs"
 					{disabled}
 					onclick={() => setMode("absolute")}
 					aria-pressed={parsed.mode === "absolute"}

@@ -194,16 +194,11 @@
 		deleteLabel="Delete automation"
 	>
 		{#snippet leading()}
-			<Tooltip>
-				<TooltipTrigger class="inline-flex h-8 items-center">
-					<Switch
-						checked={a.enabled}
-						onCheckedChange={(checked) => ontoggle(a, checked)}
-						aria-label={a.enabled ? `Disable ${a.name}` : `Enable ${a.name}`}
-					/>
-				</TooltipTrigger>
-				<TooltipContent>{a.enabled ? "Disable" : "Enable"}</TooltipContent>
-			</Tooltip>
+			<Switch
+				checked={a.enabled}
+				onCheckedChange={(checked) => ontoggle(a, checked)}
+				aria-label={a.enabled ? `Disable ${a.name}` : `Enable ${a.name}`}
+			/>
 		{/snippet}
 	</RowActionsCell>
 {/snippet}

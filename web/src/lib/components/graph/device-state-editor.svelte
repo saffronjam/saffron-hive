@@ -27,9 +27,10 @@
 		// the target is an expression resolving to a device set.
 		capabilities?: Capability[];
 		disabled?: boolean;
+		compact?: boolean;
 	}
 
-	let { target, value, onchange, devices, groups, rooms, capabilities, disabled = false }: Props = $props();
+	let { target, value, onchange, devices, groups, rooms, capabilities, disabled = false, compact = false }: Props = $props();
 
 	interface Payload {
 		on?: boolean;
@@ -178,17 +179,32 @@
 	}
 
 	const anyFieldAvailable = $derived(showOn || showBrightness || showColorTemp || showColor || showTargetTemperature || showHvacMode || showFanMode || showSwing);
+	const fieldBox = $derived(
+		compact
+			? "flex items-center justify-between gap-1.5 px-2 py-1"
+			: "flex items-center justify-between gap-2 rounded-md border border-input px-2 py-1.5",
+	);
+	const expandedFieldBox = $derived(
+		compact
+			? "space-y-1 px-2 py-1"
+			: "space-y-1.5 rounded-md border border-input px-2 py-1.5",
+	);
+	const fieldLabel = $derived(compact ? "text-[11px] font-medium" : "text-xs font-medium");
 </script>
 
-{#if !target}
-	<p class="text-[11px] text-muted-foreground">Pick a target to configure state.</p>
-{:else if !anyFieldAvailable}
-	<p class="text-[11px] text-muted-foreground">Target has no settable state capabilities.</p>
+{#if !anyFieldAvailable}
+	{#if target || capabilities !== undefined}
+		<p class="text-[11px] text-muted-foreground">Target has no settable state capabilities.</p>
+	{/if}
 {:else}
-	<div class="space-y-2">
+	<div
+		class="{compact ? 'divide-y divide-border rounded-md border border-input' : 'space-y-2'} {disabled
+			? 'opacity-50 [&_[data-disabled]]:opacity-100 [&_:disabled]:opacity-100'
+			: ''}"
+	>
 		{#if showOn}
-			<div class="flex items-center justify-between gap-2 rounded-md border border-input px-2 py-1.5">
-				<span class="text-xs font-medium">Power</span>
+			<div class={fieldBox}>
+				<span class={fieldLabel}>Power</span>
 				<div class="flex items-center gap-2">
 					{#if onSet}
 						<Switch
@@ -196,29 +212,29 @@
 							onCheckedChange={setOnValue}
 							{disabled}
 						/>
-						<Button variant="ghost" size="icon-sm" onclick={toggleOnActive} {disabled} aria-label="Clear power">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleOnActive} {disabled} aria-label="Clear power">
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleOnActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleOnActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 			</div>
 		{/if}
 
 		{#if showBrightness}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Brightness</span>
+					<span class={fieldLabel}>Brightness</span>
 					{#if brightnessSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.brightness}</span>
-							<Button variant="ghost" size="icon-sm" onclick={toggleBrightnessActive} {disabled} aria-label="Clear brightness">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleBrightnessActive} {disabled} aria-label="Clear brightness">
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleBrightnessActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleBrightnessActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if brightnessSet}
@@ -236,18 +252,18 @@
 		{/if}
 
 		{#if showColorTemp}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Color temp</span>
+					<span class={fieldLabel}>Color temp</span>
 					{#if colorTempSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.colorTemp}</span>
-							<Button variant="ghost" size="icon-sm" onclick={toggleColorTempActive} {disabled} aria-label="Clear color temp">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleColorTempActive} {disabled} aria-label="Clear color temp">
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleColorTempActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleColorTempActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if colorTempSet}
@@ -263,15 +279,15 @@
 		{/if}
 
 		{#if showColor}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Color</span>
+					<span class={fieldLabel}>Color</span>
 					{#if colorSet}
-						<Button variant="ghost" size="icon-sm" onclick={toggleColorActive} {disabled} aria-label="Clear color">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleColorActive} {disabled} aria-label="Clear color">
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleColorActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleColorActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if colorSet && parsed.color}
@@ -287,18 +303,18 @@
 		{/if}
 
 		{#if showTargetTemperature}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Target temp</span>
+					<span class={fieldLabel}>Target temp</span>
 					{#if targetTemperatureSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.targetTemperature}</span>
-							<Button variant="ghost" size="icon-sm" onclick={toggleTargetTemperatureActive} {disabled} aria-label="Clear target temp">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleTargetTemperatureActive} {disabled} aria-label="Clear target temp">
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleTargetTemperatureActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleTargetTemperatureActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if targetTemperatureSet}
@@ -316,19 +332,19 @@
 		{/if}
 
 		{#if showHvacMode && hvacModeCap && hvacModeValues.length > 0}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Mode</span>
+					<span class={fieldLabel}>Mode</span>
 					{#if hvacModeSet}
-						<Button variant="ghost" size="icon-sm" onclick={toggleHvacModeActive} {disabled} aria-label="Clear mode">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleHvacModeActive} {disabled} aria-label="Clear mode">
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleHvacModeActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleHvacModeActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if hvacModeSet}
-					<Select type="single" value={parsed.hvacMode ?? ""} onValueChange={setHvacModeValue}>
+					<Select type="single" value={parsed.hvacMode ?? ""} onValueChange={setHvacModeValue} {disabled}>
 						<SelectTrigger class="w-full text-xs">{parsed.hvacMode ? sentenceCase(parsed.hvacMode) : "Select mode"}</SelectTrigger>
 						<SelectContent>
 							{#each hvacModeValues as v (v)}
@@ -341,19 +357,19 @@
 		{/if}
 
 		{#if showFanMode && fanModeCap && fanModeValues.length > 0}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Fan</span>
+					<span class={fieldLabel}>Fan</span>
 					{#if fanModeSet}
-						<Button variant="ghost" size="icon-sm" onclick={toggleFanModeActive} {disabled} aria-label="Clear fan">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleFanModeActive} {disabled} aria-label="Clear fan">
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleFanModeActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleFanModeActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if fanModeSet}
-					<Select type="single" value={parsed.fanMode ?? ""} onValueChange={setFanModeValue}>
+					<Select type="single" value={parsed.fanMode ?? ""} onValueChange={setFanModeValue} {disabled}>
 						<SelectTrigger class="w-full text-xs">{parsed.fanMode ? sentenceCase(parsed.fanMode) : "Select fan"}</SelectTrigger>
 						<SelectContent>
 							{#each fanModeValues as v (v)}
@@ -366,19 +382,19 @@
 		{/if}
 
 		{#if showSwing && swingCap}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Swing</span>
+					<span class={fieldLabel}>Swing</span>
 					{#if swingSet}
-						<Button variant="ghost" size="icon-sm" onclick={toggleSwingActive} {disabled} aria-label="Clear swing">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleSwingActive} {disabled} aria-label="Clear swing">
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleSwingActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleSwingActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if swingSet}
-					<Select type="single" value={parsed.swing ?? ""} onValueChange={setSwingValue}>
+					<Select type="single" value={parsed.swing ?? ""} onValueChange={setSwingValue} {disabled}>
 						<SelectTrigger class="w-full text-xs">{parsed.swing ? sentenceCase(parsed.swing) : "Select swing"}</SelectTrigger>
 						<SelectContent>
 							{#each swingValues as v (v)}
@@ -391,18 +407,18 @@
 		{/if}
 
 		{#if showTransition}
-			<div class="rounded-md border border-input px-2 py-1.5 space-y-1.5">
+			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class="text-xs font-medium">Transition</span>
+					<span class={fieldLabel}>Transition</span>
 					{#if transitionSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.transition}s</span>
-							<Button variant="ghost" size="icon-sm" onclick={toggleTransitionActive} {disabled} aria-label="Clear transition">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleTransitionActive} {disabled} aria-label="Clear transition">
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size="sm" onclick={toggleTransitionActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleTransitionActive} {disabled}>Set</Button>
 					{/if}
 				</div>
 				{#if transitionSet}

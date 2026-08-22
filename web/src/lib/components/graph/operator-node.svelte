@@ -6,8 +6,7 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { GitMerge, Trash2 } from "@lucide/svelte";
+	import { GitMerge } from "@lucide/svelte";
 
 	interface OperatorConfig {
 		operator: string;
@@ -15,19 +14,17 @@
 
 	interface OperatorNodeData extends Record<string, unknown> {
 		config: OperatorConfig;
-		editable: boolean;
+		readOnly: boolean;
 		activated: boolean;
 		onConfigChange?: (config: OperatorConfig) => void;
-		onDelete?: () => void;
 	}
 
 	interface Props {
 		data: OperatorNodeData;
 		id: string;
-		selected?: boolean;
 	}
 
-	let { data, id, selected = false }: Props = $props();
+	let { data, id }: Props = $props();
 
 	const operators = [
 		{ value: "AND", label: "AND" },
@@ -44,38 +41,22 @@
 <div
 	class="w-44 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-automation-operator shadow-automation-operator/50 shadow-lg'
-		: selected
-			? 'border-automation-operator ring-2 ring-automation-operator/30'
-			: 'border-automation-operator/40'}"
+		: 'border-automation-operator/40'}"
 	data-nodeid={id}
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-operator/15 px-3 py-2">
 		<GitMerge class="size-4 text-automation-operator" />
 		<span class="text-sm font-medium text-automation-operator">Operator</span>
-		{#if data.editable}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
-				onclick={(e) => {
-					e.stopPropagation();
-					data.onDelete?.();
-				}}
-				aria-label="Delete operator node"
-			>
-				<Trash2 class="size-3.5" />
-			</Button>
-		{/if}
 	</div>
 
-	<div class="p-3 nodrag">
-		{#if data.editable}
+	<fieldset disabled={data.readOnly} class="min-w-0 border-0 p-3 nodrag">
 			<Select
 				type="single"
 				value={data.config.operator}
+				disabled={data.readOnly}
 				onValueChange={handleOperatorChange}
 			>
-				<SelectTrigger class="w-full text-xs">
+				<SelectTrigger size="sm" class="w-full text-xs">
 					{data.config.operator || "Select"}
 				</SelectTrigger>
 				<SelectContent>
@@ -84,12 +65,7 @@
 					{/each}
 				</SelectContent>
 			</Select>
-		{:else}
-			<p class="text-center text-lg font-bold text-automation-operator">
-				{data.config.operator}
-			</p>
-		{/if}
-	</div>
+	</fieldset>
 
 	<Handle type="target" position={Position.Left} class="!bg-automation-operator !border-automation-operator !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 	<Handle type="source" position={Position.Right} class="!bg-automation-operator !border-automation-operator !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />

@@ -1,19 +1,33 @@
 <script lang="ts">
-	import { useSvelteFlow, type Node } from "@xyflow/svelte";
+	import { useNodesInitialized, useSvelteFlow, type Node } from "@xyflow/svelte";
 	import { onMount } from "svelte";
 
 	export interface FlowApi {
 		panToNode(id: string): void;
+		screenToFlowPosition(position: { x: number; y: number }): { x: number; y: number };
 	}
 
 	interface Props {
 		nodes: Node[];
 		onReady?: (api: FlowApi) => void;
+		onNodesInitialized?: () => void;
 	}
 
-	let { nodes, onReady }: Props = $props();
+	let { nodes, onReady, onNodesInitialized }: Props = $props();
 
 	const flow = useSvelteFlow();
+	const nodesInitialized = useNodesInitialized();
+	let initializationReported = false;
+
+	$effect(() => {
+		if (!nodesInitialized.current) {
+			initializationReported = false;
+			return;
+		}
+		if (initializationReported) return;
+		initializationReported = true;
+		onNodesInitialized?.();
+	});
 
 	function panToNode(nodeId: string) {
 		const node = nodes.find((n) => n.id === nodeId);
@@ -42,7 +56,11 @@
 		});
 	}
 
+	function screenToFlowPosition(position: { x: number; y: number }) {
+		return flow.screenToFlowPosition(position, { snapToGrid: false });
+	}
+
 	onMount(() => {
-		onReady?.({ panToNode });
+		onReady?.({ panToNode, screenToFlowPosition });
 	});
 </script>

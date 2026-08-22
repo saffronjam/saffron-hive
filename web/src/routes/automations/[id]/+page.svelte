@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { goto } from "$app/navigation";
-	import { onMount, onDestroy, untrack } from "svelte";
+	import { onMount, onDestroy, tick, untrack } from "svelte";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -47,11 +47,14 @@
 		ClipboardPaste,
 		Plus,
 		X,
+		Lock,
+		LockOpen,
 	} from "@lucide/svelte";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
 		DropdownMenuItem,
+		DropdownMenuSeparator,
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -64,11 +67,13 @@
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
+	import { holdDrag } from "$lib/actions/hold-drag";
 	import {
 		type TriggerConfig,
 		defaultTriggerConfig,
 		normalizeTriggerConfig,
 		serializeTriggerConfig,
+		generateFilterExpr,
 		serializeOperatorConfig,
 		serializeActionConfig,
 		validateTriggerConfig,
@@ -116,13 +121,17 @@
 		name: string;
 		icon?: string | null;
 		enabled: boolean;
+		compilable: boolean;
 		nodes: AutomationNodeData[];
 		edges: AutomationEdgeData[];
 	}
 
 	interface GroupData {
 		id: string;
-		name: string;
+		name?: string | null;
+		friendlyName?: string | null;
+		source: string;
+		removed: boolean;
 		members: { id: string; memberType: string; memberId: string }[];
 	}
 
@@ -136,10 +145,6 @@
 
 	interface DeleteAutomationResult {
 		deleteAutomation: boolean;
-	}
-
-	interface ToggleAutomationResult {
-		toggleAutomation: AutomationData;
 	}
 
 	interface DevicesQueryResult {
@@ -175,6 +180,7 @@
 				name
 				icon
 				enabled
+				compilable
 				nodes {
 					id
 					type
@@ -197,15 +203,6 @@
 		}
 	`);
 
-	const TOGGLE_AUTOMATION = graphql(`
-		mutation ToggleAutomation($id: ID!, $enabled: Boolean!) {
-			toggleAutomation(id: $id, enabled: $enabled) {
-				id
-				enabled
-			}
-		}
-	`);
-
 	const FIRE_AUTOMATION_TRIGGER = graphql(`
 		mutation AutomationEditFireTrigger($automationId: ID!, $nodeId: ID!) {
 			fireAutomationTrigger(automationId: $automationId, nodeId: $nodeId)
@@ -221,6 +218,23 @@
 			nativeEffectOptions {
 				name
 				displayName
+			}
+		}
+	`);
+
+	const GROUP_REFERENCE_QUERY = graphql(`
+		query AutomationEditGroupReference($id: ID!) {
+			group(id: $id) {
+				id
+				name
+				friendlyName
+				source
+				removed
+				members {
+					id
+					memberType
+					memberId
+				}
 			}
 		}
 	`);
@@ -255,7 +269,6 @@
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Automations", href: "/automations" }, { label: "Automation" }];
 	});
-	onDestroy(() => pageHeader.reset());
 
 	$effect(() => {
 		if (automationName) {
@@ -274,18 +287,22 @@
 				label: "Save",
 				saving,
 				onclick: handleSave,
-				disabled: !editMode || saving || hasValidationErrors || !isDirty,
+				disabled: !editMode || saving || !isDirty,
 				hideLabelOnMobile: true,
 			},
 			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode, hideLabelOnMobile: true },
 		];
 	});
 	let automationEnabled = $state(false);
+	let savedAutomationEnabled = $state(false);
+	let automationCompilable = $state(false);
 	let flowNodes = $state<Node[]>([]);
 	let flowEdges = $state<Edge[]>([]);
 
 	let editMode = $state(true);
+	let placementMode = $state<"free" | "auto">("auto");
 	let viewMode = $state<"visual" | "code">("visual");
+	let initialAutoLayoutPending = $state(false);
 	let jsonString = $state("");
 	let jsonError = $state<string | null>(null);
 	let syncSource = $state<"visual" | "code" | null>(null);
@@ -298,18 +315,115 @@
 	// Dropped at the source so every target picker, capability union and
 	// selector on this page follows.
 	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
-	const groups = $derived(groupsStore.items);
+	let referencedRemovedGroups = $state<GroupData[]>([]);
+	const groups = $derived.by<GroupData[]>(() => {
+		const active = groupsStore.items;
+		const activeIDs = new Set(active.map((group) => group.id));
+		return [
+			...active,
+			...referencedRemovedGroups.filter((group) => !activeIDs.has(group.id)),
+		];
+	});
 	const rooms = $derived(roomsStore.items);
 	const scenes = $derived(scenesStore.items);
 	let effects = $state<EffectOption[]>([]);
+	const loadedGroupReferences = new Set<string>();
+
+	function referencedGroupIDs(nodes: { config: string }[]): string[] {
+		const ids = new Set<string>();
+		function walk(value: unknown) {
+			if (Array.isArray(value)) {
+				for (const item of value) walk(item);
+				return;
+			}
+			if (value === null || typeof value !== "object") return;
+			const record = value as Record<string, unknown>;
+			if (record.targetType === "group" && typeof record.targetId === "string") {
+				ids.add(record.targetId);
+			}
+			if (record.subject === "group" && Array.isArray(record.values)) {
+				for (const id of record.values) if (typeof id === "string") ids.add(id);
+			}
+			for (const child of Object.values(record)) walk(child);
+		}
+		for (const node of nodes) {
+			try {
+				walk(JSON.parse(node.config));
+			} catch {
+				continue;
+			}
+		}
+		return Array.from(ids);
+	}
+
+	async function loadRemovedGroupReference(id: string) {
+		const result = await client
+			.query(GROUP_REFERENCE_QUERY, { id }, { requestPolicy: "network-only" })
+			.toPromise();
+		const group = result.data?.group;
+		if (!group?.removed) return;
+		referencedRemovedGroups = [
+			...referencedRemovedGroups.filter((existing) => existing.id !== group.id),
+			group,
+		];
+	}
+
+	$effect(() => {
+		const activeIDs = new Set(groupsStore.items.map((group) => group.id));
+		for (const id of referencedGroupIDs(flowNodesToAutomationNodes(flowNodes))) {
+			if (activeIDs.has(id) || loadedGroupReferences.has(id)) continue;
+			loadedGroupReferences.add(id);
+			void loadRemovedGroupReference(id);
+		}
+	});
 
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 	let unsubscribers: (() => void)[] = [];
 
 	let nodeIdCounter = $state(0);
 	let flowApi: FlowApi | null = $state(null);
-	// In-editor copy buffer for duplicating selected nodes. Not the OS
-	// clipboard — keyboard shortcuts deliberately aren't wired.
+	type AutomationNodeType = "trigger" | "condition" | "operator" | "action";
+	type GraphContextMenuState =
+		| {
+				kind: "canvas";
+				x: number;
+				y: number;
+				position: { x: number; y: number };
+		  }
+		| {
+				kind: "node";
+				x: number;
+				y: number;
+				nodeId: string;
+		  }
+		| {
+				kind: "selection";
+				x: number;
+				y: number;
+				nodeIds: string[];
+		  };
+	let graphContextMenuOpen = $state(false);
+	let graphContextMenuState = $state<GraphContextMenuState | null>(null);
+	const graphContextMenuNode = $derived.by(() => {
+		const state = graphContextMenuState;
+		return state?.kind === "node"
+			? flowNodes.find((node) => node.id === state.nodeId) ?? null
+			: null;
+	});
+	let flowSurface: HTMLDivElement | null = $state(null);
+	let graphContextMenuRequest = 0;
+	let autoLayoutFrame: number | null = null;
+	let layoutTweenFrame: number | null = null;
+	let lockedNodeIds = $state<Set<string>>(new Set());
+	const graphContextMenuSelectionAllLocked = $derived.by(() => {
+		const state = graphContextMenuState;
+		return state?.kind === "selection" && state.nodeIds.length > 0
+			? state.nodeIds.every((id) => lockedNodeIds.has(id))
+			: false;
+	});
+	let toolbarDrag = $state<{ nodeType: AutomationNodeType; x: number; y: number } | null>(null);
+	let suppressToolbarClick = false;
+	// In-editor copy buffer for duplicating selected nodes.
 	let copyBuffer = $state<{ nodes: Node[]; edges: Edge[] } | null>(null);
 	const anyNodeSelected = $derived(flowNodes.some((n) => n.selected));
 	let restoringSnapshot = false;
@@ -342,10 +456,9 @@
 		return false;
 	});
 
-	// Live button is disabled when a save is in flight, or when the graph has
-	// unsaved changes we can't persist (validation errors). Dirty-without-errors
-	// is allowed — we'll auto-save on the Live click.
-	const liveDisabled = $derived(saving || (isDirty && hasValidationErrors));
+	const liveDisabled = $derived(
+		saving || isDirty || hasValidationErrors || !automationCompilable,
+	);
 
 	function cloneNodes(nodes: Node[]): Node[] {
 		return nodes.map((n) => {
@@ -368,12 +481,16 @@
 	}
 
 	function takeSnapshot() {
+		takeSnapshotWithNodes(flowNodes);
+	}
+
+	function takeSnapshotWithNodes(nodes: Node[]) {
 		if (restoringSnapshot) return;
 		history.push({
 			name: automationName,
 			icon: automationIcon,
 			enabled: automationEnabled,
-			nodes: cloneNodes(flowNodes),
+			nodes: cloneNodes(nodes),
 			edges: cloneEdges(flowEdges),
 		});
 	}
@@ -386,37 +503,61 @@
 		flowNodes = snap.nodes.map((n) => {
 			const nodeType = n.type ?? "trigger";
 			const config = (n.data as Record<string, unknown>).config as NodeConfig;
-			return { ...n, data: makeNodeData(nodeType, config, editMode, false, n.id) };
+			return {
+				...n,
+				draggable: !lockedNodeIds.has(n.id),
+				data: makeNodeData(nodeType, config, editMode, false, n.id),
+			};
 		}) as Node[];
 		flowEdges = snap.edges;
 		restoringSnapshot = false;
+		if (placementMode === "auto") scheduleAutoLayout();
 	}
 
 	function handleSort() {
-		flowNodes = layoutGraph(flowNodes, flowEdges);
-		takeSnapshot();
+		if (placementMode === "auto") return;
+		const laidOut = layoutGraph(flowNodes, flowEdges);
+		if (sameNodePositions(flowNodes, laidOut)) return;
+		animateLayoutTo(laidOut);
+		takeSnapshotWithNodes(laidOut);
+	}
+
+	function setPlacementMode(mode: "free" | "auto") {
+		if (placementMode === mode) return;
+		placementMode = mode;
+		if (mode !== "auto") return;
+		const laidOut = layoutGraph(flowNodes, flowEdges);
+		if (sameNodePositions(flowNodes, laidOut)) return;
+		animateLayoutTo(laidOut);
+		takeSnapshotWithNodes(laidOut);
 	}
 
 	function handleCopy() {
 		const selectedNodes = flowNodes.filter((n) => n.selected);
-		if (selectedNodes.length === 0) return;
-		const selectedIds = new Set(selectedNodes.map((n) => n.id));
+		copyNodes(selectedNodes);
+	}
+
+	function copyNodes(nodes: Node[]) {
+		if (nodes.length === 0) return;
+		const selectedIds = new Set(nodes.map((n) => n.id));
 		const internalEdges = flowEdges.filter(
 			(e) => selectedIds.has(e.source) && selectedIds.has(e.target)
 		);
 		copyBuffer = {
-			nodes: cloneNodes(selectedNodes),
+			nodes: cloneNodes(nodes),
 			edges: cloneEdges(internalEdges),
 		};
 	}
 
-	function handlePaste() {
+	function handlePaste(position?: { x: number; y: number }) {
 		if (!copyBuffer || copyBuffer.nodes.length === 0) return;
 		const idMap = new Map<string, string>();
 		for (const n of copyBuffer.nodes) {
 			idMap.set(n.id, `node-${crypto.randomUUID()}`);
 		}
 		const offset = 48;
+		const minX = Math.min(...copyBuffer.nodes.map((node) => node.position.x));
+		const minY = Math.min(...copyBuffer.nodes.map((node) => node.position.y));
 		const newNodes: Node[] = copyBuffer.nodes.map((n) => {
 			const newId = idMap.get(n.id)!;
 			const nodeType = n.type ?? "trigger";
@@ -424,7 +565,10 @@
 			return {
 				...n,
 				id: newId,
-				position: { x: n.position.x + offset, y: n.position.y + offset },
+				position: position
+					? { x: position.x + n.position.x - minX, y: position.y + n.position.y - minY }
+					: { x: n.position.x + offset, y: n.position.y + offset },
+				draggable: true,
 				selected: true,
 				// Rebuild data so callbacks (onConfigChange etc.) close over the new
 				// nodeId. Reuse the existing makeNodeData so trigger/condition/action
@@ -510,7 +654,7 @@
 		}
 		const dev = devices.find((x) => x.name === cfg.targetName);
 		if (dev) return { ...cfg, targetType: "device", targetId: dev.id };
-		const grp = groups.find((g) => g.name === cfg.targetName);
+		const grp = groups.find((g) => groupDisplayName(g) === cfg.targetName);
 		if (grp) return { ...cfg, targetType: "group", targetId: grp.id };
 		const room = rooms.find((r) => r.name === cfg.targetName);
 		if (room) return { ...cfg, targetType: "room", targetId: room.id };
@@ -556,6 +700,11 @@
 	function deleteNode(nodeId: string) {
 		flowNodes = flowNodes.filter((n) => n.id !== nodeId);
 		flowEdges = flowEdges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+		if (lockedNodeIds.has(nodeId)) {
+			const next = new Set(lockedNodeIds);
+			next.delete(nodeId);
+			lockedNodeIds = next;
+		}
 		takeSnapshot();
 	}
 
@@ -568,20 +717,18 @@
 		runtimeState: string = "{}",
 	): Record<string, unknown> {
 		const onConfigChange = (newConfig: NodeConfig) => {
+			if (!editMode) return;
 			flowNodes = flowNodes.map((n) =>
 				n.id === nodeId ? { ...n, data: { ...n.data, config: newConfig } } : n
 			);
 			queueMicrotask(takeSnapshot);
 		};
 
-		const onDelete = () => deleteNode(nodeId);
-
 		const base = {
 			config,
-			editable: isEditable,
+			readOnly: !isEditable,
 			activated: isActivated,
 			onConfigChange,
-			onDelete,
 		};
 
 		if (nodeType === "trigger") {
@@ -589,7 +736,6 @@
 				...base,
 				devices,
 				automationEnabled,
-				onFireManual: () => handleFireManual(nodeId),
 			};
 		}
 
@@ -681,6 +827,87 @@
 			};
 		});
 	}
+
+	function sameNodePositions(left: Node[], right: Node[]): boolean {
+		if (left.length !== right.length) return false;
+		return left.every((node, index) => {
+			const next = right[index];
+			return (
+				next?.id === node.id &&
+				Math.abs(next.position.x - node.position.x) < 0.5 &&
+				Math.abs(next.position.y - node.position.y) < 0.5
+			);
+		});
+	}
+
+	function animateLayoutTo(targetNodes: Node[]) {
+		if (layoutTweenFrame !== null) cancelAnimationFrame(layoutTweenFrame);
+		const starts = new Map(flowNodes.map((node) => [node.id, { ...node.position }]));
+		const targets = new Map(targetNodes.map((node) => [node.id, { ...node.position }]));
+		const startedAt = performance.now();
+		const duration = 250;
+
+		const step = (now: number) => {
+			const progress = Math.min(1, (now - startedAt) / duration);
+			const eased = 1 - Math.pow(1 - progress, 3);
+			flowNodes = flowNodes.map((node) => {
+				const start = starts.get(node.id);
+				const target = targets.get(node.id);
+				if (!start || !target) return node;
+				return {
+					...node,
+					position: {
+						x: start.x + (target.x - start.x) * eased,
+						y: start.y + (target.y - start.y) * eased,
+					},
+				};
+			});
+			if (progress < 1) {
+				layoutTweenFrame = requestAnimationFrame(step);
+			} else {
+				layoutTweenFrame = null;
+			}
+		};
+
+		layoutTweenFrame = requestAnimationFrame(step);
+	}
+
+	function applyInitialAutoLayout() {
+		if (!initialAutoLayoutPending) return;
+		if (placementMode === "auto") {
+			const laidOut = layoutGraph(flowNodes, flowEdges);
+			if (!sameNodePositions(flowNodes, laidOut)) flowNodes = laidOut;
+		}
+		initialAutoLayoutPending = false;
+	}
+
+	function scheduleAutoLayout() {
+		if (initialAutoLayoutPending) return;
+		if (autoLayoutFrame !== null) cancelAnimationFrame(autoLayoutFrame);
+		autoLayoutFrame = requestAnimationFrame(() => {
+			autoLayoutFrame = null;
+			if (placementMode !== "auto") return;
+			const laidOut = layoutGraph(flowNodes, flowEdges);
+			if (!sameNodePositions(flowNodes, laidOut)) animateLayoutTo(laidOut);
+		});
+	}
+
+	const autoLayoutSignature = $derived.by(() => {
+		const nodes = flowNodes
+			.map(
+				(node) =>
+					`${node.id}:${node.type ?? ""}:${node.measured?.width ?? 0}:${node.measured?.height ?? 0}`
+			)
+			.join("|");
+		const edges = flowEdges.map((edge) => `${edge.source}>${edge.target}`).join("|");
+		return `${nodes}::${edges}`;
+	});
+
+	$effect(() => {
+		const mode = placementMode;
+		void autoLayoutSignature;
+		if (mode === "auto") untrack(scheduleAutoLayout);
+	});
 
 	function automationNodesToFlowNodes(
 		nodes: AutomationNodeData[],
@@ -926,7 +1153,7 @@
 		return { x: colIndex * COLUMN_WIDTH, y: existingOfType * spacing };
 	}
 
-	function addNode(nodeType: "trigger" | "condition" | "operator" | "action") {
+	function addNode(nodeType: AutomationNodeType, position?: { x: number; y: number }) {
 		nodeIdCounter++;
 		// Use a globally unique ID so saves from different browser sessions or
 		// automations don't collide on the automation_nodes.id PRIMARY KEY.
@@ -951,13 +1178,250 @@
 		const newNode: Node = {
 			id: tempId,
 			type: nodeType,
-			position: nextPositionForType(flowNodes, nodeType),
+			position: position ?? nextPositionForType(flowNodes, nodeType),
 			data: makeNodeData(nodeType, config, editMode, false, tempId),
 		};
 
 		flowNodes = [...flowNodes, newNode];
 		takeSnapshot();
 		queueMicrotask(() => flowApi?.panToNode(tempId));
+	}
+
+	function toolbarNodeLabel(nodeType: AutomationNodeType): string {
+		return nodeType[0].toUpperCase() + nodeType.slice(1);
+	}
+
+	function startToolbarNodeDrag(nodeType: AutomationNodeType, event: PointerEvent) {
+		toolbarDrag = { nodeType, x: event.clientX, y: event.clientY };
+		suppressToolbarClick = true;
+	}
+
+	function moveToolbarNodeDrag(event: PointerEvent) {
+		if (!toolbarDrag) return;
+		toolbarDrag = { ...toolbarDrag, x: event.clientX, y: event.clientY };
+	}
+
+	function endToolbarNodeDrag(event: PointerEvent) {
+		const drag = toolbarDrag;
+		toolbarDrag = null;
+		setTimeout(() => (suppressToolbarClick = false));
+		if (!drag || !flowApi || !flowSurface) return;
+		const bounds = flowSurface.getBoundingClientRect();
+		if (
+			event.clientX < bounds.left ||
+			event.clientX > bounds.right ||
+			event.clientY < bounds.top ||
+			event.clientY > bounds.bottom
+		) return;
+		const point = flowApi.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+		const width = NODE_FALLBACK_DIMS[drag.nodeType]?.width ?? 256;
+		addNode(drag.nodeType, { x: point.x - width / 2, y: point.y - 24 });
+	}
+
+	function cancelToolbarNodeDrag() {
+		toolbarDrag = null;
+		setTimeout(() => (suppressToolbarClick = false));
+	}
+
+	function addNodeFromToolbar(nodeType: AutomationNodeType) {
+		if (suppressToolbarClick) return;
+		addNode(nodeType);
+	}
+
+	async function openGraphContextMenu(state: GraphContextMenuState) {
+		const request = ++graphContextMenuRequest;
+		graphContextMenuOpen = false;
+		graphContextMenuState = state;
+		await tick();
+		if (request === graphContextMenuRequest) graphContextMenuOpen = true;
+	}
+
+	function handleCanvasContextMenu(event: MouseEvent) {
+		if (!editMode || !flowApi) return;
+		event.preventDefault();
+		event.stopPropagation();
+		void openGraphContextMenu({
+			kind: "canvas",
+			x: event.clientX,
+			y: event.clientY,
+			position: flowApi.screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+		});
+	}
+
+	function handleFlowSurfaceContextMenu(event: MouseEvent) {
+		if (!editMode || !flowApi) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const selectedNodeIds = flowNodes.filter((node) => node.selected).map((node) => node.id);
+		if (selectedNodeIds.length > 1) {
+			void openGraphContextMenu({
+				kind: "selection",
+				x: event.clientX,
+				y: event.clientY,
+				nodeIds: selectedNodeIds,
+			});
+			return;
+		}
+		handleCanvasContextMenu(event);
+	}
+
+	function addNodeFromCanvas(nodeType: AutomationNodeType) {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind === "canvas") addNode(nodeType, state.position);
+	}
+
+	function pasteFromCanvas() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind === "canvas") handlePaste(state.position);
+	}
+
+	function handleNodeContextMenu(event: MouseEvent, node: Node) {
+		if (!editMode && node.type !== "trigger") return;
+		event.preventDefault();
+		event.stopPropagation();
+		const selectedNodeIds = flowNodes.filter((candidate) => candidate.selected).map((candidate) => candidate.id);
+		if (editMode && node.selected && selectedNodeIds.length > 1) {
+			void openGraphContextMenu({
+				kind: "selection",
+				x: event.clientX,
+				y: event.clientY,
+				nodeIds: selectedNodeIds,
+			});
+			return;
+		}
+		void openGraphContextMenu({
+			kind: "node",
+			x: event.clientX,
+			y: event.clientY,
+			nodeId: node.id,
+		});
+	}
+
+	async function handleOpenGraphContextMenu(event: MouseEvent) {
+		if (!graphContextMenuOpen || !flowApi || !flowSurface) return;
+		event.preventDefault();
+		const { clientX, clientY } = event;
+		graphContextMenuOpen = false;
+		await tick();
+
+		const bounds = flowSurface.getBoundingClientRect();
+		if (
+			clientX < bounds.left ||
+			clientX > bounds.right ||
+			clientY < bounds.top ||
+			clientY > bounds.bottom
+		) {
+			graphContextMenuState = null;
+			return;
+		}
+
+		const target = document.elementFromPoint(clientX, clientY);
+		const nodeElement = target?.closest<HTMLElement>(".svelte-flow__node");
+		const nodeId = nodeElement?.dataset.id;
+		const node = nodeId ? flowNodes.find((candidate) => candidate.id === nodeId) : undefined;
+		if (node && (editMode || node.type === "trigger")) {
+			const selectedNodeIds = flowNodes.filter((candidate) => candidate.selected).map((candidate) => candidate.id);
+			if (editMode && node.selected && selectedNodeIds.length > 1) {
+				await openGraphContextMenu({ kind: "selection", x: clientX, y: clientY, nodeIds: selectedNodeIds });
+				return;
+			}
+			await openGraphContextMenu({ kind: "node", x: clientX, y: clientY, nodeId: node.id });
+			return;
+		}
+		if (!editMode) {
+			graphContextMenuState = null;
+			return;
+		}
+
+		await openGraphContextMenu({
+			kind: "canvas",
+			x: clientX,
+			y: clientY,
+			position: flowApi.screenToFlowPosition({ x: clientX, y: clientY }),
+		});
+	}
+
+	function toggleNodeLock() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind !== "node") return;
+		const next = new Set(lockedNodeIds);
+		if (next.has(state.nodeId)) next.delete(state.nodeId);
+		else next.add(state.nodeId);
+		lockedNodeIds = next;
+		flowNodes = flowNodes.map((node) =>
+			node.id === state.nodeId ? { ...node, draggable: !next.has(state.nodeId) } : node
+		);
+	}
+
+	function toggleSelectionLock() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind !== "selection") return;
+		const next = new Set(lockedNodeIds);
+		const unlock = state.nodeIds.every((id) => next.has(id));
+		for (const id of state.nodeIds) {
+			if (unlock) next.delete(id);
+			else next.add(id);
+		}
+		lockedNodeIds = next;
+		flowNodes = flowNodes.map((node) =>
+			state.nodeIds.includes(node.id) ? { ...node, draggable: !next.has(node.id) } : node
+		);
+	}
+
+	function deleteNodeFromContextMenu() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind === "node") deleteNode(state.nodeId);
+	}
+
+	function deleteSelectionFromContextMenu() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind !== "selection") return;
+		const deletedIds = new Set(state.nodeIds);
+		flowNodes = flowNodes.filter((node) => !deletedIds.has(node.id));
+		flowEdges = flowEdges.filter(
+			(edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target)
+		);
+		const nextLocked = new Set(lockedNodeIds);
+		for (const id of state.nodeIds) nextLocked.delete(id);
+		lockedNodeIds = nextLocked;
+		takeSnapshot();
+	}
+
+	function copyNodeFromContextMenu() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (state?.kind !== "node") return;
+		const node = flowNodes.find((candidate) => candidate.id === state.nodeId);
+		if (node) copyNodes([node]);
+	}
+
+	function fireTriggerFromContextMenu() {
+		const state = graphContextMenuState;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (savedAutomationEnabled && state?.kind === "node") void handleFireTrigger(state.nodeId);
+	}
+
+	async function copyTriggerConditionFromContextMenu() {
+		const node = graphContextMenuNode;
+		graphContextMenuOpen = false;
+		graphContextMenuState = null;
+		if (node?.type !== "trigger") return;
+		const config = (node.data as Record<string, unknown>).config as TriggerConfig;
+		await navigator.clipboard.writeText(generateFilterExpr(config));
 	}
 
 	function handleConnect(_connection: Connection) {
@@ -975,8 +1439,10 @@
 		switch (targetType) {
 			case "device":
 				return deviceList.find((d) => d.id === targetId)?.name ?? "";
-			case "group":
-				return groupList.find((g) => g.id === targetId)?.name ?? "";
+			case "group": {
+				const group = groupList.find((candidate) => candidate.id === targetId);
+				return group ? groupDisplayName(group) : "";
+			}
 			case "room":
 				return roomList.find((r) => r.id === targetId)?.name ?? "";
 			case "scene":
@@ -1130,8 +1596,8 @@
 			});
 	}
 
-	async function handleFireManual(nodeId: string) {
-		if (!client || !automationId) return;
+	async function handleFireTrigger(nodeId: string) {
+		if (!client || !automationId || !savedAutomationEnabled) return;
 		errors.clear();
 		const result = await client
 			.mutation(FIRE_AUTOMATION_TRIGGER, { automationId, nodeId })
@@ -1144,18 +1610,12 @@
 	function updateNodeEditability(isEditable: boolean) {
 		flowNodes = flowNodes.map((n) => ({
 			...n,
-			data: { ...n.data, editable: isEditable },
+			data: { ...n.data, readOnly: !isEditable },
 		}));
 	}
 
-	async function handleGoLive() {
+	function handleGoLive() {
 		if (!editMode || liveDisabled) return;
-		if (isDirty) {
-			await handleSave();
-			// If save was rejected (network error or late validation failure),
-			// don't leave Edit mode.
-			if (isDirty) return;
-		}
 		toggleMode();
 	}
 
@@ -1203,6 +1663,8 @@
 
 		if (result.data) {
 			const auto = result.data.updateAutomation;
+			savedAutomationEnabled = auto.enabled;
+			automationCompilable = auto.compilable;
 			const oldIds = flowNodes.map((n) => n.id);
 			const newIds = auto.nodes.map((n) => n.id);
 			const idsChanged = oldIds.length !== newIds.length || oldIds.some((id, i) => id !== newIds[i]);
@@ -1244,14 +1706,16 @@
 			.query<AutomationQueryResult>(AUTOMATION_QUERY, { id: automationId })
 			.toPromise()
 			.then((result) => {
-				loading = false;
 				if (result.data?.automation) {
 					const auto = result.data.automation;
 					automationName = auto.name;
 					automationIcon = auto.icon ?? null;
 					automationEnabled = auto.enabled;
+					savedAutomationEnabled = auto.enabled;
+					automationCompilable = auto.compilable;
 					flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
 					flowEdges = automationEdgesToFlowEdges(auto.edges);
+					initialAutoLayoutPending = placementMode === "auto" && flowNodes.length > 0;
 
 					let maxId = 0;
 					for (const n of auto.nodes) {
@@ -1265,6 +1729,7 @@
 						jsonString = flowStateToJson();
 						takeSnapshot();
 					}
+					loading = false;
 				});
 
 		client
@@ -1347,10 +1812,12 @@
 		for (const timeout of activatedNodes.values()) {
 			clearTimeout(timeout);
 		}
+		if (autoLayoutFrame !== null) cancelAnimationFrame(autoLayoutFrame);
+		if (layoutTweenFrame !== null) cancelAnimationFrame(layoutTweenFrame);
 	});
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} oncontextmenu={handleOpenGraphContextMenu} />
 <UnsavedGuard dirty={isDirty} />
 
 <div class="flex h-[calc(100vh-6rem)] flex-col">
@@ -1358,7 +1825,7 @@
 		<ErrorBanner class="mb-2" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
-	<div class="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+	<div class="flex flex-wrap items-center gap-2 pb-3">
 		{#if loading}
 			<div class="h-8 w-48 animate-pulse rounded-md bg-muted"></div>
 		{:else}
@@ -1389,6 +1856,7 @@
 			<Switch
 				checked={automationEnabled}
 				onCheckedChange={handleToggle}
+				disabled={!editMode}
 			/>
 
 			<div class="ml-auto flex items-center gap-2">
@@ -1432,25 +1900,66 @@
 		<div class="flex flex-1 items-center justify-center">
 			<div class="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
 		</div>
-	{:else if viewMode === "visual"}
-		<div class="relative flex-1" in:fly={{ y: -4, duration: 150 }}>
-			<AutomationFlow
-				bind:nodes={flowNodes}
-				bind:edges={flowEdges}
-				editable={editMode}
+		{:else if viewMode === "visual"}
+		<div class="relative mt-2 flex-1 overflow-hidden rounded-lg shadow-card">
+			<div class="dark absolute inset-0 bg-background">
+				<div
+					class="h-full w-full {initialAutoLayoutPending ? 'opacity-0' : ''}"
+					bind:this={flowSurface}
+					role="application"
+					aria-label="Automation graph"
+					oncontextmenu={handleFlowSurfaceContextMenu}
+					in:fly={{ y: -4, duration: 150 }}
+				>
+					<AutomationFlow
+					bind:nodes={flowNodes}
+					bind:edges={flowEdges}
+					editable={editMode}
+					nodesDraggable={editMode && placementMode === "free"}
 				onconnect={handleConnect}
 				onnodedragstop={takeSnapshot}
 				ondelete={takeSnapshot}
-				onReady={(api) => (flowApi = api)}
-			/>
-			<div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm">
+				onPaneContextMenu={handleCanvasContextMenu}
+						onNodeContextMenu={handleNodeContextMenu}
+						onReady={(api) => (flowApi = api)}
+						onNodesInitialized={applyInitialAutoLayout}
+					/>
+				</div>
+			</div>
+			<div class="absolute top-3 left-1/2 z-10 max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-lg bg-card/90 px-2 py-1.5 shadow-card backdrop-blur-sm">
+				<div class="no-scrollbar flex items-center gap-1 overflow-x-auto">
 				<Button variant="ghost" size="icon-sm" onclick={handleUndo} disabled={!editMode || !history.canUndo}>
 					<Undo2 class="size-3.5" />
 				</Button>
 				<Button variant="ghost" size="icon-sm" onclick={handleRedo} disabled={!editMode || !history.canRedo}>
 					<Redo2 class="size-3.5" />
 				</Button>
-				<Button variant="ghost" size="sm" onclick={handleSort} disabled={!editMode}>
+				<div class="flex items-center rounded-md border border-border dark:border-input">
+					<Button
+						variant={placementMode === "free" ? "secondary" : "ghost"}
+						size="sm"
+						class="h-7 rounded-r-none border-0"
+						disabled={!editMode}
+						onclick={() => setPlacementMode("free")}
+					>
+						Free
+					</Button>
+					<Button
+						variant={placementMode === "auto" ? "secondary" : "ghost"}
+						size="sm"
+						class="h-7 rounded-l-none border-0"
+						disabled={!editMode}
+						onclick={() => setPlacementMode("auto")}
+					>
+						Auto
+					</Button>
+				</div>
+				<Button
+					variant="ghost"
+					size="sm"
+					onclick={handleSort}
+					disabled={!editMode || placementMode === "auto"}
+				>
 					<Rows3 class="size-3.5" />
 					<span class="hidden sm:inline">Sort</span>
 				</Button>
@@ -1500,22 +2009,70 @@
 						</DropdownMenuContent>
 					</DropdownMenu>
 				{:else}
-					<Button variant="ghost" size="sm" onclick={() => addNode("trigger")} disabled={!editMode}>
-						<Zap class="size-3.5 text-automation-trigger" />
-						<span class="hidden sm:inline">Trigger</span>
-					</Button>
-					<Button variant="ghost" size="sm" onclick={() => addNode("condition")} disabled={!editMode}>
-						<ShieldCheck class="size-3.5 text-automation-condition" />
-						<span class="hidden sm:inline">Condition</span>
-					</Button>
-					<Button variant="ghost" size="sm" onclick={() => addNode("operator")} disabled={!editMode}>
-						<GitMerge class="size-3.5 text-automation-operator" />
-						<span class="hidden sm:inline">Operator</span>
-					</Button>
-					<Button variant="ghost" size="sm" onclick={() => addNode("action")} disabled={!editMode}>
-						<Play class="size-3.5 text-automation-action" />
-						<span class="hidden sm:inline">Action</span>
-					</Button>
+					<div
+						class="cursor-grab"
+						use:holdDrag={{
+							disabled: !editMode,
+							mouseImmediate: true,
+							onstart: (event) => startToolbarNodeDrag("trigger", event),
+							onmove: moveToolbarNodeDrag,
+							onend: endToolbarNodeDrag,
+							oncancel: cancelToolbarNodeDrag,
+						}}
+					>
+						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("trigger")} disabled={!editMode}>
+							<Zap class="size-3.5 text-automation-trigger" />
+							<span class="hidden sm:inline">Trigger</span>
+						</Button>
+					</div>
+					<div
+						class="cursor-grab"
+						use:holdDrag={{
+							disabled: !editMode,
+							mouseImmediate: true,
+							onstart: (event) => startToolbarNodeDrag("condition", event),
+							onmove: moveToolbarNodeDrag,
+							onend: endToolbarNodeDrag,
+							oncancel: cancelToolbarNodeDrag,
+						}}
+					>
+						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("condition")} disabled={!editMode}>
+							<ShieldCheck class="size-3.5 text-automation-condition" />
+							<span class="hidden sm:inline">Condition</span>
+						</Button>
+					</div>
+					<div
+						class="cursor-grab"
+						use:holdDrag={{
+							disabled: !editMode,
+							mouseImmediate: true,
+							onstart: (event) => startToolbarNodeDrag("operator", event),
+							onmove: moveToolbarNodeDrag,
+							onend: endToolbarNodeDrag,
+							oncancel: cancelToolbarNodeDrag,
+						}}
+					>
+						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("operator")} disabled={!editMode}>
+							<GitMerge class="size-3.5 text-automation-operator" />
+							<span class="hidden sm:inline">Operator</span>
+						</Button>
+					</div>
+					<div
+						class="cursor-grab"
+						use:holdDrag={{
+							disabled: !editMode,
+							mouseImmediate: true,
+							onstart: (event) => startToolbarNodeDrag("action", event),
+							onmove: moveToolbarNodeDrag,
+							onend: endToolbarNodeDrag,
+							oncancel: cancelToolbarNodeDrag,
+						}}
+					>
+						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("action")} disabled={!editMode}>
+							<Play class="size-3.5 text-automation-action" />
+							<span class="hidden sm:inline">Action</span>
+						</Button>
+					</div>
 				{/if}
 				<div class="mx-1 h-4 w-px bg-border"></div>
 				<div class="flex items-center rounded-md border border-border dark:border-input">
@@ -1539,9 +2096,93 @@
 						<span class="hidden sm:inline">Live</span>
 					</Button>
 				</div>
+				</div>
 			</div>
-		</div>
-	{:else}
+			</div>
+
+			<DropdownMenu bind:open={graphContextMenuOpen}>
+				<DropdownMenuTrigger
+					class="pointer-events-none fixed size-0 opacity-0"
+					style="left: {graphContextMenuState?.x ?? 0}px; top: {graphContextMenuState?.y ?? 0}px;"
+					aria-hidden="true"
+					tabindex={-1}
+				></DropdownMenuTrigger>
+				<DropdownMenuContent align="start" class="min-w-[10rem]">
+					{#if graphContextMenuState?.kind === "canvas"}
+						<DropdownMenuItem onclick={() => addNodeFromCanvas("trigger")}>
+							<Zap class="size-3.5 text-automation-trigger" />
+							Trigger
+						</DropdownMenuItem>
+						<DropdownMenuItem onclick={() => addNodeFromCanvas("condition")}>
+							<ShieldCheck class="size-3.5 text-automation-condition" />
+							Condition
+						</DropdownMenuItem>
+						<DropdownMenuItem onclick={() => addNodeFromCanvas("operator")}>
+							<GitMerge class="size-3.5 text-automation-operator" />
+							Operator
+						</DropdownMenuItem>
+						<DropdownMenuItem onclick={() => addNodeFromCanvas("action")}>
+							<Play class="size-3.5 text-automation-action" />
+							Action
+						</DropdownMenuItem>
+						{#if copyBuffer}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onclick={pasteFromCanvas}>
+								<ClipboardPaste class="size-3.5" />
+								Paste nodes
+							</DropdownMenuItem>
+						{/if}
+					{:else if graphContextMenuState?.kind === "node"}
+						{#if !editMode && graphContextMenuNode?.type === "trigger"}
+							<DropdownMenuItem disabled={!savedAutomationEnabled} onclick={fireTriggerFromContextMenu}>
+								<Zap class="size-3.5 text-automation-trigger" />
+								Trigger
+							</DropdownMenuItem>
+						{:else if editMode}
+							{#if graphContextMenuNode?.type === "trigger"}
+								<DropdownMenuItem onclick={copyTriggerConditionFromContextMenu}>
+									<Code class="size-3.5" />
+									Copy trigger condition
+								</DropdownMenuItem>
+							{/if}
+							<DropdownMenuItem onclick={toggleNodeLock}>
+								{#if lockedNodeIds.has(graphContextMenuState.nodeId)}
+									<LockOpen class="size-3.5" />
+									Unlock
+								{:else}
+									<Lock class="size-3.5" />
+									Lock
+								{/if}
+							</DropdownMenuItem>
+							<DropdownMenuItem onclick={copyNodeFromContextMenu}>
+								<Copy class="size-3.5" />
+								Copy
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem variant="destructive" onclick={deleteNodeFromContextMenu}>
+								<Trash2 class="size-3.5" />
+								Delete
+							</DropdownMenuItem>
+						{/if}
+					{:else if graphContextMenuState?.kind === "selection" && editMode}
+						<DropdownMenuItem onclick={toggleSelectionLock}>
+							{#if graphContextMenuSelectionAllLocked}
+								<LockOpen class="size-3.5" />
+								Unlock
+							{:else}
+								<Lock class="size-3.5" />
+								Lock
+							{/if}
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem variant="destructive" onclick={deleteSelectionFromContextMenu}>
+							<Trash2 class="size-3.5" />
+							Delete
+						</DropdownMenuItem>
+					{/if}
+				</DropdownMenuContent>
+			</DropdownMenu>
+		{:else}
 		<div class="relative flex-1 pt-2" in:fly={{ y: -4, duration: 150 }}>
 			<JsonEditor
 				bind:value={jsonString}
@@ -1557,6 +2198,32 @@
 					<span class="font-mono">{jsonError}</span>
 				</div>
 			{/if}
+		</div>
+	{/if}
+
+	{#if toolbarDrag}
+		<div
+			class="pointer-events-none fixed z-50 w-44 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 bg-card/95 shadow-card backdrop-blur-sm {toolbarDrag.nodeType === 'trigger'
+				? 'border-automation-trigger/60'
+				: toolbarDrag.nodeType === 'condition'
+					? 'border-automation-condition/60'
+					: toolbarDrag.nodeType === 'operator'
+						? 'border-automation-operator/60'
+						: 'border-automation-action/60'}"
+			style="left: {toolbarDrag.x}px; top: {toolbarDrag.y}px;"
+		>
+			<div class="flex items-center gap-2 rounded-t-md px-3 py-2">
+				{#if toolbarDrag.nodeType === "trigger"}
+					<Zap class="size-4 text-automation-trigger" />
+				{:else if toolbarDrag.nodeType === "condition"}
+					<ShieldCheck class="size-4 text-automation-condition" />
+				{:else if toolbarDrag.nodeType === "operator"}
+					<GitMerge class="size-4 text-automation-operator" />
+				{:else}
+					<Play class="size-4 text-automation-action" />
+				{/if}
+				<span class="text-sm font-medium">{toolbarNodeLabel(toolbarDrag.nodeType)}</span>
+			</div>
 		</div>
 	{/if}
 

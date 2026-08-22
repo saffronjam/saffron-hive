@@ -1,55 +1,81 @@
 import { describe, expect, it } from "vitest";
 import {
-	capabilityToExprProperty,
-	eventTypeForMode,
+  capabilityToExprProperty,
+  eventTypeForMode,
   generateFilterExpr,
-	normalizeTriggerConfig,
-	serializeTriggerConfig,
-	validateActionConfig,
+  normalizeTriggerConfig,
+  serializeTriggerConfig,
+  supportsDeviceEvents,
+  validateActionConfig,
   type TriggerConfig,
 } from "$lib/components/graph/trigger-expr";
 
 describe("capabilityToExprProperty", () => {
-	it.each([
-		["on_off", "on"],
-		["color_temp", "colorTemp"],
-		["target_temperature", "targetTemperature"],
-		["device_posture", "devicePosture"],
-		["link_quality", "linkQuality"],
-		["orientation", "orientation"],
-	])("maps %s to %s", (capability, property) => {
-		expect(capabilityToExprProperty(capability)).toBe(property);
-	});
+  it.each([
+    ["on_off", "on"],
+    ["color_temp", "colorTemp"],
+    ["target_temperature", "targetTemperature"],
+    ["device_posture", "devicePosture"],
+    ["link_quality", "linkQuality"],
+    ["orientation", "orientation"],
+  ])("maps %s to %s", (capability, property) => {
+    expect(capabilityToExprProperty(capability)).toBe(property);
+  });
 });
 
 describe("configure_device action validation", () => {
-	it("requires a direct device and at least one typed setting", () => {
-		expect(
-			validateActionConfig({
-				actionType: "configure_device",
-				targetType: "group",
-				targetId: "group-1",
-				payload: '{"settings":[]}',
-			}),
-		).toMatchObject({ field: "target" });
-		expect(
-			validateActionConfig({
-				actionType: "configure_device",
-				targetType: "device",
-				targetId: "sensor-1",
-				payload: '{"settings":[]}',
-			}),
-		).toMatchObject({ field: "payload" });
-		expect(
-			validateActionConfig({
-				actionType: "configure_device",
-				targetType: "device",
-				targetId: "sensor-1",
-				payload:
-					'{"settings":[{"capability":"fall_detection","booleanValue":true}]}',
-			}),
-		).toBeNull();
-	});
+  it("requires a direct device and at least one typed setting", () => {
+    expect(
+      validateActionConfig({
+        actionType: "configure_device",
+        targetType: "group",
+        targetId: "group-1",
+        payload: '{"settings":[]}',
+      }),
+    ).toMatchObject({ field: "target" });
+    expect(
+      validateActionConfig({
+        actionType: "configure_device",
+        targetType: "device",
+        targetId: "sensor-1",
+        payload: '{"settings":[]}',
+      }),
+    ).toMatchObject({ field: "payload" });
+    expect(
+      validateActionConfig({
+        actionType: "configure_device",
+        targetType: "device",
+        targetId: "sensor-1",
+        payload: '{"settings":[{"capability":"fall_detection","booleanValue":true}]}',
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("run_effect action validation", () => {
+  it("accepts a selector target", () => {
+    expect(
+      validateActionConfig({
+        actionType: "run_effect",
+        targetType: "expression",
+        targetId: "",
+        targetExpr: [{ subject: "device_type", op: "is", values: ["light"] }],
+        payload: '{"effect_id":"fireplace"}',
+      }),
+    ).toBeNull();
+  });
+
+  it("requires at least one selector rule", () => {
+    expect(
+      validateActionConfig({
+        actionType: "run_effect",
+        targetType: "expression",
+        targetId: "",
+        targetExpr: [],
+        payload: '{"effect_id":"fireplace"}',
+      }),
+    ).toMatchObject({ field: "target" });
+  });
 });
 
 function roundTrip(cfg: TriggerConfig): TriggerConfig {
@@ -70,16 +96,16 @@ describe("normalizeTriggerConfig mode recovery", () => {
     expect(round.deviceId).toBe("0x1234");
   });
 
-  it("button_action: uses device.action_fired event type", () => {
-    expect(eventTypeForMode("button_action")).toBe("device.action_fired");
+  it("device_event: uses device.action_fired event type", () => {
+    expect(eventTypeForMode("device_event")).toBe("device.action_fired");
   });
 
-  it("button_action: generates payload-based filter, not device-state lookup", () => {
+  it("device_event: generates payload-based filter, not device-state lookup", () => {
     const filter = generateFilterExpr({
-      mode: "button_action",
+      mode: "device_event",
       deviceId: "0xABCD",
       deviceName: "Bedroom switch",
-      actionValue: "single",
+      eventValue: "single",
     });
     expect(filter).toBe('trigger.device_id == "0xABCD" && trigger.payload.action == "single"');
     expect(filter).not.toContain("device(");
@@ -94,41 +120,47 @@ describe("normalizeTriggerConfig mode recovery", () => {
     "on_press",
     "on_press_release",
     "arrow_left_click",
-  ])("button_action: round-trips action value %s", (actionValue) => {
+    "triple_tap",
+    "movement",
+    "vibration",
+    "orientation",
+    "fall",
+    "static",
+  ])("device_event: round-trips event value %s", (eventValue) => {
     const cfg: TriggerConfig = {
-      mode: "button_action",
+      mode: "device_event",
       eventType: "device.action_fired",
       deviceId: "0xABCD",
       deviceName: "Bedroom switch",
-      actionValue,
+      eventValue,
     };
     const round = roundTrip(cfg);
-    expect(round.mode).toBe("button_action");
+    expect(round.mode).toBe("device_event");
     expect(round.eventType).toBe("device.action_fired");
     expect(round.deviceId).toBe("0xABCD");
-    expect(round.actionValue).toBe(actionValue);
+    expect(round.eventValue).toBe(eventValue);
   });
 
-  it("button_action: device-only filter (no actionValue) round-trips and matches any action", () => {
+  it("device_event: device-only filter round-trips and matches any event", () => {
     const cfg: TriggerConfig = {
-      mode: "button_action",
+      mode: "device_event",
       eventType: "device.action_fired",
       deviceId: "0xDEAD",
     };
     const filter = generateFilterExpr(cfg);
     expect(filter).toBe('trigger.device_id == "0xDEAD"');
     const round = roundTrip(cfg);
-    expect(round.mode).toBe("button_action");
+    expect(round.mode).toBe("device_event");
     expect(round.deviceId).toBe("0xDEAD");
-    expect(round.actionValue).toBeUndefined();
+    expect(round.eventValue).toBeUndefined();
   });
 
-  it("button_action: escapes quotes and backslashes in actionValue", () => {
+  it("device_event: escapes quotes and backslashes in eventValue", () => {
     const cfg: TriggerConfig = {
-      mode: "button_action",
+      mode: "device_event",
       eventType: "device.action_fired",
       deviceId: "0xABCD",
-      actionValue: 'weird"action\\value',
+      eventValue: 'weird"action\\value',
     };
     const filter = generateFilterExpr(cfg);
     expect(filter).toBe(
@@ -136,14 +168,22 @@ describe("normalizeTriggerConfig mode recovery", () => {
     );
   });
 
-  it("button_action: empty config (no deviceId) returns true filter", () => {
-    const filter = generateFilterExpr({ mode: "button_action" });
+  it("device_event: empty config (no deviceId) returns true filter", () => {
+    const filter = generateFilterExpr({ mode: "device_event" });
     expect(filter).toBe("true");
   });
 
-  it("button_action: a device(X).action filter falls back to custom mode", () => {
-    // Old broken filters on device.state_changed are not auto-migrated;
-    // they surface as custom so the user can see and rewrite them.
+  it("includes sensors that expose device events", () => {
+    expect(
+      supportsDeviceEvents({
+        capabilities: [{ name: "orientation" }, { name: "action" }, { name: "device_posture" }],
+      }),
+    ).toBe(true);
+    expect(supportsDeviceEvents({ capabilities: [{ name: "contact" }] })).toBe(false);
+  });
+
+  it("device_event: a state lookup for action falls back to custom mode", () => {
+    // An event value is not persistent device state, so this expression remains custom.
     const raw = {
       kind: "event",
       event_type: "device.state_changed",
@@ -154,7 +194,7 @@ describe("normalizeTriggerConfig mode recovery", () => {
     expect(round.customExpr).toBe(raw.filter_expr);
   });
 
-  it("device_state (numeric): recovers deviceName, property, comparator, value", () => {
+  it("device_state scopes the predicate to the changed device and field", () => {
     const cfg: TriggerConfig = {
       mode: "device_state",
       eventType: "device.state_changed",
@@ -164,9 +204,12 @@ describe("normalizeTriggerConfig mode recovery", () => {
       comparator: ">",
       value: "22",
     };
+    expect(generateFilterExpr(cfg)).toBe(
+      'trigger.device_id == "0x9999" && trigger.payload.state.temperature != nil && trigger.payload.state.temperature > 22',
+    );
     const round = roundTrip(cfg);
     expect(round.mode).toBe("device_state");
-    expect(round.deviceName).toBe("Thermo");
+    expect(round.deviceId).toBe("0x9999");
     expect(round.property).toBe("temperature");
     expect(round.comparator).toBe(">");
     expect(round.value).toBe("22");

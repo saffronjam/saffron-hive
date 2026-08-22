@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -12,8 +12,7 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { ShieldCheck, Trash2 } from "@lucide/svelte";
+	import { ShieldCheck } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
@@ -30,13 +29,12 @@
 
 	interface ConditionNodeData extends Record<string, unknown> {
 		config: ConditionConfig;
-		editable: boolean;
+		readOnly: boolean;
 		activated: boolean;
 		devices: Device[];
 		groups?: (GroupLite & { name: string })[];
 		rooms?: (RoomLite & { name: string })[];
 		onConfigChange?: (config: ConditionConfig) => void;
-		onDelete?: () => void;
 	}
 
 	interface TargetItem {
@@ -44,6 +42,7 @@
 		id: string;
 		name: string;
 		deviceType?: string;
+		removed?: boolean;
 	}
 
 	function targetKey(t: TargetItem): string {
@@ -68,10 +67,9 @@
 	interface Props {
 		data: ConditionNodeData;
 		id: string;
-		selected?: boolean;
 	}
 
-	let { data, id, selected = false }: Props = $props();
+	let { data, id }: Props = $props();
 
 	const modes: { value: ConditionMode; label: string }[] = [
 		{ value: "time_window", label: "Time window" },
@@ -179,7 +177,7 @@
 			items.push({ kind: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type });
 		}
 		for (const g of data.groups ?? []) {
-			items.push({ kind: "group", id: g.id, name: g.name });
+			items.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
 		}
 		for (const r of data.rooms ?? []) {
 			items.push({ kind: "room", id: r.id, name: r.name });
@@ -190,6 +188,16 @@
 	const selectedTargetKey = $derived(
 		data.config.targetId ? `${data.config.targetType ?? "device"}:${data.config.targetId}` : "",
 	);
+	const selectedTargetFallback = $derived.by<TargetItem | null>(() => {
+		if (data.config.targetType !== "group" || !data.config.targetId) return null;
+		if (targetItems.some((item) => targetKey(item) === selectedTargetKey)) return null;
+		return {
+			kind: "group",
+			id: data.config.targetId,
+			name: data.config.targetName || data.config.targetId,
+			removed: true,
+		};
+	});
 
 	const selectedDevice = $derived.by<Device | undefined>(() => {
 		if (data.config.targetType !== "device" && data.config.targetType !== undefined) return undefined;
@@ -222,44 +230,12 @@
 		modes.find((m) => m.value === data.config.mode)?.label ?? "Custom"
 	);
 
-	function readableSummary(): string {
-		switch (data.config.mode) {
-			case "time_window": {
-				const parts: string[] = [];
-				const fmt = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-				if (data.config.afterHour !== undefined) {
-					parts.push(`after ${fmt(data.config.afterHour, data.config.afterMinute ?? 0)}`);
-				}
-				if (data.config.beforeHour !== undefined) {
-					parts.push(`before ${fmt(data.config.beforeHour, data.config.beforeMinute ?? 0)}`);
-				}
-				return parts.length > 0 ? parts.join(" & ") : "Any time";
-			}
-			case "weekday": {
-				const days = data.config.weekdays ?? [];
-				if (days.length === 0) return "Any day";
-				return days.map((d) => d.slice(0, 3)).join(", ");
-			}
-			case "device_state": {
-				const bits: string[] = [];
-				if (data.config.targetName) bits.push(data.config.targetName);
-				if (data.config.property) {
-					bits.push(`${data.config.property} ${data.config.comparator ?? "=="} ${data.config.value ?? ""}`);
-				}
-				return bits.join(": ") || "No condition set";
-			}
-			case "custom":
-				return data.config.customExpr || "true";
-		}
-	}
 </script>
 
 <div
 	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-automation-condition shadow-automation-condition/50 shadow-lg'
-		: selected
-			? 'border-automation-condition ring-2 ring-automation-condition/30'
-			: 'border-automation-condition/40'}"
+		: 'border-automation-condition/40'}"
 	data-nodeid={id}
 >
 	<Handle type="target" position={Position.Left} class="!bg-automation-condition !border-automation-condition !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
@@ -267,31 +243,11 @@
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-condition/15 px-3 py-2">
 		<ShieldCheck class="size-4 text-automation-condition" />
 		<span class="text-sm font-medium text-automation-condition">Condition</span>
-		{#if !data.editable}
-			<Badge
-				variant="outline"
-				class="ml-auto text-[10px] border-automation-condition/30 bg-automation-condition/10 text-automation-condition"
-			>{modeLabel}</Badge>
-		{:else}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
-				onclick={(e) => {
-					e.stopPropagation();
-					data.onDelete?.();
-				}}
-				aria-label="Delete condition node"
-			>
-				<Trash2 class="size-3.5" />
-			</Button>
-		{/if}
 	</div>
 
-	<div class="space-y-2 p-3 nodrag">
-		{#if data.editable}
-			<Select type="single" value={data.config.mode} onValueChange={handleModeChange}>
-				<SelectTrigger class="w-full text-xs">{modeLabel}</SelectTrigger>
+	<fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-3 nodrag">
+			<Select type="single" value={data.config.mode} onValueChange={handleModeChange} disabled={data.readOnly}>
+				<SelectTrigger size="sm" class="w-full text-xs">{modeLabel}</SelectTrigger>
 				<SelectContent>
 					{#each modes as m (m.value)}
 						<SelectItem value={m.value}>{m.label}</SelectItem>
@@ -366,16 +322,20 @@
 				<HiveSelectAutocomplete
 					items={targetItems}
 					value={selectedTargetKey}
+					selectedFallback={selectedTargetFallback}
 					getValue={targetKey}
 					getLabel={(t) => t.name}
 					placeholder="Select target"
 					size="sm"
+					disabled={data.readOnly}
 					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handleTargetChange(v)}
 				>
 					{#snippet renderSelected(t: TargetItem)}
-						<span class="truncate">{t.name}</span>
-						{#if t.kind === "device" && t.deviceType}
+						<span class="truncate {t.removed ? 'text-muted-foreground' : ''}">{t.name}</span>
+						{#if t.removed}
+							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">Removed</Badge>
+						{:else if t.kind === "device" && t.deviceType}
 							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
 						{:else}
 							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">{t.kind}</Badge>
@@ -401,6 +361,7 @@
 						getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
 						placeholder="Select property"
 						size="sm"
+						disabled={data.readOnly}
 						class={validationError?.field === "property" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 						onchange={(v) => handlePropertyChange(v)}
 					>
@@ -418,9 +379,10 @@
 						<Select
 							type="single"
 							value={data.config.value ?? "true"}
+							disabled={data.readOnly}
 							onValueChange={(v) => v && update({ comparator: "==", value: v })}
 						>
-							<SelectTrigger class="w-full text-xs">
+							<SelectTrigger size="sm" class="w-full text-xs">
 								{data.config.value === "false" ? "Off" : "On"}
 							</SelectTrigger>
 							<SelectContent>
@@ -433,9 +395,10 @@
 							<Select
 								type="single"
 								value={data.config.comparator ?? "=="}
+								disabled={data.readOnly}
 								onValueChange={(v) => v && update({ comparator: v })}
 							>
-								<SelectTrigger class="w-14 shrink-0 text-xs">
+								<SelectTrigger size="sm" class="w-14 shrink-0 text-xs">
 									{comparators.find((c) => c.value === data.config.comparator)?.label ?? "="}
 								</SelectTrigger>
 								<SelectContent>
@@ -463,6 +426,7 @@
 							getLabel={(v) => sentenceCase(v)}
 							placeholder="Select value"
 							size="sm"
+							disabled={data.readOnly}
 							class={validationError?.field === "value" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 							onchange={(v) => v && update({ comparator: "==", value: v })}
 						/>
@@ -471,9 +435,10 @@
 							<Select
 								type="single"
 								value={data.config.comparator ?? "=="}
+								disabled={data.readOnly}
 								onValueChange={(v) => v && update({ comparator: v })}
 							>
-								<SelectTrigger class="w-14 shrink-0 text-xs">
+								<SelectTrigger size="sm" class="w-14 shrink-0 text-xs">
 									{comparators.find((c) => c.value === data.config.comparator)?.label ?? "="}
 								</SelectTrigger>
 								<SelectContent>
@@ -511,18 +476,10 @@
 			<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
 				{generatedExpr}
 			</p>
-		{:else}
-			<p class="text-xs text-foreground">{readableSummary()}</p>
-			{#if generatedExpr !== "true"}
-				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
-					{generatedExpr}
-				</p>
-			{/if}
-		{/if}
-		{#if validationError && data.editable}
+		{#if validationError && !data.readOnly}
 			<p class="text-[10px] text-destructive">{validationError.message}</p>
 		{/if}
-	</div>
+	</fieldset>
 
 	<Handle type="source" position={Position.Right} class="!bg-automation-condition !border-automation-condition !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />
 </div>

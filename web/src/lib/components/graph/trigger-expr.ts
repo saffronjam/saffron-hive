@@ -1,6 +1,6 @@
 export type TriggerMode =
   | "device_state"
-  | "button_action"
+  | "device_event"
   | "availability"
   | "schedule"
   | "manual"
@@ -21,7 +21,7 @@ export interface TriggerConfig {
   property?: string;
   comparator?: string;
   value?: string;
-  actionValue?: string;
+  eventValue?: string;
   customExpr?: string;
   // schedule-trigger fields
   scheduleSubmode?: ScheduleSubmode;
@@ -63,6 +63,12 @@ export function capabilityToExprProperty(capName: string): string {
   return capToExprProperty[capName] ?? capName;
 }
 
+export function supportsDeviceEvents(device: {
+  capabilities: readonly { name: string }[];
+}): boolean {
+  return device.capabilities.some((capability) => capability.name === "action");
+}
+
 function escapeExprString(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
@@ -76,8 +82,8 @@ function isNumericString(s: string): boolean {
 export function generateFilterExpr(config: TriggerConfig): string {
   switch (config.mode) {
     case "device_state": {
-      if (!config.deviceName || !config.property) return "true";
-      const prop = `device("${escapeExprString(config.deviceName)}").${config.property}`;
+      if (!config.deviceId || !config.property) return "true";
+      const prop = `trigger.payload.state.${config.property}`;
       const cmp = config.comparator ?? "==";
       const val = config.value ?? "";
       if (val === "") return "true";
@@ -89,14 +95,14 @@ export function generateFilterExpr(config: TriggerConfig): string {
       } else {
         formatted = `"${escapeExprString(val)}"`;
       }
-      return `${prop} ${cmp} ${formatted}`;
+      return `trigger.device_id == "${escapeExprString(config.deviceId)}" && ${prop} != nil && ${prop} ${cmp} ${formatted}`;
     }
-    case "button_action": {
+    case "device_event": {
       if (!config.deviceId) return "true";
       const parts: string[] = [];
       parts.push(`trigger.device_id == "${escapeExprString(config.deviceId)}"`);
-      if (config.actionValue) {
-        parts.push(`trigger.payload.action == "${escapeExprString(config.actionValue)}"`);
+      if (config.eventValue) {
+        parts.push(`trigger.payload.action == "${escapeExprString(config.eventValue)}"`);
       }
       return parts.join(" && ");
     }
@@ -214,7 +220,7 @@ export function eventTypeForMode(mode: TriggerMode): string {
   switch (mode) {
     case "device_state":
       return "device.state_changed";
-    case "button_action":
+    case "device_event":
       return "device.action_fired";
     case "availability":
       return "device.availability_changed";
@@ -255,7 +261,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     return { mode: "manual", graceMs, cooldownMs };
   }
 
-  // Schedule trigger (new shape)
+  // Schedule trigger
   if (raw.kind === "schedule" || (typeof raw.cron_expr === "string" && raw.cron_expr !== "")) {
     const cron = (raw.cron_expr as string) ?? "";
     // Try to detect sub-mode
@@ -294,8 +300,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     };
   }
 
-  // Event trigger. Several key spellings are accepted because rows written by
-  // different editor versions coexist at rest.
+  // Event-trigger fields can arrive in either persisted or in-memory casing.
   const eventType =
     (raw.event_type as string) ?? (raw.eventType as string) ?? "device.state_changed";
   const filter =
@@ -305,7 +310,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     (raw.customExpr as string) ??
     "";
 
-  // Reverse-engineer the UI mode from the filter expression shape.
+  // Derive the UI mode from the filter expression shape.
   // deviceName can't be recovered from `trigger.device_id ==`-only filters;
   // the UI will fill it by looking up deviceId in the devices list.
   if (eventType === "device.availability_changed") {
@@ -315,31 +320,48 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     }
   }
   if (eventType === "device.action_fired") {
-    const btnFull = filter.match(
+    const eventWithValue = filter.match(
       /^trigger\.device_id == "([^"]+)" && trigger\.payload\.action == "([^"]+)"$/,
     );
-    if (btnFull) {
+    if (eventWithValue) {
       return {
-        mode: "button_action",
+        mode: "device_event",
         eventType,
-        deviceId: btnFull[1],
-        actionValue: btnFull[2],
+        deviceId: eventWithValue[1],
+        eventValue: eventWithValue[2],
         graceMs,
         cooldownMs,
       };
     }
-    const btnDevOnly = filter.match(/^trigger\.device_id == "([^"]+)"$/);
-    if (btnDevOnly) {
+    const eventDeviceOnly = filter.match(/^trigger\.device_id == "([^"]+)"$/);
+    if (eventDeviceOnly) {
       return {
-        mode: "button_action",
+        mode: "device_event",
         eventType,
-        deviceId: btnDevOnly[1],
+        deviceId: eventDeviceOnly[1],
         graceMs,
         cooldownMs,
       };
     }
   }
   if (eventType === "device.state_changed") {
+    const scoped = filter.match(
+      /^trigger\.device_id == "([^"]+)" && trigger\.payload\.state\.(\w+) != nil && trigger\.payload\.state\.\2\s*(==|!=|<=|>=|<|>)\s*(.+)$/,
+    );
+    if (scoped) {
+      let val = scoped[4].trim();
+      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+      return {
+        mode: "device_state",
+        eventType,
+        deviceId: scoped[1],
+        property: scoped[2],
+        comparator: scoped[3],
+        value: val,
+        graceMs,
+        cooldownMs,
+      };
+    }
     const ds = filter.match(/^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/);
     if (ds) {
       let val = ds[4].trim();
@@ -413,14 +435,11 @@ export function serializeActionConfig(config: {
   });
 }
 
-// Legacy alias so existing callers keep working until we update them all.
-export const generateConditionExpr = generateFilterExpr;
-
 export type TriggerField =
   | "device"
   | "property"
   | "value"
-  | "actionValue"
+  | "eventValue"
   | "interval"
   | "cronExpr"
   | "customExpr";
@@ -439,9 +458,9 @@ export function validateTriggerConfig(config: TriggerConfig): ValidationError<Tr
         return { field: "value", message: "Set a value" };
       }
       return null;
-    case "button_action":
+    case "device_event":
       if (!config.deviceId) return { field: "device", message: "Pick a device" };
-      if (!config.actionValue) return { field: "actionValue", message: "Pick an action" };
+      if (!config.eventValue) return { field: "eventValue", message: "Pick an event" };
       return null;
     case "availability":
       if (!config.deviceId) return { field: "device", message: "Pick a device" };
@@ -519,19 +538,15 @@ export function validateActionConfig(
   if (config.actionType === "run_effect") {
     try {
       const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;
-      if (
-        !parsed.effect_id ||
-        typeof parsed.effect_id !== "string" ||
-        parsed.effect_id.trim() === ""
-      ) {
+      const hasEffect = typeof parsed.effect_id === "string" && parsed.effect_id.trim() !== "";
+      const hasNative = typeof parsed.native_name === "string" && parsed.native_name.trim() !== "";
+      if (hasEffect === hasNative) {
         return { field: "payload", message: "Pick an effect" };
       }
     } catch {
       return { field: "payload", message: "Payload must be valid JSON" };
     }
-    if (!config.targetType || !config.targetId) {
-      return { field: "target", message: "Pick a target" };
-    }
+    if (!targetSelected(config)) return targetError(config);
     return null;
   }
   if (config.actionType === "cycle_scenes") {

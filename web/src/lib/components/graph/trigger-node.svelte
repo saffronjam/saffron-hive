@@ -9,11 +9,14 @@
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import NumberInput from "$lib/components/number-input.svelte";
-	import { Badge } from "$lib/components/ui/badge/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
-	import { Zap, Trash2 } from "@lucide/svelte";
+	import {
+		Tooltip,
+		TooltipContent,
+		TooltipTrigger,
+	} from "$lib/components/ui/tooltip/index.js";
+	import { ChevronDown, ChevronRight, Info, Zap } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
@@ -21,38 +24,33 @@
 		type TriggerConfig,
 		type TriggerMode,
 		type ScheduleSubmode,
-		generateFilterExpr,
 		generateCronExpr,
 		humanizeCron,
 		eventTypeForMode,
 		capabilityToExprProperty,
+		supportsDeviceEvents,
 		validateTriggerConfig,
 		TIMING_PRESETS,
 	} from "./trigger-expr";
-	import { ChevronDown, ChevronRight } from "@lucide/svelte";
 
 	interface TriggerNodeData extends Record<string, unknown> {
 		config: TriggerConfig;
-		editable: boolean;
+		readOnly: boolean;
 		activated: boolean;
 		devices: Device[];
-		automationEnabled?: boolean;
 		onConfigChange?: (config: TriggerConfig) => void;
-		onFireManual?: () => void;
-		onDelete?: () => void;
 	}
 
 	interface Props {
 		data: TriggerNodeData;
 		id: string;
-		selected?: boolean;
 	}
 
-	let { data, id, selected = false }: Props = $props();
+	let { data, id }: Props = $props();
 
 	const modes: { value: TriggerMode; label: string }[] = [
-		{ value: "device_state", label: "Device State" },
-		{ value: "button_action", label: "Button Action" },
+		{ value: "device_state", label: "Device state changed" },
+		{ value: "device_event", label: "Device Event" },
 		{ value: "availability", label: "Availability" },
 		{ value: "schedule", label: "Schedule" },
 		{ value: "manual", label: "Manual" },
@@ -138,7 +136,7 @@
 			property: undefined,
 			comparator: undefined,
 			value: undefined,
-			actionValue: undefined,
+			eventValue: undefined,
 		});
 	}
 
@@ -172,20 +170,19 @@
 		);
 	});
 
-	const actionCapability = $derived.by((): Capability | undefined => {
+	const eventCapability = $derived.by((): Capability | undefined => {
 		if (!selectedDevice) return undefined;
 		return selectedDevice.capabilities.find((c) => c.name === "action");
 	});
 
 	const devicesForMode = $derived.by((): Device[] => {
 		const devs = data.devices ?? [];
-		if (data.config.mode === "button_action") {
-			return devs.filter((d) => d.capabilities.some((c) => c.name === "action"));
+		if (data.config.mode === "device_event") {
+			return devs.filter(supportsDeviceEvents);
 		}
 		return devs;
 	});
 
-	const generatedExpr = $derived(generateFilterExpr(data.config));
 	const generatedCron = $derived(generateCronExpr(data.config));
 	const humanSchedule = $derived(humanizeCron(generatedCron));
 	const validationError = $derived(validateTriggerConfig(data.config));
@@ -216,7 +213,6 @@
 	const modeLabel = $derived(
 		modes.find((m) => m.value === data.config.mode)?.label ?? "Custom"
 	);
-
 	let advancedOpen = $state(false);
 	const graceMs = $derived(data.config.graceMs ?? 0);
 	const cooldownMs = $derived(data.config.cooldownMs ?? 0);
@@ -237,78 +233,28 @@
 		update({ cooldownMs: next });
 	}
 
-	function readableSummary(): string {
-		switch (data.config.mode) {
-			case "device_state": {
-				const parts: string[] = [];
-				if (data.config.deviceName) parts.push(data.config.deviceName);
-				if (data.config.property) {
-					const cmp = data.config.comparator ?? "==";
-					const val = data.config.value ?? "";
-					parts.push(`${data.config.property} ${cmp} ${val}`);
-				}
-				return parts.join(": ") || "No condition set";
-			}
-			case "button_action": {
-				const parts: string[] = [];
-				if (data.config.deviceName) parts.push(data.config.deviceName);
-				if (data.config.actionValue) parts.push(data.config.actionValue);
-				return parts.join(": ") || "No action set";
-			}
-			case "availability":
-				return data.config.deviceName ?? "No device set";
-			case "schedule":
-				return humanSchedule;
-			case "manual":
-				return "Manual trigger";
-			case "custom":
-				return data.config.customExpr || "true";
-			default:
-				return "Unknown";
-		}
-	}
 </script>
 
 <div
 	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-automation-trigger shadow-automation-trigger/50 shadow-lg'
-		: selected
-			? 'border-automation-trigger ring-2 ring-automation-trigger/30'
-			: 'border-automation-trigger/40'}"
+		: 'border-automation-trigger/40'}"
 	data-nodeid={id}
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-trigger/15 px-3 py-2">
 		<Zap class="size-4 text-automation-trigger" />
 		<span class="text-sm font-medium text-automation-trigger">Trigger</span>
-		{#if !data.editable}
-			<Badge
-				variant="outline"
-				class="ml-auto text-[10px] border-automation-trigger/30 bg-automation-trigger/10 text-automation-trigger"
-			>{modeLabel}</Badge>
-		{:else}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="nodrag ml-auto size-6 text-white hover:bg-destructive/15 hover:text-white transition-opacity duration-200 {selected ? 'opacity-100' : 'pointer-events-none opacity-0'}"
-				onclick={(e) => {
-					e.stopPropagation();
-					data.onDelete?.();
-				}}
-				aria-label="Delete trigger node"
-			>
-				<Trash2 class="size-3.5" />
-			</Button>
-		{/if}
 	</div>
 
-	<div class="space-y-2 p-3 nodrag">
-		{#if data.editable}
+	<div class="min-w-0 p-3 nodrag">
+		<fieldset disabled={data.readOnly} inert={data.readOnly} class="space-y-2 border-0 p-0">
 			<Select
 				type="single"
 				value={data.config.mode}
+				disabled={data.readOnly}
 				onValueChange={handleModeChange}
 			>
-				<SelectTrigger class="w-full text-xs">
+				<SelectTrigger size="sm" class="w-full text-xs">
 					{modeLabel}
 				</SelectTrigger>
 				<SelectContent>
@@ -318,7 +264,7 @@
 				</SelectContent>
 			</Select>
 
-			{#if data.config.mode === "device_state" || data.config.mode === "button_action" || data.config.mode === "availability"}
+			{#if data.config.mode === "device_state" || data.config.mode === "device_event" || data.config.mode === "availability"}
 				<HiveSelectAutocomplete
 					items={devicesForMode}
 					value={data.config.deviceId ?? ""}
@@ -328,16 +274,17 @@
 					chipMatchers={deviceChipMatchers}
 					placeholder="Select device"
 					size="sm"
+					disabled={data.readOnly}
 					class={validationError?.field === "device" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handleDeviceChange(v)}
 				>
 					{#snippet renderSelected(d: Device)}
-						<span class="truncate">{d.name}</span>
+						<span class="truncate">{deviceDisplayName(d)}</span>
 						<HiveChip type={d.type} class="text-[10px] py-0 shrink-0" />
 					{/snippet}
 					{#snippet item(d: Device)}
 						<span class="flex w-full items-center gap-1.5 overflow-hidden">
-							<span class="truncate">{d.name}</span>
+							<span class="truncate">{deviceDisplayName(d)}</span>
 							<HiveChip type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
 						</span>
 					{/snippet}
@@ -352,6 +299,7 @@
 					getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
 					placeholder="Select property"
 					size="sm"
+					disabled={data.readOnly}
 					class={validationError?.field === "property" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handlePropertyChange(v)}
 				>
@@ -370,9 +318,10 @@
 						<Select
 							type="single"
 							value={data.config.value ?? "true"}
+							disabled={data.readOnly}
 							onValueChange={(v) => v && update({ comparator: "==", value: v })}
 						>
-							<SelectTrigger class="w-full text-xs">
+							<SelectTrigger size="sm" class="w-full text-xs">
 								{data.config.value === "false" ? "Off" : "On"}
 							</SelectTrigger>
 							<SelectContent>
@@ -385,9 +334,10 @@
 							<Select
 								type="single"
 								value={data.config.comparator ?? "=="}
+								disabled={data.readOnly}
 								onValueChange={(v) => v && update({ comparator: v })}
 							>
-								<SelectTrigger class="w-14 shrink-0 text-xs">
+								<SelectTrigger size="sm" class="w-14 shrink-0 text-xs">
 									{comparators.find((c) => c.value === data.config.comparator)?.label ?? "="}
 								</SelectTrigger>
 								<SelectContent>
@@ -417,6 +367,7 @@
 							getLabel={(v) => sentenceCase(v)}
 							placeholder="Select value"
 							size="sm"
+							disabled={data.readOnly}
 							class={validationError?.field === "value" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 							onchange={(v) => v && update({ comparator: "==", value: v })}
 						/>
@@ -425,9 +376,10 @@
 							<Select
 								type="single"
 								value={data.config.comparator ?? "=="}
+								disabled={data.readOnly}
 								onValueChange={(v) => v && update({ comparator: v })}
 							>
-								<SelectTrigger class="w-14 shrink-0 text-xs">
+								<SelectTrigger size="sm" class="w-14 shrink-0 text-xs">
 									{comparators.find((c) => c.value === data.config.comparator)?.label ?? "="}
 								</SelectTrigger>
 								<SelectContent>
@@ -451,30 +403,31 @@
 				{/if}
 			{/if}
 
-			{#if data.config.mode === "button_action" && data.config.deviceId && actionCapability}
-				{#if actionCapability.values && actionCapability.values.length > 0}
+			{#if data.config.mode === "device_event" && data.config.deviceId && eventCapability}
+				{#if eventCapability.values && eventCapability.values.length > 0}
 					<HiveSelectAutocomplete
-						items={actionCapability.values}
-						value={data.config.actionValue ?? ""}
+						items={eventCapability.values}
+						value={data.config.eventValue ?? ""}
 						getValue={(v) => v}
 						getLabel={(v) => sentenceCase(v)}
-						placeholder="Select action"
+						placeholder="Select event"
 						size="sm"
-						class={validationError?.field === "actionValue"
+						disabled={data.readOnly}
+						class={validationError?.field === "eventValue"
 							? `text-xs ${INVALID_CLS}`
 							: "text-xs"}
-						onchange={(v) => v && update({ actionValue: v })}
+						onchange={(v) => v && update({ eventValue: v })}
 					/>
 				{:else}
 					<Input
-						value={data.config.actionValue ?? ""}
+						value={data.config.eventValue ?? ""}
 						oninput={(e) => {
 							const target = e.target as HTMLInputElement;
-							update({ actionValue: target.value });
+							update({ eventValue: target.value });
 						}}
-						placeholder="Action value (e.g. single)"
+						placeholder="Event value (e.g. single)"
 						class="text-xs"
-						aria-invalid={validationError?.field === "actionValue" ? "true" : undefined}
+						aria-invalid={validationError?.field === "eventValue" ? "true" : undefined}
 					/>
 				{/if}
 			{/if}
@@ -483,9 +436,10 @@
 				<Select
 					type="single"
 					value={data.config.scheduleSubmode ?? "at"}
+					disabled={data.readOnly}
 					onValueChange={(v) => v && updateScheduleSubmode(v as ScheduleSubmode)}
 				>
-					<SelectTrigger class="w-full text-xs">
+					<SelectTrigger size="sm" class="w-full text-xs">
 						{scheduleSubmodes.find((s) => s.value === (data.config.scheduleSubmode ?? "at"))?.label}
 					</SelectTrigger>
 					<SelectContent>
@@ -554,9 +508,10 @@
 						<Select
 							type="single"
 							value={data.config.scheduleIntervalUnit ?? "seconds"}
+							disabled={data.readOnly}
 							onValueChange={(v) => v && update({ scheduleIntervalUnit: v as "seconds" | "minutes" | "hours" })}
 						>
-							<SelectTrigger class="flex-1 text-xs">
+							<SelectTrigger size="sm" class="flex-1 text-xs">
 								{intervalUnits.find((u) => u.value === (data.config.scheduleIntervalUnit ?? "seconds"))?.label}
 							</SelectTrigger>
 							<SelectContent>
@@ -590,9 +545,10 @@
 				<Select
 					type="single"
 					value={data.config.eventType}
+					disabled={data.readOnly}
 					onValueChange={(v) => v && update({ eventType: v })}
 				>
-					<SelectTrigger class="w-full text-xs">
+					<SelectTrigger size="sm" class="w-full text-xs">
 						{eventTypes.find((t) => t.value === data.config.eventType)?.label ?? "Select event"}
 					</SelectTrigger>
 					<SelectContent>
@@ -613,48 +569,12 @@
 				/>
 			{/if}
 
-			{#if data.config.mode === "schedule"}
-				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedCron}>
-					{generatedCron || "(not set)"}
-				</p>
-			{:else if data.config.mode !== "manual"}
-				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
-					{generatedExpr}
-				</p>
-			{/if}
-		{:else}
-			{#if data.config.mode === "manual"}
-				{@const canFire = data.automationEnabled ?? false}
-				<Button
-					type="button"
-					size="sm"
-					class="w-full text-xs"
-					disabled={!canFire}
-					onclick={() => data.onFireManual?.()}
-					title={canFire ? "Fire this trigger now" : "Enable the automation to fire the trigger"}
-				>
-					<Zap class="size-3.5" />
-					Trigger
-				</Button>
-			{:else}
-				<p class="text-xs text-foreground">{readableSummary()}</p>
-			{/if}
-			{#if data.config.mode === "schedule"}
-				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedCron}>
-					{generatedCron}
-				</p>
-			{:else if data.config.mode !== "manual" && generatedExpr !== "true"}
-				<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
-					{generatedExpr}
-				</p>
-			{/if}
-		{/if}
-		{#if validationError && data.editable}
+		{#if validationError && !data.readOnly}
 			<p class="text-[10px] text-destructive">{validationError.message}</p>
 		{/if}
+		</fieldset>
 
-		{#if data.editable}
-			<div class="-mx-3 -mb-3 border-t border-automation-trigger/20">
+		<div class="-mx-3 -mb-3 mt-2 border-t border-automation-trigger/20 pt-1">
 				<button
 					type="button"
 					class="flex w-full items-center gap-1 px-3 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -673,15 +593,24 @@
 					{/if}
 				</button>
 				{#if advancedOpen}
-					<div class="space-y-2 px-3 pb-3 pt-1">
+					<fieldset disabled={data.readOnly} class="space-y-2 border-0 px-3 pb-3 pt-1">
 						<div class="grid grid-cols-[auto_1fr] items-center gap-2">
-							<label for="trigger-{id}-grace" class="text-[10px] text-muted-foreground">Grace</label>
+							<div class="flex items-center gap-1">
+								<label for="trigger-{id}-grace" class="text-[10px] text-muted-foreground">Grace</label>
+								<Tooltip>
+									<TooltipTrigger class="text-muted-foreground" aria-label="About trigger grace">
+										<Info class="size-3" />
+									</TooltipTrigger>
+									<TooltipContent>Keep this trigger active so AND/OR can combine it with later events.</TooltipContent>
+								</Tooltip>
+							</div>
 							<Select
 								type="single"
 								value={String(graceMs)}
+								disabled={data.readOnly}
 								onValueChange={(v) => v !== undefined && setGraceMs(Number(v))}
 							>
-								<SelectTrigger id="trigger-{id}-grace" class="h-7 w-full text-xs">
+								<SelectTrigger size="sm" id="trigger-{id}-grace" class="h-7 w-full text-xs">
 									{formatTimingValue(graceMs)}
 								</SelectTrigger>
 								<SelectContent>
@@ -690,13 +619,22 @@
 									{/each}
 								</SelectContent>
 							</Select>
-							<label for="trigger-{id}-cooldown" class="text-[10px] text-muted-foreground">Cooldown</label>
+							<div class="flex items-center gap-1">
+								<label for="trigger-{id}-cooldown" class="text-[10px] text-muted-foreground">Cooldown</label>
+								<Tooltip>
+									<TooltipTrigger class="text-muted-foreground" aria-label="About trigger cooldown">
+										<Info class="size-3" />
+									</TooltipTrigger>
+									<TooltipContent>Suppress matching events inside this window.</TooltipContent>
+								</Tooltip>
+							</div>
 							<Select
 								type="single"
 								value={String(cooldownMs)}
+								disabled={data.readOnly}
 								onValueChange={(v) => v !== undefined && setCooldownMs(Number(v))}
 							>
-								<SelectTrigger id="trigger-{id}-cooldown" class="h-7 w-full text-xs">
+								<SelectTrigger size="sm" id="trigger-{id}-cooldown" class="h-7 w-full text-xs">
 									{formatTimingValue(cooldownMs)}
 								</SelectTrigger>
 								<SelectContent>
@@ -706,13 +644,9 @@
 								</SelectContent>
 							</Select>
 						</div>
-						<p class="text-[10px] text-muted-foreground">
-							Grace keeps this trigger active after it fires so AND/OR can combine it with later events. Cooldown suppresses re-matches inside the window.
-						</p>
-					</div>
+					</fieldset>
 				{/if}
-			</div>
-		{/if}
+		</div>
 	</div>
 
 	<Handle type="source" position={Position.Right} class="!bg-automation-trigger !border-automation-trigger !w-3 !h-3 before:absolute before:inset-[-8px] before:content-['']" />

@@ -21,22 +21,30 @@
 		nodes: Node[];
 		edges: Edge[];
 		editable: boolean;
+		nodesDraggable?: boolean;
 		onnodeschange?: (nodes: Node[]) => void;
 		onedgeschange?: (edges: Edge[]) => void;
 		onconnect?: (connection: Connection) => void;
 		onnodedragstop?: () => void;
 		ondelete?: () => void;
+		onPaneContextMenu?: (event: MouseEvent) => void;
+		onNodeContextMenu?: (event: MouseEvent, node: Node) => void;
 		onReady?: (api: FlowApi) => void;
+		onNodesInitialized?: () => void;
 	}
 
 	let {
 		nodes = $bindable([]),
 		edges = $bindable([]),
 		editable,
+		nodesDraggable = editable,
 		onconnect,
 		onnodedragstop,
 		ondelete,
+		onPaneContextMenu,
+		onNodeContextMenu,
 		onReady,
+		onNodesInitialized,
 	}: Props = $props();
 
 	const nodeTypes: NodeTypes = {
@@ -83,7 +91,7 @@
 	}
 </script>
 
-<div class="h-full w-full">
+<div class="h-full w-full [--background-color:var(--background)] [--xy-background-color:var(--background)]">
 	<SvelteFlow
 		bind:nodes
 		bind:edges
@@ -92,13 +100,16 @@
 		onconnect={handleConnect}
 		onnodedragstop={() => onnodedragstop?.()}
 		ondelete={() => ondelete?.()}
-		nodesDraggable={editable}
+		onpanecontextmenu={({ event }) => onPaneContextMenu?.(event)}
+		onnodecontextmenu={({ event, node }) => onNodeContextMenu?.(event, node)}
+		{nodesDraggable}
 		nodesConnectable={editable}
 		elementsSelectable={editable}
 		fitView
 		fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
-		colorMode="system"
-		deleteKey={editable ? "Backspace" : null}
+		colorMode="dark"
+		zoomOnDoubleClick={false}
+		deleteKey={editable ? ["Backspace", "Delete"] : null}
 		defaultEdgeOptions={{
 			animated: true,
 			style: "stroke: var(--color-muted-foreground); stroke-width: 1px; opacity: 0.5;",
@@ -106,8 +117,8 @@
 		proOptions={{ hideAttribution: true }}
 	>
 		<Controls />
-		<Background />
-		<FlowBridge {nodes} {onReady} />
-		<NodeTouchDrag bind:nodes {editable} {onnodedragstop} />
+		<Background bgColor="var(--background)" />
+		<FlowBridge {nodes} {onReady} {onNodesInitialized} />
+		<NodeTouchDrag bind:nodes editable={nodesDraggable} {onnodedragstop} />
 	</SvelteFlow>
 </div>

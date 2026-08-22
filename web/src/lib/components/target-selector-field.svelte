@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from "svelte";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
 	import { X } from "@lucide/svelte";
@@ -22,9 +22,10 @@
 		devices: Device[];
 		groups: GroupLite[];
 		rooms: RoomLite[];
+		disabled?: boolean;
 	}
 
-	let { value, onchange, devices, groups, rooms }: Props = $props();
+	let { value, onchange, devices, groups, rooms, disabled = false }: Props = $props();
 
 	interface Option {
 		value: string;
@@ -45,20 +46,27 @@
 		if (!next || !wrapperRef?.contains(next)) open = false;
 	}
 
+	$effect(() => {
+		if (disabled) open = false;
+	});
+
 	const nameById = $derived.by(() => {
 		const m = new Map<string, string>();
 		for (const d of devices) m.set(d.id, deviceDisplayName(d));
-		for (const g of groups) m.set(g.id, g.name ?? g.id);
+		for (const g of groups) m.set(g.id, groupDisplayName(g));
 		for (const r of rooms) m.set(r.id, r.name ?? r.id);
 		return m;
 	});
+	const removedGroupIDs = $derived(new Set(groups.filter((g) => g.removed).map((g) => g.id)));
 
 	const subjectLabel = (v: string) => CLAUSE_SUBJECTS.find((s) => s.value === v)?.label ?? v;
 	const opLabel = (v: string) => CLAUSE_OPS.find((o) => o.value === v)?.label ?? v;
-	const valueLabel = (subject: string, v: string) =>
-		subject === "device_type" || subject === "device_role"
+	const valueLabel = (subject: string, v: string) => {
+		const label = subject === "device_type" || subject === "device_role"
 			? v.charAt(0).toUpperCase() + v.slice(1)
 			: (nameById.get(v) ?? v);
+		return subject === "group" && removedGroupIDs.has(v) ? `${label} (Removed)` : label;
+	};
 
 	const isPlural = (op?: string) => op === "is_one_of" || op === "is_not_one_of";
 
@@ -82,7 +90,7 @@
 			}));
 		}
 		if (subject === "room") return rooms.map((r) => ({ value: r.id, label: r.name ?? r.id }));
-		if (subject === "group") return groups.map((g) => ({ value: g.id, label: g.name ?? g.id }));
+		if (subject === "group") return groups.filter((g) => !g.removed).map((g) => ({ value: g.id, label: groupDisplayName(g) }));
 		return devices.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
 	}
 
@@ -112,6 +120,7 @@
 	}
 
 	function pick(opt: Option) {
+		if (disabled) return;
 		if (phase === "connector") draft = { ...draft, connector: opt.value };
 		else if (phase === "subject") draft = { ...draft, subject: opt.value };
 		else if (phase === "op") draft = { ...draft, op: opt.value };
@@ -132,6 +141,7 @@
 	}
 
 	function commit(d: { connector?: string; subject?: string; op?: string; values: string[] }) {
+		if (disabled) return;
 		if (!d.subject || !d.op || d.values.length === 0) return;
 		const clause: Clause = { subject: d.subject, op: d.op, values: d.values };
 		if (value.length > 0) clause.connector = d.connector ?? "and";
@@ -145,6 +155,7 @@
 	}
 
 	function removeClause(i: number) {
+		if (disabled) return;
 		const next = value.filter((_, idx) => idx !== i);
 		if (next.length > 0) next[0] = { ...next[0], connector: undefined };
 		onchange(next);
@@ -165,6 +176,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
+		if (disabled) return;
 		e.stopPropagation();
 		if (e.key === "Backspace" && query === "") {
 			e.preventDefault();
@@ -211,11 +223,12 @@
 	);
 </script>
 
-<div class="flex flex-col gap-2">
+<div class={cn("flex flex-col gap-2", disabled && "pointer-events-none opacity-50")} aria-disabled={disabled}>
 	<div bind:this={wrapperRef} class="relative" onfocusout={onFocusOut}>
 		<div
-			class="inline-flex w-full flex-wrap items-center gap-1 rounded-md border border-input bg-background p-1.5"
+			class="inline-flex w-full flex-wrap items-center gap-1 rounded-md border border-input bg-transparent p-1.5 shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30"
 			onclick={() => {
+				if (disabled) return;
 				open = true;
 				inputRef?.focus();
 			}}
@@ -230,6 +243,7 @@
 					{clause.values.map((v) => valueLabel(clause.subject, v)).join(", ")}
 					<button
 						type="button"
+						{disabled}
 						class="text-muted-foreground hover:text-foreground"
 						onclick={(e) => {
 							e.stopPropagation();
@@ -259,6 +273,7 @@
 				bind:this={inputRef}
 				bind:value={query}
 				{placeholder}
+				{disabled}
 				class="min-w-[8ch] flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
 				oninput={() => (open = true)}
 				onfocus={() => (open = true)}
@@ -269,7 +284,8 @@
 		{#if open}
 			<ul
 				role="listbox"
-				class="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border border-input bg-popover py-1 shadow-card"
+				class="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md bg-popover py-1 text-popover-foreground shadow-card ring-1 ring-foreground/10"
+				onpointerdowncapture={(e) => e.stopPropagation()}
 			>
 				{#if suggestions.length === 0}
 					<li class="px-2.5 py-1 text-xs text-muted-foreground">
@@ -281,11 +297,14 @@
 							role="option"
 							aria-selected={i === activeIdx}
 							class={cn(
-								"px-2.5 py-1 text-xs leading-5 transition-colors",
-								i === activeIdx ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+								"border-l-2 px-2.5 py-1 text-xs leading-5 transition-colors",
+								i === activeIdx
+									? "border-primary bg-primary/10 text-foreground"
+									: "border-transparent hover:bg-muted",
 							)}
-							onmousedown={(e) => {
+							onmousedowncapture={(e) => {
 								e.preventDefault();
+								e.stopPropagation();
 								pick(opt);
 							}}
 							onmouseenter={() => (activeIdx = i)}
@@ -298,8 +317,9 @@
 					<button
 						type="button"
 						class="mt-1 block w-full border-t px-2.5 py-1 text-left text-xs text-muted-foreground hover:bg-accent/50"
-						onmousedown={(e) => {
+						onmousedowncapture={(e) => {
 							e.preventDefault();
+							e.stopPropagation();
 							commitDraft();
 						}}
 					>
