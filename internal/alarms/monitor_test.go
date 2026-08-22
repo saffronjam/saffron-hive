@@ -84,51 +84,6 @@ func TestEvaluateAndApplyRaisesAndClears(t *testing.T) {
 	}
 }
 
-func TestEvaluateAndApplyTracksAbnormalDevicePosture(t *testing.T) {
-	ctx := context.Background()
-	svc := NewService(newTestStore(t), NewBuffer())
-	id := device.DeviceID("0xp100")
-	posture := "abnormal"
-	reader := &fakeReader{
-		devices: []device.Device{{
-			ID:           id,
-			FriendlyName: "Multistate sensor",
-			Available:    true,
-			LastSeen:     time.Now(),
-		}},
-		states: map[device.DeviceID]*device.DeviceState{
-			id: {DevicePosture: &posture},
-		},
-	}
-	diskFn, heapFn := healthyChecks()
-
-	evaluateAndApply(ctx, svc, reader, &fakeProbe{}, ".", diskFn, heapFn)
-	alarmID := "system.device_posture_abnormal.0xp100"
-	list, err := svc.ListActive(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var found *Alarm
-	for index := range list {
-		if list[index].ID == alarmID {
-			found = &list[index]
-		}
-	}
-	if found == nil {
-		t.Fatalf("expected posture alarm, got %+v", list)
-	}
-	if found.Severity != store.AlarmSeverityMedium || found.Kind != store.AlarmKindAuto {
-		t.Fatalf("unexpected posture alarm: %+v", *found)
-	}
-
-	normal := "normal"
-	reader.states[id] = &device.DeviceState{DevicePosture: &normal}
-	evaluateAndApply(ctx, svc, reader, &fakeProbe{}, ".", diskFn, heapFn)
-	if hasAlarm(t, ctx, svc, alarmID) {
-		t.Fatal("normal posture must clear the posture alarm")
-	}
-}
-
 // TestEvaluateAndApplySkipsDisabledIntegration pins the rule that keeps an
 // install which never added the Zigbee2MQTT integration off the alarms page: a
 // disconnected broker only matters while the integration is enabled. Disabling

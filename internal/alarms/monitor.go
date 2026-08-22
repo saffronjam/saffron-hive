@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/health"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -58,8 +58,8 @@ type MonitorConfig struct {
 // resolved. The counter on an existing alarm is never bumped by the monitor
 // — the Count field is reserved for non-loop callers (API / automation
 // actions) that legitimately raise the same alarm repeatedly.
-func RunMonitor(ctx context.Context, svc *Service, reader device.StateReader, probe ConnectivityProbe) {
-	runMonitor(ctx, svc, reader, probe, MonitorConfig{})
+func RunMonitor(ctx context.Context, svc *Service, reader device.StateReader, probe ConnectivityProbe, diskPath string) {
+	runMonitor(ctx, svc, reader, probe, MonitorConfig{DiskStatPath: diskPath})
 }
 
 func runMonitor(ctx context.Context, svc *Service, reader device.StateReader, probe ConnectivityProbe, cfg MonitorConfig) {
@@ -77,7 +77,7 @@ func runMonitor(ctx context.Context, svc *Service, reader device.StateReader, pr
 	}
 	diskFn := cfg.DiskStatFn
 	if diskFn == nil {
-		diskFn = diskFreeFraction
+		diskFn = health.DiskFreeFraction
 	}
 	heapFn := cfg.HeapFn
 	if heapFn == nil {
@@ -262,35 +262,10 @@ func collectChecks(
 				checks = append(checks, check{alarmID: batteryID, active: false})
 			}
 
-			postureID := fmt.Sprintf("system.device_posture_abnormal.%s", string(d.ID))
-			abnormalPosture := state != nil && state.DevicePosture != nil && *state.DevicePosture == "abnormal"
-			checks = append(checks, check{
-				alarmID: postureID,
-				active:  abnormalPosture,
-				raise: RaiseParams{
-					AlarmID:  postureID,
-					Severity: store.AlarmSeverityMedium,
-					Kind:     store.AlarmKindAuto,
-					Message:  fmt.Sprintf("Device %q reports abnormal posture", d.DisplayName()),
-					Source:   MonitorSource,
-				},
-			})
 		}
 	}
 
 	return checks
-}
-
-func diskFreeFraction(path string) (float64, error) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return 0, err
-	}
-	total := stat.Blocks
-	if total == 0 {
-		return 0, fmt.Errorf("disk total blocks is zero")
-	}
-	return float64(stat.Bavail) / float64(total), nil
 }
 
 func heapAllocBytes() uint64 {
