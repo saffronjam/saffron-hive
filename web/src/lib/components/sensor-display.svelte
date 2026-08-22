@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
-	import { Thermometer, Droplets, Gauge, Sun, Battery } from "@lucide/svelte";
+	import { Thermometer, Droplets, Gauge, Sun } from "@lucide/svelte";
 	import type { DeviceState } from "$lib/stores/devices";
 	import { ContactRole } from "$lib/gql/graphql";
 	import { formatTemperature } from "$lib/sensor-format";
@@ -83,9 +82,6 @@
 		if (state.devicePosture) {
 			result.push({ label: "Device posture", value: sentenceCase(state.devicePosture) });
 		}
-		if (state.linkQuality != null) {
-			result.push({ label: "Link quality", value: Math.round(state.linkQuality).toString() });
-		}
 		return result;
 	});
 </script>
@@ -137,30 +133,6 @@
 						</div>
 					{/each}
 				</dl>
-			</CardContent>
-		</Card>
-	{/if}
-
-	{#if state.battery != null}
-		<Card>
-			<CardHeader>
-				<div class="flex items-center justify-between">
-					<CardTitle>Battery</CardTitle>
-					<Badge variant={state.battery > 20 ? "secondary" : "destructive"}>
-						{Math.round(state.battery)}%
-					</Badge>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<div class="flex items-center gap-3">
-					<Battery class="size-5 text-muted-foreground" />
-					<div class="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-						<div
-							class="h-full rounded-full transition-all {state.battery > 20 ? 'bg-primary' : 'bg-destructive'}"
-							style:width="{state.battery}%"
-						></div>
-					</div>
-				</div>
 			</CardContent>
 		</Card>
 	{/if}

@@ -4,21 +4,12 @@
 	import { fly } from "svelte/transition";
 	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
-	import HiveChip from "$lib/components/hive-chip.svelte";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
-	import { deviceDisplayName, deviceIcon } from "$lib/utils";
+	import { deviceDisplayName, deviceIcon, groupDisplayName } from "$lib/utils";
 	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { floorplanStore } from "$lib/stores/floorplan.svelte";
-	import { Separator } from "$lib/components/ui/separator/index.js";
-	import {
-		Tooltip,
-		TooltipContent,
-		TooltipTrigger,
-		TooltipProvider,
-	} from "$lib/components/ui/tooltip/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -38,22 +29,57 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { membershipRowsForDevice } from "$lib/memberships";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { sentenceCase } from "$lib/utils";
+	import ZigbeeDeviceInfoCard from "$lib/components/zigbee-device-info-card.svelte";
+	import ZigbeeDetailsCard from "$lib/components/zigbee-details-card.svelte";
 	import {
 		configurationContains,
 		configurationEntriesEqual,
 		writableConfigurationCapabilities,
 	} from "$lib/device-configuration";
-	import { ArrowLeft, Ban, Copy, Check, DoorOpen, Group as GroupIcon, Save } from "@lucide/svelte";
+	import { ArrowLeft, DoorOpen, ExternalLink, Group as GroupIcon } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import type { Zigbee2MqttDeviceMetadata } from "$lib/gql/graphql";
+	import { loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
+
+	interface ZigbeeDetailSnapshot {
+		metadata: Zigbee2MqttDeviceMetadata | null;
+		frontendUrl: string | null;
+	}
+
+	const ZIGBEE_DETAIL_CACHE_VERSION = 1;
+	const zigbeeDetailCacheName = (id: string) => `device-zigbee-detail:${id}`;
+	const loadZigbeeDetailSnapshot = (id: string) =>
+		loadSessionSnapshot<ZigbeeDetailSnapshot>(
+			typeof window === "undefined" ? null : window.sessionStorage,
+			zigbeeDetailCacheName(id),
+			ZIGBEE_DETAIL_CACHE_VERSION,
+		);
+	const initialDeviceId = $page.params.id ?? "";
+	const initialZigbeeDetail = loadZigbeeDetailSnapshot(initialDeviceId);
 	const deviceId = $derived($page.params.id ?? "");
 
-	// deviceStore already holds every field this page renders and keeps it live
-	// over the shared subscriptions, so there is nothing to fetch here.
+	// Generic device state remains live in the shared store. Zigbee-specific
+	// detail is loaded only on this route.
 	const device = $derived($deviceStore[deviceId] ?? null);
+	let zigbeeMetadata = $state<Zigbee2MqttDeviceMetadata | null | undefined>(
+		initialZigbeeDetail?.metadata,
+	);
+	let zigbeeFrontendUrl = $state<string | null>(initialZigbeeDetail?.frontendUrl ?? null);
+	let metadataDeviceId = $state("");
+	const firmwareUpdateAvailable = $derived(
+		zigbeeMetadata?.ota.installedVersion != null &&
+			zigbeeMetadata.ota.latestVersion != null &&
+			zigbeeMetadata.ota.latestVersion !== "-1" &&
+			zigbeeMetadata.ota.installedVersion !== zigbeeMetadata.ota.latestVersion,
+	);
+	const firmwareUpdateUrl = $derived(
+		firmwareUpdateAvailable && zigbeeFrontendUrl
+			? `${zigbeeFrontendUrl.replace(/\/+$/, "")}/#/device/0/${encodeURIComponent(deviceId)}/info`
+			: null,
+	);
 	const contactMapped = $derived(
 		floorplanStore.current?.doorBindings.some((binding) => binding.deviceId === deviceId) ?? false,
 	);
@@ -82,7 +108,6 @@
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: "Device" }];
 	});
-	onDestroy(() => pageHeader.reset());
 
 	$effect(() => {
 		if (device) {
@@ -93,9 +118,20 @@
 		}
 		pageHeader.actions = device
 			? [
+					...(firmwareUpdateUrl
+						? [
+								{
+									label: "Update",
+									icon: ExternalLink,
+									variant: "outline" as const,
+									href: firmwareUpdateUrl,
+									target: "_blank" as const,
+									hideLabelOnMobile: true,
+								},
+							]
+						: []),
 					{
 						label: "Save",
-						icon: Save,
 						onclick: saveMetadata,
 						disabled: !metadataDirty || savingMetadata,
 						saving: savingMetadata,
@@ -105,7 +141,6 @@
 			: [];
 	});
 	let error = $state<string | null>(null);
-	let copied = $state(false);
 
 	interface GroupMember {
 		id: string;
@@ -119,9 +154,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation SetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-			}
+			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 		}
 	`);
 
@@ -151,13 +184,121 @@
 		}
 	`);
 
+	const DEVICE_ZIGBEE_DETAIL = graphql(`
+		query DeviceZigbeeDetail($id: ID!) {
+			zigbee2MqttConfig {
+				frontendUrl
+			}
+			device(id: $id) {
+				id
+				zigbee2Mqtt {
+					imageCandidate
+					imageVersion
+					networkType
+					ieeeAddress
+					addressVendor
+					networkAddress
+					supported
+					interviewState
+					interviewCompleted
+					interviewing
+					description
+					manufacturer
+					modelId
+					powerSource
+					softwareBuildId
+					dateCode
+					definitionUrl
+					definition {
+						model
+						vendor
+						description
+						source
+						icon
+						supportsOta
+					}
+					ota {
+						state
+						installedVersion
+						latestVersion
+						progress
+					}
+					endpoints {
+						id
+						profileId
+						deviceId
+						inputClusters
+						outputClusters
+						bindings {
+							cluster
+							targetType
+							targetIeeeAddress
+							targetEndpoint
+							targetGroupId
+						}
+						reportings {
+							cluster
+							attribute
+							minimumReportInterval
+							maximumReportInterval
+							reportableChange
+						}
+					}
+					groups {
+						id
+						providerGroupId
+						name
+						endpoint
+					}
+				}
+			}
+		}
+	`);
+
 	const clientRef = getContextClient();
+
+	async function loadZigbeeMetadata(id: string) {
+		const result = await clientRef
+			.query(DEVICE_ZIGBEE_DETAIL, { id }, { requestPolicy: "cache-first" })
+			.toPromise();
+		if (metadataDeviceId !== id) return;
+		if (result.error) {
+			error = result.error.message;
+			return;
+		}
+		const snapshot: ZigbeeDetailSnapshot = {
+			metadata: result.data?.device?.zigbee2Mqtt ?? null,
+			frontendUrl: result.data?.zigbee2MqttConfig?.frontendUrl ?? null,
+		};
+		zigbeeMetadata = snapshot.metadata;
+		zigbeeFrontendUrl = snapshot.frontendUrl;
+		saveSessionSnapshot(
+			window.sessionStorage,
+			zigbeeDetailCacheName(id),
+			ZIGBEE_DETAIL_CACHE_VERSION,
+			snapshot,
+			256_000,
+		);
+	}
+
+	$effect(() => {
+		const id = deviceId;
+		if (!id || metadataDeviceId === id) return;
+		metadataDeviceId = id;
+		const snapshot = loadZigbeeDetailSnapshot(id);
+		zigbeeMetadata = snapshot?.metadata;
+		zigbeeFrontendUrl = snapshot?.frontendUrl ?? null;
+		void loadZigbeeMetadata(id);
+	});
 
 	const light = $derived(device?.type === "light" ? device.state : null);
 	const plug = $derived(device?.type === "plug" ? device.state : null);
 	const sensor = $derived(device?.type === "sensor" ? device.state : null);
 	const climate = $derived(device?.type === "climate" ? device.state : null);
 	const isButton = $derived(device?.type === "button");
+	const actionValues = $derived(
+		device?.capabilities.find((capability) => capability.name === "action")?.values ?? [],
+	);
 	const configurationCapabilities = $derived(
 		writableConfigurationCapabilities(device?.capabilities ?? []),
 	);
@@ -212,7 +353,7 @@
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 				})),
 			});
@@ -240,29 +381,17 @@
 		}
 	}
 
-	const formattedLastSeen = $derived.by(() => {
-		if (!device) return "";
-		const date = new Date(device.lastSeen);
-		if (isNaN(date.getTime())) return "Unknown";
-		return date.toLocaleString();
-	});
-
-	async function copyDeviceId() {
-		if (!device) return;
-		try {
-			await navigator.clipboard.writeText(device.id);
-			copied = true;
-			setTimeout(() => { copied = false; }, 2000);
-		} catch {
-			// Clipboard API may not be available
-		}
-	}
-
 	async function saveMetadata() {
 		if (!clientRef || !device) return;
 		// An empty name is the valid way to clear the override, so there is nothing
 		// to validate here.
 		const name = metadataName.trim();
+		const submitted = {
+			name,
+			icon: metadataIcon,
+			roles: { ...metadataRoles },
+			disabled: metadataDisabled,
+		};
 
 		savingMetadata = true;
 		error = null;
@@ -300,13 +429,15 @@
 			const updatedIcon = result.data.updateDevice.icon ?? null;
 			const updatedRoles = { ...result.data.updateDevice.roles } as DeviceRoles;
 			const updatedDisabled = result.data.updateDevice.disabled;
-			metadataName = updatedName ?? "";
+			if (metadataName.trim() === submitted.name) metadataName = updatedName ?? "";
 			savedMetadataName = updatedName ?? "";
-			metadataIcon = updatedIcon;
+			if (metadataIcon === submitted.icon) metadataIcon = updatedIcon;
 			savedMetadataIcon = updatedIcon;
-			metadataRoles = { ...updatedRoles };
+			if (rolesEqual(metadataRoles, submitted.roles) && !rolesEqual(metadataRoles, updatedRoles)) {
+				metadataRoles = { ...updatedRoles };
+			}
 			savedMetadataRoles = { ...updatedRoles };
-			metadataDisabled = updatedDisabled;
+			if (metadataDisabled === submitted.disabled) metadataDisabled = updatedDisabled;
 			savedMetadataDisabled = updatedDisabled;
 			deviceStore.updateName(currentDeviceId, updatedName);
 			deviceStore.updateIcon(currentDeviceId, updatedIcon);
@@ -450,14 +581,13 @@
 					<IconCell
 						value={metadataIcon}
 						onselect={(icon) => (metadataIcon = icon)}
-						fallback={deviceIcon(device.type, device.roles.contact)}
+						fallback={deviceIcon(device.type, metadataRoles.contact)}
 						size="lg"
 						iconClass="size-5 text-muted-foreground"
 					/>
 					<Input
 						id="device-name"
 						bind:value={metadataName}
-						disabled={savingMetadata}
 						placeholder={fallbackName}
 						onkeydown={(event) => {
 							if (event.key === "Enter" && metadataDirty && !savingMetadata) {
@@ -472,7 +602,6 @@
 						<DeviceRolesEditor
 							value={metadataRoles}
 							onchange={(next) => (metadataRoles = next)}
-							disabled={savingMetadata}
 							{contactMapped}
 						/>
 					</div>
@@ -485,115 +614,33 @@
 						id="device-enabled"
 						checked={!metadataDisabled}
 						onCheckedChange={(v) => (metadataDisabled = !v)}
-						disabled={savingMetadata}
 					/>
 				</div>
 			</div>
 
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
 				<div class="space-y-6">
-				<Card>
-					<CardHeader>
-						<div class="flex items-center justify-between">
-							<CardTitle>Device Info</CardTitle>
-							{#if device.disabled}
-								<span class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-									<Ban class="size-3.5" />
-									Disabled
-								</span>
-							{:else}
-								<span
-									class="inline-flex items-center gap-1.5 text-sm {device.available ? 'text-status-online' : 'text-status-offline'}"
-								>
-									<span class="h-2 w-2 rounded-full {device.available ? 'bg-status-online' : 'bg-status-offline'}"></span>
-									{device.available ? "Online" : "Offline"}
-								</span>
-							{/if}
-						</div>
-					</CardHeader>
-					<CardContent>
-						<dl class="space-y-3">
-							<div class="flex items-center justify-between">
-								<dt class="text-sm text-muted-foreground">Device ID</dt>
-								<dd class="flex items-center gap-1.5">
-									<code class="max-w-48 truncate rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{device.id}</code>
-									<TooltipProvider>
-										<Tooltip>
-											<TooltipTrigger>
-												{#snippet child({ props })}
-													<button
-														{...props}
-														type="button"
-														onclick={copyDeviceId}
-														class="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-													>
-														{#if copied}
-															<Check class="size-3.5" />
-														{:else}
-															<Copy class="size-3.5" />
-														{/if}
-													</button>
-												{/snippet}
-											</TooltipTrigger>
-											<TooltipContent>
-												{copied ? "Copied!" : "Copy ID"}
-											</TooltipContent>
-										</Tooltip>
-									</TooltipProvider>
-								</dd>
-							</div>
+					<ZigbeeDeviceInfoCard {device} metadata={zigbeeMetadata} />
 
-							<Separator />
+					{#if zigbeeMetadata}
+						<ZigbeeDetailsCard {device} metadata={zigbeeMetadata} />
+					{/if}
 
-							<div class="flex items-center justify-between">
-								<dt class="text-sm text-muted-foreground">Type</dt>
-								<dd>
-									<HiveChip type={device.type} />
-								</dd>
-							</div>
-
-							<div class="flex items-center justify-between">
-								<dt class="text-sm text-muted-foreground">Source</dt>
-								<dd>
-									<Badge variant="outline">{sentenceCase(device.source)}</Badge>
-								</dd>
-							</div>
-
-							{#if device.source === "zigbee"}
-								<Separator />
-								<div class="flex items-center justify-between">
-									<dt class="text-sm text-muted-foreground">IEEE Address</dt>
-									<dd>
-										<code class="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{device.id}</code>
-									</dd>
-								</div>
-							{/if}
-
-							<Separator />
-
-							<div class="flex items-center justify-between">
-								<dt class="text-sm text-muted-foreground">Last Seen</dt>
-								<dd class="text-sm">{formattedLastSeen}</dd>
-							</div>
-						</dl>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader>
-						<CardTitle>Rooms & Groups</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<MemberTable
-							rows={membershipRows}
-							emptyMessage="Not in any room or group yet."
-							addLabel="Add to"
-							onadd={() => (pickerOpen = true)}
-							onremove={handleRemoveMembership}
-						/>
-					</CardContent>
-				</Card>
-			</div>
+					<Card>
+						<CardHeader>
+							<CardTitle>Rooms & Groups</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<MemberTable
+								rows={membershipRows}
+								emptyMessage="Not in any room or group yet."
+								addLabel="Add to"
+								onadd={() => (pickerOpen = true)}
+								onremove={handleRemoveMembership}
+							/>
+						</CardContent>
+					</Card>
+				</div>
 
 				<div class="flex flex-col gap-4">
 				{#if device.disabled && (light || climate || plug)}
@@ -617,7 +664,13 @@
 				{:else if sensor}
 					<SensorDisplay state={sensor} contactRole={device.roles.contact} />
 				{:else if isButton}
-					<ButtonDisplay lastSeen={device.lastSeen} />
+					<ButtonDisplay
+						lastSeen={device.lastSeen}
+						deviceId={device.id}
+						name={deviceDisplayName(device)}
+						actions={actionValues}
+						disabled={device.disabled}
+					/>
 				{:else}
 					<Card>
 						<CardContent class="py-8 text-center">
