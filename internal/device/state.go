@@ -15,8 +15,8 @@ type Color struct {
 // echoes to the source that produced them. Origin is zero for unsolicited
 // state changes (drift, foreign apps, manual toggles at the device).
 type DeviceStateChange struct {
-	State  DeviceState   `json:"state"`
-	Origin CommandOrigin `json:"origin,omitzero"`
+	State  DeviceState   `json:"state" expr:"state"`
+	Origin CommandOrigin `json:"origin,omitzero" expr:"origin"`
 }
 
 // DeviceState is the current snapshot of a device across every capability it
@@ -31,29 +31,29 @@ type DeviceStateChange struct {
 // Button presses are carried by eventbus.EventDeviceActionFired (payload
 // device.Action), not by this struct.
 type DeviceState struct {
-	On                *bool    `json:"on,omitempty"`
-	Brightness        *int     `json:"brightness,omitempty"`
-	ColorTemp         *int     `json:"colorTemp,omitempty"`
-	Color             *Color   `json:"color,omitempty"`
-	Transition        *float64 `json:"transition,omitempty"`
-	Temperature       *float64 `json:"temperature,omitempty"`
-	Humidity          *float64 `json:"humidity,omitempty"`
-	Pressure          *float64 `json:"pressure,omitempty"`
-	Illuminance       *float64 `json:"illuminance,omitempty"`
-	Occupancy         *bool    `json:"occupancy,omitempty"`
-	Contact           *bool    `json:"contact,omitempty"`
-	Orientation       *string  `json:"orientation,omitempty"`
-	DevicePosture     *string  `json:"devicePosture,omitempty"`
-	LinkQuality       *float64 `json:"linkQuality,omitempty"`
-	Battery           *float64 `json:"battery,omitempty"`
-	Power             *float64 `json:"power,omitempty"`
-	Voltage           *float64 `json:"voltage,omitempty"`
-	Current           *float64 `json:"current,omitempty"`
-	Energy            *float64 `json:"energy,omitempty"`
-	TargetTemperature *float64 `json:"targetTemperature,omitempty"`
-	HvacMode          *string  `json:"hvacMode,omitempty"`
-	FanMode           *string  `json:"fanMode,omitempty"`
-	Swing             *string  `json:"swing,omitempty"`
+	On                *bool    `json:"on,omitempty" expr:"on"`
+	Brightness        *int     `json:"brightness,omitempty" expr:"brightness"`
+	ColorTemp         *int     `json:"colorTemp,omitempty" expr:"colorTemp"`
+	Color             *Color   `json:"color,omitempty" expr:"color"`
+	Transition        *float64 `json:"transition,omitempty" expr:"transition"`
+	Temperature       *float64 `json:"temperature,omitempty" expr:"temperature"`
+	Humidity          *float64 `json:"humidity,omitempty" expr:"humidity"`
+	Pressure          *float64 `json:"pressure,omitempty" expr:"pressure"`
+	Illuminance       *float64 `json:"illuminance,omitempty" expr:"illuminance"`
+	Occupancy         *bool    `json:"occupancy,omitempty" expr:"occupancy"`
+	Contact           *bool    `json:"contact,omitempty" expr:"contact"`
+	Orientation       *string  `json:"orientation,omitempty" expr:"orientation"`
+	DevicePosture     *string  `json:"devicePosture,omitempty" expr:"devicePosture"`
+	LinkQuality       *float64 `json:"linkQuality,omitempty" expr:"linkQuality"`
+	Battery           *float64 `json:"battery,omitempty" expr:"battery"`
+	Power             *float64 `json:"power,omitempty" expr:"power"`
+	Voltage           *float64 `json:"voltage,omitempty" expr:"voltage"`
+	Current           *float64 `json:"current,omitempty" expr:"current"`
+	Energy            *float64 `json:"energy,omitempty" expr:"energy"`
+	TargetTemperature *float64 `json:"targetTemperature,omitempty" expr:"targetTemperature"`
+	HvacMode          *string  `json:"hvacMode,omitempty" expr:"hvacMode"`
+	FanMode           *string  `json:"fanMode,omitempty" expr:"fanMode"`
+	Swing             *string  `json:"swing,omitempty" expr:"swing"`
 }
 
 // DeviceStateField identifies a clearable field on DeviceState. Used by

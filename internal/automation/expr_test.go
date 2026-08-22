@@ -164,6 +164,38 @@ func TestExprTriggerAccess(t *testing.T) {
 	}
 }
 
+func TestExprStateTriggerMatchesOnlyChangedDeviceAndField(t *testing.T) {
+	reader := newMockStateReader()
+	expression := `trigger.device_id == "door-1" && trigger.payload.state.contact != nil && trigger.payload.state.contact == true`
+
+	contactEvent := eventbus.Event{
+		DeviceID: "door-1",
+		Payload: device.DeviceStateChange{
+			State: device.DeviceState{Contact: device.Ptr(true)},
+		},
+	}
+	result, err := evalTestExpr(t, expression, reader, contactEvent, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result {
+		t.Fatal("expected matching contact update to trigger")
+	}
+
+	for _, event := range []eventbus.Event{
+		{DeviceID: "plug-1", Payload: device.DeviceStateChange{State: device.DeviceState{On: device.Ptr(false)}}},
+		{DeviceID: "door-1", Payload: device.DeviceStateChange{State: device.DeviceState{Battery: device.Ptr(90.0)}}},
+	} {
+		result, err = evalTestExpr(t, expression, reader, event, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result {
+			t.Fatalf("unexpected match for event from %q", event.DeviceID)
+		}
+	}
+}
+
 func TestExprDeviceNotFound(t *testing.T) {
 	reader := newMockStateReader()
 
