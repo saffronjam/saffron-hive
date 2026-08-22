@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { queryStore, getContextClient } from "@urql/svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { page } from "$app/state";
 	import FieldError from "$lib/components/field-error.svelte";
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -32,7 +33,9 @@
 	} from "$lib/components/ui/table/index.js";
 	import Avatar from "$lib/components/avatar.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
+	import { loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
@@ -47,7 +50,7 @@
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { validateNewPassword } from "$lib/password";
 	import { EllipsisVertical, KeyRound, Plus, Trash2 } from "@lucide/svelte";
-	import { onDestroy, onMount } from "svelte";
+	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 
 	const client = getContextClient();
@@ -99,24 +102,45 @@
 		avatarPath: string | null;
 	}
 
-	const users = queryStore({ client, query: USERS_QUERY });
-	const loader = delayedLoading(() => $users.fetching && ($users.data?.users.length ?? 0) === 0);
+	const USERS_CACHE_VERSION = 1;
+	const restoredUsers = loadSessionSnapshot<UserRow[]>(
+		typeof window === "undefined" ? null : window.sessionStorage,
+		"users",
+		USERS_CACHE_VERSION,
+	);
+	let userList = $state<UserRow[]>(restoredUsers ?? []);
+	let loading = $state(restoredUsers === null);
+	const loader = delayedLoading(() => loading && userList.length === 0);
 
-	const userList = $derived.by<UserRow[]>(() => {
-		const data = $users.data?.users ?? [];
-		return data.map((u) => ({
-			id: u.id,
-			username: u.username,
-			name: u.name,
-			avatarPath: u.avatarPath ?? null,
-		}));
-	});
+	function persistUsers() {
+		saveSessionSnapshot(window.sessionStorage, "users", USERS_CACHE_VERSION, userList);
+	}
+
+	async function loadUsers() {
+		loading = true;
+		try {
+			const result = await client.query(USERS_QUERY, {}, { requestPolicy: "network-only" }).toPromise();
+			if (result.data?.users) {
+				userList = result.data.users.map((user) => ({
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					avatarPath: user.avatarPath ?? null,
+				}));
+				persistUsers();
+			}
+		} finally {
+			loading = false;
+		}
+	}
 
 	const chipConfigs: ChipConfig[] = [];
-	let search = $state<SearchState>({ chips: [], freeText: "" });
+	const searchController = createUrlSearchState({
+		active: () => page.url.pathname === "/users",
+	});
 
 	const filtered = $derived.by(() => {
-		const q = search.freeText.trim().toLowerCase();
+		const q = searchController.value.freeText.trim().toLowerCase();
 		if (!q) return userList;
 		return userList.filter(
 			(u) => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q),
@@ -176,7 +200,9 @@
 			toast.success(`${n} user${n === 1 ? "" : "s"} deleted`);
 			batchDeleteConfirm = false;
 			selection.clear();
-			users.reexecute({ requestPolicy: "network-only" });
+			userList = userList.filter((user) => !ids.includes(user.id));
+			persistUsers();
+			void loadUsers();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to delete users");
 		} finally {
@@ -189,11 +215,11 @@
 		pageHeader.actions = [
 			{ label: "Create user", mobileLabel: "Create", icon: Plus, onclick: () => (createOpen = true) },
 		];
+		void loadUsers();
 	});
 	$effect(() => {
 		pageHeader.viewToggle = { value: view, onchange: setView };
 	});
-	onDestroy(() => pageHeader.reset());
 
 	function resetCreateForm() {
 		createUsername = "";
@@ -224,7 +250,17 @@
 			}
 			createOpen = false;
 			resetCreateForm();
-			users.reexecute({ requestPolicy: "network-only" });
+			const created = result.data.createUser;
+			userList = [
+				...userList.filter((user) => user.id !== created.id),
+				{
+					id: created.id,
+					username: created.username,
+					name: created.name,
+					avatarPath: created.avatarPath ?? null,
+				},
+			];
+			persistUsers();
 			toast.success("User created");
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to create user");
@@ -277,8 +313,9 @@
 				throw new Error(result.error?.message ?? "Failed to delete user");
 			}
 			toast.success(`${deleteTarget.name} deleted`);
+			userList = userList.filter((user) => user.id !== deleteTarget?.id);
+			persistUsers();
 			deleteTarget = null;
-			users.reexecute({ requestPolicy: "network-only" });
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to delete user");
 		} finally {
@@ -300,8 +337,7 @@
 		<div class="min-w-0 flex-1">
 			<HiveSearchbar
 				chips={chipConfigs}
-				value={search}
-				onchange={(v) => (search = v)}
+				controller={searchController}
 				placeholder="Search users..."
 			/>
 		</div>
@@ -325,7 +361,7 @@
 		</div>
 	</div>
 
-	{#if $users.fetching && userList.length === 0}
+	{#if loading && userList.length === 0}
 		{#if loader.visible}
 			<p class="text-sm text-muted-foreground">Loading users…</p>
 		{/if}

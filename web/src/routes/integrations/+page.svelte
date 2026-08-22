@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
-	import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
+	import { goto, pushState, replaceState } from "$app/navigation";
+	import { page } from "$app/state";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -8,7 +9,9 @@
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
+	import { loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
 	import { integrationMeta } from "$lib/integrations";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
@@ -52,18 +55,28 @@
 
 	const client = getContextClient();
 	const searchChipConfigs: ChipConfig[] = [];
+	const INTEGRATIONS_CACHE_VERSION = 1;
+	const restoredIntegrations = loadSessionSnapshot<Integration[]>(
+		typeof window === "undefined" ? null : window.sessionStorage,
+		"integrations",
+		INTEGRATIONS_CACHE_VERSION,
+	);
 
-	let integrations = $state<Integration[]>([]);
-	let loading = $state(true);
-	let addDialogOpen = $state(false);
+	let integrations = $state<Integration[]>(restoredIntegrations ?? []);
+	let hydrated = $state(restoredIntegrations !== null);
 	let deleteConfirmIntegration = $state<Integration | null>(null);
 	let deleteLoading = $state(false);
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const addDialogOpen = $derived(
+		page.url.pathname === "/integrations" && page.url.searchParams.get("add") === "1",
+	);
+	const searchController = createUrlSearchState({
+		active: () => addDialogOpen,
+	});
 
 	const configuredIntegrations = $derived(integrations.filter((i) => i.configured));
 	const availableProviders = $derived(integrations.filter((i) => !i.configured));
 	const filteredAvailable = $derived.by(() => {
-		const q = searchState.freeText.trim().toLowerCase();
+		const q = searchController.value.freeText.trim().toLowerCase();
 		if (!q) return availableProviders;
 		return availableProviders.filter((i) => i.name.toLowerCase().includes(q));
 	});
@@ -73,22 +86,35 @@
 	);
 
 	async function loadIntegrations() {
-		loading = true;
 		try {
 			const result = await client.query(INTEGRATIONS_QUERY, {}, { requestPolicy: "network-only" }).toPromise();
-			if (result.data) integrations = result.data.integrations;
+			if (result.data) {
+				integrations = result.data.integrations;
+				saveSessionSnapshot(
+					window.sessionStorage,
+					"integrations",
+					INTEGRATIONS_CACHE_VERSION,
+					integrations,
+				);
+			}
 		} finally {
-			loading = false;
+			hydrated = true;
 		}
 	}
 
 	function openAddDialog() {
-		searchState = { chips: [], freeText: "" };
-		addDialogOpen = true;
+		const url = new URL(page.url);
+		url.searchParams.set("add", "1");
+		pushState(url, page.state);
+	}
+
+	function closeAddDialog() {
+		const url = new URL(page.url);
+		url.searchParams.delete("add");
+		replaceState(url, page.state);
 	}
 
 	function openProvider(provider: string) {
-		addDialogOpen = false;
 		void goto(`/integrations/${provider}`);
 	}
 
@@ -124,10 +150,9 @@
 		void loadIntegrations();
 	});
 
-	onDestroy(() => pageHeader.reset());
 </script>
 
-{#if !loading}
+{#if hydrated}
 	{#if configuredIntegrations.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -167,7 +192,7 @@
 	{/if}
 {/if}
 
-<Dialog bind:open={addDialogOpen}>
+<Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open && addDialogOpen) closeAddDialog(); }}>
 	<DialogContent class="sm:max-w-lg">
 		<DialogHeader>
 			<DialogTitle>Add Integration</DialogTitle>
@@ -176,8 +201,7 @@
 
 		<div class="space-y-3">
 			<HiveSearchbar
-				value={searchState}
-				onchange={(v) => (searchState = v)}
+				controller={searchController}
 				chips={searchChipConfigs}
 				placeholder="Search integrations..."
 			/>
