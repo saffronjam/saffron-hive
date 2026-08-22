@@ -49,6 +49,7 @@
     "mqtt": "^5.15.1",
     "oxfmt": "^0.45.0",
     "oxlint": "^1.60.0",
+    "playwright-core": "^1.62.1",
     "shadcn-svelte": "^1.2.7",
     "svelte": "^5.55.2",
     "svelte-check": "^4.4.6",
