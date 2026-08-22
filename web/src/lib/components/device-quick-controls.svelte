@@ -8,7 +8,6 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import LazyTooltip from "$lib/components/lazy-tooltip.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -20,7 +19,7 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { deviceTint } from "$lib/device-tint";
-	import { sentenceCase } from "$lib/utils";
+	import { deviceDisplayName, sentenceCase } from "$lib/utils";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { Palette, Thermometer } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
@@ -35,19 +34,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-				state {
-					on
-					brightness
-					colorTemp
-					targetTemperature
-					hvacMode
-					fanMode
-					swing
-					color { r g b x y }
-				}
-			}
+			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 		}
 	`);
 
@@ -223,18 +210,12 @@
 </script>
 
 {#if showOnOff && hasOnOff}
-	<LazyTooltip content={isOn ? "Turn off" : "Turn on"}>
-		{#snippet children(props)}
-			<span {...props} class="inline-flex h-8 items-center">
-				<Switch
-					checked={isOn}
-					onCheckedChange={handleToggle}
-					disabled={!device.available}
-					aria-label={`Toggle ${device.name}`}
-				/>
-			</span>
-		{/snippet}
-	</LazyTooltip>
+	<Switch
+		checked={isOn}
+		onCheckedChange={handleToggle}
+		disabled={!device.available}
+		aria-label={`Toggle ${deviceDisplayName(device)}`}
+	/>
 {/if}
 
 {#snippet climateButton(props: Record<string, unknown>)}
@@ -242,7 +223,7 @@
 		{...props}
 		variant="ghost"
 		size="icon-sm"
-		aria-label={`Adjust ${device.name} climate`}
+		aria-label={`Adjust ${deviceDisplayName(device)} climate`}
 		disabled={!device.available}
 	>
 		<Thermometer class="size-4" />
@@ -255,13 +236,7 @@
 	<Popover bind:open={climateOpen}>
 		<PopoverTrigger class="inline-flex h-8 items-center">
 			{#snippet child({ props })}
-				<span {...props} class="inline-flex h-8 items-center">
-					<LazyTooltip content="Climate">
-						{#snippet children(tipProps)}
-							{@render climateButton(tipProps)}
-						{/snippet}
-					</LazyTooltip>
-				</span>
+				{@render climateButton(props)}
 			{/snippet}
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-3" align="end">
@@ -358,7 +333,7 @@
 		<button
 			{...props}
 			type="button"
-			aria-label={`Adjust ${device.name}`}
+			aria-label={`Adjust ${deviceDisplayName(device)}`}
 			disabled={!device.available}
 			class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
 		>
@@ -369,7 +344,7 @@
 			{...props}
 			variant="ghost"
 			size="icon-sm"
-			aria-label={`Adjust ${device.name}`}
+			aria-label={`Adjust ${deviceDisplayName(device)}`}
 			disabled={!device.available}
 		>
 			<Palette class="size-4" />
@@ -383,13 +358,7 @@
 	<Popover bind:open={colorOpen}>
 		<PopoverTrigger class="inline-flex h-8 items-center">
 			{#snippet child({ props })}
-				<span {...props} class="inline-flex h-8 items-center">
-					<LazyTooltip content="Adjust">
-						{#snippet children(tipProps)}
-							{@render adjustButton(tipProps)}
-						{/snippet}
-					</LazyTooltip>
-				</span>
+				{@render adjustButton(props)}
 			{/snippet}
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-4" align="end">

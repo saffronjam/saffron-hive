@@ -2,6 +2,7 @@ import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { rgbToXy } from "$lib/color";
 import { isLightControlDevice, type Device } from "$lib/stores/devices";
+import { CommandTargetType, type DeviceStateInput } from "$lib/gql/graphql";
 
 export interface GroupMemberRef {
   memberType: string;
@@ -19,16 +20,44 @@ export interface RoomLite {
 }
 
 const GROUP_COMMANDS_SET_DEVICE_STATE = graphql(`
-  mutation GroupCommandsSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-    setDeviceState(deviceId: $deviceId, state: $state) {
-      id
-      state {
-        on
-        brightness
-      }
-    }
+  mutation GroupCommandsSetTargetState(
+    $targetType: CommandTargetType!
+    $targetId: ID!
+    $state: DeviceStateInput!
+  ) {
+    setTargetState(targetType: $targetType, targetId: $targetId, state: $state)
   }
 `);
+
+export interface CommandTarget {
+  targetType: CommandTargetType;
+  targetId: string;
+}
+
+async function commitState(
+  client: Client,
+  devices: Device[],
+  targets: Device[],
+  state: DeviceStateInput,
+  target?: CommandTarget,
+): Promise<void> {
+  const active = commandable(devices);
+  if (target && active.length === targets.length) {
+    await client.mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { ...target, state }).toPromise();
+    return;
+  }
+  await Promise.all(
+    targets.map((device) =>
+      client
+        .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, {
+          targetType: CommandTargetType.Device,
+          targetId: device.id,
+          state,
+        })
+        .toPromise(),
+    ),
+  );
+}
 
 /**
  * Recursively walk a group's member list, returning a deduplicated list of
@@ -86,78 +115,58 @@ export async function commitGroupBrightness(
   client: Client,
   devices: Device[],
   brightness: number,
+  target?: CommandTarget,
 ): Promise<void> {
   const lights = commandable(devices).filter(
     (d) => d.type === "light" && d.state?.brightness != null,
   );
   if (lights.length === 0) return;
-  await Promise.all(
-    lights.map((d) => {
-      const input: { on?: true; brightness: number } = { brightness };
-      if (!d.state?.on) input.on = true;
-      return client
-        .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { deviceId: d.id, state: input })
-        .toPromise();
-    }),
-  );
+  const input: { on?: true; brightness: number } = { brightness };
+  if (lights.some((d) => !d.state?.on)) input.on = true;
+  await commitState(client, devices, lights, input, target);
 }
 
 export async function commitGroupToggle(
   client: Client,
   devices: Device[],
   on: boolean,
+  target?: CommandTarget,
 ): Promise<void> {
   const targets = commandable(devices).filter(isLightControlDevice);
   if (targets.length === 0) return;
-  await Promise.all(
-    targets.map((d) =>
-      client
-        .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { deviceId: d.id, state: { on } })
-        .toPromise(),
-    ),
-  );
+  await commitState(client, devices, targets, { on }, target);
 }
 
 export async function commitGroupColor(
   client: Client,
   devices: Device[],
   color: { r: number; g: number; b: number },
+  target?: CommandTarget,
 ): Promise<void> {
   const targets = commandable(devices).filter((d) =>
     d.capabilities.some((c) => c.name === "color"),
   );
   if (targets.length === 0) return;
   const xy = rgbToXy(color.r, color.g, color.b);
-  await Promise.all(
-    targets.map((d) => {
-      const input: {
-        on?: true;
-        color: { r: number; g: number; b: number; x: number; y: number };
-      } = { color: { ...color, x: xy.x, y: xy.y } };
-      if (!d.state?.on) input.on = true;
-      return client
-        .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { deviceId: d.id, state: input })
-        .toPromise();
-    }),
-  );
+  const input: {
+    on?: true;
+    color: { r: number; g: number; b: number; x: number; y: number };
+  } = { color: { ...color, x: xy.x, y: xy.y } };
+  if (targets.some((d) => !d.state?.on)) input.on = true;
+  await commitState(client, devices, targets, input, target);
 }
 
 export async function commitGroupTemp(
   client: Client,
   devices: Device[],
   mired: number,
+  target?: CommandTarget,
 ): Promise<void> {
   const targets = commandable(devices).filter((d) =>
     d.capabilities.some((c) => c.name === "color_temp"),
   );
   if (targets.length === 0) return;
-  await Promise.all(
-    targets.map((d) => {
-      const input: { on?: true; colorTemp: number } = { colorTemp: mired };
-      if (!d.state?.on) input.on = true;
-      return client
-        .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { deviceId: d.id, state: input })
-        .toPromise();
-    }),
-  );
+  const input: { on?: true; colorTemp: number } = { colorTemp: mired };
+  if (targets.some((d) => !d.state?.on)) input.on = true;
+  await commitState(client, devices, targets, input, target);
 }

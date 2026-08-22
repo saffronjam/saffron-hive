@@ -15,7 +15,7 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 
 ## Controls
 
-- `bulk-brightness-slider.svelte` — **the** brightness slider. Anti-flicker (1500 ms interacting cooldown), 250 ms throttle, trailing edge. Pass `devices` (single element list works for per-device control). **Do not write a raw `<Slider>` over `setDeviceState` for brightness.**
+- `bulk-brightness-slider.svelte` — **the** brightness slider. Anti-flicker (1500 ms interacting cooldown), 250 ms throttle, trailing edge. Pass `devices` (single element list works for per-device control). **Do not write a raw `<Slider>` over `setTargetState` for brightness.**
 - `light-color-picker.svelte` — colour wheel + colour-temp slider. Pass capability flags from `capabilityUnion()`.
 - `number-input.svelte` — buffered numeric input. Use for any numeric field — never raw `<input type="number">`.
 - `inline-edit-name.svelte` — click-to-rename text used inside `EntityCard`.

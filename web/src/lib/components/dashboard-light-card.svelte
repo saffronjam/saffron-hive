@@ -23,7 +23,8 @@
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { commitGroupBrightness, commitGroupColor, commitGroupTemp } from "$lib/group-commands";
+	import { commitGroupBrightness, commitGroupColor, commitGroupTemp, commitGroupToggle } from "$lib/group-commands";
+	import { CommandTargetType } from "$lib/gql/graphql";
 
 	interface Entity {
 		id: string;
@@ -46,13 +47,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-				state {
-					on
-					brightness
-				}
-			}
+			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 		}
 	`);
 
@@ -116,12 +111,12 @@
 		onpreview: (v: number) => {
 			previewBrightness = v;
 			throttle(brightnessThrottle, () =>
-				commitGroupBrightness(client, dimmableLights, v),
+				commitGroupBrightness(client, devices, v, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined),
 			);
 		},
 		oncommit: (v: number) => {
 			flushThrottle(brightnessThrottle);
-			commitGroupBrightness(client, dimmableLights, v);
+			commitGroupBrightness(client, devices, v, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined);
 			previewBrightness = v;
 			noteInteract();
 		},
@@ -154,20 +149,24 @@
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
 
 	function handleColorChange(c: { r: number; g: number; b: number }) {
-		throttle(colorThrottle, () => commitGroupColor(client, devices, c));
+		throttle(colorThrottle, () => commitGroupColor(client, devices, c, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined));
 	}
 	function handleTempChange(mired: number) {
-		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired));
+		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined));
 	}
 
 	async function handleToggle() {
 		if (popoverDismissedRecently()) return;
 		const next = !isOn;
-		await Promise.all(
-			onOffDevices.map((d) =>
-				client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on: next } }).toPromise(),
-			),
-		);
+		if (isGroup) {
+			await commitGroupToggle(client, devices, next, { targetType: CommandTargetType.Group, targetId: entity.id });
+		} else {
+			await Promise.all(
+				onOffDevices.map((d) =>
+					client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on: next } }).toPromise(),
+				),
+			);
+		}
 	}
 
 	let popoverOpen = $state(false);

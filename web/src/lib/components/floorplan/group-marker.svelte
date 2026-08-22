@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
 	import { Group } from "@lucide/svelte";
-	import type { DeviceState } from "$lib/gql/graphql";
+	import { CommandTargetType, type DeviceState } from "$lib/gql/graphql";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import {
@@ -90,15 +90,30 @@
 
 	function handleColorChange(c: { r: number; g: number; b: number }) {
 		onpreviewstate?.({ color: { ...c, x: 0, y: 0 }, on: true });
-		throttle(colorThrottle, () => commitGroupColor(client, devices, c));
+		throttle(colorThrottle, () =>
+			commitGroupColor(client, devices, c, {
+				targetType: CommandTargetType.Group,
+				targetId: group.id,
+			}),
+		);
 	}
 	function handleTempChange(mired: number) {
 		onpreviewstate?.({ colorTemp: mired, color: null, on: true });
-		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired));
+		throttle(tempThrottle, () =>
+			commitGroupTemp(client, devices, mired, {
+				targetType: CommandTargetType.Group,
+				targetId: group.id,
+			}),
+		);
 	}
 	function handleBrightnessChange(v: number) {
 		onpreviewstate?.({ brightness: v, on: v > 0 });
-		throttle(brightnessThrottle, () => commitGroupBrightness(client, devices, v));
+		throttle(brightnessThrottle, () =>
+			commitGroupBrightness(client, devices, v, {
+				targetType: CommandTargetType.Group,
+				targetId: group.id,
+			}),
+		);
 	}
 
 	function onPickerChange(open: boolean) {

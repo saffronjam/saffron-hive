@@ -7,7 +7,6 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import { capabilityUnion, hasCapability } from "$lib/target-resolve";
@@ -17,14 +16,16 @@
 		commitGroupToggle,
 		commitGroupColor,
 		commitGroupTemp,
+		type CommandTarget,
 	} from "$lib/group-commands";
 
 	interface Props {
 		devices: Device[];
 		name: string;
+		target?: CommandTarget;
 	}
 
-	let { devices, name }: Props = $props();
+	let { devices, name, target }: Props = $props();
 
 	const client = getContextClient();
 
@@ -54,46 +55,32 @@
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
 
 	function handleToggle(checked: boolean) {
-		void commitGroupToggle(client, devices, checked);
+		void commitGroupToggle(client, devices, checked, target);
 	}
 
 	function handleColorChange(color: { r: number; g: number; b: number }) {
-		throttle(colorThrottle, () => commitGroupColor(client, devices, color));
+		throttle(colorThrottle, () => commitGroupColor(client, devices, color, target));
 	}
 
 	function handleTempChange(mired: number) {
-		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired));
+		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired, target));
 	}
 </script>
 
 {#if hasOnOff}
-	<Tooltip>
-		<TooltipTrigger class="inline-flex h-8 items-center">
-			<Switch
-				checked={isOn}
-				onCheckedChange={handleToggle}
-				aria-label={`Toggle ${name}`}
-			/>
-		</TooltipTrigger>
-		<TooltipContent>{isOn ? "Turn off" : "Turn on"}</TooltipContent>
-	</Tooltip>
+	<Switch checked={isOn} onCheckedChange={handleToggle} aria-label={`Toggle ${name}`} />
 {/if}
 
 {#if hasPopover}
 	<Popover>
 		<PopoverTrigger class="inline-flex h-8 items-center">
-			<Tooltip>
-				<TooltipTrigger class="inline-flex h-8 items-center">
-					<button
-						type="button"
-						aria-label={`Adjust ${name}`}
-						class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent"
-					>
-						<HiveColorSwatch color={swatchColor} />
-					</button>
-				</TooltipTrigger>
-				<TooltipContent>Adjust</TooltipContent>
-			</Tooltip>
+			<button
+				type="button"
+				aria-label={`Adjust ${name}`}
+				class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent"
+			>
+				<HiveColorSwatch color={swatchColor} />
+			</button>
 		</PopoverTrigger>
 		<PopoverContent class="w-72 p-3 space-y-4" align="end">
 			<LightColorPicker

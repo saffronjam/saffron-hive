@@ -21,7 +21,8 @@
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
@@ -43,7 +44,7 @@
 	import { deviceStore, isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore, type Room } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
-	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { rgbToXy } from "$lib/color";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
@@ -62,14 +63,8 @@
 	const client = getContextClient();
 
 	const SET_DEVICE_STATE = graphql(`
-		mutation RoomsPageSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-				state {
-					on
-					brightness
-				}
-			}
+		mutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {
+			setTargetState(targetType: ROOM, targetId: $targetId, state: $state)
 		}
 	`);
 
@@ -99,23 +94,15 @@
 	async function commitRoomBrightness(room: Room, brightness: number) {
 		const lights = roomDevices(room).filter((d) => d.type === "light" && d.state?.brightness != null);
 		if (lights.length === 0) return;
-		await Promise.all(
-			lights.map((d) => {
-				const input: { on?: true; brightness: number } = { brightness };
-				if (!d.state?.on) input.on = true;
-				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
-			}),
-		);
+		const input: { on?: true; brightness: number } = { brightness };
+		if (lights.some((d) => !d.state?.on)) input.on = true;
+		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: input }).toPromise();
 	}
 
 	async function commitRoomToggle(room: Room, on: boolean) {
 		const targets = roomDevices(room).filter(isLightControlDevice);
 		if (targets.length === 0) return;
-		await Promise.all(
-			targets.map((d) =>
-				client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on } }).toPromise(),
-			),
-		);
+		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: { on } }).toPromise();
 	}
 
 	async function commitRoomColor(room: Room, color: { r: number; g: number; b: number }) {
@@ -124,15 +111,11 @@
 		);
 		if (targets.length === 0) return;
 		const xy = rgbToXy(color.r, color.g, color.b);
-		await Promise.all(
-			targets.map((d) => {
-				const input: { on?: true; color: { r: number; g: number; b: number; x: number; y: number } } = {
-					color: { ...color, x: xy.x, y: xy.y },
-				};
-				if (!d.state?.on) input.on = true;
-				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
-			}),
-		);
+		const input: { on?: true; color: { r: number; g: number; b: number; x: number; y: number } } = {
+			color: { ...color, x: xy.x, y: xy.y },
+		};
+		if (targets.some((d) => !d.state?.on)) input.on = true;
+		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: input }).toPromise();
 	}
 
 	async function commitRoomTemp(room: Room, mired: number) {
@@ -140,16 +123,14 @@
 			d.capabilities.some((c) => c.name === "color_temp"),
 		);
 		if (targets.length === 0) return;
-		await Promise.all(
-			targets.map((d) => {
-				const input: { on?: true; colorTemp: number } = { colorTemp: mired };
-				if (!d.state?.on) input.on = true;
-				return client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: input }).toPromise();
-			}),
-		);
+		const input: { on?: true; colorTemp: number } = { colorTemp: mired };
+		if (targets.some((d) => !d.state?.on)) input.on = true;
+		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: input }).toPromise();
 	}
 
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const searchController = createUrlSearchState({
+		active: () => visible && page.url.pathname === "/rooms",
+	});
 
 	const deviceTypeOptions = [
 		{ value: "light", label: "Light" },
@@ -196,12 +177,12 @@
 	]);
 
 	const filteredRooms = $derived.by(() => {
-		const typeValues = searchState.chips.filter((c) => c.keyword === "type").map((c) => c.value);
-		const deviceValues = searchState.chips
+		const typeValues = searchController.value.chips.filter((c) => c.keyword === "type").map((c) => c.value);
+		const deviceValues = searchController.value.chips
 			.filter((c) => c.keyword === "device")
 			.map((c) => c.value.toLowerCase());
-		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
-		const query = searchState.freeText.toLowerCase();
+		const emptyValues = searchController.value.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const query = searchController.value.freeText.toLowerCase();
 
 		return rooms.filter((r) => {
 			const ds = r.resolvedDevices
@@ -288,7 +269,7 @@
 				items: grpAvail.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 				})),
@@ -436,7 +417,7 @@
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 				})),
@@ -457,10 +438,10 @@
 							(gm) => gm.memberType === "device" && gm.memberId === m.deviceId,
 						),
 					)
-					.map((g) => ({ id: g.id, name: g.name, href: `/groups?edit=${g.id}` }));
+					.map((g) => ({ id: g.id, name: groupDisplayName(g), href: `/groups?edit=${g.id}` }));
 				return {
 					id: m.rowKey,
-					name: dev?.name ?? m.deviceId,
+					name: dev ? deviceDisplayName(dev) : m.deviceId,
 					type: dev?.type ?? "device",
 					related,
 					href: `/devices/${m.deviceId}`,
@@ -469,7 +450,7 @@
 			const grp = allGroups.find((g) => g.id === m.groupId);
 			return {
 				id: m.rowKey,
-				name: grp?.name ?? m.groupId,
+				name: grp ? groupDisplayName(grp) : m.groupId,
 				type: "group",
 				related: [],
 				href: `/groups?edit=${m.groupId}`,
@@ -504,11 +485,19 @@
 	}
 
 	function startEditing(room: Room) {
-		goto(`/rooms?edit=${encodeURIComponent(room.id)}`, { keepFocus: true, noScroll: true });
+		goto(editRoomHref(room.id), { keepFocus: true, noScroll: true });
+	}
+
+	function editRoomHref(id: string): string {
+		const url = new URL(page.url);
+		url.searchParams.set("edit", id);
+		return `${url.pathname}${url.search}${url.hash}`;
 	}
 
 	function stopEditing() {
-		goto("/rooms", { keepFocus: true, noScroll: true });
+		const url = new URL(page.url);
+		url.searchParams.delete("edit");
+		goto(url, { keepFocus: true, noScroll: true });
 	}
 
 	// Sync editing state from URL. When the ?edit=<id> query param changes
@@ -631,7 +620,7 @@
 			if (!grp) return;
 			pendingMemberAdds = [
 				...pendingMemberAdds,
-				{ kind: "group", group: { id: grp.id, name: grp.name } },
+				{ kind: "group", group: { id: grp.id, name: groupDisplayName(grp) } },
 			];
 		}
 		pickerOpen = false;
@@ -675,7 +664,7 @@
 	$effect(() => mountTimer.tick());
 </script>
 
-<UnsavedGuard dirty={editNameDirty || editIconDirty} />
+<UnsavedGuard dirty={hasPendingChanges} />
 
 <div>
 	{#if errors.message}
@@ -752,8 +741,7 @@
 				<div class="mb-6 flex items-stretch gap-2">
 					<div class="min-w-0 flex-1">
 						<HiveSearchbar
-							value={searchState}
-							onchange={(v) => (searchState = v)}
+							controller={searchController}
 							chips={searchChipConfigs}
 							placeholder="Search rooms..."
 						/>
@@ -792,7 +780,7 @@
 										devices={roomDevices(room)}
 										fallbackIcon={DoorOpen}
 										stateSummary
-										editHref={`/rooms?edit=${encodeURIComponent(room.id)}`}
+										editHref={editRoomHref(room.id)}
 										ondelete={(r) => (deleteConfirmRoom = r)}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
@@ -811,6 +799,7 @@
 							<RoomTable
 								rooms={filteredRooms}
 								{selection}
+								editHref={(room) => editRoomHref(room.id)}
 								ondelete={(r) => (deleteConfirmRoom = r)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}

@@ -32,7 +32,7 @@
 		type Device,
 	} from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
-	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
 	import type { Component } from "svelte";
 	import {
@@ -46,6 +46,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
+	import { CommandTargetType } from "$lib/gql/graphql";
 
 	interface RoomEntity {
 		id: string;
@@ -56,7 +57,8 @@
 
 	interface DashboardGroup {
 		id: string;
-		name: string;
+		name?: string | null;
+		friendlyName?: string | null;
 		icon?: string | null;
 		tags: GroupTag[];
 		members: { memberType: string; memberId: string }[];
@@ -164,10 +166,22 @@
 	const roomTempThrottle: Throttle = { lastSent: 0, trailing: null };
 
 	function handleRoomColorChange(c: { r: number; g: number; b: number }) {
-		throttle(roomColorThrottle, () => commitGroupColor(client, roomDevices, c));
+		if (!room) return;
+		throttle(roomColorThrottle, () =>
+			commitGroupColor(client, roomDevices, c, {
+				targetType: CommandTargetType.Room,
+				targetId: room.id,
+			}),
+		);
 	}
 	function handleRoomTempChange(mired: number) {
-		throttle(roomTempThrottle, () => commitGroupTemp(client, roomDevices, mired));
+		if (!room) return;
+		throttle(roomTempThrottle, () =>
+			commitGroupTemp(client, roomDevices, mired, {
+				targetType: CommandTargetType.Room,
+				targetId: room.id,
+			}),
+		);
 	}
 
 	const roomDimmableLights = $derived(
@@ -209,14 +223,22 @@
 	const roomDragOpts = $derived({
 		initial: () => (isOn ? roomAvgBrightness : 0),
 		onpreview: (v: number) => {
+			if (!room) return;
 			roomPreviewBrightness = v;
 			throttle(roomBrightnessThrottle, () =>
-				commitGroupBrightness(client, roomDimmableLights, v),
+				commitGroupBrightness(client, roomDimmableLights, v, {
+					targetType: CommandTargetType.Room,
+					targetId: room.id,
+				}),
 			);
 		},
 		oncommit: (v: number) => {
+			if (!room) return;
 			flushThrottle(roomBrightnessThrottle);
-			commitGroupBrightness(client, roomDimmableLights, v);
+			commitGroupBrightness(client, roomDimmableLights, v, {
+				targetType: CommandTargetType.Room,
+				targetId: room.id,
+			});
 			roomPreviewBrightness = v;
 			noteRoomInteract();
 		},
@@ -252,7 +274,7 @@
 			for (const d of groupDevs) claimedDeviceIds.add(d.id);
 			entries.push({
 				key: `group:${group.id}`,
-				entity: { id: group.id, name: group.name, icon: group.icon ?? null },
+				entity: { id: group.id, name: groupDisplayName(group), icon: group.icon ?? null },
 				devices: groupDevs,
 				isGroup: true,
 				fallbackIcon: GroupIcon,
@@ -333,7 +355,12 @@
 				size="sm"
 				onclick={() => {
 					if (popoverDismissedRecently()) return;
-					commitGroupToggle(client, roomDevices, !isOn);
+					if (room) {
+						commitGroupToggle(client, roomDevices, !isOn, {
+							targetType: CommandTargetType.Room,
+							targetId: room.id,
+						});
+					}
 				}}
 			>
 				{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}

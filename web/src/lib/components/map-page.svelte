@@ -82,7 +82,7 @@
 		SET_DISPLAY_COLOR,
 		TOPOLOGY_UPDATED_SUB,
 	} from "$lib/graphql/map";
-	import { ContactRole, type Device, type DeviceState } from "$lib/gql/graphql";
+	import { CommandTargetType, ContactRole, type Device, type DeviceState } from "$lib/gql/graphql";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
@@ -193,7 +193,7 @@
 		newFurnitureId,
 		type FloorplanFurnitureData,
 	} from "$lib/floorplan-editable";
-	import { deviceDisplayName, sentenceCase } from "$lib/utils";
+	import { deviceDisplayName, groupDisplayName, sentenceCase } from "$lib/utils";
 	import { integrationMeta } from "$lib/integrations";
 
 	interface Props {
@@ -590,7 +590,7 @@
 			return [
 				{
 					kind: "group",
-					group: { id: group.id, name: group.name, icon: group.icon },
+					group: { id: group.id, name: groupDisplayName(group), icon: group.icon },
 					devices: placementDevices.get(placementKey(p)) ?? [],
 					x: p.x,
 					y: p.y,
@@ -1329,7 +1329,8 @@
 
 	function refLabel(ref: PlacementRef): string {
 		if (ref.memberType === "group") {
-			return hiveGroups.find((g) => g.id === ref.memberId)?.name ?? ref.memberId;
+			const group = hiveGroups.find((candidate) => candidate.id === ref.memberId);
+			return group ? groupDisplayName(group) : ref.memberId;
 		}
 		const device = deviceById.get(ref.memberId);
 		return device ? deviceDisplayName(device) : ref.memberId;
@@ -1792,7 +1793,14 @@
 			(d) => !d.disabled && d.available && isLightControlDevice(d),
 		);
 		if (devices.length === 0) return;
-		commitGroupToggle(client, devices, !devices.some((d) => d.state?.on));
+		commitGroupToggle(
+			client,
+			devices,
+			!devices.some((d) => d.state?.on),
+			pl.kind === "group"
+				? { targetType: CommandTargetType.Group, targetId: pl.group.id }
+				: { targetType: CommandTargetType.Device, targetId: pl.device.id },
+		);
 	}
 
 	function handleMarkerMenu(placement: PlacementView, clientX: number, clientY: number) {
@@ -1808,11 +1816,16 @@
 		if (m) removePlacement(placementViewRef(m.placement));
 	}
 
-	function menuOpenDevicePage() {
+	function menuOpenPlacementPage() {
 		const m = markerMenu;
 		markerMenuOpen = false;
 		markerMenu = null;
-		if (m?.placement.kind === "device") goto(`/devices/${m.placement.device.id}`);
+		if (!m) return;
+		if (m.placement.kind === "device") {
+			goto(`/devices/${m.placement.device.id}`);
+			return;
+		}
+		goto(`/groups?edit=${encodeURIComponent(m.placement.group.id)}`);
 	}
 
 	function menuSetDisplayColor() {
@@ -2151,7 +2164,6 @@
 	let actionTxSubHandle: { unsubscribe: () => void } | null = null;
 
 	onDestroy(() => {
-		pageHeader.reset();
 		topologySubHandle?.unsubscribe();
 		txSubHandle?.unsubscribe();
 		actionTxSubHandle?.unsubscribe();
@@ -2253,7 +2265,7 @@
 			if (overlap.length === 0) return [];
 			return [
 				{
-					group: { id: group.id, name: group.name, icon: group.icon },
+					group: { id: group.id, name: groupDisplayName(group), icon: group.icon },
 					deviceCount: overlap.length,
 					placed: placedKeys.has(placementKey({ memberType: "group", memberId: group.id })),
 				},
@@ -2631,25 +2643,27 @@
 	</div>
 {/if}
 
-<PlanPointMenu bind:open={markerMenuOpen} at={markerMenu} onclose={() => (markerMenu = null)}>
-		{#if markerMenu?.placement.kind === "device"}
-			<DropdownMenuItem onclick={menuOpenDevicePage}>
-				<ExternalLink class="size-3.5" />
-				Open device
-			</DropdownMenuItem>
-			{#if editMode && needsDisplayColor(markerMenu.placement.device)}
-				<DropdownMenuItem onclick={menuSetDisplayColor}>
-					<Palette class="size-3.5" />
-					Set display color
+	<PlanPointMenu bind:open={markerMenuOpen} at={markerMenu} onclose={() => (markerMenu = null)}>
+			{#if markerMenu}
+				<DropdownMenuItem onclick={menuOpenPlacementPage}>
+					<ExternalLink class="size-3.5" />
+					{markerMenu.placement.kind === "device" ? "Go to device" : "Go to group"}
+				</DropdownMenuItem>
+				{#if editMode && markerMenu.placement.kind === "device" && needsDisplayColor(markerMenu.placement.device)}
+					<DropdownMenuItem onclick={menuSetDisplayColor}>
+						<Palette class="size-3.5" />
+						Set display color
+					</DropdownMenuItem>
+				{/if}
+			{/if}
+			{#if editMode}
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onclick={menuRemovePlacement}>
+					<X class="size-3.5" />
+					Remove from map
 				</DropdownMenuItem>
 			{/if}
-			<DropdownMenuSeparator />
-		{/if}
-		<DropdownMenuItem onclick={menuRemovePlacement}>
-			<X class="size-3.5" />
-			Remove from map
-		</DropdownMenuItem>
-</PlanPointMenu>
+	</PlanPointMenu>
 
 <PlanPointMenu
 	bind:open={doorSensorMenuOpen}

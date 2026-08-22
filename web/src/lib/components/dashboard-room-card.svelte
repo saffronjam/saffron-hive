@@ -16,6 +16,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
+	import { CommandTargetType } from "$lib/gql/graphql";
 
 	interface RoomEntity {
 		id: string;
@@ -95,12 +96,18 @@
 		onpreview: (v: number) => {
 			previewBrightness = v;
 			throttle(brightnessThrottle, () =>
-				commitGroupBrightness(client, dimmableLights, v),
+				commitGroupBrightness(client, dimmableLights, v, {
+					targetType: CommandTargetType.Room,
+					targetId: room.id,
+				}),
 			);
 		},
 		oncommit: (v: number) => {
 			flushThrottle(brightnessThrottle);
-			commitGroupBrightness(client, dimmableLights, v);
+			commitGroupBrightness(client, dimmableLights, v, {
+				targetType: CommandTargetType.Room,
+				targetId: room.id,
+			});
 			previewBrightness = v;
 			noteInteract();
 		},

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
@@ -21,6 +20,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import type { Device } from "$lib/stores/devices";
 	import { DoorOpen, Plus } from "@lucide/svelte";
+	import { CommandTargetType } from "$lib/gql/graphql";
 
 	interface RoomData {
 		id: string;
@@ -38,6 +38,7 @@
 		onrename: (room: RoomData, newName: string) => void;
 		oniconchange: (room: RoomData, icon: string | null) => void;
 		onAddTo: (room: RoomData) => void;
+		editHref: (room: RoomData) => string;
 		getDevices?: (room: RoomData) => Device[];
 	}
 
@@ -48,6 +49,7 @@
 		onrename,
 		oniconchange,
 		onAddTo,
+		editHref,
 		getDevices,
 	}: Props = $props();
 
@@ -171,28 +173,27 @@
 
 {#snippet actionsCell(r: RoomData)}
 	<RowActionsCell
-		editHref={`/rooms?edit=${r.id}`}
+		editHref={editHref(r)}
 		ondelete={() => ondelete(r)}
 		editLabel="Edit room"
 		deleteLabel="Delete room"
 	>
 		{#snippet leading()}
 			{#if getDevices}
-				<CollectionQuickControls devices={getDevices(r)} name={r.name} />
+				<CollectionQuickControls
+					devices={getDevices(r)}
+					name={r.name}
+				target={{ targetType: CommandTargetType.Room, targetId: r.id }}
+				/>
 			{/if}
-			<Tooltip>
-				<TooltipTrigger>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						onclick={() => onAddTo(r)}
-						aria-label="Add to room"
-					>
-						<Plus class="size-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>Add…</TooltipContent>
-			</Tooltip>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={() => onAddTo(r)}
+				aria-label="Add to room"
+			>
+				<Plus class="size-4" />
+			</Button>
 		{/snippet}
 	</RowActionsCell>
 {/snippet}

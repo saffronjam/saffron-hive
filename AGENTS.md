@@ -110,7 +110,7 @@ A disabled device keeps its row, detail page, live subscriptions and state
 history, and still renders as a member of the rooms, groups and scenes it
 belongs to — but it leaves every path that commands or watches it. The single
 chokepoint is `store.ResolveTargetDeviceIDs`, which every runtime fan-out
-resolves through; `Mutation.setDeviceState` rejects it outright and both
+resolves through; `Mutation.setTargetState` rejects it outright and both
 adapters' command loops drop it as a final gate.
 
 A third flag, `seen`, is false from discovery until the user opens the device
@@ -189,7 +189,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
 ### Reuse first
 - Before writing a new function, component, or store, search for an existing one. Generic stores live under `web/src/lib/stores/`, shared utilities directly under `web/src/lib/`, shared UI under `web/src/lib/components/`.
 - Concrete examples — reuse these, do **not** re-implement:
-  - **Brightness slider** with anti-flicker (1500 ms interacting cooldown) + 250 ms throttle + trailing edge: `web/src/lib/components/bulk-brightness-slider.svelte`. Pass a single-element `devices` list for per-device control. Never write a raw `<Slider>` over `setDeviceState` for brightness.
+  - **Brightness slider** with anti-flicker (1500 ms interacting cooldown) + 250 ms throttle + trailing edge: `web/src/lib/components/bulk-brightness-slider.svelte`. Pass a single-element `devices` list for per-device control. Never write a raw `<Slider>` over `setTargetState` for brightness.
   - **Throttle** any user-driven mutation through the shared helper at `web/src/lib/throttle.ts` (`throttle`, `flushThrottle`, `Throttle` interface). Drag-release paths use `flushThrottle` + an immediate commit so the device ends at the released value, not the second-to-last sample.
   - **Card layout** (icon + name + actions + footer + tint): `web/src/lib/components/entity-card.svelte`. Has `iconArea` snippet for custom icon controls, `dragOpts` for press-and-drag, `brightnessFill` for horizontal fill mode.
   - **Card tint** comes from CSS classes in `web/src/app.css` (`tint-1`, `tint-2`, `tint-3`, `tint-fill-horizontal`), driven by `--tint-color`/`--tint-strength`/`--brightness-fill` `@property`-registered CSS variables. Do not bake colours into inline `background:` literals — use `color-mix(in srgb, ${c} 50%, var(--card))` so colours fade against the card surface.
