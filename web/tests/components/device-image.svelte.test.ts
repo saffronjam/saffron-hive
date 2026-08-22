@@ -6,6 +6,13 @@ import { auth } from "$lib/stores/auth.svelte";
 let component: ReturnType<typeof mount> | null = null;
 let host: HTMLDivElement | null = null;
 
+function imageResponse(): Response {
+  return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), {
+    status: 200,
+    headers: { "Content-Type": "image/png" },
+  });
+}
+
 beforeEach(() => {
   auth.setToken("test-token");
   host = document.createElement("div");
@@ -24,7 +31,7 @@ afterEach(() => {
 
 describe("DeviceImage", () => {
   it("shows a browser-cached image without a fade", async () => {
-    const cached = new Response(new Blob(["image"], { type: "image/png" }), { status: 200 });
+    const cached = imageResponse();
     vi.stubGlobal("caches", {
       open: vi.fn().mockResolvedValue({ match: vi.fn().mockResolvedValue(cached) }),
     });
@@ -46,9 +53,7 @@ describe("DeviceImage", () => {
   });
 
   it("loads through Hive with authorization and revokes the object URL", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response(new Blob(["image"], { type: "image/png" }), { status: 200 }));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(imageResponse());
     const create = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:device-image");
     const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const onavailability = vi.fn();
