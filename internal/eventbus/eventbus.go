@@ -22,16 +22,17 @@ const (
 	// (name, icon, roles, disabled) — distinct from runtime state or
 	// availability. It carries the updated device.Device; subscribers refresh
 	// their cached view of those fields.
-	EventDeviceUpdated           EventType = "device.updated"
-	EventDeviceRemoved           EventType = "device.removed"
-	EventCommandRequested        EventType = "command.requested"
-	EventConfigurationRequested  EventType = "configuration.requested"
-	EventNativeEffectRequested   EventType = "native_effect.requested"
-	EventSceneApplied            EventType = "scene.applied"
-	EventSceneActivated          EventType = "scene.activated"
-	EventSceneDeactivated        EventType = "scene.deactivated"
-	EventAutomationTriggered     EventType = "automation.triggered"
-	EventAutomationNodeActivated EventType = "automation.node_activated"
+	EventDeviceUpdated                 EventType = "device.updated"
+	EventDeviceRemoved                 EventType = "device.removed"
+	EventCommandRequested              EventType = "command.requested"
+	EventProviderGroupCommandRequested EventType = "provider_group.command_requested"
+	EventConfigurationRequested        EventType = "configuration.requested"
+	EventNativeEffectRequested         EventType = "native_effect.requested"
+	EventSceneApplied                  EventType = "scene.applied"
+	EventSceneActivated                EventType = "scene.activated"
+	EventSceneDeactivated              EventType = "scene.deactivated"
+	EventAutomationTriggered           EventType = "automation.triggered"
+	EventAutomationNodeActivated       EventType = "automation.node_activated"
 	// EventEffectStepActivated is emitted by the effect runner around each
 	// step it processes (Active=true on enter, Active=false on exit). The
 	// frontend live view uses it to highlight the running step inside an
@@ -51,6 +52,20 @@ const (
 	// The activity room cache subscribes to it because group reshuffles can
 	// change which room a device transitively belongs to.
 	EventGroupMembershipChanged EventType = "group.membership_changed"
+	// EventProviderGroupsSynced carries a complete provider-owned group
+	// snapshot. A persister applies it atomically before announcing changes.
+	EventProviderGroupsSynced EventType = "provider.groups_synced"
+	// EventZigbeeMetadataSynced carries the bridge/devices description for one
+	// Zigbee device. The metadata persister owns deduplication and storage.
+	EventZigbeeMetadataSynced EventType = "zigbee.metadata_synced"
+	// EventZigbeeOTAStatusChanged carries an OTA update object from a Zigbee
+	// device state payload.
+	EventZigbeeOTAStatusChanged EventType = "zigbee.ota_status_changed"
+	// EventZigbeeMetadataUpdated announces a committed metadata change.
+	EventZigbeeMetadataUpdated EventType = "zigbee.metadata_updated"
+	// EventGroupSynced announces provider-owned groups whose stored definition
+	// changed. GroupSyncedEvent carries the affected generic group IDs.
+	EventGroupSynced EventType = "group.synced"
 	// EventNetworkTopologyScanned is published by an adapter when a mesh
 	// network scan completes, carrying the freshly parsed
 	// device.NetworkTopology (pre-merge). The topology persister is its only
@@ -113,6 +128,11 @@ type NetworkTopologyUpdatedEvent struct {
 	ScannedAt time.Time `json:"scannedAt"`
 	NodeCount int       `json:"nodeCount"`
 	LinkCount int       `json:"linkCount"`
+}
+
+// GroupSyncedEvent is the payload for EventGroupSynced.
+type GroupSyncedEvent struct {
+	ChangedIDs []string `json:"changedIds"`
 }
 
 // Event is the generic envelope carried by the bus.
