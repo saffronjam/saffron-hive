@@ -131,10 +131,12 @@ type AutomationEdgeInput struct {
 }
 
 type AutomationGraph struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Icon        *string           `json:"icon,omitempty"`
-	Enabled     bool              `json:"enabled"`
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Icon    *string `json:"icon,omitempty"`
+	Enabled bool    `json:"enabled"`
+	// Whether the stored graph can be loaded by the automation engine.
+	Compilable  bool              `json:"compilable"`
 	LastFiredAt *time.Time        `json:"lastFiredAt,omitempty"`
 	Nodes       []*AutomationNode `json:"nodes"`
 	Edges       []*AutomationEdge `json:"edges"`
@@ -278,7 +280,7 @@ type Device struct {
 	Available         bool          `json:"available"`
 	// When true the device is excluded from every path that commands or watches it:
 	// scene apply, automation and effect fan-out, target selectors, and the
-	// unavailable / low-battery health checks. setDeviceState rejects it outright.
+	// unavailable / low-battery health checks. setTargetState rejects it outright.
 	// Its row, detail page, live subscriptions and state history are unaffected, and
 	// it still renders as a member of the rooms, groups and scenes it belongs to.
 	Disabled bool `json:"disabled"`
@@ -289,6 +291,8 @@ type Device struct {
 	LastSeen      *time.Time                  `json:"lastSeen,omitempty"`
 	State         *DeviceState                `json:"state,omitempty"`
 	Configuration []*DeviceConfigurationEntry `json:"configuration"`
+	// Zigbee2MQTT detail, available only for Zigbee2MQTT devices.
+	Zigbee2Mqtt *Zigbee2MqttDeviceMetadata `json:"zigbee2Mqtt,omitempty"`
 }
 
 func (Device) IsSceneTarget() {}
@@ -379,6 +383,7 @@ type DeviceStateInput struct {
 type Effect struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
+	Source     string     `json:"source"`
 	Icon       *string    `json:"icon,omitempty"`
 	Kind       EffectKind `json:"kind"`
 	NativeName *string    `json:"nativeName,omitempty"`
@@ -599,8 +604,15 @@ type FloorplanWallInput struct {
 }
 
 type Group struct {
-	ID              string         `json:"id"`
-	Name            string         `json:"name"`
+	ID string `json:"id"`
+	// The user's name override. Null means unset, in which case the group shows the
+	// name its integration reports, or its id when there is none. Clients render
+	// `name ?? friendlyName ?? id`; `updateGroup(name: null)` clears the override.
+	Name *string `json:"name,omitempty"`
+	// The name the integration reports. Empty for groups created in Hive.
+	FriendlyName    string         `json:"friendlyName"`
+	Source          string         `json:"source"`
+	Removed         bool           `json:"removed"`
 	Icon            *string        `json:"icon,omitempty"`
 	Tags            []GroupTag     `json:"tags"`
 	Members         []*GroupMember `json:"members"`
@@ -641,6 +653,18 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
+type MaintenanceTask struct {
+	ID           string          `json:"id"`
+	Kind         MaintenanceKind `json:"kind"`
+	Title        string          `json:"title"`
+	Detail       string          `json:"detail"`
+	Action       string          `json:"action"`
+	Device       *Device         `json:"device,omitempty"`
+	CurrentValue *string         `json:"currentValue,omitempty"`
+	TargetValue  *string         `json:"targetValue,omitempty"`
+	ActionURL    *string         `json:"actionUrl,omitempty"`
+}
+
 type Mutation struct {
 }
 
@@ -650,6 +674,7 @@ type Mutation struct {
 type NativeEffectOption struct {
 	Name                 string `json:"name"`
 	DisplayName          string `json:"displayName"`
+	Source               string `json:"source"`
 	SupportedDeviceCount int    `json:"supportedDeviceCount"`
 }
 
@@ -992,12 +1017,21 @@ type User struct {
 	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
 }
 
+type Zigbee2MqttBinding struct {
+	Cluster           string  `json:"cluster"`
+	TargetType        string  `json:"targetType"`
+	TargetIeeeAddress *string `json:"targetIeeeAddress,omitempty"`
+	TargetEndpoint    *int    `json:"targetEndpoint,omitempty"`
+	TargetGroupID     *int    `json:"targetGroupId,omitempty"`
+}
+
 type Zigbee2MqttConfig struct {
-	Broker   string `json:"broker"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	UseWss   bool   `json:"useWss"`
-	Enabled  bool   `json:"enabled"`
+	Broker      string  `json:"broker"`
+	FrontendURL *string `json:"frontendUrl,omitempty"`
+	Username    string  `json:"username"`
+	Password    string  `json:"password"`
+	UseWss      bool    `json:"useWss"`
+	Enabled     bool    `json:"enabled"`
 	// Whether a topology scan runs automatically every day at scanHour:scanMinute.
 	ScanScheduleEnabled bool `json:"scanScheduleEnabled"`
 	// Daily scan time. Kept while the schedule is off so re-enabling restores the
@@ -1011,17 +1045,83 @@ type Zigbee2MqttConfig struct {
 }
 
 type Zigbee2MqttConfigInput struct {
-	Broker   string `json:"broker"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	UseWss   bool   `json:"useWss"`
-	Enabled  bool   `json:"enabled"`
+	Broker      string                     `json:"broker"`
+	FrontendURL graphql.Omittable[*string] `json:"frontendUrl,omitempty"`
+	Username    string                     `json:"username"`
+	Password    string                     `json:"password"`
+	UseWss      bool                       `json:"useWss"`
+	Enabled     bool                       `json:"enabled"`
 	// Enabling requires scanHour and scanMinute to be set.
 	ScanScheduleEnabled bool `json:"scanScheduleEnabled"`
 	// Daily scan time. Null while the schedule is disabled keeps the stored time,
 	// so switching the schedule off never erases it.
 	ScanHour   graphql.Omittable[*int] `json:"scanHour,omitempty"`
 	ScanMinute graphql.Omittable[*int] `json:"scanMinute,omitempty"`
+}
+
+type Zigbee2MqttDeviceDefinition struct {
+	Model       *string `json:"model,omitempty"`
+	Vendor      *string `json:"vendor,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Source      *string `json:"source,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
+	SupportsOta *bool   `json:"supportsOta,omitempty"`
+}
+
+type Zigbee2MqttDeviceMetadata struct {
+	ImageCandidate     bool                         `json:"imageCandidate"`
+	ImageVersion       *string                      `json:"imageVersion,omitempty"`
+	NetworkType        *string                      `json:"networkType,omitempty"`
+	IeeeAddress        *string                      `json:"ieeeAddress,omitempty"`
+	AddressVendor      *string                      `json:"addressVendor,omitempty"`
+	NetworkAddress     *int                         `json:"networkAddress,omitempty"`
+	Supported          *bool                        `json:"supported,omitempty"`
+	InterviewState     *string                      `json:"interviewState,omitempty"`
+	InterviewCompleted *bool                        `json:"interviewCompleted,omitempty"`
+	Interviewing       *bool                        `json:"interviewing,omitempty"`
+	Description        *string                      `json:"description,omitempty"`
+	Manufacturer       *string                      `json:"manufacturer,omitempty"`
+	ModelID            *string                      `json:"modelId,omitempty"`
+	PowerSource        *string                      `json:"powerSource,omitempty"`
+	SoftwareBuildID    *string                      `json:"softwareBuildId,omitempty"`
+	DateCode           *string                      `json:"dateCode,omitempty"`
+	Definition         *Zigbee2MqttDeviceDefinition `json:"definition,omitempty"`
+	DefinitionURL      *string                      `json:"definitionUrl,omitempty"`
+	Ota                *Zigbee2MqttOtaStatus        `json:"ota"`
+	Endpoints          []*Zigbee2MqttEndpoint       `json:"endpoints"`
+	Groups             []*Zigbee2MqttGroupReference `json:"groups"`
+}
+
+type Zigbee2MqttEndpoint struct {
+	ID             int                     `json:"id"`
+	ProfileID      *int                    `json:"profileId,omitempty"`
+	DeviceID       *int                    `json:"deviceId,omitempty"`
+	InputClusters  []string                `json:"inputClusters"`
+	OutputClusters []string                `json:"outputClusters"`
+	Bindings       []*Zigbee2MqttBinding   `json:"bindings"`
+	Reportings     []*Zigbee2MqttReporting `json:"reportings"`
+}
+
+type Zigbee2MqttGroupReference struct {
+	ID              string `json:"id"`
+	ProviderGroupID string `json:"providerGroupId"`
+	Name            string `json:"name"`
+	Endpoint        int    `json:"endpoint"`
+}
+
+type Zigbee2MqttOtaStatus struct {
+	State            *string  `json:"state,omitempty"`
+	InstalledVersion *string  `json:"installedVersion,omitempty"`
+	LatestVersion    *string  `json:"latestVersion,omitempty"`
+	Progress         *float64 `json:"progress,omitempty"`
+}
+
+type Zigbee2MqttReporting struct {
+	Cluster               string   `json:"cluster"`
+	Attribute             string   `json:"attribute"`
+	MinimumReportInterval *int     `json:"minimumReportInterval,omitempty"`
+	MaximumReportInterval *int     `json:"maximumReportInterval,omitempty"`
+	ReportableChange      *float64 `json:"reportableChange,omitempty"`
 }
 
 type AggregatedHistoryTargetType string
@@ -1300,6 +1400,63 @@ func (e *CapabilityCategory) UnmarshalJSON(b []byte) error {
 }
 
 func (e CapabilityCategory) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type CommandTargetType string
+
+const (
+	CommandTargetTypeDevice CommandTargetType = "DEVICE"
+	CommandTargetTypeGroup  CommandTargetType = "GROUP"
+	CommandTargetTypeRoom   CommandTargetType = "ROOM"
+)
+
+var AllCommandTargetType = []CommandTargetType{
+	CommandTargetTypeDevice,
+	CommandTargetTypeGroup,
+	CommandTargetTypeRoom,
+}
+
+func (e CommandTargetType) IsValid() bool {
+	switch e {
+	case CommandTargetTypeDevice, CommandTargetTypeGroup, CommandTargetTypeRoom:
+		return true
+	}
+	return false
+}
+
+func (e CommandTargetType) String() string {
+	return string(e)
+}
+
+func (e *CommandTargetType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CommandTargetType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CommandTargetType", str)
+	}
+	return nil
+}
+
+func (e CommandTargetType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CommandTargetType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CommandTargetType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1757,6 +1914,65 @@ func (e *GroupTag) UnmarshalJSON(b []byte) error {
 }
 
 func (e GroupTag) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type MaintenanceKind string
+
+const (
+	MaintenanceKindBattery  MaintenanceKind = "BATTERY"
+	MaintenanceKindFirmware MaintenanceKind = "FIRMWARE"
+	MaintenanceKindPosture  MaintenanceKind = "POSTURE"
+	MaintenanceKindStorage  MaintenanceKind = "STORAGE"
+)
+
+var AllMaintenanceKind = []MaintenanceKind{
+	MaintenanceKindBattery,
+	MaintenanceKindFirmware,
+	MaintenanceKindPosture,
+	MaintenanceKindStorage,
+}
+
+func (e MaintenanceKind) IsValid() bool {
+	switch e {
+	case MaintenanceKindBattery, MaintenanceKindFirmware, MaintenanceKindPosture, MaintenanceKindStorage:
+		return true
+	}
+	return false
+}
+
+func (e MaintenanceKind) String() string {
+	return string(e)
+}
+
+func (e *MaintenanceKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = MaintenanceKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid MaintenanceKind", str)
+	}
+	return nil
+}
+
+func (e MaintenanceKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *MaintenanceKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e MaintenanceKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

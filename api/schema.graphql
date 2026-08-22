@@ -69,7 +69,7 @@ type Device {
   """
   When true the device is excluded from every path that commands or watches it:
   scene apply, automation and effect fan-out, target selectors, and the
-  unavailable / low-battery health checks. setDeviceState rejects it outright.
+  unavailable / low-battery health checks. setTargetState rejects it outright.
   Its row, detail page, live subscriptions and state history are unaffected, and
   it still renders as a member of the rooms, groups and scenes it belongs to.
   """
@@ -83,6 +83,81 @@ type Device {
   lastSeen: DateTime
   state: DeviceState
   configuration: [DeviceConfigurationEntry!]!
+  """Zigbee2MQTT detail, available only for Zigbee2MQTT devices."""
+  zigbee2Mqtt: Zigbee2MqttDeviceMetadata
+}
+
+type Zigbee2MqttDeviceMetadata {
+  imageCandidate: Boolean!
+  imageVersion: String
+  networkType: String
+  ieeeAddress: String
+  addressVendor: String
+  networkAddress: Int
+  supported: Boolean
+  interviewState: String
+  interviewCompleted: Boolean
+  interviewing: Boolean
+  description: String
+  manufacturer: String
+  modelId: String
+  powerSource: String
+  softwareBuildId: String
+  dateCode: String
+  definition: Zigbee2MqttDeviceDefinition
+  definitionUrl: String
+  ota: Zigbee2MqttOtaStatus!
+  endpoints: [Zigbee2MqttEndpoint!]!
+  groups: [Zigbee2MqttGroupReference!]!
+}
+
+type Zigbee2MqttDeviceDefinition {
+  model: String
+  vendor: String
+  description: String
+  source: String
+  icon: String
+  supportsOta: Boolean
+}
+
+type Zigbee2MqttOtaStatus {
+  state: String
+  installedVersion: String
+  latestVersion: String
+  progress: Float
+}
+
+type Zigbee2MqttEndpoint {
+  id: Int!
+  profileId: Int
+  deviceId: Int
+  inputClusters: [String!]!
+  outputClusters: [String!]!
+  bindings: [Zigbee2MqttBinding!]!
+  reportings: [Zigbee2MqttReporting!]!
+}
+
+type Zigbee2MqttBinding {
+  cluster: String!
+  targetType: String!
+  targetIeeeAddress: String
+  targetEndpoint: Int
+  targetGroupId: Int
+}
+
+type Zigbee2MqttReporting {
+  cluster: String!
+  attribute: String!
+  minimumReportInterval: Int
+  maximumReportInterval: Int
+  reportableChange: Float
+}
+
+type Zigbee2MqttGroupReference {
+  id: ID!
+  providerGroupId: String!
+  name: String!
+  endpoint: Int!
 }
 
 enum ControlledLoadRole {
@@ -215,6 +290,8 @@ type AutomationGraph {
   name: String!
   icon: String
   enabled: Boolean!
+  "Whether the stored graph can be loaded by the automation engine."
+  compilable: Boolean!
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
@@ -241,6 +318,7 @@ enum EffectClipKind {
 type Effect {
   id: ID!
   name: String!
+  source: String!
   icon: String
   kind: EffectKind!
   nativeName: String
@@ -354,6 +432,7 @@ this value.
 type NativeEffectOption {
   name: String!
   displayName: String!
+  source: String!
   supportedDeviceCount: Int!
 }
 
@@ -387,7 +466,16 @@ type AutomationEdge {
 
 type Group {
   id: ID!
-  name: String!
+  """
+  The user's name override. Null means unset, in which case the group shows the
+  name its integration reports, or its id when there is none. Clients render
+  `name ?? friendlyName ?? id`; `updateGroup(name: null)` clears the override.
+  """
+  name: String
+  """The name the integration reports. Empty for groups created in Hive."""
+  friendlyName: String!
+  source: String!
+  removed: Boolean!
   icon: String
   tags: [GroupTag!]!
   members: [GroupMember!]!
@@ -754,6 +842,7 @@ input ChangePasswordInput {
 
 type Zigbee2MqttConfig {
   broker: String!
+  frontendUrl: String
   username: String!
   password: String!
   useWss: Boolean!
@@ -927,6 +1016,25 @@ type AlarmEvent {
   clearedAlarmId: ID
 }
 
+enum MaintenanceKind {
+  BATTERY
+  FIRMWARE
+  POSTURE
+  STORAGE
+}
+
+type MaintenanceTask {
+  id: ID!
+  kind: MaintenanceKind!
+  title: String!
+  detail: String!
+  action: String!
+  device: Device
+  currentValue: String
+  targetValue: String
+  actionUrl: String
+}
+
 input AlarmFilter {
   severities: [AlarmSeverity!]
   kinds: [AlarmKind!]
@@ -944,6 +1052,7 @@ input RaiseAlarmInput {
 
 input Zigbee2MqttConfigInput {
   broker: String!
+  frontendUrl: String
   username: String!
   password: String!
   useWss: Boolean!
@@ -975,6 +1084,12 @@ input DeviceStateInput {
   hvacMode: String
   fanMode: String
   swing: String
+}
+
+enum CommandTargetType {
+  DEVICE
+  GROUP
+  ROOM
 }
 
 input DeviceConfigurationEntryInput {
@@ -1229,6 +1344,7 @@ type Query {
   logs(search: String, limit: Int): [LogEntry!]! @auth
   activity(filter: ActivityFilter): [ActivityEvent!]! @auth
   alarms(filter: AlarmFilter): [Alarm!]! @auth
+  maintenanceTasks: [MaintenanceTask!]! @auth
   setupStatus: SetupStatus!
   me: User
   users: [User!]! @auth
@@ -1240,7 +1356,7 @@ type Query {
 
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
-  setDeviceState(deviceId: ID!, state: DeviceStateInput!): Device! @auth
+  setTargetState(targetType: CommandTargetType!, targetId: ID!, state: DeviceStateInput!): Boolean! @auth
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
@@ -1258,9 +1374,9 @@ type Mutation {
   deleteAutomation(id: ID!): Boolean! @auth
   toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph! @auth
   """
-  Fires a manual trigger node immediately. The automation must be enabled and
-  the node must be a trigger with mode=manual. Bypasses the automation's
-  cooldown. Intended for debugging automations from the editor.
+  Fires a trigger node immediately inside its enabled automation. The trigger's
+  configured event or schedule does not need to occur. Intended for testing a
+  saved automation from the live graph.
   """
   fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean! @auth
   createGroup(input: CreateGroupInput!): Group! @auth
@@ -1332,12 +1448,14 @@ type Mutation {
   batchDeleteAutomations(ids: [ID!]!): Int! @auth
   batchDeleteGroups(ids: [ID!]!): Int! @auth
   batchDeleteRooms(ids: [ID!]!): Int! @auth
+  batchDeleteEffects(ids: [ID!]!): Int! @auth
   """
   Clears the new-device flag for the given devices and returns how many rows
   changed. The device list calls this with everything it renders.
   """
   markDevicesSeen(ids: [ID!]!): Int! @auth
   batchDeleteAlarms(alarmIds: [ID!]!): Int! @auth
+  completeMaintenanceTasks(ids: [ID!]!): [ID!]! @auth
   """
   Deletes the specified users. The currently authenticated user is silently
   skipped if present in the list. Returns the number of users actually deleted.
@@ -1383,11 +1501,13 @@ type Subscription {
   """
   deviceUpdated: Device! @auth
   deviceRemoved: ID! @auth
+  groupsChanged: [ID!]! @auth
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
   sceneActiveChanged: SceneActiveEvent! @auth
   logStream: LogEntry! @auth
   activityStream(advanced: Boolean): ActivityEvent! @auth
   alarmEvent: AlarmEvent! @auth
+  maintenanceChanged: DateTime! @auth
   """
   Step-boundary events from the effect runner. When runId is provided,
   only events for that run are delivered; otherwise every effect run's
