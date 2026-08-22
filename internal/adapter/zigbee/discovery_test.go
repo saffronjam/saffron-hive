@@ -767,6 +767,9 @@ func TestBridgeDevicesRepublishSyncsAdapterFields(t *testing.T) {
 	if got := countEvents(bus, eventbus.EventDeviceSynced); got != 0 {
 		t.Fatalf("first sighting: got %d device.synced, want 0", got)
 	}
+	if got := countEvents(bus, eventbus.EventZigbeeMetadataSynced); got != 1 {
+		t.Fatalf("first sighting: got %d metadata syncs, want 1", got)
+	}
 
 	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(interviewed))
 	if got := countEvents(bus, eventbus.EventDeviceAdded); got != 1 {
@@ -786,10 +789,16 @@ func TestBridgeDevicesRepublishSyncsAdapterFields(t *testing.T) {
 	if len(dev.Capabilities) == 0 {
 		t.Error("synced payload carries no capabilities, so persistence would still have none")
 	}
+	if got := countEvents(bus, eventbus.EventZigbeeMetadataSynced); got != 2 {
+		t.Fatalf("interview metadata syncs = %d, want 2", got)
+	}
 
 	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/devices", []byte(interviewed))
 	if got := countEvents(bus, eventbus.EventDeviceSynced); got != 1 {
 		t.Errorf("an unchanged republish must publish nothing: got %d device.synced", got)
+	}
+	if got := countEvents(bus, eventbus.EventZigbeeMetadataSynced); got != 3 {
+		t.Errorf("unchanged retained registry metadata syncs = %d, want 3", got)
 	}
 }
 

@@ -3,18 +3,76 @@ package zigbee
 import "encoding/json"
 
 type z2mBridgeDevice struct {
-	IEEEAddress  string        `json:"ieee_address"`
-	FriendlyName string        `json:"friendly_name"`
-	Type         string        `json:"type"`
-	Supported    bool          `json:"supported"`
-	Definition   z2mDefinition `json:"definition"`
+	IEEEAddress        string                 `json:"ieee_address"`
+	FriendlyName       string                 `json:"friendly_name"`
+	Type               string                 `json:"type"`
+	NetworkAddress     *int64                 `json:"network_address"`
+	Supported          *bool                  `json:"supported"`
+	InterviewState     *string                `json:"interview_state"`
+	InterviewCompleted *bool                  `json:"interview_completed"`
+	Interviewing       *bool                  `json:"interviewing"`
+	Description        *string                `json:"description"`
+	Manufacturer       *string                `json:"manufacturer"`
+	ModelID            *string                `json:"model_id"`
+	PowerSource        *string                `json:"power_source"`
+	SoftwareBuildID    *string                `json:"software_build_id"`
+	DateCode           *string                `json:"date_code"`
+	Definition         *z2mDefinition         `json:"definition"`
+	Endpoints          map[string]z2mEndpoint `json:"endpoints"`
 }
 
 type z2mDefinition struct {
-	Model       string       `json:"model"`
-	Vendor      string       `json:"vendor"`
-	Description string       `json:"description"`
+	Model       *string      `json:"model"`
+	Vendor      *string      `json:"vendor"`
+	Description *string      `json:"description"`
+	Source      *string      `json:"source"`
+	Icon        *string      `json:"icon"`
+	SupportsOTA *bool        `json:"supports_ota"`
 	Exposes     []z2mFeature `json:"exposes"`
+}
+
+type z2mEndpoint struct {
+	ProfileID            *int           `json:"profile_id"`
+	DeviceID             *int           `json:"device_id"`
+	Bindings             []z2mBinding   `json:"bindings"`
+	Clusters             z2mClusters    `json:"clusters"`
+	ConfiguredReportings []z2mReporting `json:"configured_reportings"`
+}
+
+type z2mClusters struct {
+	Input  []string `json:"input"`
+	Output []string `json:"output"`
+}
+
+type z2mBinding struct {
+	Cluster string           `json:"cluster"`
+	Target  z2mBindingTarget `json:"target"`
+}
+
+type z2mBindingTarget struct {
+	Type        string  `json:"type"`
+	IEEEAddress *string `json:"ieee_address"`
+	Endpoint    *int    `json:"endpoint"`
+	ID          *int    `json:"id"`
+}
+
+type z2mReporting struct {
+	Cluster               string   `json:"cluster"`
+	Attribute             string   `json:"attribute"`
+	MinimumReportInterval *int     `json:"minimum_report_interval"`
+	MaximumReportInterval *int     `json:"maximum_report_interval"`
+	ReportableChange      *float64 `json:"reportable_change"`
+}
+
+type z2mBridgeGroup struct {
+	ID           int                    `json:"id"`
+	FriendlyName string                 `json:"friendly_name"`
+	Members      []z2mBridgeGroupMember `json:"members"`
+}
+
+type z2mBridgeGroupMember struct {
+	IEEEAddress string `json:"ieee_address"`
+	Endpoint    int    `json:"endpoint"`
 }
 
 type z2mFeature struct {
@@ -52,12 +110,20 @@ type z2mDeviceState struct {
 	DevicePosture *string  `json:"device_posture"`
 	LinkQuality   *float64 `json:"linkquality"`
 
-	Power   *float64 `json:"power"`
-	Voltage *float64 `json:"voltage"`
-	Current *float64 `json:"current"`
-	Energy  *float64 `json:"energy"`
+	Power   *float64   `json:"power"`
+	Voltage *float64   `json:"voltage"`
+	Current *float64   `json:"current"`
+	Energy  *float64   `json:"energy"`
+	Update  *z2mUpdate `json:"update"`
 
 	Action string `json:"action"`
+}
+
+type z2mUpdate struct {
+	State            *string  `json:"state"`
+	InstalledVersion *int64   `json:"installed_version"`
+	LatestVersion    *int64   `json:"latest_version"`
+	Progress         *float64 `json:"progress"`
 }
 
 type z2mColor struct {

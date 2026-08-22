@@ -2,11 +2,14 @@ package zigbee
 
 import (
 	"encoding/json"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 // detectDeviceType classifies a device from its zigbee2mqtt exposes list. A
@@ -163,14 +166,18 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		// The coordinator registers as a hub: a placeable, room-assignable
 		// device that the connectivity map anchors its mesh on, kept out of
 		// every command and watch path by device.EnabledDevices.
-		devType := detectDeviceType(d.Definition.Exposes)
+		var exposes []z2mFeature
+		if d.Definition != nil {
+			exposes = d.Definition.Exposes
+		}
+		devType := detectDeviceType(exposes)
 		if strings.EqualFold(d.Type, "coordinator") {
 			devType = device.Hub
 		}
 		id := device.DeviceID(d.IEEEAddress)
 		incoming[id] = struct{}{}
 
-		capabilities, configuration := extractCapabilitiesWithConfiguration(d.Definition.Exposes)
+		capabilities, configuration := extractCapabilitiesWithConfiguration(exposes)
 		dev := device.Device{
 			ID:           id,
 			FriendlyName: d.FriendlyName,
@@ -213,6 +220,13 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 				Payload:   dev,
 			})
 		}
+
+		a.bus.Publish(eventbus.Event{
+			Type:      eventbus.EventZigbeeMetadataSynced,
+			DeviceID:  string(id),
+			Timestamp: time.Now(),
+			Payload:   mapBridgeMetadata(d),
+		})
 	}
 
 	a.mu.Lock()
@@ -236,4 +250,84 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 			Timestamp: time.Now(),
 		})
 	}
+}
+
+func mapBridgeMetadata(d z2mBridgeDevice) zigbeemetadata.Metadata {
+	metadata := zigbeemetadata.Metadata{
+		DeviceID:           device.DeviceID(d.IEEEAddress),
+		NetworkType:        stringPointer(d.Type),
+		IEEEAddress:        d.IEEEAddress,
+		NetworkAddress:     d.NetworkAddress,
+		Supported:          d.Supported,
+		InterviewState:     d.InterviewState,
+		InterviewCompleted: d.InterviewCompleted,
+		Interviewing:       d.Interviewing,
+		Description:        d.Description,
+		Manufacturer:       d.Manufacturer,
+		ModelID:            d.ModelID,
+		PowerSource:        d.PowerSource,
+		SoftwareBuildID:    d.SoftwareBuildID,
+		DateCode:           d.DateCode,
+		Endpoints:          make([]zigbeemetadata.Endpoint, 0, len(d.Endpoints)),
+	}
+	if d.Definition != nil {
+		metadata.Definition = &zigbeemetadata.Definition{
+			Model:       d.Definition.Model,
+			Vendor:      d.Definition.Vendor,
+			Description: d.Definition.Description,
+			Source:      d.Definition.Source,
+			Icon:        d.Definition.Icon,
+			SupportsOTA: d.Definition.SupportsOTA,
+		}
+	}
+	endpointIDs := make([]int, 0, len(d.Endpoints))
+	byID := make(map[int]z2mEndpoint, len(d.Endpoints))
+	for rawID, endpoint := range d.Endpoints {
+		id, err := strconv.Atoi(rawID)
+		if err != nil {
+			continue
+		}
+		endpointIDs = append(endpointIDs, id)
+		byID[id] = endpoint
+	}
+	sort.Ints(endpointIDs)
+	for _, id := range endpointIDs {
+		raw := byID[id]
+		endpoint := zigbeemetadata.Endpoint{
+			ID:             id,
+			ProfileID:      raw.ProfileID,
+			DeviceID:       raw.DeviceID,
+			InputClusters:  raw.Clusters.Input,
+			OutputClusters: raw.Clusters.Output,
+			Bindings:       make([]zigbeemetadata.Binding, 0, len(raw.Bindings)),
+			Reportings:     make([]zigbeemetadata.Reporting, 0, len(raw.ConfiguredReportings)),
+		}
+		for _, binding := range raw.Bindings {
+			endpoint.Bindings = append(endpoint.Bindings, zigbeemetadata.Binding{
+				Cluster:           binding.Cluster,
+				TargetType:        binding.Target.Type,
+				TargetIEEEAddress: binding.Target.IEEEAddress,
+				TargetEndpoint:    binding.Target.Endpoint,
+				TargetGroupID:     binding.Target.ID,
+			})
+		}
+		for _, reporting := range raw.ConfiguredReportings {
+			endpoint.Reportings = append(endpoint.Reportings, zigbeemetadata.Reporting{
+				Cluster:               reporting.Cluster,
+				Attribute:             reporting.Attribute,
+				MinimumReportInterval: reporting.MinimumReportInterval,
+				MaximumReportInterval: reporting.MaximumReportInterval,
+				ReportableChange:      reporting.ReportableChange,
+			})
+		}
+		metadata.Endpoints = append(metadata.Endpoints, endpoint)
+	}
+	return zigbeemetadata.Normalize(metadata)
+}
+
+func stringPointer(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }

@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 // mapDeviceState parses a zigbee2mqtt state payload into a device.DeviceState
@@ -78,6 +79,23 @@ func mapDeviceState(raw json.RawMessage) (device.DeviceState, string, error) {
 	state.Energy = dto.Energy
 
 	return state, dto.ColorMode, nil
+}
+
+func mapOTAStatus(raw json.RawMessage) (zigbeemetadata.OTAStatus, bool, error) {
+	var dto z2mDeviceState
+	if err := json.Unmarshal(raw, &dto); err != nil {
+		return zigbeemetadata.OTAStatus{}, false, err
+	}
+	if dto.Update == nil {
+		return zigbeemetadata.OTAStatus{}, false, nil
+	}
+	status := zigbeemetadata.OTAStatus{
+		State:            dto.Update.State,
+		InstalledVersion: dto.Update.InstalledVersion,
+		LatestVersion:    dto.Update.LatestVersion,
+		Progress:         dto.Update.Progress,
+	}
+	return status, true, nil
 }
 
 // xyToRGB converts CIE 1931 xy chromaticity to sRGB (D65) at the brightest
