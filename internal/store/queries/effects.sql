@@ -44,6 +44,10 @@ UPDATE effects SET duration_ms = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: DeleteEffect :exec
 DELETE FROM effects WHERE id = ?;
 
+-- name: BatchDeleteEffects :execrows
+DELETE FROM effects
+WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
 -- name: CreateEffectTrack :exec
 INSERT INTO effect_tracks (id, effect_id, track_index, name)
 VALUES (?, ?, ?, ?);

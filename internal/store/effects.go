@@ -166,6 +166,23 @@ func (s *DB) DeleteEffect(ctx context.Context, id string) error {
 	return nil
 }
 
+// BatchDeleteEffects deletes the effects with the given IDs and returns the
+// number of rows deleted.
+func (s *DB) BatchDeleteEffects(ctx context.Context, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	js, err := marshalStringArray(ids)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete effects: %w", err)
+	}
+	n, err := s.q.BatchDeleteEffects(ctx, js)
+	if err != nil {
+		return 0, fmt.Errorf("batch delete effects: %w", err)
+	}
+	return n, nil
+}
+
 // SaveEffectTracks atomically replaces the timeline of an effect with the
 // given track + clip set. Existing tracks are deleted in the same transaction
 // (cascading their clips) so concurrent readers never observe a half-written

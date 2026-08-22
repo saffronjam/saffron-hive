@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+const batchDeleteEffects = `-- name: BatchDeleteEffects :execrows
+DELETE FROM effects
+WHERE id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+`
+
+func (q *Queries) BatchDeleteEffects(ctx context.Context, idsJson string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, batchDeleteEffects, idsJson)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearEffectIcon = `-- name: ClearEffectIcon :exec
 UPDATE effects SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

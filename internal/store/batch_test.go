@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 )
 
 func TestBatchDeleteRooms(t *testing.T) {
@@ -118,6 +119,40 @@ func TestBatchDeleteAutomations(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("deleted count = %d, want 2", n)
+	}
+}
+
+func TestBatchDeleteEffects(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	for _, id := range []string{"e-1", "e-2", "e-3"} {
+		if _, err := s.CreateEffect(ctx, CreateEffectParams{
+			ID: id, Name: id, Kind: effect.KindTimeline,
+		}); err != nil {
+			t.Fatalf("create effect %s: %v", id, err)
+		}
+	}
+
+	n, err := s.BatchDeleteEffects(ctx, []string{"e-1", "e-3", "e-missing"})
+	if err != nil {
+		t.Fatalf("batch delete effects: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("deleted count = %d, want 2", n)
+	}
+
+	rows, err := s.ListEffects(ctx)
+	if err != nil {
+		t.Fatalf("list effects: %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != "e-2" {
+		t.Errorf("remaining effects = %+v, want only e-2", rows)
+	}
+
+	n, err = s.BatchDeleteEffects(ctx, nil)
+	if err != nil || n != 0 {
+		t.Errorf("empty batch: count=%d error=%v, want 0 and nil", n, err)
 	}
 }
 
