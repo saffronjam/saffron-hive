@@ -164,18 +164,18 @@ describe("aggregateSensorReadings", () => {
       sensor({ contact: false }, "open", true, ContactRole.Door),
       sensor({ contact: true }, "offline", false, ContactRole.Door),
     ])[0];
-    expect(open.value).toBe("1 of 3 doors open, 1 unknown");
+    expect(open.value).toBe("1 door open, 1 unknown");
 
     const incomplete = aggregateSensorReadings([
       sensor({ contact: true }, "closed", true, ContactRole.Door),
       sensor({ contact: true }, "offline", false, ContactRole.Door),
     ])[0];
-    expect(incomplete.value).toBe("0 of 2 doors open, 1 unknown");
+    expect(incomplete.value).toBe("No open door, 1 unknown");
 
     const allClosed = aggregateSensorReadings([
       sensor({ contact: true }, "a", true, ContactRole.Door),
       sensor({ contact: true }, "b", true, ContactRole.Door),
     ])[0];
-    expect(allClosed.value).toBe("0 of 2 doors open");
+    expect(allClosed.value).toBe("No open door");
   });
 });

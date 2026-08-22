@@ -46,5 +46,7 @@ export function formatContactSummary(summary: ContactSummary): string {
     return `${summary.label} ${state}`;
   }
   const unknown = summary.unknown > 0 ? `, ${summary.unknown} unknown` : "";
-  return `${summary.open} of ${summary.total} ${summary.plural} open${unknown}`;
+  if (summary.open === 0) return `No open ${summary.label.toLowerCase()}${unknown}`;
+  if (summary.open === 1) return `1 ${summary.label.toLowerCase()} open${unknown}`;
+  return `${summary.open} ${summary.plural} open${unknown}`;
 }

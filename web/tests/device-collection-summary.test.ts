@@ -91,7 +91,16 @@ describe("deviceCollectionSummary", () => {
           available: false,
         }),
       ]),
-    ).toBe("Off · 0 of 1 light · 1 of 3 doors open, 1 unknown");
+    ).toBe("Off · 0 of 1 light · 1 door open, 1 unknown");
+  });
+
+  it("describes closed contact collections without a ratio", () => {
+    expect(
+      deviceCollectionSummary([
+        device({ id: "one", contact: true, contactRole: ContactRole.Door }),
+        device({ id: "two", contact: true, contactRole: ContactRole.Door }),
+      ]),
+    ).toBe("No open door");
   });
 
   it("counts doors and windows separately", () => {

@@ -5,8 +5,13 @@
 	import { pushState } from "$app/navigation";
 	import { page } from "$app/state";
 	import { graphql } from "$lib/gql";
-	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
-	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import {
+		deviceStore,
+		devicesHydrated,
+		isApplianceDevice,
+		isLightControlDevice,
+	} from "$lib/stores/devices";
+	import { roomsStore, type Room } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
@@ -16,6 +21,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { PlugZap } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { resolveTargetDevices } from "$lib/target-resolve";
 
 	interface Props {
 		/**
@@ -51,6 +57,23 @@
 	// The dashboard is purely a runtime surface, so disabled devices leave it
 	// entirely: no card, no room membership, no contribution to a sensor average.
 	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const orderedRooms = $derived.by(() => {
+		const withLights: Room[] = [];
+		const withAppliances: Room[] = [];
+		const withoutControls: Room[] = [];
+		for (const room of rooms) {
+			const roomDevices = resolveTargetDevices(
+				{ type: "room", id: room.id },
+				devices,
+				groups,
+				rooms,
+			);
+			if (roomDevices.some(isLightControlDevice)) withLights.push(room);
+			else if (roomDevices.some(isApplianceDevice)) withAppliances.push(room);
+			else withoutControls.push(room);
+		}
+		return [...withLights, ...withAppliances, ...withoutControls];
+	});
 
 	const needsIntegration = $derived(
 		!!$integrationsQuery.data && !$integrationsQuery.data.integrations.some((i) => i.configured),
@@ -109,7 +132,7 @@
 		</div>
 	{:else}
 		<SectionDivider label="Rooms" class="mt-3" />
-		{#each rooms as room (room.id)}
+		{#each orderedRooms as room (room.id)}
 			<DashboardRoomCard
 				{room}
 				{devices}
