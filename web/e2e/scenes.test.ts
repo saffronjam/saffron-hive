@@ -200,9 +200,7 @@ describe("scenes", () => {
         input: {
           name: "List Scene A",
           actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [
-            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) },
-          ],
+          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) }],
         },
       })
       .toPromise();
@@ -211,9 +209,7 @@ describe("scenes", () => {
         input: {
           name: "List Scene B",
           actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [
-            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: false }) },
-          ],
+          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: false }) }],
         },
       })
       .toPromise();
@@ -254,9 +250,7 @@ describe("scenes", () => {
         input: {
           name: "Original Scene Name",
           actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [
-            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) },
-          ],
+          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) }],
         },
       })
       .toPromise();
@@ -290,9 +284,7 @@ describe("scenes", () => {
         input: {
           name: "Actions Test Scene",
           actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [
-            { deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) },
-          ],
+          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) }],
         },
       })
       .toPromise();

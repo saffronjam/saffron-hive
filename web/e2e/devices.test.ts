@@ -59,6 +59,61 @@ const DEVICE_QUERY = graphql(`
   }
 `);
 
+const ZIGBEE_METADATA_QUERY = graphql(`
+  query E2EZigbeeDeviceMetadata($id: ID!) {
+    device(id: $id) {
+      zigbee2Mqtt {
+        imageCandidate
+        imageVersion
+        ieeeAddress
+        networkAddress
+        supported
+        softwareBuildId
+        definitionUrl
+        definition {
+          model
+          vendor
+          description
+          supportsOta
+        }
+        ota {
+          state
+          installedVersion
+          latestVersion
+          progress
+        }
+        endpoints {
+          id
+          profileId
+          deviceId
+          inputClusters
+          outputClusters
+          bindings {
+            cluster
+            targetType
+            targetIeeeAddress
+            targetEndpoint
+            targetGroupId
+          }
+          reportings {
+            cluster
+            attribute
+            minimumReportInterval
+            maximumReportInterval
+            reportableChange
+          }
+        }
+        groups {
+          id
+          providerGroupId
+          name
+          endpoint
+        }
+      }
+    }
+  }
+`);
+
 interface BridgeDevice {
   ieee_address: string;
   friendly_name: string;
@@ -67,16 +122,7 @@ interface BridgeDevice {
 
 const SET_DEVICE_STATE = graphql(`
   mutation E2ESetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-    setDeviceState(deviceId: $deviceId, state: $state) {
-      id
-      name
-      type
-      state {
-        on
-        brightness
-        colorTemp
-      }
-    }
+    setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
   }
 `);
 
@@ -166,6 +212,65 @@ describe("devices", () => {
     expect(result.data!.device!.friendlyName).toBe(firstDevice.friendlyName);
   });
 
+  it("should return sanitized, typed Zigbee metadata only on device detail", async () => {
+    const { graphqlClient } = getContext();
+    await expect
+      .poll(
+        async () => {
+          const result = await graphqlClient
+            .query(
+              ZIGBEE_METADATA_QUERY,
+              { id: "0x54ef44100166fcae" },
+              { requestPolicy: "network-only" },
+            )
+            .toPromise();
+          return result.data?.device?.zigbee2Mqtt?.ieeeAddress ?? null;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe("0x54ef44100166fcae");
+
+    const t1 = await graphqlClient
+      .query(ZIGBEE_METADATA_QUERY, { id: "0x54ef44100166fcae" }, { requestPolicy: "network-only" })
+      .toPromise();
+    expect(t1.error).toBeUndefined();
+    expect(t1.data?.device?.zigbee2Mqtt).toMatchObject({
+      ieeeAddress: "0x54ef44100166fcae",
+      networkAddress: 2710,
+      supported: true,
+      softwareBuildId: "2019www.",
+      definition: {
+        model: "MCCGQ12LM",
+        vendor: "Aqara",
+        description: "Door and window sensor T1",
+        supportsOta: false,
+      },
+    });
+    expect(t1.data?.device?.zigbee2Mqtt?.endpoints).toHaveLength(1);
+    expect(t1.data?.device?.zigbee2Mqtt?.imageCandidate).toBe(true);
+    expect(t1.data?.device?.zigbee2Mqtt?.imageVersion).toMatch(/^[a-f0-9]{64}$/);
+    expect(t1.data?.device?.zigbee2Mqtt?.definitionUrl).toBe(
+      "https://www.zigbee2mqtt.io/devices/MCCGQ12LM.html",
+    );
+
+    const p100 = await graphqlClient
+      .query(ZIGBEE_METADATA_QUERY, { id: "0x54ef4410015e4b68" }, { requestPolicy: "network-only" })
+      .toPromise();
+    expect(p100.error).toBeUndefined();
+    expect(p100.data?.device?.zigbee2Mqtt?.softwareBuildId).toBeNull();
+    expect(p100.data?.device?.zigbee2Mqtt?.endpoints).toHaveLength(2);
+    expect(p100.data?.device?.zigbee2Mqtt?.endpoints[0].bindings).toHaveLength(2);
+    expect(p100.data?.device?.zigbee2Mqtt?.endpoints[0].reportings).toHaveLength(1);
+
+    const unsupported = await graphqlClient
+      .query(ZIGBEE_METADATA_QUERY, { id: "0x00124b0000000001" }, { requestPolicy: "network-only" })
+      .toPromise();
+    expect(unsupported.error).toBeUndefined();
+    expect(unsupported.data?.device?.zigbee2Mqtt?.supported).toBe(false);
+    expect(unsupported.data?.device?.zigbee2Mqtt?.definition).toBeNull();
+    expect(unsupported.data?.device?.zigbee2Mqtt?.endpoints).toEqual([]);
+  });
+
   it("should reflect state changes after MQTT publish", async () => {
     const { graphqlClient } = getContext();
     const lightState = getLightStateFixture();
@@ -226,7 +331,9 @@ describe("devices", () => {
     const listResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
 
     expect(listResult.data).toBeDefined();
-    const lightDevice = listResult.data!.devices.find((d) => d.friendlyName === "Living Room Light");
+    const lightDevice = listResult.data!.devices.find(
+      (d) => d.friendlyName === "Living Room Light",
+    );
     expect(lightDevice).toBeDefined();
 
     const { messages, cleanup } = await subscribeMQTTCommands();
@@ -240,7 +347,7 @@ describe("devices", () => {
 
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
-    expect(result.data!.setDeviceState.id).toBe(lightDevice!.id);
+    expect(result.data!.setTargetState).toBe(true);
 
     await new Promise((r) => setTimeout(r, 500));
     expect(messages.length).toBeGreaterThan(0);
@@ -248,7 +355,7 @@ describe("devices", () => {
     await cleanup();
   });
 
-  it("should return error for setDeviceState with invalid ID", async () => {
+  it("should return error for setTargetState with invalid ID", async () => {
     const { graphqlClient } = getContext();
 
     const result = await graphqlClient

@@ -25,7 +25,7 @@ class OriginWebSocket extends ws {
   }
 }
 
-interface E2EContext {
+export interface E2EContext {
   network: StartedNetwork;
   mosquitto: StartedTestContainer;
   app: StartedTestContainer;
@@ -33,6 +33,8 @@ interface E2EContext {
   mqttClient: MqttClient;
   graphqlUrl: string;
   wsUrl: string;
+  appUrl: string;
+  token: string;
 }
 
 let ctx: E2EContext | undefined;
@@ -211,6 +213,7 @@ async function configureZigbee2MQTT(graphqlUrl: string, token: string): Promise<
           useWss: false,
           enabled: true,
           scanScheduleEnabled: false,
+          frontendUrl: "https://z2m.example.com",
         },
       },
     }),
@@ -276,6 +279,7 @@ export async function setupE2E(): Promise<void> {
   const appPort = app.getMappedPort(8080);
   const graphqlUrl = `http://${appHost}:${appPort}/graphql`;
   const wsUrl = `ws://${appHost}:${appPort}/graphql`;
+  const appUrl = `http://${appHost}:${appPort}`;
 
   const mqttClient = await connectAsync(`mqtt://${mosquittoHost}:${mosquittoPort}`);
 
@@ -291,6 +295,8 @@ export async function setupE2E(): Promise<void> {
     mqttClient,
     graphqlUrl,
     wsUrl,
+    appUrl,
+    token,
   };
 }
 
