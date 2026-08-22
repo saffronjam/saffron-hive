@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, untrack } from "svelte";
+	import { page } from "$app/state";
 	import { deviceDisplayName } from "$lib/utils";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
@@ -12,7 +13,13 @@
 		type ActivityEvent,
 	} from "$lib/components/activity-navigation-table.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
+	import {
+		boundSessionSnapshotList,
+		loadSessionSnapshot,
+		saveSessionSnapshot,
+	} from "$lib/session-cache";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
@@ -62,17 +69,62 @@
 
 
 	const PAGE_SIZE = 50;
+	const ACTIVITY_CACHE_VERSION = 1;
+	const MAX_CACHED_EVENTS = 500;
+	const MAX_ACTIVITY_CACHE_BYTES = 2 * 1024 * 1024;
+
+	function activityCacheName(advancedMode: boolean): string {
+		return advancedMode ? "activity-advanced" : "activity-basic";
+	}
+
+	function activityStorage(): Storage | null {
+		return typeof window === "undefined" ? null : window.sessionStorage;
+	}
+
+	function loadActivitySnapshot(advancedMode: boolean): ActivityEvent[] | null {
+		return loadSessionSnapshot<ActivityEvent[]>(
+			activityStorage(),
+			activityCacheName(advancedMode),
+			ACTIVITY_CACHE_VERSION,
+		);
+	}
+
+	function boundActivityEvents(next: ActivityEvent[]): ActivityEvent[] {
+		const newestFirst = next.slice().sort((a, b) =>
+			a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0,
+		);
+		return boundSessionSnapshotList(
+			ACTIVITY_CACHE_VERSION,
+			newestFirst,
+			MAX_CACHED_EVENTS,
+			MAX_ACTIVITY_CACHE_BYTES,
+		);
+	}
+
+	function persistActivitySnapshot(advancedMode: boolean, next: ActivityEvent[]): void {
+		saveSessionSnapshot(
+			activityStorage(),
+			activityCacheName(advancedMode),
+			ACTIVITY_CACHE_VERSION,
+			next,
+			MAX_ACTIVITY_CACHE_BYTES,
+		);
+	}
 
 	const client = getContextClient();
-	let events = $state<ActivityEvent[]>([]);
 	let recentIds = $state(new Set<string>());
 	const rooms = $derived(roomsStore.items);
-	let advanced = $state<boolean>(profile.get("activity.advanced", false));
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const initialAdvanced = profile.get("activity.advanced", false);
+	let advanced = $state<boolean>(initialAdvanced);
+	const restoredEvents = loadActivitySnapshot(initialAdvanced);
+	let events = $state<ActivityEvent[]>(restoredEvents ?? []);
+	const searchController = createUrlSearchState({
+		active: () => page.url.pathname === "/activity",
+	});
 	let subUnsub: (() => void) | null = null;
 	let hasMore = $state(false);
 	let loadingMore = $state(false);
-	let ready = $state(false);
+	let ready = $state(restoredEvents !== null);
 
 	const BASIC_TYPES = [
 		{ value: "device.state_changed", label: "State changed" },
@@ -177,12 +229,12 @@
 	}
 
 	const filteredEvents = $derived.by(() => {
-		const typeChips = searchState.chips.filter((c) => c.keyword === "type").map((c) => c.value);
-		const deviceChips = searchState.chips.filter((c) => c.keyword === "device").map((c) => c.value);
-		const roomChips = searchState.chips.filter((c) => c.keyword === "room").map((c) => c.value);
-		const sinceChip = searchState.chips.find((c) => c.keyword === "since");
+		const typeChips = searchController.value.chips.filter((c) => c.keyword === "type").map((c) => c.value);
+		const deviceChips = searchController.value.chips.filter((c) => c.keyword === "device").map((c) => c.value);
+		const roomChips = searchController.value.chips.filter((c) => c.keyword === "room").map((c) => c.value);
+		const sinceChip = searchController.value.chips.find((c) => c.keyword === "since");
 		const sinceCutoff = sinceChip ? parseSince(sinceChip.value) : null;
-		const free = searchState.freeText.toLowerCase();
+		const free = searchController.value.freeText.toLowerCase();
 
 		return events.filter((e) => {
 			if (typeChips.length > 0 && !typeChips.includes(e.type)) return false;
@@ -199,10 +251,10 @@
 
 	const filterSignature = $derived(
 		JSON.stringify(
-			searchState.chips
+			searchController.value.chips
 				.map((c) => `${c.keyword}:${c.value}`)
 				.sort()
-				.concat([`q:${searchState.freeText}`]),
+				.concat([`q:${searchController.value.freeText}`]),
 		),
 	);
 
@@ -224,16 +276,23 @@
 		}, 1800);
 	}
 
-	async function loadInitial() {
+	async function loadInitial(advancedMode = advanced) {
 		const res = await client
 			.query<{ activity: ActivityEvent[] }>(ACTIVITY_QUERY, {
-				filter: { advanced, limit: PAGE_SIZE },
-			})
+				filter: { advanced: advancedMode, limit: PAGE_SIZE },
+			}, { requestPolicy: "network-only" })
 			.toPromise();
 		if (res.data) {
-			events = res.data.activity;
-			hasMore = res.data.activity.length === PAGE_SIZE;
+			const next = boundActivityEvents(res.data.activity);
+			persistActivitySnapshot(advancedMode, next);
+			if (advanced !== advancedMode) return;
+			events = next;
+			hasMore =
+				next.length === res.data.activity.length &&
+				next.length < MAX_CACHED_EVENTS &&
+				res.data.activity.length === PAGE_SIZE;
 		}
+		if (advanced === advancedMode) ready = true;
 	}
 
 	async function loadMore() {
@@ -245,14 +304,19 @@
 			const res = await client
 				.query<{ activity: ActivityEvent[] }>(ACTIVITY_QUERY, {
 					filter: { advanced, limit: PAGE_SIZE, before: oldest.id },
-				})
+				}, { requestPolicy: "network-only" })
 				.toPromise();
 			if (res.data) {
 				// Dedupe defensively in case a live event raced us.
 				const seen = new Set(events.map((e) => e.id));
 				const fresh = res.data.activity.filter((e) => !seen.has(e.id));
-				events = [...events, ...fresh];
-				hasMore = res.data.activity.length === PAGE_SIZE;
+				const combined = [...events, ...fresh];
+				events = boundActivityEvents(combined);
+				persistActivitySnapshot(advanced, events);
+				hasMore =
+					events.length === combined.length &&
+					events.length < MAX_CACHED_EVENTS &&
+					res.data.activity.length === PAGE_SIZE;
 			}
 		} finally {
 			loadingMore = false;
@@ -265,13 +329,18 @@
 			subUnsub();
 			subUnsub = null;
 		}
+		const subscriptionMode = advanced;
 		const sub = client
-			.subscription<{ activityStream: ActivityEvent }>(ACTIVITY_STREAM, { advanced })
+			.subscription<{ activityStream: ActivityEvent }>(ACTIVITY_STREAM, { advanced: subscriptionMode })
 			.subscribe((result) => {
+				if (advanced !== subscriptionMode) return;
 				if (!result.data) return;
 				const evt = result.data.activityStream;
 				if (events.some((e) => e.id === evt.id)) return;
-				events = [evt, ...events];
+				const next = [evt, ...events];
+				events = boundActivityEvents(next);
+				if (events.length !== next.length) hasMore = false;
+				persistActivitySnapshot(subscriptionMode, events);
 				markNew(evt.id);
 			});
 		subUnsub = sub.unsubscribe;
@@ -280,20 +349,22 @@
 	function toggleAdvanced(next: boolean) {
 		advanced = next;
 		profile.set("activity.advanced", next);
-		void loadInitial();
+		const restored = loadActivitySnapshot(next);
+		events = restored ?? [];
+		ready = restored !== null;
+		void loadInitial(next);
 		startSubscription();
 	}
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Activity" }];
-		loadInitial().then(() => {
-			ready = true;
-			startSubscription();
+		const mountedMode = advanced;
+		void loadInitial(mountedMode).then(() => {
+			if (advanced === mountedMode) startSubscription();
 		});
 	});
 
 	onDestroy(() => {
-		pageHeader.reset();
 		if (subUnsub) {
 			subUnsub();
 			subUnsub = null;
@@ -306,8 +377,7 @@
 		<div class="flex items-center gap-4">
 			<div class="min-w-0 flex-1">
 				<HiveSearchbar
-					value={searchState}
-					onchange={(v) => (searchState = v)}
+					controller={searchController}
 					chips={searchChipConfigs}
 					placeholder="Search activity..."
 					debounceMs={500}
