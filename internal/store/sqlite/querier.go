@@ -18,6 +18,7 @@ type Querier interface {
 	AddRoomMemberIfMissing(ctx context.Context, arg AddRoomMemberIfMissingParams) (int64, error)
 	BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIdsJson string) (int64, error)
 	BatchDeleteAutomations(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteEffects(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteGroups(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteRooms(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
@@ -101,7 +102,10 @@ type Querier interface {
 	DeleteFloorplanWallsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteGroupTags(ctx context.Context, groupID string) error
+	DeleteMaintenanceAcknowledgementsByFingerprints(ctx context.Context, arg DeleteMaintenanceAcknowledgementsByFingerprintsParams) (int64, error)
+	DeleteMaintenanceAcknowledgementsByTaskKey(ctx context.Context, taskKey string) (int64, error)
 	DeleteNetworkTopology(ctx context.Context, provider device.Source) error
+	DeleteProviderGroupMembers(ctx context.Context, groupID string) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
 	DeleteSceneActionsByScene(ctx context.Context, sceneID string) error
@@ -112,6 +116,7 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
+	DeleteZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) error
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
@@ -139,6 +144,7 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
 	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
+	GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) (ZigbeeDeviceMetadatum, error)
 	// Activity event persistence. QueryActivityEvents is the only query in the
 	// codebase with fully-dynamic filters, so it uses every gate trick we have:
 	//
@@ -158,6 +164,8 @@ type Querier interface {
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
 	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
+	InsertMaintenanceAcknowledgement(ctx context.Context, arg InsertMaintenanceAcknowledgementParams) error
+	InsertProviderGroupMember(ctx context.Context, arg InsertProviderGroupMemberParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	LatestStateSample(ctx context.Context, arg LatestStateSampleParams) (LatestStateSampleRow, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
@@ -188,7 +196,10 @@ type Querier interface {
 	ListGroupTags(ctx context.Context, groupID string) ([]device.GroupTag, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
+	ListMaintenanceAcknowledgements(ctx context.Context) ([]MaintenanceAcknowledgement, error)
 	ListNetworkTopologies(ctx context.Context) ([]NetworkTopologySnapshot, error)
+	ListProviderGroupMembers(ctx context.Context, provider string) ([]GroupMember, error)
+	ListProviderGroups(ctx context.Context, provider string) ([]ListProviderGroupsRow, error)
 	ListRoomMembers(ctx context.Context, roomID string) ([]RoomMember, error)
 	ListRoomMemberships(ctx context.Context) ([]ListRoomMembershipsRow, error)
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
@@ -200,7 +211,11 @@ type Querier interface {
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListTuyaDevices(ctx context.Context) ([]TuyaDevice, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
+	ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDeviceMetadatum, error)
+	ListZigbeeProviderGroupsForDevice(ctx context.Context, memberID string) ([]ListZigbeeProviderGroupsForDeviceRow, error)
 	MarkDevicesSeen(ctx context.Context, idsJson string) (int64, error)
+	MarkProviderGroupsRemovedExcept(ctx context.Context, arg MarkProviderGroupsRemovedExceptParams) error
+	MergeZigbeeOTAStatus(ctx context.Context, arg MergeZigbeeOTAStatusParams) (device.DeviceID, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
@@ -217,7 +232,7 @@ type Querier interface {
 	// Mirrors group_members FK cascade for room-as-group-member; no FK because
 	// member_id is polymorphic.
 	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
-	ResolveGroupIDByName(ctx context.Context, name string) (string, error)
+	ResolveGroupIDByName(ctx context.Context, name *string) (string, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
@@ -274,12 +289,14 @@ type Querier interface {
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertFloorplan(ctx context.Context, arg UpsertFloorplanParams) error
 	UpsertNetworkTopology(ctx context.Context, arg UpsertNetworkTopologyParams) error
+	UpsertProviderGroup(ctx context.Context, arg UpsertProviderGroupParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
 	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
 	UpsertTuyaDevice(ctx context.Context, arg UpsertTuyaDeviceParams) error
 	UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) error
+	UpsertZigbeeBridgeMetadata(ctx context.Context, arg UpsertZigbeeBridgeMetadataParams) (device.DeviceID, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -208,24 +208,36 @@ type FloorplanWall struct {
 }
 
 type Group struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Icon      *string
-	CreatedBy *string
+	ID              string
+	FriendlyName    string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	Icon            *string
+	CreatedBy       *string
+	Provider        string
+	ProviderGroupID *string
+	Removed         bool
+	Name            *string
 }
 
 type GroupMember struct {
-	ID         string
-	GroupID    string
-	MemberType device.GroupMemberType
-	MemberID   string
+	ID               string
+	GroupID          string
+	MemberType       device.GroupMemberType
+	MemberID         string
+	ProviderEndpoint *int64
 }
 
 type GroupTag struct {
 	GroupID string
 	Tag     device.GroupTag
+}
+
+type MaintenanceAcknowledgement struct {
+	TaskKey              string
+	ConditionFingerprint string
+	CompletedAt          time.Time
+	CompletedBy          *string
 }
 
 type NetworkTopologySnapshot struct {
@@ -331,4 +343,36 @@ type Zigbee2mqttConfig struct {
 	ScanScheduleEnabled bool
 	ScanHour            *int64
 	ScanMinute          *int64
+	FrontendUrl         *string
+}
+
+type ZigbeeDeviceMetadatum struct {
+	DeviceID              device.DeviceID
+	NetworkType           *string
+	IeeeAddress           *string
+	NetworkAddress        *int64
+	Supported             *bool
+	InterviewState        *string
+	InterviewCompleted    *bool
+	Interviewing          *bool
+	Description           *string
+	Manufacturer          *string
+	ModelID               *string
+	PowerSource           *string
+	SoftwareBuildID       *string
+	DateCode              *string
+	DefinitionModel       *string
+	DefinitionVendor      *string
+	DefinitionDescription *string
+	DefinitionSource      *string
+	DefinitionIcon        *string
+	DefinitionSupportsOta *bool
+	Endpoints             string
+	OtaState              *string
+	OtaInstalledVersion   *int64
+	OtaLatestVersion      *int64
+	OtaProgress           *float64
+	BridgeFingerprint     string
+	OtaFingerprint        string
+	UpdatedAt             time.Time
 }

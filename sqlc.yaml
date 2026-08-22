@@ -18,6 +18,8 @@ sql:
             go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceType"
           - column: "zigbee_devices.device_id"
             go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"
+          - column: "zigbee_device_metadata.device_id"
+            go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"
           - column: "device_state_samples.device_id"
             go_type: "github.com/saffronjam/saffron-hive/internal/device.DeviceID"
           - column: "group_members.member_type"
