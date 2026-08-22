@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
+	import { onMount } from "svelte";
 	import { getContextClient, subscriptionStore } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
@@ -11,6 +11,7 @@
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import FieldError from "$lib/components/field-error.svelte";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import NumberInput from "$lib/components/number-input.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -20,6 +21,7 @@
 		query Zigbee2MqttConfigPage {
 			zigbee2MqttConfig {
 				broker
+				frontendUrl
 				username
 				password
 				useWss
@@ -36,6 +38,7 @@
 		mutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {
 			updateZigbee2MqttConfig(input: $input) {
 				broker
+				frontendUrl
 				username
 				password
 				useWss
@@ -87,6 +90,7 @@
 
 	type ConfigShape = {
 		broker: string;
+		frontendUrl?: string | null;
 		username: string;
 		password: string;
 		useWss: boolean;
@@ -105,6 +109,7 @@
 	let testing = $state(false);
 	let scanStartedAt = $state<Date | null>(null);
 	let broker = $state("");
+	let frontendUrl = $state("");
 	let username = $state("");
 	let password = $state("");
 	let useWss = $state(false);
@@ -120,6 +125,7 @@
 	function snapshot(): string {
 		return JSON.stringify({
 			broker,
+			frontendUrl,
 			username,
 			useWss,
 			enabled,
@@ -135,10 +141,31 @@
 	const scheduleIncomplete = $derived(
 		scanScheduleEnabled && (scanHour == null || scanMinute == null),
 	);
+	const frontendUrlError = $derived.by(() => validateFrontendUrl(frontendUrl));
+
+	function validateFrontendUrl(value: string): string {
+		if (value.trim() === "") return "";
+		try {
+			const parsed = new URL(value.trim());
+			if (
+				(parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+				parsed.username !== "" ||
+				parsed.password !== "" ||
+				parsed.search !== "" ||
+				parsed.hash !== ""
+			) {
+				return "Use an HTTP or HTTPS URL without credentials, query, or fragment.";
+			}
+			return "";
+		} catch {
+			return "Enter a valid HTTP or HTTPS URL.";
+		}
+	}
 
 	function mutationInput() {
 		return {
 			broker: broker.trim(),
+			frontendUrl: frontendUrl.trim() || null,
 			username: username.trim(),
 			password: secretToSend(password, storedPassword),
 			useWss,
@@ -151,6 +178,7 @@
 
 	function applyConfig(config: ConfigShape | null | undefined) {
 		broker = config?.broker ?? "";
+		frontendUrl = config?.frontendUrl ?? "";
 		username = config?.username ?? "";
 		useWss = config?.useWss ?? false;
 		enabled = config?.enabled ?? true;
@@ -249,7 +277,8 @@
 				label: "Save",
 				icon: Save,
 				onclick: saveConfig,
-				disabled: !isDirty || saving || !hasBroker || scheduleIncomplete,
+				disabled:
+					!isDirty || saving || !hasBroker || scheduleIncomplete || frontendUrlError !== "",
 				hideLabelOnMobile: true,
 			},
 		];
@@ -265,7 +294,6 @@
 		void loadLastScan();
 	});
 
-	onDestroy(() => pageHeader.reset());
 </script>
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -296,6 +324,28 @@
 			</div>
 
 			<div class="grid gap-1.5">
+				<label for="z2m-frontend-url" class="text-sm font-medium">Zigbee2MQTT frontend URL</label>
+				<Input
+					id="z2m-frontend-url"
+					bind:value={frontendUrl}
+					disabled={!loaded}
+					autocomplete="off"
+					placeholder="https://zigbee2mqtt.example.com"
+					aria-invalid={frontendUrlError !== ""}
+					aria-describedby={frontendUrlError
+						? "z2m-frontend-url-error"
+						: "z2m-frontend-url-help"}
+				/>
+				{#if frontendUrlError}
+					<FieldError id="z2m-frontend-url-error" message={frontendUrlError} />
+				{:else}
+					<p id="z2m-frontend-url-help" class="text-xs text-muted-foreground">
+						Optional. Used for links into Zigbee2MQTT.
+					</p>
+				{/if}
+			</div>
+
+			<div class="grid gap-1.5">
 				<label for="z2m-username" class="text-sm font-medium">Username</label>
 				<Input
 					id="z2m-username"
@@ -313,7 +363,9 @@
 					type="password"
 					bind:value={password}
 					disabled={!loaded}
-					autocomplete="off"
+					autocomplete="new-password"
+					data-1p-ignore
+					data-lpignore="true"
 					placeholder={storedPassword ? "Password set - leave blank to keep" : "Optional"}
 				/>
 			</div>
@@ -328,7 +380,7 @@
 					variant="outline"
 					size="sm"
 					onclick={testConnection}
-					disabled={!loaded || testing || !hasBroker}
+					disabled={!loaded || testing || !hasBroker || frontendUrlError !== ""}
 				>
 					{#if testing}
 						<Loader2 class="size-4 animate-spin" />
