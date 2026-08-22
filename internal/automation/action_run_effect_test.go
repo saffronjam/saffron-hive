@@ -95,6 +95,38 @@ func TestRunEffectStartsRunOnGroupTargetWithoutFanOut(t *testing.T) {
 	}
 }
 
+func TestRunEffectStartsOneRunPerExpressionDevice(t *testing.T) {
+	bus := eventbus.NewChannelBus()
+	reader := newMockStateReader()
+	s := newMockStore()
+	runner := &recordingRunner{}
+	reader.addDevice(device.Device{ID: "lamp-1", Type: device.Light})
+	reader.addDevice(device.Device{ID: "lamp-2", Type: device.Light})
+
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor.ExecuteGraphAction(ActionConfig{
+		ActionType: ActionRunEffect,
+		TargetType: TargetType(device.TargetExpression),
+		TargetExpr: []device.Clause{{
+			Subject: device.SubjectDeviceType,
+			Op:      device.OpIs,
+			Values:  []string{"light"},
+		}},
+		Payload: `{"effect_id":"fireplace"}`,
+	})
+
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	if len(runner.starts) != 2 {
+		t.Fatalf("expected one effect run for each matching device, got %d", len(runner.starts))
+	}
+	for _, started := range runner.starts {
+		if started.Target.Type != device.TargetDevice {
+			t.Fatalf("expression target resolved to %q, want device", started.Target.Type)
+		}
+	}
+}
+
 func TestRunEffectMissingEffectIDIsNoop(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	reader := newMockStateReader()

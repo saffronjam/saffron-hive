@@ -9,7 +9,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-func TestFireManualTriggerFiresActions(t *testing.T) {
+func TestFireTriggerFiresActions(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -29,8 +29,8 @@ func TestFireManualTriggerFiresActions(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	select {
@@ -40,25 +40,25 @@ func TestFireManualTriggerFiresActions(t *testing.T) {
 	}
 }
 
-func TestFireManualTriggerUnknownAutomation(t *testing.T) {
+func TestFireTriggerUnknownAutomation(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	engine, _, cancel := setupEngine(t, reader, s)
 	defer cancel()
 
-	if err := engine.FireManualTrigger(context.Background(), "missing", "t1"); err == nil {
+	if err := engine.FireTrigger(context.Background(), "missing", "t1"); err == nil {
 		t.Fatal("expected error for unknown automation")
 	}
 }
 
-func TestFireManualTriggerDisabledAutomation(t *testing.T) {
+func TestFireTriggerDisabledAutomation(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "manual", Enabled: false},
 		[]store.AutomationNode{
 			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -68,12 +68,12 @@ func TestFireManualTriggerDisabledAutomation(t *testing.T) {
 	engine, _, cancel := setupEngine(t, reader, s)
 	defer cancel()
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err == nil {
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err == nil {
 		t.Fatal("expected error for disabled automation (not loaded into engine)")
 	}
 }
 
-func TestFireManualTriggerUnknownNode(t *testing.T) {
+func TestFireTriggerUnknownNode(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -90,36 +90,45 @@ func TestFireManualTriggerUnknownNode(t *testing.T) {
 	engine, _, cancel := setupEngine(t, reader, s)
 	defer cancel()
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "nope"); err == nil {
+	if err := engine.FireTrigger(context.Background(), "auto-1", "nope"); err == nil {
 		t.Fatal("expected error for unknown node")
 	}
 }
 
-func TestFireManualTriggerNotManualKind(t *testing.T) {
+func TestFireTriggerEventNode(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "event", Enabled: true},
 		[]store.AutomationNode{
 			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"event_type":"device.state_changed","filter_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
 		},
 	)
 
-	engine, _, cancel := setupEngine(t, reader, s)
+	engine, bus, cancel := setupEngine(t, reader, s)
 	defer cancel()
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err == nil {
-		t.Fatal("expected error firing non-manual trigger node")
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
+	}
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatal("expected command from injected event trigger")
 	}
 }
 
-// TestFireManualTriggerHonoursCooldown verifies that per-trigger cooldown_ms
+// TestFireTriggerHonoursCooldown verifies that per-trigger cooldown_ms
 // throttles manual-trigger fires the same way it throttles event-driven ones.
-func TestFireManualTriggerHonoursCooldown(t *testing.T) {
+func TestFireTriggerHonoursCooldown(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
@@ -139,8 +148,8 @@ func TestFireManualTriggerHonoursCooldown(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 	select {
 	case <-ch:
@@ -148,8 +157,8 @@ func TestFireManualTriggerHonoursCooldown(t *testing.T) {
 		t.Fatal("first manual fire should succeed")
 	}
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 	select {
 	case <-ch:
@@ -158,7 +167,7 @@ func TestFireManualTriggerHonoursCooldown(t *testing.T) {
 	}
 }
 
-func TestFireManualTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
+func TestFireTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	// Two independent chains, each trigger→condition(→action). Firing chain A's
@@ -204,8 +213,8 @@ func TestFireManualTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
 		}
 	}()
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "tA"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "tA"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	fired := <-done
@@ -222,7 +231,7 @@ func TestFireManualTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
 	}
 }
 
-func TestFireManualTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
+func TestFireTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	// Chain A: trigger→action. Chain B: trigger→AND→action. Firing A must not
@@ -266,8 +275,8 @@ func TestFireManualTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
 		}
 	}()
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "tA"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "tA"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	seen := <-fired
@@ -282,7 +291,7 @@ func TestFireManualTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
 	}
 }
 
-func TestFireManualTriggerSharedOperatorStillPublishes(t *testing.T) {
+func TestFireTriggerSharedOperatorStillPublishes(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	// Shared AND operator with two trigger inputs. Firing one trigger: the AND
@@ -326,8 +335,8 @@ func TestFireManualTriggerSharedOperatorStillPublishes(t *testing.T) {
 		}
 	}()
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	list := <-seenAll

@@ -51,12 +51,13 @@ type automationStore interface {
 
 // Engine evaluates automation graphs against incoming events.
 type Engine struct {
-	bus      eventbus.EventBus
-	reader   device.StateReader
-	store    automationStore
-	resolver device.TargetResolver
-	executor *ActionExecutor
-	now      func() time.Time
+	bus       eventbus.EventBus
+	reader    device.StateReader
+	store     automationStore
+	resolver  device.TargetResolver
+	commander device.TargetCommander
+	executor  *ActionExecutor
+	now       func() time.Time
 
 	// baseCtx is set by Run to the caller's context and used by the background
 	// goroutines spawned from event-driven fires (resolving targets, stamping
@@ -98,7 +99,7 @@ func (e *Engine) Stats() Stats {
 // that don't exercise alarm actions; runner may be nil in tests that don't
 // exercise run_effect or scene-payload effect dispatch.
 func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner) *Engine {
-	return &Engine{
+	engine := &Engine{
 		bus:              bus,
 		reader:           reader,
 		store:            s,
@@ -111,6 +112,10 @@ func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationSto
 		triggerLastFired: make(map[string]map[NodeID]time.Time),
 		cronByNode:       make(map[NodeID]cron.EntryID),
 	}
+	if commander, ok := resolver.(device.TargetCommander); ok {
+		engine.commander = commander
+	}
+	return engine
 }
 
 // Reload loads enabled automation graphs from the store, replacing the current
@@ -147,7 +152,7 @@ func (e *Engine) Reload(ctx context.Context) error {
 			case TriggerSchedule:
 				scheduleTriggers = append(scheduleTriggers, ct)
 			case TriggerManual:
-				// fires only via FireManualTrigger; no event or cron registration
+				// fires only via FireTrigger; no event or cron registration
 			default:
 				triggersByEvent[ct.config.EventType] = append(triggersByEvent[ct.config.EventType], ct)
 			}
@@ -277,10 +282,9 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	}
 }
 
-// FireManualTrigger fires a manual trigger node directly. Per-trigger cooldown
-// still applies. Returns an error if the automation is not currently loaded
-// (disabled or unknown) or the named node is not a manual trigger.
-func (e *Engine) FireManualTrigger(_ context.Context, automationID string, nodeID NodeID) error {
+// FireTrigger injects a trigger node directly into its loaded automation graph.
+// Per-trigger cooldown still applies.
+func (e *Engine) FireTrigger(_ context.Context, automationID string, nodeID NodeID) error {
 	e.mu.RLock()
 	cg, ok := e.graphs[automationID]
 	e.mu.RUnlock()
@@ -292,10 +296,10 @@ func (e *Engine) FireManualTrigger(_ context.Context, automationID string, nodeI
 	if !ok {
 		return fmt.Errorf("node %q not found in automation %q", nodeID, automationID)
 	}
-	tc, ok := node.Config.(TriggerConfig)
-	if !ok || tc.Kind != TriggerManual {
-		return fmt.Errorf("node %q is not a manual trigger", nodeID)
+	if node.Type != NodeTrigger {
+		return fmt.Errorf("node %q is not a trigger", nodeID)
 	}
+	tc, _ := node.Config.(TriggerConfig)
 
 	now := e.now()
 	if e.triggerInCooldown(automationID, nodeID, now, tc.CooldownMs) {
@@ -564,6 +568,12 @@ func (e *Engine) executeAction(node Node, automationID string) {
 		// would scramble half-on rooms.
 		nextOn := !aggregateOn(e.reader, deviceIDs)
 		payload, _ := json.Marshal(map[string]any{"on": nextOn})
+		if e.commander != nil && actionCfg.TargetType != TargetType(device.TargetExpression) {
+			actionCfg.ActionType = ActionSetDeviceState
+			actionCfg.Payload = string(payload)
+			e.executor.executeTargetState(actionCfg, device.TargetType(actionCfg.TargetType), deviceIDs)
+			return
+		}
 		for _, devID := range deviceIDs {
 			e.executor.ExecuteGraphAction(ActionConfig{
 				ActionType:   ActionSetDeviceState,
@@ -573,6 +583,11 @@ func (e *Engine) executeAction(node Node, automationID string) {
 				AutomationID: automationID,
 			})
 		}
+		return
+	}
+
+	if actionCfg.ActionType == ActionSetDeviceState && e.commander != nil && actionCfg.TargetType != TargetType(device.TargetExpression) {
+		e.executor.executeTargetState(actionCfg, device.TargetType(actionCfg.TargetType), deviceIDs)
 		return
 	}
 
@@ -629,6 +644,11 @@ func (e *Engine) recordAutomationFired(automationID string, now time.Time) {
 }
 
 func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
+	validation := ValidateGraph(g)
+	if !validation.Valid() {
+		return compiledGraph{}, nil, validation.Errors[0]
+	}
+
 	nodeMap := make(map[NodeID]Node, len(g.Nodes))
 	for _, n := range g.Nodes {
 		nodeMap[n.ID] = n
@@ -700,6 +720,12 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 	}
 
 	return cg, triggers, nil
+}
+
+// Compilable reports whether the graph can be loaded by the automation engine.
+func Compilable(g AutomationGraph) bool {
+	_, _, err := compileGraph(g)
+	return err == nil
 }
 
 func topoSort(nodes []Node, edges []Edge) ([]NodeID, error) {

@@ -47,12 +47,13 @@ type EffectRunner interface {
 // ActionExecutor resolves automation actions into event bus commands (or, for
 // alarm actions, into alarm service calls).
 type ActionExecutor struct {
-	bus      eventbus.Publisher
-	reader   device.StateReader
-	store    automationStore
-	resolver device.TargetResolver
-	alarms   AlarmRaiser
-	runner   EffectRunner
+	bus       eventbus.Publisher
+	reader    device.StateReader
+	store     automationStore
+	resolver  device.TargetResolver
+	alarms    AlarmRaiser
+	runner    EffectRunner
+	commander device.TargetCommander
 
 	// baseCtx scopes every side-effect initiated by an action. Set by
 	// SetBaseContext at engine startup so shutdown cancels in-flight
@@ -68,7 +69,7 @@ type ActionExecutor struct {
 // NewActionExecutor creates an ActionExecutor. runner may be nil for tests
 // that do not exercise run_effect actions or scene-payload effect dispatch.
 func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner) *ActionExecutor {
-	return &ActionExecutor{
+	executor := &ActionExecutor{
 		bus:      bus,
 		reader:   reader,
 		store:    s,
@@ -76,6 +77,41 @@ func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s auto
 		alarms:   alarmSvc,
 		runner:   runner,
 		baseCtx:  context.Background(),
+	}
+	if commander, ok := resolver.(device.TargetCommander); ok {
+		executor.commander = commander
+	}
+	return executor
+}
+
+func (a *ActionExecutor) executeTargetState(cfg ActionConfig, targetType device.TargetType, memberIDs []device.DeviceID) {
+	var desired map[string]any
+	if err := json.Unmarshal([]byte(cfg.Payload), &desired); err != nil {
+		logger.Error("invalid action payload", "target_id", cfg.TargetID, "error", err)
+		return
+	}
+	if len(desired) == 0 {
+		return
+	}
+	allMatch := len(memberIDs) > 0
+	for _, id := range memberIDs {
+		if !a.stateMatches(id, desired) {
+			allMatch = false
+			break
+		}
+	}
+	if allMatch {
+		a.stateMatchSkips.Add(int64(len(memberIDs)))
+		return
+	}
+	cmd := buildCommand("", desired)
+	cmd.Origin = device.OriginAutomation(cfg.AutomationID)
+	if err := a.commander.CommandTarget(a.baseCtx, device.TargetCommand{
+		TargetType: targetType,
+		TargetID:   cfg.TargetID,
+		State:      cmd,
+	}); err != nil {
+		logger.Error("automation target command failed", "automation_id", cfg.AutomationID, "target_type", targetType, "target_id", cfg.TargetID, "error", err)
 	}
 }
 
@@ -389,34 +425,44 @@ func (a *ActionExecutor) executeRunEffect(cfg ActionConfig) {
 			"native_name", p.NativeName)
 		return
 	}
-	tt := device.TargetType(cfg.TargetType)
-	switch tt {
-	case device.TargetDevice, device.TargetGroup, device.TargetRoom:
-	default:
-		logger.Error("run_effect invalid target_type",
-			"automation_id", cfg.AutomationID,
-			"target_type", cfg.TargetType)
-		return
-	}
-	if cfg.TargetID == "" {
-		logger.Error("run_effect missing target_id", "automation_id", cfg.AutomationID)
-		return
-	}
-	target := effect.Target{Type: tt, ID: cfg.TargetID}
-	var err error
-	if hasNative {
-		_, err = a.runner.StartNative(a.baseCtx, p.NativeName, target)
+	targetType := device.TargetType(cfg.TargetType)
+	var targets []effect.Target
+	if targetType == device.TargetExpression {
+		for _, id := range device.EvaluateExpression(a.baseCtx, a.reader, a.resolver, cfg.TargetExpr) {
+			targets = append(targets, effect.Target{Type: device.TargetDevice, ID: string(id)})
+		}
 	} else {
-		_, err = a.runner.Start(a.baseCtx, p.EffectID, target)
+		switch targetType {
+		case device.TargetDevice, device.TargetGroup, device.TargetRoom:
+		default:
+			logger.Error("run_effect invalid target_type",
+				"automation_id", cfg.AutomationID,
+				"target_type", cfg.TargetType)
+			return
+		}
+		if cfg.TargetID == "" {
+			logger.Error("run_effect missing target_id", "automation_id", cfg.AutomationID)
+			return
+		}
+		targets = append(targets, effect.Target{Type: targetType, ID: cfg.TargetID})
 	}
-	if err != nil {
-		logger.Error("run_effect start failed",
-			"automation_id", cfg.AutomationID,
-			"effect_id", p.EffectID,
-			"native_name", p.NativeName,
-			"target_type", cfg.TargetType,
-			"target_id", cfg.TargetID,
-			"error", err)
+
+	for _, target := range targets {
+		var err error
+		if hasNative {
+			_, err = a.runner.StartNative(a.baseCtx, p.NativeName, target)
+		} else {
+			_, err = a.runner.Start(a.baseCtx, p.EffectID, target)
+		}
+		if err != nil {
+			logger.Error("run_effect start failed",
+				"automation_id", cfg.AutomationID,
+				"effect_id", p.EffectID,
+				"native_name", p.NativeName,
+				"target_type", target.Type,
+				"target_id", target.ID,
+				"error", err)
+		}
 	}
 }
 
@@ -682,6 +728,9 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 	}
 
 	plan := scene.BuildApplyCommands(ctx, a.resolver, a.reader, sceneID, actions, payloads)
+	shouldDispatch := false
+	dispatchPlan := plan
+	dispatchPlan.Commands = nil
 	for _, cmd := range plan.Commands {
 		if a.stateMatches(cmd.DeviceID, scene.CommandToDesired(cmd)) {
 			a.stateMatchSkips.Add(1)
@@ -689,12 +738,16 @@ func (a *ActionExecutor) executeActivateScene(sceneID string) {
 				"device_id", cmd.DeviceID, "scene_id", sceneID)
 			continue
 		}
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventCommandRequested,
-			DeviceID:  string(cmd.DeviceID),
-			Timestamp: time.Now(),
-			Payload:   cmd,
-		})
+		shouldDispatch = true
+		dispatchPlan.Commands = append(dispatchPlan.Commands, cmd)
+	}
+	if shouldDispatch {
+		if a.commander != nil && len(actions) == 1 && len(payloads) == 0 && actions[0].TargetType != string(device.TargetExpression) {
+			dispatchPlan.Commands = plan.Commands
+		}
+		if err := scene.DispatchApplyCommands(ctx, a.commander, a.bus, actions, payloads, dispatchPlan); err != nil {
+			logger.Error("scene target dispatch failed", "scene_id", sceneID, "error", err)
+		}
 	}
 	if len(plan.EffectRuns) > 0 && a.runner != nil {
 		for _, r := range plan.EffectRuns {

@@ -30,12 +30,9 @@ func (r ValidationResult) Valid() bool {
 	return len(r.Errors) == 0
 }
 
-// ValidateGraph checks that an AutomationGraph is a valid DAG with correct
-// structural constraints. Trigger nodes must have no incoming edges, action
-// nodes must have no outgoing edges, operator nodes must have at least one
-// incoming and one outgoing edge, and all edge endpoints must reference
-// existing nodes. An empty graph (no nodes, no edges) is considered valid.
-// Orphan nodes (nodes with no edges) produce warnings, not errors.
+// ValidateGraph checks whether an AutomationGraph can be loaded by the engine.
+// Disconnected nodes are valid draft content and produce warnings. Connected
+// edges must reference existing nodes and form a directed acyclic graph.
 func ValidateGraph(g AutomationGraph) ValidationResult {
 	var result ValidationResult
 
@@ -138,15 +135,15 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 			}
 		case NodeOperator:
 			if in == 0 {
-				result.Errors = append(result.Errors, ValidationError{
+				result.Warnings = append(result.Warnings, ValidationError{
 					NodeID:  n.ID,
-					Message: "operator node must have at least one incoming edge",
+					Message: "operator node has no incoming edges",
 				})
 			}
 			if out == 0 {
-				result.Errors = append(result.Errors, ValidationError{
+				result.Warnings = append(result.Warnings, ValidationError{
 					NodeID:  n.ID,
-					Message: "operator node must have at least one outgoing edge",
+					Message: "operator node has no outgoing edges",
 				})
 			}
 		default:

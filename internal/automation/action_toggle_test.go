@@ -125,8 +125,8 @@ func TestToggleAction_GroupAnyOn_FlipsAllOff(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	// Aggregate: any-on → desired all-off. Loop-prevention skips the redundant
@@ -172,8 +172,8 @@ func TestToggleAction_GroupAllOff_FlipsAllOn(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	got := collectCommands(t, ch, 2, 500*time.Millisecond)

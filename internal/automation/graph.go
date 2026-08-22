@@ -42,7 +42,7 @@ const (
 	// TriggerSchedule is a trigger that fires based on a cron expression.
 	TriggerSchedule TriggerKind = "schedule"
 	// TriggerManual is a trigger that fires only when invoked directly via
-	// FireManualTrigger. It has no event type and no cron expression — it
+	// FireTrigger. It has no event type and no cron expression — it
 	// exists purely so operators can poke an automation during development.
 	TriggerManual TriggerKind = "manual"
 )

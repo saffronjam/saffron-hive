@@ -191,11 +191,12 @@ func TestActionWithOutgoingEdge(t *testing.T) {
 	}
 }
 
-func TestOperatorWithNoIncoming(t *testing.T) {
+func TestOperatorWithNoIncomingProducesWarning(t *testing.T) {
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "floating-op",
 		Nodes: []Node{
+			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
 		},
@@ -205,22 +206,22 @@ func TestOperatorWithNoIncoming(t *testing.T) {
 	}
 
 	result := ValidateGraph(g)
-	if result.Valid() {
-		t.Fatal("expected operator with no incoming edges to be invalid")
+	if !result.Valid() {
+		t.Fatalf("expected operator with no incoming edges to remain compilable, got: %v", result.Errors)
 	}
 
 	found := false
-	for _, err := range result.Errors {
-		if err.NodeID == "op1" && err.Message == "operator node must have at least one incoming edge" {
+	for _, warning := range result.Warnings {
+		if warning.NodeID == "op1" && warning.Message == "operator node has no incoming edges" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("expected specific operator incoming-edge error, got: %v", result.Errors)
+		t.Fatalf("expected operator incoming-edge warning, got: %v", result.Warnings)
 	}
 }
 
-func TestOperatorWithNoOutgoing(t *testing.T) {
+func TestOperatorWithNoOutgoingProducesWarning(t *testing.T) {
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "dead-end-op",
@@ -234,18 +235,18 @@ func TestOperatorWithNoOutgoing(t *testing.T) {
 	}
 
 	result := ValidateGraph(g)
-	if result.Valid() {
-		t.Fatal("expected operator with no outgoing edges to be invalid")
+	if !result.Valid() {
+		t.Fatalf("expected operator with no outgoing edges to remain compilable, got: %v", result.Errors)
 	}
 
 	found := false
-	for _, err := range result.Errors {
-		if err.NodeID == "op1" && err.Message == "operator node must have at least one outgoing edge" {
+	for _, warning := range result.Warnings {
+		if warning.NodeID == "op1" && warning.Message == "operator node has no outgoing edges" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("expected specific operator outgoing-edge error, got: %v", result.Errors)
+		t.Fatalf("expected operator outgoing-edge warning, got: %v", result.Warnings)
 	}
 }
 

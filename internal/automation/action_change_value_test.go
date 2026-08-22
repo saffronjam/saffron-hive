@@ -309,8 +309,8 @@ func TestChangeValue_GroupFanOut_PerDeviceCurrentValue(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	if err := engine.FireManualTrigger(context.Background(), "auto-1", "t1"); err != nil {
-		t.Fatalf("FireManualTrigger: %v", err)
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
 	}
 
 	// Expect 2 commands (light-1: 75, light-2: 225). plug-1 has no
