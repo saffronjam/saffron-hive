@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
 	import { measureMount } from "$lib/perf";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
@@ -25,7 +26,8 @@
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -35,7 +37,7 @@
 	import { scenesStore, type Scene } from "$lib/stores/scenes.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { groupsStore } from "$lib/stores/groups.svelte";
-	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { Plus, Clapperboard, Play, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
@@ -133,7 +135,7 @@
 				items: grps.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
 				})),
@@ -287,7 +289,9 @@
 		deleteConfirmScene = null;
 	}
 
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const searchController = createUrlSearchState({
+		active: () => visible && page.url.pathname === "/scenes",
+	});
 
 	const targetOptions = [
 		{ value: "device", label: "Device" },
@@ -344,13 +348,13 @@
 	]);
 
 	const filteredScenes = $derived.by(() => {
-		const targetValues = searchState.chips.filter((c) => c.keyword === "target").map((c) => c.value);
-		const deviceValues = searchState.chips
+		const targetValues = searchController.value.chips.filter((c) => c.keyword === "target").map((c) => c.value);
+		const deviceValues = searchController.value.chips
 			.filter((c) => c.keyword === "device")
 			.map((c) => c.value.toLowerCase());
-		const emptyValues = searchState.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
-		const roomValues = searchState.chips.filter((c) => c.keyword === "room").map((c) => c.value);
-		const query = searchState.freeText.toLowerCase();
+		const emptyValues = searchController.value.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
+		const roomValues = searchController.value.chips.filter((c) => c.keyword === "room").map((c) => c.value);
+		const query = searchController.value.freeText.toLowerCase();
 
 		const deviceIdByNameLower = new Map<string, string>();
 		for (const d of devicesRef) deviceIdByNameLower.set(deviceDisplayName(d).toLowerCase(), d.id);
@@ -437,8 +441,7 @@
 				<div class="mb-6 flex items-stretch gap-2">
 					<div class="min-w-0 flex-1">
 						<HiveSearchbar
-							value={searchState}
-							onchange={(v) => (searchState = v)}
+							controller={searchController}
 							chips={searchChipConfigs}
 							placeholder="Search scenes..."
 						/>

@@ -6,7 +6,9 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { alarmsStore, type Alarm } from "$lib/stores/alarms.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
+	import { page } from "$app/state";
 	import AlarmTable from "$lib/components/alarm-table.svelte";
 	import AlarmSeverityBadge from "$lib/components/alarm-severity-badge.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -38,7 +40,9 @@
 	`);
 
 	const client = getContextClient();
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const searchController = createUrlSearchState({
+		active: () => visible && page.url.pathname === "/alarms",
+	});
 	let activeSeverities = $state(new Set<SeverityKey>(["HIGH", "MEDIUM", "LOW"]));
 	let deleteTarget = $state<Alarm | null>(null);
 	let deleteLoading = $state(false);
@@ -121,7 +125,7 @@
 	// fight the button toggles.
 	$effect(() => {
 		const chipSeverities = new Set<SeverityKey>(
-			searchState.chips
+			searchController.value.chips
 				.filter((c) => c.keyword === "severity")
 				.map((c) => c.value.toUpperCase() as SeverityKey)
 				.filter((v) => v === "HIGH" || v === "MEDIUM" || v === "LOW"),
@@ -142,25 +146,25 @@
 		// Mirror button state back into chips, but only when it's a strict
 		// subset — "all three active" is represented by no chip so the
 		// searchbar stays clean.
-		const nonSevChips = searchState.chips.filter((c) => c.keyword !== "severity");
+		const nonSevChips = searchController.value.chips.filter((c) => c.keyword !== "severity");
 		let nextChips = nonSevChips;
 		if (next.size > 0 && next.size < 3) {
 			const sevChips = [...next].map((v) => ({ keyword: "severity", value: v }));
 			nextChips = [...nonSevChips, ...sevChips];
 		}
-		searchState = { ...searchState, chips: nextChips };
+		searchController.set({ ...searchController.value, chips: nextChips });
 	}
 
 	const filtered = $derived.by(() => {
-		const kindChips = searchState.chips
+		const kindChips = searchController.value.chips
 			.filter((c) => c.keyword === "kind")
 			.map((c) => c.value.toUpperCase());
-		const sourceChips = searchState.chips
+		const sourceChips = searchController.value.chips
 			.filter((c) => c.keyword === "source")
 			.map((c) => c.value);
-		const sinceChip = searchState.chips.find((c) => c.keyword === "since");
+		const sinceChip = searchController.value.chips.find((c) => c.keyword === "since");
 		const sinceCutoff = sinceChip ? parseSince(sinceChip.value) : null;
-		const free = searchState.freeText.toLowerCase();
+		const free = searchController.value.freeText.toLowerCase();
 
 		return alarmsStore.list.filter((a) => {
 			if (!activeSeverities.has(a.severity as SeverityKey)) return false;
@@ -234,8 +238,7 @@
 	<div class="flex items-stretch gap-2">
 		<div class="min-w-0 flex-1">
 			<HiveSearchbar
-				value={searchState}
-				onchange={(v) => (searchState = v)}
+				controller={searchController}
 				chips={searchChipConfigs}
 				placeholder="Search alarms..."
 				debounceMs={300}

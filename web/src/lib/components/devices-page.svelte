@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { measureMount } from "$lib/perf";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
@@ -11,7 +11,9 @@
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
-	import type { ChipConfig, SearchState } from "$lib/components/hive-searchbar";
+	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import { createUrlSearchState } from "$lib/search-state.svelte";
+	import { page } from "$app/state";
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import SectionDivider from "$lib/components/section-divider.svelte";
 	import ListView from "$lib/components/list-view.svelte";
@@ -49,7 +51,9 @@
 		};
 	});
 
-	let searchState = $state<SearchState>({ chips: [], freeText: "" });
+	const searchController = createUrlSearchState({
+		active: () => visible && page.url.pathname === "/devices",
+	});
 
 	const deviceTypeOptions = [
 		{ value: "light", label: "Light" },
@@ -100,13 +104,13 @@
 	);
 
 	const filteredDevices = $derived.by(() => {
-		const typeValues = searchState.chips
+		const typeValues = searchController.value.chips
 			.filter((c) => c.keyword === "type")
 			.map((c) => c.value);
-		const enabledValues = searchState.chips
+		const enabledValues = searchController.value.chips
 			.filter((c) => c.keyword === "enabled")
 			.map((c) => c.value);
-		const query = searchState.freeText.toLowerCase();
+		const query = searchController.value.freeText.toLowerCase();
 
 		return allDevices.filter((d) => {
 			if (typeValues.length > 0 && !typeValues.includes(d.type)) return false;
@@ -206,7 +210,7 @@
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
-					name: g.name,
+					name: groupDisplayName(g),
 					icon: GroupIcon,
 				})),
 			});
@@ -304,8 +308,7 @@
 		<div class="mb-6 flex items-stretch gap-2">
 			<div class="min-w-0 flex-1">
 				<HiveSearchbar
-					value={searchState}
-					onchange={(v) => (searchState = v)}
+					controller={searchController}
 					chips={searchChipConfigs}
 					placeholder="Search devices..."
 				/>
