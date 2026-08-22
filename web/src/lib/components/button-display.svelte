@@ -2,14 +2,19 @@
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { MousePointerClick } from "@lucide/svelte";
+	import DeviceActionMenu from "$lib/components/device-action-menu.svelte";
 
 	interface Props {
 		lastAction?: string | null;
 		lastActionAt?: string | null;
 		lastSeen: string;
+		deviceId: string;
+		name: string;
+		actions: string[];
+		disabled?: boolean;
 	}
 
-	let { lastAction = null, lastActionAt = null, lastSeen }: Props = $props();
+	let { lastAction = null, lastActionAt = null, lastSeen, deviceId, name, actions, disabled = false }: Props = $props();
 
 	function formatTime(s: string | null): string {
 		if (!s) return "Unknown";
@@ -21,7 +26,10 @@
 
 <Card>
 	<CardHeader>
-		<CardTitle>Button Status</CardTitle>
+		<div class="flex items-center justify-between gap-3">
+			<CardTitle>Button Status</CardTitle>
+			<DeviceActionMenu {deviceId} {name} {actions} {disabled} />
+		</div>
 	</CardHeader>
 	<CardContent>
 		<div class="flex items-center gap-4">

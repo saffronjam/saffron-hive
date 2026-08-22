@@ -10,10 +10,9 @@
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
-	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
-	import LazyTooltip from "$lib/components/lazy-tooltip.svelte";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
@@ -24,12 +23,12 @@
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
+	import DeviceActionMenu from "$lib/components/device-action-menu.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import {
 		Ban,
 		CircleCheck,
 		EllipsisVertical,
-		MousePointerClick,
 		Pencil,
 		Plus,
 	} from "@lucide/svelte";
@@ -89,22 +88,14 @@
 	const actionValues = $derived(
 		device.capabilities.find((c) => c.name === "action")?.values ?? [],
 	);
-	const hasActions = $derived(actionValues.length > 0);
 
 	// Closed bits-ui menus still mount their portals, so a grid of cards pays
-	// for every menu nobody has opened. Both menus here are click-activated:
+	// for every menu nobody has opened. This menu is click-activated:
 	// dormant is an identical-looking plain button, and the first click mounts
 	// the real menu already open. Closing works normally from there — the
 	// menu's own dismiss layer exists once it is mounted.
-	let eventMenuArmed = $state(false);
-	let eventMenuOpen = $state(false);
 	let actionsMenuArmed = $state(false);
 	let actionsMenuOpen = $state(false);
-
-	function openEventMenu() {
-		eventMenuArmed = true;
-		eventMenuOpen = true;
-	}
 
 	function openActionsMenu() {
 		actionsMenuArmed = true;
@@ -136,25 +127,9 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setDeviceState(deviceId: $deviceId, state: $state) {
-				id
-				state {
-					on
-					brightness
-				}
-			}
+			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 		}
 	`);
-
-	const SIMULATE_DEVICE_ACTION = graphql(`
-		mutation DeviceCardSimulateAction($deviceId: ID!, $action: String!) {
-			simulateDeviceAction(deviceId: $deviceId, action: $action)
-		}
-	`);
-
-	function handleActionClick(action: string) {
-		void client.mutation(SIMULATE_DEVICE_ACTION, { deviceId: device.id, action }).toPromise();
-	}
 
 	const client = getContextClient();
 
@@ -226,34 +201,12 @@
 				{#if !device.disabled}
 					<DeviceQuickControls {device} />
 				{/if}
-				{#if hasActions && !device.disabled}
-					{#if !eventMenuArmed}
-						<LazyTooltip content="Trigger event">
-							{#snippet children(props)}
-								{@render eventButton({ ...props, onclick: openEventMenu })}
-							{/snippet}
-						</LazyTooltip>
-					{:else}
-						<LazyTooltip content="Trigger event">
-							{#snippet children(props)}
-								<span {...props} class="inline-flex">
-									<DropdownMenu bind:open={eventMenuOpen}>
-										<DropdownMenuTrigger class="inline-flex h-8 items-center">
-											{@render eventButton({})}
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" class="max-h-80 overflow-y-auto">
-											{#each actionValues as action (action)}
-												<DropdownMenuItem onclick={() => handleActionClick(action)}>
-													{sentenceCase(action)}
-												</DropdownMenuItem>
-											{/each}
-										</DropdownMenuContent>
-									</DropdownMenu>
-								</span>
-							{/snippet}
-						</LazyTooltip>
-					{/if}
-				{/if}
+				<DeviceActionMenu
+					deviceId={device.id}
+					name={deviceDisplayName(device)}
+					actions={actionValues}
+					disabled={device.disabled}
+				/>
 				{#if !actionsMenuArmed}
 					{@render actionsButton({ onclick: openActionsMenu })}
 				{:else}
@@ -310,7 +263,7 @@
 				target={{ kind: "device", id: device.id }}
 				title={deviceDisplayName(device)}
 				align="end"
-				triggerClass="group block w-full rounded focus-visible:outline-none"
+				triggerClass="group ml-auto block w-fit rounded focus-visible:outline-none"
 			>
 				<div class="flex items-center justify-end gap-3 text-sm tabular-nums">
 					{#each sensorReadings as r (r.label)}
@@ -331,17 +284,11 @@
 				step={1}
 				onValueChange={handleBrightnessChange}
 				disabled={!device.available || device.disabled}
-				aria-label={`${device.name} brightness`}
+				aria-label={`${deviceDisplayName(device)} brightness`}
 			/>
 		{/if}
 	</CardContent>
 </Card>
-
-{#snippet eventButton(props: Record<string, unknown>)}
-	<Button {...props} variant="ghost" size="icon-sm" aria-label={`Trigger ${device.name} event`}>
-		<MousePointerClick class="size-4" />
-	</Button>
-{/snippet}
 
 {#snippet actionsButton(props: Record<string, unknown>)}
 	<Button {...props} variant="ghost" size="icon-sm" aria-label="Device actions">
