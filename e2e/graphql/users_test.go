@@ -4,11 +4,15 @@ package graphql_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/saffronjam/saffron-hive/internal/auth"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // rawPost sends a GraphQL request with a caller-supplied bearer token. Most
@@ -183,6 +187,42 @@ func TestResetUserPasswordByAdmin(t *testing.T) {
 
 	// New password works.
 	_ = loginForTest(t, "resetme", "BrandNew999xx")
+}
+
+func TestLoginPersistsArgon2idAfterBcryptVerification(t *testing.T) {
+	u := createUserForTest(t, "bcryptlogin", "Bcrypt Login", "BcryptPassword123")
+	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
+
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte("BcryptPassword123"), 12)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword: %v", err)
+	}
+	ctx := context.Background()
+	if err := sqlStore.UpdateUserPasswordHash(ctx, u.ID, string(bcryptHash)); err != nil {
+		t.Fatalf("store bcrypt hash: %v", err)
+	}
+
+	_ = loginForTest(t, "bcryptlogin", "BcryptPassword123")
+	stored, err := sqlStore.GetUserByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetUserByID(first login): %v", err)
+	}
+	if !strings.HasPrefix(stored.PasswordHash, "$argon2id$v=19$m=19456,t=2,p=1$") {
+		t.Fatalf("login did not persist Argon2id: %q", stored.PasswordHash)
+	}
+	if err := auth.VerifyPassword(stored.PasswordHash, "BcryptPassword123"); err != nil {
+		t.Fatalf("persisted Argon2id hash does not verify: %v", err)
+	}
+
+	firstArgon2idHash := stored.PasswordHash
+	_ = loginForTest(t, "bcryptlogin", "BcryptPassword123")
+	stored, err = sqlStore.GetUserByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetUserByID(second login): %v", err)
+	}
+	if stored.PasswordHash != firstArgon2idHash {
+		t.Fatal("a current Argon2id login rewrote the password hash")
+	}
 }
 
 func TestDeleteUserRejectsSelf(t *testing.T) {

@@ -132,7 +132,7 @@ func (s *DB) ClearUserAvatar(ctx context.Context, id string) error {
 	return nil
 }
 
-// UpdateUserPasswordHash replaces the stored bcrypt hash for the given user.
+// UpdateUserPasswordHash replaces the stored password hash for the given user.
 func (s *DB) UpdateUserPasswordHash(ctx context.Context, id, hash string) error {
 	if err := s.q.UpdateUserPasswordHash(ctx, sqlite.UpdateUserPasswordHashParams{
 		ID:           id,

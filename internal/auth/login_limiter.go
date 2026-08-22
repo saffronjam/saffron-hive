@@ -19,7 +19,7 @@ import (
 //   - Brute-force from a single attacker against many accounts (each
 //     username keys an independent bucket, so spraying does not amortise).
 //
-// The limiter sits in front of the bcrypt verify so even successful guesses
+// The limiter sits in front of password verification so even successful guesses
 // against a throttled key are refused until the backoff clears.
 type LoginLimiter struct {
 	mu      sync.Mutex
