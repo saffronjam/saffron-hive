@@ -3,6 +3,7 @@
 	import { X } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { cn } from "$lib/utils.js";
+	import type { UrlSearchState } from "$lib/search-state.svelte";
 	import HiveSearchField from "./hive-search-field.svelte";
 	import {
 		stateToTokens,
@@ -13,20 +14,18 @@
 	} from "./hive-searchbar";
 
 	interface Props {
-		value: SearchState;
-		onchange: (next: SearchState) => void;
+		controller: UrlSearchState;
 		chips?: ChipConfig[];
 		placeholder?: string;
 		class?: string;
-		/** When > 0, free-text typing is debounced by this many ms before onchange fires. Chip commits always fire immediately. */
+		/** When > 0, free-text typing is debounced by this many ms before controller.set runs. Chip commits always run it immediately. */
 		debounceMs?: number;
 		/** When true, blurring the live input flushes any pending debounced emit. */
 		commitOnBlur?: boolean;
 	}
 
 	let {
-		value,
-		onchange,
+		controller,
 		chips = [],
 		placeholder = "Search...",
 		class: className,
@@ -49,9 +48,9 @@
 	let liveInput = $state<HTMLInputElement | null>(null);
 
 	$effect(() => {
-		const key = stateKey(value);
+		const key = stateKey(controller.value);
 		if (key !== lastEmitted) {
-			tokens = hydrate(value);
+			tokens = hydrate(controller.value);
 			lastEmitted = key;
 		}
 	});
@@ -90,7 +89,7 @@
 		const key = stateKey(state);
 		if (key === lastEmitted) return;
 		lastEmitted = key;
-		onchange(state);
+		controller.set(state);
 	}
 
 	function emitNow() {

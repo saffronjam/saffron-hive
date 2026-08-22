@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       $lib: resolve("src/lib"),
+      "$app/navigation": resolve("tests/mocks/app-navigation.ts"),
+      "$app/state": resolve("tests/mocks/app-state.svelte.ts"),
     },
     // Svelte ships a server build and a client one; tests mount components into
     // jsdom, so they need the client half.

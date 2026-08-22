@@ -118,6 +118,10 @@
 		suggestionIdx = 0;
 	});
 
+	$effect(() => {
+		if (disabled) open = false;
+	});
+
 	function setLive(text: string) {
 		const next = tokens.slice();
 		next[next.length - 1] = { text };
@@ -201,11 +205,13 @@
 	}
 
 	function onTriggerClick() {
+		if (disabled) return;
 		open = true;
 		inputRef?.focus();
 	}
 
 	function onKeydown(e: KeyboardEvent) {
+		if (disabled) return;
 		// Keep keystrokes from bubbling to the PopoverTrigger wrapper, whose
 		// bits-ui handler preventDefaults Space/Enter to toggle the popover —
 		// that would swallow spaces before they land in the input.
@@ -216,7 +222,7 @@
 		if (e.key === "Backspace" && input.value === "") {
 			if (liveChip) {
 				e.preventDefault();
-				setLive(liveChip.keyword);
+				setLive("");
 				open = false;
 				return;
 			}
@@ -316,6 +322,7 @@
 			<div
 				{...props}
 				data-hive-search-trigger
+				aria-disabled={disabled}
 				class={cn("inline-flex w-full flex-wrap items-stretch gap-1", className)}
 				onclick={onTriggerClick}
 			>

@@ -13,6 +13,7 @@
 	interface Props<T> {
 		items: T[];
 		value?: string | null;
+		selectedFallback?: T | null;
 		getValue: (t: T) => string;
 		getLabel: (t: T) => string;
 		placeholder?: string;
@@ -30,6 +31,7 @@
 	let {
 		items,
 		value = $bindable(null),
+		selectedFallback = null,
 		getValue,
 		getLabel,
 		placeholder = "Select...",
@@ -56,7 +58,12 @@
 	const freeText = $derived(parsed.freeText);
 
 	const selectedItem = $derived<T | null>(
-		value == null ? null : items.find((i) => getValue(i) === value) ?? null,
+		value == null
+			? null
+			: items.find((i) => getValue(i) === value) ??
+				(selectedFallback != null && getValue(selectedFallback) === value
+					? selectedFallback
+					: null),
 	);
 
 	function defaultChipMatch(t: T, chip: SearchChip): boolean {
@@ -85,12 +92,16 @@
 	});
 
 	$effect(() => {
+		if (disabled) {
+			open = false;
+		}
 		if (!open) {
 			tokens = [{ text: "" }];
 		}
 	});
 
 	function handlePick(t: T) {
+		if (disabled) return;
 		const v = getValue(t);
 		value = v;
 		onchange?.(v);
@@ -106,7 +117,6 @@
 			"border-input dark:bg-input/30 dark:hover:bg-input/50 focus-within:border-ring focus-within:ring-ring/50",
 			"flex w-full items-stretch rounded-md border bg-transparent pl-2.5 text-sm shadow-xs transition-[color,box-shadow] focus-within:ring-3",
 			size === "sm" ? "min-h-8" : "min-h-9",
-			disabled && "opacity-50",
 			!open && !selectedItem && "text-muted-foreground",
 			className,
 		),
@@ -118,7 +128,7 @@
 	const fieldPlaceholder = $derived(showSelectedOverlay ? "" : placeholder);
 </script>
 
-<div class="relative">
+<div class={cn("relative", disabled && "opacity-50")}>
 	<HiveSearchField
 		bind:open
 		bind:tokens
@@ -137,9 +147,10 @@
 		{#snippet trailing()}
 			<button
 				type="button"
+				{disabled}
 				tabindex={-1}
 				aria-label={open ? "Close options" : "Open options"}
-				class="text-muted-foreground ml-1 flex shrink-0 items-center self-stretch px-2 hover:text-foreground"
+				class="text-muted-foreground ml-1 flex shrink-0 items-center self-stretch px-2 enabled:hover:text-foreground"
 				onclick={(e) => {
 					e.stopPropagation();
 					if (open) {
