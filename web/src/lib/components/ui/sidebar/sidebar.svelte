@@ -44,9 +44,10 @@
 			data-slot="sidebar"
 			data-mobile="true"
 			class={cn(
-				"bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden",
+				"bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 will-change-transform [&>button]:hidden",
 				className
 			)}
+			overlayClass="supports-backdrop-filter:backdrop-blur-none"
 			style="--sidebar-width: {SIDEBAR_WIDTH_MOBILE};"
 			{side}
 		>

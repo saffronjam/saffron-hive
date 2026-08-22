@@ -55,10 +55,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="relative min-w-0 overflow-hidden {className}" ondblclick={startEditing}>
-	<h3
-		class="truncate font-medium text-card-foreground {editing ? 'invisible' : ''}"
-		title="Double-click to rename"
-	>{displayName}</h3>
+	<h3 class="truncate font-medium text-card-foreground {editing ? 'invisible' : ''}">{displayName}</h3>
 	{#if editing}
 		<input
 			bind:this={inputEl}

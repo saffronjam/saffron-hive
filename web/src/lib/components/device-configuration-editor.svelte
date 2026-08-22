@@ -15,7 +15,12 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import NumberInput from "$lib/components/number-input.svelte";
-	import { X } from "@lucide/svelte";
+	import {
+		Tooltip,
+		TooltipContent,
+		TooltipTrigger,
+	} from "$lib/components/ui/tooltip/index.js";
+	import { Info, X } from "@lucide/svelte";
 
 	interface Props {
 		capabilities: Capability[];
@@ -125,16 +130,24 @@
 		</Select>
 	{/if}
 
-	{#each visibleSettings as capability (capability.name)}
-		{@const current = displayValue(capability)}
-		<div class="space-y-1.5">
+	{#if visibleSettings.length > 0}
+		<div class={compact ? "divide-y divide-border rounded-md border border-input" : "space-y-4"}>
+		{#each visibleSettings as capability (capability.name)}
+			{@const current = displayValue(capability)}
+			<div class={compact ? "px-2 py-1" : "space-y-1.5"}>
 			<div class="flex items-center justify-between gap-3">
-				<div class="min-w-0">
-					<p class={compact ? "text-xs font-medium" : "text-sm font-medium"}>
-						{label(capability)}
-					</p>
+				<div class="flex min-w-0 items-center gap-1.5">
+					<p class={compact ? "text-xs font-medium" : "text-sm font-medium"}>{label(capability)}</p>
 					{#if !compact && capability.description}
-						<p class="text-xs text-muted-foreground">{capability.description}</p>
+						<Tooltip>
+							<TooltipTrigger
+								class="shrink-0 text-muted-foreground"
+								aria-label={`About ${label(capability)}`}
+							>
+								<Info class="size-3.5" />
+							</TooltipTrigger>
+							<TooltipContent>{capability.description}</TooltipContent>
+						</Tooltip>
 					{/if}
 				</div>
 				<div class="flex shrink-0 items-center gap-1.5">
@@ -200,8 +213,10 @@
 					{/if}
 				</div>
 			</div>
+			</div>
+		{/each}
 		</div>
-	{/each}
+	{/if}
 
 	{#if selectable && visibleSettings.length === 0}
 		<p class="text-[11px] text-muted-foreground">Add at least one setting.</p>

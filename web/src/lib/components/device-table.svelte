@@ -5,7 +5,6 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import LazyTooltip from "$lib/components/lazy-tooltip.svelte";
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
@@ -244,36 +243,26 @@
 	>
 		{#snippet leading()}
 			<DeviceQuickControls device={row.device} variant="swatch" />
-			<LazyTooltip content="Add to…">
-				{#snippet children(props)}
-					<Button
-						{...props}
-						variant="ghost"
-						size="icon-sm"
-						onclick={() => onAddTo(row.device)}
-						aria-label="Add to room or group"
-					>
-						<Plus class="size-4" />
-					</Button>
-				{/snippet}
-			</LazyTooltip>
-			<LazyTooltip content={row.device.disabled ? "Enable" : "Disable"}>
-				{#snippet children(props)}
-					<Button
-						{...props}
-						variant="ghost"
-						size="icon-sm"
-						onclick={() => ontoggleenabled(row.device)}
-						aria-label={row.device.disabled ? "Enable device" : "Disable device"}
-					>
-						{#if row.device.disabled}
-							<CircleCheck class="size-4" />
-						{:else}
-							<Ban class="size-4" />
-						{/if}
-					</Button>
-				{/snippet}
-			</LazyTooltip>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={() => onAddTo(row.device)}
+				aria-label="Add to room or group"
+			>
+				<Plus class="size-4" />
+			</Button>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={() => ontoggleenabled(row.device)}
+				aria-label={row.device.disabled ? "Enable device" : "Disable device"}
+			>
+				{#if row.device.disabled}
+					<CircleCheck class="size-4" />
+				{:else}
+					<Ban class="size-4" />
+				{/if}
+			</Button>
 		{/snippet}
 	</RowActionsCell>
 {/snippet}

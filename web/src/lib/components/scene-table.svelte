@@ -215,35 +215,36 @@
 		deleteLabel="Delete scene"
 	>
 		{#snippet leading()}
-			<Tooltip>
-				<TooltipTrigger>
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						onclick={() => onapply(s)}
-						disabled={applying || noTargets || active}
-						class="transition-opacity duration-200"
-						aria-label="Apply scene"
-					>
-						<Play class="size-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{active ? "Active" : noTargets ? "No targets" : "Apply scene"}</TooltipContent>
-			</Tooltip>
-			{#if onAddTo}
+			{#if active || noTargets}
 				<Tooltip>
 					<TooltipTrigger>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							onclick={() => onAddTo?.(s)}
-							aria-label="Add target"
-						>
-							<Plus class="size-4" />
+						<Button variant="ghost" size="icon-sm" disabled class="transition-opacity duration-200" aria-label="Apply scene">
+							<Play class="size-4" />
 						</Button>
 					</TooltipTrigger>
-					<TooltipContent>Add…</TooltipContent>
+					<TooltipContent>{active ? "Active" : "No targets"}</TooltipContent>
 				</Tooltip>
+			{:else}
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={() => onapply(s)}
+					disabled={applying}
+					class="transition-opacity duration-200"
+					aria-label="Apply scene"
+				>
+					<Play class="size-4" />
+				</Button>
+			{/if}
+			{#if onAddTo}
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={() => onAddTo?.(s)}
+					aria-label="Add target"
+				>
+					<Plus class="size-4" />
+				</Button>
 			{/if}
 		{/snippet}
 	</RowActionsCell>

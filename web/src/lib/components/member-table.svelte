@@ -37,8 +37,8 @@
 		relatedLabel?: string;
 		emptyMessage?: string;
 		addLabel?: string;
-		onadd: () => void;
-		onremove: (id: string) => void;
+		onadd?: () => void;
+		onremove?: (id: string) => void;
 		disabled?: boolean;
 	}
 
@@ -84,10 +84,12 @@
 				class="pl-9"
 			/>
 		</div>
-		<Button variant="outline" size="sm" onclick={onadd} class="shrink-0">
-			<Plus class="size-4" />
-			<span>{addLabel}</span>
-		</Button>
+		{#if onadd}
+			<Button variant="outline" size="sm" onclick={onadd} class="shrink-0" {disabled}>
+				<Plus class="size-4" />
+				<span>{addLabel}</span>
+			</Button>
+		{/if}
 	</div>
 
 	{#if rows.length === 0}
@@ -107,14 +109,16 @@
 					{#if showRelated}
 						<TableHead>{relatedLabel}</TableHead>
 					{/if}
-					<TableHead class="w-10"></TableHead>
+					{#if onremove}<TableHead class="w-10"></TableHead>{/if}
 				</TableRow>
 			</TableHeader>
 			<TableBody>
 				{#each filteredRows as row (row.id)}
 					<tr
 						data-slot="table-row"
-						class="even:bg-muted/40 hover:bg-muted/70 data-[state=selected]:bg-muted transition-colors"
+						class={disabled
+							? "even:bg-muted/40 data-[state=selected]:bg-muted"
+							: "even:bg-muted/40 hover:bg-muted/70 data-[state=selected]:bg-muted transition-colors"}
 					>
 						<TableCell>
 							<HiveChip type={row.type} />
@@ -170,17 +174,17 @@
 								{/if}
 							</TableCell>
 						{/if}
-						<TableCell>
+						{#if onremove}<TableCell>
 							<Button
 								variant="ghost"
 								size="icon-sm"
-								onclick={() => onremove(row.id)}
+								onclick={() => onremove?.(row.id)}
 								{disabled}
 								aria-label="Remove"
 							>
 								<X class="size-4" />
 							</Button>
-						</TableCell>
+						</TableCell>{/if}
 					</tr>
 				{/each}
 			</TableBody>

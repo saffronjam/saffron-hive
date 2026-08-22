@@ -11,6 +11,11 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import {
+		Tooltip,
+		TooltipContent,
+		TooltipTrigger,
+	} from "$lib/components/ui/tooltip/index.js";
+	import {
 		Dialog,
 		DialogContent,
 		DialogDescription,
@@ -32,8 +37,7 @@
 		TimeFormat as TimeFormatEnum,
 		TemperatureUnit as TempUnitEnum,
 	} from "$lib/gql/graphql";
-	import { Sun, Moon, Upload, X } from "@lucide/svelte";
-	import { onDestroy } from "svelte";
+	import { Info, Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 
@@ -70,8 +74,6 @@
 	pageHeader.breadcrumbs = [{ label: "Profile" }];
 	pageHeader.actions = [];
 	pageHeader.viewToggle = null;
-	onDestroy(() => pageHeader.reset());
-
 	const loader = delayedLoading(() => !me.user);
 
 	let nameDraft = $state(me.user?.name ?? auth.user?.name ?? "");
@@ -370,7 +372,15 @@
 		</CardHeader>
 		<CardContent class="space-y-6">
 			<div class="space-y-2">
-				<p class="text-sm font-medium">Theme</p>
+				<div class="flex items-center gap-1.5">
+					<p class="text-sm font-medium">Theme</p>
+					<Tooltip>
+						<TooltipTrigger class="text-muted-foreground" aria-label="About theme">
+							<Info class="size-3.5" />
+						</TooltipTrigger>
+						<TooltipContent>Saved per-user. Pre-login pages follow the most recent theme on this device.</TooltipContent>
+					</Tooltip>
+				</div>
 				<SegmentedControl
 					value={me.user?.theme ?? "dark"}
 					onchange={(v) => setTheme(v === "light" ? ThemeEnum.Light : ThemeEnum.Dark)}
@@ -379,13 +389,18 @@
 						{ value: "dark", label: "Dark", icon: Moon },
 					]}
 				/>
-				<p class="text-xs text-muted-foreground">
-					Saved per-user. Pre-login pages follow the most recent theme on this device.
-				</p>
 			</div>
 
 			<div class="space-y-2">
-				<p class="text-sm font-medium">Time format</p>
+				<div class="flex items-center gap-1.5">
+					<p class="text-sm font-medium">Time format</p>
+					<Tooltip>
+						<TooltipTrigger class="text-muted-foreground" aria-label="About time format">
+							<Info class="size-3.5" />
+						</TooltipTrigger>
+						<TooltipContent>Applies wherever time is shown. Dates use YYYY-MM-DD.</TooltipContent>
+					</Tooltip>
+				</div>
 				<SegmentedControl
 					value={me.user?.timeFormat ?? "24h"}
 					onchange={(v) => setTimeFormat(v as "12h" | "24h")}
@@ -394,14 +409,18 @@
 						{ value: "12h", label: "12-hour" },
 					]}
 				/>
-				<p class="text-xs text-muted-foreground">
-					Applies to chart tooltips, the data viewer, sensor history popovers, the activity feed,
-					and the logs page. Date portion is always YYYY-MM-DD.
-				</p>
 			</div>
 
 			<div class="space-y-2">
-				<p class="text-sm font-medium">Temperature unit</p>
+				<div class="flex items-center gap-1.5">
+					<p class="text-sm font-medium">Temperature unit</p>
+					<Tooltip>
+						<TooltipTrigger class="text-muted-foreground" aria-label="About temperature unit">
+							<Info class="size-3.5" />
+						</TooltipTrigger>
+						<TooltipContent>Applies wherever temperature is shown. Values are stored in Celsius.</TooltipContent>
+					</Tooltip>
+				</div>
 				<SegmentedControl
 					value={me.user?.temperatureUnit ?? "celsius"}
 					onchange={(v) => setTemperatureUnit(v as "celsius" | "fahrenheit")}
@@ -410,10 +429,6 @@
 						{ value: "fahrenheit", label: "Fahrenheit (°F)" },
 					]}
 				/>
-				<p class="text-xs text-muted-foreground">
-					Applies wherever temperature is shown. Backend stores Celsius; conversion happens at
-					render time only.
-				</p>
 			</div>
 		</CardContent>
 	</Card>
