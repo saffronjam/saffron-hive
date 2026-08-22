@@ -74,6 +74,7 @@ type Documents = {
     "\n  mutation E2EDeleteUser($id: ID!) {\n    deleteUser(id: $id)\n  }\n": typeof types.E2EDeleteUserDocument,
     "\n  mutation E2EResetPassword($id: ID!, $p: String!) {\n    resetUserPassword(id: $id, newPassword: $p)\n  }\n": typeof types.E2EResetPasswordDocument,
     "\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      avatarPath\n    }\n  }\n": typeof types.E2EMeDocument,
+    "\n  query E2EZigbeeMetadataReady($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        ieeeAddress\n      }\n    }\n  }\n": typeof types.E2EZigbeeMetadataReadyDocument,
     "\n  query E2EMaintenanceTasks {\n    maintenanceTasks {\n      id\n      kind\n    }\n  }\n": typeof types.E2EMaintenanceTasksDocument,
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": typeof types.DeleteAlarmDocument,
     "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t": typeof types.BatchDeleteAlarmsDocument,
@@ -262,6 +263,7 @@ const documents: Documents = {
     "\n  mutation E2EDeleteUser($id: ID!) {\n    deleteUser(id: $id)\n  }\n": types.E2EDeleteUserDocument,
     "\n  mutation E2EResetPassword($id: ID!, $p: String!) {\n    resetUserPassword(id: $id, newPassword: $p)\n  }\n": types.E2EResetPasswordDocument,
     "\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      avatarPath\n    }\n  }\n": types.E2EMeDocument,
+    "\n  query E2EZigbeeMetadataReady($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        ieeeAddress\n      }\n    }\n  }\n": types.E2EZigbeeMetadataReadyDocument,
     "\n  query E2EMaintenanceTasks {\n    maintenanceTasks {\n      id\n      kind\n    }\n  }\n": types.E2EMaintenanceTasksDocument,
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": types.DeleteAlarmDocument,
     "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t": types.BatchDeleteAlarmsDocument,
@@ -644,6 +646,10 @@ export function graphql(source: "\n  mutation E2EResetPassword($id: ID!, $p: Str
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      avatarPath\n    }\n  }\n"): (typeof documents)["\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      avatarPath\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query E2EZigbeeMetadataReady($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        ieeeAddress\n      }\n    }\n  }\n"): (typeof documents)["\n  query E2EZigbeeMetadataReady($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        ieeeAddress\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
