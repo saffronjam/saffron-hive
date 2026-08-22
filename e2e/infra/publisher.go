@@ -38,6 +38,14 @@ func (p *Publisher) PublishBridgeDevices(devices []byte) error {
 	return token.Error()
 }
 
+// PublishBridgeGroups publishes the complete bridge/groups registry as a
+// retained message.
+func (p *Publisher) PublishBridgeGroups(groups []byte) error {
+	token := p.client.Publish("zigbee2mqtt/bridge/groups", 0, true, groups)
+	token.Wait()
+	return token.Error()
+}
+
 // PublishDeviceState publishes a state payload for a device (retained).
 func (p *Publisher) PublishDeviceState(friendlyName string, payload []byte) error {
 	topic := "zigbee2mqtt/" + friendlyName

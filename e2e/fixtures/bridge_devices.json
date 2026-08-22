@@ -149,6 +149,96 @@
     }
   },
   {
+    "ieee_address": "0x54ef44100166fcae",
+    "friendly_name": "Door sensor T1",
+    "type": "EndDevice",
+    "network_address": 2710,
+    "supported": true,
+    "interview_state": "SUCCESSFUL",
+    "interview_completed": true,
+    "interviewing": false,
+    "manufacturer": "LUMI",
+    "model_id": "lumi.magnet.agl02",
+    "power_source": "Battery",
+    "software_build_id": "2019\u0000www.",
+    "date_code": "20230109",
+    "definition": {
+      "model": "MCCGQ12LM",
+      "vendor": "Aqara",
+      "description": "Door and window sensor T1",
+      "source": "native",
+      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "supports_ota": false,
+      "exposes": [
+        {"type": "binary", "name": "contact", "property": "contact", "access": 1, "features": []},
+        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "features": []}
+      ]
+    },
+    "endpoints": {
+      "1": {
+        "bindings": [],
+        "clusters": {"input": ["genBasic", "genIdentify", "ssIasZone", "genPowerCfg"], "output": ["genOta"]},
+        "configured_reportings": []
+      }
+    }
+  },
+  {
+    "ieee_address": "0x54ef4410015e4b68",
+    "friendly_name": "Multi-state sensor P100",
+    "type": "EndDevice",
+    "network_address": 173,
+    "supported": true,
+    "interview_state": "SUCCESSFUL",
+    "interview_completed": true,
+    "interviewing": false,
+    "manufacturer": "Aqara",
+    "model_id": "lumi.vibration.agl002",
+    "power_source": "Battery",
+    "date_code": "20260615",
+    "definition": {
+      "model": "DWZTCGQ11LM",
+      "vendor": "Aqara",
+      "description": "Multi-state sensor P100",
+      "source": "native",
+      "supports_ota": true,
+      "exposes": [
+        {"type": "enum", "name": "orientation", "property": "orientation", "access": 1, "values": ["face_up", "face_down", "vertical", "tilt"], "features": []},
+        {"type": "binary", "name": "contact", "property": "contact", "access": 1, "features": []},
+        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "features": []}
+      ]
+    },
+    "endpoints": {
+      "1": {
+        "bindings": [
+          {"cluster": "genOnOff", "target": {"type": "endpoint", "ieee_address": "0x00124b0000000000", "endpoint": 1}},
+          {"cluster": "genGroups", "target": {"type": "group", "id": 7}}
+        ],
+        "clusters": {"input": ["closuresDoorLock", "genAnalogInput", "genOnOff", "genIdentify", "genBasic", "manuSpecificLumi"], "output": ["genTime", "genOta"]},
+        "configured_reportings": [
+          {"cluster": "genOnOff", "attribute": "onOff", "minimum_report_interval": 0, "maximum_report_interval": 65000, "reportable_change": 1}
+        ]
+      },
+      "2": {
+        "profile_id": 260,
+        "device_id": 3,
+        "bindings": [],
+        "clusters": {"input": ["genAnalogInput"], "output": []},
+        "configured_reportings": []
+      }
+    }
+  },
+  {
+    "ieee_address": "0x00124b0000000001",
+    "friendly_name": "Unsupported Zigbee device",
+    "type": "EndDevice",
+    "supported": false,
+    "interview_state": "FAILED",
+    "interview_completed": false,
+    "interviewing": false,
+    "definition": null,
+    "endpoints": {}
+  },
+  {
     "ieee_address": "0x00124b0000000000",
     "friendly_name": "Coordinator",
     "type": "Coordinator",

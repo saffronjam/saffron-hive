@@ -221,7 +221,7 @@ func TestDevices_SetDeviceState(t *testing.T) {
 	}
 
 	_, err = graphqlMutation(`mutation($deviceId: ID!, $state: DeviceStateInput!) {
-		setDeviceState(deviceId: $deviceId, state: $state) { id name }
+		setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 	}`, map[string]any{
 		"deviceId": deviceID,
 		"state": map[string]any{
@@ -230,7 +230,7 @@ func TestDevices_SetDeviceState(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("setDeviceState: %v", err)
+		t.Fatalf("setTargetState: %v", err)
 	}
 
 	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
@@ -244,7 +244,7 @@ func TestDevices_SetDeviceState(t *testing.T) {
 		return false
 	})
 	if !ok {
-		t.Fatal("timed out waiting for MQTT command from setDeviceState")
+		t.Fatal("timed out waiting for MQTT command from setTargetState")
 	}
 }
 
@@ -377,7 +377,7 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 
 func TestDevices_SetDeviceState_InvalidID(t *testing.T) {
 	err := graphqlMutationExpectError(`mutation($deviceId: ID!, $state: DeviceStateInput!) {
-		setDeviceState(deviceId: $deviceId, state: $state) { id }
+		setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
 	}`, map[string]any{
 		"deviceId": "nonexistent-device-id",
 		"state": map[string]any{

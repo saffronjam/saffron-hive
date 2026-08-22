@@ -27,8 +27,10 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
+	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	_ "modernc.org/sqlite"
 )
@@ -88,6 +90,8 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	)
 	go runDevicePersister(appCtx, bus, deviceCh, sqlStore)
 	go topology.RunPersister(appCtx, bus, sqlStore)
+	providerGroupCh := bus.Subscribe(eventbus.EventProviderGroupsSynced)
+	go providergroup.RunPersister(appCtx, bus, sqlStore, providerGroupCh)
 
 	mqttClient := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   brokerURL,
@@ -103,6 +107,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
+	targetCommander := targetcommand.New(bus, sqlStore, memStore)
 
 	activityBuffer := activity.NewBuffer()
 	roomCache := activity.NewRoomCache(sqlStore)
@@ -113,19 +118,19 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	go activityRecorder.Run(appCtx)
 
-	effectRunner := effect.NewRunner(bus, sqlStore, memStore, sqlStore, e2eTerminator{})
+	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, e2eTerminator{})
 	if err := effectRunner.Hydrate(appCtx); err != nil {
 		log.Printf("effect runner hydrate failed: %v", err)
 	}
 	go effectRunner.Run(appCtx)
 
-	sceneWatcher := scene.NewWatcher(bus, sqlStore, sqlStore, memStore, effectRunner)
+	sceneWatcher := scene.NewWatcher(bus, sqlStore, targetCommander, memStore, effectRunner)
 	if err := sceneWatcher.Hydrate(appCtx); err != nil {
 		log.Printf("scene watcher hydrate failed: %v", err)
 	}
 	go sceneWatcher.Run(appCtx)
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, sqlStore, alarmSvc, effectRunner)
+	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
 			log.Printf("automation engine error: %v", err)
@@ -176,7 +181,8 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		Store:               sqlStore,
 		EventBus:            bus,
 		Zigbee2MQTT:         &zigbeeController{adapter: adapter, store: sqlStore},
-		TargetResolver:      sqlStore,
+		TargetResolver:      targetCommander,
+		TargetCommander:     targetCommander,
 		AutomationReloader:  rel,
 		AutomationTriggerer: rel,
 		EffectRunner:        effectRunner,
@@ -296,8 +302,8 @@ func (r *reloader) Reload() error {
 	return r.engine.Reload(r.ctx)
 }
 
-func (r *reloader) FireManualTrigger(ctx context.Context, automationID, nodeID string) error {
-	return r.engine.FireManualTrigger(ctx, automationID, automation.NodeID(nodeID))
+func (r *reloader) FireTrigger(ctx context.Context, automationID, nodeID string) error {
+	return r.engine.FireTrigger(ctx, automationID, automation.NodeID(nodeID))
 }
 
 type e2eTerminator struct{}
