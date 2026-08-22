@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -267,6 +268,17 @@ func disabledDeviceError(d device.Device) error {
 	return fmt.Errorf("device %q is disabled; enable it before sending commands", d.DisplayName())
 }
 
+func requireHiveGroup(ctx context.Context, s GraphStore, id string) (store.Group, error) {
+	group, err := s.GetGroup(ctx, id)
+	if err != nil {
+		return store.Group{}, fmt.Errorf("group %q not found: %w", id, err)
+	}
+	if group.Provider != store.GroupProviderHive {
+		return store.Group{}, fmt.Errorf("%q is managed by Zigbee2MQTT", group.DisplayName())
+	}
+	return group, nil
+}
+
 func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 	live, liveFound := sr.GetDevice(d.ID)
 	available := d.Available
@@ -417,6 +429,29 @@ func zigbee2MQTTPassword(ctx context.Context, s GraphStore, input string) (strin
 	return existing.Password, nil
 }
 
+func zigbee2MQTTFrontendURL(ctx context.Context, s GraphStore, input model.Zigbee2MqttConfigInput) (*string, error) {
+	raw, set := input.FrontendURL.ValueOK()
+	if !set {
+		existing, err := s.GetZigbee2MQTTConfig(ctx)
+		if err != nil || existing == nil {
+			return nil, err
+		}
+		return existing.FrontendURL, nil
+	}
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return nil, nil
+	}
+	value := strings.TrimSpace(*raw)
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") ||
+		parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
+		return nil, fmt.Errorf("Zigbee2MQTT frontend URL must be an HTTP or HTTPS URL without credentials, query, or fragment")
+	}
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	normalized := parsed.String()
+	return &normalized, nil
+}
+
 // zigbee2MQTTScanStartedAt reports when the in-flight topology scan was
 // requested, nil when none is running or no controller is wired (tests,
 // partial setups).
@@ -473,6 +508,7 @@ func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig, scanStartedAt *time.Time)
 	}
 	return &model.Zigbee2MqttConfig{
 		Broker:              cfg.Broker,
+		FrontendURL:         cfg.FrontendURL,
 		Username:            cfg.Username,
 		Password:            password,
 		UseWss:              cfg.UseWSS,
@@ -842,10 +878,14 @@ func resolveSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore
 
 func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
-		ID:        g.ID,
-		Name:      g.Name,
-		Icon:      g.Icon,
-		CreatedBy: mapUserRef(g.CreatedBy),
+		ID:           g.ID,
+		Name:         g.Name,
+		FriendlyName: g.FriendlyName,
+		Source:       g.Provider,
+		Removed:      g.Removed,
+		Icon:         g.Icon,
+		Tags:         groupTagsToModel(g.Tags),
+		CreatedBy:    mapUserRef(g.CreatedBy),
 	}
 	mg.Members = make([]*model.GroupMember, len(members))
 	for i, m := range members {
@@ -861,8 +901,11 @@ func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphSt
 		}
 		mg.Members[i] = gm
 	}
-	seen := make(map[string]bool)
-	mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
+	mg.ResolvedDevices = []*model.Device{}
+	if !g.Removed {
+		seen := make(map[string]bool)
+		mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
+	}
 	return mg
 }
 
@@ -886,11 +929,36 @@ func encodeNodeState(m map[string]string) string {
 }
 
 func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
+	domainGraph := automation.AutomationGraph{
+		ID:      g.Automation.ID,
+		Name:    g.Automation.Name,
+		Enabled: g.Automation.Enabled,
+		Nodes:   make([]automation.Node, 0, len(g.Nodes)),
+		Edges:   make([]automation.Edge, 0, len(g.Edges)),
+	}
+	for _, n := range g.Nodes {
+		domainGraph.Nodes = append(domainGraph.Nodes, automation.Node{
+			ID:           automation.NodeID(n.ID),
+			AutomationID: n.AutomationID,
+			Type:         automation.NodeType(n.Type),
+			Config:       parseAutomationNodeConfigForValidation(automation.NodeType(n.Type), n.Config),
+			PositionX:    n.PositionX,
+			PositionY:    n.PositionY,
+		})
+	}
+	for _, e := range g.Edges {
+		domainGraph.Edges = append(domainGraph.Edges, automation.Edge{
+			AutomationID: e.AutomationID,
+			FromNodeID:   automation.NodeID(e.FromNodeID),
+			ToNodeID:     automation.NodeID(e.ToNodeID),
+		})
+	}
 	mg := &model.AutomationGraph{
 		ID:          g.Automation.ID,
 		Name:        g.Automation.Name,
 		Icon:        g.Automation.Icon,
 		Enabled:     g.Automation.Enabled,
+		Compilable:  automation.Compilable(domainGraph),
 		LastFiredAt: g.Automation.LastFiredAt,
 		CreatedBy:   mapUserRef(g.Automation.CreatedBy),
 	}
@@ -1038,11 +1106,14 @@ func doorSwingSideFromModel(side model.FloorplanDoorSwingSide) store.FloorplanDo
 
 func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
-		ID:        g.ID,
-		Name:      g.Name,
-		Icon:      g.Icon,
-		Tags:      groupTagsToModel(g.Tags),
-		CreatedBy: mapUserRef(g.CreatedBy),
+		ID:           g.ID,
+		Name:         g.Name,
+		FriendlyName: g.FriendlyName,
+		Source:       g.Provider,
+		Removed:      g.Removed,
+		Icon:         g.Icon,
+		Tags:         groupTagsToModel(g.Tags),
+		CreatedBy:    mapUserRef(g.CreatedBy),
 	}
 
 	mg.Members = make([]*model.GroupMember, len(members))
@@ -1050,8 +1121,11 @@ func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.
 		mg.Members[i] = mapGroupMember(ctx, sr, s, m)
 	}
 
-	seen := make(map[string]bool)
-	mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
+	mg.ResolvedDevices = []*model.Device{}
+	if !g.Removed {
+		seen := make(map[string]bool)
+		mg.ResolvedDevices = collectDevicesFromGroupMembers(ctx, sr, s, members, seen)
+	}
 
 	return mg
 }
@@ -1724,9 +1798,8 @@ func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes
 
 // validateRunEffectActions checks every run_effect action node: the payload
 // must parse and supply exactly one of effect_id (referring to a stored
-// effect) or native_name (referring to an auto-discovered native effect);
-// the node's target_type must be one of device/group/room and target_id must
-// be non-empty. Capability coverage is intentionally not enforced here — the
+// effect) or native_name (referring to an auto-discovered native effect).
+// Capability coverage is intentionally not enforced here — the
 // runner logs at debug when a step is dropped per device, so a partial cap
 // match is a soft warning rather than a hard rejection.
 func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
@@ -1735,10 +1808,11 @@ func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*mo
 			continue
 		}
 		var outer struct {
-			ActionType string `json:"action_type"`
-			TargetType string `json:"target_type"`
-			TargetID   string `json:"target_id"`
-			Payload    string `json:"payload"`
+			ActionType string          `json:"action_type"`
+			TargetType string          `json:"target_type"`
+			TargetID   string          `json:"target_id"`
+			TargetExpr []device.Clause `json:"target_expr"`
+			Payload    string          `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
 			continue
@@ -1763,11 +1837,15 @@ func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*mo
 		}
 		switch automation.TargetType(outer.TargetType) {
 		case automation.TargetDevice, automation.TargetGroup, automation.TargetRoom:
+			if outer.TargetID == "" {
+				return fmt.Errorf("node %s: run_effect requires target_id", n.ID)
+			}
+		case automation.TargetType(device.TargetExpression):
+			if len(outer.TargetExpr) == 0 {
+				return fmt.Errorf("node %s: run_effect requires target_expr", n.ID)
+			}
 		default:
-			return fmt.Errorf("node %s: run_effect target_type must be device, group, or room (got %q)", n.ID, outer.TargetType)
-		}
-		if outer.TargetID == "" {
-			return fmt.Errorf("node %s: run_effect requires target_id", n.ID)
+			return fmt.Errorf("node %s: run_effect has invalid target_type %q", n.ID, outer.TargetType)
 		}
 		if hasEffect {
 			if _, err := store.GetEffect(ctx, p.EffectID); err != nil {
@@ -1936,6 +2014,8 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 			EventType  string `json:"event_type"`
 			FilterExpr string `json:"filter_expr"`
 			CronExpr   string `json:"cron_expr"`
+			GraceMs    int64  `json:"grace_ms"`
+			CooldownMs int64  `json:"cooldown_ms"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			return automation.TriggerConfig{}
@@ -1953,6 +2033,8 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 			EventType:  raw.EventType,
 			FilterExpr: raw.FilterExpr,
 			CronExpr:   raw.CronExpr,
+			GraceMs:    raw.GraceMs,
+			CooldownMs: raw.CooldownMs,
 		}
 	case automation.NodeCondition:
 		var raw struct {

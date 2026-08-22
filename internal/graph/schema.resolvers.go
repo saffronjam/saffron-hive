@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,6 +32,18 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// Zigbee2Mqtt is the resolver for the zigbee2Mqtt field.
+func (r *deviceResolver) Zigbee2Mqtt(ctx context.Context, obj *model.Device) (*model.Zigbee2MqttDeviceMetadata, error) {
+	if obj.Source != string(device.SourceZigbee2MQTT) {
+		return nil, nil
+	}
+	metadata, err := r.Store.GetZigbeeDeviceMetadata(ctx, device.DeviceID(obj.ID))
+	if err != nil || metadata == nil {
+		return nil, err
+	}
+	return mapZigbeeDeviceMetadata(*metadata, r.AddressVendors), nil
+}
 
 // UpdateDevice is the resolver for the updateDevice field.
 func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error) {
@@ -115,22 +128,22 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 	return mapDeviceFromReader(r.StateReader, d), nil
 }
 
-// SetDeviceState is the resolver for the setDeviceState field.
-func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, state model.DeviceStateInput) (*model.Device, error) {
-	id := device.DeviceID(deviceID)
-	d, ok := r.StateReader.GetDevice(id)
-	if !ok {
-		return nil, fmt.Errorf("device %q not found", deviceID)
+// SetTargetState is the resolver for the setTargetState field.
+func (r *mutationResolver) SetTargetState(ctx context.Context, targetType model.CommandTargetType, targetID string, state model.DeviceStateInput) (bool, error) {
+	domainType := device.TargetType(strings.ToLower(string(targetType)))
+	if domainType == device.TargetDevice {
+		d, ok := r.StateReader.GetDevice(device.DeviceID(targetID))
+		if !ok {
+			return false, fmt.Errorf("device %q not found", targetID)
+		}
+		if d.Disabled {
+			return false, disabledDeviceError(d)
+		}
+		if d.Type == device.Hub {
+			return false, fmt.Errorf("device %q is a hub and takes no commands", d.DisplayName())
+		}
 	}
-	if d.Disabled {
-		return nil, disabledDeviceError(d)
-	}
-	if d.Type == device.Hub {
-		return nil, fmt.Errorf("device %q is a hub and takes no commands", d.DisplayName())
-	}
-
 	cmd := device.Command{
-		DeviceID:          id,
 		On:                state.On.Value(),
 		Brightness:        state.Brightness.Value(),
 		Transition:        state.Transition.Value(),
@@ -141,26 +154,21 @@ func (r *mutationResolver) SetDeviceState(ctx context.Context, deviceID string, 
 		Origin:            device.OriginUser(),
 	}
 	if color := state.Color.Value(); color != nil {
-		cmd.Color = &device.Color{
-			R: color.R,
-			G: color.G,
-			B: color.B,
-			X: color.X,
-			Y: color.Y,
-		}
-	}
-	if cmd.Color == nil {
+		cmd.Color = &device.Color{R: color.R, G: color.G, B: color.B, X: color.X, Y: color.Y}
+	} else {
 		cmd.ColorTemp = state.ColorTemp.Value()
 	}
-
-	r.EventBus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  deviceID,
-		Timestamp: time.Now(),
-		Payload:   cmd,
-	})
-
-	return mapDeviceFromReader(r.StateReader, d), nil
+	if r.TargetCommander == nil {
+		return false, fmt.Errorf("target commander is unavailable")
+	}
+	if err := r.TargetCommander.CommandTarget(ctx, device.TargetCommand{
+		TargetType: domainType,
+		TargetID:   targetID,
+		State:      cmd,
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // SetDeviceConfiguration is the resolver for the setDeviceConfiguration field.
@@ -238,13 +246,8 @@ func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*mod
 	}
 
 	plan := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, sceneID, actions, payloads)
-	for _, cmd := range plan.Commands {
-		r.EventBus.Publish(eventbus.Event{
-			Type:      eventbus.EventCommandRequested,
-			DeviceID:  string(cmd.DeviceID),
-			Timestamp: time.Now(),
-			Payload:   cmd,
-		})
+	if err := scene.DispatchApplyCommands(ctx, r.TargetCommander, r.EventBus, actions, payloads, plan); err != nil {
+		return nil, err
 	}
 
 	r.EventBus.Publish(eventbus.Event{
@@ -422,11 +425,6 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 
 	nodes, nodesSet := input.Nodes.ValueOK()
 	edges, _ := input.Edges.ValueOK()
-	if nodesSet {
-		if err := validateAutomationInput(ctx, r.Store, nodes, edges); err != nil {
-			return nil, err
-		}
-	}
 
 	aParams := store.UpdateAutomationParams{}
 	updateAutomation := false
@@ -538,7 +536,7 @@ func (r *mutationResolver) FireAutomationTrigger(ctx context.Context, automation
 	if r.AutomationTriggerer == nil {
 		return false, fmt.Errorf("manual triggers are not configured")
 	}
-	if err := r.AutomationTriggerer.FireManualTrigger(ctx, automationID, nodeID); err != nil {
+	if err := r.AutomationTriggerer.FireTrigger(ctx, automationID, nodeID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -568,13 +566,17 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 	if err != nil {
 		return nil, fmt.Errorf("group %q not found: %w", id, err)
 	}
-	name := g.Name
-	if n, ok := input.Name.ValueOK(); ok && n != nil {
-		name = *n
+	nameInput, setName := input.Name.ValueOK()
+	if nameInput != nil && strings.TrimSpace(*nameInput) == "" {
+		nameInput = nil
+	}
+	if setName && g.Provider == store.GroupProviderHive && nameInput == nil {
+		return nil, fmt.Errorf("group name is required")
 	}
 	gParams := store.UpdateGroupParams{
-		ID:   id,
-		Name: name,
+		ID:      id,
+		Name:    nameInput,
+		SetName: setName,
 	}
 	if icon, ok := input.Icon.ValueOK(); ok {
 		gParams.SetIcon = true
@@ -597,6 +599,9 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 
 // DeleteGroup is the resolver for the deleteGroup field.
 func (r *mutationResolver) DeleteGroup(ctx context.Context, id string) (bool, error) {
+	if _, err := requireHiveGroup(ctx, r.Store, id); err != nil {
+		return false, err
+	}
 	err := r.Store.DeleteGroup(ctx, id)
 	if err != nil {
 		return false, err
@@ -608,6 +613,9 @@ func (r *mutationResolver) DeleteGroup(ctx context.Context, id string) (bool, er
 
 // AddGroupMember is the resolver for the addGroupMember field.
 func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGroupMemberInput) (*model.Group, error) {
+	if _, err := requireHiveGroup(ctx, r.Store, input.GroupID); err != nil {
+		return nil, err
+	}
 	memberType := device.GroupMemberType(input.MemberType)
 	if memberType != device.GroupMemberDevice && memberType != device.GroupMemberGroup && memberType != device.GroupMemberRoom {
 		return nil, fmt.Errorf("invalid member type %q: must be %q, %q, or %q", input.MemberType, device.GroupMemberDevice, device.GroupMemberGroup, device.GroupMemberRoom)
@@ -643,6 +651,9 @@ func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (*m
 	groupID, err := r.Store.GetGroupMemberGroupID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("group member %q not found: %w", id, err)
+	}
+	if _, err := requireHiveGroup(ctx, r.Store, groupID); err != nil {
+		return nil, err
 	}
 	if err := r.Store.RemoveGroupMember(ctx, id); err != nil {
 		return nil, err
@@ -840,12 +851,17 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 	if err != nil {
 		return nil, err
 	}
+	frontendURL, err := zigbee2MQTTFrontendURL(ctx, r.Store, input)
+	if err != nil {
+		return nil, err
+	}
 	scanHour, scanMinute, err := zigbee2MQTTScanSchedule(ctx, r.Store, input)
 	if err != nil {
 		return nil, err
 	}
 	cfg := store.Zigbee2MQTTConfig{
 		Broker:              strings.TrimSpace(input.Broker),
+		FrontendURL:         frontendURL,
 		Username:            strings.TrimSpace(input.Username),
 		Password:            password,
 		UseWSS:              input.UseWss,
@@ -872,6 +888,9 @@ func (r *mutationResolver) TestZigbee2MqttConnection(ctx context.Context, input 
 	}
 	password, err := zigbee2MQTTPassword(ctx, r.Store, input.Password)
 	if err != nil {
+		return nil, err
+	}
+	if _, err := zigbee2MQTTFrontendURL(ctx, r.Store, input); err != nil {
 		return nil, err
 	}
 	cfg := store.Zigbee2MQTTConfig{
@@ -1002,10 +1021,10 @@ func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value 
 }
 
 // Login is the resolver for the login field. Every attempt passes through the
-// per-(ip, username) LoginLimiter before any DB or bcrypt work — this defeats
-// the alias-batching brute-force where one HTTP request packs many login
-// mutations. The no-such-user branch deliberately spends bcrypt time against a
-// dummy hash so request duration cannot leak whether a username exists.
+// per-(ip, username) LoginLimiter before any DB or password-verification work.
+// This defeats alias-batched brute force where one HTTP request packs many
+// login mutations. The no-such-user branch verifies a dummy credential so
+// request duration cannot reveal whether a username exists.
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error) {
 	ip := auth.ClientIPFromContext(ctx)
 	username := strings.TrimSpace(input.Username)
@@ -1017,24 +1036,71 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 		}
 	}
 
+	startedAt := time.Now()
+	hashAlgorithm := auth.PasswordHashAlgorithm(auth.DummyPasswordHash)
+	rehash := false
+	success := false
+	defer func() {
+		graphLogger.DebugContext(ctx, "login completed",
+			slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			slog.String("hash_algorithm", hashAlgorithm),
+			slog.Bool("rehash", rehash),
+			slog.Bool("success", success),
+		)
+	}()
+
 	u, err := r.Store.GetUserByUsername(ctx, username)
 	if err != nil {
-		_ = auth.VerifyPassword(auth.DummyBcryptHash, input.Password)
+		_ = auth.VerifyPassword(auth.DummyPasswordHash, input.Password)
 		if r.LoginLimiter != nil {
 			r.LoginLimiter.RecordFailure(ip, username, now)
 		}
 		return nil, fmt.Errorf("invalid username or password")
 	}
+	hashAlgorithm = auth.PasswordHashAlgorithm(u.PasswordHash)
 	if err := auth.VerifyPassword(u.PasswordHash, input.Password); err != nil {
 		if r.LoginLimiter != nil {
 			r.LoginLimiter.RecordFailure(ip, username, now)
 		}
 		return nil, fmt.Errorf("invalid username or password")
 	}
+	if auth.PasswordNeedsRehash(u.PasswordHash) {
+		rehash = true
+		upgradedHash, err := auth.HashPassword(input.Password)
+		if err != nil {
+			graphLogger.ErrorContext(ctx, "login password rehash failed",
+				slog.String("user_id", u.ID),
+				slog.String("error", err.Error()),
+			)
+			if r.LoginLimiter != nil {
+				r.LoginLimiter.RecordFailure(ip, username, now)
+			}
+			return nil, fmt.Errorf("upgrade password hash: %w", err)
+		}
+		if err := r.Store.UpdateUserPasswordHash(ctx, u.ID, upgradedHash); err != nil {
+			graphLogger.ErrorContext(ctx, "login password rehash failed",
+				slog.String("user_id", u.ID),
+				slog.String("error", err.Error()),
+			)
+			if r.LoginLimiter != nil {
+				r.LoginLimiter.RecordFailure(ip, username, now)
+			}
+			return nil, fmt.Errorf("upgrade password hash: %w", err)
+		}
+		u.PasswordHash = upgradedHash
+	}
+	payload, err := signAuthPayload(r.Auth, u)
+	if err != nil {
+		if r.LoginLimiter != nil {
+			r.LoginLimiter.RecordFailure(ip, username, now)
+		}
+		return nil, err
+	}
 	if r.LoginLimiter != nil {
 		r.LoginLimiter.RecordSuccess(ip, username)
 	}
-	return signAuthPayload(r.Auth, u)
+	success = true
+	return payload, nil
 }
 
 // CreateInitialUser is the resolver for the createInitialUser field. It is
@@ -1315,6 +1381,11 @@ func (r *mutationResolver) BatchDeleteAutomations(ctx context.Context, ids []str
 
 // BatchDeleteGroups is the resolver for the batchDeleteGroups field.
 func (r *mutationResolver) BatchDeleteGroups(ctx context.Context, ids []string) (int, error) {
+	for _, id := range ids {
+		if _, err := requireHiveGroup(ctx, r.Store, id); err != nil {
+			return 0, err
+		}
+	}
 	n, err := r.Store.BatchDeleteGroups(ctx, ids)
 	if err != nil {
 		return 0, err
@@ -1334,6 +1405,15 @@ func (r *mutationResolver) BatchDeleteRooms(ctx context.Context, ids []string) (
 	}
 	if n > 0 {
 		r.publishRoomMembershipChanged()
+	}
+	return int(n), nil
+}
+
+// BatchDeleteEffects is the resolver for the batchDeleteEffects field.
+func (r *mutationResolver) BatchDeleteEffects(ctx context.Context, ids []string) (int, error) {
+	n, err := r.Store.BatchDeleteEffects(ctx, ids)
+	if err != nil {
+		return 0, err
 	}
 	return int(n), nil
 }
@@ -1371,6 +1451,15 @@ func (r *mutationResolver) BatchDeleteAlarms(ctx context.Context, alarmIds []str
 		return 0, err
 	}
 	return n, nil
+}
+
+// CompleteMaintenanceTasks is the resolver for the completeMaintenanceTasks field.
+func (r *mutationResolver) CompleteMaintenanceTasks(ctx context.Context, ids []string) ([]string, error) {
+	cu, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("authentication required")
+	}
+	return r.Maintenance.Complete(ctx, ids, cu.ID)
 }
 
 // BatchDeleteUsers is the resolver for the batchDeleteUsers field. The
@@ -1445,6 +1534,9 @@ func (r *mutationResolver) BatchAddRoomMembers(ctx context.Context, roomID strin
 // Devices already members of the group are silently skipped. Returns the
 // updated group.
 func (r *mutationResolver) BatchAddGroupDevices(ctx context.Context, groupID string, deviceIds []string) (*model.Group, error) {
+	if _, err := requireHiveGroup(ctx, r.Store, groupID); err != nil {
+		return nil, err
+	}
 	if _, err := r.Store.BatchAddGroupDevices(ctx, groupID, deviceIds); err != nil {
 		return nil, err
 	}
@@ -1628,6 +1720,7 @@ func (r *mutationResolver) RunNativeEffect(ctx context.Context, nativeName strin
 		Effect: &model.Effect{
 			ID:                   "",
 			Name:                 displayName,
+			Source:               string(device.SourceZigbee2MQTT),
 			Kind:                 model.EffectKindNative,
 			NativeName:           &nameCopy,
 			Loop:                 false,
@@ -2307,6 +2400,16 @@ func (r *queryResolver) Alarms(ctx context.Context, filter *model.AlarmFilter) (
 	return result, nil
 }
 
+// MaintenanceTasks is the resolver for the maintenanceTasks field.
+func (r *queryResolver) MaintenanceTasks(ctx context.Context) ([]*model.MaintenanceTask, error) {
+	tasks := r.Maintenance.Snapshot()
+	out := make([]*model.MaintenanceTask, 0, len(tasks))
+	for _, task := range tasks {
+		out = append(out, mapMaintenanceTask(r.StateReader, task))
+	}
+	return out, nil
+}
+
 // SetupStatus is the resolver for the setupStatus field. Whitelisted — callable
 // without authentication so the frontend can decide whether to show /setup.
 func (r *queryResolver) SetupStatus(ctx context.Context) (*model.SetupStatus, error) {
@@ -2423,6 +2526,7 @@ func (r *queryResolver) NativeEffectOptions(ctx context.Context) ([]*model.Nativ
 		out = append(out, &model.NativeEffectOption{
 			Name:                 name,
 			DisplayName:          sentenceCase(name),
+			Source:               string(device.SourceZigbee2MQTT),
 			SupportedDeviceCount: count,
 		})
 	}
@@ -2679,6 +2783,70 @@ func (r *subscriptionResolver) DeviceRemoved(ctx context.Context) (<-chan string
 	return out, nil
 }
 
+// GroupsChanged is the resolver for the groupsChanged field.
+func (r *subscriptionResolver) GroupsChanged(ctx context.Context) (<-chan []string, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventGroupSynced)
+	out := make(chan []string, 1)
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+		pending := make(map[string]struct{})
+		var timer *time.Timer
+		var timerCh <-chan time.Time
+		flush := func() {
+			if len(pending) == 0 {
+				return
+			}
+			ids := make([]string, 0, len(pending))
+			for id := range pending {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			pending = make(map[string]struct{})
+			select {
+			case out <- ids:
+			default:
+				select {
+				case <-out:
+				default:
+				}
+				out <- ids
+			}
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				if timer != nil {
+					timer.Stop()
+				}
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				payload, ok := evt.Payload.(eventbus.GroupSyncedEvent)
+				if !ok {
+					continue
+				}
+				for _, id := range payload.ChangedIDs {
+					if len(pending) < 256 {
+						pending[id] = struct{}{}
+					}
+				}
+				if timer == nil {
+					timer = time.NewTimer(25 * time.Millisecond)
+					timerCh = timer.C
+				}
+			case <-timerCh:
+				flush()
+				timer = nil
+				timerCh = nil
+			}
+		}
+	}()
+	return out, nil
+}
+
 // AutomationNodeActivated is the resolver for the automationNodeActivated field.
 func (r *subscriptionResolver) AutomationNodeActivated(ctx context.Context, automationID *string) (<-chan *model.AutomationNodeActivationEvent, error) {
 	ch := r.EventBus.Subscribe(eventbus.EventAutomationNodeActivated)
@@ -2847,6 +3015,28 @@ func (r *subscriptionResolver) AlarmEvent(ctx context.Context) (<-chan *model.Al
 	return out, nil
 }
 
+// MaintenanceChanged is the resolver for the maintenanceChanged field.
+func (r *subscriptionResolver) MaintenanceChanged(ctx context.Context) (<-chan *time.Time, error) {
+	changes, unsubscribe := r.MaintenanceBuffer.Subscribe()
+	out := make(chan *time.Time, 1)
+	go func() {
+		defer close(out)
+		defer unsubscribe()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case changed := <-changes:
+				select {
+				case out <- &changed:
+				default:
+				}
+			}
+		}
+	}()
+	return out, nil
+}
+
 // EffectStepActivated is the resolver for the effectStepActivated field.
 func (r *subscriptionResolver) EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error) {
 	ch := r.EventBus.Subscribe(eventbus.EventEffectStepActivated)
@@ -2929,6 +3119,9 @@ func (r *subscriptionResolver) NetworkTopologyUpdated(ctx context.Context, provi
 	return out, nil
 }
 
+// Device returns DeviceResolver implementation.
+func (r *Resolver) Device() DeviceResolver { return &deviceResolver{r} }
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
@@ -2938,6 +3131,7 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 // Subscription returns SubscriptionResolver implementation.
 func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
 
+type deviceResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

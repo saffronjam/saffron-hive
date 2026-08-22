@@ -12,7 +12,9 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/maintenance"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 // AutomationReloader reloads automation rules after configuration changes.
@@ -20,10 +22,10 @@ type AutomationReloader interface {
 	Reload() error
 }
 
-// AutomationTriggerer fires a manual trigger node on demand. Used by the
+// AutomationTriggerer fires a trigger node on demand. Used by the
 // fireAutomationTrigger mutation for in-editor debugging.
 type AutomationTriggerer interface {
-	FireManualTrigger(ctx context.Context, automationID, nodeID string) error
+	FireTrigger(ctx context.Context, automationID, nodeID string) error
 }
 
 // Zigbee2MQTTController manages the Zigbee2MQTT integration: the MQTT broker
@@ -94,6 +96,7 @@ type GraphStore interface {
 	SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error)
 	MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64, error)
 	DeleteDevice(ctx context.Context, id device.DeviceID) error
+	GetZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID) (*zigbeemetadata.Metadata, error)
 
 	// Scenes
 	CreateScene(ctx context.Context, params store.CreateSceneParams) (store.Scene, error)
@@ -161,6 +164,7 @@ type GraphStore interface {
 	ListEffects(ctx context.Context) ([]store.Effect, error)
 	UpdateEffect(ctx context.Context, id string, params store.UpdateEffectParams) (store.Effect, error)
 	DeleteEffect(ctx context.Context, id string) error
+	BatchDeleteEffects(ctx context.Context, ids []string) (int64, error)
 	SaveEffectTracks(ctx context.Context, effectID string, tracks []store.EffectTrackInput) error
 	LoadEffect(ctx context.Context, id string) (effect.Effect, error)
 	ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord, error)
@@ -195,12 +199,18 @@ type GraphStore interface {
 	BumpUserTokenVersion(ctx context.Context, id string) error
 }
 
+// AddressVendorResolver resolves an IEEE address to its registered vendor.
+type AddressVendorResolver interface {
+	Lookup(address string) (string, bool)
+}
+
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
 type Resolver struct {
 	StateReader         device.StateReader
 	Store               GraphStore
 	TargetResolver      device.TargetResolver
+	TargetCommander     device.TargetCommander
 	EventBus            eventbus.EventBus
 	AutomationReloader  AutomationReloader
 	AutomationTriggerer AutomationTriggerer
@@ -208,6 +218,8 @@ type Resolver struct {
 	ActivityBuffer      *activity.Buffer
 	Alarms              *alarms.Service
 	AlarmBuffer         *alarms.Buffer
+	Maintenance         *maintenance.Service
+	MaintenanceBuffer   *maintenance.Buffer
 	LevelVar            *slog.LevelVar
 	Zigbee2MQTT         Zigbee2MQTTController
 	Tuya                TuyaController
@@ -216,6 +228,7 @@ type Resolver struct {
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter
 	BootstrapToken      BootstrapTokenChecker
+	AddressVendors      AddressVendorResolver
 	// AvatarDir is the filesystem directory where per-user avatar files live.
 	// Used by deleteUser to remove the file alongside the row.
 	AvatarDir string

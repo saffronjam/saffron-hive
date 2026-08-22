@@ -174,6 +174,7 @@ func mapEffect(row store.Effect) *model.Effect {
 	out := &model.Effect{
 		ID:                   row.ID,
 		Name:                 row.Name,
+		Source:               "hive",
 		Icon:                 row.Icon,
 		Kind:                 modelKindFromStore(row.Kind),
 		NativeName:           row.NativeName,
