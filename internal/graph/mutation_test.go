@@ -11,7 +11,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-func TestMutationSetDeviceState(t *testing.T) {
+func TestMutationSetTargetState(t *testing.T) {
 	env := newTestEnv(t)
 	now := time.Now().Truncate(time.Second)
 
@@ -21,7 +21,7 @@ func TestMutationSetDeviceState(t *testing.T) {
 	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
 	defer env.bus.Unsubscribe(ch)
 
-	resp := env.query(t, `mutation { setDeviceState(deviceId: "d1", state: {brightness: 200}) { id } }`, nil)
+	resp := env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "d1", state: {brightness: 200}) }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -46,11 +46,11 @@ func TestMutationSetDeviceState(t *testing.T) {
 	}
 }
 
-func TestMutationSetDeviceStateRejectsHub(t *testing.T) {
+func TestMutationSetTargetStateRejectsHub(t *testing.T) {
 	env := newTestEnv(t)
 	env.stateReader.addDevice(device.Device{ID: "coord", FriendlyName: "Coordinator", Source: device.SourceZigbee2MQTT, Type: device.Hub, Available: true})
 
-	resp := env.query(t, `mutation { setDeviceState(deviceId: "coord", state: {on: true}) { id } }`, nil)
+	resp := env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "coord", state: {on: true}) }`, nil)
 	if len(resp.Errors) == 0 {
 		t.Fatal("commanding a hub must fail")
 	}
@@ -399,6 +399,67 @@ func TestMutationCreateAutomation(t *testing.T) {
 	}
 }
 
+func TestMutationUpdateAutomationPersistsDraftAndReportsCompilability(t *testing.T) {
+	env := newTestEnv(t)
+	env.store.automations["a1"] = store.Automation{ID: "a1", Name: "Draft"}
+
+	mutation := `mutation($id: ID!, $input: UpdateAutomationInput!) {
+		updateAutomation(id: $id, input: $input) { id compilable nodes { id } }
+	}`
+	baseNodes := []map[string]any{
+		{"id": "t1", "type": "trigger", "config": `{"kind":"manual"}`},
+		{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		{"id": "op1", "type": "operator", "config": `{"kind":"and"}`},
+	}
+	variables := map[string]any{
+		"id": "a1",
+		"input": map[string]any{
+			"nodes": baseNodes,
+			"edges": []map[string]any{{"fromNodeId": "t1", "toNodeId": "a1"}},
+		},
+	}
+
+	resp := env.query(t, mutation, variables)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("disconnected draft should save: %v", resp.Errors)
+	}
+	var saved struct {
+		UpdateAutomation struct {
+			Compilable bool `json:"compilable"`
+			Nodes      []struct {
+				ID string `json:"id"`
+			} `json:"nodes"`
+		} `json:"updateAutomation"`
+	}
+	if err := json.Unmarshal(resp.Data, &saved); err != nil {
+		t.Fatalf("unmarshal draft response: %v", err)
+	}
+	if !saved.UpdateAutomation.Compilable {
+		t.Fatal("isolated operator should not prevent compilation")
+	}
+	if len(saved.UpdateAutomation.Nodes) != 3 {
+		t.Fatalf("expected all draft nodes to persist, got %d", len(saved.UpdateAutomation.Nodes))
+	}
+
+	variables["input"] = map[string]any{
+		"nodes": baseNodes,
+		"edges": []map[string]any{
+			{"fromNodeId": "t1", "toNodeId": "a1"},
+			{"fromNodeId": "op1", "toNodeId": "op1"},
+		},
+	}
+	resp = env.query(t, mutation, variables)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("non-compilable draft should still save: %v", resp.Errors)
+	}
+	if err := json.Unmarshal(resp.Data, &saved); err != nil {
+		t.Fatalf("unmarshal non-compilable response: %v", err)
+	}
+	if saved.UpdateAutomation.Compilable {
+		t.Fatal("cyclic graph should report compilable=false")
+	}
+}
+
 func TestMutationToggleAutomation(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.automations["a1"] = store.Automation{
@@ -434,7 +495,7 @@ func TestMutationToggleAutomation(t *testing.T) {
 
 // TestMutationDisableDeviceBlocksCommands covers the two halves of the disable
 // contract at the API edge: updateDevice persists the flag and reports it back,
-// and setDeviceState then refuses rather than publishing a command that would
+// and setTargetState then refuses rather than publishing a command that would
 // silently go nowhere.
 func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	env := newTestEnv(t)
@@ -472,7 +533,7 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	drainDeviceUpdate(t, updates, env.stateReader)
 
 	for _, m := range []struct{ name, doc string }{
-		{"setDeviceState", `mutation { setDeviceState(deviceId: "ac", state: {on: true}) { id } }`},
+		{"setTargetState", `mutation { setTargetState(targetType: DEVICE, targetId: "ac", state: {on: true}) }`},
 		{"simulateDeviceAction", `mutation { simulateDeviceAction(deviceId: "ac", action: "single") }`},
 	} {
 		resp = env.query(t, m.doc, nil)
@@ -494,7 +555,7 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 		t.Fatalf("unexpected errors re-enabling: %v", resp.Errors)
 	}
 	drainDeviceUpdate(t, updates, env.stateReader)
-	resp = env.query(t, `mutation { setDeviceState(deviceId: "ac", state: {on: true}) { id } }`, nil)
+	resp = env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "ac", state: {on: true}) }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("re-enabled device still rejects commands: %v", resp.Errors)
 	}

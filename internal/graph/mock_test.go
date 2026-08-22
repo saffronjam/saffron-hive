@@ -10,6 +10,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 type mockStateReader struct {
@@ -95,35 +96,99 @@ func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceSt
 }
 
 type mockStore struct {
-	mu              sync.RWMutex
-	scenes          map[string]store.Scene
-	sceneActions    map[string][]store.SceneAction
-	scenePayloads   map[string][]store.SceneDevicePayload
-	automations     map[string]store.Automation
-	automationNodes map[string][]store.AutomationNode
-	automationEdges map[string][]store.AutomationEdge
-	groups          map[string]store.Group
-	groupMembers    map[string][]store.GroupMember
-	rooms           map[string]store.Room
-	floorplan       *store.Floorplan
-	stateSamples    []store.StateHistoryPoint
-	activityEvents  []store.ActivityEvent
-	activityCounter int64
-	devices         map[device.DeviceID]device.Device
-	users           map[string]store.User // keyed by id
-	zigbee2mqttCfg  *store.Zigbee2MQTTConfig
-	tuyaConfig      *store.TuyaConfig
-	topologies      []device.NetworkTopology
-	effects         map[string]store.Effect
-	activeEffects   map[string]effect.ActiveEffectRecord
+	mu                  sync.RWMutex
+	scenes              map[string]store.Scene
+	sceneActions        map[string][]store.SceneAction
+	scenePayloads       map[string][]store.SceneDevicePayload
+	automations         map[string]store.Automation
+	automationNodes     map[string][]store.AutomationNode
+	automationEdges     map[string][]store.AutomationEdge
+	groups              map[string]store.Group
+	groupMembers        map[string][]store.GroupMember
+	rooms               map[string]store.Room
+	floorplan           *store.Floorplan
+	stateSamples        []store.StateHistoryPoint
+	activityEvents      []store.ActivityEvent
+	activityCounter     int64
+	devices             map[device.DeviceID]device.Device
+	zigbeeMetadata      map[device.DeviceID]zigbeemetadata.Metadata
+	zigbeeMetadataReads int
+	users               map[string]store.User // keyed by id
+	zigbee2mqttCfg      *store.Zigbee2MQTTConfig
+	tuyaConfig          *store.TuyaConfig
+	topologies          []device.NetworkTopology
+	effects             map[string]store.Effect
+	activeEffects       map[string]effect.ActiveEffectRecord
+	maintenanceAcks     []store.MaintenanceAcknowledgement
 
-	createSceneCalled      bool
-	deleteSceneCalled      bool
-	createAutomationCalled bool
-	deleteAutomationCalled bool
-	createGroupCalled      bool
-	deleteGroupCalled      bool
-	toggleCalled           bool
+	createSceneCalled       bool
+	deleteSceneCalled       bool
+	createAutomationCalled  bool
+	deleteAutomationCalled  bool
+	createGroupCalled       bool
+	deleteGroupCalled       bool
+	toggleCalled            bool
+	updatePasswordHashErr   error
+	updatePasswordHashCalls int
+}
+
+func (m *mockStore) ListMaintenanceAcknowledgements(_ context.Context) ([]store.MaintenanceAcknowledgement, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]store.MaintenanceAcknowledgement(nil), m.maintenanceAcks...), nil
+}
+
+func (m *mockStore) InsertMaintenanceAcknowledgements(_ context.Context, rows []store.InsertMaintenanceAcknowledgementParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, row := range rows {
+		m.maintenanceAcks = append(m.maintenanceAcks, store.MaintenanceAcknowledgement{
+			TaskKey: row.TaskKey, ConditionFingerprint: row.ConditionFingerprint,
+			CompletedAt: row.CompletedAt, CompletedBy: row.CompletedBy,
+		})
+	}
+	return nil
+}
+
+func (m *mockStore) ResetMaintenanceAcknowledgements(_ context.Context, taskKey string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	remaining := m.maintenanceAcks[:0]
+	for _, row := range m.maintenanceAcks {
+		if row.TaskKey != taskKey {
+			remaining = append(remaining, row)
+		}
+	}
+	m.maintenanceAcks = remaining
+	return nil
+}
+
+func (m *mockStore) DeleteMaintenanceAcknowledgementFingerprints(_ context.Context, taskKey string, fingerprints []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	remove := map[string]struct{}{}
+	for _, fingerprint := range fingerprints {
+		remove[fingerprint] = struct{}{}
+	}
+	remaining := m.maintenanceAcks[:0]
+	for _, row := range m.maintenanceAcks {
+		_, matched := remove[row.ConditionFingerprint]
+		if row.TaskKey != taskKey || !matched {
+			remaining = append(remaining, row)
+		}
+	}
+	m.maintenanceAcks = remaining
+	return nil
+}
+
+func (m *mockStore) ListZigbeeFirmwareCandidates(_ context.Context) ([]zigbeemetadata.Metadata, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]zigbeemetadata.Metadata, 0, len(m.zigbeeMetadata))
+	for _, metadata := range m.zigbeeMetadata {
+		out = append(out, metadata)
+	}
+	return out, nil
 }
 
 func newMockStore() *mockStore {
@@ -138,10 +203,22 @@ func newMockStore() *mockStore {
 		groupMembers:    make(map[string][]store.GroupMember),
 		rooms:           make(map[string]store.Room),
 		devices:         make(map[device.DeviceID]device.Device),
+		zigbeeMetadata:  make(map[device.DeviceID]zigbeemetadata.Metadata),
 		users:           make(map[string]store.User),
 		effects:         make(map[string]store.Effect),
 		activeEffects:   make(map[string]effect.ActiveEffectRecord),
 	}
+}
+
+func (m *mockStore) GetZigbeeDeviceMetadata(_ context.Context, id device.DeviceID) (*zigbeemetadata.Metadata, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.zigbeeMetadataReads++
+	metadata, ok := m.zigbeeMetadata[id]
+	if !ok {
+		return nil, nil
+	}
+	return &metadata, nil
 }
 
 func (m *mockStore) GetDevice(_ context.Context, id device.DeviceID) (device.Device, error) {
@@ -570,7 +647,8 @@ func (m *mockStore) CreateGroup(_ context.Context, params store.CreateGroupParam
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.createGroupCalled = true
-	g := store.Group{ID: params.ID, Name: params.Name}
+	name := params.Name
+	g := store.Group{ID: params.ID, Name: &name, Provider: store.GroupProviderHive}
 	m.groups[params.ID] = g
 	return g, nil
 }
@@ -602,7 +680,15 @@ func (m *mockStore) UpdateGroup(_ context.Context, params store.UpdateGroupParam
 	if !ok {
 		return store.Group{}, fmt.Errorf("group %q not found", params.ID)
 	}
-	g.Name = params.Name
+	if params.SetName {
+		g.Name = params.Name
+	}
+	if params.SetIcon {
+		g.Icon = params.Icon
+	}
+	if params.SetTags {
+		g.Tags = params.Tags
+	}
 	m.groups[params.ID] = g
 	return g, nil
 }
@@ -1049,6 +1135,10 @@ func (m *mockStore) ClearUserAvatar(_ context.Context, id string) error {
 func (m *mockStore) UpdateUserPasswordHash(_ context.Context, id, hash string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.updatePasswordHashCalls++
+	if m.updatePasswordHashErr != nil {
+		return m.updatePasswordHashErr
+	}
 	u, ok := m.users[id]
 	if !ok {
 		return fmt.Errorf("user %q not found", id)
@@ -1257,6 +1347,25 @@ func (m *mockStore) DeleteEffect(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockStore) BatchDeleteEffects(_ context.Context, ids []string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var n int64
+	for _, id := range ids {
+		if _, ok := m.effects[id]; !ok {
+			continue
+		}
+		delete(m.effects, id)
+		for key, activeEffect := range m.activeEffects {
+			if activeEffect.EffectID == id {
+				delete(m.activeEffects, key)
+			}
+		}
+		n++
+	}
+	return n, nil
+}
+
 func (m *mockStore) SaveEffectTracks(_ context.Context, effectID string, tracks []store.EffectTrackInput) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1384,7 +1493,7 @@ func (m *mockReloader) wasCalled() bool {
 	return m.called
 }
 
-func (m *mockReloader) FireManualTrigger(_ context.Context, automationID, nodeID string) error {
+func (m *mockReloader) FireTrigger(_ context.Context, automationID, nodeID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.fireErr != nil {

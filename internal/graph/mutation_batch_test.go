@@ -93,6 +93,21 @@ func TestBatchDeleteScenesCountsDeletions(t *testing.T) {
 	}
 }
 
+func TestBatchDeleteEffectsCountsDeletions(t *testing.T) {
+	env := newTestEnv(t)
+	env.store.effects["e1"] = store.Effect{ID: "e1"}
+	env.store.effects["e2"] = store.Effect{ID: "e2"}
+
+	res := batchResolver(env)
+	n, err := res.BatchDeleteEffects(context.Background(), []string{"e1", "e2", "missing"})
+	if err != nil {
+		t.Fatalf("batch delete effects: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("count = %d, want 2", n)
+	}
+}
+
 func TestBatchDeleteAutomationsReloadsWhenDeleted(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.automations["a1"] = store.Automation{ID: "a1"}

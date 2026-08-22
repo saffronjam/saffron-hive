@@ -12,7 +12,7 @@ import (
 func TestInvalidDeviceIdReturnsError(t *testing.T) {
 	env := newTestEnv(t)
 
-	resp := env.query(t, `mutation { setDeviceState(deviceId: "nonexistent", state: {brightness: 100}) { id } }`, nil)
+	resp := env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "nonexistent", state: {brightness: 100}) }`, nil)
 	if len(resp.Errors) == 0 {
 		t.Fatal("expected GraphQL error for non-existent device")
 	}

@@ -14,6 +14,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/maintenance"
+	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 )
 
 // testUser is the synthetic identity attached to every request from the
@@ -29,6 +31,7 @@ type testEnv struct {
 	bus          *eventbus.ChannelBus
 	reloader     *mockReloader
 	effectRunner *mockEffectRunner
+	resolver     *Resolver
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -39,6 +42,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	bus := eventbus.NewChannelBus()
 	rl := &mockReloader{}
 	er := newMockEffectRunner(st)
+	maintenanceBuffer := maintenance.NewBuffer()
+	maintenanceService := maintenance.NewService(st, sr, maintenanceBuffer, ".", func(string) (float64, error) { return 1, nil })
 
 	levelVar := &slog.LevelVar{}
 	levelVar.Set(slog.LevelInfo)
@@ -47,11 +52,14 @@ func newTestEnv(t *testing.T) *testEnv {
 		StateReader:        sr,
 		Store:              st,
 		TargetResolver:     st,
+		TargetCommander:    targetcommand.New(bus, st, sr),
 		EventBus:           bus,
 		AutomationReloader: rl,
 		EffectRunner:       er,
 		LogBuffer:          logging.NewBuffer(),
 		LevelVar:           levelVar,
+		Maintenance:        maintenanceService,
+		MaintenanceBuffer:  maintenanceBuffer,
 	}
 
 	srv := handler.New(NewExecutableSchema(Config{
@@ -82,6 +90,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		bus:          bus,
 		reloader:     rl,
 		effectRunner: er,
+		resolver:     resolver,
 	}
 }
 

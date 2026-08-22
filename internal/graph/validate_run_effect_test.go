@@ -50,6 +50,16 @@ func TestValidateAutomationInput_RunEffectAcceptsValidConfig(t *testing.T) {
 	}
 }
 
+func TestValidateAutomationInput_RunEffectAcceptsExpressionTarget(t *testing.T) {
+	st := newMockStore()
+	seedEffect(t, st, "fireplace")
+
+	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"expression","target_expr":[{"subject":"device_type","op":"is","values":["light"]}],"payload":"{\"effect_id\":\"fireplace\"}"}`)
+	if err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges()); err != nil {
+		t.Fatalf("expected valid expression target, got error: %v", err)
+	}
+}
+
 func TestValidateAutomationInput_RunEffectRejectsMissingEffectID(t *testing.T) {
 	st := newMockStore()
 
