@@ -85,6 +85,10 @@
 				return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30";
 			case "battery":
 				return "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30";
+			case "firmware":
+				return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
+			case "posture":
+				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
 			case "on":
 			case "brightness":
 				return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30";

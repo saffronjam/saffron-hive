@@ -36,12 +36,14 @@
 		ChevronUp,
 		PlugZap,
 		Map as MapIcon,
+		CircleCheck,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { sessionTeardown } from "$lib/session";
 	import { me, cachedAvatarPath } from "$lib/stores/me.svelte";
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
+	import { maintenanceStore } from "$lib/stores/maintenance.svelte";
 	import { version } from "$lib/version";
 
 	interface NavItem {
@@ -83,6 +85,7 @@
 			items: [
 				{ href: "/activity", label: "Activity", icon: Activity },
 				{ href: "/alarms", label: "Alarms", icon: BellRing },
+				{ href: "/maintenance", label: "Maintenance", icon: CircleCheck },
 				{ href: "/data-viewer", label: "Data viewer", icon: LineChart },
 			],
 		},
@@ -159,6 +162,14 @@
 													aria-label="{alarmsStore.activeCount} active alarms"
 												>
 													{alarmsStore.activeCount}
+												</span>
+											{/if}
+											{#if item.href === "/maintenance" && maintenanceStore.actionableCount > 0}
+												<span
+													class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs leading-none font-medium tabular-nums text-muted-foreground"
+													aria-label="{maintenanceStore.actionableCount} maintenance tasks"
+												>
+													{maintenanceStore.actionableCount}
 												</span>
 											{/if}
 										</a>
