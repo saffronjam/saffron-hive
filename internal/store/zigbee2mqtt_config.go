@@ -21,6 +21,7 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 	}
 	return &Zigbee2MQTTConfig{
 		Broker:              row.Broker,
+		FrontendURL:         row.FrontendUrl,
 		Username:            row.Username,
 		Password:            row.Password,
 		UseWSS:              row.UseWss,
@@ -36,6 +37,7 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 func (s *DB) UpsertZigbee2MQTTConfig(ctx context.Context, cfg Zigbee2MQTTConfig) error {
 	if err := s.q.UpsertZigbee2MQTTConfig(ctx, sqlite.UpsertZigbee2MQTTConfigParams{
 		Broker:              cfg.Broker,
+		FrontendUrl:         cfg.FrontendURL,
 		Username:            cfg.Username,
 		Password:            cfg.Password,
 		UseWss:              cfg.UseWSS,

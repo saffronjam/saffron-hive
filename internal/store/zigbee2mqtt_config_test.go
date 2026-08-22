@@ -37,6 +37,28 @@ func TestZigbee2MQTTConfigRoundTrip(t *testing.T) {
 	}
 }
 
+func TestZigbee2MQTTConfigFrontendURLRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	frontendURL := "https://z2m.example.com"
+	want := Zigbee2MQTTConfig{Broker: "mqtt.example.com:1883", FrontendURL: &frontendURL, Enabled: false}
+	if err := s.UpsertZigbee2MQTTConfig(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetZigbee2MQTTConfig(ctx)
+	if err != nil || got == nil || got.FrontendURL == nil || *got.FrontendURL != frontendURL {
+		t.Fatalf("frontend URL = %+v, %v", got, err)
+	}
+	want.FrontendURL = nil
+	if err := s.UpsertZigbee2MQTTConfig(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.GetZigbee2MQTTConfig(ctx)
+	if err != nil || got == nil || got.FrontendURL != nil {
+		t.Fatalf("cleared frontend URL = %+v, %v", got, err)
+	}
+}
+
 // TestZigbee2MQTTConfigUpsertReplaces pins the singleton behaviour: a second
 // upsert updates the one row rather than failing on the primary key, and every
 // field including Enabled is overwritten.
