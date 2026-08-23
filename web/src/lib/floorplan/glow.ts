@@ -1,4 +1,4 @@
-import { brightnessToTintStrength, resolveTintRgb, type RGB } from "$lib/device-tint";
+import { brightnessToTintStrength, hexToRgb, resolveTintRgb, type RGB } from "$lib/device-tint";
 import type { Point } from "./types";
 
 /** Glow radius in meters for a light at full brightness. */
@@ -19,15 +19,6 @@ interface GlowStateInput {
   displayColor?: string | null;
   /** How bright such a device shows, 0-254; absent means full strength. */
   displayBrightness?: number | null;
-}
-
-/** `#rgb` or `#rrggbb` to channels, or null when it is neither. */
-function hexToRgb(hex: string): RGB | null {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const digits = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
-  const n = parseInt(digits, 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
 function css(c: RGB): string {
