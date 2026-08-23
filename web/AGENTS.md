@@ -17,7 +17,7 @@ The codebase has matured patterns for the things people repeatedly need to build
 | Card colour / temp picker that fans out to a group | Reuse `LightColorPicker` inside a Popover whose handlers call `commitGroupColor` / `commitGroupTemp` from `src/lib/group-commands.ts` through the shared `throttle()`. |
 | Group / room → device fan-out commits | `src/lib/group-commands.ts`: `commitGroupBrightness`, `commitGroupToggle`, `commitGroupColor`, `commitGroupTemp`, `flattenGroupDevices`. |
 | Resolve a scene/group/room target to its flattened device list | `src/lib/target-resolve.ts` — `resolveTargetDevices`, `capabilityUnion`. |
-| Aggregate sensor readings across a device list | `src/lib/device-tint.ts` — `aggregateSensorReadings`. Same file: `groupBaseTintColors`, `brightnessToTintStrength`. |
+| Aggregate sensor readings or live light appearance across a device list | `src/lib/device-tint.ts` — `aggregateSensorReadings`, `aggregateLightAppearance`. Picker swatches use `rememberedLightPalette`; individual brightness uses `brightnessToTintStrength`. |
 | Drawer for picking from grouped lists | `src/lib/components/hive-drawer.svelte`. For a layout drawer with custom content: shadcn `Sheet` directly with `side="bottom"`. |
 | Popover outside-click on a whole-card-clickable surface | bits-ui Popover is non-modal — outside clicks bubble to underlying handlers. Stamp with `markPopoverDismissed()` (from `src/lib/popover-guard.ts`) inside the popover's `onOpenChange(open=false)`, and gate the card's `onclick` with `popoverDismissedRecently()`. |
 | Tag / badge with type-coloured palette (`light`, `sensor`, `room`, …) | `src/lib/components/hive-chip.svelte`. |
