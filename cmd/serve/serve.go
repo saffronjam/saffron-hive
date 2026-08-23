@@ -47,6 +47,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/version"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 	_ "modernc.org/sqlite"
 )
@@ -189,6 +190,9 @@ func Run(ctx context.Context) error {
 	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	spawn("activity.recorder", func() { activityRecorder.Run(ctx) })
 	spawn("activity.retention", func() { activity.RunRetention(ctx, sqlStore) })
+	webhookBuffer := webhook.NewBuffer()
+	webhookService := webhook.NewService(sqlStore, bus, webhookBuffer)
+	spawn("webhook.retention", func() { webhook.RunRetention(ctx, sqlStore) })
 
 	targetCommander := targetcommand.New(bus, sqlStore, memStore)
 	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{})
@@ -268,6 +272,8 @@ func Run(ctx context.Context) error {
 		LoginLimiter:        loginLimiter,
 		BootstrapToken:      bootstrapTokenStore,
 		AddressVendors:      addressVendors,
+		Webhooks:            webhookService,
+		WebhookBuffer:       webhookBuffer,
 		AvatarDir:           avatarDir,
 	}
 
@@ -302,6 +308,7 @@ func Run(ctx context.Context) error {
 	))
 	mux.Handle("/api/avatars", auth.RequireAuth(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
 	mux.Handle("/api/device-images/", auth.RequireAuth(authSvc, sqlStore)(deviceimage.NewHandler(deviceImageCache, sqlStore)))
+	mux.Handle(webhook.PathPrefix, auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(webhookService))
 	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
