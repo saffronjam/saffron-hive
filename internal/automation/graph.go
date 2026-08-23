@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 // ValidateTriggerTiming rejects negative grace and cooldown values. Zero is
@@ -41,10 +42,6 @@ const (
 	TriggerEvent TriggerKind = "event"
 	// TriggerSchedule is a trigger that fires based on a cron expression.
 	TriggerSchedule TriggerKind = "schedule"
-	// TriggerManual is a trigger that fires only when invoked directly via
-	// FireTrigger. It has no event type and no cron expression — it
-	// exists purely so operators can poke an automation during development.
-	TriggerManual TriggerKind = "manual"
 )
 
 // OperatorKind defines the logical operation performed by an operator node.
@@ -66,7 +63,6 @@ type NodeConfig interface {
 // Kind determines which other fields are populated:
 //   - TriggerEvent: EventType + FilterExpr are used. CronExpr is ignored.
 //   - TriggerSchedule: CronExpr is used. EventType + FilterExpr are ignored.
-//   - TriggerManual: no other fields are used.
 //
 // GraceMs and CooldownMs apply to every kind. Grace keeps the trigger's
 // active state alive for a window after it fires so downstream AND/OR can
@@ -74,12 +70,14 @@ type NodeConfig interface {
 // trigger's own re-matches inside the window — useful for absorbing echoes
 // and retransmits. 0 means "immediate" / "no throttle".
 type TriggerConfig struct {
-	Kind       TriggerKind
-	EventType  string
-	FilterExpr string
-	CronExpr   string
-	GraceMs    int64
-	CooldownMs int64
+	Kind           TriggerKind
+	EventType      string
+	FilterExpr     string
+	CronExpr       string
+	GraceMs        int64
+	CooldownMs     int64
+	EndpointID     string
+	WebhookFilters []webhook.FilterRule
 }
 
 func (TriggerConfig) nodeConfig() {}

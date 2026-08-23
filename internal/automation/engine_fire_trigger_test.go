@@ -13,9 +13,9 @@ func TestFireTriggerFiresActions(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "manual", Enabled: true},
+		store.Automation{ID: "auto-1", Name: "fire trigger", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
@@ -55,9 +55,9 @@ func TestFireTriggerDisabledAutomation(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "manual", Enabled: false},
+		store.Automation{ID: "auto-1", Name: "fire trigger", Enabled: false},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
@@ -77,9 +77,9 @@ func TestFireTriggerUnknownNode(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "manual", Enabled: true},
+		store.Automation{ID: "auto-1", Name: "fire trigger", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
 		},
 		[]store.AutomationEdge{
@@ -126,15 +126,15 @@ func TestFireTriggerEventNode(t *testing.T) {
 	}
 }
 
-// TestFireTriggerHonoursCooldown verifies that per-trigger cooldown_ms
-// throttles manual-trigger fires the same way it throttles event-driven ones.
+// TestFireTriggerHonoursCooldown verifies that per-trigger cooldown_ms applies
+// when a configured trigger is fired directly.
 func TestFireTriggerHonoursCooldown(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "manual-cd", Enabled: true},
+		store.Automation{ID: "auto-1", Name: "fire-cooldown", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual","cooldown_ms":60000}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true","cooldown_ms":60000}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"brightness\":100}"}`},
 		},
 		[]store.AutomationEdge{
@@ -154,7 +154,7 @@ func TestFireTriggerHonoursCooldown(t *testing.T) {
 	select {
 	case <-ch:
 	case <-time.After(time.Second):
-		t.Fatal("first manual fire should succeed")
+		t.Fatal("first direct fire should succeed")
 	}
 
 	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
@@ -162,7 +162,7 @@ func TestFireTriggerHonoursCooldown(t *testing.T) {
 	}
 	select {
 	case <-ch:
-		t.Fatal("second manual fire inside cooldown window must be suppressed")
+		t.Fatal("second direct fire inside cooldown window must be suppressed")
 	case <-time.After(100 * time.Millisecond):
 	}
 }
@@ -176,10 +176,10 @@ func TestFireTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "two-chains", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "tA", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "tA", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "cA", AutomationID: "auto-1", Type: "condition", Config: `{"expr":"true"}`},
 			{ID: "aA", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
-			{ID: "tB", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "tB", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "cB", AutomationID: "auto-1", Type: "condition", Config: `{"expr":"true"}`},
 			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{}"}`},
 		},
@@ -240,9 +240,9 @@ func TestFireTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "disjoint-op", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "tA", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "tA", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "aA", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
-			{ID: "tB", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "tB", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "opB", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
 			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{}"}`},
 		},
@@ -301,8 +301,8 @@ func TestFireTriggerSharedOperatorStillPublishes(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "shared-and", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
-			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
+			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "op", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
 		},
@@ -351,41 +351,5 @@ func TestFireTriggerSharedOperatorStillPublishes(t *testing.T) {
 	}
 	if !opFalse {
 		t.Error("shared operator is reachable and must publish its (false) activation")
-	}
-}
-
-func TestManualTriggerNotFiredByEventBus(t *testing.T) {
-	reader := newMockStateReader()
-	s := newMockStore()
-	s.addAutomationGraph(
-		store.Automation{ID: "auto-1", Name: "manual-only", Enabled: true},
-		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
-		},
-		[]store.AutomationEdge{
-			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
-		},
-	)
-
-	_, bus, cancel := setupEngine(t, reader, s)
-	defer cancel()
-
-	ch := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(ch)
-
-	for _, evt := range []eventbus.EventType{
-		eventbus.EventDeviceStateChanged,
-		eventbus.EventDeviceAvailabilityChanged,
-		eventbus.EventDeviceAdded,
-		eventbus.EventDeviceRemoved,
-	} {
-		bus.Publish(eventbus.Event{Type: evt, DeviceID: "x", Timestamp: time.Now()})
-	}
-
-	select {
-	case <-ch:
-		t.Fatal("manual trigger must not respond to event bus events")
-	case <-time.After(150 * time.Millisecond):
 	}
 }

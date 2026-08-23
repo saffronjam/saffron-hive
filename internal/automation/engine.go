@@ -14,6 +14,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 type compiledTrigger struct {
@@ -151,8 +152,6 @@ func (e *Engine) Reload(ctx context.Context) error {
 			switch ct.config.Kind {
 			case TriggerSchedule:
 				scheduleTriggers = append(scheduleTriggers, ct)
-			case TriggerManual:
-				// fires only via FireTrigger; no event or cron registration
 			default:
 				triggersByEvent[ct.config.EventType] = append(triggersByEvent[ct.config.EventType], ct)
 			}
@@ -221,6 +220,7 @@ func (e *Engine) Run(ctx context.Context) error {
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
+		eventbus.EventWebhookReceived,
 	)
 	defer e.bus.Unsubscribe(ch)
 
@@ -255,6 +255,13 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 			logger.Debug("trigger skipped: in cooldown",
 				"automation_id", ct.graphID, "node_id", ct.nodeID, "cooldown_ms", ct.config.CooldownMs)
 			continue
+		}
+
+		if event.Type == eventbus.EventWebhookReceived {
+			incoming, ok := event.Payload.(webhook.Event)
+			if !ok || incoming.EndpointID != ct.config.EndpointID || !webhook.MatchFilters(incoming, ct.config.WebhookFilters) {
+				continue
+			}
 		}
 
 		result, err := evalExpr(ct.program, env)
@@ -563,10 +570,15 @@ func (e *Engine) executeAction(node Node, automationID string) {
 
 	if actionCfg.ActionType == ActionToggleDeviceState {
 		// Toggle on a group/room flips the aggregate, not each member: any
-		// member on => all off, all off => all on. Computing once and
-		// dispatching as set_device_state avoids per-member flipping that
+		// controllable member on => all off, all controllable members off =>
+		// all on. Computing once and dispatching as set_device_state avoids
+		// per-member flipping that
 		// would scramble half-on rooms.
-		nextOn := !aggregateOn(e.reader, deviceIDs)
+		anyOn, hasTarget := aggregateControllableOn(e.reader, deviceIDs)
+		if !hasTarget {
+			return
+		}
+		nextOn := !anyOn
 		payload, _ := json.Marshal(map[string]any{"on": nextOn})
 		if e.commander != nil && actionCfg.TargetType != TargetType(device.TargetExpression) {
 			actionCfg.ActionType = ActionSetDeviceState
@@ -800,12 +812,14 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 	switch nodeType {
 	case NodeTrigger:
 		var raw struct {
-			Kind       string `json:"kind"`
-			EventType  string `json:"event_type"`
-			FilterExpr string `json:"filter_expr"`
-			CronExpr   string `json:"cron_expr"`
-			GraceMs    int64  `json:"grace_ms"`
-			CooldownMs int64  `json:"cooldown_ms"`
+			Kind           string               `json:"kind"`
+			EventType      string               `json:"event_type"`
+			FilterExpr     string               `json:"filter_expr"`
+			CronExpr       string               `json:"cron_expr"`
+			GraceMs        int64                `json:"grace_ms"`
+			CooldownMs     int64                `json:"cooldown_ms"`
+			EndpointID     string               `json:"endpoint_id"`
+			WebhookFilters []webhook.FilterRule `json:"webhook_filters"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			logger.Error("failed to parse trigger config", "error", err)
@@ -819,16 +833,15 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 				kind = TriggerEvent
 			}
 		}
-		if kind == TriggerManual {
-			return TriggerConfig{Kind: TriggerManual, GraceMs: raw.GraceMs, CooldownMs: raw.CooldownMs}
-		}
 		return TriggerConfig{
-			Kind:       kind,
-			EventType:  raw.EventType,
-			FilterExpr: raw.FilterExpr,
-			CronExpr:   raw.CronExpr,
-			GraceMs:    raw.GraceMs,
-			CooldownMs: raw.CooldownMs,
+			Kind:           kind,
+			EventType:      raw.EventType,
+			FilterExpr:     raw.FilterExpr,
+			CronExpr:       raw.CronExpr,
+			GraceMs:        raw.GraceMs,
+			CooldownMs:     raw.CooldownMs,
+			EndpointID:     raw.EndpointID,
+			WebhookFilters: raw.WebhookFilters,
 		}
 	case NodeCondition:
 		var raw struct {

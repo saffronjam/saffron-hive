@@ -646,6 +646,27 @@ func aggregateOn(reader device.StateReader, ids []device.DeviceID) bool {
 	return false
 }
 
+// aggregateControllableOn reports the aggregate state of devices that accept
+// on/off commands and whether the target contains any such device.
+func aggregateControllableOn(reader device.StateReader, ids []device.DeviceID) (bool, bool) {
+	hasTarget := false
+	for _, id := range ids {
+		dev, ok := reader.GetDevice(id)
+		if !ok {
+			continue
+		}
+		capability, ok := dev.Capability(device.CapOnOff)
+		if !ok || !capability.CanSet() {
+			continue
+		}
+		hasTarget = true
+		if st, ok := reader.GetDeviceState(id); ok && st != nil && st.On != nil && *st.On {
+			return true, true
+		}
+	}
+	return false, hasTarget
+}
+
 func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[string]any) bool {
 	st, ok := a.reader.GetDeviceState(deviceID)
 	if !ok || st == nil {

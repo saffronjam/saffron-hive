@@ -8,6 +8,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 func setupEngine(t *testing.T, reader *mockStateReader, s *mockStore) (*Engine, eventbus.EventBus, func()) {
@@ -89,6 +90,46 @@ func TestEngineTriggerNoMatch(t *testing.T) {
 	case <-ch:
 		t.Fatal("expected no command for non-matching trigger")
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestEngineIncomingWebhookTriggerMatchesEndpointAndFilters(t *testing.T) {
+	reader := newMockStateReader()
+	s := newMockStore()
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-webhook", Name: "pipeline light", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "trigger-webhook", AutomationID: "auto-webhook", Type: "trigger", Config: `{"kind":"event","event_type":"webhook.received","filter_expr":"true","endpoint_id":"hook-1","webhook_filters":[{"source":"body","path":"pipeline.status","operator":"equals","value_type":"string","value":"failed"}]}`},
+			{ID: "action-light", AutomationID: "auto-webhook", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
+		},
+		[]store.AutomationEdge{{AutomationID: "auto-webhook", FromNodeID: "trigger-webhook", ToNodeID: "action-light"}},
+	)
+
+	_, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+	commands := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(commands)
+
+	for _, incoming := range []webhook.Event{
+		{EndpointID: "hook-other", Body: map[string]any{"pipeline": map[string]any{"status": "failed"}}},
+		{EndpointID: "hook-1", Body: map[string]any{"pipeline": map[string]any{"status": "passed"}}},
+	} {
+		bus.Publish(eventbus.Event{Type: eventbus.EventWebhookReceived, Payload: incoming})
+		select {
+		case <-commands:
+			t.Fatalf("unexpected command for webhook: %+v", incoming)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+
+	bus.Publish(eventbus.Event{Type: eventbus.EventWebhookReceived, Payload: webhook.Event{
+		EndpointID: "hook-1",
+		Body:       map[string]any{"pipeline": map[string]any{"status": "failed"}},
+	}})
+	select {
+	case <-commands:
+	case <-time.After(time.Second):
+		t.Fatal("matching webhook did not run the action")
 	}
 }
 
@@ -1209,13 +1250,13 @@ func TestEngineANDWithBackwardSideCondition(t *testing.T) {
 // from any fired trigger) does not get evaluated and cannot drive a
 // forward-reachable action. Graph:
 //
-//	manual_trigger ──► NOT ───────────┐
+//	unfired_trigger ──► NOT ──────────┐
 //	                                  ▼
 //	off_press ──► cond(Sunday) ──► action(on:true)
 //
 // On a non-Sunday, pressing off_press leaves cond=false. The action has
 // NOT as a second incoming, but NOT is backward-only — it must not be
-// evaluated to NOT(unfired_manual=false)=true and fire the action.
+// evaluated to NOT(unfired=false)=true and fire the action.
 func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(device.Device{ID: "btn-1", FriendlyName: "Switch"})
@@ -1225,7 +1266,7 @@ func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-bug", Name: "bug", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "tManual", AutomationID: "auto-bug", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "tOther", AutomationID: "auto-bug", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "tOff", AutomationID: "auto-bug", Type: "trigger",
 				Config: `{"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"btn-1\" && trigger.payload.action == \"off_press\""}`},
 			{ID: "cSun", AutomationID: "auto-bug", Type: "condition", Config: `{"expr":"time.weekday == \"Sunday\""}`},
@@ -1234,7 +1275,7 @@ func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
 				Config: `{"action_type":"set_device_state","target_type":"device","target_id":"lamp-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
-			{AutomationID: "auto-bug", FromNodeID: "tManual", ToNodeID: "opNot"},
+			{AutomationID: "auto-bug", FromNodeID: "tOther", ToNodeID: "opNot"},
 			{AutomationID: "auto-bug", FromNodeID: "opNot", ToNodeID: "aOn"},
 			{AutomationID: "auto-bug", FromNodeID: "tOff", ToNodeID: "cSun"},
 			{AutomationID: "auto-bug", FromNodeID: "cSun", ToNodeID: "aOn"},
@@ -1256,7 +1297,7 @@ func TestEngineOperatorBackwardOnlyDoesNotPropagate(t *testing.T) {
 
 	select {
 	case ev := <-ch:
-		t.Fatalf("action should NOT fire — manual trigger never fired and condition is false (non-Sunday). got %+v", ev)
+		t.Fatalf("action should NOT fire — the other trigger did not fire and the condition is false (non-Sunday). got %+v", ev)
 	case <-time.After(150 * time.Millisecond):
 	}
 }
