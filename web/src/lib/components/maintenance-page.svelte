@@ -13,9 +13,11 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig, ChipOption } from "$lib/components/hive-searchbar";
+	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import { deviceDisplayName, sentenceCase } from "$lib/utils";
 	import { CircleCheck, ExternalLink } from "@lucide/svelte";
+	import type { Action } from "svelte/action";
 	import { slide } from "svelte/transition";
 
 	interface Props {
@@ -44,6 +46,26 @@
 	const searchController = createUrlSearchState({
 		active: () => visible && page.url.pathname === "/maintenance",
 	});
+	const loader = delayedLoading(() => !maintenanceStore.hydrated);
+	const masonryItem: Action<HTMLElement> = (node) => {
+		const card = node.firstElementChild;
+		if (!(card instanceof HTMLElement)) return;
+
+		const measure = () => {
+			const grid = node.parentElement;
+			const rowGap = grid ? Number.parseFloat(getComputedStyle(grid).rowGap) || 0 : 0;
+			const span = Math.ceil((card.getBoundingClientRect().height + rowGap) / (1 + rowGap));
+			node.style.setProperty("--maintenance-row-span", String(span));
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(card);
+		return {
+			destroy() {
+				observer.disconnect();
+			},
+		};
+	};
 
 	function filterOptions(input: string, options: ChipOption[]): ChipOption[] {
 		const query = input.toLowerCase();
@@ -177,102 +199,133 @@
 		commitOnBlur
 	/>
 
-	<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-		{#if maintenanceStore.actionableCount === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center lg:col-span-2">
-				<CircleCheck class="mx-auto size-6 text-muted-foreground" />
-				<p class="mt-3 text-foreground">Nothing needs maintenance.</p>
-			</div>
-		{:else if filteredTasks.length === 0}
-			<div class="rounded-lg shadow-card bg-card p-12 text-center lg:col-span-2">
-				<p class="text-muted-foreground">No maintenance matches your search.</p>
-			</div>
-		{:else}
+	{#if !maintenanceStore.hydrated}
+		{#if loader.visible}
+			<p class="text-sm text-muted-foreground">Loading maintenance…</p>
+		{/if}
+	{:else if maintenanceStore.actionableCount === 0}
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
+			<CircleCheck class="mx-auto size-6 text-muted-foreground" />
+			<p class="mt-3 text-foreground">Nothing needs maintenance.</p>
+		</div>
+	{:else if filteredTasks.length === 0}
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
+			<p class="text-muted-foreground">No maintenance matches your search.</p>
+		</div>
+	{:else}
+		<div class="maintenance-grid">
 			{#each groups as group (group.kind)}
 				{@const tasks = filteredTasks.filter((task) => task.kind === group.kind)}
 				{#if tasks.length > 0}
-					<Card class="flex max-h-[calc(100dvh-10rem)] flex-col gap-0 overflow-hidden">
-						<div class="min-h-0 flex-1 overflow-y-auto">
-							<div class="sticky top-0 z-20 bg-card">
-								<CardHeader class="pb-4">
-									<div class="flex items-center justify-between gap-4 px-3">
-										<CardTitle>{group.title}</CardTitle>
-										<Button
-											variant="outline"
-											size="xs"
-											disabled={tasks.some((task) => maintenanceStore.isPending(task.id))}
-											onclick={() => void maintenanceStore.completeMany(tasks.map((task) => task.id))}
-										>
-											Mark all done
-										</Button>
-									</div>
-								</CardHeader>
-								<div class="px-6"><Separator /></div>
-							</div>
-							<CardContent>
-								<div class="divide-y divide-border">
-									{#each tasks as task (task.id)}
-									<div
-										class="flex flex-col gap-3 px-3 py-5 last:pb-0 sm:flex-row sm:items-center"
-										out:slide|global={{ duration: 200 }}
-									>
-										<div class="flex min-w-0 flex-1 items-center gap-4">
-											{#if task.device}
-												<div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-													<HiveIcon
-														type={task.device.type}
-														contactRole={task.device.roles.contact}
-														iconOverride={task.device.icon}
-														class="size-5"
-													/>
-												</div>
-											{/if}
-											<div class="min-w-0">
-												<div class="flex flex-wrap items-center gap-2">
-													{#if task.device}
-														<a href={`/devices/${task.device.id}`} class="font-medium hover:underline">
-															{deviceDisplayName(task.device)}
-														</a>
-													{:else}
-														<span class="font-medium">Hive</span>
-													{/if}
-													<HiveChip type={task.kind.toLowerCase()} />
-												</div>
-												<p class="mt-1 text-sm text-muted-foreground">{task.detail}</p>
-												<div class="mt-3 flex items-center gap-1.5 text-sm">
-													<span>{task.action}</span>
-													{#if task.actionUrl}
-														<span class="text-muted-foreground">·</span>
-														<a
-															href={task.actionUrl}
-															target={external(task.actionUrl) ? "_blank" : undefined}
-															rel={external(task.actionUrl) ? "noreferrer" : undefined}
-															class="inline-flex items-center gap-1 text-primary hover:underline"
-														>
-															{external(task.actionUrl) ? "Open" : "View device"}{#if external(
-																task.actionUrl
-															)}<ExternalLink class="size-3" />{/if}
-														</a>
-													{/if}
-												</div>
-											</div>
+					<div class="maintenance-grid-item" use:masonryItem>
+						<Card class="flex max-h-[calc(100dvh-10rem)] flex-col gap-0 overflow-hidden">
+							<div class="min-h-0 flex-1 overflow-y-auto">
+								<div class="sticky top-0 z-20 bg-card">
+									<CardHeader class="pb-4">
+										<div class="flex items-center justify-between gap-4 px-3">
+											<CardTitle>{group.title}</CardTitle>
+											<Button
+												variant="outline"
+												size="xs"
+												disabled={tasks.some((task) => maintenanceStore.isPending(task.id))}
+												onclick={() => void maintenanceStore.completeMany(tasks.map((task) => task.id))}
+											>
+												Mark all done
+											</Button>
 										</div>
-										<Button
-											variant="outline"
-											size="xs"
-											disabled={maintenanceStore.isPending(task.id)}
-											onclick={() => void maintenanceStore.completeOne(task.id)}
-										>
-											Mark done
-										</Button>
-									</div>
-									{/each}
+									</CardHeader>
+									<div class="px-6"><Separator /></div>
 								</div>
-							</CardContent>
-						</div>
-					</Card>
+								<CardContent>
+									<div class="divide-y divide-border">
+										{#each tasks as task (task.id)}
+											<div
+												class="flex flex-col gap-3 px-3 py-5 last:pb-0 sm:flex-row sm:items-center"
+												out:slide|global={{ duration: 200 }}
+											>
+												<div class="flex min-w-0 flex-1 items-center gap-4">
+													{#if task.device}
+														<div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+															<HiveIcon
+																type={task.device.type}
+																contactRole={task.device.roles.contact}
+																iconOverride={task.device.icon}
+																class="size-5"
+															/>
+														</div>
+													{/if}
+													<div class="min-w-0">
+														<div class="flex flex-wrap items-center gap-2">
+															{#if task.device}
+																<a href={`/devices/${task.device.id}`} class="font-medium hover:underline">
+																	{deviceDisplayName(task.device)}
+																</a>
+															{:else}
+																<span class="font-medium">Hive</span>
+															{/if}
+															<HiveChip type={task.kind.toLowerCase()} />
+														</div>
+														<p class="mt-1 text-sm text-muted-foreground">{task.detail}</p>
+														<div class="mt-3 flex items-center gap-1.5 text-sm">
+															<span>{task.action}</span>
+															{#if task.actionUrl}
+																<span class="text-muted-foreground">·</span>
+																<a
+																	href={task.actionUrl}
+																	target={external(task.actionUrl) ? "_blank" : undefined}
+																	rel={external(task.actionUrl) ? "noreferrer" : undefined}
+																	class="inline-flex items-center gap-1 text-primary hover:underline"
+																>
+																	{external(task.actionUrl) ? "Open" : "View device"}{#if external(
+																		task.actionUrl
+																	)}<ExternalLink class="size-3" />{/if}
+																</a>
+															{/if}
+														</div>
+													</div>
+												</div>
+												<Button
+													variant="outline"
+													size="xs"
+													disabled={maintenanceStore.isPending(task.id)}
+													onclick={() => void maintenanceStore.completeOne(task.id)}
+												>
+													Mark done
+												</Button>
+											</div>
+										{/each}
+									</div>
+								</CardContent>
+							</div>
+						</Card>
+					</div>
 				{/if}
 			{/each}
-		{/if}
-	</div>
+		</div>
+	{/if}
 </div>
+
+<style>
+	.maintenance-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1rem;
+	}
+
+	.maintenance-grid-item {
+		min-width: 0;
+	}
+
+	@media (min-width: 64rem) {
+		.maintenance-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-auto-flow: row dense;
+			grid-auto-rows: 1px;
+		}
+
+		.maintenance-grid-item {
+			align-self: start;
+			grid-row-end: span var(--maintenance-row-span, 1);
+		}
+	}
+</style>
