@@ -407,7 +407,7 @@ func TestMutationUpdateAutomationPersistsDraftAndReportsCompilability(t *testing
 		updateAutomation(id: $id, input: $input) { id compilable nodes { id } }
 	}`
 	baseNodes := []map[string]any{
-		{"id": "t1", "type": "trigger", "config": `{"kind":"manual"}`},
+		{"id": "t1", "type": "trigger", "config": `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 		{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		{"id": "op1", "type": "operator", "config": `{"kind":"and"}`},
 	}

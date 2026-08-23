@@ -15,7 +15,7 @@ func runEffectAutomation(actionConfigJSON string) []*model.AutomationNodeInput {
 		{
 			ID:     "trigger-1",
 			Type:   "trigger",
-			Config: `{"kind":"manual"}`,
+			Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`,
 		},
 		{
 			ID:     "action-1",
