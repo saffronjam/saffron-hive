@@ -32,6 +32,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 	_ "modernc.org/sqlite"
 )
 
@@ -108,6 +109,9 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
 	targetCommander := targetcommand.New(bus, sqlStore, memStore)
+	webhookBuffer := webhook.NewBuffer()
+	webhookService := webhook.NewService(sqlStore, bus, webhookBuffer)
+	go webhook.RunRetention(appCtx, sqlStore)
 
 	activityBuffer := activity.NewBuffer()
 	roomCache := activity.NewRoomCache(sqlStore)
@@ -189,6 +193,8 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		Alarms:              alarmSvc,
 		AlarmBuffer:         alarmBuffer,
 		ActivityBuffer:      activityBuffer,
+		Webhooks:            webhookService,
+		WebhookBuffer:       webhookBuffer,
 		Auth:                authSvc,
 	}
 
@@ -219,6 +225,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	})
 
 	mux := http.NewServeMux()
+	mux.Handle(webhook.PathPrefix, auth.ClientIPMiddleware(false)(webhookService))
 	mux.Handle("/graphql", auth.Middleware(authSvc, sqlStore)(gqlSrv))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
