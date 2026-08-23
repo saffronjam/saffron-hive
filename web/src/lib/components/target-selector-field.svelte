@@ -4,6 +4,8 @@
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
 	import { X } from "@lucide/svelte";
+	import DeviceOptionRow from "$lib/components/graph/device-option-row.svelte";
+	import { roomLabelsByDevice } from "$lib/memberships";
 	import {
 		CLAUSE_SUBJECTS,
 		CLAUSE_OPS,
@@ -30,6 +32,8 @@
 	interface Option {
 		value: string;
 		label: string;
+		deviceType?: string;
+		roomLabel?: string;
 	}
 
 	let draft = $state<{ connector?: string; subject?: string; op?: string; values: string[] }>({
@@ -58,6 +62,7 @@
 		return m;
 	});
 	const removedGroupIDs = $derived(new Set(groups.filter((g) => g.removed).map((g) => g.id)));
+	const deviceRoomLabels = $derived(roomLabelsByDevice(rooms));
 
 	const subjectLabel = (v: string) => CLAUSE_SUBJECTS.find((s) => s.value === v)?.label ?? v;
 	const opLabel = (v: string) => CLAUSE_OPS.find((o) => o.value === v)?.label ?? v;
@@ -91,12 +96,21 @@
 		}
 		if (subject === "room") return rooms.map((r) => ({ value: r.id, label: r.name ?? r.id }));
 		if (subject === "group") return groups.filter((g) => !g.removed).map((g) => ({ value: g.id, label: groupDisplayName(g) }));
-		return devices.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
+		return devices.map((d) => ({
+			value: d.id,
+			label: deviceDisplayName(d),
+			deviceType: d.type,
+			roomLabel: deviceRoomLabels.get(d.id),
+		}));
 	}
 
 	const suggestions = $derived.by<Option[]>(() => {
 		const q = query.trim().toLowerCase();
-		const match = (o: Option) => !q || o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q);
+		const match = (o: Option) =>
+			!q ||
+			o.label.toLowerCase().includes(q) ||
+			o.value.toLowerCase().includes(q) ||
+			o.roomLabel?.toLowerCase().includes(q);
 		if (phase === "connector") return [{ value: "and", label: "and" }, { value: "or", label: "or" }].filter(match);
 		if (phase === "subject") return CLAUSE_SUBJECTS.map((s) => ({ value: s.value, label: s.label })).filter(match);
 		if (phase === "op") return CLAUSE_OPS.map((o) => ({ value: o.value, label: o.label })).filter(match);
@@ -226,7 +240,7 @@
 <div class={cn("flex flex-col gap-2", disabled && "pointer-events-none opacity-50")} aria-disabled={disabled}>
 	<div bind:this={wrapperRef} class="relative" onfocusout={onFocusOut}>
 		<div
-			class="inline-flex w-full flex-wrap items-center gap-1 rounded-md border border-input bg-transparent p-1.5 shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30"
+			class="inline-flex w-full flex-wrap items-center gap-1 rounded-md border border-input bg-transparent p-1.5 shadow-xs focus-within:border-ring dark:bg-input/30"
 			onclick={() => {
 				if (disabled) return;
 				open = true;
@@ -298,9 +312,11 @@
 							aria-selected={i === activeIdx}
 							class={cn(
 								"border-l-2 px-2.5 py-1 text-xs leading-5 transition-colors",
+								phase === "value" && draft.subject === "device" &&
+									"border-b border-b-border py-2 last:border-b-0",
 								i === activeIdx
-									? "border-primary bg-primary/10 text-foreground"
-									: "border-transparent hover:bg-muted",
+									? "border-l-primary bg-primary/10 text-foreground"
+									: "border-l-transparent hover:bg-muted",
 							)}
 							onmousedowncapture={(e) => {
 								e.preventDefault();
@@ -309,7 +325,11 @@
 							}}
 							onmouseenter={() => (activeIdx = i)}
 						>
-							{opt.label}
+							{#if phase === "value" && draft.subject === "device" && opt.deviceType}
+								<DeviceOptionRow name={opt.label} deviceType={opt.deviceType} roomLabel={opt.roomLabel} />
+							{:else}
+								{opt.label}
+							{/if}
 						</li>
 					{/each}
 				{/if}

@@ -57,6 +57,25 @@ export interface DeviceChips {
   groupChips: Chip[];
 }
 
+export function roomLabelsByDevice(
+  rooms: readonly {
+    name?: string | null;
+    members?: readonly MembershipRoomMemberRef[];
+  }[],
+): Map<string, string> {
+  const names = new Map<string, string[]>();
+  for (const room of rooms) {
+    if (!room.name) continue;
+    for (const member of room.members ?? []) {
+      if (member.memberType !== "device") continue;
+      const roomNames = names.get(member.memberId) ?? [];
+      if (!roomNames.includes(room.name)) roomNames.push(room.name);
+      names.set(member.memberId, roomNames);
+    }
+  }
+  return new Map(Array.from(names, ([deviceId, roomNames]) => [deviceId, roomNames.join(" · ")]));
+}
+
 /**
  * Build a Map of device id → room/group chips by reverse-indexing room and group
  * member lists. Only direct device membership counts: nested groups inside a room

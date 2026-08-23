@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   chipsByDevice,
   membershipRowsForDevice,
+  roomLabelsByDevice,
   type MembershipGroup,
   type MembershipRoom,
 } from "$lib/memberships";
@@ -10,6 +11,22 @@ const roomDevice = (memberId: string, id = `rm-${memberId}`) => ({
   id,
   memberType: "device",
   memberId,
+});
+
+describe("roomLabelsByDevice", () => {
+  it("joins direct room memberships in room order", () => {
+    const rooms: MembershipRoom[] = [
+      { id: "r1", name: "Kitchen", members: [roomDevice("d1")] },
+      {
+        id: "r2",
+        name: "Hallway",
+        members: [roomDevice("d1"), { id: "nested", memberType: "group", memberId: "g1" }],
+      },
+    ];
+
+    expect(roomLabelsByDevice(rooms).get("d1")).toBe("Kitchen · Hallway");
+    expect(roomLabelsByDevice(rooms).has("g1")).toBe(false);
+  });
 });
 
 describe("chipsByDevice", () => {
