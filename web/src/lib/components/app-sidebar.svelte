@@ -37,6 +37,7 @@
 		PlugZap,
 		Map as MapIcon,
 		CircleCheck,
+		Webhook,
 	} from "@lucide/svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -77,6 +78,7 @@
 			items: [
 				{ href: "/scenes", label: "Scenes", icon: Clapperboard },
 				{ href: "/automations", label: "Automations", icon: Workflow },
+				{ href: "/webhooks", label: "Webhooks", icon: Webhook },
 				{ href: "/effects", label: "Effects", icon: Sparkles },
 			],
 		},
