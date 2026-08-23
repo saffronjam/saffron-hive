@@ -33,6 +33,7 @@ const (
 	EventSceneDeactivated              EventType = "scene.deactivated"
 	EventAutomationTriggered           EventType = "automation.triggered"
 	EventAutomationNodeActivated       EventType = "automation.node_activated"
+	EventWebhookReceived               EventType = "webhook.received"
 	// EventEffectStepActivated is emitted by the effect runner around each
 	// step it processes (Active=true on enter, Active=false on exit). The
 	// frontend live view uses it to highlight the running step inside an
