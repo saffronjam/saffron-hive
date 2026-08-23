@@ -25,8 +25,10 @@
 		disabled?: boolean;
 		inputRef?: HTMLInputElement | null;
 		class?: string;
+		popoverContentClass?: string;
 		inputClass?: string;
 		size?: number;
+		separatedItems?: boolean;
 		item?: Snippet<[O, { active: boolean }]>;
 		trailing?: Snippet;
 		onpick?: (o: O) => void;
@@ -46,8 +48,10 @@
 		disabled = false,
 		inputRef = $bindable(null),
 		class: className,
+		popoverContentClass,
 		inputClass,
 		size,
+		separatedItems = false,
 		item,
 		trailing,
 		onpick,
@@ -381,7 +385,10 @@
 	</PopoverTrigger>
 	{#if open && hasSuggestions}
 		<PopoverContent
-			class="min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card"
+			class={cn(
+				"min-w-(--bits-popover-anchor-width) max-w-md max-h-64 overflow-auto p-0 ring-0 shadow-card",
+				popoverContentClass,
+			)}
 			align="start"
 			sideOffset={4}
 			trapFocus={false}
@@ -401,8 +408,8 @@
 							class={cn(
 								"border-l-2 px-3 py-1.5 text-sm transition-colors",
 								i === suggestionIdx
-									? "border-primary bg-primary/10 text-foreground"
-									: "border-transparent text-foreground hover:bg-muted",
+									? "border-l-primary bg-primary/10 text-foreground"
+									: "border-l-transparent text-foreground hover:bg-muted",
 							)}
 							onmousedown={(e) => {
 								e.preventDefault();
@@ -440,9 +447,10 @@
 							aria-selected={i === suggestionIdx}
 							class={cn(
 								"border-l-2 px-3 py-1.5 text-sm transition-colors",
+								separatedItems && "border-b border-b-border py-2 last:border-b-0",
 								i === suggestionIdx
-									? "border-primary bg-primary/10 text-foreground"
-									: "border-transparent text-foreground hover:bg-muted",
+									? "border-l-primary bg-primary/10 text-foreground"
+									: "border-l-transparent text-foreground hover:bg-muted",
 							)}
 							onmousedown={(e) => {
 								e.preventDefault();

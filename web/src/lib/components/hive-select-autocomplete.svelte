@@ -22,7 +22,9 @@
 		chipConfigs?: ChipConfig[];
 		chipMatchers?: Record<string, (t: T, value: string) => boolean>;
 		class?: string;
+		popoverContentClass?: string;
 		size?: "sm" | "default";
+		separatedItems?: boolean;
 		item?: Snippet<[T]>;
 		renderSelected?: Snippet<[T]>;
 		onchange?: (value: string) => void;
@@ -40,7 +42,9 @@
 		chipConfigs,
 		chipMatchers,
 		class: className,
+		popoverContentClass,
 		size = "default",
+		separatedItems = false,
 		item,
 		renderSelected,
 		onchange,
@@ -114,8 +118,8 @@
 
 	const triggerClass = $derived(
 		cn(
-			"border-input dark:bg-input/30 dark:hover:bg-input/50 focus-within:border-ring focus-within:ring-ring/50",
-			"flex w-full items-stretch rounded-md border bg-transparent pl-2.5 text-sm shadow-xs transition-[color,box-shadow] focus-within:ring-3",
+			"border-input dark:bg-input/30 dark:hover:bg-input/50 focus-within:border-ring",
+			"flex w-full items-stretch rounded-md border bg-transparent pl-2.5 text-sm shadow-xs transition-[color,box-shadow]",
 			size === "sm" ? "min-h-8" : "min-h-9",
 			!open && !selectedItem && "text-muted-foreground",
 			className,
@@ -140,7 +144,9 @@
 		placeholder={fieldPlaceholder}
 		{disabled}
 		class={triggerClass}
+		{popoverContentClass}
 		{inputClass}
+		{separatedItems}
 		{item}
 		onpick={handlePick}
 	>
