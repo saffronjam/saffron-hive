@@ -16,6 +16,7 @@
 	} from "$lib/target-resolve";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Capability, Device } from "$lib/gql/graphql";
+	import CapabilityOptionRow from "./capability-option-row.svelte";
 
 	interface Props {
 		target: { type: TargetKind; id: string } | null;
@@ -120,7 +121,9 @@
 			<SelectTrigger class="w-full text-xs">{fieldSelectedLabel}</SelectTrigger>
 			<SelectContent>
 				{#each settableCaps as c (c.name)}
-					<SelectItem value={c.name}>{fieldLabel(c.name)}</SelectItem>
+					<SelectItem value={c.name}>
+						<CapabilityOptionRow type={c.name} label={fieldLabel(c.name)} unit={c.unit} />
+					</SelectItem>
 				{/each}
 			</SelectContent>
 		</Select>

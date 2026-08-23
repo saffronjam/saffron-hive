@@ -21,6 +21,7 @@
 		TooltipTrigger,
 	} from "$lib/components/ui/tooltip/index.js";
 	import { Info, X } from "@lucide/svelte";
+	import CapabilityOptionRow from "$lib/components/graph/capability-option-row.svelte";
 
 	interface Props {
 		capabilities: Capability[];
@@ -124,7 +125,13 @@
 			<SelectTrigger class="w-full text-xs">Add setting</SelectTrigger>
 			<SelectContent>
 				{#each availableSettings as capability (capability.name)}
-					<SelectItem value={capability.name}>{label(capability)}</SelectItem>
+					<SelectItem value={capability.name}>
+						<CapabilityOptionRow
+							type={capability.name}
+							label={label(capability)}
+							unit={capability.unit}
+						/>
+					</SelectItem>
 				{/each}
 			</SelectContent>
 		</Select>
