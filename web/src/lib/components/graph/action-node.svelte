@@ -29,6 +29,10 @@
 		type TargetKind,
 	} from "$lib/target-resolve";
 	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
+	import NodeTypeSelect from "./node-type-select.svelte";
+	import DeviceOptionRow from "./device-option-row.svelte";
+	import { ACTION_OPTIONS } from "./automation-node-options";
+	import { roomLabelsByDevice } from "$lib/memberships";
 	import type { Device, DeviceConfigurationEntry } from "$lib/gql/graphql";
 	import { writableConfigurationCapabilities } from "$lib/device-configuration";
 
@@ -75,6 +79,7 @@
 		id: string;
 		name: string;
 		deviceType?: string;
+		roomLabel?: string;
 		rooms?: { id: string; name: string }[];
 		removed?: boolean;
 	}
@@ -97,17 +102,7 @@
 
 	let { data, id }: Props = $props();
 
-	const actionTypes = [
-		{ value: "set_device_state", label: "Set State" },
-		{ value: "configure_device", label: "Configure Device" },
-		{ value: "toggle_device_state", label: "Toggle State" },
-		{ value: "change_value", label: "Change Value" },
-		{ value: "activate_scene", label: "Activate Scene" },
-		{ value: "cycle_scenes", label: "Scene Cycle" },
-		{ value: "run_effect", label: "Run Effect" },
-		{ value: "raise_alarm", label: "Raise Alarm" },
-		{ value: "clear_alarm", label: "Clear Alarm" },
-	];
+	const actionTypes = ACTION_OPTIONS;
 
 	const SEVERITIES = [
 		{ value: "high", label: "High" },
@@ -288,9 +283,7 @@
 		data.onConfigChange({ ...data.config, payload: JSON.stringify({ alarm_id: value }) });
 	}
 
-	const selectedLabel = $derived(
-		actionTypes.find((t) => t.value === data.config.actionType)?.label ?? "Select action",
-	);
+	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
 
 	// Inline target picker. activate_scene picks a single scene; cycle_scenes
 	// has no single target (its payload carries the ordered scene list);
@@ -320,7 +313,13 @@
 				(d.disabled || writableConfigurationCapabilities(d.capabilities).length === 0)
 			)
 				continue;
-			items.push({ kind: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type });
+			items.push({
+				kind: "device",
+				id: d.id,
+				name: deviceDisplayName(d),
+				deviceType: d.type,
+				roomLabel: deviceRoomLabels.get(d.id),
+			});
 		}
 		if (isConfigureDevice) return items;
 		for (const g of allGroups) {
@@ -477,27 +476,20 @@
 		{#if hasMissingCycleScene}
 			<Badge variant="destructive" class="text-[10px]">Missing scenes</Badge>
 		{/if}
-			<Select
-				type="single"
+			<NodeTypeSelect
 				value={data.config.actionType}
+				placeholder="Select action"
+				options={actionTypes}
 				disabled={data.readOnly}
-				onValueChange={handleActionTypeChange}
-			>
-				<SelectTrigger size="sm" class="w-full text-xs">
-					{selectedLabel}
-				</SelectTrigger>
-				<SelectContent>
-					{#each actionTypes as actionType (actionType.value)}
-						<SelectItem value={actionType.value}>{actionType.label}</SelectItem>
-					{/each}
-				</SelectContent>
-			</Select>
+				invalid={validationError?.field === "actionType"}
+				onchange={handleActionTypeChange}
+			/>
 
 			{#if data.config.actionType === "raise_alarm"}
 				<Input
 					value={(parsedPayload.alarm_id as string) ?? ""}
 					oninput={(e) => updateRaiseField("alarm_id", (e.currentTarget as HTMLInputElement).value)}
-					placeholder="alarm id (e.g. humidity.high)"
+					placeholder="Alarm ID (e.g. humidity.high)"
 					class="text-xs"
 					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
 				/>
@@ -538,7 +530,7 @@
 				<Input
 					value={(parsedPayload.alarm_id as string) ?? ""}
 					oninput={(e) => updateClearField((e.currentTarget as HTMLInputElement).value)}
-					placeholder="alarm id to delete"
+					placeholder="Alarm ID to clear"
 					class="text-xs"
 					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
 				/>
@@ -624,7 +616,7 @@
 						<p class="text-[11px] text-muted-foreground">No scenes available — create scenes first.</p>
 					{/if}
 				</div>
-			{:else}
+			{:else if data.config.actionType}
 				{#if isFanoutAction}
 					<div class="flex w-full items-center rounded-md border border-border dark:border-input">
 						<Button
@@ -667,6 +659,7 @@
 					getLabel={(t) => t.name}
 					placeholder={data.config.actionType === "activate_scene" ? "Select scene" : "Select target"}
 					size="sm"
+					separatedItems
 					disabled={data.readOnly}
 					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={handleTargetChange}
@@ -688,11 +681,12 @@
 						{/if}
 					{/snippet}
 					{#snippet item(t: TargetItem)}
-						<span class="flex w-full items-center gap-1.5 overflow-hidden">
-							<span class="truncate">{t.name}</span>
-							{#if t.kind === "device" && t.deviceType}
-								<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
-							{:else if t.kind === "scene"}
+						{#if t.kind === "device" && t.deviceType}
+							<DeviceOptionRow name={t.name} deviceType={t.deviceType} roomLabel={t.roomLabel} />
+						{:else}
+							<span class="flex w-full items-center gap-1.5 overflow-hidden">
+								<span class="truncate">{t.name}</span>
+								{#if t.kind === "scene"}
 								{#if (t.rooms ?? []).length > 0}
 									<span class="ml-auto flex shrink-0 items-center gap-1">
 										{#each t.rooms ?? [] as room (room.id)}
@@ -700,12 +694,13 @@
 										{/each}
 									</span>
 								{/if}
-							{:else}
+								{:else}
 								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">
 									{targetKindLabel[t.kind]}
 								</Badge>
-							{/if}
-						</span>
+								{/if}
+							</span>
+						{/if}
 					{/snippet}
 				</HiveSelectAutocomplete>
 				{/if}
@@ -751,10 +746,6 @@
 							compact
 						/>
 					{/if}
-				{:else if data.config.actionType === "toggle_device_state"}
-					<p class="text-[10px] text-muted-foreground">
-						Flips on/off. For groups and rooms: any member on → all off; all off → all on.
-					</p>
 				{:else if data.config.actionType === "change_value"}
 					{#if advanced}
 						<ChangeValueEditor
@@ -796,7 +787,7 @@
 							{/each}
 						</SelectContent>
 					</Select>
-				{:else if data.config.actionType !== "activate_scene"}
+				{:else if data.config.actionType !== "activate_scene" && data.config.actionType !== "toggle_device_state"}
 					<Textarea
 						value={data.config.payload}
 						oninput={handlePayloadChange}
