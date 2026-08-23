@@ -32,10 +32,10 @@ deps:
 
 [group('dev')]
 [working-directory('web')]
-[doc('Run the Svelte dev server on :5173, proxying the API')]
+[doc('Run the LAN-accessible Svelte dev server on :5173, proxying the API')]
 web:
     [ -d node_modules ] || bun install
-    bun run dev
+    bun run dev --host 0.0.0.0
 
 [group('dev')]
 [doc('Run the Go API on :8080 using .env')]
