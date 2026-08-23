@@ -133,6 +133,7 @@
 		{ value: "device.removed", label: "Device removed" },
 		{ value: "scene.applied", label: "Scene applied" },
 		{ value: "automation.triggered", label: "Automation fired" },
+		{ value: "webhook.received", label: "Webhook received" },
 	];
 	const ADVANCED_TYPES = [
 		{ value: "command.requested", label: "Command sent" },

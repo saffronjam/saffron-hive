@@ -44,6 +44,7 @@
 		ToggleRight,
 		Clapperboard,
 		Workflow,
+		Webhook,
 		Activity as ActivityIcon,
 	} from "@lucide/svelte";
 
@@ -77,6 +78,7 @@
 		"scene.applied": "Scene",
 		"automation.triggered": "Automation",
 		"automation.node_activated": "Node",
+		"webhook.received": "Webhook",
 	};
 
 	function typeLabel(t: string): string {
@@ -102,6 +104,8 @@
 			case "automation.triggered":
 			case "automation.node_activated":
 				return "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/20";
+			case "webhook.received":
+				return "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20";
 			default:
 				return "";
 		}
@@ -110,6 +114,7 @@
 	function sourceIcon(src: ActivitySource) {
 		if (src.kind === "scene") return Clapperboard;
 		if (src.kind === "automation") return Workflow;
+		if (src.kind === "webhook") return Webhook;
 		if (src.kind === "device") {
 			switch (src.type) {
 				case "light":
@@ -130,6 +135,7 @@
 		if (src.kind === "device") return `/devices/${src.id}`;
 		if (src.kind === "scene") return `/scenes/${src.id}`;
 		if (src.kind === "automation") return `/automations/${src.id}`;
+		if (src.kind === "webhook") return `/webhooks/${src.id}`;
 		return null;
 	}
 
