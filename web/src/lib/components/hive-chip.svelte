@@ -1,32 +1,7 @@
 <script lang="ts">
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
-	import { sentenceCase } from "$lib/utils.js";
-	import {
-		Activity,
-		AirVent,
-		Battery,
-		BatteryCharging,
-		Droplets,
-		DoorOpen,
-		Gauge,
-		Group as GroupIcon,
-		Lightbulb,
-		Magnet,
-		MousePointerClick,
-		Package,
-		Palette,
-		PanelTopOpen,
-		Plug,
-		Power,
-		Router,
-		Sparkles,
-		Speaker,
-		Sun,
-		SunMedium,
-		Thermometer,
-		Zap,
-	} from "@lucide/svelte";
+	import { semanticIcon, sentenceCase } from "$lib/utils.js";
 	import { ContactRole } from "$lib/gql/graphql";
 
 	interface Props {
@@ -89,6 +64,8 @@
 				return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
 			case "posture":
 				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
+			case "storage":
+				return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30";
 			case "on":
 			case "brightness":
 				return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30";
@@ -111,70 +88,7 @@
 		}
 	}
 
-	function typeIcon(t: string) {
-		switch (t) {
-			case "light":
-				return Lightbulb;
-			case "sensor":
-				return Gauge;
-			case "climate":
-				return AirVent;
-			case "button":
-				return MousePointerClick;
-			case "plug":
-				return Plug;
-			case "speaker":
-				return Speaker;
-			case "hub":
-				return Router;
-			case "room":
-				return DoorOpen;
-			case "group":
-				return GroupIcon;
-			case "device":
-				return Package;
-			case "temperature":
-				return Thermometer;
-			case "humidity":
-				return Droplets;
-			case "pressure":
-				return Gauge;
-			case "illuminance":
-				return Sun;
-			case "contact":
-				if (contactRole === ContactRole.Door) return DoorOpen;
-				if (contactRole === ContactRole.Window) return PanelTopOpen;
-				return Magnet;
-			case "orientation":
-				return Gauge;
-			case "devicePosture":
-				return Activity;
-			case "linkQuality":
-				return Router;
-			case "battery":
-				return Battery;
-			case "on":
-				return Power;
-			case "brightness":
-				return SunMedium;
-			case "colorTemp":
-				return Palette;
-			case "power":
-				return Zap;
-			case "voltage":
-				return Zap;
-			case "current":
-				return Activity;
-			case "energy":
-				return BatteryCharging;
-			case "new":
-				return Sparkles;
-			default:
-				return null;
-		}
-	}
-
-	const FallbackIcon = $derived(typeIcon(type));
+	const FallbackIcon = $derived(semanticIcon(type, contactRole));
 	const displayLabel = $derived(label ?? sentenceCase(type));
 
 	const baseClasses = $derived(
