@@ -8,6 +8,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 func evalTestExpr(t *testing.T, expression string, reader device.StateReader, event eventbus.Event, now time.Time) (bool, error) {
@@ -161,6 +162,26 @@ func TestExprTriggerAccess(t *testing.T) {
 	}
 	if !result {
 		t.Fatal("expected true")
+	}
+}
+
+func TestExprWebhookPayloadAccess(t *testing.T) {
+	reader := newMockStateReader()
+	event := eventbus.Event{
+		Type: eventbus.EventWebhookReceived,
+		Payload: webhook.Event{
+			EndpointID: "hook-1",
+			Body:       map[string]any{"pipeline": map[string]any{"status": "failed"}},
+			Query:      map[string][]string{"branch": {"main"}},
+		},
+	}
+
+	result, err := evalTestExpr(t, `trigger.payload.body.pipeline.status == "failed" && trigger.payload.query.branch[0] == "main"`, reader, event, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result {
+		t.Fatal("expected webhook request values in trigger payload")
 	}
 }
 

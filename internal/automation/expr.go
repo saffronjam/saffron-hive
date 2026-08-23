@@ -9,6 +9,7 @@ import (
 	"github.com/expr-lang/expr/vm"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 // exprNameResolver resolves group / room IDs from human-readable names.
@@ -161,11 +162,15 @@ func lookupDeviceByName(reader device.StateReader, name string) (map[string]any,
 }
 
 func buildEnv(ctx context.Context, reader device.StateReader, resolver device.TargetResolver, names exprNameResolver, event eventbus.Event, now time.Time) ExprEnv {
+	payload := event.Payload
+	if incoming, ok := event.Payload.(webhook.Event); ok {
+		payload = incoming.ExpressionPayload()
+	}
 	return ExprEnv{
 		DeviceFn: targetLookup(ctx, reader, resolver, names),
 		Trigger: TriggerContext{
 			DeviceID: event.DeviceID,
-			Payload:  event.Payload,
+			Payload:  payload,
 		},
 		Time: buildTimeContext(now),
 	}
