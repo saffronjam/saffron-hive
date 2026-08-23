@@ -10,7 +10,7 @@
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
-	import { groupBaseTintColors, groupTintStrength, tintCardBg } from "$lib/device-tint";
+	import { aggregateLightAppearance, tintCardBg } from "$lib/device-tint";
 	import {
 		commitGroupBrightness,
 		commitGroupColor,
@@ -56,8 +56,9 @@
 
 	const muted = $derived(devices.every((d) => d.disabled || !d.available));
 
-	const tintBase = $derived(groupBaseTintColors(devices)[0] ?? null);
-	const tintStrength = $derived(groupTintStrength(devices));
+	const appearance = $derived(aggregateLightAppearance(devices));
+	const tintBase = $derived(appearance.dominantColor);
+	const tintStrength = $derived(appearance.tintStrength);
 	const discFill = $derived(
 		live && tintBase && tintStrength > 0
 			? tintCardBg(tintBase, Math.round(20 + 45 * tintStrength))

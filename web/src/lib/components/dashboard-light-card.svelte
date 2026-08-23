@@ -15,11 +15,7 @@
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
 	import { onDestroy } from "svelte";
-	import {
-		groupBaseTintColors,
-		groupTintStrength,
-		PLUG_TINT_COLOR,
-	} from "$lib/device-tint";
+	import { aggregateLightAppearance } from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -62,17 +58,6 @@
 	const dimmableLights = $derived(
 		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
 	);
-	const isSwitchOnlyLight = $derived(
-		dimmableLights.length === 0 && onOffDevices.some(isLightControlDevice),
-	);
-
-	const tintColors = $derived.by(() => {
-		const base = groupBaseTintColors(devices);
-		if (base.length > 0) return base;
-		if (isSwitchOnlyLight) return [PLUG_TINT_COLOR];
-		return [];
-	});
-	const tintStrength = $derived(groupTintStrength(devices));
 	const onLights = $derived(dimmableLights.filter((d) => d.state?.on));
 	const avgBrightness = $derived.by((): number => {
 		if (onLights.length === 0) return 0;
@@ -84,6 +69,14 @@
 	let previewBrightness = $state<number | null>(null);
 	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
 	const INTERACT_COOLDOWN_MS = 1500;
+	const appearance = $derived(
+		aggregateLightAppearance(
+			devices,
+			previewBrightness == null ? {} : { brightnessPreview: previewBrightness },
+		),
+	);
+	const tintColors = $derived(appearance.colors);
+	const tintStrength = $derived(appearance.tintStrength);
 
 	function noteInteract() {
 		if (interactingTimer) clearTimeout(interactingTimer);
@@ -96,13 +89,8 @@
 		if (interactingTimer) clearTimeout(interactingTimer);
 	});
 
-	const effectiveBrightness = $derived(previewBrightness ?? (isOn ? avgBrightness : 0));
-	const brightnessFill = $derived(
-		dimmableLights.length === 0 ? null : effectiveBrightness / 254,
-	);
-	const brightnessActive = $derived(
-		previewBrightness != null ? previewBrightness > 0 : isOn,
-	);
+	const brightnessFill = $derived(appearance.hasDimmable ? appearance.outputRatio : null);
+	const brightnessActive = $derived(appearance.active);
 
 	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 

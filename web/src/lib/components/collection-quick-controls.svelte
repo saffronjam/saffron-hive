@@ -10,7 +10,7 @@
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import HiveColorSwatch from "$lib/components/hive-color-swatch.svelte";
 	import { capabilityUnion, hasCapability } from "$lib/target-resolve";
-	import { groupBaseTintColors } from "$lib/device-tint";
+	import { rememberedLightPalette } from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
 	import {
 		commitGroupToggle,
@@ -37,7 +37,7 @@
 	const hasPopover = $derived(hasColor || hasColorTemp);
 
 	const swatchColor = $derived.by(() => {
-		const cs = groupBaseTintColors(devices);
+		const cs = rememberedLightPalette(devices);
 		if (cs.length === 0) return null;
 		if (cs.length === 1) return cs[0];
 		return `linear-gradient(135deg, ${cs.join(", ")})`;

@@ -30,6 +30,8 @@ export const APPLIANCE_TINT_COLOR = "rgb(96, 165, 250)";
 const MIRED_MIN = 150;
 const MIRED_MAX = 500;
 const BRIGHTNESS_MAX = 254;
+const LIVE_COLOR_CLUSTER_DISTANCE = 0.08;
+const MIN_SECONDARY_COLOR_SHARE = 0.01;
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
@@ -53,6 +55,15 @@ function toCss(c: RGB): string {
 
 function clamp255(n: number): number {
   return Math.round(Math.min(255, Math.max(0, n)));
+}
+
+/** `#rgb` or `#rrggbb` to channels, or null when the value is neither. */
+export function hexToRgb(hex: string): RGB | null {
+  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return null;
+  const digits = match[1].length === 3 ? match[1].replace(/./g, (c) => c + c) : match[1];
+  const value = parseInt(digits, 16);
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
 }
 
 /**
@@ -171,26 +182,243 @@ export function brightnessToTintStrength(brightness: number | null | undefined):
   return Math.sqrt(t);
 }
 
+interface OKLab {
+  l: number;
+  a: number;
+  b: number;
+}
+
+interface WeightedColor {
+  key: string;
+  rgb: RGB;
+  lab: OKLab;
+  weight: number;
+}
+
+interface ColorCluster {
+  key: string;
+  members: WeightedColor[];
+  lab: OKLab;
+  weight: number;
+}
+
+interface LightContribution {
+  device: Device;
+  rgb: RGB;
+  output: number;
+  capacity: number;
+  dimmable: boolean;
+}
+
+export interface AggregateLightAppearance {
+  colors: string[];
+  dominantColor: string | null;
+  tintStrength: number;
+  outputRatio: number | null;
+  active: boolean;
+  hasDimmable: boolean;
+}
+
+export interface AggregateLightAppearanceOptions {
+  brightnessPreview?: number;
+}
+
+function rgbChannelToLinear(channel: number): number {
+  const value = clamp01(channel / 255);
+  return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+}
+
+function rgbToOKLab(rgb: RGB): OKLab {
+  const red = rgbChannelToLinear(rgb.r);
+  const green = rgbChannelToLinear(rgb.g);
+  const blue = rgbChannelToLinear(rgb.b);
+  const l = 0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue;
+  const m = 0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue;
+  const s = 0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue;
+  const lRoot = Math.cbrt(l);
+  const mRoot = Math.cbrt(m);
+  const sRoot = Math.cbrt(s);
+  return {
+    l: 0.2104542553 * lRoot + 0.793617785 * mRoot - 0.0040720468 * sRoot,
+    a: 1.9779984951 * lRoot - 2.428592205 * mRoot + 0.4505937099 * sRoot,
+    b: 0.0259040371 * lRoot + 0.7827717662 * mRoot - 0.808675766 * sRoot,
+  };
+}
+
+function labDistance(a: OKLab, b: OKLab): number {
+  return Math.hypot(a.l - b.l, a.a - b.a, a.b - b.b);
+}
+
+function clusterFor(color: WeightedColor): ColorCluster {
+  return { key: color.key, members: [color], lab: color.lab, weight: color.weight };
+}
+
+function mergeColorClusters(a: ColorCluster, b: ColorCluster): ColorCluster {
+  const weight = a.weight + b.weight;
+  return {
+    key: a.key < b.key ? a.key : b.key,
+    members: [...a.members, ...b.members],
+    lab: {
+      l: (a.lab.l * a.weight + b.lab.l * b.weight) / weight,
+      a: (a.lab.a * a.weight + b.lab.a * b.weight) / weight,
+      b: (a.lab.b * a.weight + b.lab.b * b.weight) / weight,
+    },
+    weight,
+  };
+}
+
+function clusterColors(colors: WeightedColor[]): ColorCluster[] {
+  const clusters = colors.toSorted((a, b) => a.key.localeCompare(b.key)).map(clusterFor);
+  for (;;) {
+    let closest: { left: number; right: number; distance: number; key: string } | null = null;
+    for (let left = 0; left < clusters.length; left++) {
+      for (let right = left + 1; right < clusters.length; right++) {
+        const distance = labDistance(clusters[left].lab, clusters[right].lab);
+        const key = `${clusters[left].key}\u0000${clusters[right].key}`;
+        if (
+          distance <= LIVE_COLOR_CLUSTER_DISTANCE &&
+          (!closest ||
+            distance < closest.distance ||
+            (distance === closest.distance && key < closest.key))
+        ) {
+          closest = { left, right, distance, key };
+        }
+      }
+    }
+    if (!closest) return clusters;
+    const merged = mergeColorClusters(clusters[closest.left], clusters[closest.right]);
+    clusters.splice(closest.right, 1);
+    clusters.splice(closest.left, 1, merged);
+  }
+}
+
+function representativeColor(cluster: ColorCluster): WeightedColor {
+  return cluster.members.toSorted((a, b) => {
+    const distance = labDistance(a.lab, cluster.lab) - labDistance(b.lab, cluster.lab);
+    if (distance !== 0) return distance;
+    if (a.weight !== b.weight) return b.weight - a.weight;
+    return a.key.localeCompare(b.key);
+  })[0];
+}
+
+function clusterHue(cluster: ColorCluster): number {
+  const hue = Math.atan2(cluster.lab.b, cluster.lab.a);
+  return hue < 0 ? hue + Math.PI * 2 : hue;
+}
+
+function representativePalette(colors: WeightedColor[]): { colors: RGB[]; dominant: RGB | null } {
+  if (colors.length === 0) return { colors: [], dominant: null };
+  const clusters = clusterColors(colors);
+  const ranked = clusters.toSorted((a, b) => b.weight - a.weight || a.key.localeCompare(b.key));
+  const dominant = representativeColor(ranked[0]).rgb;
+  const totalWeight = ranked.reduce((sum, cluster) => sum + cluster.weight, 0);
+  const candidates = ranked.filter(
+    (cluster, index) => index === 0 || cluster.weight / totalWeight >= MIN_SECONDARY_COLOR_SHARE,
+  );
+  const selected = [candidates[0]];
+  const remaining = candidates.slice(1);
+  while (selected.length < 3 && remaining.length > 0) {
+    remaining.sort((a, b) => {
+      const aDistance = Math.min(...selected.map((picked) => labDistance(a.lab, picked.lab)));
+      const bDistance = Math.min(...selected.map((picked) => labDistance(b.lab, picked.lab)));
+      return bDistance - aDistance || b.weight - a.weight || a.key.localeCompare(b.key);
+    });
+    selected.push(remaining.shift()!);
+  }
+  selected.sort(
+    (a, b) => clusterHue(a) - clusterHue(b) || a.lab.l - b.lab.l || a.key.localeCompare(b.key),
+  );
+  return { colors: selected.map((cluster) => representativeColor(cluster).rgb), dominant };
+}
+
+function visualRgb(device: Device): RGB {
+  const state = device.state;
+  if (state?.color) return { r: state.color.r, g: state.color.g, b: state.color.b };
+  if (state?.colorTemp != null) return miredToRgb(state.colorTemp);
+  if (device.displayColor) return hexToRgb(device.displayColor) ?? WARM;
+  return WARM;
+}
+
+function lightContribution(
+  device: Device,
+  brightnessPreview: number | undefined,
+): LightContribution | null {
+  const state = device.state;
+  if (
+    device.disabled ||
+    !device.available ||
+    !isLightControlDevice(device) ||
+    !state ||
+    typeof state.on !== "boolean"
+  ) {
+    return null;
+  }
+  const dimmable = state.brightness != null;
+  const capacity = dimmable
+    ? BRIGHTNESS_MAX
+    : Math.max(0, Math.min(BRIGHTNESS_MAX, device.displayBrightness ?? BRIGHTNESS_MAX));
+  const preview = dimmable && brightnessPreview != null ? brightnessPreview : null;
+  const on = preview != null ? preview > 0 : state.on;
+  const level = dimmable
+    ? Math.max(0, Math.min(BRIGHTNESS_MAX, preview ?? state.brightness!))
+    : capacity;
+  return {
+    device,
+    rgb: visualRgb(device),
+    output: on ? level : 0,
+    capacity,
+    dimmable,
+  };
+}
+
 /**
- * Tint strength for a collection of devices (a room, a group, the apartment),
- * suitable for driving the `--tint-strength` CSS variable.
- *
- * A light that is on but reports no brightness scores full strength rather than
- * zero: a switch-only bulb or a LIGHT-tagged plug is either on or off, and there
- * is no dimness to represent. Membership goes through `isLightControlDevice`, so
- * a tagged plug counts as a light here exactly as it does in the card's own
- * "N of M lights" count.
+ * Live visual state for a room, group, or apartment. Color comes only from
+ * currently emitting lights; fill measures emitted output against the known
+ * capacity of every available member.
  */
-export function groupTintStrength(devices: Device[]): number {
-  const on = devices.filter((d) => isLightControlDevice(d) && d.state?.on);
-  if (on.length === 0) return 0;
+export function aggregateLightAppearance(
+  devices: Device[],
+  options: AggregateLightAppearanceOptions = {},
+): AggregateLightAppearance {
+  const contributions = devices
+    .map((device) => lightContribution(device, options.brightnessPreview))
+    .filter((value): value is LightContribution => value !== null);
+  const active = contributions.filter((contribution) => contribution.output > 0);
+  const palette = representativePalette(
+    active.map((contribution) => ({
+      key: `${toCss(contribution.rgb)}\u0000${contribution.device.id}`,
+      rgb: contribution.rgb,
+      lab: rgbToOKLab(contribution.rgb),
+      weight: contribution.output,
+    })),
+  );
+  const totalOutput = contributions.reduce((sum, contribution) => sum + contribution.output, 0);
+  const totalCapacity = contributions.reduce((sum, contribution) => sum + contribution.capacity, 0);
+  const activeIntensity = active.length === 0 ? 0 : totalOutput / (BRIGHTNESS_MAX * active.length);
+  return {
+    colors: palette.colors.map(toCss),
+    dominantColor: palette.dominant ? toCss(palette.dominant) : null,
+    tintStrength: brightnessToTintStrength(activeIntensity * BRIGHTNESS_MAX),
+    outputRatio: totalCapacity > 0 ? clamp01(totalOutput / totalCapacity) : null,
+    active: active.length > 0,
+    hasDimmable: contributions.some((contribution) => contribution.dimmable),
+  };
+}
 
-  const dimmable = on.filter((d) => d.state?.brightness != null);
-  if (dimmable.length === 0) return 1;
-
-  let sum = 0;
-  for (const d of dimmable) sum += d.state!.brightness!;
-  return brightnessToTintStrength(sum / dimmable.length);
+/** Colors retained by a collection's lights, for controls that remain useful while off. */
+export function rememberedLightPalette(devices: Device[]): string[] {
+  const colors = devices
+    .filter((device) => !device.disabled && isLightControlDevice(device) && device.state)
+    .map((device) => {
+      const rgb = visualRgb(device);
+      return {
+        key: `${toCss(rgb)}\u0000${device.id}`,
+        rgb,
+        lab: rgbToOKLab(rgb),
+        weight: 1,
+      };
+    });
+  return representativePalette(colors).colors.map(toCss);
 }
 
 /**
@@ -288,59 +516,6 @@ export function deviceTintBase(device: Device): string | null {
       brightness: state.brightness,
     }),
   );
-}
-
-/**
- * Like {@link groupTintColors} but ignores per-device on/off state. Use
- * for room/group cards that fade their gradient via `--tint-strength`
- * (driven by aggregate on-state) instead of dropping the tint class.
- */
-export function groupBaseTintColors(devices: Device[]): string[] {
-  const colors: RGB[] = [];
-  for (const device of devices) {
-    const state = device.state;
-    if (!state) continue;
-    if (state.color == null && state.colorTemp == null && state.brightness == null) {
-      if (isLightControlDevice(device)) colors.push(WARM);
-      continue;
-    }
-    colors.push(
-      resolveTintRgb({
-        type: device.type,
-        on: true,
-        color: state.color,
-        colorTemp: state.colorTemp,
-        brightness: state.brightness,
-      }),
-    );
-  }
-  return dedupe(colors).slice(0, 3).map(toCss);
-}
-
-/**
- * Returns up to three `rgb(...)` strings aggregated from the current state of
- * a group's effective device list, mirroring {@link sceneTintColors} for live
- * device readings. Empty when no device is switched on.
- */
-export function groupTintColors(devices: Device[]): string[] {
-  const nonSwitchColors: RGB[] = [];
-  const switchColors: RGB[] = [];
-  for (const device of devices) {
-    const state = device.state;
-    if (!state?.on) continue;
-    const rgb = resolveTintRgb({
-      type: device.type,
-      on: true,
-      color: state.color,
-      colorTemp: state.colorTemp,
-      brightness: state.brightness,
-    });
-    const isSwitchOnly = !state.color && state.colorTemp == null && state.brightness == null;
-    if (isSwitchOnly) switchColors.push(rgb);
-    else nonSwitchColors.push(rgb);
-  }
-  const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
-  return dedupe(picked).slice(0, 3).map(toCss);
 }
 
 function payloadTintRgb(

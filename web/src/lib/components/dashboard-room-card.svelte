@@ -4,8 +4,7 @@
 	import { popoverDismissedRecently } from "$lib/popover-guard";
 	import { DoorOpen } from "@lucide/svelte";
 	import {
-		groupBaseTintColors,
-		groupTintStrength,
+		aggregateLightAppearance,
 		aggregateSensorReadings,
 	} from "$lib/device-tint";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
@@ -52,9 +51,6 @@
 	const hasSensors = $derived(sensorReadings.length > 0);
 	const sensorFields = $derived(sensorReadings.map((r) => r.field));
 
-	const tintColors = $derived(groupBaseTintColors(roomDevices));
-	const tintStrength = $derived(groupTintStrength(roomDevices));
-
 	const dimmableLights = $derived(
 		roomDevices.filter((d) => isLightControlDevice(d) && d.state?.brightness != null),
 	);
@@ -69,6 +65,14 @@
 	let previewBrightness = $state<number | null>(null);
 	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
 	const INTERACT_COOLDOWN_MS = 1500;
+	const appearance = $derived(
+		aggregateLightAppearance(
+			roomDevices,
+			previewBrightness == null ? {} : { brightnessPreview: previewBrightness },
+		),
+	);
+	const tintColors = $derived(appearance.colors);
+	const tintStrength = $derived(appearance.tintStrength);
 
 	function noteInteract() {
 		if (interactingTimer) clearTimeout(interactingTimer);
@@ -81,13 +85,8 @@
 		if (interactingTimer) clearTimeout(interactingTimer);
 	});
 
-	const effectiveBrightness = $derived(previewBrightness ?? (isOn ? avgBrightness : 0));
-	const brightnessFill = $derived(
-		dimmableLights.length === 0 ? null : effectiveBrightness / 254,
-	);
-	const brightnessActive = $derived(
-		previewBrightness != null ? previewBrightness > 0 : isOn,
-	);
+	const brightnessFill = $derived(appearance.hasDimmable ? appearance.outputRatio : null);
+	const brightnessActive = $derived(appearance.active);
 
 	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 

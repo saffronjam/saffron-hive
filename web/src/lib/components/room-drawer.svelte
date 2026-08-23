@@ -19,8 +19,7 @@
 	} from "$lib/components/ui/popover/index.js";
 	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
 	import {
-		groupBaseTintColors,
-		groupTintStrength,
+		aggregateLightAppearance,
 		aggregateSensorReadings,
 		sceneGlowColor,
 	} from "$lib/device-tint";
@@ -137,8 +136,6 @@
 	);
 	const onLights = $derived(lightDevices.filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
-	const tintColors = $derived(groupBaseTintColors(roomDevices));
-	const tintStrength = $derived(groupTintStrength(roomDevices));
 
 	const roomHasColor = $derived(
 		roomDevices.some((d) => d.capabilities.some((c) => c.name === "color")),
@@ -197,6 +194,14 @@
 	let roomPreviewBrightness = $state<number | null>(null);
 	let roomInteractingTimer: ReturnType<typeof setTimeout> | null = null;
 	const ROOM_INTERACT_COOLDOWN_MS = 1500;
+	const roomAppearance = $derived(
+		aggregateLightAppearance(
+			roomDevices,
+			roomPreviewBrightness == null ? {} : { brightnessPreview: roomPreviewBrightness },
+		),
+	);
+	const tintColors = $derived(roomAppearance.colors);
+	const tintStrength = $derived(roomAppearance.tintStrength);
 
 	function noteRoomInteract() {
 		if (roomInteractingTimer) clearTimeout(roomInteractingTimer);
@@ -209,15 +214,10 @@
 		if (roomInteractingTimer) clearTimeout(roomInteractingTimer);
 	});
 
-	const roomEffectiveBrightness = $derived(
-		roomPreviewBrightness ?? (isOn ? roomAvgBrightness : 0),
-	);
 	const roomBrightnessFill = $derived(
-		roomDimmableLights.length === 0 ? null : roomEffectiveBrightness / 254,
+		roomAppearance.hasDimmable ? roomAppearance.outputRatio : null,
 	);
-	const roomBrightnessActive = $derived(
-		roomPreviewBrightness != null ? roomPreviewBrightness > 0 : isOn,
-	);
+	const roomBrightnessActive = $derived(roomAppearance.active);
 	const roomBrightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 
 	const roomDragOpts = $derived({

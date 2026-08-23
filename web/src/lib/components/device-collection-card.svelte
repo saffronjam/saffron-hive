@@ -16,8 +16,7 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import {
 		aggregateSensorReadings,
-		groupTintStrength,
-		groupBaseTintColors,
+		aggregateLightAppearance,
 	} from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
@@ -168,9 +167,9 @@
 		togglePending = null;
 	}
 
-	const tintColors = $derived(groupBaseTintColors(effectiveDevices));
-
-	const tintStrength = $derived(groupTintStrength(effectiveDevices));
+	const appearance = $derived(aggregateLightAppearance(effectiveDevices));
+	const tintColors = $derived(appearance.colors);
+	const tintStrength = $derived(appearance.tintStrength);
 
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
