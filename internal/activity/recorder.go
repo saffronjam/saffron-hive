@@ -10,6 +10,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 var logger = logging.Named("activity")
@@ -61,6 +62,7 @@ func (r *Recorder) Run(ctx context.Context) {
 		eventbus.EventSceneApplied,
 		eventbus.EventAutomationTriggered,
 		eventbus.EventAutomationNodeActivated,
+		eventbus.EventWebhookReceived,
 	)
 	defer r.bus.Unsubscribe(ch)
 
@@ -142,8 +144,19 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 		}
 	}
 
+	if evt.Type == eventbus.EventWebhookReceived {
+		if incoming, ok := evt.Payload.(webhook.Event); ok {
+			params.WebhookID = device.Ptr(incoming.EndpointID)
+			params.WebhookName = device.Ptr(incoming.EndpointName)
+		}
+	}
+
 	params.Message = formatMessage(evt, deviceName, sceneName, automationName)
-	params.PayloadJSON = marshalPayload(evt.Payload)
+	if incoming, ok := evt.Payload.(webhook.Event); ok {
+		params.PayloadJSON = marshalPayload(incoming.SafeActivityPayload())
+	} else {
+		params.PayloadJSON = marshalPayload(evt.Payload)
+	}
 
 	row, err := r.store.InsertActivityEvent(ctx, params)
 	if err != nil {

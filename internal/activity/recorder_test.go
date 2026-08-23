@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 func newTestStore(t *testing.T) *store.DB {
@@ -118,5 +120,52 @@ func TestRecorderEnrichesAndPersists(t *testing.T) {
 	}
 	if len(rows) != 1 {
 		t.Fatalf("expected 1 row persisted, got %d", len(rows))
+	}
+}
+
+func TestRecorderPersistsSanitizedWebhookActivity(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := newTestStore(t)
+	bus := eventbus.NewChannelBus()
+	buf := NewBuffer()
+	recorder := NewRecorder(bus, s, &fakeReader{devices: map[device.DeviceID]device.Device{}}, nil, buf)
+	go recorder.Run(ctx)
+	activityRows, unsubscribe := buf.Subscribe()
+	defer unsubscribe()
+	time.Sleep(20 * time.Millisecond)
+
+	receivedAt := time.Date(2026, 8, 23, 11, 0, 0, 0, time.UTC)
+	bus.Publish(eventbus.Event{
+		Type:      eventbus.EventWebhookReceived,
+		Timestamp: receivedAt,
+		Payload: webhook.Event{
+			EndpointID:   "hook-1",
+			EndpointName: "Pipeline failed",
+			DeliveryID:   "delivery-1",
+			Body:         map[string]any{"secret": "must-not-persist"},
+			Query:        map[string][]string{"token": {"must-not-persist"}},
+			Headers:      map[string][]string{"X-Safe": {"must-not-persist"}},
+			ReceivedAt:   receivedAt,
+			ClientIP:     "192.0.2.10",
+			UserAgent:    "test-client",
+			ContentType:  "application/json",
+			BodySize:     29,
+		},
+	})
+
+	select {
+	case row := <-activityRows:
+		if row.WebhookID == nil || *row.WebhookID != "hook-1" || row.WebhookName == nil || *row.WebhookName != "Pipeline failed" {
+			t.Fatalf("webhook source missing: %+v", row)
+		}
+		if row.Message != "Webhook received: Pipeline failed" {
+			t.Fatalf("message = %q", row.Message)
+		}
+		if strings.Contains(row.PayloadJSON, "must-not-persist") || strings.Contains(row.PayloadJSON, "secret") {
+			t.Fatalf("activity contains request content: %s", row.PayloadJSON)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for webhook activity")
 	}
 }

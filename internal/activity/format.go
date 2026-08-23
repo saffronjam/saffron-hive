@@ -7,6 +7,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 // formatMessage produces a short human-readable one-liner for a bus event.
@@ -79,6 +80,12 @@ func formatMessage(evt eventbus.Event, deviceName, sceneName, automationName str
 			return fmt.Sprintf("%s: node activated", label)
 		}
 		return fmt.Sprintf("%s: node deactivated", label)
+
+	case eventbus.EventWebhookReceived:
+		if incoming, ok := evt.Payload.(webhook.Event); ok && incoming.EndpointName != "" {
+			return fmt.Sprintf("Webhook received: %s", incoming.EndpointName)
+		}
+		return "Webhook received"
 	}
 
 	return string(evt.Type)
