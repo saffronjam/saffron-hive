@@ -158,10 +158,17 @@ type Documents = {
     "\n  mutation ScenesStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteScenes(ids: $ids)\n  }\n": typeof types.ScenesStoreBatchDeleteDocument,
     "\n  mutation ScenesStoreApply($sceneId: ID!) {\n    applyScene(sceneId: $sceneId) {\n      ...SceneFields\n    }\n  }\n": typeof types.ScenesStoreApplyDocument,
     "\n  subscription ScenesStoreActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n": typeof types.ScenesStoreActiveChangedDocument,
+    "\n  fragment WebhookEndpointFields on WebhookEndpoint {\n    id\n    name\n    enabled\n    rateLimitCount\n    rateLimitWindowMs\n    createdAt\n    updatedAt\n    lastDeliveryAt\n    createdBy {\n      id\n      username\n      name\n    }\n  }\n": typeof types.WebhookEndpointFieldsFragmentDoc,
+    "\n  query WebhookEndpointsStore {\n    webhookEndpoints {\n      ...WebhookEndpointFields\n    }\n  }\n": typeof types.WebhookEndpointsStoreDocument,
+    "\n  mutation WebhookEndpointsStoreCreate($input: CreateWebhookEndpointInput!) {\n    createWebhookEndpoint(input: $input) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n": typeof types.WebhookEndpointsStoreCreateDocument,
+    "\n  mutation WebhookEndpointsStoreUpdate($id: ID!, $input: UpdateWebhookEndpointInput!) {\n    updateWebhookEndpoint(id: $id, input: $input) {\n      ...WebhookEndpointFields\n    }\n  }\n": typeof types.WebhookEndpointsStoreUpdateDocument,
+    "\n  mutation WebhookEndpointsStoreRotate($id: ID!) {\n    rotateWebhookEndpointSecret(id: $id) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n": typeof types.WebhookEndpointsStoreRotateDocument,
+    "\n  mutation WebhookEndpointsStoreDelete($id: ID!) {\n    deleteWebhookEndpoint(id: $id)\n  }\n": typeof types.WebhookEndpointsStoreDeleteDocument,
+    "\n  mutation WebhookEndpointsStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteWebhookEndpoints(ids: $ids)\n  }\n": typeof types.WebhookEndpointsStoreBatchDeleteDocument,
+    "\n  subscription WebhookEndpointsStoreDeliveryRecorded {\n    webhookDeliveryRecorded {\n      id\n      endpointId\n      receivedAt\n    }\n  }\n": typeof types.WebhookEndpointsStoreDeliveryRecordedDocument,
     "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityDocument,
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityStreamDocument,
     "\n\t\tmutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcompilable\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t\tpositionX\n\t\t\t\t\tpositionY\n\t\t\t\t\truntimeState\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditUpdateDocument,
-    "\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t": typeof types.DeleteAutomationDocument,
     "\n\t\tmutation AutomationEditFireTrigger($automationId: ID!, $nodeId: ID!) {\n\t\t\tfireAutomationTrigger(automationId: $automationId, nodeId: $nodeId)\n\t\t}\n\t": typeof types.AutomationEditFireTriggerDocument,
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditEffectsDocument,
     "\n\t\tquery AutomationEditGroupReference($id: ID!) {\n\t\t\tgroup(id: $id) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tfriendlyName\n\t\t\t\tsource\n\t\t\t\tremoved\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditGroupReferenceDocument,
@@ -201,6 +208,8 @@ type Documents = {
     "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": typeof types.UsersDeleteDocument,
     "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t": typeof types.UsersBatchDeleteDocument,
     "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": typeof types.UsersResetPasswordDocument,
+    "\n\t\tquery WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {\n\t\t\twebhookDeliveries(endpointId: $endpointId, limit: $limit) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t": typeof types.WebhookDetailDeliveriesDocument,
+    "\n\t\tsubscription WebhookDetailDeliveryRecorded($endpointId: ID) {\n\t\t\twebhookDeliveryRecorded(endpointId: $endpointId) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t": typeof types.WebhookDetailDeliveryRecordedDocument,
 };
 const documents: Documents = {
     "\n  query E2EAutomationsDevices {\n    devices {\n      id\n      name\n      friendlyName\n      type\n    }\n  }\n": types.E2EAutomationsDevicesDocument,
@@ -347,10 +356,17 @@ const documents: Documents = {
     "\n  mutation ScenesStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteScenes(ids: $ids)\n  }\n": types.ScenesStoreBatchDeleteDocument,
     "\n  mutation ScenesStoreApply($sceneId: ID!) {\n    applyScene(sceneId: $sceneId) {\n      ...SceneFields\n    }\n  }\n": types.ScenesStoreApplyDocument,
     "\n  subscription ScenesStoreActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n": types.ScenesStoreActiveChangedDocument,
+    "\n  fragment WebhookEndpointFields on WebhookEndpoint {\n    id\n    name\n    enabled\n    rateLimitCount\n    rateLimitWindowMs\n    createdAt\n    updatedAt\n    lastDeliveryAt\n    createdBy {\n      id\n      username\n      name\n    }\n  }\n": types.WebhookEndpointFieldsFragmentDoc,
+    "\n  query WebhookEndpointsStore {\n    webhookEndpoints {\n      ...WebhookEndpointFields\n    }\n  }\n": types.WebhookEndpointsStoreDocument,
+    "\n  mutation WebhookEndpointsStoreCreate($input: CreateWebhookEndpointInput!) {\n    createWebhookEndpoint(input: $input) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n": types.WebhookEndpointsStoreCreateDocument,
+    "\n  mutation WebhookEndpointsStoreUpdate($id: ID!, $input: UpdateWebhookEndpointInput!) {\n    updateWebhookEndpoint(id: $id, input: $input) {\n      ...WebhookEndpointFields\n    }\n  }\n": types.WebhookEndpointsStoreUpdateDocument,
+    "\n  mutation WebhookEndpointsStoreRotate($id: ID!) {\n    rotateWebhookEndpointSecret(id: $id) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n": types.WebhookEndpointsStoreRotateDocument,
+    "\n  mutation WebhookEndpointsStoreDelete($id: ID!) {\n    deleteWebhookEndpoint(id: $id)\n  }\n": types.WebhookEndpointsStoreDeleteDocument,
+    "\n  mutation WebhookEndpointsStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteWebhookEndpoints(ids: $ids)\n  }\n": types.WebhookEndpointsStoreBatchDeleteDocument,
+    "\n  subscription WebhookEndpointsStoreDeliveryRecorded {\n    webhookDeliveryRecorded {\n      id\n      endpointId\n      receivedAt\n    }\n  }\n": types.WebhookEndpointsStoreDeliveryRecordedDocument,
     "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityDocument,
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityStreamDocument,
     "\n\t\tmutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcompilable\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t\tpositionX\n\t\t\t\t\tpositionY\n\t\t\t\t\truntimeState\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationEditUpdateDocument,
-    "\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t": types.DeleteAutomationDocument,
     "\n\t\tmutation AutomationEditFireTrigger($automationId: ID!, $nodeId: ID!) {\n\t\t\tfireAutomationTrigger(automationId: $automationId, nodeId: $nodeId)\n\t\t}\n\t": types.AutomationEditFireTriggerDocument,
     "\n\t\tquery AutomationEditEffects {\n\t\t\teffects {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tnativeEffectOptions {\n\t\t\t\tname\n\t\t\t\tdisplayName\n\t\t\t}\n\t\t}\n\t": types.AutomationEditEffectsDocument,
     "\n\t\tquery AutomationEditGroupReference($id: ID!) {\n\t\t\tgroup(id: $id) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tfriendlyName\n\t\t\t\tsource\n\t\t\t\tremoved\n\t\t\t\tmembers {\n\t\t\t\t\tid\n\t\t\t\t\tmemberType\n\t\t\t\t\tmemberId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationEditGroupReferenceDocument,
@@ -390,6 +406,8 @@ const documents: Documents = {
     "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": types.UsersDeleteDocument,
     "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t": types.UsersBatchDeleteDocument,
     "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": types.UsersResetPasswordDocument,
+    "\n\t\tquery WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {\n\t\t\twebhookDeliveries(endpointId: $endpointId, limit: $limit) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t": types.WebhookDetailDeliveriesDocument,
+    "\n\t\tsubscription WebhookDetailDeliveryRecorded($endpointId: ID) {\n\t\t\twebhookDeliveryRecorded(endpointId: $endpointId) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t": types.WebhookDetailDeliveryRecordedDocument,
 };
 
 /**
@@ -985,6 +1003,38 @@ export function graphql(source: "\n  subscription ScenesStoreActiveChanged {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  fragment WebhookEndpointFields on WebhookEndpoint {\n    id\n    name\n    enabled\n    rateLimitCount\n    rateLimitWindowMs\n    createdAt\n    updatedAt\n    lastDeliveryAt\n    createdBy {\n      id\n      username\n      name\n    }\n  }\n"): (typeof documents)["\n  fragment WebhookEndpointFields on WebhookEndpoint {\n    id\n    name\n    enabled\n    rateLimitCount\n    rateLimitWindowMs\n    createdAt\n    updatedAt\n    lastDeliveryAt\n    createdBy {\n      id\n      username\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query WebhookEndpointsStore {\n    webhookEndpoints {\n      ...WebhookEndpointFields\n    }\n  }\n"): (typeof documents)["\n  query WebhookEndpointsStore {\n    webhookEndpoints {\n      ...WebhookEndpointFields\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation WebhookEndpointsStoreCreate($input: CreateWebhookEndpointInput!) {\n    createWebhookEndpoint(input: $input) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n"): (typeof documents)["\n  mutation WebhookEndpointsStoreCreate($input: CreateWebhookEndpointInput!) {\n    createWebhookEndpoint(input: $input) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation WebhookEndpointsStoreUpdate($id: ID!, $input: UpdateWebhookEndpointInput!) {\n    updateWebhookEndpoint(id: $id, input: $input) {\n      ...WebhookEndpointFields\n    }\n  }\n"): (typeof documents)["\n  mutation WebhookEndpointsStoreUpdate($id: ID!, $input: UpdateWebhookEndpointInput!) {\n    updateWebhookEndpoint(id: $id, input: $input) {\n      ...WebhookEndpointFields\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation WebhookEndpointsStoreRotate($id: ID!) {\n    rotateWebhookEndpointSecret(id: $id) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n"): (typeof documents)["\n  mutation WebhookEndpointsStoreRotate($id: ID!) {\n    rotateWebhookEndpointSecret(id: $id) {\n      endpoint {\n        ...WebhookEndpointFields\n      }\n      secretPath\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation WebhookEndpointsStoreDelete($id: ID!) {\n    deleteWebhookEndpoint(id: $id)\n  }\n"): (typeof documents)["\n  mutation WebhookEndpointsStoreDelete($id: ID!) {\n    deleteWebhookEndpoint(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation WebhookEndpointsStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteWebhookEndpoints(ids: $ids)\n  }\n"): (typeof documents)["\n  mutation WebhookEndpointsStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteWebhookEndpoints(ids: $ids)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription WebhookEndpointsStoreDeliveryRecorded {\n    webhookDeliveryRecorded {\n      id\n      endpointId\n      receivedAt\n    }\n  }\n"): (typeof documents)["\n  subscription WebhookEndpointsStoreDeliveryRecorded {\n    webhookDeliveryRecorded {\n      id\n      endpointId\n      receivedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tmessage\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -994,10 +1044,6 @@ export function graphql(source: "\n\t\tsubscription ActivityStream($advanced: Bo
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcompilable\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t\tpositionX\n\t\t\t\t\tpositionY\n\t\t\t\t\truntimeState\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcompilable\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t\tpositionX\n\t\t\t\t\tpositionY\n\t\t\t\t\truntimeState\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeleteAutomation($id: ID!) {\n\t\t\tdeleteAutomation(id: $id)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1154,6 +1200,14 @@ export function graphql(source: "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tquery WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {\n\t\t\twebhookDeliveries(endpointId: $endpointId, limit: $limit) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {\n\t\t\twebhookDeliveries(endpointId: $endpointId, limit: $limit) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tsubscription WebhookDetailDeliveryRecorded($endpointId: ID) {\n\t\t\twebhookDeliveryRecorded(endpointId: $endpointId) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tsubscription WebhookDetailDeliveryRecorded($endpointId: ID) {\n\t\t\twebhookDeliveryRecorded(endpointId: $endpointId) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
