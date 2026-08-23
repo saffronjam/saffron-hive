@@ -51,6 +51,15 @@ func TestFilterCommandFields(t *testing.T) {
 			want: map[string]any{},
 		},
 		{
+			name: "read-only on-off capability is not commandable",
+			dev: Device{
+				ID:           "monitor-1",
+				Capabilities: []Capability{{Name: CapOnOff, Access: CapabilityAccessState}},
+			},
+			in:   map[string]any{"on": true},
+			want: map[string]any{},
+		},
+		{
 			name: "unknown field (transition) passes through",
 			dev:  plug,
 			in:   map[string]any{"on": true, "transition": 1.5},
@@ -77,5 +86,45 @@ func TestFilterCommandFields(t *testing.T) {
 				t.Fatalf("FilterCommandFields = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestFilterReportedStateDropsUndeclaredFields(t *testing.T) {
+	state := DeviceState{
+		On:      Ptr(true),
+		Contact: Ptr(false),
+		Battery: Ptr(100.0),
+	}
+	sensor := Device{
+		ID:   "door-1",
+		Type: Sensor,
+		Capabilities: []Capability{
+			{Name: CapContact, Access: CapabilityAccessState},
+			{Name: CapBattery, Access: CapabilityAccessState},
+		},
+	}
+
+	got := FilterReportedState(state, sensor)
+	if got.On != nil {
+		t.Fatalf("expected undeclared on state to be dropped, got %v", *got.On)
+	}
+	if got.Contact == nil || *got.Contact {
+		t.Fatalf("expected contact=false to be preserved, got %v", got.Contact)
+	}
+	if got.Battery == nil || *got.Battery != 100 {
+		t.Fatalf("expected battery=100 to be preserved, got %v", got.Battery)
+	}
+}
+
+func TestFilterReportedStateKeepsDeclaredReadOnlyOnOff(t *testing.T) {
+	state := DeviceState{On: Ptr(true)}
+	monitor := Device{
+		ID:           "monitor-1",
+		Capabilities: []Capability{{Name: CapOnOff, Access: CapabilityAccessState}},
+	}
+
+	got := FilterReportedState(state, monitor)
+	if got.On == nil || !*got.On {
+		t.Fatalf("expected declared on state to be preserved, got %v", got.On)
 	}
 }

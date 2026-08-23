@@ -12,7 +12,7 @@ func TestExecuteActionExpressionTargetFiltersByType(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	onOff := []device.Capability{{Name: device.CapOnOff}}
+	onOff := []device.Capability{{Name: device.CapOnOff, Access: device.CapabilityAccessSet}}
 	reader.addDevice(device.Device{ID: "lamp", FriendlyName: "lamp", Type: device.Light, Capabilities: onOff})
 	reader.addDevice(device.Device{ID: "fan", FriendlyName: "fan", Type: device.Plug, Capabilities: onOff})
 	s.setRoomDevices("room-1", []device.DeviceID{"lamp", "fan"})

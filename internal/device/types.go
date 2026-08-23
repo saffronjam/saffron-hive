@@ -186,6 +186,16 @@ type Device struct {
 	LastSeen time.Time `json:"lastSeen"`
 }
 
+// Capability returns the device capability with the given name.
+func (d Device) Capability(name string) (Capability, bool) {
+	for _, capability := range d.Capabilities {
+		if capability.Name == name {
+			return capability, true
+		}
+	}
+	return Capability{}, false
+}
+
 // DisplayName resolves the name to show for a device: the user's override, then
 // the name its integration reports, then the id. The id is always present, so
 // this never returns empty. Every caller that renders or matches a device name
