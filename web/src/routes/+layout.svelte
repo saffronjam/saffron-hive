@@ -21,6 +21,7 @@
 	import { scenesStore } from "$lib/stores/scenes.svelte";
 	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { effectsStore } from "$lib/stores/effects.svelte";
+	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import { floorplanStore } from "$lib/stores/floorplan.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { prefetchIconPacks } from "$lib/components/icons/icon-utils.js";
@@ -33,6 +34,7 @@
 	import ScenesPage from "$lib/components/scenes-page.svelte";
 	import AutomationsPage from "$lib/components/automations-page.svelte";
 	import EffectsPage from "$lib/components/effects-page.svelte";
+	import WebhooksPage from "$lib/components/webhooks-page.svelte";
 	import MapPage from "$lib/components/map-page.svelte";
 	import AlarmsPage from "$lib/components/alarms-page.svelte";
 	import MaintenancePage from "$lib/components/maintenance-page.svelte";
@@ -66,6 +68,7 @@
 		{ path: "/groups", component: GroupsPage },
 		{ path: "/scenes", component: ScenesPage },
 		{ path: "/automations", component: AutomationsPage },
+		{ path: "/webhooks", component: WebhooksPage },
 		{ path: "/effects", component: EffectsPage },
 		{ path: "/alarms", component: AlarmsPage },
 		{ path: "/maintenance", component: MaintenancePage },
@@ -129,6 +132,7 @@
 			void groupsStore.start(client);
 			void scenesStore.start(client);
 			void automationsStore.start(client);
+			void webhooksStore.start(client);
 			void effectsStore.start(client);
 			void floorplanStore.start(client);
 			if (!me.user) void me.refresh(client);
@@ -143,6 +147,7 @@
 		groupsStore.stop();
 		scenesStore.stop();
 		automationsStore.stop();
+		webhooksStore.stop();
 		effectsStore.stop();
 		floorplanStore.stop();
 	});
