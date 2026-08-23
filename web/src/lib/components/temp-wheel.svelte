@@ -141,6 +141,7 @@
 
 	function handleDown(e: MouseEvent | TouchEvent) {
 		if (disabled) return;
+		e.stopPropagation();
 		const p = pointerCoords(e);
 		if (!pointInsideWheel(p.x, p.y)) return;
 		pointerDown = true;
@@ -181,6 +182,7 @@
 		width={320}
 		height={320}
 		class="h-full w-full touch-none"
+		onpointerdown={(e) => e.stopPropagation()}
 		onmousedown={handleDown}
 		ontouchstart={handleDown}
 		role="slider"
