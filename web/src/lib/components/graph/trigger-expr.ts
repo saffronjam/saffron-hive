@@ -1,12 +1,34 @@
 export type TriggerMode =
+  | ""
   | "device_state"
   | "device_event"
   | "availability"
+  | "webhook"
   | "schedule"
-  | "manual"
   | "custom";
 
-export type TriggerKind = "event" | "schedule" | "manual";
+export type WebhookFilterSource = "body" | "query" | "header";
+export type WebhookFilterOperator =
+  | "exists"
+  | "not_exists"
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "starts_with"
+  | "ends_with"
+  | "greater_than"
+  | "greater_than_or_equal"
+  | "less_than"
+  | "less_than_or_equal";
+export type WebhookFilterValueType = "string" | "number" | "boolean" | "null";
+
+export interface WebhookFilterRule {
+  source: WebhookFilterSource;
+  path: string;
+  operator: WebhookFilterOperator;
+  value_type?: WebhookFilterValueType;
+  value?: string | number | boolean | null;
+}
 
 export type ScheduleSubmode = "at" | "every" | "custom";
 
@@ -23,6 +45,8 @@ export interface TriggerConfig {
   value?: string;
   eventValue?: string;
   customExpr?: string;
+  endpointId?: string;
+  webhookFilters?: WebhookFilterRule[];
   // schedule-trigger fields
   scheduleSubmode?: ScheduleSubmode;
   cronExpr?: string;
@@ -110,10 +134,10 @@ export function generateFilterExpr(config: TriggerConfig): string {
       if (!config.deviceId) return "true";
       return `trigger.device_id == "${escapeExprString(config.deviceId)}"`;
     }
+    case "webhook":
+      return "true";
     case "custom":
       return config.customExpr || "true";
-    case "manual":
-      return "true";
     default:
       return "true";
   }
@@ -218,32 +242,25 @@ export function parseEveryModeFromCron(cron: string): {
 
 export function eventTypeForMode(mode: TriggerMode): string {
   switch (mode) {
+    case "":
+      return "";
     case "device_state":
       return "device.state_changed";
     case "device_event":
       return "device.action_fired";
     case "availability":
       return "device.availability_changed";
+    case "webhook":
+      return "webhook.received";
     case "schedule":
       return ""; // not used for schedule triggers
-    case "manual":
-      return ""; // not used for manual triggers
     case "custom":
       return "device.state_changed";
   }
 }
 
-export function triggerKindForMode(mode: TriggerMode): TriggerKind {
-  if (mode === "schedule") return "schedule";
-  if (mode === "manual") return "manual";
-  return "event";
-}
-
 export function defaultTriggerConfig(): TriggerConfig {
-  return {
-    mode: "device_state",
-    eventType: "device.state_changed",
-  };
+  return { mode: "" };
 }
 
 export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerConfig {
@@ -252,13 +269,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
 
   // If the raw object already looks like our internal TS shape (has `mode`),
   // just coerce it.
-  if (raw.mode && typeof raw.mode === "string") {
+  if ("mode" in raw && typeof raw.mode === "string") {
     return raw as unknown as TriggerConfig;
-  }
-
-  // Manual trigger (has no config beyond kind)
-  if (raw.kind === "manual") {
-    return { mode: "manual", graceMs, cooldownMs };
   }
 
   // Schedule trigger
@@ -309,6 +321,20 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
     (raw.condition as string) ??
     (raw.customExpr as string) ??
     "";
+
+  if (eventType === "webhook.received") {
+    const filters = Array.isArray(raw.webhook_filters)
+      ? (raw.webhook_filters as WebhookFilterRule[])
+      : [];
+    return {
+      mode: "webhook",
+      eventType,
+      endpointId: typeof raw.endpoint_id === "string" ? raw.endpoint_id : undefined,
+      webhookFilters: filters,
+      graceMs,
+      cooldownMs,
+    };
+  }
 
   // Derive the UI mode from the filter expression shape.
   // deviceName can't be recovered from `trigger.device_id ==`-only filters;
@@ -391,6 +417,8 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
 }
 
 export function serializeTriggerConfig(config: TriggerConfig): string {
+  if (config.mode === "") return JSON.stringify({ mode: "" });
+
   const timing: { grace_ms?: number; cooldown_ms?: number } = {};
   if (config.graceMs && config.graceMs > 0) timing.grace_ms = config.graceMs;
   if (config.cooldownMs && config.cooldownMs > 0) timing.cooldown_ms = config.cooldownMs;
@@ -402,8 +430,15 @@ export function serializeTriggerConfig(config: TriggerConfig): string {
       ...timing,
     });
   }
-  if (config.mode === "manual") {
-    return JSON.stringify({ kind: "manual", ...timing });
+  if (config.mode === "webhook") {
+    return JSON.stringify({
+      kind: "event",
+      event_type: "webhook.received",
+      filter_expr: "true",
+      endpoint_id: config.endpointId ?? "",
+      webhook_filters: config.webhookFilters ?? [],
+      ...timing,
+    });
   }
   return JSON.stringify({
     kind: "event",
@@ -431,15 +466,18 @@ export function serializeActionConfig(config: {
     target_type: config.targetType,
     target_id: config.targetId,
     target_expr: config.targetExpr ?? [],
-    payload: config.payload,
+    payload: config.actionType === "toggle_device_state" ? "" : config.payload,
   });
 }
 
 export type TriggerField =
+  | "mode"
   | "device"
   | "property"
   | "value"
   | "eventValue"
+  | "endpoint"
+  | "webhookFilter"
   | "interval"
   | "cronExpr"
   | "customExpr";
@@ -450,6 +488,7 @@ export interface ValidationError<F extends string> {
 }
 
 export function validateTriggerConfig(config: TriggerConfig): ValidationError<TriggerField> | null {
+  if (!config.mode) return { field: "mode", message: "Pick a trigger" };
   switch (config.mode) {
     case "device_state":
       if (!config.deviceId) return { field: "device", message: "Pick a device" };
@@ -465,6 +504,36 @@ export function validateTriggerConfig(config: TriggerConfig): ValidationError<Tr
     case "availability":
       if (!config.deviceId) return { field: "device", message: "Pick a device" };
       return null;
+    case "webhook": {
+      if (!config.endpointId) return { field: "endpoint", message: "Pick a webhook" };
+      for (const rule of config.webhookFilters ?? []) {
+        if (!rule.path.trim()) return { field: "webhookFilter", message: "Set every filter path" };
+        if (rule.operator === "exists" || rule.operator === "not_exists") continue;
+        if (!rule.value_type)
+          return { field: "webhookFilter", message: "Set every filter value type" };
+        if (
+          (rule.operator === "contains" ||
+            rule.operator === "starts_with" ||
+            rule.operator === "ends_with") &&
+          rule.value_type !== "string"
+        ) {
+          return { field: "webhookFilter", message: "Use text with text comparisons" };
+        }
+        if (
+          (rule.operator === "greater_than" ||
+            rule.operator === "greater_than_or_equal" ||
+            rule.operator === "less_than" ||
+            rule.operator === "less_than_or_equal") &&
+          rule.value_type !== "number"
+        ) {
+          return { field: "webhookFilter", message: "Use numbers with numeric comparisons" };
+        }
+        if (rule.value_type !== "null" && (rule.value === undefined || rule.value === "")) {
+          return { field: "webhookFilter", message: "Set every filter value" };
+        }
+      }
+      return null;
+    }
     case "schedule": {
       const submode = config.scheduleSubmode ?? "at";
       if (submode === "every") {
@@ -478,8 +547,6 @@ export function validateTriggerConfig(config: TriggerConfig): ValidationError<Tr
       }
       return null;
     }
-    case "manual":
-      return null;
     case "custom":
       if (!config.customExpr || config.customExpr.trim() === "") {
         return { field: "customExpr", message: "Enter an expression" };
@@ -519,7 +586,7 @@ export type ActionField = "actionType" | "target" | "payload";
 export function validateActionConfig(
   config: ActionConfigShape,
 ): ValidationError<ActionField> | null {
-  if (!config.actionType) return { field: "actionType", message: "Pick an action type" };
+  if (!config.actionType) return { field: "actionType", message: "Pick an action" };
   if (config.actionType === "raise_alarm" || config.actionType === "clear_alarm") {
     try {
       const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;

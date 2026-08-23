@@ -11,6 +11,13 @@
 	import NumberInput from "$lib/components/number-input.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
+	import NodeTypeSelect from "./node-type-select.svelte";
+	import DeviceOptionRow from "./device-option-row.svelte";
+	import CapabilityOptionRow from "./capability-option-row.svelte";
+	import WebhookFilterEditor from "./webhook-filter-editor.svelte";
+	import { TRIGGER_OPTIONS } from "./automation-node-options";
+	import { webhooksStore } from "$lib/stores/webhooks.svelte";
+	import { roomLabelsByDevice } from "$lib/memberships";
 	import {
 		Tooltip,
 		TooltipContent,
@@ -20,6 +27,7 @@
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
+	import type { RoomLite } from "$lib/target-resolve";
 	import {
 		type TriggerConfig,
 		type TriggerMode,
@@ -38,6 +46,7 @@
 		readOnly: boolean;
 		activated: boolean;
 		devices: Device[];
+		rooms?: RoomLite[];
 		onConfigChange?: (config: TriggerConfig) => void;
 	}
 
@@ -48,14 +57,8 @@
 
 	let { data, id }: Props = $props();
 
-	const modes: { value: TriggerMode; label: string }[] = [
-		{ value: "device_state", label: "Device state changed" },
-		{ value: "device_event", label: "Device Event" },
-		{ value: "availability", label: "Availability" },
-		{ value: "schedule", label: "Schedule" },
-		{ value: "manual", label: "Manual" },
-		{ value: "custom", label: "Custom" },
-	];
+	const modes = TRIGGER_OPTIONS;
+	const webhookEndpoints = $derived(webhooksStore.items);
 
 	const scheduleSubmodes: { value: ScheduleSubmode; label: string }[] = [
 		{ value: "at", label: "At time" },
@@ -82,10 +85,10 @@
 	];
 
 	const eventTypes = [
-		{ value: "device.state_changed", label: "State Changed" },
+		{ value: "device.state_changed", label: "State changed" },
 		{ value: "device.availability_changed", label: "Availability" },
-		{ value: "device.added", label: "Device Added" },
-		{ value: "device.removed", label: "Device Removed" },
+		{ value: "device.added", label: "Device added" },
+		{ value: "device.removed", label: "Device removed" },
 	];
 
 	const deviceTypeOptions = [
@@ -140,6 +143,11 @@
 		});
 	}
 
+	function handleWebhookChange(value: string | undefined) {
+		if (!value) return;
+		update({ endpointId: value });
+	}
+
 	function handlePropertyChange(value: string | undefined) {
 		if (!value) return;
 		const cap = selectedDeviceCapabilities.find((c) => capabilityToExprProperty(c.name) === value);
@@ -182,6 +190,7 @@
 		}
 		return devs;
 	});
+	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
 
 	const generatedCron = $derived(generateCronExpr(data.config));
 	const humanSchedule = $derived(humanizeCron(generatedCron));
@@ -210,9 +219,6 @@
 		update({ scheduleWeekdays: next });
 	}
 
-	const modeLabel = $derived(
-		modes.find((m) => m.value === data.config.mode)?.label ?? "Custom"
-	);
 	let advancedOpen = $state(false);
 	const graceMs = $derived(data.config.graceMs ?? 0);
 	const cooldownMs = $derived(data.config.cooldownMs ?? 0);
@@ -248,21 +254,14 @@
 
 	<div class="min-w-0 p-3 nodrag">
 		<fieldset disabled={data.readOnly} inert={data.readOnly} class="space-y-2 border-0 p-0">
-			<Select
-				type="single"
+			<NodeTypeSelect
 				value={data.config.mode}
+				placeholder="Select trigger"
+				options={modes}
 				disabled={data.readOnly}
-				onValueChange={handleModeChange}
-			>
-				<SelectTrigger size="sm" class="w-full text-xs">
-					{modeLabel}
-				</SelectTrigger>
-				<SelectContent>
-					{#each modes as mode (mode.value)}
-						<SelectItem value={mode.value}>{mode.label}</SelectItem>
-					{/each}
-				</SelectContent>
-			</Select>
+				invalid={validationError?.field === "mode"}
+				onchange={handleModeChange}
+			/>
 
 			{#if data.config.mode === "device_state" || data.config.mode === "device_event" || data.config.mode === "availability"}
 				<HiveSelectAutocomplete
@@ -274,6 +273,7 @@
 					chipMatchers={deviceChipMatchers}
 					placeholder="Select device"
 					size="sm"
+					separatedItems
 					disabled={data.readOnly}
 					class={validationError?.field === "device" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handleDeviceChange(v)}
@@ -283,12 +283,45 @@
 						<HiveChip type={d.type} class="text-[10px] py-0 shrink-0" />
 					{/snippet}
 					{#snippet item(d: Device)}
-						<span class="flex w-full items-center gap-1.5 overflow-hidden">
-							<span class="truncate">{deviceDisplayName(d)}</span>
-							<HiveChip type={d.type} class="text-[10px] py-0 shrink-0 ml-auto" />
-						</span>
+						<DeviceOptionRow
+							name={deviceDisplayName(d)}
+							deviceType={d.type}
+							roomLabel={deviceRoomLabels.get(d.id)}
+						/>
 					{/snippet}
 				</HiveSelectAutocomplete>
+			{/if}
+
+			{#if data.config.mode === "webhook"}
+				<HiveSelectAutocomplete
+					items={webhookEndpoints}
+					value={data.config.endpointId ?? ""}
+					getValue={(endpoint) => endpoint.id}
+					getLabel={(endpoint) => endpoint.name}
+					placeholder="Select webhook"
+					size="sm"
+					separatedItems
+					disabled={data.readOnly}
+					class={validationError?.field === "endpoint" ? `text-xs ${INVALID_CLS}` : "text-xs"}
+					onchange={handleWebhookChange}
+				>
+					{#snippet item(endpoint)}
+						<div class="min-w-0 py-0.5">
+							<div class="truncate text-xs">{endpoint.name}</div>
+							<div class="truncate text-[10px] text-muted-foreground">
+								{endpoint.enabled ? "Enabled" : "Disabled"}
+							</div>
+						</div>
+					{/snippet}
+				</HiveSelectAutocomplete>
+				{#if data.config.endpointId}
+					<WebhookFilterEditor
+						rules={data.config.webhookFilters ?? []}
+						disabled={data.readOnly}
+						invalid={validationError?.field === "webhookFilter"}
+						onchange={(webhookFilters) => update({ webhookFilters })}
+					/>
+				{/if}
 			{/if}
 
 			{#if data.config.mode === "device_state" && data.config.deviceId}
@@ -299,17 +332,17 @@
 					getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
 					placeholder="Select property"
 					size="sm"
+					separatedItems
 					disabled={data.readOnly}
 					class={validationError?.field === "property" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handlePropertyChange(v)}
 				>
 					{#snippet item(c: Capability)}
-						<span class="flex items-center gap-1.5">
-							<span>{sentenceCase(capabilityToExprProperty(c.name))}</span>
-							{#if c.unit}
-								<span class="text-muted-foreground">({c.unit})</span>
-							{/if}
-						</span>
+						<CapabilityOptionRow
+							type={capabilityToExprProperty(c.name)}
+							label={sentenceCase(capabilityToExprProperty(c.name))}
+							unit={c.unit}
+						/>
 					{/snippet}
 				</HiveSelectAutocomplete>
 
@@ -535,10 +568,6 @@
 				{/if}
 
 				<p class="text-[10px] text-muted-foreground">{humanSchedule}</p>
-			{/if}
-
-			{#if data.config.mode === "manual"}
-				<p class="text-[10px] text-muted-foreground">Fires from Live mode only.</p>
 			{/if}
 
 			{#if data.config.mode === "custom"}

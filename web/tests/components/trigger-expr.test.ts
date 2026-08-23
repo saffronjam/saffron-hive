@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   capabilityToExprProperty,
+  defaultTriggerConfig,
   eventTypeForMode,
   generateFilterExpr,
   normalizeTriggerConfig,
+  serializeActionConfig,
   serializeTriggerConfig,
   supportsDeviceEvents,
   validateActionConfig,
+  validateTriggerConfig,
   type TriggerConfig,
 } from "$lib/components/graph/trigger-expr";
 
@@ -84,6 +87,13 @@ function roundTrip(cfg: TriggerConfig): TriggerConfig {
 }
 
 describe("normalizeTriggerConfig mode recovery", () => {
+  it("keeps a new trigger unconfigured through serialization", () => {
+    const config = defaultTriggerConfig();
+    expect(config).toEqual({ mode: "" });
+    expect(roundTrip(config)).toEqual({ mode: "" });
+    expect(validateTriggerConfig(config)).toEqual({ field: "mode", message: "Pick a trigger" });
+  });
+
   it("availability: recovers deviceId", () => {
     const cfg: TriggerConfig = {
       mode: "availability",
@@ -230,11 +240,6 @@ describe("normalizeTriggerConfig mode recovery", () => {
     expect(round.value).toBe("open");
   });
 
-  it("manual: round-trips as manual", () => {
-    const round = roundTrip({ mode: "manual" });
-    expect(round.mode).toBe("manual");
-  });
-
   it("schedule (every): round-trips as schedule/every", () => {
     const round = roundTrip({
       mode: "schedule",
@@ -258,6 +263,64 @@ describe("normalizeTriggerConfig mode recovery", () => {
     expect(round.customExpr).toContain("device(");
   });
 
+  it("incoming webhook: round-trips endpoint and typed filters", () => {
+    const cfg: TriggerConfig = {
+      mode: "webhook",
+      eventType: "webhook.received",
+      endpointId: "hook-1",
+      webhookFilters: [
+        {
+          source: "body",
+          path: "pipeline.status",
+          operator: "equals",
+          value_type: "string",
+          value: "failed",
+        },
+        { source: "query", path: "branch", operator: "exists" },
+      ],
+    };
+    expect(eventTypeForMode("webhook")).toBe("webhook.received");
+    expect(generateFilterExpr(cfg)).toBe("true");
+    expect(roundTrip(cfg)).toEqual(cfg);
+    expect(validateTriggerConfig(cfg)).toBeNull();
+  });
+
+  it("incoming webhook: requires an endpoint and complete filter rules", () => {
+    expect(validateTriggerConfig({ mode: "webhook" })).toMatchObject({ field: "endpoint" });
+    expect(
+      validateTriggerConfig({
+        mode: "webhook",
+        endpointId: "hook-1",
+        webhookFilters: [{ source: "body", path: "", operator: "exists" }],
+      }),
+    ).toMatchObject({ field: "webhookFilter" });
+    expect(
+      validateTriggerConfig({
+        mode: "webhook",
+        endpointId: "hook-1",
+        webhookFilters: [{ source: "body", path: "status", operator: "equals" }],
+      }),
+    ).toMatchObject({ field: "webhookFilter" });
+    expect(
+      validateTriggerConfig({
+        mode: "webhook",
+        endpointId: "hook-1",
+        webhookFilters: [
+          { source: "body", path: "status", operator: "contains", value_type: "number", value: 2 },
+        ],
+      }),
+    ).toMatchObject({ field: "webhookFilter" });
+    expect(
+      validateTriggerConfig({
+        mode: "webhook",
+        endpointId: "hook-1",
+        webhookFilters: [
+          { source: "body", path: "attempt", operator: "greater_than", value_type: "string", value: "2" },
+        ],
+      }),
+    ).toMatchObject({ field: "webhookFilter" });
+  });
+
   it("unrecognized filter falls back to custom", () => {
     const raw = {
       kind: "event",
@@ -267,5 +330,25 @@ describe("normalizeTriggerConfig mode recovery", () => {
     const round = normalizeTriggerConfig(raw as Record<string, unknown>);
     expect(round.mode).toBe("custom");
     expect(round.customExpr).toBe("unparseable");
+  });
+});
+
+describe("action type validation", () => {
+  it("requires an action selection", () => {
+    expect(
+      validateActionConfig({ actionType: "", targetType: "", targetId: "", payload: "" }),
+    ).toEqual({ field: "actionType", message: "Pick an action" });
+  });
+
+  it("stores toggle actions without a payload", () => {
+    const serialized = serializeActionConfig({
+      actionType: "toggle_device_state",
+      targetType: "expression",
+      targetId: "",
+      targetExpr: [{ subject: "device_type", op: "is", values: ["light"] }],
+      payload: '{"on":true,"brightness":254}',
+    });
+
+    expect(JSON.parse(serialized)).toMatchObject({ payload: "" });
   });
 });
