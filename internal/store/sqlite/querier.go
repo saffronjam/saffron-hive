@@ -23,6 +23,7 @@ type Querier interface {
 	BatchDeleteRooms(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteWebhookEndpoints(ctx context.Context, idsJson string) (int64, error)
 	// Invalidates every JWT previously issued for this user by incrementing the
 	// token_version column. The auth middleware refuses tokens whose embedded
 	// version no longer matches the row, so existing sessions are revoked the
@@ -46,6 +47,7 @@ type Querier interface {
 	CompleteFirstPasswordChange(ctx context.Context, arg CompleteFirstPasswordChangeParams) (int64, error)
 	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CountWebhookDeliveriesSince(ctx context.Context, arg CountWebhookDeliveriesSinceParams) (int64, error)
 	// Automations own three related tables: automations, automation_nodes,
 	// automation_edges. GetAutomationGraph is composed in Go from three sqlc
 	// queries since sqlc's SQLite parser doesn't support data-modifying CTEs.
@@ -78,6 +80,7 @@ type Querier interface {
 	CreateScene(ctx context.Context, arg CreateSceneParams) error
 	CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error
 	DeleteActiveEffectByTarget(ctx context.Context, arg DeleteActiveEffectByTargetParams) error
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
@@ -115,6 +118,7 @@ type Querier interface {
 	DeleteTuyaConfig(ctx context.Context) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
+	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	DeleteZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) error
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
@@ -143,8 +147,12 @@ type Querier interface {
 	GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) ([]GetUserAvatarPathsByIDsRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
+	GetWebhookDelivery(ctx context.Context, id string) (WebhookDelivery, error)
+	GetWebhookEndpoint(ctx context.Context, id string) (GetWebhookEndpointRow, error)
+	GetWebhookEndpointBySecretHash(ctx context.Context, secretHash string) (WebhookEndpoint, error)
 	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
 	GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) (ZigbeeDeviceMetadatum, error)
+	HasWebhookRateLimitDeliverySince(ctx context.Context, arg HasWebhookRateLimitDeliverySinceParams) (bool, error)
 	// Activity event persistence. QueryActivityEvents is the only query in the
 	// codebase with fully-dynamic filters, so it uses every gate trick we have:
 	//
@@ -167,6 +175,7 @@ type Querier interface {
 	InsertMaintenanceAcknowledgement(ctx context.Context, arg InsertMaintenanceAcknowledgementParams) error
 	InsertProviderGroupMember(ctx context.Context, arg InsertProviderGroupMemberParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
+	InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) error
 	LatestStateSample(ctx context.Context, arg LatestStateSampleParams) (LatestStateSampleRow, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
@@ -211,6 +220,9 @@ type Querier interface {
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListTuyaDevices(ctx context.Context) ([]TuyaDevice, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
+	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]WebhookDelivery, error)
+	ListWebhookEndpointAutomationReferences(ctx context.Context, config string) ([]ListWebhookEndpointAutomationReferencesRow, error)
+	ListWebhookEndpoints(ctx context.Context) ([]ListWebhookEndpointsRow, error)
 	ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDeviceMetadatum, error)
 	ListZigbeeProviderGroupsForDevice(ctx context.Context, memberID string) ([]ListZigbeeProviderGroupsForDeviceRow, error)
 	MarkDevicesSeen(ctx context.Context, idsJson string) (int64, error)
@@ -218,6 +230,8 @@ type Querier interface {
 	MergeZigbeeOTAStatus(ctx context.Context, arg MergeZigbeeOTAStatusParams) (device.DeviceID, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
+	PruneWebhookDeliveriesOlderThan(ctx context.Context, receivedAt time.Time) (int64, error)
+	PruneWebhookDeliveriesOverLimit(ctx context.Context, arg PruneWebhookDeliveriesOverLimitParams) (int64, error)
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
 	QueryStateHistoryAnchors(ctx context.Context, arg QueryStateHistoryAnchorsParams) ([]QueryStateHistoryAnchorsRow, error)
 	QueryStateHistoryNumericBucketed(ctx context.Context, arg QueryStateHistoryNumericBucketedParams) ([]QueryStateHistoryNumericBucketedRow, error)
@@ -282,6 +296,8 @@ type Querier interface {
 	// NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
 	// from "set to NULL"). theme is constrained by a CHECK in the migration.
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
+	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) error
+	UpdateWebhookEndpointSecretHash(ctx context.Context, arg UpdateWebhookEndpointSecretHashParams) error
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
 	// Refreshes every adapter-owned column, including the friendly name, and clears
 	// the removed flag when a device reappears. The name column is the user's

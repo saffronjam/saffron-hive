@@ -34,6 +34,8 @@ type ActivityEvent struct {
 	SceneName      *string
 	AutomationID   *string
 	AutomationName *string
+	WebhookID      *string
+	WebhookName    *string
 }
 
 type Alarm struct {
@@ -331,6 +333,34 @@ type User struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	TokenVersion       int64
+}
+
+type WebhookDelivery struct {
+	ID              string
+	EndpointID      string
+	ReceivedAt      time.Time
+	Outcome         string
+	HttpStatus      int64
+	ClientIp        string
+	UserAgent       string
+	ContentType     string
+	BodySize        int64
+	DurationMs      int64
+	RequestID       *string
+	QueryKeysJson   string
+	HeaderNamesJson string
+}
+
+type WebhookEndpoint struct {
+	ID                string
+	Name              string
+	Enabled           bool
+	SecretHash        string
+	RateLimitCount    int64
+	RateLimitWindowMs int64
+	CreatedBy         *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type Zigbee2mqttConfig struct {
