@@ -1,4 +1,4 @@
-import { replaceState } from "$app/navigation";
+import { afterNavigate, replaceState } from "$app/navigation";
 import { page } from "$app/state";
 import { emptySearchState, type SearchState } from "$lib/components/hive-searchbar";
 
@@ -55,14 +55,21 @@ export function createUrlSearchState(options: UrlSearchStateOptions): UrlSearchS
   let value = $state<SearchState>(initial);
   let currentKey = searchStateKey(initial);
 
-  $effect(() => {
+  function adoptUrlState(force: boolean): void {
     if (!options.active()) return;
     const next = searchStateFromUrl(page.url);
     const nextKey = searchStateKey(next);
-    if (nextKey === currentKey) return;
+    if (!force && nextKey === currentKey) return;
     currentKey = nextKey;
     value = next;
+  }
+
+  $effect(() => {
+    void page.url.href;
+    adoptUrlState(false);
   });
+
+  afterNavigate(() => adoptUrlState(true));
 
   return {
     get value() {

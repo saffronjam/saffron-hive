@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import Harness from "./url-search-state-harness.svelte";
-import { resetMockNavigation, replaceStateCalls } from "../mocks/app-navigation";
+import {
+  resetMockNavigation,
+  replaceStateCalls,
+  runAfterNavigate,
+} from "../mocks/app-navigation";
 import { resetMockPage, setMockPageUrl } from "../mocks/app-state.svelte";
 
 type HarnessInstance = {
@@ -91,11 +95,13 @@ describe("createUrlSearchState", () => {
   it("adopts URL-originated Back and Forward updates without writing back", () => {
     const harness = mountHarness("https://hive.test/devices?q=first");
     setMockPageUrl("https://hive.test/devices?q=second&filter=room%3AKitchen");
+    runAfterNavigate();
     flushSync();
     expect(harness.value()).toEqual({
       freeText: "second",
       chips: [{ keyword: "room", value: "Kitchen" }],
     });
+    expect(host.textContent).toContain("second");
     expect(replaceStateCalls).toHaveLength(0);
   });
 
