@@ -10,12 +10,24 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
+func toggleLight(id device.DeviceID) device.Device {
+	return device.Device{
+		ID:           id,
+		FriendlyName: string(id),
+		Type:         device.Light,
+		Capabilities: []device.Capability{{
+			Name:   device.CapOnOff,
+			Access: device.CapabilityAccessState | device.CapabilityAccessSet,
+		}},
+	}
+}
+
 func TestToggleAction_DeviceCurrentlyOn_FlipsOff(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(toggleLight("light-1"))
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
@@ -44,7 +56,7 @@ func TestToggleAction_DeviceCurrentlyOff_FlipsOn(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(toggleLight("light-1"))
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
@@ -73,7 +85,7 @@ func TestToggleAction_DeviceUnknownState_DefaultsOn(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
+	reader.addDevice(toggleLight("light-1"))
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
@@ -98,8 +110,8 @@ func TestToggleAction_DeviceUnknownState_DefaultsOn(t *testing.T) {
 
 func TestToggleAction_GroupAnyOn_FlipsAllOff(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
-	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2"})
+	reader.addDevice(toggleLight("light-1"))
+	reader.addDevice(toggleLight("light-2"))
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(true)})
 	reader.setDeviceState("light-2", &device.DeviceState{On: device.Ptr(false)})
 
@@ -111,7 +123,7 @@ func TestToggleAction_GroupAnyOn_FlipsAllOff(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "toggle-group", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"toggle_device_state","target_type":"group","target_id":"group-1","payload":""}`},
 		},
 		[]store.AutomationEdge{
@@ -145,8 +157,8 @@ func TestToggleAction_GroupAnyOn_FlipsAllOff(t *testing.T) {
 
 func TestToggleAction_GroupAllOff_FlipsAllOn(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{ID: "light-1", FriendlyName: "light-1"})
-	reader.addDevice(device.Device{ID: "light-2", FriendlyName: "light-2"})
+	reader.addDevice(toggleLight("light-1"))
+	reader.addDevice(toggleLight("light-2"))
 	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
 	reader.setDeviceState("light-2", &device.DeviceState{On: device.Ptr(false)})
 
@@ -158,7 +170,7 @@ func TestToggleAction_GroupAllOff_FlipsAllOn(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "toggle-group", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"toggle_device_state","target_type":"group","target_id":"group-1","payload":""}`},
 		},
 		[]store.AutomationEdge{
@@ -184,6 +196,85 @@ func TestToggleAction_GroupAllOff_FlipsAllOn(t *testing.T) {
 		if cmd.On == nil || *cmd.On != true {
 			t.Fatalf("expected on=true for all members (all-off → all-on), got %+v on %s", cmd.On, cmd.DeviceID)
 		}
+	}
+}
+
+func TestToggleAction_RoomIgnoresSensorOnState(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(toggleLight("light-1"))
+	reader.addDevice(device.Device{
+		ID:           "door-1",
+		FriendlyName: "door-1",
+		Type:         device.Sensor,
+		Capabilities: []device.Capability{{Name: device.CapContact, Access: device.CapabilityAccessState}},
+	})
+	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
+	reader.setDeviceState("door-1", &device.DeviceState{On: device.Ptr(true), Contact: device.Ptr(false)})
+
+	s := newMockStore()
+	s.setRoomDevices("room-1", []device.DeviceID{"light-1", "door-1"})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "toggle-room", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"toggle_device_state","target_type":"room","target_id":"room-1","payload":""}`},
+		},
+		[]store.AutomationEdge{{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"}},
+	)
+
+	engine, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
+	}
+	got := collectCommands(t, ch, 2, 250*time.Millisecond)
+	if len(got) != 1 {
+		t.Fatalf("expected one command for the controllable light, got %d", len(got))
+	}
+	if got[0].DeviceID != "light-1" || got[0].On == nil || !*got[0].On {
+		t.Fatalf("expected light-1 on=true, got %+v", got[0])
+	}
+}
+
+func TestToggleAction_RoomIgnoresReadOnlyOnOffState(t *testing.T) {
+	reader := newMockStateReader()
+	reader.addDevice(toggleLight("light-1"))
+	reader.addDevice(device.Device{
+		ID:           "monitor-1",
+		FriendlyName: "monitor-1",
+		Capabilities: []device.Capability{{Name: device.CapOnOff, Access: device.CapabilityAccessState}},
+	})
+	reader.setDeviceState("light-1", &device.DeviceState{On: device.Ptr(false)})
+	reader.setDeviceState("monitor-1", &device.DeviceState{On: device.Ptr(true)})
+
+	s := newMockStore()
+	s.setRoomDevices("room-1", []device.DeviceID{"light-1", "monitor-1"})
+	s.addAutomationGraph(
+		store.Automation{ID: "auto-1", Name: "toggle-room", Enabled: true},
+		[]store.AutomationNode{
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"toggle_device_state","target_type":"room","target_id":"room-1","payload":""}`},
+		},
+		[]store.AutomationEdge{{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"}},
+	)
+
+	engine, bus, cancel := setupEngine(t, reader, s)
+	defer cancel()
+	ch := bus.Subscribe(eventbus.EventCommandRequested)
+	defer bus.Unsubscribe(ch)
+
+	if err := engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatalf("FireTrigger: %v", err)
+	}
+	got := collectCommands(t, ch, 2, 250*time.Millisecond)
+	if len(got) != 1 {
+		t.Fatalf("expected one command for the writable light, got %d", len(got))
+	}
+	if got[0].DeviceID != "light-1" || got[0].On == nil || !*got[0].On {
+		t.Fatalf("expected light-1 on=true, got %+v", got[0])
 	}
 }
 

@@ -295,7 +295,7 @@ func TestChangeValue_GroupFanOut_PerDeviceCurrentValue(t *testing.T) {
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-1", Name: "bump-group", Enabled: true},
 		[]store.AutomationNode{
-			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"manual"}`},
+			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"change_value","target_type":"group","target_id":"group-1","payload":"{\"field\":\"brightness\",\"delta\":25,\"mode\":\"absolute\"}"}`},
 		},
 		[]store.AutomationEdge{
