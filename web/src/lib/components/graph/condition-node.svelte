@@ -12,6 +12,11 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
+	import NodeTypeSelect from "./node-type-select.svelte";
+	import DeviceOptionRow from "./device-option-row.svelte";
+	import CapabilityOptionRow from "./capability-option-row.svelte";
+	import { CONDITION_OPTIONS } from "./automation-node-options";
+	import { roomLabelsByDevice } from "$lib/memberships";
 	import { ShieldCheck } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
@@ -20,7 +25,6 @@
 		type ConditionConfig,
 		type ConditionMode,
 		type ConditionTargetType,
-		generateConditionExpr,
 		validateConditionConfig,
 	} from "./condition-expr";
 	import { capabilityToExprProperty } from "./trigger-expr";
@@ -42,6 +46,7 @@
 		id: string;
 		name: string;
 		deviceType?: string;
+		roomLabel?: string;
 		removed?: boolean;
 	}
 
@@ -71,12 +76,7 @@
 
 	let { data, id }: Props = $props();
 
-	const modes: { value: ConditionMode; label: string }[] = [
-		{ value: "time_window", label: "Time window" },
-		{ value: "weekday", label: "Weekday" },
-		{ value: "device_state", label: "Device state" },
-		{ value: "custom", label: "Custom" },
-	];
+	const modes = CONDITION_OPTIONS;
 
 	const comparators = [
 		{ value: "==", label: "=" },
@@ -171,10 +171,17 @@
 		update({ property: value, comparator: defaultComparator, value: defaultValue });
 	}
 
+	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
 	const targetItems = $derived.by<TargetItem[]>(() => {
 		const items: TargetItem[] = [];
 		for (const d of data.devices ?? []) {
-			items.push({ kind: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type });
+			items.push({
+				kind: "device",
+				id: d.id,
+				name: deviceDisplayName(d),
+				deviceType: d.type,
+				roomLabel: deviceRoomLabels.get(d.id),
+			});
 		}
 		for (const g of data.groups ?? []) {
 			items.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
@@ -222,13 +229,8 @@
 		);
 	});
 
-	const generatedExpr = $derived(generateConditionExpr(data.config));
 	const validationError = $derived(validateConditionConfig(data.config));
 	const INVALID_CLS = "border-destructive ring-2 ring-destructive/40";
-
-	const modeLabel = $derived(
-		modes.find((m) => m.value === data.config.mode)?.label ?? "Custom"
-	);
 
 </script>
 
@@ -246,14 +248,14 @@
 	</div>
 
 	<fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-3 nodrag">
-			<Select type="single" value={data.config.mode} onValueChange={handleModeChange} disabled={data.readOnly}>
-				<SelectTrigger size="sm" class="w-full text-xs">{modeLabel}</SelectTrigger>
-				<SelectContent>
-					{#each modes as m (m.value)}
-						<SelectItem value={m.value}>{m.label}</SelectItem>
-					{/each}
-				</SelectContent>
-			</Select>
+			<NodeTypeSelect
+				value={data.config.mode}
+				placeholder="Select condition"
+				options={modes}
+				disabled={data.readOnly}
+				invalid={validationError?.field === "mode"}
+				onchange={handleModeChange}
+			/>
 
 			{#if data.config.mode === "time_window"}
 				<div class="grid gap-1.5">
@@ -327,6 +329,7 @@
 					getLabel={(t) => t.name}
 					placeholder="Select target"
 					size="sm"
+					separatedItems
 					disabled={data.readOnly}
 					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 					onchange={(v) => handleTargetChange(v)}
@@ -342,14 +345,14 @@
 						{/if}
 					{/snippet}
 					{#snippet item(t: TargetItem)}
-						<span class="flex w-full items-center gap-1.5 overflow-hidden">
-							<span class="truncate">{t.name}</span>
-							{#if t.kind === "device" && t.deviceType}
-								<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0 ml-auto" />
-							{:else}
-								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">{t.kind}</Badge>
-							{/if}
-						</span>
+						{#if t.kind === "device" && t.deviceType}
+							<DeviceOptionRow name={t.name} deviceType={t.deviceType} roomLabel={t.roomLabel} />
+						{:else}
+							<span class="flex w-full items-center gap-1.5 overflow-hidden">
+								<span class="truncate">{t.name}</span>
+								<Badge variant="secondary" class="ml-auto shrink-0 py-0 text-[10px]">{t.kind}</Badge>
+							</span>
+						{/if}
 					{/snippet}
 				</HiveSelectAutocomplete>
 
@@ -361,15 +364,17 @@
 						getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
 						placeholder="Select property"
 						size="sm"
+						separatedItems
 						disabled={data.readOnly}
 						class={validationError?.field === "property" ? `text-xs ${INVALID_CLS}` : "text-xs"}
 						onchange={(v) => handlePropertyChange(v)}
 					>
 						{#snippet item(c: Capability)}
-							<span class="flex items-center gap-1.5">
-								<span>{sentenceCase(capabilityToExprProperty(c.name))}</span>
-								{#if c.unit}<span class="text-muted-foreground">({c.unit})</span>{/if}
-							</span>
+							<CapabilityOptionRow
+								type={capabilityToExprProperty(c.name)}
+								label={sentenceCase(capabilityToExprProperty(c.name))}
+								unit={c.unit}
+							/>
 						{/snippet}
 					</HiveSelectAutocomplete>
 				{/if}
@@ -473,9 +478,6 @@
 				/>
 			{/if}
 
-			<p class="truncate text-[10px] font-mono text-muted-foreground" title={generatedExpr}>
-				{generatedExpr}
-			</p>
 		{#if validationError && !data.readOnly}
 			<p class="text-[10px] text-destructive">{validationError.message}</p>
 		{/if}

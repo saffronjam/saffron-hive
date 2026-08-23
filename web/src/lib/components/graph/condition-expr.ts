@@ -1,4 +1,4 @@
-export type ConditionMode = "time_window" | "weekday" | "device_state" | "custom";
+export type ConditionMode = "" | "time_window" | "weekday" | "device_state" | "custom";
 export type ConditionTargetType = "device" | "group" | "room";
 
 export interface ConditionConfig {
@@ -83,10 +83,10 @@ export function generateConditionExpr(config: ConditionConfig): string {
 }
 
 export function defaultConditionConfig(): ConditionConfig {
-  return { mode: "time_window" };
+  return { mode: "" };
 }
 
-export type ConditionField = "target" | "property" | "value" | "customExpr";
+export type ConditionField = "mode" | "target" | "property" | "value" | "customExpr";
 
 export interface ConditionValidationError {
   field: ConditionField;
@@ -94,6 +94,7 @@ export interface ConditionValidationError {
 }
 
 export function validateConditionConfig(config: ConditionConfig): ConditionValidationError | null {
+  if (!config.mode) return { field: "mode", message: "Pick a condition" };
   switch (config.mode) {
     case "time_window":
     case "weekday":
@@ -116,6 +117,7 @@ export function validateConditionConfig(config: ConditionConfig): ConditionValid
 }
 
 export function serializeConditionConfig(config: ConditionConfig): string {
+  if (config.mode === "") return JSON.stringify({ mode: "" });
   return JSON.stringify({ expr: generateConditionExpr(config) });
 }
 
@@ -125,7 +127,7 @@ export function serializeConditionConfig(config: ConditionConfig): string {
 // disambiguate the target as device, group, or room from the live lookups.
 export function normalizeConditionConfig(raw: Record<string, unknown>): ConditionConfig {
   // If the raw object already has a mode field (e.g. cached TS shape), coerce.
-  if (raw.mode && typeof raw.mode === "string") {
+  if ("mode" in raw && typeof raw.mode === "string") {
     return raw as unknown as ConditionConfig;
   }
   const expr = (raw.expr as string) ?? "";
