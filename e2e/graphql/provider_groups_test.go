@@ -211,7 +211,7 @@ multicastDone:
 		t.Fatalf("scene multicast messages = %+v", sceneMessages)
 	}
 
-	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
 		"target_type": "group",

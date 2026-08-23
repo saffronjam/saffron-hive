@@ -733,8 +733,8 @@ func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 	}
 }
 
-// TestAutomations_ToggleAction_Device drives a manual-trigger automation whose
-// action toggles a device's on state, then asserts the published command has
+// TestAutomations_ToggleAction_Device directly fires an automation whose action
+// toggles a device's on state, then asserts the published command has
 // on=false (since the live device fixture starts on).
 func TestAutomations_ToggleAction_Device(t *testing.T) {
 	deviceID, err := queryDeviceIDByName("Kitchen Light")
@@ -748,7 +748,7 @@ func TestAutomations_ToggleAction_Device(t *testing.T) {
 	}
 	time.Sleep(150 * time.Millisecond)
 
-	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "toggle_device_state",
 		"target_type": "device",
@@ -815,8 +815,8 @@ func TestAutomations_ToggleAction_Device(t *testing.T) {
 }
 
 // TestAutomations_CycleScenes_AdvancesAndWraps creates two scenes targeting
-// different devices and a manual-trigger automation with a cycle_scenes
-// action over both. Firing twice should activate scene A then scene B; a
+// different devices and an automation with a cycle_scenes action over both.
+// Firing twice should activate scene A then scene B; a
 // third fire wraps back to scene A.
 func TestAutomations_CycleScenes_AdvancesAndWraps(t *testing.T) {
 	deviceA, err := queryDeviceIDByName("Kitchen Light")
@@ -860,7 +860,7 @@ func TestAutomations_CycleScenes_AdvancesAndWraps(t *testing.T) {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneB})
 	})
 
-	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
 	cyclePayload, _ := json.Marshal(map[string]any{"scenes": []string{sceneA, sceneB}})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "cycle_scenes",
@@ -956,7 +956,7 @@ func TestAutomations_CycleScenes_RejectsSingleScene(t *testing.T) {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sc.CreateScene.ID})
 	})
 
-	triggerConfig, _ := json.Marshal(map[string]string{"kind": "manual"})
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
 	cyclePayload, _ := json.Marshal(map[string]any{"scenes": []string{sc.CreateScene.ID}})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "cycle_scenes",
