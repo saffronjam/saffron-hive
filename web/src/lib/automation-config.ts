@@ -86,6 +86,31 @@ export function referencedSceneIds(node: AutomationNodeLike): string[] {
   return [];
 }
 
+/** Webhook endpoint IDs referenced by webhook trigger nodes. */
+export function referencedWebhookEndpointIds(node: AutomationNodeLike): string[] {
+  if (node.type !== "trigger") return [];
+  const raw = safeParseJSON(node.config);
+  if (!isRecord(raw) || raw.event_type !== "webhook.received") return [];
+  const id = raw.endpoint_id;
+  return typeof id === "string" && id !== "" ? [id] : [];
+}
+
+/** Build a distinct automation list for every referenced webhook endpoint. */
+export function automationsByWebhookEndpoint<A extends { id: string; nodes: AutomationNodeLike[] }>(
+  automations: A[],
+): Map<string, A[]> {
+  const result = new Map<string, A[]>();
+  for (const automation of automations) {
+    const endpointIds = new Set(automation.nodes.flatMap(referencedWebhookEndpointIds));
+    for (const endpointId of endpointIds) {
+      const references = result.get(endpointId);
+      if (references) references.push(automation);
+      else result.set(endpointId, [automation]);
+    }
+  }
+  return result;
+}
+
 /**
  * Effect IDs referenced by an action node. Only `run_effect` actions with a
  * stored timeline/native effect (`effect_id`) contribute; native-effect
