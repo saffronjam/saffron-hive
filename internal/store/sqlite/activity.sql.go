@@ -16,8 +16,9 @@ INSERT INTO activity_events (
     type, timestamp, message, payload_json,
     device_id, device_name, device_type, room_id, room_name,
     scene_id, scene_name,
-    automation_id, automation_name
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    automation_id, automation_name,
+    webhook_id, webhook_name
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id
 `
 
@@ -35,6 +36,8 @@ type InsertActivityEventParams struct {
 	SceneName      *string
 	AutomationID   *string
 	AutomationName *string
+	WebhookID      *string
+	WebhookName    *string
 }
 
 // Activity event persistence. QueryActivityEvents is the only query in the
@@ -65,6 +68,8 @@ func (q *Queries) InsertActivityEvent(ctx context.Context, arg InsertActivityEve
 		arg.SceneName,
 		arg.AutomationID,
 		arg.AutomationName,
+		arg.WebhookID,
+		arg.WebhookName,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -87,7 +92,8 @@ const queryActivityEvents = `-- name: QueryActivityEvents :many
 SELECT id, type, timestamp, message, payload_json,
        device_id, device_name, device_type, room_id, room_name,
        scene_id, scene_name,
-       automation_id, automation_name
+       automation_id, automation_name,
+       webhook_id, webhook_name
 FROM activity_events
 WHERE
     (json_array_length(CAST(?1 AS TEXT)) = 0
@@ -143,6 +149,8 @@ func (q *Queries) QueryActivityEvents(ctx context.Context, arg QueryActivityEven
 			&i.SceneName,
 			&i.AutomationID,
 			&i.AutomationName,
+			&i.WebhookID,
+			&i.WebhookName,
 		); err != nil {
 			return nil, err
 		}

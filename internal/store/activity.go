@@ -33,6 +33,8 @@ func (s *DB) InsertActivityEvent(ctx context.Context, params InsertActivityEvent
 		SceneName:      params.SceneName,
 		AutomationID:   params.AutomationID,
 		AutomationName: params.AutomationName,
+		WebhookID:      params.WebhookID,
+		WebhookName:    params.WebhookName,
 	})
 	if err != nil {
 		return ActivityEvent{}, fmt.Errorf("insert activity event: %w", err)
@@ -52,6 +54,8 @@ func (s *DB) InsertActivityEvent(ctx context.Context, params InsertActivityEvent
 		SceneName:      params.SceneName,
 		AutomationID:   params.AutomationID,
 		AutomationName: params.AutomationName,
+		WebhookID:      params.WebhookID,
+		WebhookName:    params.WebhookName,
 	}, nil
 }
 
@@ -100,6 +104,8 @@ func (s *DB) QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]Ac
 			SceneName:      r.SceneName,
 			AutomationID:   r.AutomationID,
 			AutomationName: r.AutomationName,
+			WebhookID:      r.WebhookID,
+			WebhookName:    r.WebhookName,
 		})
 	}
 	return events, nil

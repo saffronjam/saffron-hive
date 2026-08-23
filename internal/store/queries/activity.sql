@@ -17,15 +17,17 @@ INSERT INTO activity_events (
     type, timestamp, message, payload_json,
     device_id, device_name, device_type, room_id, room_name,
     scene_id, scene_name,
-    automation_id, automation_name
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    automation_id, automation_name,
+    webhook_id, webhook_name
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 -- name: QueryActivityEvents :many
 SELECT id, type, timestamp, message, payload_json,
        device_id, device_name, device_type, room_id, room_name,
        scene_id, scene_name,
-       automation_id, automation_name
+       automation_id, automation_name,
+       webhook_id, webhook_name
 FROM activity_events
 WHERE
     (json_array_length(CAST(sqlc.arg('types_json') AS TEXT)) = 0
