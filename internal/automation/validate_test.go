@@ -2,6 +2,9 @@ package automation
 
 import (
 	"testing"
+
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 func TestValidGraph(t *testing.T) {
@@ -559,5 +562,70 @@ func TestValidExpressionsAreAccepted(t *testing.T) {
 	result := ValidateGraph(g)
 	if !result.Valid() {
 		t.Fatalf("expected valid expressions to pass, got errors: %v", result.Errors)
+	}
+}
+
+func TestUnknownTriggerKindIsRejected(t *testing.T) {
+	g := AutomationGraph{
+		ID: "auto-1",
+		Nodes: []Node{
+			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{Kind: TriggerKind("button")}},
+		},
+	}
+
+	result := ValidateGraph(g)
+	if result.Valid() {
+		t.Fatal("expected unknown trigger kind to fail validation")
+	}
+}
+
+func TestIncomingWebhookTriggerValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		config TriggerConfig
+		valid  bool
+	}{
+		{
+			name: "valid",
+			config: TriggerConfig{
+				Kind:       TriggerEvent,
+				EventType:  string(eventbus.EventWebhookReceived),
+				FilterExpr: "true",
+				EndpointID: "hook-1",
+				WebhookFilters: []webhook.FilterRule{{
+					Source: webhook.FilterQuery, Path: "branch", Operator: webhook.FilterEquals,
+					ValueType: webhook.FilterString, Value: "main",
+				}},
+			},
+			valid: true,
+		},
+		{
+			name: "missing endpoint",
+			config: TriggerConfig{
+				Kind: TriggerEvent, EventType: string(eventbus.EventWebhookReceived), FilterExpr: "true",
+			},
+		},
+		{
+			name: "invalid filter",
+			config: TriggerConfig{
+				Kind: TriggerEvent, EventType: string(eventbus.EventWebhookReceived), FilterExpr: "true", EndpointID: "hook-1",
+				WebhookFilters: []webhook.FilterRule{{Source: webhook.FilterBody, Operator: webhook.FilterEquals}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			graph := AutomationGraph{
+				ID: "auto-webhook",
+				Nodes: []Node{
+					{ID: "trigger", Type: NodeTrigger, Config: tt.config},
+					{ID: "action", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on":true}`}},
+				},
+				Edges: []Edge{{FromNodeID: "trigger", ToNodeID: "action"}},
+			}
+			if got := ValidateGraph(graph).Valid(); got != tt.valid {
+				t.Fatalf("valid = %v, want %v", got, tt.valid)
+			}
+		})
 	}
 }

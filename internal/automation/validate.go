@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/robfig/cron/v3"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 // ValidationError represents a structural problem found during graph validation.
@@ -81,7 +83,8 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 				})
 			}
 			if tc, ok := n.Config.(TriggerConfig); ok {
-				if tc.Kind == TriggerSchedule {
+				switch tc.Kind {
+				case TriggerSchedule:
 					parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 					if _, err := parser.Parse(tc.CronExpr); err != nil {
 						result.Errors = append(result.Errors, ValidationError{
@@ -89,6 +92,12 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 							Message: fmt.Sprintf("invalid cron expression %q: %v", tc.CronExpr, err),
 						})
 					}
+				case "", TriggerEvent:
+				default:
+					result.Errors = append(result.Errors, ValidationError{
+						NodeID:  n.ID,
+						Message: fmt.Sprintf("unknown trigger kind %q", tc.Kind),
+					})
 				}
 				if tc.FilterExpr != "" {
 					if err := ValidateExpression(tc.FilterExpr); err != nil {
@@ -96,6 +105,14 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 							NodeID:  n.ID,
 							Message: fmt.Sprintf("invalid filter expression: %v", err),
 						})
+					}
+				}
+				if tc.EventType == string(eventbus.EventWebhookReceived) {
+					if tc.EndpointID == "" {
+						result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "incoming webhook trigger requires an endpoint"})
+					}
+					if err := webhook.ValidateFilters(tc.WebhookFilters); err != nil {
+						result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: fmt.Sprintf("invalid webhook filters: %v", err)})
 					}
 				}
 			}
