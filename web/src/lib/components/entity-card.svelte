@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
-	import type { Snippet, Component } from "svelte";
+	import { onDestroy, type Snippet, type Component } from "svelte";
 	import { brightnessDrag, type BrightnessDragOpts } from "$lib/actions/brightness-drag";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
@@ -164,6 +164,34 @@
 	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
 	const canEditIcon = $derived(iconEditable && !!oniconchange && !readOnly);
 	const displayName = $derived(groupDisplayName(entity));
+	let retainedTintColors = $state<string[] | null>(null);
+	let tintReleaseTimer: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		if (tintColors && tintColors.length > 0) {
+			if (tintReleaseTimer) clearTimeout(tintReleaseTimer);
+			tintReleaseTimer = null;
+			retainedTintColors = [...tintColors];
+			return;
+		}
+		if (brightnessFill != null && retainedTintColors) {
+			if (tintReleaseTimer) clearTimeout(tintReleaseTimer);
+			tintReleaseTimer = setTimeout(() => {
+				retainedTintColors = null;
+				tintReleaseTimer = null;
+			}, 320);
+			return;
+		}
+		retainedTintColors = null;
+	});
+
+	onDestroy(() => {
+		if (tintReleaseTimer) clearTimeout(tintReleaseTimer);
+	});
+
+	const renderedTintColors = $derived(
+		tintColors && tintColors.length > 0 ? tintColors : retainedTintColors,
+	);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!onclick) return;
@@ -174,7 +202,7 @@
 	}
 
 	const tintClass = $derived.by(() => {
-		const n = tintColors?.length ?? 0;
+		const n = renderedTintColors?.length ?? 0;
 		if (n === 1) return "tint-1";
 		if (n === 2) return "tint-2";
 		if (n >= 3) return "tint-3";
@@ -182,18 +210,15 @@
 	});
 
 	const fillClass = $derived.by(() => {
-		const n = tintColors?.length ?? 0;
+		const n = renderedTintColors?.length ?? 0;
 		if (n >= 3) return "tint-fill-horizontal-3";
 		if (n === 2) return "tint-fill-horizontal-2";
 		return "tint-fill-horizontal-1";
 	});
 
-	const hasTint = $derived(!!tintColors && tintColors.length > 0);
-	// The tint-N gradient only renders when the card is active. When the card
-	// is inactive the class is dropped entirely and bg-card shows through.
-	// We tried flattening via CSS vars but tint-1's stops mix with white/black
-	// before card, so var(--card) for the tint still leaves a light → dark
-	// banding visible. Dropping the class is the only way to get pure bg-card.
+	const hasTint = $derived(!!renderedTintColors && renderedTintColors.length > 0);
+	// The tint-N stops mix with white and black before mixing with the card
+	// surface, so an inactive card must drop the gradient to render as pure bg-card.
 	const showTint = $derived(hasTint && tintInactive !== true);
 	// Horizontal fill mode is opt-in (brightnessFill prop set) and stays
 	// applied even when tintInactive flips to true — that lets the fill
@@ -206,9 +231,9 @@
 	});
 	const tintStyle = $derived.by(() => {
 		if (!showTint && !useFill) return "";
-		const parts: string[] = [`--tint-color: ${tintColors![0]}`];
-		if (tintColors![1]) parts.push(`--tint-color-2: ${tintColors![1]}`);
-		if (tintColors![2]) parts.push(`--tint-color-3: ${tintColors![2]}`);
+		const parts: string[] = [`--tint-color: ${renderedTintColors![0]}`];
+		if (renderedTintColors![1]) parts.push(`--tint-color-2: ${renderedTintColors![1]}`);
+		if (renderedTintColors![2]) parts.push(`--tint-color-3: ${renderedTintColors![2]}`);
 		parts.push(`--tint-strength: ${tintStrength}`);
 		if (useFill) parts.push(`--brightness-fill: ${fillPct}%`);
 		return parts.join("; ");
@@ -227,12 +252,12 @@
 	// tinted state matches the card's visual language. tint-1 goes light → mid
 	// → dark of the single colour; tint-2 / tint-3 span the 2–3 hue palette.
 	const iconGradient = $derived.by(() => {
-		if (!tintColors || tintColors.length === 0) return "";
-		if (tintColors.length === 1) {
-			const c = tintColors[0];
+		if (!renderedTintColors || renderedTintColors.length === 0) return "";
+		if (renderedTintColors.length === 1) {
+			const c = renderedTintColors[0];
 			return `linear-gradient(135deg, color-mix(in srgb, color-mix(in srgb, ${c} 70%, white) 50%, var(--card)), color-mix(in srgb, ${c} 50%, var(--card)), color-mix(in srgb, color-mix(in srgb, ${c} 65%, black) 50%, var(--card)))`;
 		}
-		const stops = tintColors
+		const stops = renderedTintColors
 			.slice(0, 3)
 			.map((c) => `color-mix(in srgb, ${c} 50%, var(--card))`)
 			.join(", ");
@@ -260,7 +285,7 @@
 	<div class="relative flex items-center justify-between">
 		<div class="flex flex-1 min-w-0 items-center gap-3">
 			{#if iconArea}
-				{@render iconArea({ tintColors, tintInactive, iconGradient, iconTextClass, hasTint })}
+				{@render iconArea({ tintColors: renderedTintColors, tintInactive, iconGradient, iconTextClass, hasTint })}
 			{:else if !canEditIcon}
 				<div class="relative flex {iconBlockClass} shrink-0 items-center justify-center rounded-md bg-muted/50">
 					{#if hasTint}
