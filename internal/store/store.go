@@ -259,6 +259,77 @@ type AutomationGraph struct {
 	NodeStates map[string]map[string]string
 }
 
+// WebhookEndpoint is an externally callable event source. SecretHash is kept
+// out of this domain type so authenticated read paths cannot expose it.
+type WebhookEndpoint struct {
+	ID                string
+	Name              string
+	Enabled           bool
+	RateLimitCount    int
+	RateLimitWindowMs int
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	CreatedBy         *UserRef
+	LastDeliveryAt    *time.Time
+}
+
+// WebhookEndpointAuth is the private endpoint shape used to authenticate an
+// incoming request by its secret hash.
+type WebhookEndpointAuth struct {
+	ID                string
+	Name              string
+	Enabled           bool
+	SecretHash        string
+	RateLimitCount    int
+	RateLimitWindowMs int
+}
+
+// CreateWebhookEndpointParams holds persisted endpoint fields.
+type CreateWebhookEndpointParams struct {
+	ID                string
+	Name              string
+	Enabled           bool
+	SecretHash        string
+	RateLimitCount    int
+	RateLimitWindowMs int
+	CreatedBy         *string
+}
+
+// UpdateWebhookEndpointParams replaces the editable endpoint fields.
+type UpdateWebhookEndpointParams struct {
+	ID                string
+	Name              string
+	Enabled           bool
+	RateLimitCount    int
+	RateLimitWindowMs int
+}
+
+// WebhookDelivery is sanitized request metadata retained for diagnostics.
+type WebhookDelivery struct {
+	ID              string
+	EndpointID      string
+	ReceivedAt      time.Time
+	Outcome         string
+	HTTPStatus      int
+	ClientIP        string
+	UserAgent       string
+	ContentType     string
+	BodySize        int64
+	DurationMs      int64
+	RequestID       *string
+	QueryKeysJSON   string
+	HeaderNamesJSON string
+}
+
+// InsertWebhookDeliveryParams holds sanitized delivery metadata.
+type InsertWebhookDeliveryParams = WebhookDelivery
+
+// WebhookAutomationReference identifies an automation using an endpoint.
+type WebhookAutomationReference struct {
+	ID   string
+	Name string
+}
+
 // CreateGroupParams holds the parameters for creating a new group.
 type CreateGroupParams struct {
 	ID        string
@@ -529,6 +600,9 @@ type ActivityEvent struct {
 
 	AutomationID   *string
 	AutomationName *string
+
+	WebhookID   *string
+	WebhookName *string
 }
 
 // InsertActivityEventParams holds the parameters for inserting an activity event row.
@@ -549,6 +623,9 @@ type InsertActivityEventParams struct {
 
 	AutomationID   *string
 	AutomationName *string
+
+	WebhookID   *string
+	WebhookName *string
 }
 
 // ActivityQuery filters activity events. Zero values leave a filter unset.
