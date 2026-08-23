@@ -60,12 +60,14 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
 	import { deviceStore, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
+	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { holdDrag } from "$lib/actions/hold-drag";
 	import {
@@ -143,10 +145,6 @@
 		updateAutomation: AutomationData;
 	}
 
-	interface DeleteAutomationResult {
-		deleteAutomation: boolean;
-	}
-
 	interface DevicesQueryResult {
 		devices: Device[];
 	}
@@ -158,6 +156,7 @@
 	interface RoomData {
 		id: string;
 		name: string;
+		members: { memberType: string; memberId: string }[];
 		resolvedDevices: { id: string }[];
 	}
 
@@ -194,12 +193,6 @@
 					toNodeId
 				}
 			}
-		}
-	`);
-
-	const DELETE_AUTOMATION = graphql(`
-		mutation DeleteAutomation($id: ID!) {
-			deleteAutomation(id: $id)
 		}
 	`);
 
@@ -258,7 +251,7 @@
 		}
 	`);
 
-	const automationId = $derived(page.params.id);
+	const automationId = $derived(page.params.id ?? "");
 	const isMobile = new IsMobile();
 
 	const client = getContextClient();
@@ -675,7 +668,7 @@
 			}
 			if (nodeType === "action") {
 				return {
-					actionType: (raw.action_type as string) ?? (raw.actionType as string) ?? "set_device_state",
+					actionType: (raw.action_type as string) ?? (raw.actionType as string) ?? "",
 					targetType: (raw.target_type as string) ?? (raw.targetType as string) ?? "",
 					targetId: (raw.target_id as string) ?? (raw.targetId as string) ?? "",
 					targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
@@ -694,7 +687,7 @@
 	}
 
 	function defaultActionConfig(): ActionConfig {
-		return { actionType: "set_device_state", targetType: "", targetId: "", targetName: "", payload: "" };
+		return { actionType: "", targetType: "", targetId: "", targetName: "", payload: "" };
 	}
 
 	function deleteNode(nodeId: string) {
@@ -735,6 +728,7 @@
 			return {
 				...base,
 				devices,
+				rooms,
 				automationEnabled,
 			};
 		}
@@ -1468,7 +1462,7 @@
 			const data = n.data as Record<string, unknown>;
 			if (n.type === "trigger") {
 				const cfg = enrichTriggerConfigWithDevice(data.config as TriggerConfig);
-				return { ...n, data: { ...data, devices: deviceList, config: cfg } };
+				return { ...n, data: { ...data, devices: deviceList, rooms: roomList, config: cfg } };
 			}
 			if (n.type === "condition") {
 				const cfg = enrichConditionConfigWithTarget(data.config as ConditionConfig);
@@ -1663,6 +1657,17 @@
 
 		if (result.data) {
 			const auto = result.data.updateAutomation;
+			const cached = automationsStore.byId.get(auto.id);
+			automationsStore.upsert({
+				id: auto.id,
+				name: auto.name,
+				icon: auto.icon,
+				enabled: auto.enabled,
+				lastFiredAt: cached?.lastFiredAt ?? null,
+				nodes: auto.nodes.map(({ id, type, config }) => ({ id, type, config })),
+				edges: auto.edges,
+				createdBy: cached?.createdBy ?? null,
+			});
 			savedAutomationEnabled = auto.enabled;
 			automationCompilable = auto.compilable;
 			const oldIds = flowNodes.map((n) => n.id);
@@ -1687,17 +1692,15 @@
 		deleteLoading = true;
 		errors.clear();
 
-		const result = await client
-			.mutation<DeleteAutomationResult>(DELETE_AUTOMATION, { id: automationId })
-			.toPromise();
-
-		deleteLoading = false;
-
-		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+		try {
+			await automationsStore.delete(client, automationId);
+		} catch (error) {
+			deleteLoading = false;
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not delete the automation."));
 			return;
 		}
 
+		deleteLoading = false;
 		goto("/automations");
 	}
 
