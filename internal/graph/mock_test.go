@@ -602,6 +602,30 @@ func (m *mockStore) DeleteAutomationNodeStateByAutomation(_ context.Context, _ s
 	return nil
 }
 
+func (m *mockStore) GetWebhookEndpoint(_ context.Context, id string) (store.WebhookEndpoint, error) {
+	return store.WebhookEndpoint{}, fmt.Errorf("webhook endpoint %q not found", id)
+}
+
+func (m *mockStore) ListWebhookEndpoints(_ context.Context) ([]store.WebhookEndpoint, error) {
+	return nil, nil
+}
+
+func (m *mockStore) UpdateWebhookEndpoint(_ context.Context, _ store.UpdateWebhookEndpointParams) (store.WebhookEndpoint, error) {
+	return store.WebhookEndpoint{}, nil
+}
+
+func (m *mockStore) BatchDeleteWebhookEndpoints(_ context.Context, _ []string) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockStore) ListWebhookEndpointAutomationReferences(_ context.Context, _ string) ([]store.WebhookAutomationReference, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ListWebhookDeliveries(_ context.Context, _ string, _ *time.Time, _ int) ([]store.WebhookDelivery, error) {
+	return nil, nil
+}
+
 func (m *mockStore) ReplaceAutomationGraph(_ context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

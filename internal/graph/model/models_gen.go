@@ -257,6 +257,13 @@ type CreateUserInput struct {
 	Password string `json:"password"`
 }
 
+type CreateWebhookEndpointInput struct {
+	Name              string                   `json:"name"`
+	Enabled           graphql.Omittable[*bool] `json:"enabled,omitempty"`
+	RateLimitCount    graphql.Omittable[*int]  `json:"rateLimitCount,omitempty"`
+	RateLimitWindowMs graphql.Omittable[*int]  `json:"rateLimitWindowMs,omitempty"`
+}
+
 type Device struct {
 	ID string `json:"id"`
 	// The user's name override. Null means unset, in which case the device shows the
@@ -267,11 +274,11 @@ type Device struct {
 	// the integration has none.
 	FriendlyName string  `json:"friendlyName"`
 	Icon         *string `json:"icon,omitempty"`
-	// The colour the floor plan gives this device when it reports none of its own,
-	// as `#rrggbb`. Null leaves it to the map's default warm light.
+	// The visual colour used when this device reports none of its own, as `#rrggbb`.
+	// Null uses the default warm-light colour.
 	DisplayColor *string `json:"displayColor,omitempty"`
-	// How bright this device shows on the floor plan when it reports no brightness
-	// of its own, on the 0-254 scale device state uses. Null means full strength.
+	// The visual brightness used when this device reports no brightness of its own,
+	// on the 0-254 scale device state uses. Null means full strength.
 	DisplayBrightness *int          `json:"displayBrightness,omitempty"`
 	Source            string        `json:"source"`
 	Type              string        `json:"type"`
@@ -927,11 +934,11 @@ type UpdateDeviceInput struct {
 	// integration's name. Omit the field to leave it alone.
 	Name graphql.Omittable[*string] `json:"name,omitempty"`
 	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
-	// Sets the floor-plan display colour (`#rrggbb`). Pass null to clear it and
-	// fall back to the map's default. Omit the field to leave it alone.
+	// Sets the visual fallback colour (`#rrggbb`). Pass null to clear it and use
+	// the default warm-light colour. Omit the field to leave it alone.
 	DisplayColor graphql.Omittable[*string] `json:"displayColor,omitempty"`
-	// Sets the floor-plan display brightness (0-254). Pass null to clear it and
-	// show the device at full strength. Omit the field to leave it alone.
+	// Sets the visual fallback brightness (0-254). Pass null to clear it and show
+	// the device at full strength. Omit the field to leave it alone.
 	DisplayBrightness graphql.Omittable[*int]                    `json:"displayBrightness,omitempty"`
 	Roles             graphql.Omittable[*UpdateDeviceRolesInput] `json:"roles,omitempty"`
 	Disabled          graphql.Omittable[*bool]                   `json:"disabled,omitempty"`
@@ -985,6 +992,13 @@ type UpdateSceneInput struct {
 	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
 }
 
+type UpdateWebhookEndpointInput struct {
+	Name              string `json:"name"`
+	Enabled           bool   `json:"enabled"`
+	RateLimitCount    int    `json:"rateLimitCount"`
+	RateLimitWindowMs int    `json:"rateLimitWindowMs"`
+}
+
 type User struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
@@ -1015,6 +1029,39 @@ type User struct {
 	// flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
 	// on attribution references.
 	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
+}
+
+type WebhookDelivery struct {
+	ID          string    `json:"id"`
+	EndpointID  string    `json:"endpointId"`
+	ReceivedAt  time.Time `json:"receivedAt"`
+	Outcome     string    `json:"outcome"`
+	HTTPStatus  int       `json:"httpStatus"`
+	ClientIP    string    `json:"clientIp"`
+	UserAgent   string    `json:"userAgent"`
+	ContentType string    `json:"contentType"`
+	BodySize    int       `json:"bodySize"`
+	DurationMs  int       `json:"durationMs"`
+	RequestID   *string   `json:"requestId,omitempty"`
+	QueryKeys   []string  `json:"queryKeys"`
+	HeaderNames []string  `json:"headerNames"`
+}
+
+type WebhookEndpoint struct {
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	Enabled           bool       `json:"enabled"`
+	RateLimitCount    int        `json:"rateLimitCount"`
+	RateLimitWindowMs int        `json:"rateLimitWindowMs"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
+	CreatedBy         *User      `json:"createdBy,omitempty"`
+	LastDeliveryAt    *time.Time `json:"lastDeliveryAt,omitempty"`
+}
+
+type WebhookSecretResult struct {
+	Endpoint   *WebhookEndpoint `json:"endpoint"`
+	SecretPath string           `json:"secretPath"`
 }
 
 type Zigbee2MqttBinding struct {

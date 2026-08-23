@@ -31,6 +31,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 // Zigbee2Mqtt is the resolver for the zigbee2Mqtt field.
@@ -534,12 +535,78 @@ func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enab
 // FireAutomationTrigger is the resolver for the fireAutomationTrigger field.
 func (r *mutationResolver) FireAutomationTrigger(ctx context.Context, automationID string, nodeID string) (bool, error) {
 	if r.AutomationTriggerer == nil {
-		return false, fmt.Errorf("manual triggers are not configured")
+		return false, fmt.Errorf("automation triggering is not configured")
 	}
 	if err := r.AutomationTriggerer.FireTrigger(ctx, automationID, nodeID); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// CreateWebhookEndpoint is the resolver for the createWebhookEndpoint field.
+func (r *mutationResolver) CreateWebhookEndpoint(ctx context.Context, input model.CreateWebhookEndpointInput) (*model.WebhookSecretResult, error) {
+	enabled := true
+	if value, ok := input.Enabled.ValueOK(); ok && value != nil {
+		enabled = *value
+	}
+	rateCount := webhook.DefaultRateCount
+	if value, ok := input.RateLimitCount.ValueOK(); ok && value != nil {
+		rateCount = *value
+	}
+	rateWindowMs := webhook.DefaultRateMs
+	if value, ok := input.RateLimitWindowMs.ValueOK(); ok && value != nil {
+		rateWindowMs = *value
+	}
+	result, err := r.Webhooks.CreateEndpoint(ctx, store.CreateWebhookEndpointParams{
+		Name: input.Name, Enabled: enabled,
+		RateLimitCount: rateCount, RateLimitWindowMs: rateWindowMs,
+		CreatedBy: currentUserID(ctx),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &model.WebhookSecretResult{Endpoint: mapWebhookEndpoint(result.Endpoint), SecretPath: result.SecretPath}, nil
+}
+
+// UpdateWebhookEndpoint is the resolver for the updateWebhookEndpoint field.
+func (r *mutationResolver) UpdateWebhookEndpoint(ctx context.Context, id string, input model.UpdateWebhookEndpointInput) (*model.WebhookEndpoint, error) {
+	if err := webhook.ValidateEndpointFields(input.Name, input.RateLimitCount, input.RateLimitWindowMs); err != nil {
+		return nil, err
+	}
+	row, err := r.Store.UpdateWebhookEndpoint(ctx, store.UpdateWebhookEndpointParams{
+		ID: id, Name: input.Name, Enabled: input.Enabled,
+		RateLimitCount: input.RateLimitCount, RateLimitWindowMs: input.RateLimitWindowMs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mapWebhookEndpoint(row), nil
+}
+
+// RotateWebhookEndpointSecret is the resolver for the rotateWebhookEndpointSecret field.
+func (r *mutationResolver) RotateWebhookEndpointSecret(ctx context.Context, id string) (*model.WebhookSecretResult, error) {
+	result, err := r.Webhooks.RotateEndpointSecret(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &model.WebhookSecretResult{Endpoint: mapWebhookEndpoint(result.Endpoint), SecretPath: result.SecretPath}, nil
+}
+
+// DeleteWebhookEndpoint is the resolver for the deleteWebhookEndpoint field.
+func (r *mutationResolver) DeleteWebhookEndpoint(ctx context.Context, id string) (bool, error) {
+	if err := r.Webhooks.DeleteEndpoint(ctx, id); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// BatchDeleteWebhookEndpoints is the resolver for the batchDeleteWebhookEndpoints field.
+func (r *mutationResolver) BatchDeleteWebhookEndpoints(ctx context.Context, ids []string) (int, error) {
+	n, err := r.Store.BatchDeleteWebhookEndpoints(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
 }
 
 // CreateGroup is the resolver for the createGroup field.
@@ -1841,6 +1908,45 @@ func (r *queryResolver) Automation(ctx context.Context, id string) (*model.Autom
 	return mapAutomationGraph(graph), nil
 }
 
+// WebhookEndpoints is the resolver for the webhookEndpoints field.
+func (r *queryResolver) WebhookEndpoints(ctx context.Context) ([]*model.WebhookEndpoint, error) {
+	rows, err := r.Store.ListWebhookEndpoints(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.WebhookEndpoint, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, mapWebhookEndpoint(row))
+	}
+	return result, nil
+}
+
+// WebhookEndpoint is the resolver for the webhookEndpoint field.
+func (r *queryResolver) WebhookEndpoint(ctx context.Context, id string) (*model.WebhookEndpoint, error) {
+	row, err := r.Store.GetWebhookEndpoint(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return mapWebhookEndpoint(row), nil
+}
+
+// WebhookDeliveries is the resolver for the webhookDeliveries field.
+func (r *queryResolver) WebhookDeliveries(ctx context.Context, endpointID string, before *time.Time, limit *int) ([]*model.WebhookDelivery, error) {
+	pageSize := 100
+	if limit != nil {
+		pageSize = min(max(*limit, 1), 250)
+	}
+	rows, err := r.Store.ListWebhookDeliveries(ctx, endpointID, before, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.WebhookDelivery, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, mapWebhookDelivery(row))
+	}
+	return result, nil
+}
+
 // Groups is the resolver for the groups field.
 func (r *queryResolver) Groups(ctx context.Context) ([]*model.Group, error) {
 	groups, err := r.Store.ListGroups(ctx)
@@ -3030,6 +3136,32 @@ func (r *subscriptionResolver) MaintenanceChanged(ctx context.Context) (<-chan *
 				select {
 				case out <- &changed:
 				default:
+				}
+			}
+		}
+	}()
+	return out, nil
+}
+
+// WebhookDeliveryRecorded is the resolver for the webhookDeliveryRecorded field.
+func (r *subscriptionResolver) WebhookDeliveryRecorded(ctx context.Context, endpointID *string) (<-chan *model.WebhookDelivery, error) {
+	ch, unsubscribe := r.WebhookBuffer.Subscribe()
+	out := make(chan *model.WebhookDelivery, 16)
+	go func() {
+		defer close(out)
+		defer unsubscribe()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case delivery := <-ch:
+				if endpointID != nil && delivery.EndpointID != *endpointID {
+					continue
+				}
+				select {
+				case out <- mapWebhookDelivery(delivery):
+				case <-ctx.Done():
+					return
 				}
 			}
 		}

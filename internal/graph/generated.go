@@ -403,6 +403,7 @@ type ComplexityRoot struct {
 		BatchDeleteRooms            func(childComplexity int, ids []string) int
 		BatchDeleteScenes           func(childComplexity int, ids []string) int
 		BatchDeleteUsers            func(childComplexity int, ids []string) int
+		BatchDeleteWebhookEndpoints func(childComplexity int, ids []string) int
 		ChangePassword              func(childComplexity int, input model.ChangePasswordInput) int
 		CompleteFirstPasswordChange func(childComplexity int, newPassword string) int
 		CompleteMaintenanceTasks    func(childComplexity int, ids []string) int
@@ -413,6 +414,7 @@ type ComplexityRoot struct {
 		CreateRoom                  func(childComplexity int, input model.CreateRoomInput) int
 		CreateScene                 func(childComplexity int, input model.CreateSceneInput) int
 		CreateUser                  func(childComplexity int, input model.CreateUserInput) int
+		CreateWebhookEndpoint       func(childComplexity int, input model.CreateWebhookEndpointInput) int
 		DeleteAlarm                 func(childComplexity int, alarmID string) int
 		DeleteAutomation            func(childComplexity int, id string) int
 		DeleteEffect                func(childComplexity int, id string) int
@@ -421,6 +423,7 @@ type ComplexityRoot struct {
 		DeleteRoom                  func(childComplexity int, id string) int
 		DeleteScene                 func(childComplexity int, id string) int
 		DeleteUser                  func(childComplexity int, id string) int
+		DeleteWebhookEndpoint       func(childComplexity int, id string) int
 		FireAutomationTrigger       func(childComplexity int, automationID string, nodeID string) int
 		ForceLogoutAllSessions      func(childComplexity int, userID *string) int
 		Login                       func(childComplexity int, input model.LoginInput) int
@@ -429,6 +432,7 @@ type ComplexityRoot struct {
 		RemoveGroupMember           func(childComplexity int, id string) int
 		RemoveRoomMember            func(childComplexity int, id string) int
 		ResetUserPassword           func(childComplexity int, id string, newPassword string) int
+		RotateWebhookEndpointSecret func(childComplexity int, id string) int
 		RunEffect                   func(childComplexity int, effectID string, targetType string, targetID string) int
 		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
 		ScanZigbee2MqttNetwork      func(childComplexity int) int
@@ -450,6 +454,7 @@ type ComplexityRoot struct {
 		UpdateScene                 func(childComplexity int, id string, input model.UpdateSceneInput) int
 		UpdateSetting               func(childComplexity int, key string, value string) int
 		UpdateTuyaConfig            func(childComplexity int, input model.TuyaConfigInput) int
+		UpdateWebhookEndpoint       func(childComplexity int, id string, input model.UpdateWebhookEndpointInput) int
 		UpdateZigbee2MqttConfig     func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 	}
 
@@ -509,6 +514,9 @@ type ComplexityRoot struct {
 		StateHistoryFields     func(childComplexity int) int
 		TuyaConfig             func(childComplexity int) int
 		Users                  func(childComplexity int) int
+		WebhookDeliveries      func(childComplexity int, endpointID string, before *time.Time, limit *int) int
+		WebhookEndpoint        func(childComplexity int, id string) int
+		WebhookEndpoints       func(childComplexity int) int
 		Zigbee2MqttConfig      func(childComplexity int) int
 	}
 
@@ -599,6 +607,7 @@ type ComplexityRoot struct {
 		MaintenanceChanged         func(childComplexity int) int
 		NetworkTopologyUpdated     func(childComplexity int, provider *string) int
 		SceneActiveChanged         func(childComplexity int) int
+		WebhookDeliveryRecorded    func(childComplexity int, endpointID *string) int
 	}
 
 	TargetClause struct {
@@ -641,6 +650,39 @@ type ComplexityRoot struct {
 		Theme              func(childComplexity int) int
 		TimeFormat         func(childComplexity int) int
 		Username           func(childComplexity int) int
+	}
+
+	WebhookDelivery struct {
+		BodySize    func(childComplexity int) int
+		ClientIP    func(childComplexity int) int
+		ContentType func(childComplexity int) int
+		DurationMs  func(childComplexity int) int
+		EndpointID  func(childComplexity int) int
+		HTTPStatus  func(childComplexity int) int
+		HeaderNames func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Outcome     func(childComplexity int) int
+		QueryKeys   func(childComplexity int) int
+		ReceivedAt  func(childComplexity int) int
+		RequestID   func(childComplexity int) int
+		UserAgent   func(childComplexity int) int
+	}
+
+	WebhookEndpoint struct {
+		CreatedAt         func(childComplexity int) int
+		CreatedBy         func(childComplexity int) int
+		Enabled           func(childComplexity int) int
+		ID                func(childComplexity int) int
+		LastDeliveryAt    func(childComplexity int) int
+		Name              func(childComplexity int) int
+		RateLimitCount    func(childComplexity int) int
+		RateLimitWindowMs func(childComplexity int) int
+		UpdatedAt         func(childComplexity int) int
+	}
+
+	WebhookSecretResult struct {
+		Endpoint   func(childComplexity int) int
+		SecretPath func(childComplexity int) int
 	}
 
 	Zigbee2MqttBinding struct {
@@ -747,6 +789,11 @@ type MutationResolver interface {
 	DeleteAutomation(ctx context.Context, id string) (bool, error)
 	ToggleAutomation(ctx context.Context, id string, enabled bool) (*model.AutomationGraph, error)
 	FireAutomationTrigger(ctx context.Context, automationID string, nodeID string) (bool, error)
+	CreateWebhookEndpoint(ctx context.Context, input model.CreateWebhookEndpointInput) (*model.WebhookSecretResult, error)
+	UpdateWebhookEndpoint(ctx context.Context, id string, input model.UpdateWebhookEndpointInput) (*model.WebhookEndpoint, error)
+	RotateWebhookEndpointSecret(ctx context.Context, id string) (*model.WebhookSecretResult, error)
+	DeleteWebhookEndpoint(ctx context.Context, id string) (bool, error)
+	BatchDeleteWebhookEndpoints(ctx context.Context, ids []string) (int, error)
 	CreateGroup(ctx context.Context, input model.CreateGroupInput) (*model.Group, error)
 	UpdateGroup(ctx context.Context, id string, input model.UpdateGroupInput) (*model.Group, error)
 	DeleteGroup(ctx context.Context, id string) (bool, error)
@@ -802,6 +849,9 @@ type QueryResolver interface {
 	Scene(ctx context.Context, id string) (*model.Scene, error)
 	Automations(ctx context.Context) ([]*model.AutomationGraph, error)
 	Automation(ctx context.Context, id string) (*model.AutomationGraph, error)
+	WebhookEndpoints(ctx context.Context) ([]*model.WebhookEndpoint, error)
+	WebhookEndpoint(ctx context.Context, id string) (*model.WebhookEndpoint, error)
+	WebhookDeliveries(ctx context.Context, endpointID string, before *time.Time, limit *int) ([]*model.WebhookDelivery, error)
 	Groups(ctx context.Context) ([]*model.Group, error)
 	Group(ctx context.Context, id string) (*model.Group, error)
 	Rooms(ctx context.Context) ([]*model.Room, error)
@@ -842,6 +892,7 @@ type SubscriptionResolver interface {
 	ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error)
 	AlarmEvent(ctx context.Context) (<-chan *model.AlarmEvent, error)
 	MaintenanceChanged(ctx context.Context) (<-chan *time.Time, error)
+	WebhookDeliveryRecorded(ctx context.Context, endpointID *string) (<-chan *model.WebhookDelivery, error)
 	EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error)
 	NetworkTopologyUpdated(ctx context.Context, provider *string) (<-chan *model.NetworkTopologyEvent, error)
 }
@@ -2435,6 +2486,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BatchDeleteUsers(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteWebhookEndpoints":
+		if e.ComplexityRoot.Mutation.BatchDeleteWebhookEndpoints == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteWebhookEndpoints_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteWebhookEndpoints(childComplexity, args["ids"].([]string)), true
 	case "Mutation.changePassword":
 		if e.ComplexityRoot.Mutation.ChangePassword == nil {
 			break
@@ -2545,6 +2607,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateUser(childComplexity, args["input"].(model.CreateUserInput)), true
+	case "Mutation.createWebhookEndpoint":
+		if e.ComplexityRoot.Mutation.CreateWebhookEndpoint == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createWebhookEndpoint_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateWebhookEndpoint(childComplexity, args["input"].(model.CreateWebhookEndpointInput)), true
 	case "Mutation.deleteAlarm":
 		if e.ComplexityRoot.Mutation.DeleteAlarm == nil {
 			break
@@ -2633,6 +2706,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteUser(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteWebhookEndpoint":
+		if e.ComplexityRoot.Mutation.DeleteWebhookEndpoint == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteWebhookEndpoint_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteWebhookEndpoint(childComplexity, args["id"].(string)), true
 	case "Mutation.fireAutomationTrigger":
 		if e.ComplexityRoot.Mutation.FireAutomationTrigger == nil {
 			break
@@ -2721,6 +2805,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ResetUserPassword(childComplexity, args["id"].(string), args["newPassword"].(string)), true
+	case "Mutation.rotateWebhookEndpointSecret":
+		if e.ComplexityRoot.Mutation.RotateWebhookEndpointSecret == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_rotateWebhookEndpointSecret_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RotateWebhookEndpointSecret(childComplexity, args["id"].(string)), true
 	case "Mutation.runEffect":
 		if e.ComplexityRoot.Mutation.RunEffect == nil {
 			break
@@ -2942,6 +3037,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateTuyaConfig(childComplexity, args["input"].(model.TuyaConfigInput)), true
+	case "Mutation.updateWebhookEndpoint":
+		if e.ComplexityRoot.Mutation.UpdateWebhookEndpoint == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateWebhookEndpoint_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateWebhookEndpoint(childComplexity, args["id"].(string), args["input"].(model.UpdateWebhookEndpointInput)), true
 	case "Mutation.updateZigbee2MqttConfig":
 		if e.ComplexityRoot.Mutation.UpdateZigbee2MqttConfig == nil {
 			break
@@ -3272,6 +3378,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Users(childComplexity), true
+	case "Query.webhookDeliveries":
+		if e.ComplexityRoot.Query.WebhookDeliveries == nil {
+			break
+		}
+
+		args, err := ec.field_Query_webhookDeliveries_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.WebhookDeliveries(childComplexity, args["endpointId"].(string), args["before"].(*time.Time), args["limit"].(*int)), true
+	case "Query.webhookEndpoint":
+		if e.ComplexityRoot.Query.WebhookEndpoint == nil {
+			break
+		}
+
+		args, err := ec.field_Query_webhookEndpoint_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.WebhookEndpoint(childComplexity, args["id"].(string)), true
+	case "Query.webhookEndpoints":
+		if e.ComplexityRoot.Query.WebhookEndpoints == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.WebhookEndpoints(childComplexity), true
 	case "Query.zigbee2MqttConfig":
 		if e.ComplexityRoot.Query.Zigbee2MqttConfig == nil {
 			break
@@ -3660,6 +3794,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.SceneActiveChanged(childComplexity), true
+	case "Subscription.webhookDeliveryRecorded":
+		if e.ComplexityRoot.Subscription.WebhookDeliveryRecorded == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_webhookDeliveryRecorded_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.WebhookDeliveryRecorded(childComplexity, args["endpointId"].(*string)), true
 
 	case "TargetClause.connector":
 		if e.ComplexityRoot.TargetClause.Connector == nil {
@@ -3827,6 +3972,153 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.Username(childComplexity), true
+
+	case "WebhookDelivery.bodySize":
+		if e.ComplexityRoot.WebhookDelivery.BodySize == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.BodySize(childComplexity), true
+	case "WebhookDelivery.clientIp":
+		if e.ComplexityRoot.WebhookDelivery.ClientIP == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.ClientIP(childComplexity), true
+	case "WebhookDelivery.contentType":
+		if e.ComplexityRoot.WebhookDelivery.ContentType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.ContentType(childComplexity), true
+	case "WebhookDelivery.durationMs":
+		if e.ComplexityRoot.WebhookDelivery.DurationMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.DurationMs(childComplexity), true
+	case "WebhookDelivery.endpointId":
+		if e.ComplexityRoot.WebhookDelivery.EndpointID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.EndpointID(childComplexity), true
+	case "WebhookDelivery.httpStatus":
+		if e.ComplexityRoot.WebhookDelivery.HTTPStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.HTTPStatus(childComplexity), true
+	case "WebhookDelivery.headerNames":
+		if e.ComplexityRoot.WebhookDelivery.HeaderNames == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.HeaderNames(childComplexity), true
+	case "WebhookDelivery.id":
+		if e.ComplexityRoot.WebhookDelivery.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.ID(childComplexity), true
+	case "WebhookDelivery.outcome":
+		if e.ComplexityRoot.WebhookDelivery.Outcome == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.Outcome(childComplexity), true
+	case "WebhookDelivery.queryKeys":
+		if e.ComplexityRoot.WebhookDelivery.QueryKeys == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.QueryKeys(childComplexity), true
+	case "WebhookDelivery.receivedAt":
+		if e.ComplexityRoot.WebhookDelivery.ReceivedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.ReceivedAt(childComplexity), true
+	case "WebhookDelivery.requestId":
+		if e.ComplexityRoot.WebhookDelivery.RequestID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.RequestID(childComplexity), true
+	case "WebhookDelivery.userAgent":
+		if e.ComplexityRoot.WebhookDelivery.UserAgent == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.UserAgent(childComplexity), true
+
+	case "WebhookEndpoint.createdAt":
+		if e.ComplexityRoot.WebhookEndpoint.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.CreatedAt(childComplexity), true
+	case "WebhookEndpoint.createdBy":
+		if e.ComplexityRoot.WebhookEndpoint.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.CreatedBy(childComplexity), true
+	case "WebhookEndpoint.enabled":
+		if e.ComplexityRoot.WebhookEndpoint.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.Enabled(childComplexity), true
+	case "WebhookEndpoint.id":
+		if e.ComplexityRoot.WebhookEndpoint.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.ID(childComplexity), true
+	case "WebhookEndpoint.lastDeliveryAt":
+		if e.ComplexityRoot.WebhookEndpoint.LastDeliveryAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.LastDeliveryAt(childComplexity), true
+	case "WebhookEndpoint.name":
+		if e.ComplexityRoot.WebhookEndpoint.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.Name(childComplexity), true
+	case "WebhookEndpoint.rateLimitCount":
+		if e.ComplexityRoot.WebhookEndpoint.RateLimitCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.RateLimitCount(childComplexity), true
+	case "WebhookEndpoint.rateLimitWindowMs":
+		if e.ComplexityRoot.WebhookEndpoint.RateLimitWindowMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.RateLimitWindowMs(childComplexity), true
+	case "WebhookEndpoint.updatedAt":
+		if e.ComplexityRoot.WebhookEndpoint.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.UpdatedAt(childComplexity), true
+
+	case "WebhookSecretResult.endpoint":
+		if e.ComplexityRoot.WebhookSecretResult.Endpoint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookSecretResult.Endpoint(childComplexity), true
+	case "WebhookSecretResult.secretPath":
+		if e.ComplexityRoot.WebhookSecretResult.SecretPath == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookSecretResult.SecretPath(childComplexity), true
 
 	case "Zigbee2MqttBinding.cluster":
 		if e.ComplexityRoot.Zigbee2MqttBinding.Cluster == nil {
@@ -4233,6 +4525,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputCreateSceneInput,
 		ec.unmarshalInputCreateUserInput,
+		ec.unmarshalInputCreateWebhookEndpointInput,
 		ec.unmarshalInputDeviceConfigurationEntryInput,
 		ec.unmarshalInputDeviceStateInput,
 		ec.unmarshalInputEffectClipInput,
@@ -4261,6 +4554,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateGroupInput,
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateSceneInput,
+		ec.unmarshalInputUpdateWebhookEndpointInput,
 		ec.unmarshalInputZigbee2MqttConfigInput,
 	)
 	first := true
@@ -4408,13 +4702,13 @@ type Device {
   friendlyName: String!
   icon: String
   """
-  The colour the floor plan gives this device when it reports none of its own,
-  as ` + "`" + `#rrggbb` + "`" + `. Null leaves it to the map's default warm light.
+  The visual colour used when this device reports none of its own, as ` + "`" + `#rrggbb` + "`" + `.
+  Null uses the default warm-light colour.
   """
   displayColor: String
   """
-  How bright this device shows on the floor plan when it reports no brightness
-  of its own, on the 0-254 scale device state uses. Null means full strength.
+  The visual brightness used when this device reports no brightness of its own,
+  on the 0-254 scale device state uses. Null means full strength.
   """
   displayBrightness: Int
   source: String!
@@ -4652,6 +4946,53 @@ type AutomationGraph {
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
   createdBy: User
+}
+
+type WebhookEndpoint {
+  id: ID!
+  name: String!
+  enabled: Boolean!
+  rateLimitCount: Int!
+  rateLimitWindowMs: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User
+  lastDeliveryAt: DateTime
+}
+
+type WebhookDelivery {
+  id: ID!
+  endpointId: ID!
+  receivedAt: DateTime!
+  outcome: String!
+  httpStatus: Int!
+  clientIp: String!
+  userAgent: String!
+  contentType: String!
+  bodySize: Int!
+  durationMs: Int!
+  requestId: String
+  queryKeys: [String!]!
+  headerNames: [String!]!
+}
+
+type WebhookSecretResult {
+  endpoint: WebhookEndpoint!
+  secretPath: String!
+}
+
+input CreateWebhookEndpointInput {
+  name: String!
+  enabled: Boolean = true
+  rateLimitCount: Int = 1
+  rateLimitWindowMs: Int = 1000
+}
+
+input UpdateWebhookEndpointInput {
+  name: String!
+  enabled: Boolean!
+  rateLimitCount: Int!
+  rateLimitWindowMs: Int!
 }
 
 enum EffectKind {
@@ -5471,13 +5812,13 @@ input UpdateDeviceInput {
   name: String
   icon: String
   """
-  Sets the floor-plan display colour (` + "`" + `#rrggbb` + "`" + `). Pass null to clear it and
-  fall back to the map's default. Omit the field to leave it alone.
+  Sets the visual fallback colour (` + "`" + `#rrggbb` + "`" + `). Pass null to clear it and use
+  the default warm-light colour. Omit the field to leave it alone.
   """
   displayColor: String
   """
-  Sets the floor-plan display brightness (0-254). Pass null to clear it and
-  show the device at full strength. Omit the field to leave it alone.
+  Sets the visual fallback brightness (0-254). Pass null to clear it and show
+  the device at full strength. Omit the field to leave it alone.
   """
   displayBrightness: Int
   roles: UpdateDeviceRolesInput
@@ -5682,6 +6023,9 @@ type Query {
   scene(id: ID!): Scene @auth
   automations: [AutomationGraph!]! @auth
   automation(id: ID!): AutomationGraph @auth
+  webhookEndpoints: [WebhookEndpoint!]! @auth
+  webhookEndpoint(id: ID!): WebhookEndpoint @auth
+  webhookDeliveries(endpointId: ID!, before: DateTime, limit: Int): [WebhookDelivery!]! @auth
   groups: [Group!]! @auth
   group(id: ID!): Group @auth
   rooms: [Room!]! @auth
@@ -5735,6 +6079,11 @@ type Mutation {
   saved automation from the live graph.
   """
   fireAutomationTrigger(automationId: ID!, nodeId: ID!): Boolean! @auth
+  createWebhookEndpoint(input: CreateWebhookEndpointInput!): WebhookSecretResult! @auth
+  updateWebhookEndpoint(id: ID!, input: UpdateWebhookEndpointInput!): WebhookEndpoint! @auth
+  rotateWebhookEndpointSecret(id: ID!): WebhookSecretResult! @auth
+  deleteWebhookEndpoint(id: ID!): Boolean! @auth
+  batchDeleteWebhookEndpoints(ids: [ID!]!): Int! @auth
   createGroup(input: CreateGroupInput!): Group! @auth
   updateGroup(id: ID!, input: UpdateGroupInput!): Group! @auth
   deleteGroup(id: ID!): Boolean! @auth
@@ -5864,6 +6213,7 @@ type Subscription {
   activityStream(advanced: Boolean): ActivityEvent! @auth
   alarmEvent: AlarmEvent! @auth
   maintenanceChanged: DateTime! @auth
+  webhookDeliveryRecorded(endpointId: ID): WebhookDelivery! @auth
   """
   Step-boundary events from the effect runner. When runId is provided,
   only events for that run are delivered; otherwise every effect run's
@@ -6027,6 +6377,17 @@ func (ec *executionContext) field_Mutation_batchDeleteUsers_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_batchDeleteWebhookEndpoints_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_changePassword_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6137,6 +6498,17 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createWebhookEndpoint_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateWebhookEndpointInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateWebhookEndpointInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteAlarm_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6215,6 +6587,17 @@ func (ec *executionContext) field_Mutation_deleteScene_args(ctx context.Context,
 }
 
 func (ec *executionContext) field_Mutation_deleteUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteWebhookEndpoint_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
@@ -6320,6 +6703,17 @@ func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Co
 		return nil, err
 	}
 	args["newPassword"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_rotateWebhookEndpointSecret_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -6612,6 +7006,22 @@ func (ec *executionContext) field_Mutation_updateTuyaConfig_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateWebhookEndpoint_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateWebhookEndpointInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateWebhookEndpointInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateZigbee2MqttConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6760,6 +7170,38 @@ func (ec *executionContext) field_Query_stateHistory_args(ctx context.Context, r
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_webhookDeliveries_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "endpointId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["endpointId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalODateTime2ᚖtimeᚐTime)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_webhookEndpoint_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Subscription_activityStream_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6834,6 +7276,17 @@ func (ec *executionContext) field_Subscription_networkTopologyUpdated_args(ctx c
 		return nil, err
 	}
 	args["provider"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_webhookDeliveryRecorded_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "endpointId", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["endpointId"] = arg0
 	return args, nil
 }
 
@@ -15169,6 +15622,308 @@ func (ec *executionContext) fieldContext_Mutation_fireAutomationTrigger(ctx cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createWebhookEndpoint(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createWebhookEndpoint,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateWebhookEndpoint(ctx, fc.Args["input"].(model.CreateWebhookEndpointInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.WebhookSecretResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWebhookSecretResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookSecretResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createWebhookEndpoint(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "endpoint":
+				return ec.fieldContext_WebhookSecretResult_endpoint(ctx, field)
+			case "secretPath":
+				return ec.fieldContext_WebhookSecretResult_secretPath(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookSecretResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createWebhookEndpoint_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateWebhookEndpoint(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateWebhookEndpoint,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateWebhookEndpoint(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateWebhookEndpointInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.WebhookEndpoint
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateWebhookEndpoint(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
+			case "name":
+				return ec.fieldContext_WebhookEndpoint_name(ctx, field)
+			case "enabled":
+				return ec.fieldContext_WebhookEndpoint_enabled(ctx, field)
+			case "rateLimitCount":
+				return ec.fieldContext_WebhookEndpoint_rateLimitCount(ctx, field)
+			case "rateLimitWindowMs":
+				return ec.fieldContext_WebhookEndpoint_rateLimitWindowMs(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_WebhookEndpoint_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_WebhookEndpoint_updatedAt(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_WebhookEndpoint_createdBy(ctx, field)
+			case "lastDeliveryAt":
+				return ec.fieldContext_WebhookEndpoint_lastDeliveryAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookEndpoint", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateWebhookEndpoint_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_rotateWebhookEndpointSecret(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_rotateWebhookEndpointSecret,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RotateWebhookEndpointSecret(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.WebhookSecretResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWebhookSecretResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookSecretResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_rotateWebhookEndpointSecret(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "endpoint":
+				return ec.fieldContext_WebhookSecretResult_endpoint(ctx, field)
+			case "secretPath":
+				return ec.fieldContext_WebhookSecretResult_secretPath(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookSecretResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_rotateWebhookEndpointSecret_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteWebhookEndpoint(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteWebhookEndpoint,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteWebhookEndpoint(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteWebhookEndpoint(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteWebhookEndpoint_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteWebhookEndpoints(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteWebhookEndpoints,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteWebhookEndpoints(ctx, fc.Args["ids"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteWebhookEndpoints(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteWebhookEndpoints_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -18969,6 +19724,224 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_webhookEndpoints(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_webhookEndpoints,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().WebhookEndpoints(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.WebhookEndpoint
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWebhookEndpoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_webhookEndpoints(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
+			case "name":
+				return ec.fieldContext_WebhookEndpoint_name(ctx, field)
+			case "enabled":
+				return ec.fieldContext_WebhookEndpoint_enabled(ctx, field)
+			case "rateLimitCount":
+				return ec.fieldContext_WebhookEndpoint_rateLimitCount(ctx, field)
+			case "rateLimitWindowMs":
+				return ec.fieldContext_WebhookEndpoint_rateLimitWindowMs(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_WebhookEndpoint_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_WebhookEndpoint_updatedAt(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_WebhookEndpoint_createdBy(ctx, field)
+			case "lastDeliveryAt":
+				return ec.fieldContext_WebhookEndpoint_lastDeliveryAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookEndpoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_webhookEndpoint(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_webhookEndpoint,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().WebhookEndpoint(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.WebhookEndpoint
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_webhookEndpoint(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
+			case "name":
+				return ec.fieldContext_WebhookEndpoint_name(ctx, field)
+			case "enabled":
+				return ec.fieldContext_WebhookEndpoint_enabled(ctx, field)
+			case "rateLimitCount":
+				return ec.fieldContext_WebhookEndpoint_rateLimitCount(ctx, field)
+			case "rateLimitWindowMs":
+				return ec.fieldContext_WebhookEndpoint_rateLimitWindowMs(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_WebhookEndpoint_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_WebhookEndpoint_updatedAt(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_WebhookEndpoint_createdBy(ctx, field)
+			case "lastDeliveryAt":
+				return ec.fieldContext_WebhookEndpoint_lastDeliveryAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookEndpoint", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_webhookEndpoint_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_webhookDeliveries(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_webhookDeliveries,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().WebhookDeliveries(ctx, fc.Args["endpointId"].(string), fc.Args["before"].(*time.Time), fc.Args["limit"].(*int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.WebhookDelivery
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWebhookDelivery2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDeliveryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_webhookDeliveries(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_WebhookDelivery_id(ctx, field)
+			case "endpointId":
+				return ec.fieldContext_WebhookDelivery_endpointId(ctx, field)
+			case "receivedAt":
+				return ec.fieldContext_WebhookDelivery_receivedAt(ctx, field)
+			case "outcome":
+				return ec.fieldContext_WebhookDelivery_outcome(ctx, field)
+			case "httpStatus":
+				return ec.fieldContext_WebhookDelivery_httpStatus(ctx, field)
+			case "clientIp":
+				return ec.fieldContext_WebhookDelivery_clientIp(ctx, field)
+			case "userAgent":
+				return ec.fieldContext_WebhookDelivery_userAgent(ctx, field)
+			case "contentType":
+				return ec.fieldContext_WebhookDelivery_contentType(ctx, field)
+			case "bodySize":
+				return ec.fieldContext_WebhookDelivery_bodySize(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_WebhookDelivery_durationMs(ctx, field)
+			case "requestId":
+				return ec.fieldContext_WebhookDelivery_requestId(ctx, field)
+			case "queryKeys":
+				return ec.fieldContext_WebhookDelivery_queryKeys(ctx, field)
+			case "headerNames":
+				return ec.fieldContext_WebhookDelivery_headerNames(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookDelivery", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_webhookDeliveries_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_groups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22671,6 +23644,88 @@ func (ec *executionContext) fieldContext_Subscription_maintenanceChanged(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_webhookDeliveryRecorded(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_webhookDeliveryRecorded,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().WebhookDeliveryRecorded(ctx, fc.Args["endpointId"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.WebhookDelivery
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWebhookDelivery2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDelivery,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_webhookDeliveryRecorded(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_WebhookDelivery_id(ctx, field)
+			case "endpointId":
+				return ec.fieldContext_WebhookDelivery_endpointId(ctx, field)
+			case "receivedAt":
+				return ec.fieldContext_WebhookDelivery_receivedAt(ctx, field)
+			case "outcome":
+				return ec.fieldContext_WebhookDelivery_outcome(ctx, field)
+			case "httpStatus":
+				return ec.fieldContext_WebhookDelivery_httpStatus(ctx, field)
+			case "clientIp":
+				return ec.fieldContext_WebhookDelivery_clientIp(ctx, field)
+			case "userAgent":
+				return ec.fieldContext_WebhookDelivery_userAgent(ctx, field)
+			case "contentType":
+				return ec.fieldContext_WebhookDelivery_contentType(ctx, field)
+			case "bodySize":
+				return ec.fieldContext_WebhookDelivery_bodySize(ctx, field)
+			case "durationMs":
+				return ec.fieldContext_WebhookDelivery_durationMs(ctx, field)
+			case "requestId":
+				return ec.fieldContext_WebhookDelivery_requestId(ctx, field)
+			case "queryKeys":
+				return ec.fieldContext_WebhookDelivery_queryKeys(ctx, field)
+			case "headerNames":
+				return ec.fieldContext_WebhookDelivery_headerNames(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookDelivery", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_webhookDeliveryRecorded_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Subscription_effectStepActivated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -23577,6 +24632,742 @@ func (ec *executionContext) fieldContext_User_mustChangePassword(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_id(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_endpointId(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_endpointId,
+		func(ctx context.Context) (any, error) {
+			return obj.EndpointID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_endpointId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_receivedAt(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_receivedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ReceivedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_receivedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_outcome(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_outcome,
+		func(ctx context.Context) (any, error) {
+			return obj.Outcome, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_outcome(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_httpStatus(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_httpStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.HTTPStatus, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_httpStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_clientIp(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_clientIp,
+		func(ctx context.Context) (any, error) {
+			return obj.ClientIP, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_clientIp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_userAgent(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_userAgent,
+		func(ctx context.Context) (any, error) {
+			return obj.UserAgent, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_userAgent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_contentType(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_contentType,
+		func(ctx context.Context) (any, error) {
+			return obj.ContentType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_contentType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_bodySize(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_bodySize,
+		func(ctx context.Context) (any, error) {
+			return obj.BodySize, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_bodySize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_durationMs(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_durationMs,
+		func(ctx context.Context) (any, error) {
+			return obj.DurationMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_requestId(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_requestId,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_requestId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_queryKeys(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_queryKeys,
+		func(ctx context.Context) (any, error) {
+			return obj.QueryKeys, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_queryKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_headerNames(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_headerNames,
+		func(ctx context.Context) (any, error) {
+			return obj.HeaderNames, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_headerNames(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_id(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_name(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_enabled(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_rateLimitCount(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_rateLimitCount,
+		func(ctx context.Context) (any, error) {
+			return obj.RateLimitCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_rateLimitCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_rateLimitWindowMs(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_rateLimitWindowMs,
+		func(ctx context.Context) (any, error) {
+			return obj.RateLimitWindowMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_rateLimitWindowMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_createdBy,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "username":
+				return ec.fieldContext_User_username(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "avatarPath":
+				return ec.fieldContext_User_avatarPath(ctx, field)
+			case "theme":
+				return ec.fieldContext_User_theme(ctx, field)
+			case "timeFormat":
+				return ec.fieldContext_User_timeFormat(ctx, field)
+			case "temperatureUnit":
+				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "mustChangePassword":
+				return ec.fieldContext_User_mustChangePassword(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookEndpoint_lastDeliveryAt(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_lastDeliveryAt,
+		func(ctx context.Context) (any, error) {
+			return obj.LastDeliveryAt, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_lastDeliveryAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookSecretResult_endpoint(ctx context.Context, field graphql.CollectedField, obj *model.WebhookSecretResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookSecretResult_endpoint,
+		func(ctx context.Context) (any, error) {
+			return obj.Endpoint, nil
+		},
+		nil,
+		ec.marshalNWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookSecretResult_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookSecretResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
+			case "name":
+				return ec.fieldContext_WebhookEndpoint_name(ctx, field)
+			case "enabled":
+				return ec.fieldContext_WebhookEndpoint_enabled(ctx, field)
+			case "rateLimitCount":
+				return ec.fieldContext_WebhookEndpoint_rateLimitCount(ctx, field)
+			case "rateLimitWindowMs":
+				return ec.fieldContext_WebhookEndpoint_rateLimitWindowMs(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_WebhookEndpoint_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_WebhookEndpoint_updatedAt(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_WebhookEndpoint_createdBy(ctx, field)
+			case "lastDeliveryAt":
+				return ec.fieldContext_WebhookEndpoint_lastDeliveryAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WebhookEndpoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookSecretResult_secretPath(ctx context.Context, field graphql.CollectedField, obj *model.WebhookSecretResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookSecretResult_secretPath,
+		func(ctx context.Context) (any, error) {
+			return obj.SecretPath, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookSecretResult_secretPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookSecretResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -27732,6 +29523,67 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateWebhookEndpointInput(ctx context.Context, obj any) (model.CreateWebhookEndpointInput, error) {
+	var it model.CreateWebhookEndpointInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["enabled"]; !present {
+		asMap["enabled"] = true
+	}
+	if _, present := asMap["rateLimitCount"]; !present {
+		asMap["rateLimitCount"] = 1
+	}
+	if _, present := asMap["rateLimitWindowMs"]; !present {
+		asMap["rateLimitWindowMs"] = 1000
+	}
+
+	fieldsInOrder := [...]string{"name", "enabled", "rateLimitCount", "rateLimitWindowMs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = graphql.OmittableOf(data)
+		case "rateLimitCount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rateLimitCount"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RateLimitCount = graphql.OmittableOf(data)
+		case "rateLimitWindowMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rateLimitWindowMs"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RateLimitWindowMs = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputDeviceConfigurationEntryInput(ctx context.Context, obj any) (model.DeviceConfigurationEntryInput, error) {
 	var it model.DeviceConfigurationEntryInput
 	if obj == nil {
@@ -29239,6 +31091,57 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.DevicePayloads = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateWebhookEndpointInput(ctx context.Context, obj any) (model.UpdateWebhookEndpointInput, error) {
+	var it model.UpdateWebhookEndpointInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "enabled", "rateLimitCount", "rateLimitWindowMs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		case "rateLimitCount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rateLimitCount"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RateLimitCount = data
+		case "rateLimitWindowMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rateLimitWindowMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RateLimitWindowMs = data
 		}
 	}
 	return it, nil
@@ -31802,6 +33705,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createWebhookEndpoint":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createWebhookEndpoint(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateWebhookEndpoint":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateWebhookEndpoint(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rotateWebhookEndpointSecret":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_rotateWebhookEndpointSecret(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteWebhookEndpoint":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteWebhookEndpoint(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteWebhookEndpoints":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteWebhookEndpoints(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createGroup":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createGroup(ctx, field)
@@ -32493,6 +34431,69 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_automation(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "webhookEndpoints":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_webhookEndpoints(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "webhookEndpoint":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_webhookEndpoint(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "webhookDeliveries":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_webhookDeliveries(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -33585,6 +35586,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_alarmEvent(ctx, fields[0])
 	case "maintenanceChanged":
 		return ec._Subscription_maintenanceChanged(ctx, fields[0])
+	case "webhookDeliveryRecorded":
+		return ec._Subscription_webhookDeliveryRecorded(ctx, fields[0])
 	case "effectStepActivated":
 		return ec._Subscription_effectStepActivated(ctx, fields[0])
 	case "networkTopologyUpdated":
@@ -33852,6 +35855,219 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
 			out.Values[i] = ec._User_mustChangePassword(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var webhookDeliveryImplementors = []string{"WebhookDelivery"}
+
+func (ec *executionContext) _WebhookDelivery(ctx context.Context, sel ast.SelectionSet, obj *model.WebhookDelivery) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, webhookDeliveryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WebhookDelivery")
+		case "id":
+			out.Values[i] = ec._WebhookDelivery_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endpointId":
+			out.Values[i] = ec._WebhookDelivery_endpointId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "receivedAt":
+			out.Values[i] = ec._WebhookDelivery_receivedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "outcome":
+			out.Values[i] = ec._WebhookDelivery_outcome(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "httpStatus":
+			out.Values[i] = ec._WebhookDelivery_httpStatus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "clientIp":
+			out.Values[i] = ec._WebhookDelivery_clientIp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "userAgent":
+			out.Values[i] = ec._WebhookDelivery_userAgent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contentType":
+			out.Values[i] = ec._WebhookDelivery_contentType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bodySize":
+			out.Values[i] = ec._WebhookDelivery_bodySize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationMs":
+			out.Values[i] = ec._WebhookDelivery_durationMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestId":
+			out.Values[i] = ec._WebhookDelivery_requestId(ctx, field, obj)
+		case "queryKeys":
+			out.Values[i] = ec._WebhookDelivery_queryKeys(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "headerNames":
+			out.Values[i] = ec._WebhookDelivery_headerNames(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var webhookEndpointImplementors = []string{"WebhookEndpoint"}
+
+func (ec *executionContext) _WebhookEndpoint(ctx context.Context, sel ast.SelectionSet, obj *model.WebhookEndpoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, webhookEndpointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WebhookEndpoint")
+		case "id":
+			out.Values[i] = ec._WebhookEndpoint_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._WebhookEndpoint_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._WebhookEndpoint_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rateLimitCount":
+			out.Values[i] = ec._WebhookEndpoint_rateLimitCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rateLimitWindowMs":
+			out.Values[i] = ec._WebhookEndpoint_rateLimitWindowMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._WebhookEndpoint_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._WebhookEndpoint_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdBy":
+			out.Values[i] = ec._WebhookEndpoint_createdBy(ctx, field, obj)
+		case "lastDeliveryAt":
+			out.Values[i] = ec._WebhookEndpoint_lastDeliveryAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var webhookSecretResultImplementors = []string{"WebhookSecretResult"}
+
+func (ec *executionContext) _WebhookSecretResult(ctx context.Context, sel ast.SelectionSet, obj *model.WebhookSecretResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, webhookSecretResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WebhookSecretResult")
+		case "endpoint":
+			out.Values[i] = ec._WebhookSecretResult_endpoint(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "secretPath":
+			out.Values[i] = ec._WebhookSecretResult_secretPath(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -35138,6 +37354,11 @@ func (ec *executionContext) unmarshalNCreateSceneInput2githubᚗcomᚋsaffronjam
 
 func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
 	res, err := ec.unmarshalInputCreateUserInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCreateWebhookEndpointInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateWebhookEndpointInput(ctx context.Context, v any) (model.CreateWebhookEndpointInput, error) {
+	res, err := ec.unmarshalInputCreateWebhookEndpointInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -36723,6 +38944,11 @@ func (ec *executionContext) unmarshalNUpdateSceneInput2githubᚗcomᚋsaffronjam
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNUpdateWebhookEndpointInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateWebhookEndpointInput(ctx context.Context, v any) (model.UpdateWebhookEndpointInput, error) {
+	res, err := ec.unmarshalInputUpdateWebhookEndpointInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNUser2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
 	return ec._User(ctx, sel, &v)
 }
@@ -36751,6 +38977,80 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNWebhookDelivery2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDelivery(ctx context.Context, sel ast.SelectionSet, v model.WebhookDelivery) graphql.Marshaler {
+	return ec._WebhookDelivery(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWebhookDelivery2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDeliveryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.WebhookDelivery) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNWebhookDelivery2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDelivery(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNWebhookDelivery2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDelivery(ctx context.Context, sel ast.SelectionSet, v *model.WebhookDelivery) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WebhookDelivery(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNWebhookEndpoint2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint(ctx context.Context, sel ast.SelectionSet, v model.WebhookEndpoint) graphql.Marshaler {
+	return ec._WebhookEndpoint(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWebhookEndpoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.WebhookEndpoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint(ctx context.Context, sel ast.SelectionSet, v *model.WebhookEndpoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WebhookEndpoint(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNWebhookSecretResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookSecretResult(ctx context.Context, sel ast.SelectionSet, v model.WebhookSecretResult) graphql.Marshaler {
+	return ec._WebhookSecretResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWebhookSecretResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookSecretResult(ctx context.Context, sel ast.SelectionSet, v *model.WebhookSecretResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WebhookSecretResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNZigbee2MqttBinding2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBindingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Zigbee2MqttBinding) graphql.Marshaler {
@@ -37602,6 +39902,13 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint(ctx context.Context, sel ast.SelectionSet, v *model.WebhookEndpoint) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._WebhookEndpoint(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttConfig) graphql.Marshaler {

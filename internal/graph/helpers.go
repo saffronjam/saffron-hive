@@ -20,6 +20,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
 var graphLogger = logging.Named("graph")
@@ -121,9 +122,8 @@ func kindFromModel(k model.AlarmKind) store.AlarmKind {
 }
 
 // mapActivityEvent converts a persisted activity row into the GraphQL type.
-// The source discriminator is chosen by which denormalised columns are set on
-// the row: scene/automation/device take priority in that order; falling back
-// to "system" when none are set.
+// The source discriminator follows the first populated source column and uses
+// "system" when an event has no entity source.
 func mapActivityEvent(row store.ActivityEvent) *model.ActivityEvent {
 	return &model.ActivityEvent{
 		ID:        strconv.FormatInt(row.ID, 10),
@@ -137,6 +137,12 @@ func mapActivityEvent(row store.ActivityEvent) *model.ActivityEvent {
 
 func mapActivitySource(row store.ActivityEvent) *model.ActivitySource {
 	switch {
+	case row.WebhookID != nil:
+		return &model.ActivitySource{
+			Kind: "webhook",
+			ID:   row.WebhookID,
+			Name: row.WebhookName,
+		}
 	case row.SceneID != nil:
 		return &model.ActivitySource{
 			Kind: "scene",
@@ -160,6 +166,42 @@ func mapActivitySource(row store.ActivityEvent) *model.ActivitySource {
 		}
 	default:
 		return &model.ActivitySource{Kind: "system"}
+	}
+}
+
+func mapWebhookEndpoint(row store.WebhookEndpoint) *model.WebhookEndpoint {
+	return &model.WebhookEndpoint{
+		ID:                row.ID,
+		Name:              row.Name,
+		Enabled:           row.Enabled,
+		RateLimitCount:    row.RateLimitCount,
+		RateLimitWindowMs: row.RateLimitWindowMs,
+		CreatedAt:         row.CreatedAt,
+		UpdatedAt:         row.UpdatedAt,
+		CreatedBy:         mapUserRef(row.CreatedBy),
+		LastDeliveryAt:    row.LastDeliveryAt,
+	}
+}
+
+func mapWebhookDelivery(row store.WebhookDelivery) *model.WebhookDelivery {
+	var queryKeys []string
+	var headerNames []string
+	_ = json.Unmarshal([]byte(row.QueryKeysJSON), &queryKeys)
+	_ = json.Unmarshal([]byte(row.HeaderNamesJSON), &headerNames)
+	return &model.WebhookDelivery{
+		ID:          row.ID,
+		EndpointID:  row.EndpointID,
+		ReceivedAt:  row.ReceivedAt,
+		Outcome:     row.Outcome,
+		HTTPStatus:  row.HTTPStatus,
+		ClientIP:    row.ClientIP,
+		UserAgent:   row.UserAgent,
+		ContentType: row.ContentType,
+		BodySize:    int(row.BodySize),
+		DurationMs:  int(row.DurationMs),
+		RequestID:   row.RequestID,
+		QueryKeys:   queryKeys,
+		HeaderNames: headerNames,
 	}
 }
 
@@ -1752,6 +1794,9 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		if err := validateActionExpressions(inputNodes); err != nil {
 			return err
 		}
+		if err := validateWebhookTriggers(ctx, store, inputNodes); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -1760,6 +1805,25 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		msgs = append(msgs, err.Error())
 	}
 	return fmt.Errorf("automation validation failed: %s", strings.Join(msgs, "; "))
+}
+
+func validateWebhookTriggers(ctx context.Context, graphStore GraphStore, nodes []*model.AutomationNodeInput) error {
+	for _, node := range nodes {
+		if automation.NodeType(node.Type) != automation.NodeTrigger {
+			continue
+		}
+		var config struct {
+			EventType  string `json:"event_type"`
+			EndpointID string `json:"endpoint_id"`
+		}
+		if err := json.Unmarshal([]byte(node.Config), &config); err != nil || config.EventType != string(eventbus.EventWebhookReceived) {
+			continue
+		}
+		if _, err := graphStore.GetWebhookEndpoint(ctx, config.EndpointID); err != nil {
+			return fmt.Errorf("node %s: webhook endpoint %q not found", node.ID, config.EndpointID)
+		}
+	}
+	return nil
 }
 
 func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
@@ -1921,10 +1985,9 @@ func validateCycleScenesActions(ctx context.Context, store GraphStore, nodes []*
 	return nil
 }
 
-// validateToggleDeviceStateActions checks every toggle_device_state action
-// node: target_type must be one of device/group/room and target_id must be
-// non-empty. Toggle has no payload — server computes desired state from the
-// target's current aggregate at fire time.
+// validateToggleDeviceStateActions checks every toggle_device_state action.
+// Toggle has no payload because the server computes the desired state from
+// the target's current aggregate at fire time.
 func validateToggleDeviceStateActions(nodes []*model.AutomationNodeInput) error {
 	for _, n := range nodes {
 		if automation.NodeType(n.Type) != automation.NodeAction {
@@ -1943,11 +2006,12 @@ func validateToggleDeviceStateActions(nodes []*model.AutomationNodeInput) error 
 		}
 		switch automation.TargetType(outer.TargetType) {
 		case automation.TargetDevice, automation.TargetGroup, automation.TargetRoom:
+			if outer.TargetID == "" {
+				return fmt.Errorf("node %s: toggle_device_state requires target_id", n.ID)
+			}
+		case automation.TargetType(device.TargetExpression):
 		default:
-			return fmt.Errorf("node %s: toggle_device_state target_type must be device, group, or room (got %q)", n.ID, outer.TargetType)
-		}
-		if outer.TargetID == "" {
-			return fmt.Errorf("node %s: toggle_device_state requires target_id", n.ID)
+			return fmt.Errorf("node %s: toggle_device_state target_type must be device, group, room, or expression (got %q)", n.ID, outer.TargetType)
 		}
 	}
 	return nil
@@ -2010,12 +2074,14 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 	switch nodeType {
 	case automation.NodeTrigger:
 		var raw struct {
-			Kind       string `json:"kind"`
-			EventType  string `json:"event_type"`
-			FilterExpr string `json:"filter_expr"`
-			CronExpr   string `json:"cron_expr"`
-			GraceMs    int64  `json:"grace_ms"`
-			CooldownMs int64  `json:"cooldown_ms"`
+			Kind           string               `json:"kind"`
+			EventType      string               `json:"event_type"`
+			FilterExpr     string               `json:"filter_expr"`
+			CronExpr       string               `json:"cron_expr"`
+			GraceMs        int64                `json:"grace_ms"`
+			CooldownMs     int64                `json:"cooldown_ms"`
+			EndpointID     string               `json:"endpoint_id"`
+			WebhookFilters []webhook.FilterRule `json:"webhook_filters"`
 		}
 		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
 			return automation.TriggerConfig{}
@@ -2029,12 +2095,14 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 			}
 		}
 		return automation.TriggerConfig{
-			Kind:       kind,
-			EventType:  raw.EventType,
-			FilterExpr: raw.FilterExpr,
-			CronExpr:   raw.CronExpr,
-			GraceMs:    raw.GraceMs,
-			CooldownMs: raw.CooldownMs,
+			Kind:           kind,
+			EventType:      raw.EventType,
+			FilterExpr:     raw.FilterExpr,
+			CronExpr:       raw.CronExpr,
+			GraceMs:        raw.GraceMs,
+			CooldownMs:     raw.CooldownMs,
+			EndpointID:     raw.EndpointID,
+			WebhookFilters: raw.WebhookFilters,
 		}
 	case automation.NodeCondition:
 		var raw struct {

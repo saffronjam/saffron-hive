@@ -14,6 +14,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/webhook"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
@@ -125,6 +126,12 @@ type GraphStore interface {
 	ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
+	GetWebhookEndpoint(ctx context.Context, id string) (store.WebhookEndpoint, error)
+	ListWebhookEndpoints(ctx context.Context) ([]store.WebhookEndpoint, error)
+	UpdateWebhookEndpoint(ctx context.Context, params store.UpdateWebhookEndpointParams) (store.WebhookEndpoint, error)
+	BatchDeleteWebhookEndpoints(ctx context.Context, ids []string) (int64, error)
+	ListWebhookEndpointAutomationReferences(ctx context.Context, id string) ([]store.WebhookAutomationReference, error)
+	ListWebhookDeliveries(ctx context.Context, endpointID string, before *time.Time, limit int) ([]store.WebhookDelivery, error)
 
 	// Groups
 	CreateGroup(ctx context.Context, params store.CreateGroupParams) (store.Group, error)
@@ -229,6 +236,8 @@ type Resolver struct {
 	LoginLimiter        *auth.LoginLimiter
 	BootstrapToken      BootstrapTokenChecker
 	AddressVendors      AddressVendorResolver
+	Webhooks            *webhook.Service
+	WebhookBuffer       *webhook.Buffer
 	// AvatarDir is the filesystem directory where per-user avatar files live.
 	// Used by deleteUser to remove the file alongside the row.
 	AvatarDir string
