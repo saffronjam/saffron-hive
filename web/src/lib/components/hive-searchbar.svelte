@@ -145,7 +145,7 @@
 <div class={cn("relative", className)}>
 	<div
 		role="presentation"
-		class="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-sm focus-within:border-ring focus-within:ring-ring/30 focus-within:ring-2"
+		class="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-sm focus-within:border-ring"
 		onclick={focusBar}
 	>
 		<HiveSearchField
