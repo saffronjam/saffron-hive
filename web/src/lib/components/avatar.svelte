@@ -97,7 +97,7 @@
     style="background-color: {bg}; opacity: {initialsOpacity}"
     aria-label={user.name}
   >
-    {label}
+    <span class:translate-y-px={size === "xs"}>{label}</span>
   </span>
   {#if srcA}
     <img
