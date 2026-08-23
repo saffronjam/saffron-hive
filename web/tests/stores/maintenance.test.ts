@@ -33,15 +33,30 @@ beforeEach(() => {
 });
 
 describe("maintenanceStore", () => {
+  it("starts unhydrated without a session snapshot", async () => {
+    const fresh = await bootStore();
+    expect(fresh.maintenanceStore.items).toEqual([]);
+    expect(fresh.maintenanceStore.hydrated).toBe(false);
+  });
+
+  it("treats a cached empty snapshot as hydrated", async () => {
+    saveSessionSnapshot(sessionStorage, "maintenance", 2, []);
+    const fresh = await bootStore();
+    expect(fresh.maintenanceStore.items).toEqual([]);
+    expect(fresh.maintenanceStore.hydrated).toBe(true);
+  });
+
   it("hydrates synchronously and reconciles in the background", async () => {
     saveSessionSnapshot(sessionStorage, "maintenance", 2, [task]);
     const fresh = await bootStore();
     expect(fresh.maintenanceStore.items.map((item) => item.id)).toEqual(["task-1"]);
+    expect(fresh.maintenanceStore.hydrated).toBe(true);
 
     const mock = createMockClient();
     mock.queueResult({ data: { maintenanceTasks: [] } });
     await fresh.maintenanceStore.start(mock.client);
     await vi.waitFor(() => expect(fresh.maintenanceStore.items).toEqual([]));
+    expect(fresh.maintenanceStore.hydrated).toBe(true);
     expect(mock.queries[0].requestPolicy).toBe("network-only");
     fresh.maintenanceStore.stop();
   });
@@ -72,6 +87,7 @@ describe("maintenanceStore", () => {
     await expect(fresh.maintenanceStore.completeOne("task-1")).resolves.toBe(false);
     expect(fresh.maintenanceStore.items.map((item) => item.id)).toEqual(["task-1"]);
     fresh.maintenanceStore.clear();
+    expect(fresh.maintenanceStore.hydrated).toBe(false);
     expect(sessionStorage.length).toBe(0);
     fresh.maintenanceStore.stop();
   });

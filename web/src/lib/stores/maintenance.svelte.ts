@@ -74,6 +74,7 @@ function storage(): Storage | null {
 function createMaintenanceStore() {
   const restored = loadSessionSnapshot<MaintenanceTask[]>(storage(), "maintenance", CACHE_VERSION);
   let items = $state<MaintenanceTask[]>(restored ?? []);
+  let hydrated = $state(restored !== null);
   let pending = $state(new Set<string>());
   let started = false;
   let generation = 0;
@@ -91,6 +92,7 @@ function createMaintenanceStore() {
       .toPromise();
     if (!started || activeGeneration !== generation || !result.data?.maintenanceTasks) return;
     items = result.data.maintenanceTasks as MaintenanceTask[];
+    hydrated = true;
     save();
   }
 
@@ -138,6 +140,9 @@ function createMaintenanceStore() {
     get actionableCount() {
       return items.length;
     },
+    get hydrated() {
+      return hydrated;
+    },
     isPending(id: string) {
       return pending.has(id);
     },
@@ -166,6 +171,7 @@ function createMaintenanceStore() {
     },
     clear() {
       items = [];
+      hydrated = false;
       pending = new Set();
       clearSessionSnapshot(storage(), "maintenance");
     },
