@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Badge } from "$lib/components/ui/badge/index.js";
 	import type { Automation } from "$lib/stores/automations.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
@@ -17,11 +16,11 @@
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
-	import { automationNodeCounts } from "$lib/list-helpers";
+	import AutomationComposition from "$lib/components/automation-composition.svelte";
 	import { formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { me } from "$lib/stores/me.svelte";
-	import { GitMerge, Play, Workflow, Zap } from "@lucide/svelte";
+	import { Workflow } from "@lucide/svelte";
 
 	interface Props {
 		automations: Automation[];
@@ -132,31 +131,7 @@
 {/snippet}
 
 {#snippet compositionCell(a: Automation)}
-	{@const c = automationNodeCounts(a.nodes)}
-	{#if c.trigger === 0 && c.operator === 0 && c.action === 0}
-		<span class="text-muted-foreground">—</span>
-	{:else}
-		<div class="flex flex-wrap gap-1">
-			{#if c.trigger > 0}
-				<Badge variant="secondary" class="gap-1 text-xs">
-					<Zap class="size-3 text-automation-trigger" />
-					{c.trigger}
-				</Badge>
-			{/if}
-			{#if c.operator > 0}
-				<Badge variant="secondary" class="gap-1 text-xs">
-					<GitMerge class="size-3 text-automation-operator" />
-					{c.operator}
-				</Badge>
-			{/if}
-			{#if c.action > 0}
-				<Badge variant="secondary" class="gap-1 text-xs">
-					<Play class="size-3 text-automation-action" />
-					{c.action}
-				</Badge>
-			{/if}
-		</div>
-	{/if}
+	<AutomationComposition nodes={a.nodes} />
 {/snippet}
 
 {#snippet lastTriggeredCell(a: Automation)}
