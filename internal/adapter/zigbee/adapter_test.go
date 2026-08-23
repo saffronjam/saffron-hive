@@ -88,6 +88,56 @@ func TestOccupancyOnlyPayloadPublishesEvent(t *testing.T) {
 	}
 }
 
+func TestStateMessageDropsFieldsOutsideDeviceCapabilities(t *testing.T) {
+	adapter, mqtt, bus, sw, reader := newTestAdapterWithReader()
+	if err := adapter.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer adapter.Stop()
+
+	id := device.DeviceID("0xdoor")
+	dev := device.Device{
+		ID:           id,
+		FriendlyName: "bedroom_door",
+		Type:         device.Sensor,
+		Capabilities: []device.Capability{
+			{Name: device.CapContact, Access: device.CapabilityAccessState},
+			{Name: device.CapBattery, Access: device.CapabilityAccessState},
+		},
+	}
+	sw.Register(dev)
+	reader.Set(dev)
+	adapter.mu.Lock()
+	adapter.nameToID[dev.FriendlyName] = id
+	adapter.idToName[id] = dev.FriendlyName
+	adapter.ieeeToID[string(id)] = id
+	adapter.mu.Unlock()
+
+	injectSync(adapter, mqtt, "zigbee2mqtt/bedroom_door", []byte(`{"state":"ON","contact":false,"battery":100}`))
+
+	events := waitForEvents(bus, 1, 500*time.Millisecond)
+	for _, event := range events {
+		if event.Type != eventbus.EventDeviceStateChanged {
+			continue
+		}
+		change, ok := event.Payload.(device.DeviceStateChange)
+		if !ok {
+			t.Fatal("expected DeviceStateChange payload")
+		}
+		if change.State.On != nil {
+			t.Fatalf("expected undeclared on state to be dropped, got %v", *change.State.On)
+		}
+		if change.State.Contact == nil || *change.State.Contact {
+			t.Fatalf("expected contact=false, got %v", change.State.Contact)
+		}
+		if change.State.Battery == nil || *change.State.Battery != 100 {
+			t.Fatalf("expected battery=100, got %v", change.State.Battery)
+		}
+		return
+	}
+	t.Fatal("EventDeviceStateChanged not found")
+}
+
 func TestAvailabilityPublishesEvent(t *testing.T) {
 	adapter, mqtt, bus, sw := setupAdapterWithDevice(t, "living_room_light", "0xabc", device.Light)
 	defer adapter.Stop()

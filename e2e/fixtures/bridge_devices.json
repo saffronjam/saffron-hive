@@ -203,6 +203,7 @@
       "supports_ota": true,
       "exposes": [
         {"type": "enum", "name": "orientation", "property": "orientation", "access": 1, "values": ["face_up", "face_down", "vertical", "tilt"], "features": []},
+        {"type": "enum", "name": "device_posture", "property": "device_posture", "access": 1, "values": ["normal", "abnormal"], "features": []},
         {"type": "binary", "name": "contact", "property": "contact", "access": 1, "features": []},
         {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "features": []}
       ]

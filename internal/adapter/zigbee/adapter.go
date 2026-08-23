@@ -457,6 +457,9 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		logger.Error("failed to map device state", "device", friendlyName, "error", err)
 		return
 	}
+	if dev, found := a.stateReader.GetDevice(id); found {
+		state = device.FilterReportedState(state, dev)
+	}
 	configuration, err := a.mapConfiguration(id, statePayload)
 	if err != nil {
 		logger.Error("failed to map device configuration", "device", friendlyName, "error", err)
