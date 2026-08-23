@@ -191,6 +191,7 @@
 			}
 			device(id: $id) {
 				id
+				source
 				zigbee2Mqtt {
 					imageCandidate
 					imageVersion
@@ -258,27 +259,39 @@
 	const clientRef = getContextClient();
 
 	async function loadZigbeeMetadata(id: string) {
-		const result = await clientRef
-			.query(DEVICE_ZIGBEE_DETAIL, { id }, { requestPolicy: "cache-first" })
-			.toPromise();
-		if (metadataDeviceId !== id) return;
-		if (result.error) {
-			error = result.error.message;
-			return;
+		let lastError: string | null = null;
+		for (let attempt = 0; attempt < 6; attempt++) {
+			const result = await clientRef
+				.query(DEVICE_ZIGBEE_DETAIL, { id }, { requestPolicy: "network-only" })
+				.toPromise();
+			if (metadataDeviceId !== id) return;
+			if (result.error) {
+				lastError = result.error.message;
+			} else {
+				const snapshot: ZigbeeDetailSnapshot = {
+					metadata: result.data?.device?.zigbee2Mqtt ?? null,
+					frontendUrl: result.data?.zigbee2MqttConfig?.frontendUrl ?? null,
+				};
+				if (
+					snapshot.metadata ||
+					(result.data?.device && result.data.device.source !== "zigbee2mqtt") ||
+					attempt === 5
+				) {
+					zigbeeMetadata = snapshot.metadata;
+					zigbeeFrontendUrl = snapshot.frontendUrl;
+					saveSessionSnapshot(
+						window.sessionStorage,
+						zigbeeDetailCacheName(id),
+						ZIGBEE_DETAIL_CACHE_VERSION,
+						snapshot,
+						256_000,
+					);
+					return;
+				}
+			}
+			await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
 		}
-		const snapshot: ZigbeeDetailSnapshot = {
-			metadata: result.data?.device?.zigbee2Mqtt ?? null,
-			frontendUrl: result.data?.zigbee2MqttConfig?.frontendUrl ?? null,
-		};
-		zigbeeMetadata = snapshot.metadata;
-		zigbeeFrontendUrl = snapshot.frontendUrl;
-		saveSessionSnapshot(
-			window.sessionStorage,
-			zigbeeDetailCacheName(id),
-			ZIGBEE_DETAIL_CACHE_VERSION,
-			snapshot,
-			256_000,
-		);
+		if (lastError) error = lastError;
 	}
 
 	$effect(() => {
