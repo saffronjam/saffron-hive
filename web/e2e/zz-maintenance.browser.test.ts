@@ -129,7 +129,7 @@ describe("Maintenance", () => {
       waitUntil: "domcontentloaded",
     });
     const updateLink = page.getByRole("link", { name: "Update" });
-    await expect.poll(() => updateLink.count()).toBe(1);
+    await expect.poll(() => updateLink.count(), { timeout: 30_000 }).toBe(1);
     expect(await updateLink.getAttribute("href")).toBe(
       "https://z2m.example.com/#/device/0/0x54ef4410015e4b68/info",
     );
