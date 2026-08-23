@@ -242,6 +242,28 @@ describe("URL-backed search restoration", () => {
     await browserPage.waitForURL("**/devices");
   });
 
+  it("restores the searchbar when browser history moves forward to a cached list", async () => {
+    const { appUrl } = getContext();
+    await browserPage.goto(`${appUrl}/profile`, { waitUntil: "domcontentloaded" });
+    await browserPage.goto(`${appUrl}/devices?q=Living+Room+Light`, {
+      waitUntil: "domcontentloaded",
+    });
+    await waitForFilteredRow(browserPage, "Living Room Light");
+
+    await browserPage.goBack({ waitUntil: "domcontentloaded" });
+    expect(new URL(browserPage.url()).pathname).toBe("/profile");
+    await browserPage.goForward({ waitUntil: "domcontentloaded" });
+
+    await waitForFilteredRow(browserPage, "Living Room Light");
+    const searchText = await browserPage
+      .locator("main input[type=text]")
+      .first()
+      .evaluate((input) => input.closest('[role="presentation"]')?.textContent ?? "");
+    expect(searchText).toContain("Living Room Light");
+    await expect.poll(() => browserPage.getByText("Door sensor T1", { exact: true }).count()).toBe(0);
+    expect(new URL(browserPage.url()).searchParams.get("q")).toBe("Living Room Light");
+  });
+
   it("restores every search surface across navigation and reload", async () => {
     const { appUrl } = getContext();
     const routes: SearchRoute[] = [
