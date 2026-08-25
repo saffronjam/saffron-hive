@@ -1,5 +1,5 @@
 <script lang="ts" generics="O">
-	import { tick, type Snippet } from "svelte";
+	import { onMount, tick, type Snippet } from "svelte";
 	import {
 		Popover,
 		PopoverContent,
@@ -214,6 +214,24 @@
 		inputRef?.focus();
 	}
 
+	function onTriggerMouseDown(e: MouseEvent) {
+		if (e.button === 0) return;
+		e.preventDefault();
+		open = false;
+		inputRef?.blur();
+	}
+
+	function dismissForContextMenu() {
+		if (!open) return;
+		open = false;
+		inputRef?.blur();
+	}
+
+	onMount(() => {
+		window.addEventListener("contextmenu", dismissForContextMenu, true);
+		return () => window.removeEventListener("contextmenu", dismissForContextMenu, true);
+	});
+
 	function onKeydown(e: KeyboardEvent) {
 		if (disabled) return;
 		// Keep keystrokes from bubbling to the PopoverTrigger wrapper, whose
@@ -328,6 +346,7 @@
 				data-hive-search-trigger
 				aria-disabled={disabled}
 				class={cn("inline-flex w-full flex-wrap items-stretch gap-1", className)}
+				onmousedown={onTriggerMouseDown}
 				onclick={onTriggerClick}
 			>
 				{#each committed as token, i (i)}

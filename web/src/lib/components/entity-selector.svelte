@@ -31,6 +31,8 @@
 		emptyMessage = "No results found.",
 		children,
 	}: Props = $props();
+
+	let activeItem = $state("");
 </script>
 
 <Sheet bind:open>
@@ -40,9 +42,9 @@
 			<SheetDescription>{description}</SheetDescription>
 		</SheetHeader>
 		<div class="mt-4 flex min-h-0 flex-1 flex-col">
-			<Command class="flex min-h-0 flex-1 flex-col">
+			<Command bind:value={activeItem} class="flex min-h-0 flex-1 flex-col">
 				<CommandInput {placeholder} />
-				<CommandList class="max-h-none flex-1">
+				<CommandList class="max-h-none flex-1" onpointerleave={() => (activeItem = "")}>
 					<CommandEmpty>{emptyMessage}</CommandEmpty>
 					{@render children()}
 				</CommandList>

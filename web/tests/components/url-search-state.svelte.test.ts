@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import Harness from "./url-search-state-harness.svelte";
-import {
-  resetMockNavigation,
-  replaceStateCalls,
-  runAfterNavigate,
-} from "../mocks/app-navigation";
+import { gotoCalls, resetMockNavigation, runAfterNavigate } from "../mocks/app-navigation";
 import { resetMockPage, setMockPageUrl } from "../mocks/app-state.svelte";
 
 type HarnessInstance = {
@@ -38,7 +34,7 @@ function mountHarness(url: string): HarnessInstance {
 }
 
 describe("createUrlSearchState", () => {
-  it("hydrates synchronously and replaces history on edits", () => {
+  it("hydrates synchronously and navigates with history replacement on edits", () => {
     const harness = mountHarness(
       "https://hive.test/devices?edit=d1&q=bedroom&filter=room%3ALiving%20Room",
     );
@@ -55,10 +51,15 @@ describe("createUrlSearchState", () => {
     });
     flushSync();
 
-    expect(replaceStateCalls).toHaveLength(1);
-    expect(replaceStateCalls[0].searchParams.get("edit")).toBe("d1");
-    expect(replaceStateCalls[0].searchParams.get("q")).toBe("hall");
-    expect(replaceStateCalls[0].searchParams.getAll("filter")).toEqual(["room:Hallway"]);
+    expect(gotoCalls).toHaveLength(1);
+    expect(gotoCalls[0].url.searchParams.get("edit")).toBe("d1");
+    expect(gotoCalls[0].url.searchParams.get("q")).toBe("hall");
+    expect(gotoCalls[0].url.searchParams.getAll("filter")).toEqual(["room:Hallway"]);
+    expect(gotoCalls[0].options).toEqual({
+      replaceState: true,
+      keepFocus: true,
+      noScroll: true,
+    });
   });
 
   it("routes searchbar typing through the controller", () => {
@@ -69,8 +70,8 @@ describe("createUrlSearchState", () => {
     input!.dispatchEvent(new Event("input", { bubbles: true }));
     flushSync();
     expect(harness.value().freeText).toBe("instant");
-    expect(replaceStateCalls).toHaveLength(1);
-    expect(replaceStateCalls[0].searchParams.get("q")).toBe("instant");
+    expect(gotoCalls).toHaveLength(1);
+    expect(gotoCalls[0].url.searchParams.get("q")).toBe("instant");
   });
 
   it("clears an empty active filter with Backspace", () => {
@@ -102,7 +103,7 @@ describe("createUrlSearchState", () => {
       chips: [{ keyword: "room", value: "Kitchen" }],
     });
     expect(host.textContent).toContain("second");
-    expect(replaceStateCalls).toHaveLength(0);
+    expect(gotoCalls).toHaveLength(0);
   });
 
   it("keeps its own state and does not touch the route while inactive", () => {
@@ -116,6 +117,6 @@ describe("createUrlSearchState", () => {
     harness.set({ freeText: "hidden edit", chips: [] });
     flushSync();
     expect(harness.value().freeText).toBe("hidden edit");
-    expect(replaceStateCalls).toHaveLength(0);
+    expect(gotoCalls).toHaveLength(0);
   });
 });

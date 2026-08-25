@@ -13,6 +13,12 @@
 let lastDismissedAt = 0;
 
 export const POPOVER_DISMISS_GUARD_MS = 250;
+export const DISMISS_POPOVERS_EVENT = "hive:dismiss-popovers";
+
+export function dismissPopovers(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(DISMISS_POPOVERS_EVENT));
+}
 
 export function markPopoverDismissed(): void {
   lastDismissedAt = Date.now();

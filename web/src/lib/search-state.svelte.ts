@@ -1,4 +1,4 @@
-import { afterNavigate, replaceState } from "$app/navigation";
+import { afterNavigate, goto } from "$app/navigation";
 import { page } from "$app/state";
 import { emptySearchState, type SearchState } from "$lib/components/hive-searchbar";
 
@@ -80,7 +80,11 @@ export function createUrlSearchState(options: UrlSearchStateOptions): UrlSearchS
       value = owned;
       currentKey = searchStateKey(owned);
       if (!options.active()) return;
-      replaceState(urlWithSearchState(page.url, owned), page.state);
+      void goto(urlWithSearchState(page.url, owned), {
+        replaceState: true,
+        keepFocus: true,
+        noScroll: true,
+      });
     },
   };
 }
