@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -19,6 +20,38 @@ type NativeEffectRequest struct {
 	DeviceID DeviceID      `json:"deviceId"`
 	Name     string        `json:"name"`
 	Origin   CommandOrigin `json:"origin,omitzero"`
+}
+
+// NativeEffectSupportStatus is Hive's learned compatibility state for one device and effect.
+type NativeEffectSupportStatus string
+
+const (
+	NativeEffectSupportConfirmed   NativeEffectSupportStatus = "confirmed"
+	NativeEffectSupportUntested    NativeEffectSupportStatus = "untested"
+	NativeEffectSupportUnsupported NativeEffectSupportStatus = "unsupported"
+)
+
+// NativeEffectRunStatus describes the observable outcome of one effect request.
+type NativeEffectRunStatus string
+
+const (
+	NativeEffectRunConfirmed   NativeEffectRunStatus = "confirmed"
+	NativeEffectRunUnsupported NativeEffectRunStatus = "unsupported"
+	NativeEffectRunUnconfirmed NativeEffectRunStatus = "unconfirmed"
+)
+
+// NativeEffectResult is the payload for eventbus.EventNativeEffectResult.
+type NativeEffectResult struct {
+	DeviceID DeviceID              `json:"deviceId"`
+	Name     string                `json:"name"`
+	RunID    string                `json:"runId,omitempty"`
+	Status   NativeEffectRunStatus `json:"status"`
+	Reason   string                `json:"reason,omitempty"`
+}
+
+// NativeEffectSupportReader resolves learned compatibility for a device.
+type NativeEffectSupportReader interface {
+	Status(ctx context.Context, dev Device, name string) (NativeEffectSupportStatus, error)
 }
 
 // RequestNativeEffect publishes EventNativeEffectRequested on bus for the
