@@ -7,6 +7,7 @@ let browser: Browser;
 let browserContext: BrowserContext;
 let page: Page;
 const UI_TIMEOUT = 30_000;
+const APP_READY_TIMEOUT = 60_000;
 
 const ZIGBEE_METADATA_READY_QUERY = graphql(`
   query E2EZigbeeMetadataReady($id: ID!) {
@@ -58,6 +59,11 @@ describe("Zigbee device metadata", () => {
       .toBe("0x54ef44100166fcae");
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`${appUrl}/devices/0x54ef44100166fcae`, { waitUntil: "domcontentloaded" });
+    await expect
+      .poll(() => page.getByLabel("Device Name", { exact: true }).count(), {
+        timeout: APP_READY_TIMEOUT,
+      })
+      .toBe(1);
     await expect
       .poll(() => page.getByText("Zigbee", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
