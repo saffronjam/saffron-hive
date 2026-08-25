@@ -97,12 +97,59 @@ const base = createEntityStore<Scene, ScenesStoreQuery>({
 });
 
 let activeUnsub: (() => void) | null = null;
+const ACTIVATION_SETTLE_MS = 1500;
+
+interface ActivationSettle {
+  timer: ReturnType<typeof setTimeout>;
+  deferred: string | null | undefined;
+}
+
+const activationSettles = new Map<string, ActivationSettle>();
 
 function setActivatedAt(id: string, activatedAt: string | null) {
   const scene = base.byId.get(id);
   if (!scene) return;
   if ((scene.activatedAt ?? null) === activatedAt) return;
   base.upsert({ ...scene, activatedAt });
+}
+
+function cancelActivationSettle(id: string) {
+  const settle = activationSettles.get(id);
+  if (!settle) return;
+  clearTimeout(settle.timer);
+  activationSettles.delete(id);
+}
+
+function clearActivationSettles() {
+  for (const settle of activationSettles.values()) clearTimeout(settle.timer);
+  activationSettles.clear();
+}
+
+function beginActivationSettle(id: string) {
+  cancelActivationSettle(id);
+  const settle: ActivationSettle = {
+    deferred: undefined,
+    timer: setTimeout(() => {
+      if (activationSettles.get(id) !== settle) return;
+      activationSettles.delete(id);
+      if (settle.deferred !== undefined) setActivatedAt(id, settle.deferred);
+    }, ACTIVATION_SETTLE_MS),
+  };
+  activationSettles.set(id, settle);
+}
+
+function reconcileActivatedAt(id: string, activatedAt: string | null) {
+  const settle = activationSettles.get(id);
+  if (!settle) {
+    setActivatedAt(id, activatedAt);
+    return;
+  }
+  if (activatedAt !== null) {
+    cancelActivationSettle(id);
+    setActivatedAt(id, activatedAt);
+    return;
+  }
+  settle.deferred = null;
 }
 
 /**
@@ -126,9 +173,11 @@ export const scenesStore = {
   get error() {
     return base.error;
   },
-  clear: base.clear,
+  clear() {
+    clearActivationSettles();
+    base.clear();
+  },
   refresh: base.refresh,
-  setActivatedAt,
 
   async start(client: Client) {
     await base.start(client);
@@ -139,12 +188,13 @@ export const scenesStore = {
     const sub = client.subscription(SCENE_ACTIVE_CHANGED, {}).subscribe((result) => {
       const event = result.data?.sceneActiveChanged;
       if (!event) return;
-      setActivatedAt(event.sceneId, event.activatedAt ?? null);
+      reconcileActivatedAt(event.sceneId, event.activatedAt ?? null);
     });
     activeUnsub = sub.unsubscribe;
   },
 
   stop() {
+    clearActivationSettles();
     if (activeUnsub) {
       activeUnsub();
       activeUnsub = null;
@@ -182,17 +232,22 @@ export const scenesStore = {
 
   /**
    * Applies a scene, marking it active straight away so the card reacts to the
-   * tap rather than to the round trip. The server's own answer replaces the
-   * guess, and a failure rolls it back.
+   * tap rather than to the round trip. Activation remains owned by the live
+   * scene subscription, and a failed mutation restores the prior value.
    */
   async apply(client: Client, id: string): Promise<void> {
     const previous = base.byId.get(id)?.activatedAt ?? null;
+    beginActivationSettle(id);
     setActivatedAt(id, new Date().toISOString());
     const result = await client.mutation(APPLY_SCENE, { sceneId: id }).toPromise();
     if (result.error || !result.data) {
+      cancelActivationSettle(id);
       setActivatedAt(id, previous);
       throw result.error ?? new Error("applyScene failed");
     }
-    base.upsert(result.data.applyScene);
+    base.upsert({
+      ...result.data.applyScene,
+      activatedAt: base.byId.get(id)?.activatedAt ?? null,
+    });
   },
 };
