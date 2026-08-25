@@ -3,12 +3,15 @@ package targetcommand
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+var logger = slog.Default().With("pkg", "target_command")
 
 type Store interface {
 	device.TargetResolver
@@ -19,13 +22,14 @@ type Store interface {
 // Dispatcher selects provider multicast for eligible direct provider groups
 // and otherwise fans out through the generic target resolver.
 type Dispatcher struct {
-	bus    eventbus.Publisher
-	store  Store
-	reader device.StateReader
+	bus     eventbus.Publisher
+	store   Store
+	reader  device.StateReader
+	support device.NativeEffectSupportReader
 }
 
-func New(bus eventbus.Publisher, store Store, reader device.StateReader) *Dispatcher {
-	return &Dispatcher{bus: bus, store: store, reader: reader}
+func New(bus eventbus.Publisher, store Store, reader device.StateReader, support device.NativeEffectSupportReader) *Dispatcher {
+	return &Dispatcher{bus: bus, store: store, reader: reader, support: support}
 }
 
 func (d *Dispatcher) ResolveTargetDeviceIDs(ctx context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
@@ -60,11 +64,14 @@ func (d *Dispatcher) CommandTarget(ctx context.Context, req device.TargetCommand
 		}
 		seen[id] = struct{}{}
 		dev, ok := d.reader.GetDevice(id)
-		if !ok || dev.Disabled || dev.Removed {
+		if !ok || dev.RuntimeDisabled() || dev.Removed {
 			continue
 		}
 		if req.NativeEffect != "" {
 			if !supportsNativeEffect(dev, req.NativeEffect) {
+				continue
+			}
+			if !d.nativeEffectAllowed(ctx, dev, req.NativeEffect) {
 				continue
 			}
 			d.bus.Publish(eventbus.Event{
@@ -113,11 +120,14 @@ func (d *Dispatcher) providerGroupCommand(ctx context.Context, req device.Target
 		}
 		id := device.DeviceID(member.MemberID)
 		dev, ok := d.reader.GetDevice(id)
-		if !ok || dev.Source != device.SourceZigbee2MQTT || dev.Disabled || dev.Removed {
+		if !ok || dev.Source != device.SourceZigbee2MQTT || dev.RuntimeDisabled() || dev.Removed {
 			return device.ProviderGroupCommand{}, false
 		}
 		if req.NativeEffect != "" {
 			if !supportsNativeEffect(dev, req.NativeEffect) {
+				return device.ProviderGroupCommand{}, false
+			}
+			if !d.nativeEffectAllowed(ctx, dev, req.NativeEffect) {
 				return device.ProviderGroupCommand{}, false
 			}
 		} else if !acceptsCommand(dev, req.State) {
@@ -144,6 +154,22 @@ func (d *Dispatcher) providerGroupCommand(ctx context.Context, req device.Target
 		State:           req.State,
 		NativeEffect:    req.NativeEffect,
 	}, true
+}
+
+func (d *Dispatcher) nativeEffectAllowed(ctx context.Context, dev device.Device, name string) bool {
+	if d.support == nil {
+		return true
+	}
+	status, err := d.support.Status(ctx, dev, name)
+	if err != nil {
+		logger.Warn("resolve native effect support failed",
+			slog.String("device_id", string(dev.ID)),
+			slog.String("effect", name),
+			slog.String("error", err.Error()),
+		)
+		return true
+	}
+	return status != device.NativeEffectSupportUnsupported
 }
 
 func acceptsCommand(dev device.Device, cmd device.Command) bool {

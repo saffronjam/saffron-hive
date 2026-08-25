@@ -40,6 +40,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
+	"github.com/saffronjam/saffron-hive/internal/nativeeffect"
 	"github.com/saffronjam/saffron-hive/internal/oui"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
@@ -48,6 +49,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/version"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
+	"github.com/saffronjam/saffron-hive/internal/zigbeedocs"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 	_ "modernc.org/sqlite"
 )
@@ -167,6 +169,7 @@ func Run(ctx context.Context) error {
 	providerGroupCh := bus.Subscribe(eventbus.EventProviderGroupsSynced)
 	zigbeeMetadataCh := bus.Subscribe(
 		eventbus.EventZigbeeMetadataSynced,
+		eventbus.EventZigbeeBridgeInfoSynced,
 		eventbus.EventZigbeeOTAStatusChanged,
 	)
 	spawn("history.recorder", func() { history.RunRecorder(ctx, bus, sqlStore) })
@@ -194,7 +197,20 @@ func Run(ctx context.Context) error {
 	webhookService := webhook.NewService(sqlStore, bus, webhookBuffer)
 	spawn("webhook.retention", func() { webhook.RunRetention(ctx, sqlStore) })
 
-	targetCommander := targetcommand.New(bus, sqlStore, memStore)
+	nativeEffectSupport := nativeeffect.New(bus, sqlStore, memStore)
+	if err := nativeEffectSupport.Hydrate(ctx); err != nil {
+		serveLogger.Warn("native effect support hydrate failed", "error", err)
+	}
+	nativeEffectEvents := bus.Subscribe(
+		eventbus.EventNativeEffectResult,
+		eventbus.EventZigbeeMetadataUpdated,
+		eventbus.EventDeviceSynced,
+	)
+	spawn("native_effect.support", func() {
+		defer bus.Unsubscribe(nativeEffectEvents)
+		nativeEffectSupport.Run(ctx, nativeEffectEvents)
+	})
+	targetCommander := targetcommand.New(bus, sqlStore, memStore, nativeEffectSupport)
 	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{})
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)
@@ -247,6 +263,11 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("create device image cache: %w", err)
 	}
 	defer deviceImageCache.Close()
+	zigbeeDocumentationCache := zigbeedocs.NewCache(filepath.Join(cfg.DataDir, "zigbee-device-docs"))
+	if err := zigbeeDocumentationCache.Init(); err != nil {
+		return fmt.Errorf("create Zigbee device documentation cache: %w", err)
+	}
+	defer zigbeeDocumentationCache.Close()
 
 	engineAdapter := &engineReloader{engine: engine, ctx: ctx}
 	resolver := &graph.Resolver{
@@ -268,10 +289,12 @@ func Run(ctx context.Context) error {
 		Tuya:                mgr,
 		Integrations:        mgr,
 		EffectRunner:        effectRunner,
+		NativeEffectSupport: nativeEffectSupport,
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
 		BootstrapToken:      bootstrapTokenStore,
 		AddressVendors:      addressVendors,
+		ZigbeeDocumentation: zigbeeDocumentationCache,
 		Webhooks:            webhookService,
 		WebhookBuffer:       webhookBuffer,
 		AvatarDir:           avatarDir,
@@ -449,7 +472,6 @@ func seedInitialUser(ctx context.Context, cfg config.Config, s *store.DB) error 
 
 type adapterManager struct {
 	mu                 sync.Mutex
-	client             zigbee.MQTTClient
 	adapter            *zigbee.ZigbeeAdapter
 	zigbee2mqttEnabled bool
 	tuya               *tuya.Adapter
@@ -528,18 +550,15 @@ func (m *adapterManager) stopScanCronLocked() {
 	}
 }
 
-// Zigbee2MQTTConnected reports whether the managed broker client holds a live
-// link. False whenever the integration is unconfigured, disabled, its adapter
-// failed to start, or a reconnect is in flight — commands published during a
-// reconnect are discarded, so that window is downtime the alarm monitor should
-// see.
+// Zigbee2MQTTConnected reports whether Hive's broker subscriptions are ready
+// and Zigbee2MQTT reports its bridge online.
 func (m *adapterManager) Zigbee2MQTTConnected() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.client == nil {
+	if m.adapter == nil {
 		return false
 	}
-	return m.client.IsConnectionOpen()
+	return m.adapter.BridgeConnected()
 }
 
 // Zigbee2MQTTEnabled reports whether the integration is configured and switched
@@ -585,7 +604,6 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 		m.adapter.Stop()
 		m.adapter = nil
 	}
-	m.client = nil
 	m.stopScanCronLocked()
 
 	// Set before attempting Start so a configured integration whose broker is
@@ -611,7 +629,6 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 		adapter.Stop()
 		return fmt.Errorf("start zigbee2mqtt adapter: %w", err)
 	}
-	m.client = client
 	m.adapter = adapter
 
 	if cfg.ScanScheduleEnabled && cfg.ScanHour != nil && cfg.ScanMinute != nil {
@@ -746,7 +763,6 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 			m.adapter.Stop()
 			m.adapter = nil
 		}
-		m.client = nil
 		m.zigbee2mqttEnabled = false
 		m.stopScanCronLocked()
 		m.mu.Unlock()
@@ -757,7 +773,6 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 		if err := m.store.DeleteNetworkTopology(ctx, device.SourceZigbee2MQTT); err != nil {
 			return 0, err
 		}
-		m.markSourceUnavailable(ctx, device.SourceZigbee2MQTT)
 		return 0, nil
 
 	case device.SourceTuya:
@@ -786,7 +801,7 @@ func (m *adapterManager) purgeDevicesForSource(ctx context.Context, source devic
 		return 0, err
 	}
 	for _, dev := range devices {
-		if err := m.store.DeleteDevice(ctx, dev.ID); err != nil {
+		if err := m.store.PurgeDevice(ctx, dev.ID); err != nil {
 			return 0, err
 		}
 		m.memStore.Remove(dev.ID)
@@ -797,25 +812,6 @@ func (m *adapterManager) purgeDevicesForSource(ctx context.Context, source devic
 		})
 	}
 	return len(devices), nil
-}
-
-// markSourceUnavailable flags a source's devices offline so the dashboard stops
-// showing stale online state once its adapter has stopped.
-func (m *adapterManager) markSourceUnavailable(ctx context.Context, source device.Source) {
-	devices, err := m.store.ListDevicesBySource(ctx, source)
-	if err != nil {
-		serveLogger.Warn("failed to list devices to mark unavailable", "source", source, "error", err)
-		return
-	}
-	for _, dev := range devices {
-		m.memStore.SetAvailability(dev.ID, false)
-		m.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceAvailabilityChanged,
-			DeviceID:  string(dev.ID),
-			Timestamp: time.Now(),
-			Payload:   false,
-		})
-	}
 }
 
 func (m *adapterManager) TuyaConnected() bool {

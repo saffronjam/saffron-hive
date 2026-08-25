@@ -52,7 +52,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		StateReader:        sr,
 		Store:              st,
 		TargetResolver:     st,
-		TargetCommander:    targetcommand.New(bus, st, sr),
+		TargetCommander:    targetcommand.New(bus, st, sr, nil),
 		EventBus:           bus,
 		AutomationReloader: rl,
 		EffectRunner:       er,

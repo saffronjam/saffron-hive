@@ -443,6 +443,7 @@ func TestQueryNativeEffectOptions(t *testing.T) {
 		Capabilities: []device.Capability{{
 			Name:   device.CapEffect,
 			Type:   "enum",
+			Access: device.CapabilityAccessSet,
 			Values: []string{"blink", "candle", "stop_effect", "stop_hue_effect", "finish_effect"},
 		}},
 	})
@@ -451,6 +452,7 @@ func TestQueryNativeEffectOptions(t *testing.T) {
 		Capabilities: []device.Capability{{
 			Name:   device.CapEffect,
 			Type:   "enum",
+			Access: device.CapabilityAccessSet,
 			Values: []string{"blink", "stop_effect"},
 		}},
 	})
@@ -459,16 +461,18 @@ func TestQueryNativeEffectOptions(t *testing.T) {
 		Capabilities: []device.Capability{{Name: "temperature", Type: "numeric"}},
 	})
 
-	resp := env.query(t, `query { nativeEffectOptions { name displayName supportedDeviceCount } }`, nil)
+	resp := env.query(t, `query { nativeEffectOptions { name displayName confirmedDeviceCount untestedDeviceCount unsupportedDeviceCount } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
 
 	var data struct {
 		Options []struct {
-			Name                 string `json:"name"`
-			DisplayName          string `json:"displayName"`
-			SupportedDeviceCount int    `json:"supportedDeviceCount"`
+			Name                   string `json:"name"`
+			DisplayName            string `json:"displayName"`
+			ConfirmedDeviceCount   int    `json:"confirmedDeviceCount"`
+			UntestedDeviceCount    int    `json:"untestedDeviceCount"`
+			UnsupportedDeviceCount int    `json:"unsupportedDeviceCount"`
 		} `json:"nativeEffectOptions"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -478,7 +482,7 @@ func TestQueryNativeEffectOptions(t *testing.T) {
 	byName := make(map[string]int, len(data.Options))
 	displayByName := make(map[string]string, len(data.Options))
 	for _, o := range data.Options {
-		byName[o.Name] = o.SupportedDeviceCount
+		byName[o.Name] = o.UntestedDeviceCount
 		displayByName[o.Name] = o.DisplayName
 	}
 	for _, terminator := range []string{"stop_effect", "stop_hue_effect", "finish_effect"} {
@@ -502,6 +506,66 @@ func TestQueryNativeEffectOptions(t *testing.T) {
 	}
 	if !sort.StringsAreSorted(names) {
 		t.Errorf("expected options sorted by name, got %v", names)
+	}
+}
+
+type confirmingEffectRunner struct {
+	*mockEffectRunner
+	bus      eventbus.Publisher
+	deviceID device.DeviceID
+}
+
+func (r *confirmingEffectRunner) StartNative(ctx context.Context, nativeName string, target effect.Target) (string, error) {
+	runID, err := r.mockEffectRunner.StartNative(ctx, nativeName, target)
+	if err != nil {
+		return "", err
+	}
+	r.bus.Publish(eventbus.Event{
+		Type:     eventbus.EventNativeEffectResult,
+		DeviceID: string(r.deviceID),
+		Payload: device.NativeEffectResult{
+			DeviceID: r.deviceID, Name: nativeName, RunID: runID, Status: device.NativeEffectRunConfirmed,
+		},
+	})
+	return runID, nil
+}
+
+func TestRunNativeEffectReturnsPerDeviceConfirmation(t *testing.T) {
+	env := newTestEnv(t)
+	env.stateReader.addDevice(device.Device{
+		ID: "lamp", Source: device.SourceZigbee2MQTT, Type: device.Light,
+		Capabilities: []device.Capability{{
+			Name: device.CapEffect, Access: device.CapabilityAccessSet, Values: []string{"underwater"},
+		}},
+	})
+	env.resolver.EffectRunner = &confirmingEffectRunner{
+		mockEffectRunner: newMockEffectRunner(env.store), bus: env.bus, deviceID: "lamp",
+	}
+
+	resp := env.query(t, `mutation {
+		runNativeEffect(nativeName: "underwater", targetType: "device", targetId: "lamp") {
+			runId
+			devices { deviceId status }
+		}
+	}`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", resp.Errors)
+	}
+	var data struct {
+		Result struct {
+			RunID   string `json:"runId"`
+			Devices []struct {
+				DeviceID string `json:"deviceId"`
+				Status   string `json:"status"`
+			} `json:"devices"`
+		} `json:"runNativeEffect"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		t.Fatal(err)
+	}
+	if data.Result.RunID != "run-1" || len(data.Result.Devices) != 1 ||
+		data.Result.Devices[0].DeviceID != "lamp" || data.Result.Devices[0].Status != "CONFIRMED" {
+		t.Fatalf("unexpected run result: %+v", data.Result)
 	}
 }
 

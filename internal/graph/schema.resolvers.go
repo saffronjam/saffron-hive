@@ -32,6 +32,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
+	"github.com/saffronjam/saffron-hive/internal/zigbeedocs"
 )
 
 // Zigbee2Mqtt is the resolver for the zigbee2Mqtt field.
@@ -129,6 +130,64 @@ func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input mo
 	return mapDeviceFromReader(r.StateReader, d), nil
 }
 
+// DeleteDevice is the resolver for the deleteDevice field.
+func (r *mutationResolver) DeleteDevice(ctx context.Context, id string) (*model.Device, error) {
+	deviceID := device.DeviceID(id)
+	before, err := r.Store.GetDevice(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("device %q not found: %w", id, err)
+	}
+	d, err := r.Store.MarkDeviceDeleted(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Deleted {
+		r.publishDeviceUpdated(d)
+	}
+	return mapDeviceFromReader(r.StateReader, d), nil
+}
+
+// RestoreDevice is the resolver for the restoreDevice field.
+func (r *mutationResolver) RestoreDevice(ctx context.Context, id string) (*model.Device, error) {
+	deviceID := device.DeviceID(id)
+	before, err := r.Store.GetDevice(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("device %q not found: %w", id, err)
+	}
+	d, err := r.Store.RestoreDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	if before.Deleted {
+		r.publishDeviceUpdated(d)
+	}
+	return mapDeviceFromReader(r.StateReader, d), nil
+}
+
+// BatchDeleteDevices is the resolver for the batchDeleteDevices field.
+func (r *mutationResolver) BatchDeleteDevices(ctx context.Context, ids []string) (int, error) {
+	changed, err := r.Store.BatchMarkDevicesDeleted(ctx, deviceIDs(ids))
+	if err != nil {
+		return 0, err
+	}
+	for _, d := range changed {
+		r.publishDeviceUpdated(d)
+	}
+	return len(changed), nil
+}
+
+// BatchRestoreDevices is the resolver for the batchRestoreDevices field.
+func (r *mutationResolver) BatchRestoreDevices(ctx context.Context, ids []string) (int, error) {
+	changed, err := r.Store.BatchRestoreDevices(ctx, deviceIDs(ids))
+	if err != nil {
+		return 0, err
+	}
+	for _, d := range changed {
+		r.publishDeviceUpdated(d)
+	}
+	return len(changed), nil
+}
+
 // SetTargetState is the resolver for the setTargetState field.
 func (r *mutationResolver) SetTargetState(ctx context.Context, targetType model.CommandTargetType, targetID string, state model.DeviceStateInput) (bool, error) {
 	domainType := device.TargetType(strings.ToLower(string(targetType)))
@@ -137,8 +196,8 @@ func (r *mutationResolver) SetTargetState(ctx context.Context, targetType model.
 		if !ok {
 			return false, fmt.Errorf("device %q not found", targetID)
 		}
-		if d.Disabled {
-			return false, disabledDeviceError(d)
+		if d.RuntimeDisabled() {
+			return false, runtimeDisabledDeviceError(d)
 		}
 		if d.Type == device.Hub {
 			return false, fmt.Errorf("device %q is a hub and takes no commands", d.DisplayName())
@@ -216,8 +275,8 @@ func (r *mutationResolver) SimulateDeviceAction(ctx context.Context, deviceID st
 	}
 	// A simulated action drives automations exactly as the physical device
 	// would, so a disabled device must not be able to fire one.
-	if d.Disabled {
-		return false, disabledDeviceError(d)
+	if d.RuntimeDisabled() {
+		return false, runtimeDisabledDeviceError(d)
 	}
 	if action == "" {
 		return false, fmt.Errorf("action must not be empty")
@@ -1247,6 +1306,9 @@ func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.Up
 		s := temperatureUnitToStore(*tuPtr)
 		params.TemperatureUnit = &s
 	}
+	if hapticsPtr, ok := input.HapticsEnabled.ValueOK(); ok && hapticsPtr != nil {
+		params.HapticsEnabled = hapticsPtr
+	}
 	u, err := r.Store.UpdateUserProfile(ctx, params)
 	if err != nil {
 		return nil, err
@@ -1734,8 +1796,8 @@ func (r *mutationResolver) RunEffect(ctx context.Context, effectID string, targe
 	}
 
 	if tt == device.TargetDevice {
-		if d, ok := r.StateReader.GetDevice(device.DeviceID(targetID)); ok && d.Disabled {
-			return nil, disabledDeviceError(d)
+		if d, ok := r.StateReader.GetDevice(device.DeviceID(targetID)); ok && d.RuntimeDisabled() {
+			return nil, runtimeDisabledDeviceError(d)
 		}
 	}
 
@@ -1761,7 +1823,7 @@ func (r *mutationResolver) RunEffect(ctx context.Context, effectID string, targe
 }
 
 // RunNativeEffect is the resolver for the runNativeEffect field.
-func (r *mutationResolver) RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.ActiveEffect, error) {
+func (r *mutationResolver) RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.NativeEffectRunResult, error) {
 	if r.EffectRunner == nil {
 		return nil, errors.New("effect runner is not configured")
 	}
@@ -1774,34 +1836,77 @@ func (r *mutationResolver) RunNativeEffect(ctx context.Context, nativeName strin
 			targetType, device.TargetDevice, device.TargetGroup, device.TargetRoom)
 	}
 
-	target := effect.Target{Type: tt, ID: targetID}
-	runID, err := r.EffectRunner.StartNative(ctx, nativeName, target)
-	if err != nil {
-		return nil, err
+	devices := r.nativeEffectTargetDevices(ctx, tt, targetID, nativeName)
+	if len(devices) == 0 {
+		return nil, fmt.Errorf("target %s/%s has no device advertising native effect %q", targetType, targetID, nativeName)
 	}
 
-	displayName := sentenceCase(nativeName)
-	nameCopy := nativeName
-	return &model.ActiveEffect{
-		ID: runID,
-		Effect: &model.Effect{
-			ID:                   "",
-			Name:                 displayName,
-			Source:               string(device.SourceZigbee2MQTT),
-			Kind:                 model.EffectKindNative,
-			NativeName:           &nameCopy,
-			Loop:                 false,
-			DurationMs:           0,
-			Tracks:               []*model.EffectTrack{},
-			RequiredCapabilities: []string{},
-			CreatedAt:            time.Now(),
-			UpdatedAt:            time.Now(),
-		},
-		TargetType: string(tt),
-		TargetID:   targetID,
-		StartedAt:  time.Now(),
-		Volatile:   true,
-	}, nil
+	results := make(map[device.DeviceID]model.NativeEffectRunStatus, len(devices))
+	pending := make(map[device.DeviceID]struct{}, len(devices))
+	for _, dev := range devices {
+		status, err := r.nativeEffectStatus(ctx, dev, nativeName)
+		if err != nil {
+			return nil, err
+		}
+		if status == device.NativeEffectSupportUnsupported {
+			results[dev.ID] = model.NativeEffectRunStatusUnsupported
+			continue
+		}
+		pending[dev.ID] = struct{}{}
+	}
+
+	runID := uuid.New().String()
+	if len(pending) > 0 {
+		resultEvents := r.EventBus.Subscribe(eventbus.EventNativeEffectResult)
+		defer r.EventBus.Unsubscribe(resultEvents)
+
+		startedRunID, err := r.EffectRunner.StartNative(ctx, nativeName, effect.Target{Type: tt, ID: targetID})
+		if err != nil {
+			return nil, err
+		}
+		runID = startedRunID
+
+		timer := time.NewTimer(3 * time.Second)
+		defer timer.Stop()
+		for len(pending) > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-timer.C:
+				for id := range pending {
+					results[id] = model.NativeEffectRunStatusUnconfirmed
+				}
+				pending = nil
+			case event, ok := <-resultEvents:
+				if !ok {
+					for id := range pending {
+						results[id] = model.NativeEffectRunStatusUnconfirmed
+					}
+					pending = nil
+					continue
+				}
+				result, ok := event.Payload.(device.NativeEffectResult)
+				if !ok || result.RunID != runID || result.Name != nativeName {
+					continue
+				}
+				if _, expected := pending[result.DeviceID]; !expected {
+					continue
+				}
+				results[result.DeviceID] = nativeEffectRunStatusToModel(result.Status)
+				delete(pending, result.DeviceID)
+			}
+		}
+	}
+
+	out := &model.NativeEffectRunResult{RunID: runID, Devices: make([]*model.NativeEffectDeviceRunResult, 0, len(devices))}
+	for _, dev := range devices {
+		status, ok := results[dev.ID]
+		if !ok {
+			status = model.NativeEffectRunStatusUnconfirmed
+		}
+		out.Devices = append(out.Devices, &model.NativeEffectDeviceRunResult{DeviceID: string(dev.ID), Status: status})
+	}
+	return out, nil
 }
 
 // StopEffect is the resolver for the stopEffect field.
@@ -2607,10 +2712,18 @@ func (r *queryResolver) NativeEffectOptions(ctx context.Context) ([]*model.Nativ
 		terminators[t] = struct{}{}
 	}
 
-	counts := make(map[string]int)
+	type statusCounts struct {
+		confirmed   int
+		untested    int
+		unsupported int
+	}
+	counts := make(map[string]statusCounts)
 	for _, d := range r.StateReader.ListDevices() {
+		if d.RuntimeDisabled() || d.Removed {
+			continue
+		}
 		for _, c := range d.Capabilities {
-			if c.Name != device.CapEffect {
+			if c.Name != device.CapEffect || !c.CanSet() {
 				continue
 			}
 			seenInDevice := make(map[string]struct{}, len(c.Values))
@@ -2622,7 +2735,20 @@ func (r *queryResolver) NativeEffectOptions(ctx context.Context) ([]*model.Nativ
 					continue
 				}
 				seenInDevice[v] = struct{}{}
-				counts[v]++
+				status, err := r.nativeEffectStatus(ctx, d, v)
+				if err != nil {
+					return nil, err
+				}
+				count := counts[v]
+				switch status {
+				case device.NativeEffectSupportConfirmed:
+					count.confirmed++
+				case device.NativeEffectSupportUnsupported:
+					count.unsupported++
+				default:
+					count.untested++
+				}
+				counts[v] = count
 			}
 		}
 	}
@@ -2630,15 +2756,39 @@ func (r *queryResolver) NativeEffectOptions(ctx context.Context) ([]*model.Nativ
 	out := make([]*model.NativeEffectOption, 0, len(counts))
 	for name, count := range counts {
 		out = append(out, &model.NativeEffectOption{
-			Name:                 name,
-			DisplayName:          sentenceCase(name),
-			Source:               string(device.SourceZigbee2MQTT),
-			SupportedDeviceCount: count,
+			Name:                   name,
+			DisplayName:            sentenceCase(name),
+			Source:                 string(device.SourceZigbee2MQTT),
+			ConfirmedDeviceCount:   count.confirmed,
+			UntestedDeviceCount:    count.untested,
+			UnsupportedDeviceCount: count.unsupported,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Name < out[j].Name
 	})
+	return out, nil
+}
+
+// NativeEffectSupport is the resolver for the nativeEffectSupport field.
+func (r *queryResolver) NativeEffectSupport(ctx context.Context, name string) ([]*model.NativeEffectDeviceSupport, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, errors.New("name must not be empty")
+	}
+	out := make([]*model.NativeEffectDeviceSupport, 0)
+	for _, dev := range r.StateReader.ListDevices() {
+		if dev.RuntimeDisabled() || dev.Removed || !deviceAdvertisesNativeEffect(dev, name) {
+			continue
+		}
+		status, err := r.nativeEffectStatus(ctx, dev, name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &model.NativeEffectDeviceSupport{
+			DeviceID: string(dev.ID), Status: nativeEffectSupportStatusToModel(status),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].DeviceID < out[j].DeviceID })
 	return out, nil
 }
 
@@ -3210,6 +3360,33 @@ func (r *subscriptionResolver) EffectStepActivated(ctx context.Context, runID *s
 	return out, nil
 }
 
+// NativeEffectSupportChanged is the resolver for the nativeEffectSupportChanged field.
+func (r *subscriptionResolver) NativeEffectSupportChanged(ctx context.Context) (<-chan *time.Time, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventNativeEffectSupportChanged)
+	out := make(chan *time.Time, 1)
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-ch:
+				if !ok {
+					return
+				}
+				at := event.Timestamp
+				select {
+				case out <- &at:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return out, nil
+}
+
 // NetworkTopologyUpdated is the resolver for the networkTopologyUpdated field.
 func (r *subscriptionResolver) NetworkTopologyUpdated(ctx context.Context, provider *string) (<-chan *model.NetworkTopologyEvent, error) {
 	ch := r.EventBus.Subscribe(eventbus.EventNetworkTopologyUpdated)
@@ -3251,6 +3428,28 @@ func (r *subscriptionResolver) NetworkTopologyUpdated(ctx context.Context, provi
 	return out, nil
 }
 
+// Documentation is the resolver for the documentation field.
+func (r *zigbee2MqttDeviceMetadataResolver) Documentation(ctx context.Context, obj *model.Zigbee2MqttDeviceMetadata) (*model.Zigbee2MqttDeviceDocumentation, error) {
+	if r.ZigbeeDocumentation == nil || obj.Definition == nil || obj.Definition.Model == nil || *obj.Definition.Model == "" {
+		return nil, nil
+	}
+	document, err := r.ZigbeeDocumentation.Lookup(ctx, *obj.Definition.Model)
+	if errors.Is(err, zigbeedocs.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		graphLogger.WarnContext(ctx, "resolve Zigbee device documentation failed",
+			slog.String("model", *obj.Definition.Model),
+			slog.String("error", err.Error()),
+		)
+		return nil, nil
+	}
+	if document == nil {
+		return nil, nil
+	}
+	return mapZigbeeDeviceDocumentation(*document), nil
+}
+
 // Device returns DeviceResolver implementation.
 func (r *Resolver) Device() DeviceResolver { return &deviceResolver{r} }
 
@@ -3263,7 +3462,13 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 // Subscription returns SubscriptionResolver implementation.
 func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
 
+// Zigbee2MqttDeviceMetadata returns Zigbee2MqttDeviceMetadataResolver implementation.
+func (r *Resolver) Zigbee2MqttDeviceMetadata() Zigbee2MqttDeviceMetadataResolver {
+	return &zigbee2MqttDeviceMetadataResolver{r}
+}
+
 type deviceResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
+type zigbee2MqttDeviceMetadataResolver struct{ *Resolver }

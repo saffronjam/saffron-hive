@@ -1,11 +1,13 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -18,6 +20,67 @@ var nativeEffectTerminators = []string{
 	"stop_effect",
 	"finish_effect",
 	"stop_hue_effect",
+}
+
+func deviceAdvertisesNativeEffect(dev device.Device, name string) bool {
+	for _, capability := range dev.Capabilities {
+		if capability.Name != device.CapEffect || !capability.CanSet() {
+			continue
+		}
+		for _, value := range capability.Values {
+			if value == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r *Resolver) nativeEffectStatus(ctx context.Context, dev device.Device, name string) (device.NativeEffectSupportStatus, error) {
+	if r.NativeEffectSupport == nil {
+		return device.NativeEffectSupportUntested, nil
+	}
+	return r.NativeEffectSupport.Status(ctx, dev, name)
+}
+
+func (r *Resolver) nativeEffectTargetDevices(ctx context.Context, targetType device.TargetType, targetID, name string) []device.Device {
+	ids := r.TargetResolver.ResolveTargetDeviceIDs(ctx, targetType, targetID)
+	out := make([]device.Device, 0, len(ids))
+	seen := make(map[device.DeviceID]struct{}, len(ids))
+	for _, id := range ids {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		dev, ok := r.StateReader.GetDevice(id)
+		if !ok || dev.RuntimeDisabled() || dev.Removed || !deviceAdvertisesNativeEffect(dev, name) {
+			continue
+		}
+		out = append(out, dev)
+	}
+	return out
+}
+
+func nativeEffectSupportStatusToModel(status device.NativeEffectSupportStatus) model.NativeEffectSupportStatus {
+	switch status {
+	case device.NativeEffectSupportConfirmed:
+		return model.NativeEffectSupportStatusConfirmed
+	case device.NativeEffectSupportUnsupported:
+		return model.NativeEffectSupportStatusUnsupported
+	default:
+		return model.NativeEffectSupportStatusUntested
+	}
+}
+
+func nativeEffectRunStatusToModel(status device.NativeEffectRunStatus) model.NativeEffectRunStatus {
+	switch status {
+	case device.NativeEffectRunConfirmed:
+		return model.NativeEffectRunStatusConfirmed
+	case device.NativeEffectRunUnsupported:
+		return model.NativeEffectRunStatusUnsupported
+	default:
+		return model.NativeEffectRunStatusUnconfirmed
+	}
 }
 
 // validateEffectInput rejects effect inputs whose clip kinds carry malformed

@@ -10,6 +10,15 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
+type fixedNativeEffectSupport map[device.DeviceID]device.NativeEffectSupportStatus
+
+func (s fixedNativeEffectSupport) Status(_ context.Context, dev device.Device, _ string) (device.NativeEffectSupportStatus, error) {
+	if status, ok := s[dev.ID]; ok {
+		return status, nil
+	}
+	return device.NativeEffectSupportUntested, nil
+}
+
 type fakeStore struct {
 	group    store.Group
 	members  []store.GroupMember
@@ -51,7 +60,7 @@ func TestDispatcherUsesProviderMulticastForEligibleGroup(t *testing.T) {
 	devices := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(groups)
 	defer bus.Unsubscribe(devices)
-	dispatcher := New(bus, st, reader)
+	dispatcher := New(bus, st, reader, nil)
 
 	if err := dispatcher.CommandTarget(context.Background(), device.TargetCommand{
 		TargetType: device.TargetGroup,
@@ -94,7 +103,7 @@ func TestDispatcherFallsBackAndNeverCommandsDisabledMember(t *testing.T) {
 	commands := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(groups)
 	defer bus.Unsubscribe(commands)
-	dispatcher := New(bus, st, reader)
+	dispatcher := New(bus, st, reader, nil)
 
 	if err := dispatcher.CommandTarget(context.Background(), device.TargetCommand{TargetType: device.TargetGroup, TargetID: st.group.ID, State: device.Command{On: device.Ptr(false)}}); err != nil {
 		t.Fatalf("command target: %v", err)
@@ -134,7 +143,7 @@ func TestDispatcherFallsBackForUnknownMemberAndFiltersCapabilities(t *testing.T)
 	bus := eventbus.NewChannelBus()
 	commands := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(commands)
-	dispatcher := New(bus, st, reader)
+	dispatcher := New(bus, st, reader, nil)
 
 	if err := dispatcher.CommandTarget(context.Background(), device.TargetCommand{TargetType: device.TargetGroup, TargetID: st.group.ID, State: device.Command{On: device.Ptr(true), Brightness: device.Ptr(100)}}); err != nil {
 		t.Fatalf("command target: %v", err)
@@ -282,7 +291,7 @@ func TestProviderMulticastEligibilityRejectsUnsafeGroups(t *testing.T) {
 			if req.NativeEffect == "" && req.State.On == nil && req.State.Brightness == nil {
 				req.State.On = device.Ptr(true)
 			}
-			dispatcher := New(eventbus.NewChannelBus(), st, reader)
+			dispatcher := New(eventbus.NewChannelBus(), st, reader, nil)
 			if command, ok := dispatcher.providerGroupCommand(context.Background(), req); ok {
 				t.Fatalf("unsafe group accepted for multicast: %+v", command)
 			}
@@ -305,7 +314,7 @@ func TestProviderMulticastSupportsSharedZigbeeEffect(t *testing.T) {
 			Name: device.CapEffect, Access: device.CapabilityAccessSet, Values: []string{"blink"},
 		}}})
 	}
-	dispatcher := New(eventbus.NewChannelBus(), st, reader)
+	dispatcher := New(eventbus.NewChannelBus(), st, reader, nil)
 	command, ok := dispatcher.providerGroupCommand(context.Background(), device.TargetCommand{
 		TargetType:   device.TargetGroup,
 		TargetID:     st.group.ID,
@@ -313,6 +322,41 @@ func TestProviderMulticastSupportsSharedZigbeeEffect(t *testing.T) {
 	})
 	if !ok || command.NativeEffect != "blink" || len(command.MemberIDs) != 2 {
 		t.Fatalf("shared Zigbee effect command = %+v, ok=%v", command, ok)
+	}
+}
+
+func TestNativeEffectSkipsLearnedUnsupportedDevice(t *testing.T) {
+	bus := eventbus.NewChannelBus()
+	st := &fakeStore{resolved: []device.DeviceID{"unsupported", "confirmed"}}
+	reader := device.NewMemoryStore()
+	for _, id := range st.resolved {
+		reader.Register(device.Device{ID: id, Source: device.SourceZigbee2MQTT, Capabilities: []device.Capability{{
+			Name: device.CapEffect, Access: device.CapabilityAccessSet, Values: []string{"underwater"},
+		}}})
+	}
+	events := bus.Subscribe(eventbus.EventNativeEffectRequested)
+	defer bus.Unsubscribe(events)
+	dispatcher := New(bus, st, reader, fixedNativeEffectSupport{
+		"unsupported": device.NativeEffectSupportUnsupported,
+		"confirmed":   device.NativeEffectSupportConfirmed,
+	})
+	if err := dispatcher.CommandTarget(context.Background(), device.TargetCommand{
+		TargetType: device.TargetRoom, TargetID: "room", NativeEffect: "underwater",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case event := <-events:
+		if event.DeviceID != "confirmed" {
+			t.Fatalf("effect requested for %q", event.DeviceID)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected native effect request")
+	}
+	select {
+	case event := <-events:
+		t.Fatalf("unexpected second request for %q", event.DeviceID)
+	case <-time.After(20 * time.Millisecond):
 	}
 }
 
@@ -326,7 +370,7 @@ func TestDispatcherFallbackDeduplicatesResolvedDevices(t *testing.T) {
 	bus := eventbus.NewChannelBus()
 	commands := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(commands)
-	dispatcher := New(bus, st, reader)
+	dispatcher := New(bus, st, reader, nil)
 
 	if err := dispatcher.CommandTarget(context.Background(), device.TargetCommand{
 		TargetType: device.TargetGroup,
@@ -371,7 +415,7 @@ func TestDispatcherDoesNotCommandRemovedProviderGroup(t *testing.T) {
 	commands := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(groups)
 	defer bus.Unsubscribe(commands)
-	dispatcher := New(bus, st, reader)
+	dispatcher := New(bus, st, reader, nil)
 
 	if err := dispatcher.CommandTarget(context.Background(), device.TargetCommand{
 		TargetType: device.TargetGroup,

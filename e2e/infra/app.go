@@ -27,12 +27,14 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
+	"github.com/saffronjam/saffron-hive/internal/nativeeffect"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
+	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 	_ "modernc.org/sqlite"
 )
 
@@ -93,6 +95,12 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	go topology.RunPersister(appCtx, bus, sqlStore)
 	providerGroupCh := bus.Subscribe(eventbus.EventProviderGroupsSynced)
 	go providergroup.RunPersister(appCtx, bus, sqlStore, providerGroupCh)
+	zigbeeMetadataCh := bus.Subscribe(
+		eventbus.EventZigbeeMetadataSynced,
+		eventbus.EventZigbeeBridgeInfoSynced,
+		eventbus.EventZigbeeOTAStatusChanged,
+	)
+	go zigbeemetadata.RunPersister(appCtx, bus, zigbeeMetadataCh, sqlStore)
 
 	mqttClient := zigbee.NewPahoClient(zigbee.PahoConfig{
 		Broker:   brokerURL,
@@ -108,7 +116,20 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
-	targetCommander := targetcommand.New(bus, sqlStore, memStore)
+	nativeEffectSupport := nativeeffect.New(bus, sqlStore, memStore)
+	if err := nativeEffectSupport.Hydrate(appCtx); err != nil {
+		adapter.Stop()
+		cancel()
+		_ = db.Close()
+		return nil, fmt.Errorf("hydrate native effect support: %w", err)
+	}
+	nativeEffectEvents := bus.Subscribe(
+		eventbus.EventNativeEffectResult,
+		eventbus.EventZigbeeMetadataUpdated,
+		eventbus.EventDeviceSynced,
+	)
+	go nativeEffectSupport.Run(appCtx, nativeEffectEvents)
+	targetCommander := targetcommand.New(bus, sqlStore, memStore, nativeEffectSupport)
 	webhookBuffer := webhook.NewBuffer()
 	webhookService := webhook.NewService(sqlStore, bus, webhookBuffer)
 	go webhook.RunRetention(appCtx, sqlStore)
@@ -190,6 +211,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		AutomationReloader:  rel,
 		AutomationTriggerer: rel,
 		EffectRunner:        effectRunner,
+		NativeEffectSupport: nativeEffectSupport,
 		Alarms:              alarmSvc,
 		AlarmBuffer:         alarmBuffer,
 		ActivityBuffer:      activityBuffer,
