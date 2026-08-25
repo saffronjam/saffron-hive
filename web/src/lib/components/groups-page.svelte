@@ -48,7 +48,7 @@
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { groupsStore, type Group, type GroupMember } from "$lib/stores/groups.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
@@ -75,13 +75,13 @@
 	const client = getContextClient();
 
 	const groups = $derived(groupsStore.items);
-	// Disabled devices leave this page entirely: no member row, no picker
+	// Runtime-disabled devices leave this page entirely: no member row, no picker
 	// entry, no contribution to a group's readings or command fan-out.
-	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const devices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const disabledDeviceIds = $derived(
 		new Set(
 			Object.values($deviceStore)
-				.filter((d) => d.disabled)
+				.filter((d) => !isRuntimeEnabledDevice(d))
 				.map((d) => d.id),
 		),
 	);

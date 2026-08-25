@@ -310,7 +310,7 @@
 			if (isChangeValue && !supportsChangeValue("device", d.id)) continue;
 			if (
 				isConfigureDevice &&
-				(d.disabled || writableConfigurationCapabilities(d.capabilities).length === 0)
+				(d.disabled || d.deleted || writableConfigurationCapabilities(d.capabilities).length === 0)
 			)
 				continue;
 			items.push({

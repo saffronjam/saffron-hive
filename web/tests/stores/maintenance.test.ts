@@ -19,6 +19,7 @@ const task = {
     type: "sensor",
     available: true,
     disabled: false,
+    deleted: false,
     roles: { contact: null },
   },
 };
@@ -40,14 +41,14 @@ describe("maintenanceStore", () => {
   });
 
   it("treats a cached empty snapshot as hydrated", async () => {
-    saveSessionSnapshot(sessionStorage, "maintenance", 2, []);
+    saveSessionSnapshot(sessionStorage, "maintenance", 3, []);
     const fresh = await bootStore();
     expect(fresh.maintenanceStore.items).toEqual([]);
     expect(fresh.maintenanceStore.hydrated).toBe(true);
   });
 
   it("hydrates synchronously and reconciles in the background", async () => {
-    saveSessionSnapshot(sessionStorage, "maintenance", 2, [task]);
+    saveSessionSnapshot(sessionStorage, "maintenance", 3, [task]);
     const fresh = await bootStore();
     expect(fresh.maintenanceStore.items.map((item) => item.id)).toEqual(["task-1"]);
     expect(fresh.maintenanceStore.hydrated).toBe(true);
@@ -73,6 +74,20 @@ describe("maintenanceStore", () => {
     await expect(fresh.maintenanceStore.completeOne("task-1")).resolves.toBe(true);
     expect(fresh.maintenanceStore.actionableCount).toBe(0);
     expect(mock.mutations[0].variables).toEqual({ ids: ["task-1"] });
+    fresh.maintenanceStore.stop();
+  });
+
+  it("hides maintenance for deleted devices", async () => {
+    const fresh = await bootStore();
+    const mock = createMockClient();
+    mock.queueResult({
+      data: {
+        maintenanceTasks: [{ ...task, device: { ...task.device, disabled: true, deleted: true } }],
+      },
+    });
+    await fresh.maintenanceStore.start(mock.client);
+    await vi.waitFor(() => expect(fresh.maintenanceStore.hydrated).toBe(true));
+    expect(fresh.maintenanceStore.items).toEqual([]);
     fresh.maintenanceStore.stop();
   });
 

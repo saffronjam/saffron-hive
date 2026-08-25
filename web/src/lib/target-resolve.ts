@@ -1,4 +1,5 @@
 import { ContactRole, ControlledLoadRole, type Capability, type Device } from "$lib/gql/graphql";
+import { isHiveVisibleDevice, isRuntimeEnabledDevice } from "$lib/stores/devices";
 
 export interface GroupLite {
   id: string;
@@ -23,14 +24,14 @@ export interface RoomLite {
 export type TargetKind = "device" | "group" | "room";
 
 /**
- * Drop disabled devices. Every resolution in this module runs through it, so
- * the client resolves the same set the server commands.
+ * Drop devices Hive must not command. Every runtime resolution in this module
+ * runs through it, so the client resolves the same set the server commands.
  *
  * Callers must select `disabled` in their device query. An unselected field
  * arrives as `undefined` rather than a type error, which silently defeats this.
  */
 function selectable(devices: Device[]): Device[] {
-  return devices.filter((d) => !d.disabled);
+  return devices.filter(isRuntimeEnabledDevice);
 }
 
 /** A subject a target-expression clause matches against. */
@@ -89,8 +90,8 @@ function deviceRoles(d: Pick<Device, "type" | "roles">): string[] {
  * (no precedence) with and = intersect, or = union; is_not* inverts against the
  * full device universe. An empty expression resolves to nothing.
  *
- * Disabled devices leave the universe, so they are matched by neither an
- * including clause nor the complement an is_not clause builds.
+ * Runtime-disabled devices leave the universe, so they are matched by neither
+ * an including clause nor the complement an is_not clause builds.
  */
 export function evaluateExpression(
   expr: Clause[],
@@ -152,9 +153,9 @@ export function evaluateExpression(
  * it covers. Groups may nest other groups or rooms; resolution is iterative
  * with a seen-set to stop cycles.
  *
- * Disabled devices are dropped, mirroring `store.ResolveTargetDeviceIDs`.
- * Editor surfaces that render a disabled member greyed pass
- * `{ includeDisabled: true }` to keep it in the result.
+ * Runtime-disabled devices are dropped, mirroring
+ * `store.ResolveTargetDeviceIDs`. Editor surfaces that render a disabled
+ * member greyed pass `{ includeDisabled: true }`; deleted devices stay hidden.
  */
 export function resolveTargetDevices(
   target: { type: TargetKind; id: string },
@@ -163,7 +164,9 @@ export function resolveTargetDevices(
   rooms: RoomLite[],
   opts?: { includeDisabled?: boolean },
 ): Device[] {
-  const pool = opts?.includeDisabled ? allDevices : selectable(allDevices);
+  const pool = opts?.includeDisabled
+    ? allDevices.filter(isHiveVisibleDevice)
+    : selectable(allDevices);
   const deviceByID = new Map(pool.map((d) => [d.id, d]));
   const groupByID = new Map(groups.map((g) => [g.id, g]));
   const roomByID = new Map(rooms.map((r) => [r.id, r]));

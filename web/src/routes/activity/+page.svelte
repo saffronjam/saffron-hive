@@ -8,7 +8,7 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile } from "$lib/stores/profile.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
-	import { deviceStore } from "$lib/stores/devices";
+	import { deviceStore, isHiveVisibleDevice } from "$lib/stores/devices";
 	import ActivityNavigationTable, {
 		type ActivityEvent,
 	} from "$lib/components/activity-navigation-table.svelte";
@@ -176,15 +176,17 @@
 			label: "Device",
 			variant: "secondary",
 			options: (input) => {
-				const devices = Object.values($deviceStore).map((d) => ({
-					value: d.id,
-					label: deviceDisplayName(d),
-				}));
+				const devices = Object.values($deviceStore)
+					.filter(isHiveVisibleDevice)
+					.map((d) => ({
+						value: d.id,
+						label: deviceDisplayName(d),
+					}));
 				return filterOptions(input, devices);
 			},
 			resolveLabel: (id) => {
 				const d = $deviceStore[id];
-				return d ? deviceDisplayName(d) : null;
+				return d && isHiveVisibleDevice(d) ? deviceDisplayName(d) : null;
 			},
 		},
 		{
@@ -238,6 +240,8 @@
 		const free = searchController.value.freeText.toLowerCase();
 
 		return events.filter((e) => {
+			const sourceDevice = e.source.id ? $deviceStore[e.source.id] : undefined;
+			if (sourceDevice && !isHiveVisibleDevice(sourceDevice)) return false;
 			if (typeChips.length > 0 && !typeChips.includes(e.type)) return false;
 			if (deviceChips.length > 0 && (!e.source.id || !deviceChips.includes(e.source.id))) return false;
 			if (roomChips.length > 0 && (!e.source.roomId || !roomChips.includes(e.source.roomId))) return false;

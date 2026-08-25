@@ -45,6 +45,7 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     roles: { controlledLoad: null, contact: null },
     available: true,
     disabled: false,
+    deleted: false,
     lastSeen: null,
     capabilities: caps,
     configuration: [],
@@ -314,6 +315,34 @@ describe("disabled devices", () => {
     const caps = capabilityUnionForTarget({ type: "group", id: "g1" }, [light, offPlug], [grp], []);
     expect(hasCapability(caps, "power")).toBe(false);
     expect(hasCapability(caps, "color")).toBe(true);
+  });
+});
+
+describe("deleted devices", () => {
+  const deletedPlug = { ...plug, disabled: true, deleted: true };
+  const grp: GroupLite = {
+    id: "g1",
+    members: [
+      { memberType: "device", memberId: "light-1" },
+      { memberType: "device", memberId: "plug-1" },
+    ],
+  };
+
+  it("stay hidden when an editor includes disabled members", () => {
+    const got = resolveTargetDevices({ type: "group", id: "g1" }, [light, deletedPlug], [grp], [], {
+      includeDisabled: true,
+    });
+    expect(got.map((device) => device.id)).toEqual(["light-1"]);
+  });
+
+  it("do not contribute capabilities to runtime targets", () => {
+    const caps = capabilityUnionForTarget(
+      { type: "group", id: "g1" },
+      [light, deletedPlug],
+      [grp],
+      [],
+    );
+    expect(hasCapability(caps, "power")).toBe(false);
   });
 });
 

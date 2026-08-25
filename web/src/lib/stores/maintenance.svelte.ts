@@ -11,6 +11,7 @@ export interface MaintenanceDevice {
   type: string;
   available: boolean;
   disabled: boolean;
+  deleted: boolean;
   roles: { contact?: ContactRole | null };
 }
 
@@ -45,6 +46,7 @@ const MAINTENANCE_QUERY = graphql(`
         type
         available
         disabled
+        deleted
         roles {
           contact
         }
@@ -65,7 +67,7 @@ const MAINTENANCE_CHANGED = graphql(`
   }
 `);
 
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.sessionStorage;
@@ -91,7 +93,9 @@ function createMaintenanceStore() {
       .query(MAINTENANCE_QUERY, {}, { requestPolicy: "network-only" })
       .toPromise();
     if (!started || activeGeneration !== generation || !result.data?.maintenanceTasks) return;
-    items = result.data.maintenanceTasks as MaintenanceTask[];
+    items = (result.data.maintenanceTasks as MaintenanceTask[]).filter(
+      (task) => !task.device?.deleted,
+    );
     hydrated = true;
     save();
   }

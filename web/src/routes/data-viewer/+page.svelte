@@ -17,7 +17,12 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
-	import { deviceStore } from "$lib/stores/devices";
+	import {
+		deviceStore,
+		devicesHydrated,
+		isHiveVisibleDevice,
+		isRuntimeEnabledDevice,
+	} from "$lib/stores/devices";
 	import { graphql } from "$lib/gql";
 	import { queryStore, getContextClient } from "@urql/svelte";
 	import { deviceIcon, sentenceCase, deviceDisplayName, groupDisplayName } from "$lib/utils";
@@ -103,6 +108,16 @@
 	let sources = $state<StateHistorySource[]>([]);
 	let drawerOpen = $state(false);
 
+	$effect(() => {
+		if (!$devicesHydrated) return;
+		const visible = sources.filter((source) => {
+			if (source.kind !== "device") return true;
+			const device = $deviceStore[source.id];
+			return !device || isHiveVisibleDevice(device);
+		});
+		if (visible.length !== sources.length) sources = visible;
+	});
+
 	let initialApplied = $state(false);
 	$effect(() => {
 		if (initialApplied) return;
@@ -161,7 +176,7 @@
 	let allSeries = $state<SeriesInfo[]>([]);
 
 	// The sources picker offers only devices the system still watches.
-	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const devices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 
 	const DEVICE_GROUP_ORDER = ["sensor", "light", "plug", "speaker", "button"];
 

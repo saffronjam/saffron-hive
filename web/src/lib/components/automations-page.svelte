@@ -3,7 +3,7 @@
 	import { page } from "$app/state";
 	import { measureMount } from "$lib/perf";
 	import { getContextClient } from "@urql/svelte";
-	import { deviceStore } from "$lib/stores/devices";
+	import { deviceStore, isRuntimeEnabledDevice } from "$lib/stores/devices";
 	import { automationsStore, type Automation } from "$lib/stores/automations.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
@@ -66,7 +66,7 @@
 	const client = getContextClient();
 
 	const automations = $derived(automationsStore.items);
-	const devicesRef = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const devicesRef = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const scenesRef = $derived(scenesStore.items);
 
 	const searchController = createUrlSearchState({

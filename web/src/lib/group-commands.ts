@@ -1,7 +1,7 @@
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { rgbToXy } from "$lib/color";
-import { isLightControlDevice, type Device } from "$lib/stores/devices";
+import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 import { CommandTargetType, type DeviceStateInput } from "$lib/gql/graphql";
 
 export interface GroupMemberRef {
@@ -103,12 +103,11 @@ export function flattenGroupDevices(
 }
 
 /**
- * Commandable subset of a device list. Disabled devices are dropped here rather
- * than in flattenGroupDevices so a group's member list still renders them
- * (greyed), while every fan-out below skips them. The server rejects them too.
+ * Commandable subset of a device list. Runtime-disabled devices are dropped
+ * here while every fan-out below skips them. The server rejects them too.
  */
 function commandable(devices: Device[]): Device[] {
-  return devices.filter((d) => !d.disabled);
+  return devices.filter(isRuntimeEnabledDevice);
 }
 
 export async function commitGroupBrightness(

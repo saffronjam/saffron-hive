@@ -41,7 +41,7 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { deviceStore, isLightControlDevice, type Device } from "$lib/stores/devices";
+	import { deviceStore, isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore, type Room } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
@@ -69,13 +69,13 @@
 	`);
 
 	const rooms = $derived(roomsStore.items);
-	// Disabled devices leave this page entirely: no member row, no picker
+	// Runtime-disabled devices leave this page entirely: no member row, no picker
 	// entry, no contribution to a room's readings or command fan-out.
-	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const devices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const disabledDeviceIds = $derived(
 		new Set(
 			Object.values($deviceStore)
-				.filter((d) => d.disabled)
+				.filter((d) => !isRuntimeEnabledDevice(d))
 				.map((d) => d.id),
 		),
 	);

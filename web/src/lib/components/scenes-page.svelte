@@ -32,7 +32,7 @@
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { scenesStore, type Scene } from "$lib/stores/scenes.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
@@ -92,7 +92,7 @@
 
 	const clientRef = getContextClient();
 	const scenes = $derived(scenesStore.items);
-	const devicesRef = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const devicesRef = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const groupsRef = $derived(groupsStore.items);
 	const roomsRef = $derived(roomsStore.items);
 	let applyingId = $state<string | null>(null);
@@ -505,6 +505,7 @@
 											<Button
 												variant="ghost"
 												size="icon-sm"
+												haptic="execute"
 												onclick={() => handleApply(scene)}
 												disabled={applying || noTargets || active}
 												class="transition-opacity duration-200"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Device } from "$lib/stores/devices";
+	import { isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { Slider } from "$lib/components/ui/slider/index.js";
 
 	interface Props {
@@ -20,10 +20,12 @@
 		ariaLabel = "Brightness",
 	}: Props = $props();
 
-	// Disabled devices are excluded: the slider must show, and average, only what
-	// it can actually command.
+	// Runtime-disabled devices are excluded: the slider must show, and average,
+	// only what it can actually command.
 	const dimmable = $derived(
-		devices.filter((d) => !d.disabled && d.type === "light" && d.state?.brightness != null),
+		devices.filter(
+			(d) => isRuntimeEnabledDevice(d) && d.type === "light" && d.state?.brightness != null,
+		),
 	);
 	const hasLights = $derived(dimmable.length > 0);
 

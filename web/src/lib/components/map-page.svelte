@@ -100,7 +100,9 @@
 	import {
 		deviceHasCapability,
 		deviceStore,
+		isHiveVisibleDevice,
 		isLightControlDevice,
+		isRuntimeEnabledDevice,
 		needsDisplayColor,
 	} from "$lib/stores/devices";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
@@ -488,7 +490,7 @@
 	 */
 	let deviceDisplay = $state<Record<string, DeviceDisplay>>({});
 	const displayed = $derived(
-		Object.values($deviceStore).map((d) => {
+		Object.values($deviceStore).filter(isHiveVisibleDevice).map((d) => {
 			const edit = deviceDisplay[d.id];
 			return edit
 				? { ...d, displayColor: edit.color, displayBrightness: edit.brightness }
@@ -501,7 +503,7 @@
 	/** Live-surface devices: disabled ones gone, picker previews merged in. */
 	const liveDevices = $derived(
 		allDevices
-			.filter((d) => !d.disabled)
+			.filter(isRuntimeEnabledDevice)
 			.map((d) => {
 				const preview = previewByDevice[d.id];
 				return preview ? { ...d, state: { ...d.state, ...preview } } : d;

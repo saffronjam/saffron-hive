@@ -9,7 +9,7 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { isLightControlDevice, type Device } from "$lib/stores/devices";
+	import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { aggregateLightAppearance, tintCardBg } from "$lib/device-tint";
 	import {
 		commitGroupBrightness,
@@ -54,7 +54,7 @@
 
 	const client = getContextClient();
 
-	const muted = $derived(devices.every((d) => d.disabled || !d.available));
+	const muted = $derived(devices.every((d) => !isRuntimeEnabledDevice(d) || !d.available));
 
 	const appearance = $derived(aggregateLightAppearance(devices));
 	const tintBase = $derived(appearance.dominantColor);

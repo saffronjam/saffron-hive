@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
 	import type { Component } from "svelte";
-	import { isLightControlDevice, type Device } from "$lib/stores/devices";
+	import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
@@ -67,7 +67,7 @@
 
 	// A room or group card aggregates and commands only its enabled members; the
 	// disabled ones stay visible on their own detail page instead.
-	const devices = $derived(allDevices.filter((d) => !d.disabled));
+	const devices = $derived(allDevices.filter(isRuntimeEnabledDevice));
 	const displayName = $derived(groupDisplayName(entity));
 
 	let preview = $state<number | undefined>(undefined);
