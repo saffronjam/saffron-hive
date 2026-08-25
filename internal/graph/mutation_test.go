@@ -566,6 +566,105 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	}
 }
 
+func TestMutationDeleteRestoreDevice(t *testing.T) {
+	env := newTestEnv(t)
+	env.stateReader.addDevice(device.Device{
+		ID: "lamp", FriendlyName: "Desk Lamp", Source: device.SourceZigbee2MQTT, Type: device.Light, Available: true,
+	})
+	updates := env.bus.Subscribe(eventbus.EventDeviceUpdated)
+	defer env.bus.Unsubscribe(updates)
+
+	resp := env.query(t, `mutation { deleteDevice(id: "lamp") { id disabled deleted } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("delete device: %v", resp.Errors)
+	}
+	var deleted struct {
+		DeleteDevice struct {
+			Disabled bool `json:"disabled"`
+			Deleted  bool `json:"deleted"`
+		} `json:"deleteDevice"`
+	}
+	if err := json.Unmarshal(resp.Data, &deleted); err != nil {
+		t.Fatalf("decode delete: %v", err)
+	}
+	if !deleted.DeleteDevice.Deleted || !deleted.DeleteDevice.Disabled {
+		t.Fatalf("delete response = %+v", deleted.DeleteDevice)
+	}
+	drainDeviceUpdate(t, updates, env.stateReader)
+
+	resp = env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "lamp", state: {on: true}) }`, nil)
+	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "deleted") {
+		t.Fatalf("deleted command error = %v", resp.Errors)
+	}
+	resp = env.query(t, `mutation { updateDevice(id: "lamp", input: {disabled: false}) { id } }`, nil)
+	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "restore") {
+		t.Fatalf("enable deleted device error = %v", resp.Errors)
+	}
+
+	resp = env.query(t, `mutation { restoreDevice(id: "lamp") { id disabled deleted } }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("restore device: %v", resp.Errors)
+	}
+	var restored struct {
+		RestoreDevice struct {
+			Disabled bool `json:"disabled"`
+			Deleted  bool `json:"deleted"`
+		} `json:"restoreDevice"`
+	}
+	if err := json.Unmarshal(resp.Data, &restored); err != nil {
+		t.Fatalf("decode restore: %v", err)
+	}
+	if restored.RestoreDevice.Deleted || !restored.RestoreDevice.Disabled {
+		t.Fatalf("restore response = %+v", restored.RestoreDevice)
+	}
+	drainDeviceUpdate(t, updates, env.stateReader)
+
+	resp = env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "lamp", state: {on: true}) }`, nil)
+	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "disabled") {
+		t.Fatalf("restored command error = %v", resp.Errors)
+	}
+}
+
+func TestMutationBatchDeleteRestoreDevices(t *testing.T) {
+	env := newTestEnv(t)
+	for _, id := range []device.DeviceID{"d-1", "d-2"} {
+		env.stateReader.addDevice(device.Device{ID: id, FriendlyName: string(id), Type: device.Light})
+	}
+
+	resp := env.query(t, `mutation { batchDeleteDevices(ids: ["d-1", "d-2", "d-2", "missing"]) }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("batch delete: %v", resp.Errors)
+	}
+	var deleted struct {
+		Count int `json:"batchDeleteDevices"`
+	}
+	if err := json.Unmarshal(resp.Data, &deleted); err != nil {
+		t.Fatalf("decode batch delete: %v", err)
+	}
+	if deleted.Count != 2 {
+		t.Fatalf("batch delete count = %d", deleted.Count)
+	}
+
+	resp = env.query(t, `mutation { batchDeleteDevices(ids: ["d-1", "d-2"]) }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("idempotent batch delete: %v", resp.Errors)
+	}
+	if err := json.Unmarshal(resp.Data, &deleted); err != nil || deleted.Count != 0 {
+		t.Fatalf("idempotent batch delete = (%+v, %v)", deleted, err)
+	}
+
+	resp = env.query(t, `mutation { batchRestoreDevices(ids: ["d-2", "missing"]) }`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("batch restore: %v", resp.Errors)
+	}
+	var restored struct {
+		Count int `json:"batchRestoreDevices"`
+	}
+	if err := json.Unmarshal(resp.Data, &restored); err != nil || restored.Count != 1 {
+		t.Fatalf("batch restore = (%+v, %v)", restored, err)
+	}
+}
+
 // drainDeviceUpdate applies one device.updated event to the state reader the way
 // device.MemoryStore does in production, so a test can assert on what the
 // command gate sees after a metadata mutation.

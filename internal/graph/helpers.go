@@ -198,6 +198,7 @@ func mapWebhookDelivery(row store.WebhookDelivery) *model.WebhookDelivery {
 		UserAgent:   row.UserAgent,
 		ContentType: row.ContentType,
 		BodySize:    int(row.BodySize),
+		Body:        row.Body,
 		DurationMs:  int(row.DurationMs),
 		RequestID:   row.RequestID,
 		QueryKeys:   queryKeys,
@@ -304,10 +305,30 @@ func currentUserID(ctx context.Context) *string {
 	return &id
 }
 
-// disabledDeviceError is the single refusal every mutation that would drive a
-// device returns, so the UI can match on one phrasing.
-func disabledDeviceError(d device.Device) error {
+// runtimeDisabledDeviceError is the refusal every mutation that would drive an
+// excluded device returns.
+func runtimeDisabledDeviceError(d device.Device) error {
+	if d.Deleted {
+		return fmt.Errorf("device %q is deleted; restore it before sending commands", d.DisplayName())
+	}
 	return fmt.Errorf("device %q is disabled; enable it before sending commands", d.DisplayName())
+}
+
+func deviceIDs(ids []string) []device.DeviceID {
+	result := make([]device.DeviceID, len(ids))
+	for i, id := range ids {
+		result[i] = device.DeviceID(id)
+	}
+	return result
+}
+
+func (r *mutationResolver) publishDeviceUpdated(d device.Device) {
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventDeviceUpdated,
+		DeviceID:  string(d.ID),
+		Timestamp: time.Now(),
+		Payload:   d,
+	})
 }
 
 func requireHiveGroup(ctx context.Context, s GraphStore, id string) (store.Group, error) {
@@ -342,6 +363,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		Capabilities:      mapCapabilities(d.Capabilities),
 		Available:         available,
 		Disabled:          d.Disabled,
+		Deleted:           d.Deleted,
 		Seen:              d.Seen,
 		LastSeen:          &lastSeen,
 	}
@@ -773,6 +795,7 @@ func mapUser(u store.User) *model.User {
 		Theme:              &theme,
 		TimeFormat:         &timeFormat,
 		TemperatureUnit:    &tempUnit,
+		HapticsEnabled:     &u.HapticsEnabled,
 		CreatedAt:          &createdAt,
 		MustChangePassword: &mustChange,
 	}
@@ -1788,6 +1811,9 @@ func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes [
 		if err := validateConfigureDeviceActions(ctx, store, inputNodes); err != nil {
 			return err
 		}
+		if err := validateActivateSceneActions(ctx, store, inputNodes); err != nil {
+			return err
+		}
 		if err := validateCycleScenesActions(ctx, store, inputNodes); err != nil {
 			return err
 		}
@@ -1939,6 +1965,33 @@ func validateActionExpressions(nodes []*model.AutomationNodeInput) error {
 		}
 		if err := device.ValidateExpression(outer.TargetExpr); err != nil {
 			return fmt.Errorf("node %s: %w", n.ID, err)
+		}
+	}
+	return nil
+}
+
+func validateActivateSceneActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+	for _, n := range nodes {
+		if automation.NodeType(n.Type) != automation.NodeAction {
+			continue
+		}
+		var config struct {
+			ActionType string `json:"action_type"`
+			TargetType string `json:"target_type"`
+			TargetID   string `json:"target_id"`
+			Payload    string `json:"payload"`
+		}
+		if err := json.Unmarshal([]byte(n.Config), &config); err != nil || config.ActionType != automation.ActionActivateScene {
+			continue
+		}
+		if config.Payload == "" {
+			return fmt.Errorf("node %s: activate_scene requires a scene ID in payload", n.ID)
+		}
+		if config.TargetType != "" || config.TargetID != "" {
+			return fmt.Errorf("node %s: activate_scene target fields must be empty", n.ID)
+		}
+		if _, err := store.GetScene(ctx, config.Payload); err != nil {
+			return fmt.Errorf("node %s: activate_scene scene_id %q not found", n.ID, config.Payload)
 		}
 	}
 	return nil

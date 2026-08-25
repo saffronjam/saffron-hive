@@ -248,6 +248,106 @@ func TestDevices_SetDeviceState(t *testing.T) {
 	}
 }
 
+func TestDevices_DeleteAndRestore(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+	defer func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) {
+			restoreDevice(id: $id) { id }
+		}`, map[string]any{"id": deviceID})
+		_, _ = graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
+			updateDevice(id: $id, input: $input) { id }
+		}`, map[string]any{"id": deviceID, "input": map[string]any{"disabled": false}})
+	}()
+
+	data, err := graphqlMutation(`mutation($id: ID!) {
+		deleteDevice(id: $id) { id disabled deleted }
+	}`, map[string]any{"id": deviceID})
+	if err != nil {
+		t.Fatalf("deleteDevice: %v", err)
+	}
+	var deleted struct {
+		DeleteDevice struct {
+			ID       string `json:"id"`
+			Disabled bool   `json:"disabled"`
+			Deleted  bool   `json:"deleted"`
+		} `json:"deleteDevice"`
+	}
+	if err := json.Unmarshal(data, &deleted); err != nil {
+		t.Fatalf("unmarshal deleteDevice: %v", err)
+	}
+	if deleted.DeleteDevice.ID != deviceID || !deleted.DeleteDevice.Disabled || !deleted.DeleteDevice.Deleted {
+		t.Fatalf("deleteDevice returned %+v", deleted.DeleteDevice)
+	}
+
+	queryData, err := graphqlQuery(`query($id: ID!) {
+		device(id: $id) { id disabled deleted }
+	}`, map[string]any{"id": deviceID})
+	if err != nil {
+		t.Fatalf("query deleted device: %v", err)
+	}
+	var queried struct {
+		Device *struct {
+			ID       string `json:"id"`
+			Disabled bool   `json:"disabled"`
+			Deleted  bool   `json:"deleted"`
+		} `json:"device"`
+	}
+	if err := json.Unmarshal(queryData, &queried); err != nil {
+		t.Fatalf("unmarshal deleted device: %v", err)
+	}
+	if queried.Device == nil || queried.Device.ID != deviceID || !queried.Device.Disabled || !queried.Device.Deleted {
+		t.Fatalf("direct device query returned %+v", queried.Device)
+	}
+
+	command := `mutation($deviceId: ID!, $state: DeviceStateInput!) {
+		setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+	}`
+	commandVariables := map[string]any{
+		"deviceId": deviceID,
+		"state":    map[string]any{"on": true},
+	}
+	if !pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		return graphqlMutationExpectError(command, commandVariables) == nil
+	}) {
+		t.Fatal("deleted device continued accepting commands")
+	}
+
+	if err := graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateDeviceInput!) {
+		updateDevice(id: $id, input: $input) { id }
+	}`, map[string]any{"id": deviceID, "input": map[string]any{"disabled": false}}); err != nil {
+		t.Fatalf("deleted device was enabled without restoration: %v", err)
+	}
+
+	restoredData, err := graphqlMutation(`mutation($id: ID!) {
+		restoreDevice(id: $id) { id disabled deleted }
+	}`, map[string]any{"id": deviceID})
+	if err != nil {
+		t.Fatalf("restoreDevice: %v", err)
+	}
+	var restored struct {
+		RestoreDevice struct {
+			ID       string `json:"id"`
+			Disabled bool   `json:"disabled"`
+			Deleted  bool   `json:"deleted"`
+		} `json:"restoreDevice"`
+	}
+	if err := json.Unmarshal(restoredData, &restored); err != nil {
+		t.Fatalf("unmarshal restoreDevice: %v", err)
+	}
+	if restored.RestoreDevice.ID != deviceID || !restored.RestoreDevice.Disabled || restored.RestoreDevice.Deleted {
+		t.Fatalf("restoreDevice returned %+v", restored.RestoreDevice)
+	}
+
+	if !pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		return graphqlMutationExpectError(command, commandVariables) == nil
+	}) {
+		t.Fatal("restored device did not remain disabled")
+	}
+}
+
 func TestDevices_UpdateDeviceName(t *testing.T) {
 	deviceID, err := queryDeviceIDByName("Bedroom Light")
 	if err != nil {

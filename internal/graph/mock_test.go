@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -85,6 +86,7 @@ func (m *mockStateReader) applyUserFields(d device.Device) {
 		m.devices[i].Icon = d.Icon
 		m.devices[i].Roles = d.Roles
 		m.devices[i].Disabled = d.Disabled
+		m.devices[i].Deleted = d.Deleted
 		return
 	}
 }
@@ -279,13 +281,6 @@ func (m *mockStore) UpdateDevice(_ context.Context, params store.UpdateDevicePar
 	return d, nil
 }
 
-func (m *mockStore) DeleteDevice(_ context.Context, id device.DeviceID) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.devices, id)
-	return nil
-}
-
 func (m *mockStore) UpdateDeviceIcon(_ context.Context, params store.UpdateDeviceIconParams) (device.Device, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -363,9 +358,80 @@ func (m *mockStore) SetDeviceDisabled(_ context.Context, id device.DeviceID, dis
 	if !ok {
 		return device.Device{}, sql.ErrNoRows
 	}
+	if !disabled && d.Deleted {
+		return device.Device{}, errors.New("restore device before enabling it")
+	}
 	d.Disabled = disabled
 	m.devices[id] = d
 	return d, nil
+}
+
+func (m *mockStore) MarkDeviceDeleted(_ context.Context, id device.DeviceID) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[id]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	d.Deleted = true
+	d.Disabled = true
+	m.devices[id] = d
+	return d, nil
+}
+
+func (m *mockStore) RestoreDevice(_ context.Context, id device.DeviceID) (device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d, ok := m.devices[id]
+	if !ok {
+		return device.Device{}, sql.ErrNoRows
+	}
+	d.Deleted = false
+	m.devices[id] = d
+	return d, nil
+}
+
+func (m *mockStore) BatchMarkDevicesDeleted(_ context.Context, ids []device.DeviceID) ([]device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	changed := make([]device.Device, 0, len(ids))
+	seen := make(map[device.DeviceID]struct{}, len(ids))
+	for _, id := range ids {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		d, ok := m.devices[id]
+		if !ok || d.Deleted {
+			continue
+		}
+		d.Deleted = true
+		d.Disabled = true
+		m.devices[id] = d
+		changed = append(changed, d)
+	}
+	return changed, nil
+}
+
+func (m *mockStore) BatchRestoreDevices(_ context.Context, ids []device.DeviceID) ([]device.Device, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	changed := make([]device.Device, 0, len(ids))
+	seen := make(map[device.DeviceID]struct{}, len(ids))
+	for _, id := range ids {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		d, ok := m.devices[id]
+		if !ok || !d.Deleted {
+			continue
+		}
+		d.Deleted = false
+		m.devices[id] = d
+		changed = append(changed, d)
+	}
+	return changed, nil
 }
 
 func (m *mockStore) CreateScene(_ context.Context, params store.CreateSceneParams) (store.Scene, error) {
@@ -1139,6 +1205,9 @@ func (m *mockStore) UpdateUserProfile(_ context.Context, params store.UpdateUser
 	}
 	if params.AvatarPath != nil {
 		u.AvatarPath = params.AvatarPath
+	}
+	if params.HapticsEnabled != nil {
+		u.HapticsEnabled = *params.HapticsEnabled
 	}
 	m.users[params.ID] = u
 	return u, nil
