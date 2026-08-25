@@ -10,6 +10,7 @@
 	} from "$lib/components/ui/card/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { Switch } from "$lib/components/ui/switch/index.js";
 	import {
 		Tooltip,
 		TooltipContent,
@@ -29,6 +30,7 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { sessionTeardown } from "$lib/session";
 	import { me } from "$lib/stores/me.svelte";
+	import { haptics, type HapticPointerType } from "$lib/stores/haptics.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { validateNewPassword } from "$lib/password";
@@ -53,6 +55,7 @@
 				theme
 				timeFormat
 				temperatureUnit
+				hapticsEnabled
 				createdAt
 				mustChangePassword
 			}
@@ -89,12 +92,55 @@
 	let newPw = $state("");
 	let confirmPw = $state("");
 	let pwSaving = $state(false);
+	let hapticsEnabled = $state(me.user?.hapticsEnabled ?? true);
+	let hapticsSaving = $state(false);
+	let hapticsPointerType: HapticPointerType | null = null;
 
 	$effect(() => {
 		if (me.user && !nameSaving) {
 			nameDraft = me.user.name;
 		}
+		if (me.user && !hapticsSaving) {
+			hapticsEnabled = me.user.hapticsEnabled;
+		}
 	});
+
+	function captureHapticsPointer(event: PointerEvent) {
+		hapticsPointerType = event.pointerType === "touch" || event.pointerType === "pen" ? event.pointerType : null;
+	}
+
+	async function setHapticsEnabled(next: boolean) {
+		if (hapticsSaving || hapticsEnabled === next) return;
+		const previous = hapticsEnabled;
+		const source = hapticsPointerType;
+		hapticsPointerType = null;
+		hapticsEnabled = next;
+		hapticsSaving = true;
+
+		if (next) {
+			haptics.syncFromProfile(true);
+			haptics.play("selection", source);
+		} else {
+			haptics.play("selection", source);
+			haptics.syncFromProfile(false);
+		}
+
+		try {
+			const result = await client
+				.mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: next } })
+				.toPromise();
+			if (result.error || !result.data?.updateCurrentUser) {
+				throw new Error(result.error?.message ?? "Failed to update haptics");
+			}
+			me.apply(result.data.updateCurrentUser);
+		} catch (e) {
+			hapticsEnabled = previous;
+			haptics.syncFromProfile(previous);
+			toast.error(e instanceof Error ? e.message : "Failed to update haptics");
+		} finally {
+			hapticsSaving = false;
+		}
+	}
 
 	const nameDirty = $derived(me.user != null && nameDraft.trim() !== me.user.name);
 
@@ -428,6 +474,28 @@
 						{ value: "celsius", label: "Celsius (°C)" },
 						{ value: "fahrenheit", label: "Fahrenheit (°F)" },
 					]}
+				/>
+			</div>
+
+			<div class="flex items-center gap-3">
+				<div class="flex items-center gap-1.5">
+					<p class="text-sm font-medium">Haptics</p>
+					<Tooltip>
+						<TooltipTrigger class="text-muted-foreground" aria-label="About haptics">
+							<Info class="size-3.5" />
+						</TooltipTrigger>
+						<TooltipContent>Brief feedback for direct interactions on supported touch devices.</TooltipContent>
+					</Tooltip>
+				</div>
+				<Switch
+					checked={hapticsEnabled}
+					disabled={hapticsSaving}
+					haptic={false}
+					onpointerdown={captureHapticsPointer}
+					onpointercancel={() => (hapticsPointerType = null)}
+					onkeydown={() => (hapticsPointerType = null)}
+					onCheckedChange={setHapticsEnabled}
+					aria-label="Enable haptics"
 				/>
 			</div>
 		</CardContent>

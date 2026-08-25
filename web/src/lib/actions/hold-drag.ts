@@ -1,4 +1,5 @@
 import type { Action } from "svelte/action";
+import { haptics } from "$lib/stores/haptics.svelte";
 
 /** Callbacks fired by the hold-drag state machine. */
 export interface HoldDragCallbacks {
@@ -38,8 +39,8 @@ export type HoldDragState = "idle" | "pending" | "dragging";
  * The hold-drag pointer state machine, detached from any element. Feed it
  * pointer events from wherever they are captured; it filters by pointer id
  * and drives the {@link HoldDragCallbacks}. Touch and pen pointers engage
- * after an uninterrupted `holdMs` press (with a `navigator.vibrate(15)`
- * pulse); mouse pointers engage on movement past `tolerancePx` when
+ * after an uninterrupted `holdMs` press; mouse pointers engage on movement
+ * past `tolerancePx` when
  * `mouseImmediate` is set. A press that never engages fires no callback, so
  * taps and clicks fall through to the host's own handlers.
  */
@@ -90,13 +91,7 @@ export function createHoldDrag(initial: HoldDragOptions): HoldDragMachine {
     if (!e) return;
     state = "dragging";
     opts.onstart(e);
-    if (isDragging() && pointerType !== "mouse") {
-      try {
-        navigator.vibrate?.(15);
-      } catch {
-        // navigator.vibrate is unsupported on some platforms (iOS Safari)
-      }
-    }
+    if (isDragging()) haptics.play("engage", e);
   }
 
   function pointerdown(e: PointerEvent) {

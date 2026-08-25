@@ -22,6 +22,7 @@
 			<Button
 				variant="outline"
 				size="sm"
+				haptic="execute"
 				class="shrink-0"
 				disabled={applyingId === scene.id}
 				onclick={() => onapply(scene)}

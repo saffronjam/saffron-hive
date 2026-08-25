@@ -11,6 +11,7 @@ const CREATE_USER = graphql(`
       name
       avatarPath
       theme
+      hapticsEnabled
     }
   }
 `);
@@ -21,6 +22,7 @@ const UPDATE_CURRENT_USER = graphql(`
       id
       name
       theme
+      hapticsEnabled
     }
   }
 `);
@@ -44,6 +46,7 @@ const ME_QUERY = graphql(`
       username
       name
       theme
+      hapticsEnabled
       avatarPath
     }
   }
@@ -61,6 +64,7 @@ describe("users", () => {
     expect(created.error).toBeUndefined();
     expect(created.data?.createUser.username).toBe("ts-user-a");
     expect(created.data?.createUser.theme).toBe(Theme.Dark);
+    expect(created.data?.createUser.hapticsEnabled).toBe(true);
     expect(created.data?.createUser.avatarPath).toBeNull();
 
     const deleted = await graphqlClient
@@ -68,6 +72,30 @@ describe("users", () => {
       .toPromise();
     expect(deleted.error).toBeUndefined();
     expect(deleted.data?.deleteUser).toBe(true);
+  });
+
+  it("persists the haptics preference independently", async () => {
+    const { graphqlClient } = getContext();
+
+    const disabled = await graphqlClient
+      .mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: false } })
+      .toPromise();
+    expect(disabled.error).toBeUndefined();
+    expect(disabled.data?.updateCurrentUser.hapticsEnabled).toBe(false);
+
+    const theme = await graphqlClient
+      .mutation(UPDATE_CURRENT_USER, { input: { theme: Theme.Light } })
+      .toPromise();
+    expect(theme.data?.updateCurrentUser.hapticsEnabled).toBe(false);
+
+    const current = await graphqlClient
+      .query(ME_QUERY, {}, { requestPolicy: "network-only" })
+      .toPromise();
+    expect(current.data?.me?.hapticsEnabled).toBe(false);
+
+    await graphqlClient
+      .mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: true, theme: Theme.Dark } })
+      .toPromise();
   });
 
   it("reflects server theme in me after updateCurrentUser", async () => {

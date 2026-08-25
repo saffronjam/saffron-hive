@@ -20,6 +20,9 @@
 					name
 					avatarPath
 					theme
+					timeFormat
+					temperatureUnit
+					hapticsEnabled
 					createdAt
 					mustChangePassword
 				}

@@ -28,6 +28,9 @@ func TestCreateUserAndGet(t *testing.T) {
 	if u.CreatedAt.IsZero() {
 		t.Error("CreatedAt not populated")
 	}
+	if !u.HapticsEnabled {
+		t.Error("haptics should be enabled by default")
+	}
 
 	byID, err := s.GetUserByID(ctx, "u-1")
 	if err != nil {
@@ -43,6 +46,35 @@ func TestCreateUserAndGet(t *testing.T) {
 	}
 	if byUsername.ID != "u-1" {
 		t.Errorf("GetUserByUsername id: %q", byUsername.ID)
+	}
+}
+
+func TestUpdateUserHapticsPreference(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	u, err := s.CreateUser(ctx, CreateUserParams{
+		ID: "u-1", Username: "alice", Name: "Alice", PasswordHash: "hash",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disabled := false
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, HapticsEnabled: &disabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.HapticsEnabled {
+		t.Error("haptics preference was not disabled")
+	}
+
+	name := "Alice Updated"
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, Name: &name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.HapticsEnabled {
+		t.Error("omitting haptics changed the stored preference")
 	}
 }
 

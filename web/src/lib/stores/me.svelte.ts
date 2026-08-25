@@ -1,6 +1,7 @@
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { theme, type Theme } from "$lib/stores/theme";
+import { haptics } from "$lib/stores/haptics.svelte";
 
 const ME_QUERY = graphql(`
   query Me {
@@ -12,6 +13,7 @@ const ME_QUERY = graphql(`
       theme
       timeFormat
       temperatureUnit
+      hapticsEnabled
       createdAt
       mustChangePassword
     }
@@ -29,6 +31,7 @@ export interface Me {
   theme: Theme;
   timeFormat: TimeMode;
   temperatureUnit: TempUnit;
+  hapticsEnabled: boolean;
   createdAt: string;
   mustChangePassword: boolean;
 }
@@ -64,6 +67,7 @@ function createMe() {
     theme?: "LIGHT" | "DARK" | null;
     timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
     temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
+    hapticsEnabled?: boolean | null;
     createdAt?: string | null;
     mustChangePassword?: boolean | null;
   }) {
@@ -78,11 +82,13 @@ function createMe() {
       theme: t,
       timeFormat: tf,
       temperatureUnit: tu,
+      hapticsEnabled: data.hapticsEnabled ?? true,
       createdAt: data.createdAt ?? "",
       mustChangePassword: data.mustChangePassword ?? false,
     };
     cacheAvatarPath(user.avatarPath);
     theme.syncFromProfile(t);
+    haptics.syncFromProfile(user.hapticsEnabled);
   }
 
   return {
@@ -105,6 +111,7 @@ function createMe() {
       theme?: "LIGHT" | "DARK" | null;
       timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
       temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
+      hapticsEnabled?: boolean | null;
       createdAt?: string | null;
       mustChangePassword?: boolean | null;
     }) {
@@ -113,6 +120,7 @@ function createMe() {
     clear() {
       user = null;
       cacheAvatarPath(null);
+      haptics.reset();
     },
   };
 }

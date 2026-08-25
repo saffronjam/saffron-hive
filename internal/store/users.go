@@ -36,6 +36,7 @@ func (s *DB) GetUserByID(ctx context.Context, id string) (User, error) {
 		Theme:              row.Theme,
 		TimeFormat:         row.TimeFormat,
 		TemperatureUnit:    row.TemperatureUnit,
+		HapticsEnabled:     row.HapticsEnabled,
 		MustChangePassword: row.MustChangePassword,
 		TokenVersion:       row.TokenVersion,
 		CreatedAt:          row.CreatedAt,
@@ -57,6 +58,7 @@ func (s *DB) GetUserByUsername(ctx context.Context, username string) (User, erro
 		Theme:              row.Theme,
 		TimeFormat:         row.TimeFormat,
 		TemperatureUnit:    row.TemperatureUnit,
+		HapticsEnabled:     row.HapticsEnabled,
 		MustChangePassword: row.MustChangePassword,
 		TokenVersion:       row.TokenVersion,
 		CreatedAt:          row.CreatedAt,
@@ -80,6 +82,7 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 			Theme:              row.Theme,
 			TimeFormat:         row.TimeFormat,
 			TemperatureUnit:    row.TemperatureUnit,
+			HapticsEnabled:     row.HapticsEnabled,
 			MustChangePassword: row.MustChangePassword,
 			TokenVersion:       row.TokenVersion,
 			CreatedAt:          row.CreatedAt,
@@ -118,6 +121,7 @@ func (s *DB) UpdateUserProfile(ctx context.Context, params UpdateUserProfilePara
 		AvatarPath:      params.AvatarPath,
 		TimeFormat:      params.TimeFormat,
 		TemperatureUnit: params.TemperatureUnit,
+		HapticsEnabled:  params.HapticsEnabled,
 	}); err != nil {
 		return User{}, fmt.Errorf("update user profile: %w", err)
 	}

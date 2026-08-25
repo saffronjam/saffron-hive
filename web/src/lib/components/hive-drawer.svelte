@@ -9,6 +9,8 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import type { DrawerGroup, DrawerItem } from "$lib/components/hive-drawer";
 	import { createHoldDrag } from "$lib/actions/hold-drag";
+	import { haptics, type HapticIntent, type HapticPointerType } from "$lib/stores/haptics.svelte";
+	import { Loader2 } from "@lucide/svelte";
 
 	type Selection = { type: T; id: string };
 
@@ -19,6 +21,8 @@
 		multiple?: boolean;
 		groups: DrawerGroup<T>[];
 		onselect: (type: T, id: string) => void;
+		disabled?: boolean;
+		pendingItem?: Selection | null;
 		/**
 		 * Hold-drag handoff: pressing and holding a row (immediately with a
 		 * mouse) calls this with the row's item and the initiating pointerdown
@@ -26,6 +30,7 @@
 		 * pointer gesture.
 		 */
 		ondragout?: (item: DrawerItem<T>, e: PointerEvent) => void;
+		hapticOnSelect?: HapticIntent;
 	}
 
 	let {
@@ -35,10 +40,14 @@
 		multiple = false,
 		groups,
 		onselect,
+		disabled = false,
+		pendingItem,
 		ondragout,
+		hapticOnSelect,
 	}: Props = $props();
 
 	let selected = $state<Selection[]>([]);
+	let selectionPointerType: HapticPointerType | null = null;
 
 	let dragItem: DrawerItem<T> | null = null;
 	const dragMachine = createHoldDrag({
@@ -61,7 +70,8 @@
 	});
 
 	function handleRowPointerDown(item: DrawerItem<T>, e: PointerEvent) {
-		if (!ondragout || item.disabled) return;
+		selectionPointerType = e.pointerType === "touch" || e.pointerType === "pen" ? e.pointerType : null;
+		if (disabled || !ondragout || item.disabled) return;
 		dragItem = item;
 		dragMachine.pointerdown(e);
 	}
@@ -71,8 +81,10 @@
 	}
 
 	function handleSelect(item: DrawerItem<T>) {
-		if (item.disabled) return;
+		if (disabled || item.disabled) return;
 		if (!multiple) {
+			if (hapticOnSelect) haptics.play(hapticOnSelect, selectionPointerType);
+			selectionPointerType = null;
 			onselect(item.type, item.id);
 			return;
 		}
@@ -85,6 +97,7 @@
 	}
 
 	function handleConfirm() {
+		if (disabled) return;
 		for (const s of selected) {
 			onselect(s.type, s.id);
 		}
@@ -111,42 +124,52 @@
 	{description}
 	placeholder="Search..."
 >
-	{#each groups as group (group.heading)}
-		{#if group.items.length > 0}
-			<CommandGroup heading={group.heading}>
-				{#each group.items as item (item.id)}
-					{@const Icon = item.icon}
-					{@const checked = isSelected(item.type, item.id)}
-					<CommandItem
-						value={`${item.type}:${item.id} ${item.searchValue ?? item.name}`}
-						disabled={item.disabled}
-						class="data-[disabled=true]:opacity-60"
-						onSelect={() => handleSelect(item)}
-						onpointerdown={(e: PointerEvent) => handleRowPointerDown(item, e)}
-						data-checked={checked}
-					>
-						{#if item.iconRef || Icon}
-							<AnimatedIcon icon={item.iconRef ?? null} class="size-4 text-muted-foreground">
-								{#snippet fallback()}
-									{#if Icon}
-										<Icon class="size-4 text-muted-foreground" />
-									{/if}
-								{/snippet}
-							</AnimatedIcon>
-						{/if}
-						<span class="flex-1 truncate">{item.name}</span>
-						{#if item.badge}
-							<Badge variant="outline" class="ml-auto">{item.badge}</Badge>
-						{/if}
-					</CommandItem>
-				{/each}
-			</CommandGroup>
-		{/if}
-	{/each}
+	<div class:pl-5={pendingItem !== undefined}>
+		{#each groups as group (group.heading)}
+			{#if group.items.length > 0}
+				<CommandGroup heading={group.heading} class={pendingItem !== undefined ? "overflow-visible!" : undefined}>
+					{#each group.items as item (item.id)}
+						{@const Icon = item.icon}
+						{@const checked = isSelected(item.type, item.id)}
+						{@const pending = pendingItem?.type === item.type && pendingItem.id === item.id}
+						<CommandItem
+							value={`${item.type}:${item.id} ${item.searchValue ?? item.name}`}
+							disabled={disabled || item.disabled}
+							class="data-[disabled=true]:opacity-60 data-[pending=true]:bg-muted data-[pending=true]:opacity-100"
+							onSelect={() => handleSelect(item)}
+							onpointerdown={(e: PointerEvent) => handleRowPointerDown(item, e)}
+							data-checked={checked}
+							data-pending={pending}
+							aria-busy={pending}
+						>
+							{#if pending}
+								<Loader2
+									class="pointer-events-none absolute top-1/2 -left-5 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+								/>
+							{/if}
+							{#if item.iconRef || Icon}
+								<AnimatedIcon icon={item.iconRef ?? null} class="size-4 text-muted-foreground">
+									{#snippet fallback()}
+										{#if Icon}
+											<Icon class="size-4 text-muted-foreground" />
+										{/if}
+									{/snippet}
+								</AnimatedIcon>
+							{/if}
+							<span class="flex-1 truncate">{item.name}</span>
+							{#if item.badge}
+								<Badge variant="outline" class="ml-auto">{item.badge}</Badge>
+							{/if}
+						</CommandItem>
+					{/each}
+				</CommandGroup>
+			{/if}
+		{/each}
+	</div>
 
 	{#if multiple && selected.length > 0}
 		<div class="sticky bottom-0 border-t bg-popover p-2">
-			<Button class="w-full" onclick={handleConfirm}>
+			<Button class="w-full" onclick={handleConfirm} {disabled}>
 				Add {selected.length} {selected.length === 1 ? "item" : "items"}
 			</Button>
 		</div>

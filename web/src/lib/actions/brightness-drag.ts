@@ -1,4 +1,5 @@
 import type { Action } from "svelte/action";
+import { haptics } from "$lib/stores/haptics.svelte";
 
 export interface BrightnessDragOpts {
   /** Current brightness, read fresh on each pointerdown to seed the drag. */
@@ -32,11 +33,10 @@ export interface BrightnessDragOpts {
  * motion crosses `mouseThreshold` (default 6 px) — same feel as a regular
  * click-and-drag slider, with no hold delay. Touch and pen input require a
  * `holdMs`-long press (default 200 ms) without significant motion before
- * the drag is armed; on hold-activation a short `navigator.vibrate(15)`
- * haptic pulse fires. In both modes the host receives `data-dragging="true"`
+ * the drag is armed. In both modes the host receives `data-dragging="true"`
  * for the duration of the active drag — CSS uses it to drop the
  * brightness-fill transition (so the fill pins to the cursor / finger) and
- * to scale the card up ~5 % in place via `transform`. A release before
+ * to scale the card up ~3.5% in place via `transform`. A release before
  * activation falls through as a normal click.
  */
 export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, opts) => {
@@ -82,13 +82,7 @@ export const brightnessDrag: Action<HTMLElement, BrightnessDragOpts> = (node, op
     startBrightness = current.initial();
     lastValue = startBrightness;
     node.setAttribute("data-dragging", "true");
-    if (armed) {
-      try {
-        navigator.vibrate?.(15);
-      } catch {
-        // navigator.vibrate is unsupported on some platforms (iOS Safari)
-      }
-    }
+    if (armed) haptics.play("engage", pointerType === "pen" ? "pen" : "touch");
     try {
       node.setPointerCapture(pointerId);
     } catch {

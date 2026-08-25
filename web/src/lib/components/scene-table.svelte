@@ -228,6 +228,7 @@
 				<Button
 					variant="ghost"
 					size="icon-sm"
+					haptic="execute"
 					onclick={() => onapply(s)}
 					disabled={applying}
 					class="transition-opacity duration-200"

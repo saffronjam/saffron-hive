@@ -3,17 +3,17 @@ INSERT INTO users (id, username, name, password_hash, must_change_password)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, must_change_password, token_version, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, must_change_password, token_version, created_at
 FROM users
 WHERE username = ?;
 
 -- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, must_change_password, token_version, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, must_change_password, token_version, created_at
 FROM users
 ORDER BY created_at ASC;
 
@@ -30,7 +30,8 @@ UPDATE users SET
     theme            = COALESCE(sqlc.narg('theme'),            theme),
     avatar_path      = COALESCE(sqlc.narg('avatar_path'),      avatar_path),
     time_format      = COALESCE(sqlc.narg('time_format'),      time_format),
-    temperature_unit = COALESCE(sqlc.narg('temperature_unit'), temperature_unit)
+    temperature_unit = COALESCE(sqlc.narg('temperature_unit'), temperature_unit),
+    haptics_enabled   = COALESCE(sqlc.narg('haptics_enabled'),   haptics_enabled)
 WHERE id = sqlc.arg('id');
 
 -- name: ClearUserAvatar :exec

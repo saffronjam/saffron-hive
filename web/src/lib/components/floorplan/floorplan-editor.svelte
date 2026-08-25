@@ -103,6 +103,7 @@
 
 <script lang="ts">
 	import { untrack } from "svelte";
+	import { haptics } from "$lib/stores/haptics.svelte";
 	import { select } from "d3-selection";
 	import {
 		zoom as d3zoom,
@@ -1330,11 +1331,7 @@
 				// The hold has claimed this press: the release must not also read as
 				// a click, or the menu opens on top of a selection or a marker toggle.
 				pressed = null;
-				try {
-					navigator.vibrate?.(15);
-				} catch {
-					// unsupported on some platforms
-				}
+				haptics.play("engage", e);
 				open();
 			}, 350),
 		};

@@ -10,6 +10,7 @@
 	} from "$lib/components/ui/dropdown-menu/index.js";
 	import { MousePointerClick } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils";
+	import { haptics } from "$lib/stores/haptics.svelte";
 
 	interface Props {
 		deviceId: string;
@@ -29,7 +30,8 @@
 		}
 	`);
 
-	function trigger(action: string) {
+	function trigger(action: string, event: MouseEvent) {
+		haptics.play("execute", event);
 		void client.mutation(SIMULATE_DEVICE_ACTION, { deviceId, action }).toPromise();
 	}
 
@@ -53,7 +55,7 @@
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" class="max-h-80 overflow-y-auto">
 				{#each actions as action (action)}
-					<DropdownMenuItem onclick={() => trigger(action)}>{sentenceCase(action)}</DropdownMenuItem>
+					<DropdownMenuItem onclick={(event) => trigger(action, event)}>{sentenceCase(action)}</DropdownMenuItem>
 				{/each}
 			</DropdownMenuContent>
 		</DropdownMenu>

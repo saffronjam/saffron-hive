@@ -227,6 +227,7 @@
 											<Button
 												variant="outline"
 												size="xs"
+												haptic="execute"
 												disabled={tasks.some((task) => maintenanceStore.isPending(task.id))}
 												onclick={() => void maintenanceStore.completeMany(tasks.map((task) => task.id))}
 											>
@@ -287,6 +288,7 @@
 												<Button
 													variant="outline"
 													size="xs"
+													haptic="execute"
 													disabled={maintenanceStore.isPending(task.id)}
 													onclick={() => void maintenanceStore.completeOne(task.id)}
 												>
