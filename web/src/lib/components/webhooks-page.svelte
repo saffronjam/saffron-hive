@@ -15,6 +15,7 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
+	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
@@ -153,6 +154,20 @@
 		}
 	}
 
+	async function renameEndpoint(endpoint: WebhookEndpoint, name: string) {
+		errors.clear();
+		try {
+			await webhooksStore.update(client, endpoint.id, {
+				name,
+				enabled: endpoint.enabled,
+				rateLimitCount: endpoint.rateLimitCount,
+				rateLimitWindowMs: endpoint.rateLimitWindowMs,
+			});
+		} catch (error) {
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not rename the webhook."));
+		}
+	}
+
 	async function confirmBatchDelete() {
 		const ids = selection.selectedIds();
 		if (ids.length === 0) {
@@ -228,10 +243,13 @@
 {/snippet}
 
 {#snippet nameCell(endpoint: WebhookEndpoint)}
-	<a href={`/webhooks/${endpoint.id}`} class="flex items-center gap-2 font-medium transition-colors hover:text-foreground/80">
+	<div class="flex items-center gap-2">
 		<Webhook class="size-4 text-muted-foreground" />
-		{endpoint.name}
-	</a>
+		<InlineEditName
+			name={endpoint.name}
+			onsave={(name) => renameEndpoint(endpoint, name)}
+		/>
+	</div>
 {/snippet}
 
 {#snippet automationsCell(endpoint: WebhookEndpoint)}

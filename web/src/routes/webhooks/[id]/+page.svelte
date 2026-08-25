@@ -25,6 +25,8 @@
 		TableRow,
 	} from "$lib/components/ui/table/index.js";
 	import NumberInput from "$lib/components/number-input.svelte";
+	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
+	import JsonInline from "$lib/components/json-inline.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
@@ -38,7 +40,17 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { formatTooltip } from "$lib/time-format";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
-	import { Check, Copy, KeyRound, RotateCw, Save, Search, Trash2, Webhook } from "@lucide/svelte";
+	import {
+		Braces,
+		Check,
+		Copy,
+		KeyRound,
+		RotateCw,
+		Save,
+		Search,
+		Trash2,
+		Webhook,
+	} from "@lucide/svelte";
 
 	const DELIVERIES_QUERY = graphql(`
 		query WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {
@@ -52,6 +64,7 @@
 				userAgent
 				contentType
 				bodySize
+				body
 				durationMs
 				requestId
 				queryKeys
@@ -72,6 +85,7 @@
 				userAgent
 				contentType
 				bodySize
+				body
 				durationMs
 				requestId
 				queryKeys
@@ -85,6 +99,7 @@
 	const endpoint = $derived(webhooksStore.byId.get(endpointID));
 	const usageByEndpoint = $derived(automationsByWebhookEndpoint(automationsStore.items));
 	const usedBy = $derived(usageByEndpoint.get(endpointID) ?? []);
+	type WebhookDelivery = WebhookDetailDeliveriesQuery["webhookDeliveries"][number];
 	let liveDeliveries = $state.raw<WebhookDetailDeliveriesQuery["webhookDeliveries"]>([]);
 
 	$effect(() => {
@@ -122,6 +137,8 @@
 	let secretUrl = $state<string | null>(null);
 	let copied = $state(false);
 	let automationSearch = $state("");
+	let selectedDelivery = $state<WebhookDelivery | null>(null);
+	let bodyCopied = $state(false);
 	const errors = new BannerError();
 
 	function snapshot() {
@@ -219,6 +236,13 @@
 		setTimeout(() => (copied = false), 1500);
 	}
 
+	async function copyBody() {
+		if (selectedDelivery?.body === null || selectedDelivery?.body === undefined) return;
+		await navigator.clipboard.writeText(formatBody(selectedDelivery.body));
+		bodyCopied = true;
+		setTimeout(() => (bodyCopied = false), 1500);
+	}
+
 	function outcomeVariant(outcome: string): "secondary" | "destructive" | "outline" {
 		if (outcome === "accepted") return "secondary";
 		if (outcome === "rate_limited" || outcome === "disabled") return "outline";
@@ -232,6 +256,14 @@
 	function formatBytes(bytes: number): string {
 		if (bytes < 1024) return `${bytes} B`;
 		return `${(bytes / 1024).toFixed(1)} KiB`;
+	}
+
+	function formatBody(body: string): string {
+		try {
+			return JSON.stringify(JSON.parse(body), null, 2);
+		} catch {
+			return body;
+		}
 	}
 </script>
 
@@ -297,6 +329,7 @@
 									<TableHead>Request ID</TableHead>
 									<TableHead>Query keys</TableHead>
 									<TableHead>Headers</TableHead>
+									<ActionsHead />
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -315,6 +348,19 @@
 										<TableCell class="whitespace-nowrap font-mono text-xs">{delivery.requestId || "—"}</TableCell>
 										<TableCell class="whitespace-nowrap text-xs text-muted-foreground">{delivery.queryKeys.join(", ") || "—"}</TableCell>
 										<TableCell class="max-w-96 truncate text-xs text-muted-foreground">{delivery.headerNames.join(", ") || "—"}</TableCell>
+										<TableCell>
+											<div class="flex items-center justify-end">
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													onclick={() => (selectedDelivery = delivery)}
+													aria-label="View request body"
+													title="View body"
+												>
+													<Braces class="size-4" />
+												</Button>
+											</div>
+										</TableCell>
 									</TableRow>
 								{/each}
 							</TableBody>
@@ -410,5 +456,47 @@
 		<DialogFooter>
 			<Button onclick={() => { secretUrl = null; copied = false; }}>Done</Button>
 		</DialogFooter>
+	</DialogContent>
+</Dialog>
+
+<Dialog
+	open={selectedDelivery !== null}
+	onOpenChange={(open) => {
+		if (!open) {
+			selectedDelivery = null;
+			bodyCopied = false;
+		}
+	}}
+>
+	<DialogContent class="h-[min(44rem,calc(100dvh-2rem))] grid-rows-[auto_minmax(0,1fr)] sm:max-w-3xl">
+		<DialogHeader>
+			<DialogTitle>Request body</DialogTitle>
+			{#if selectedDelivery}
+				<DialogDescription>
+					{formatTooltip(new Date(selectedDelivery.receivedAt), me.user?.timeFormat ?? "24h")} ·
+					{selectedDelivery.contentType || "No content type"} ·
+					{formatBytes(selectedDelivery.bodySize)}
+				</DialogDescription>
+			{/if}
+		</DialogHeader>
+		<div class="relative min-h-0 overflow-hidden rounded-md bg-background shadow-card">
+			{#if selectedDelivery?.body !== null && selectedDelivery?.body !== undefined}
+				<div class="h-full overflow-auto p-4 pr-12">
+					<JsonInline value={formatBody(selectedDelivery.body)} class="block min-w-max" />
+				</div>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					class="absolute right-2 top-2 z-10 bg-background"
+					onclick={copyBody}
+					aria-label={bodyCopied ? "Request body copied" : "Copy request body"}
+					title={bodyCopied ? "Copied" : "Copy body"}
+				>
+					{#if bodyCopied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
+				</Button>
+			{:else}
+				<p class="p-4 text-sm text-muted-foreground">Body unavailable for this request.</p>
+			{/if}
+		</div>
 	</DialogContent>
 </Dialog>
