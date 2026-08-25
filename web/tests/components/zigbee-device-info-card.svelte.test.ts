@@ -124,6 +124,39 @@ describe("ZigbeeDeviceInfoCard", () => {
     expect(host.textContent).toContain("Details");
   });
 
+  it("identifies unsupported Zigbee devices", () => {
+    const device: Device = {
+      id: "0x123",
+      name: null,
+      friendlyName: "Unsupported device",
+      source: "zigbee2mqtt",
+      type: "unknown",
+      available: true,
+      disabled: false,
+      deleted: false,
+      seen: true,
+      roles: {},
+      capabilities: [],
+      configuration: [],
+      state: {},
+    };
+    const metadata: Zigbee2MqttDeviceMetadata = {
+      imageCandidate: false,
+      endpoints: [],
+      groups: [],
+      supported: false,
+      ota: {},
+    };
+
+    component = mount(ZigbeeDetailsCard, {
+      target: host,
+      props: { device, metadata },
+    });
+
+    expect(host.textContent).toContain("Support");
+    expect(host.textContent).toContain("Unsupported");
+  });
+
   it("renders battery type as plain text below the power source", () => {
     const device: Device = {
       id: "0x123",

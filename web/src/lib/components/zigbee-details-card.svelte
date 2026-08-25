@@ -72,6 +72,7 @@
 			!!metadata.addressVendor ||
 			networkAddress != null ||
 			!!metadata.networkType ||
+			metadata.supported === false ||
 			metadata.bridgeInfo?.channel != null ||
 			panId != null ||
 			!!metadata.bridgeInfo?.extendedPanId ||
@@ -136,6 +137,7 @@
 				{#if metadata.addressVendor}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">Address vendor</dt><dd class="text-right text-sm">{metadata.addressVendor}</dd></div>{/if}
 				{#if networkAddress}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">Network address</dt><dd class="font-mono text-xs">{networkAddress}</dd></div>{/if}
 				{#if metadata.networkType}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">Network role</dt><dd><Badge variant="outline">{metadata.networkType}</Badge></dd></div>{/if}
+				{#if metadata.supported === false}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">Support</dt><dd><Badge variant="outline">Unsupported</Badge></dd></div>{/if}
 				{#if metadata.bridgeInfo?.channel != null}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">Channel</dt><dd class="font-mono text-xs">{metadata.bridgeInfo.channel}</dd></div>{/if}
 				{#if panId}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">PAN ID</dt><dd class="font-mono text-xs">{panId}</dd></div>{/if}
 				{#if metadata.bridgeInfo?.extendedPanId}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">Extended PAN ID</dt><dd class="font-mono text-xs">{metadata.bridgeInfo.extendedPanId}</dd></div>{/if}
