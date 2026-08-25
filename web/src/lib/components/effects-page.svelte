@@ -3,7 +3,7 @@
 	import { page } from "$app/state";
 	import { measureMount } from "$lib/perf";
 	import { fly } from "svelte/transition";
-	import { getContextClient, queryStore } from "@urql/svelte";
+	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { prefetchDetail } from "$lib/prefetch-detail";
 	import { effectsStore, type Effect as StoredEffect } from "$lib/stores/effects.svelte";
@@ -39,6 +39,7 @@
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { effectCapabilityLabel } from "$lib/effect-display";
 	import { EffectKind, type Effect, type NativeEffectOption } from "$lib/gql/graphql";
+	import { nativeEffectSupportSummary } from "$lib/native-effect";
 
 	interface Props {
 		/**
@@ -68,14 +69,16 @@
 		createdBy?: CreatedBy | null;
 	}
 
-	type NativeOption = Pick<NativeEffectOption, "name" | "displayName" | "source" | "supportedDeviceCount">;
+	type NativeOption = Pick<
+		NativeEffectOption,
+		"name" | "displayName" | "source" | "confirmedDeviceCount" | "untestedDeviceCount" | "unsupportedDeviceCount"
+	>;
 
 	interface NativeCardEntity {
 		id: string;
 		name: string;
 		icon?: string | null;
 		nativeName: string;
-		supportedDeviceCount: number;
 	}
 
 	const NATIVE_OPTIONS_QUERY = graphql(`
@@ -84,15 +87,27 @@
 				name
 				displayName
 				source
-				supportedDeviceCount
+				confirmedDeviceCount
+				untestedDeviceCount
+				unsupportedDeviceCount
 			}
+		}
+	`);
+	const NATIVE_SUPPORT_CHANGED = graphql(`
+		subscription EffectsPageNativeSupportChanged {
+			nativeEffectSupportChanged
 		}
 	`);
 
 	const clientRef = getContextClient();
 	const effects = $derived(effectsStore.items);
 	const nativeOptionsQuery = queryStore({ client: clientRef, query: NATIVE_OPTIONS_QUERY });
+	const nativeSupportUpdates = subscriptionStore({ client: clientRef, query: NATIVE_SUPPORT_CHANGED });
 	const nativeOptions = $derived<NativeOption[]>($nativeOptionsQuery.data?.nativeEffectOptions ?? []);
+	$effect(() => {
+		if (!$nativeSupportUpdates.data?.nativeEffectSupportChanged) return;
+		nativeOptionsQuery.reexecute({ requestPolicy: "network-only" });
+	});
 	let createDialogOpen = $state(false);
 	let newEffectName = $state("");
 	let createLoading = $state(false);
@@ -290,7 +305,6 @@
 			id: `native:${opt.name}`,
 			name: opt.displayName,
 			nativeName: opt.name,
-			supportedDeviceCount: opt.supportedDeviceCount,
 		};
 	}
 
@@ -420,7 +434,7 @@
 									<EntityCard
 										{entity}
 										fallbackIcon={Zap}
-										subtitle="Supported on {opt.supportedDeviceCount} device{opt.supportedDeviceCount === 1 ? '' : 's'}"
+										subtitle={nativeEffectSupportSummary(opt)}
 										readOnly
 									>
 										{#snippet leadingActions()}
@@ -523,6 +537,7 @@
 				nativeName={runDrawer.nativeName}
 				requiredCapabilities={runDrawer.requiredCapabilities}
 				onclose={() => (runDrawer = null)}
+				onstarted={() => nativeOptionsQuery.reexecute({ requestPolicy: "network-only" })}
 			/>
 		{/if}
 	{/if}

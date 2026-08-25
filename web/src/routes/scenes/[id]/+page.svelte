@@ -20,7 +20,7 @@
 	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import { deviceStore, isSceneTarget, type Device } from "$lib/stores/devices";
+	import { deviceStore, isRuntimeEnabledDevice, isSceneTarget, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
@@ -202,7 +202,9 @@
 			nativeEffectOptions {
 				name
 				displayName
-				supportedDeviceCount
+				confirmedDeviceCount
+				untestedDeviceCount
+				unsupportedDeviceCount
 			}
 		}
 	`);
@@ -249,7 +251,7 @@
 	});
 	// Dropped at the source so the whole page follows: the target tree, its
 	// reachable counts, the Add drawer and every resolution.
-	const allDevices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const allDevices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const allGroups = $derived(groupsStore.items);
 	const allRooms = $derived(roomsStore.items);
 	let allEffects = $state<EffectSummary[]>([]);

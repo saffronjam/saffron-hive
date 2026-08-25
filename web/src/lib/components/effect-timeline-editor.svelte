@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { toast } from "svelte-sonner";
-	import { getContextClient, queryStore } from "@urql/svelte";
+	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
@@ -86,13 +87,26 @@
 			nativeEffectOptions {
 				name
 				displayName
-				supportedDeviceCount
+				confirmedDeviceCount
+				untestedDeviceCount
+				unsupportedDeviceCount
 			}
 		}
 	`);
+	const NATIVE_EFFECT_SUPPORT_CHANGED = graphql(`
+		subscription EffectTimelineNativeSupportChanged {
+			nativeEffectSupportChanged
+		}
+	`);
+	const nativeEffectClient = getContextClient();
 	const optionsStore = queryStore({
-		client: getContextClient(),
+		client: nativeEffectClient,
 		query: NATIVE_EFFECT_OPTIONS_QUERY,
+	});
+	const nativeSupportUpdates = subscriptionStore({ client: nativeEffectClient, query: NATIVE_EFFECT_SUPPORT_CHANGED });
+	$effect(() => {
+		if (!$nativeSupportUpdates.data?.nativeEffectSupportChanged) return;
+		optionsStore.reexecute({ requestPolicy: "network-only" });
 	});
 	const nativeOptions = $derived($optionsStore.data?.nativeEffectOptions ?? []);
 
@@ -1466,7 +1480,7 @@
 									<div class="flex items-center justify-between gap-3 w-full">
 										<span>{opt.displayName}</span>
 										<span class="text-xs text-muted-foreground">
-											{opt.supportedDeviceCount} dev{opt.supportedDeviceCount === 1 ? "" : "s"}
+											{nativeEffectSupportSummary(opt)}
 										</span>
 									</div>
 								</SelectItem>

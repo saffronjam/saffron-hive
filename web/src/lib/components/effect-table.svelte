@@ -15,6 +15,7 @@
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { effectCapabilityLabel } from "$lib/effect-display";
 	import { EffectKind } from "$lib/gql/graphql";
+	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Play, Sparkles, Zap } from "@lucide/svelte";
 
 	interface CreatedBy {
@@ -41,7 +42,9 @@
 		name: string;
 		displayName: string;
 		source: string;
-		supportedDeviceCount: number;
+		confirmedDeviceCount: number;
+		untestedDeviceCount: number;
+		unsupportedDeviceCount: number;
 	}
 
 	type EffectTableRow =
@@ -165,7 +168,7 @@
 			{@const clips = clipCount(row.effect)}
 			{row.effect.loop ? "Loop" : "Once"} · {tracks} track{tracks === 1 ? "" : "s"} · {clips} clip{clips === 1 ? "" : "s"}
 		{:else}
-			Supported on {row.option.supportedDeviceCount} device{row.option.supportedDeviceCount === 1 ? "" : "s"}
+			{nativeEffectSupportSummary(row.option)}
 		{/if}
 	</span>
 {/snippet}

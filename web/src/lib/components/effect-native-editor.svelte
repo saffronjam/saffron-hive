@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContextClient, queryStore } from "@urql/svelte";
+	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import {
 		Select,
@@ -8,6 +8,7 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Zap } from "@lucide/svelte";
 
 	interface Props {
@@ -22,9 +23,16 @@
 			nativeEffectOptions {
 				name
 				displayName
-				supportedDeviceCount
+				confirmedDeviceCount
+				untestedDeviceCount
+				unsupportedDeviceCount
 				source
 			}
+		}
+	`);
+	const NATIVE_EFFECT_SUPPORT_CHANGED = graphql(`
+		subscription NativeEffectEditorSupportChanged {
+			nativeEffectSupportChanged
 		}
 	`);
 
@@ -32,6 +40,11 @@
 	const optionsStore = queryStore({
 		client,
 		query: NATIVE_EFFECT_OPTIONS_QUERY,
+	});
+	const supportUpdates = subscriptionStore({ client, query: NATIVE_EFFECT_SUPPORT_CHANGED });
+	$effect(() => {
+		if (!$supportUpdates.data?.nativeEffectSupportChanged) return;
+		optionsStore.reexecute({ requestPolicy: "network-only" });
 	});
 
 	const options = $derived($optionsStore.data?.nativeEffectOptions ?? []);
@@ -78,7 +91,7 @@
 							<div class="flex items-center justify-between gap-3 w-full">
 								<span>{opt.displayName}</span>
 								<span class="text-xs text-muted-foreground">
-									{opt.supportedDeviceCount} device{opt.supportedDeviceCount === 1 ? "" : "s"}
+									{nativeEffectSupportSummary(opt)}
 								</span>
 							</div>
 						</SelectItem>
@@ -89,7 +102,7 @@
 				<div class="flex items-center gap-2 text-xs text-muted-foreground">
 					<HiveChip type="hub" label="Zigbee" />
 					<span>
-						Supported on {selected.supportedDeviceCount} device{selected.supportedDeviceCount === 1 ? "" : "s"}
+						{nativeEffectSupportSummary(selected)}
 					</span>
 				</div>
 			{/if}
