@@ -66,6 +66,26 @@ const SEARCH_MAINTENANCE_TASKS = graphql(`
   }
 `);
 
+const SEARCH_DEVICES = graphql(`
+  query BrowserSearchDevices {
+    devices {
+      id
+      friendlyName
+    }
+  }
+`);
+
+const CLEAN_UP_DELETED_DEVICE = graphql(`
+  mutation BrowserSearchCleanUpDeletedDevice($id: ID!, $input: UpdateDeviceInput!) {
+    restoreDevice(id: $id) {
+      id
+    }
+    updateDevice(id: $id, input: $input) {
+      id
+    }
+  }
+`);
+
 interface FixtureIds {
   roomId: string;
   groupId: string;
@@ -87,6 +107,18 @@ let browser: Browser;
 let browserContext: BrowserContext;
 let browserPage: Page;
 let fixtureIds: FixtureIds | null = null;
+let deletedDeviceId: string | null = null;
+
+async function cleanUpDeletedDevice(): Promise<void> {
+  if (!deletedDeviceId) return;
+  const { graphqlClient } = getContext();
+  await graphqlClient
+    .mutation(CLEAN_UP_DELETED_DEVICE, {
+      id: deletedDeviceId,
+      input: { disabled: false },
+    })
+    .toPromise();
+}
 
 beforeAll(async () => {
   const { graphqlClient, appUrl, token } = getContext();
@@ -151,10 +183,17 @@ beforeAll(async () => {
 afterAll(async () => {
   await browserContext?.close();
   await browser?.close();
+  await cleanUpDeletedDevice();
   if (!fixtureIds) return;
   const { graphqlClient } = getContext();
   await graphqlClient.mutation(DELETE_SEARCH_FIXTURES, fixtureIds).toPromise();
 });
+
+async function visibleDeviceNameCount(page: Page, text: string): Promise<number> {
+  const matches = await page.getByRole("heading", { level: 3, name: text, exact: true }).all();
+  const visible = await Promise.all(matches.map((match) => match.isVisible()));
+  return visible.filter(Boolean).length;
+}
 
 async function waitForFilteredRow(page: Page, text: string): Promise<void> {
   const matches = page.getByText(text, { exact: true });
@@ -245,23 +284,97 @@ describe("URL-backed search restoration", () => {
   it("restores the searchbar when browser history moves forward to a cached list", async () => {
     const { appUrl } = getContext();
     await browserPage.goto(`${appUrl}/profile`, { waitUntil: "domcontentloaded" });
-    await browserPage.goto(`${appUrl}/devices?q=Living+Room+Light`, {
-      waitUntil: "domcontentloaded",
+    await browserPage.getByRole("link", { name: "Devices" }).click();
+    await browserPage.waitForURL("**/devices");
+
+    const searchInput = browserPage.locator('main input[type="text"]').first();
+    await searchInput.fill(":type");
+    await searchInput.press("Enter");
+    await searchInput.press("Enter");
+    await searchInput.fill("Living Room Light");
+    await expect
+      .poll(() => {
+        const url = new URL(browserPage.url());
+        return {
+          query: url.searchParams.get("q"),
+          filters: url.searchParams.getAll("filter"),
+        };
+      })
+      .toEqual({ query: "Living Room Light", filters: ["type:light"] });
+    const matchingDeviceCards = browserPage.locator("main .shadow-card", {
+      hasText: "Living Room Light",
     });
-    await waitForFilteredRow(browserPage, "Living Room Light");
+    await expect.poll(() => matchingDeviceCards.count()).toBeGreaterThan(0);
 
     await browserPage.goBack({ waitUntil: "domcontentloaded" });
     expect(new URL(browserPage.url()).pathname).toBe("/profile");
     await browserPage.goForward({ waitUntil: "domcontentloaded" });
 
-    await waitForFilteredRow(browserPage, "Living Room Light");
+    await expect.poll(() => matchingDeviceCards.count()).toBeGreaterThan(0);
     const searchText = await browserPage
       .locator("main input[type=text]")
       .first()
       .evaluate((input) => input.closest('[role="presentation"]')?.textContent ?? "");
-    expect(searchText).toContain("Living Room Light");
-    await expect.poll(() => browserPage.getByText("Door sensor T1", { exact: true }).count()).toBe(0);
+    expect(searchText).toContain("Type: light");
+    expect(`${searchText} ${await searchInput.inputValue()}`).toContain("Living Room Light");
+    await expect
+      .poll(() => browserPage.getByText("Door sensor T1", { exact: true }).count())
+      .toBe(0);
     expect(new URL(browserPage.url()).searchParams.get("q")).toBe("Living Room Light");
+    expect(new URL(browserPage.url()).searchParams.getAll("filter")).toEqual(["type:light"]);
+  });
+
+  it("deletes through confirmation and restores through the opt-in filter", async () => {
+    const { graphqlClient, appUrl } = getContext();
+    const devices = await graphqlClient
+      .query(SEARCH_DEVICES, {}, { requestPolicy: "network-only" })
+      .toPromise();
+    deletedDeviceId =
+      devices.data?.devices.find((device) => device.friendlyName === "Kitchen Light")?.id ?? null;
+    if (!deletedDeviceId) throw new Error("Kitchen Light was not found");
+    await cleanUpDeletedDevice();
+
+    try {
+      await browserPage.goto(`${appUrl}/devices?q=Kitchen%20Light`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForFilteredRow(browserPage, "Kitchen Light");
+      await browserPage.getByRole("button", { name: "Device actions" }).first().click();
+      await browserPage.getByRole("menuitem", { name: "Delete" }).click();
+
+      await expect
+        .poll(() => browserPage.getByText("Delete device", { exact: true }).count())
+        .toBe(1);
+      await expect
+        .poll(() => browserPage.getByText(/hides and disables it in Hive only/).count())
+        .toBe(1);
+      await browserPage.getByRole("button", { name: "Delete", exact: true }).click();
+      await expect
+        .poll(() => visibleDeviceNameCount(browserPage, "Kitchen Light"), { timeout: 10_000 })
+        .toBe(0);
+
+      const deletedUrl = new URL("/devices", appUrl);
+      deletedUrl.searchParams.set("q", "Kitchen Light");
+      deletedUrl.searchParams.set("filter", "deleted:yes");
+      await browserPage.goto(deletedUrl.toString(), { waitUntil: "domcontentloaded" });
+      await waitForFilteredRow(browserPage, "Kitchen Light");
+      await browserPage.getByRole("button", { name: "Device actions" }).first().click();
+      await browserPage.getByRole("menuitem", { name: "Restore" }).click();
+      await expect
+        .poll(() => visibleDeviceNameCount(browserPage, "Kitchen Light"), { timeout: 10_000 })
+        .toBe(0);
+
+      await browserPage.goto(`${appUrl}/devices?q=Kitchen%20Light`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForFilteredRow(browserPage, "Kitchen Light");
+      await browserPage.getByRole("button", { name: "Device actions" }).first().click();
+      await expect
+        .poll(() => browserPage.getByRole("menuitem", { name: "Enable" }).count())
+        .toBe(1);
+    } finally {
+      await cleanUpDeletedDevice();
+    }
   });
 
   it("restores every search surface across navigation and reload", async () => {

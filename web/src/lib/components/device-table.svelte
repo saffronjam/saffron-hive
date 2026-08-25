@@ -22,7 +22,7 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
-	import { Ban, CircleCheck, DoorOpen, Group as GroupIcon, Plus } from "@lucide/svelte";
+	import { Ban, CircleCheck, DoorOpen, Group as GroupIcon, Plus, Trash2, Undo2 } from "@lucide/svelte";
 
 	interface MembershipChip {
 		id: string;
@@ -43,6 +43,8 @@
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 		ontoggleenabled: (device: Device) => void;
+		ondelete: (device: Device) => void;
+		onrestore: (device: Device) => void;
 		/** Ids that were unseen when the list mounted. */
 		newDeviceIds?: ReadonlySet<string>;
 	}
@@ -54,6 +56,8 @@
 		oniconchange,
 		onAddTo,
 		ontoggleenabled,
+		ondelete,
+		onrestore,
 		newDeviceIds,
 	}: Props = $props();
 
@@ -156,7 +160,13 @@
 		{#if newDeviceIds?.has(row.device.id)}
 			<HiveChip type="new" label="New" />
 		{/if}
-		{#if row.device.disabled}
+		{#if row.device.deleted}
+			<Trash2
+				class="size-3.5 shrink-0 text-muted-foreground"
+				title="Deleted"
+				aria-label="Deleted"
+			/>
+		{:else if row.device.disabled}
 			<Ban
 				class="size-3.5 shrink-0 text-muted-foreground"
 				title="Disabled"
@@ -240,29 +250,42 @@
 	<RowActionsCell
 		editHref={`/devices/${row.device.id}`}
 		editLabel="Edit device"
+		ondelete={row.device.deleted ? undefined : () => ondelete(row.device)}
+		deleteLabel={`Delete ${deviceDisplayName(row.device)}`}
 	>
 		{#snippet leading()}
-			<DeviceQuickControls device={row.device} variant="swatch" />
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={() => onAddTo(row.device)}
-				aria-label="Add to room or group"
-			>
-				<Plus class="size-4" />
-			</Button>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={() => ontoggleenabled(row.device)}
-				aria-label={row.device.disabled ? "Enable device" : "Disable device"}
-			>
-				{#if row.device.disabled}
-					<CircleCheck class="size-4" />
-				{:else}
-					<Ban class="size-4" />
-				{/if}
-			</Button>
+			{#if row.device.deleted}
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={() => onrestore(row.device)}
+					aria-label={`Restore ${deviceDisplayName(row.device)}`}
+				>
+					<Undo2 class="size-4" />
+				</Button>
+			{:else}
+				<DeviceQuickControls device={row.device} variant="swatch" />
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={() => onAddTo(row.device)}
+					aria-label="Add to room or group"
+				>
+					<Plus class="size-4" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					onclick={() => ontoggleenabled(row.device)}
+					aria-label={row.device.disabled ? "Enable device" : "Disable device"}
+				>
+					{#if row.device.disabled}
+						<CircleCheck class="size-4" />
+					{:else}
+						<Ban class="size-4" />
+					{/if}
+				</Button>
+			{/if}
 		{/snippet}
 	</RowActionsCell>
 {/snippet}
@@ -274,6 +297,6 @@
 	rowId={(r) => r.device.id}
 	rowAttrs={(r) => ({
 		...rowAttrsForSelection(selection, r.device.id),
-		class: r.device.disabled || !r.device.available ? "opacity-60" : undefined,
+		class: r.device.disabled || r.device.deleted || !r.device.available ? "opacity-60" : undefined,
 	})}
 />

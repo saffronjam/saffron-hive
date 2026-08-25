@@ -3,6 +3,7 @@ import {
   automationNodeCounts,
   compareDevicesByName,
   compareDevicesByNewThenName,
+  filterDevices,
   groupMemberBreakdown,
   sceneRoomLabel,
   sceneTargetBreakdown,
@@ -22,6 +23,7 @@ function device(id: string, name: string): Device {
     configuration: [],
     available: true,
     disabled: false,
+    deleted: false,
     lastSeen: "",
     state: null,
   };
@@ -52,6 +54,60 @@ describe("compareDevicesByName", () => {
     const first = input.map((d) => d.id);
     input.sort(compareDevicesByName);
     expect(input.map((d) => d.id)).toEqual(first);
+  });
+});
+
+describe("filterDevices", () => {
+  const visible = device("visible", "Visible Lamp");
+  const disabled = { ...device("disabled", "Disabled Lamp"), disabled: true };
+  const deleted = {
+    ...device("deleted", "Deleted Lamp"),
+    disabled: true,
+    deleted: true,
+  };
+  const devices = [visible, disabled, deleted];
+
+  it("hides deleted devices by default", () => {
+    expect(filterDevices(devices, { chips: [], freeText: "" }).map((d) => d.id)).toEqual([
+      "visible",
+      "disabled",
+    ]);
+  });
+
+  it("supports deleted yes, no, and both", () => {
+    expect(
+      filterDevices(devices, {
+        chips: [{ keyword: "deleted", value: "yes" }],
+        freeText: "",
+      }).map((d) => d.id),
+    ).toEqual(["deleted"]);
+    expect(
+      filterDevices(devices, {
+        chips: [{ keyword: "deleted", value: "no" }],
+        freeText: "",
+      }).map((d) => d.id),
+    ).toEqual(["visible", "disabled"]);
+    expect(
+      filterDevices(devices, {
+        chips: [
+          { keyword: "deleted", value: "yes" },
+          { keyword: "deleted", value: "no" },
+        ],
+        freeText: "",
+      }).map((d) => d.id),
+    ).toEqual(["visible", "disabled", "deleted"]);
+  });
+
+  it("treats a deleted device as disabled for the enabled filter", () => {
+    expect(
+      filterDevices(devices, {
+        chips: [
+          { keyword: "deleted", value: "yes" },
+          { keyword: "enabled", value: "no" },
+        ],
+        freeText: "",
+      }).map((d) => d.id),
+    ).toEqual(["deleted"]);
   });
 });
 

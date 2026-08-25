@@ -29,6 +29,7 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { membershipRowsForDevice } from "$lib/memberships";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import ZigbeeDeviceInfoCard from "$lib/components/zigbee-device-info-card.svelte";
 	import ZigbeeDetailsCard from "$lib/components/zigbee-details-card.svelte";
 	import {
@@ -36,20 +37,24 @@
 		configurationEntriesEqual,
 		writableConfigurationCapabilities,
 	} from "$lib/device-configuration";
-	import { ArrowLeft, DoorOpen, ExternalLink, Group as GroupIcon } from "@lucide/svelte";
+	import { ArrowLeft, DoorOpen, ExternalLink, Group as GroupIcon, Trash2, Undo2 } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import type { Zigbee2MqttDeviceMetadata } from "$lib/gql/graphql";
+	import type {
+		Zigbee2MqttDeviceDocumentation,
+		Zigbee2MqttDeviceMetadata,
+	} from "$lib/gql/graphql";
 	import { loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
 
 	interface ZigbeeDetailSnapshot {
 		metadata: Zigbee2MqttDeviceMetadata | null;
 		frontendUrl: string | null;
+		documentation: Zigbee2MqttDeviceDocumentation | null;
 	}
 
-	const ZIGBEE_DETAIL_CACHE_VERSION = 1;
+	const ZIGBEE_DETAIL_CACHE_VERSION = 3;
 	const zigbeeDetailCacheName = (id: string) => `device-zigbee-detail:${id}`;
 	const loadZigbeeDetailSnapshot = (id: string) =>
 		loadSessionSnapshot<ZigbeeDetailSnapshot>(
@@ -68,7 +73,11 @@
 		initialZigbeeDetail?.metadata,
 	);
 	let zigbeeFrontendUrl = $state<string | null>(initialZigbeeDetail?.frontendUrl ?? null);
+	let zigbeeDocumentation = $state<Zigbee2MqttDeviceDocumentation | null>(
+		initialZigbeeDetail?.documentation ?? null,
+	);
 	let metadataDeviceId = $state("");
+	let documentationRequestKey = $state("");
 	const firmwareUpdateAvailable = $derived(
 		zigbeeMetadata?.ota.installedVersion != null &&
 			zigbeeMetadata.ota.latestVersion != null &&
@@ -95,6 +104,9 @@
 	let savedMetadataDisabled = $state(false);
 	const fallbackName = $derived(device ? device.friendlyName || device.id : "");
 	let savingMetadata = $state(false);
+	let deleteConfirmOpen = $state(false);
+	let deleteLoading = $state(false);
+	let restoreLoading = $state(false);
 	function rolesEqual(a: DeviceRoles, b: DeviceRoles): boolean {
 		return a.controlledLoad === b.controlledLoad && a.contact === b.contact;
 	}
@@ -137,6 +149,27 @@
 						saving: savingMetadata,
 						hideLabelOnMobile: true,
 					},
+					...(device.deleted
+						? [
+								{
+									label: "Restore",
+									icon: Undo2,
+									variant: "outline" as const,
+									onclick: restoreDevice,
+									disabled: restoreLoading,
+									hideLabelOnMobile: true,
+								},
+							]
+						: [
+								{
+									label: "Delete",
+									icon: Trash2,
+									variant: "destructive" as const,
+									onclick: () => (deleteConfirmOpen = true),
+									disabled: deleteLoading,
+									hideLabelOnMobile: true,
+								},
+							]),
 				]
 			: [];
 	});
@@ -180,6 +213,26 @@
 				disabled
 				friendlyName
 				seen
+			}
+		}
+	`);
+
+	const DELETE_DEVICE = graphql(`
+		mutation DeviceDetailDeleteDevice($id: ID!) {
+			deleteDevice(id: $id) {
+				id
+				disabled
+				deleted
+			}
+		}
+	`);
+
+	const RESTORE_DEVICE = graphql(`
+		mutation DeviceDetailRestoreDevice($id: ID!) {
+			restoreDevice(id: $id) {
+				id
+				disabled
+				deleted
 			}
 		}
 	`);
@@ -251,12 +304,56 @@
 						name
 						endpoint
 					}
+					bridgeInfo {
+						adapterType
+						firmwareVersion
+						channel
+						panId
+						extendedPanId
+						zigbee2MqttVersion
+						zigbee2MqttCommit
+						zigbeeHerdsmanVersion
+						zigbeeHerdsmanConvertersVersion
+					}
+				}
+			}
+		}
+	`);
+
+	const DEVICE_ZIGBEE_DOCUMENTATION = graphql(`
+		query DeviceZigbeeDocumentation($id: ID!) {
+			device(id: $id) {
+				zigbee2Mqtt {
+					documentation {
+						sourceUrl
+						lastCheckedAt
+						model
+						vendor
+						description
+						exposes
+						batteryType
+					}
 				}
 			}
 		}
 	`);
 
 	const clientRef = getContextClient();
+
+	function saveZigbeeDetailSnapshot(id: string) {
+		const snapshot: ZigbeeDetailSnapshot = {
+			metadata: zigbeeMetadata ?? null,
+			frontendUrl: zigbeeFrontendUrl,
+			documentation: zigbeeDocumentation,
+		};
+		saveSessionSnapshot(
+			window.sessionStorage,
+			zigbeeDetailCacheName(id),
+			ZIGBEE_DETAIL_CACHE_VERSION,
+			snapshot,
+			256_000,
+		);
+	}
 
 	async function loadZigbeeMetadata(id: string) {
 		let lastError: string | null = null;
@@ -268,24 +365,15 @@
 			if (result.error) {
 				lastError = result.error.message;
 			} else {
-				const snapshot: ZigbeeDetailSnapshot = {
-					metadata: result.data?.device?.zigbee2Mqtt ?? null,
-					frontendUrl: result.data?.zigbee2MqttConfig?.frontendUrl ?? null,
-				};
+				const metadata = result.data?.device?.zigbee2Mqtt ?? null;
 				if (
-					snapshot.metadata ||
+					metadata ||
 					(result.data?.device && result.data.device.source !== "zigbee2mqtt") ||
 					attempt === 5
 				) {
-					zigbeeMetadata = snapshot.metadata;
-					zigbeeFrontendUrl = snapshot.frontendUrl;
-					saveSessionSnapshot(
-						window.sessionStorage,
-						zigbeeDetailCacheName(id),
-						ZIGBEE_DETAIL_CACHE_VERSION,
-						snapshot,
-						256_000,
-					);
+					zigbeeMetadata = metadata;
+					zigbeeFrontendUrl = result.data?.zigbee2MqttConfig?.frontendUrl ?? null;
+					saveZigbeeDetailSnapshot(id);
 					return;
 				}
 			}
@@ -301,7 +389,28 @@
 		const snapshot = loadZigbeeDetailSnapshot(id);
 		zigbeeMetadata = snapshot?.metadata;
 		zigbeeFrontendUrl = snapshot?.frontendUrl ?? null;
+		zigbeeDocumentation = snapshot?.documentation ?? null;
+		documentationRequestKey = "";
 		void loadZigbeeMetadata(id);
+	});
+
+	async function loadZigbeeDocumentation(id: string, requestKey: string) {
+		const result = await clientRef
+			.query(DEVICE_ZIGBEE_DOCUMENTATION, { id }, { requestPolicy: "network-only" })
+			.toPromise();
+		if (documentationRequestKey !== requestKey || result.error) return;
+		zigbeeDocumentation = result.data?.device?.zigbee2Mqtt?.documentation ?? null;
+		saveZigbeeDetailSnapshot(id);
+	}
+
+	$effect(() => {
+		const id = deviceId;
+		const model = zigbeeMetadata?.definition?.model;
+		if (!id || !model) return;
+		const requestKey = `${id}\u0000${model}`;
+		if (documentationRequestKey === requestKey) return;
+		documentationRequestKey = requestKey;
+		void loadZigbeeDocumentation(id, requestKey);
 	});
 
 	const light = $derived(device?.type === "light" ? device.state : null);
@@ -459,6 +568,35 @@
 		}
 	}
 
+	async function deleteDevice() {
+		if (!device || deleteLoading) return;
+		deleteLoading = true;
+		error = null;
+		const result = await clientRef.mutation(DELETE_DEVICE, { id: device.id }).toPromise();
+		deleteLoading = false;
+		if (result.error) {
+			error = result.error.message;
+			return;
+		}
+		deviceStore.updateDeleted(device.id, true);
+		metadataDisabled = true;
+		savedMetadataDisabled = true;
+		deleteConfirmOpen = false;
+	}
+
+	async function restoreDevice() {
+		if (!device || restoreLoading) return;
+		restoreLoading = true;
+		error = null;
+		const result = await clientRef.mutation(RESTORE_DEVICE, { id: device.id }).toPromise();
+		restoreLoading = false;
+		if (result.error) {
+			error = result.error.message;
+			return;
+		}
+		deviceStore.updateDeleted(device.id, false);
+	}
+
 	interface CommandInput {
 		on?: boolean;
 		brightness?: number;
@@ -566,6 +704,12 @@
 		savedMetadataDisabled = device.disabled;
 	});
 
+	$effect(() => {
+		if (!device?.deleted) return;
+		metadataDisabled = true;
+		savedMetadataDisabled = true;
+	});
+
 	let historyFrom = $state<Date>(new Date(Date.now() - 24 * 60 * 60 * 1000));
 	let historyTo = $state<Date>(new Date());
 	let historyBucketSeconds = $state<number>(0);
@@ -626,6 +770,7 @@
 					<Switch
 						id="device-enabled"
 						checked={!metadataDisabled}
+						disabled={device.deleted}
 						onCheckedChange={(v) => (metadataDisabled = !v)}
 					/>
 				</div>
@@ -636,7 +781,11 @@
 					<ZigbeeDeviceInfoCard {device} metadata={zigbeeMetadata} />
 
 					{#if zigbeeMetadata}
-						<ZigbeeDetailsCard {device} metadata={zigbeeMetadata} />
+						<ZigbeeDetailsCard
+							{device}
+							metadata={zigbeeMetadata}
+							batteryType={zigbeeDocumentation?.batteryType}
+						/>
 					{/if}
 
 					<Card>
@@ -767,5 +916,15 @@
 		multiple
 		groups={pickerDrawerGroups}
 		onselect={handlePickerSelect}
+	/>
+
+	<ConfirmDialog
+		bind:open={deleteConfirmOpen}
+		title="Delete device"
+		description={`Delete “${device ? deviceDisplayName(device) : ""}” from Hive? This hides and disables it in Hive only.`}
+		confirmLabel="Delete"
+		loading={deleteLoading}
+		onconfirm={deleteDevice}
+		oncancel={() => (deleteConfirmOpen = false)}
 	/>
 </div>

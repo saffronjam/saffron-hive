@@ -76,6 +76,7 @@ function makeDevice(
     configuration: [],
     available: true,
     disabled: false,
+    deleted: false,
     lastSeen: "2026-01-01T00:00:00Z",
     state,
   };
@@ -226,6 +227,18 @@ describe("deviceStore", () => {
     deviceStore.updateAvailability("d1", true);
     unsub();
     expect(notifications).toBe(0);
+  });
+
+  it("deleting a device also disables it", () => {
+    deviceStore.hydrate([makeDevice("d1", "A")]);
+    deviceStore.updateDeleted("d1", true);
+    expect(get(deviceStore)["d1"]).toMatchObject({ deleted: true, disabled: true });
+  });
+
+  it("restoring a device leaves it disabled", () => {
+    deviceStore.hydrate([{ ...makeDevice("d1", "A"), deleted: true, disabled: true }]);
+    deviceStore.updateDeleted("d1", false);
+    expect(get(deviceStore)["d1"]).toMatchObject({ deleted: false, disabled: true });
   });
 
   it("updateName does not notify when name is unchanged", () => {

@@ -1,4 +1,5 @@
 import type { Device } from "$lib/stores/devices";
+import type { SearchState } from "$lib/components/hive-searchbar";
 import { deviceDisplayName } from "$lib/utils";
 
 /**
@@ -24,6 +25,37 @@ export function compareDevicesByNewThenName(
     const rank = Number(newIds.has(b.id)) - Number(newIds.has(a.id));
     return rank || compareDevicesByName(a, b);
   };
+}
+
+export function filterDevices(devices: Device[], search: SearchState): Device[] {
+  const values = (keyword: string) =>
+    search.chips.filter((chip) => chip.keyword === keyword).map((chip) => chip.value);
+  const typeValues = values("type");
+  const enabledValues = values("enabled");
+  const deletedValues = values("deleted");
+  const query = search.freeText.toLowerCase();
+
+  return devices.filter((device) => {
+    const deletedValue = device.deleted ? "yes" : "no";
+    if (deletedValues.length === 0) {
+      if (device.deleted) return false;
+    } else if (!deletedValues.includes(deletedValue)) {
+      return false;
+    }
+    if (typeValues.length > 0 && !typeValues.includes(device.type)) return false;
+    if (
+      enabledValues.length > 0 &&
+      !enabledValues.includes(device.disabled || device.deleted ? "no" : "yes")
+    ) {
+      return false;
+    }
+    if (!query) return true;
+    return (
+      deviceDisplayName(device).toLowerCase().includes(query) ||
+      device.type.toLowerCase().includes(query) ||
+      device.source.toLowerCase().includes(query)
+    );
+  });
 }
 
 /** A minimal automation node shape — just the `type` field is needed. */

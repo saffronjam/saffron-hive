@@ -4,7 +4,7 @@ import { deviceStore, devicesHydrated } from "$lib/stores/devices";
 import { cacheKey, saveSnapshot } from "$lib/entity-cache";
 
 const SNAPSHOT = "devices";
-const VERSION = 3;
+const VERSION = 4;
 
 // Re-importing drags the whole generated GraphQL graph along, so the two cases
 // that genuinely need a fresh module evaluation get a wide budget and the rest
@@ -24,6 +24,7 @@ function makeDevice(id: string, name: string) {
     capabilities: [],
     available: true,
     disabled: false,
+    deleted: false,
     friendlyName: name,
     seen: true,
     lastSeen: "2026-01-01T00:00:00Z",

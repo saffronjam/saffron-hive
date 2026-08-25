@@ -15,6 +15,14 @@ import {
 
 export type { Capability, Device, DeviceConfigurationEntry, DeviceState };
 
+export function isHiveVisibleDevice(device: Pick<Device, "deleted">): boolean {
+  return !device.deleted;
+}
+
+export function isRuntimeEnabledDevice(device: Pick<Device, "disabled" | "deleted">): boolean {
+  return !device.disabled && !device.deleted;
+}
+
 export function isLightControlDevice(device: Device): boolean {
   return device.type === "light" || device.roles.controlledLoad === ControlledLoadRole.Light;
 }
@@ -108,6 +116,7 @@ const DEVICES_QUERY = graphql(`
       }
       available
       disabled
+      deleted
       friendlyName
       seen
       lastSeen
@@ -222,6 +231,7 @@ const DEVICE_ADDED = graphql(`
       friendlyName
       seen
       disabled
+      deleted
       source
       type
       roles {
@@ -321,6 +331,7 @@ const DEVICE_UPDATED = graphql(`
       }
       available
       disabled
+      deleted
       friendlyName
       seen
       lastSeen
@@ -367,7 +378,7 @@ const DEVICE_UPDATED = graphql(`
 
 /** Cache name and schema version for the disk snapshot. Bump on any change to `DEVICES_QUERY`. */
 const SNAPSHOT_NAME = "devices";
-const SNAPSHOT_VERSION = 3;
+const SNAPSHOT_VERSION = 4;
 const PERSIST_DEBOUNCE_MS = 250;
 
 function storage(): Storage | null {
@@ -481,6 +492,7 @@ function createDeviceStore() {
         displayBrightness: existing.displayBrightness ?? null,
         roles: existing.roles,
         disabled: existing.disabled,
+        deleted: existing.deleted,
         seen: existing.seen,
       },
     });
@@ -543,6 +555,14 @@ function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, disabled } });
   }
 
+  function updateDeleted(deviceId: string, deleted: boolean) {
+    const device = current[deviceId];
+    if (!device) return;
+    const disabled = deleted ? true : device.disabled;
+    if (device.deleted === deleted && device.disabled === disabled) return;
+    set({ ...current, [deviceId]: { ...device, deleted, disabled } });
+  }
+
   /**
    * Replaces a device outright. Rides the deviceUpdated subscription, whose
    * payload is the authoritative row after a metadata change — including one
@@ -575,6 +595,7 @@ function createDeviceStore() {
     updateDisplayBrightness,
     updateRoles,
     updateDisabled,
+    updateDeleted,
     markSeen,
     removeDevice,
 

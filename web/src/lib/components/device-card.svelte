@@ -6,6 +6,7 @@
 		aggregateSensorReadings,
 		brightnessToTintStrength,
 		deviceTintBase,
+		tintIconGradient,
 	} from "$lib/device-tint";
 	import { Card, CardContent, CardHeader } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
@@ -31,6 +32,8 @@
 		EllipsisVertical,
 		Pencil,
 		Plus,
+		Trash2,
+		Undo2,
 	} from "@lucide/svelte";
 
 	interface MembershipChip {
@@ -47,6 +50,8 @@
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 		ontoggleenabled: (device: Device) => void;
+		ondelete: (device: Device) => void;
+		onrestore: (device: Device) => void;
 		/** Set from the list's mount-time snapshot, so the chip does not vanish mid-visit. */
 		isNew?: boolean;
 	}
@@ -59,6 +64,8 @@
 		oniconchange,
 		onAddTo,
 		ontoggleenabled,
+		ondelete,
+		onrestore,
 		isNew = false,
 	}: Props = $props();
 
@@ -81,7 +88,7 @@
 
 	// Disabled and offline both mean the card is not actionable right now, so
 	// they share one muted treatment. The Ban icon and the offline dot say which.
-	const muted = $derived(device.disabled || !device.available);
+	const muted = $derived(device.disabled || device.deleted || !device.available);
 
 	const isSensor = $derived(device.type === "sensor");
 	const hasBrightness = $derived(device.state?.brightness != null);
@@ -113,7 +120,7 @@
 			? { ...device, state: { ...device.state, brightness: localBrightness } }
 			: device,
 	);
-	const tintColor = $derived(device.disabled ? null : deviceTintBase(tintDevice));
+	const tintColor = $derived(device.disabled || device.deleted ? null : deviceTintBase(tintDevice));
 	const tintStrength = $derived.by(() => {
 		if (!device.state?.on) return 0;
 		return hasBrightness ? brightnessToTintStrength(localBrightness) : 1;
@@ -121,9 +128,8 @@
 	const cardStyle = $derived(
 		tintColor ? `--tint-color: ${tintColor}; --tint-strength: ${tintStrength}` : "",
 	);
-	const mutedTextClass = $derived(
-		tintColor && device.state?.on ? "text-foreground/70" : "text-muted-foreground",
-	);
+	const iconGradient = $derived(tintIconGradient(tintColor ? [tintColor] : []));
+	const mutedTextClass = $derived(tintColor ? "text-foreground/70" : "text-muted-foreground");
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
@@ -169,10 +175,12 @@
 	const hasSensorReading = $derived(sensorReadings.length > 0);
 </script>
 
-<Card
-	size="sm"
-	class="h-full min-h-28 transition-all {isNew ? 'ring-new' : 'hover:shadow-card-hover'} {tintColor
-		? 'tint-1'
+	<Card
+		size="sm"
+		class="device-list-card h-full min-h-28 transition-all {isNew
+			? 'ring-new'
+			: 'hover:shadow-card-hover'} {tintColor
+			? 'tint-1'
 		: ''} {muted ? 'opacity-60' : ''}"
 	style={cardStyle}
 >
@@ -185,9 +193,17 @@
 					fallback={deviceIcon(device.type, device.roles.contact)}
 					size="sm"
 					iconClass="size-4 {mutedTextClass}"
+					tintBackground={iconGradient}
+					tintVisible={device.state?.on !== true}
 				/>
 				<InlineEditName name={deviceDisplayName(device)} onsave={(newName) => onrename(device.id, newName)} />
-				{#if device.disabled}
+				{#if device.deleted}
+					<Trash2
+						class="size-3.5 shrink-0 text-muted-foreground"
+						title="Deleted"
+						aria-label="Deleted"
+					/>
+				{:else if device.disabled}
 					<Ban
 						class="size-3.5 shrink-0 text-muted-foreground"
 						title="Disabled"
@@ -198,14 +214,14 @@
 				{/if}
 			</div>
 			<div class="flex shrink-0 items-center gap-1">
-				{#if !device.disabled}
+				{#if !device.disabled && !device.deleted}
 					<DeviceQuickControls {device} />
 				{/if}
 				<DeviceActionMenu
 					deviceId={device.id}
 					name={deviceDisplayName(device)}
 					actions={actionValues}
-					disabled={device.disabled}
+					disabled={device.disabled || device.deleted}
 				/>
 				{#if !actionsMenuArmed}
 					{@render actionsButton({ onclick: openActionsMenu })}
@@ -224,19 +240,31 @@
 							{/snippet}
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem onclick={() => onAddTo(device)}>
-							<Plus class="size-4" />
-							Add to
-						</DropdownMenuItem>
-						<DropdownMenuItem onclick={() => ontoggleenabled(device)}>
-							{#if device.disabled}
-								<CircleCheck class="size-4" />
-								Enable
-							{:else}
-								<Ban class="size-4" />
-								Disable
-							{/if}
-						</DropdownMenuItem>
+						{#if device.deleted}
+							<DropdownMenuItem onclick={() => onrestore(device)}>
+								<Undo2 class="size-4" />
+								Restore
+							</DropdownMenuItem>
+						{:else}
+							<DropdownMenuItem onclick={() => onAddTo(device)}>
+								<Plus class="size-4" />
+								Add to
+							</DropdownMenuItem>
+							<DropdownMenuItem onclick={() => ontoggleenabled(device)}>
+								{#if device.disabled}
+									<CircleCheck class="size-4" />
+									Enable
+								{:else}
+									<Ban class="size-4" />
+									Disable
+								{/if}
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem variant="destructive" onclick={() => ondelete(device)}>
+								<Trash2 class="size-4" />
+								Delete
+							</DropdownMenuItem>
+						{/if}
 					</DropdownMenuContent>
 				</DropdownMenu>
 				{/if}
@@ -283,7 +311,7 @@
 				max={254}
 				step={1}
 				onValueChange={handleBrightnessChange}
-				disabled={!device.available || device.disabled}
+				disabled={!device.available || device.disabled || device.deleted}
 				aria-label={`${deviceDisplayName(device)} brightness`}
 			/>
 		{/if}

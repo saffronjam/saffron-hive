@@ -18,12 +18,16 @@
 	import SectionDivider from "$lib/components/section-divider.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+	import ErrorBanner from "$lib/components/error-banner.svelte";
+	import { Button } from "$lib/components/ui/button/index.js";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { chipsByDevice } from "$lib/memberships";
-	import { compareDevicesByNewThenName } from "$lib/list-helpers";
+	import { compareDevicesByNewThenName, filterDevices } from "$lib/list-helpers";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
 
 	interface Props {
 		/**
@@ -66,6 +70,7 @@
 		{ value: "yes", label: "Yes" },
 		{ value: "no", label: "No" },
 	];
+	const deletedOptions = enabledOptions;
 
 	const searchChipConfigs: ChipConfig[] = [
 		{
@@ -92,6 +97,18 @@
 				);
 			},
 		},
+		{
+			keyword: "deleted",
+			label: "Deleted",
+			variant: "secondary",
+			options: (input) => {
+				const q = input.toLowerCase();
+				if (!q) return deletedOptions;
+				return deletedOptions.filter(
+					(o) => o.value.includes(q) || o.label.toLowerCase().includes(q)
+				);
+			},
+		},
 	];
 
 	// Devices discovered since the last visit are snapshotted once, when the store
@@ -103,30 +120,7 @@
 		Object.values($deviceStore).sort(compareDevicesByNewThenName(newDeviceIds)),
 	);
 
-	const filteredDevices = $derived.by(() => {
-		const typeValues = searchController.value.chips
-			.filter((c) => c.keyword === "type")
-			.map((c) => c.value);
-		const enabledValues = searchController.value.chips
-			.filter((c) => c.keyword === "enabled")
-			.map((c) => c.value);
-		const query = searchController.value.freeText.toLowerCase();
-
-		return allDevices.filter((d) => {
-			if (typeValues.length > 0 && !typeValues.includes(d.type)) return false;
-			if (enabledValues.length > 0 && !enabledValues.includes(d.disabled ? "no" : "yes")) {
-				return false;
-			}
-			if (query) {
-				const matches =
-					deviceDisplayName(d).toLowerCase().includes(query) ||
-					d.type.toLowerCase().includes(query) ||
-					d.source.toLowerCase().includes(query);
-				if (!matches) return false;
-			}
-			return true;
-		});
-	});
+	const filteredDevices = $derived(filterDevices(allDevices, searchController.value));
 
 	const tableRows = $derived(
 		filteredDevices.map((device) => {
@@ -143,6 +137,15 @@
 	$effect(() => {
 		selection.pruneTo(filteredIds);
 	});
+	const selectedDevices = $derived.by(() => {
+		void selection.count;
+		return selection
+			.selectedIds()
+			.map((id) => $deviceStore[id])
+			.filter((device): device is Device => device !== undefined);
+	});
+	const selectedDeletable = $derived(selectedDevices.filter((device) => !device.deleted));
+	const selectedRestorable = $derived(selectedDevices.filter((device) => device.deleted));
 
 	const UPDATE_DEVICE = graphql(`
 		mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
@@ -167,6 +170,38 @@
 		}
 	`);
 
+	const DELETE_DEVICE = graphql(`
+		mutation DevicesPageDeleteDevice($id: ID!) {
+			deleteDevice(id: $id) {
+				id
+				disabled
+				deleted
+			}
+		}
+	`);
+
+	const RESTORE_DEVICE = graphql(`
+		mutation DevicesPageRestoreDevice($id: ID!) {
+			restoreDevice(id: $id) {
+				id
+				disabled
+				deleted
+			}
+		}
+	`);
+
+	const BATCH_DELETE_DEVICES = graphql(`
+		mutation DevicesPageBatchDeleteDevices($ids: [ID!]!) {
+			batchDeleteDevices(ids: $ids)
+		}
+	`);
+
+	const BATCH_RESTORE_DEVICES = graphql(`
+		mutation DevicesPageBatchRestoreDevices($ids: [ID!]!) {
+			batchRestoreDevices(ids: $ids)
+		}
+	`);
+
 	const client = getContextClient();
 
 	const rooms = $derived(roomsStore.items);
@@ -174,6 +209,11 @@
 
 	let addToPickerOpen = $state(false);
 	let pickerDevice = $state<Device | null>(null);
+	let deleteTargets = $state<Device[]>([]);
+	let deleteIsBatch = $state(false);
+	let deleteLoading = $state(false);
+	let restoreLoading = $state(false);
+	let operationError = $state<string | null>(null);
 
 	const chipsIndex = $derived(chipsByDevice(rooms, groups));
 
@@ -253,6 +293,7 @@
 	}
 
 	async function handleToggleEnabled(device: Device) {
+		if (device.deleted) return;
 		const next = !device.disabled;
 		deviceStore.updateDisabled(device.id, next);
 		const result = await client
@@ -265,13 +306,66 @@
 		}
 	}
 
+	function requestDelete(device: Device) {
+		deleteTargets = [device];
+		deleteIsBatch = false;
+	}
+
+	function requestBatchDelete() {
+		if (selectedDeletable.length === 0) return;
+		deleteTargets = [...selectedDeletable];
+		deleteIsBatch = true;
+	}
+
+	function cancelDelete() {
+		if (deleteLoading) return;
+		deleteTargets = [];
+		deleteIsBatch = false;
+	}
+
+	async function confirmDelete() {
+		if (deleteTargets.length === 0 || deleteLoading) return;
+		deleteLoading = true;
+		operationError = null;
+		const ids = deleteTargets.map((device) => device.id);
+		const result = deleteIsBatch
+			? await client.mutation(BATCH_DELETE_DEVICES, { ids }).toPromise()
+			: await client.mutation(DELETE_DEVICE, { id: ids[0] }).toPromise();
+		deleteLoading = false;
+		if (result.error) {
+			operationError = graphqlErrorMessage(result.error, "Could not delete the device.");
+			return;
+		}
+		for (const id of ids) deviceStore.updateDeleted(id, true);
+		if (deleteIsBatch) selection.clear();
+		deleteTargets = [];
+		deleteIsBatch = false;
+	}
+
+	async function restoreDevices(devices: Device[], batch: boolean) {
+		if (devices.length === 0 || restoreLoading) return;
+		restoreLoading = true;
+		operationError = null;
+		const ids = devices.map((device) => device.id);
+		const result = batch
+			? await client.mutation(BATCH_RESTORE_DEVICES, { ids }).toPromise()
+			: await client.mutation(RESTORE_DEVICE, { id: ids[0] }).toPromise();
+		restoreLoading = false;
+		if (result.error) {
+			operationError = graphqlErrorMessage(result.error, "Could not restore the device.");
+			return;
+		}
+		for (const id of ids) deviceStore.updateDeleted(id, false);
+		if (batch) selection.clear();
+	}
+
 	let snapshotTaken = false;
 
 	$effect(() => {
 		if (!visible || !$devicesHydrated || snapshotTaken) return;
 		snapshotTaken = true;
 		const unseen = Object.values($deviceStore)
-			.filter((d) => !d.seen)
+			.filter((d) => !d.seen && !d.deleted)
 			.map((d) => d.id);
 		if (unseen.length === 0) return;
 		newDeviceIds = new Set(unseen);
@@ -298,12 +392,17 @@
 			oniconchange={handleIconChange}
 			onAddTo={handleAddTo}
 			ontoggleenabled={handleToggleEnabled}
+			ondelete={requestDelete}
+			onrestore={(device) => restoreDevices([device], false)}
 			isNew={newDeviceIds.has(device.id)}
 		/>
 	{/snippet}
 
 {#if $devicesHydrated}
 	<div>
+		{#if operationError}
+			<ErrorBanner class="mb-4" message={operationError} ondismiss={() => (operationError = null)} />
+		{/if}
 
 		<div class="mb-6 flex items-stretch gap-2">
 			<div class="min-w-0 flex-1">
@@ -320,7 +419,21 @@
 				aria-hidden={!(view === "table" && selection.count > 0)}
 			>
 				<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
-					{#snippet actions()}{/snippet}
+					{#snippet actions()}
+						{#if selectedRestorable.length > 0}
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={restoreLoading}
+								onclick={() => restoreDevices(selectedRestorable, true)}
+							>
+								Restore
+							</Button>
+						{/if}
+						{#if selectedDeletable.length > 0}
+							<Button variant="destructive" size="sm" onclick={requestBatchDelete}>Delete</Button>
+						{/if}
+					{/snippet}
 				</TableSelectionToolbar>
 			</div>
 		</div>
@@ -371,6 +484,8 @@
 						oniconchange={handleIconChange}
 						onAddTo={handleAddTo}
 						ontoggleenabled={handleToggleEnabled}
+						ondelete={requestDelete}
+						onrestore={(device) => restoreDevices([device], false)}
 						{newDeviceIds}
 					/>
 				{/snippet}
@@ -384,6 +499,18 @@
 			multiple
 			groups={pickerDrawerGroups}
 			onselect={handlePickerSelect}
+		/>
+
+		<ConfirmDialog
+			open={deleteTargets.length > 0}
+			title={deleteTargets.length === 1 ? "Delete device" : "Delete devices"}
+			description={deleteTargets.length === 1
+				? `Delete “${deleteTargets[0] ? deviceDisplayName(deleteTargets[0]) : ""}” from Hive? This hides and disables it in Hive only.`
+				: `Delete ${deleteTargets.length} devices from Hive? This hides and disables them in Hive only.`}
+			confirmLabel="Delete"
+			loading={deleteLoading}
+			onconfirm={confirmDelete}
+			oncancel={cancelDelete}
 		/>
 
 	</div>
