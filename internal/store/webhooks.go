@@ -148,8 +148,8 @@ func (s *DB) ListWebhookEndpointAutomationReferences(ctx context.Context, id str
 	return refs, nil
 }
 
-// InsertWebhookDelivery persists sanitized delivery metadata and enforces the
-// per-endpoint row cap.
+// InsertWebhookDelivery persists a delivery and enforces the per-endpoint row
+// cap.
 func (s *DB) InsertWebhookDelivery(ctx context.Context, params InsertWebhookDeliveryParams) (WebhookDelivery, error) {
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.InsertWebhookDelivery(ctx, sqlite.InsertWebhookDeliveryParams{
@@ -162,6 +162,7 @@ func (s *DB) InsertWebhookDelivery(ctx context.Context, params InsertWebhookDeli
 			UserAgent:       params.UserAgent,
 			ContentType:     params.ContentType,
 			BodySize:        params.BodySize,
+			Body:            params.Body,
 			DurationMs:      params.DurationMs,
 			RequestID:       params.RequestID,
 			QueryKeysJson:   params.QueryKeysJSON,
@@ -181,7 +182,7 @@ func (s *DB) InsertWebhookDelivery(ctx context.Context, params InsertWebhookDeli
 	return params, nil
 }
 
-// ListWebhookDeliveries returns recent delivery metadata.
+// ListWebhookDeliveries returns recent deliveries.
 func (s *DB) ListWebhookDeliveries(ctx context.Context, endpointID string, before *time.Time, limit int) ([]WebhookDelivery, error) {
 	rows, err := s.q.ListWebhookDeliveries(ctx, sqlite.ListWebhookDeliveriesParams{
 		EndpointID: endpointID,
@@ -215,7 +216,7 @@ func (s *DB) HasWebhookRateLimitDeliverySince(ctx context.Context, endpointID st
 	})
 }
 
-// PruneWebhookDeliveriesOlderThan deletes expired delivery metadata.
+// PruneWebhookDeliveriesOlderThan deletes expired deliveries.
 func (s *DB) PruneWebhookDeliveriesOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
 	n, err := s.q.PruneWebhookDeliveriesOlderThan(ctx, cutoff)
 	if err != nil {
@@ -235,6 +236,7 @@ func mapWebhookDelivery(row sqlite.WebhookDelivery) WebhookDelivery {
 		UserAgent:       row.UserAgent,
 		ContentType:     row.ContentType,
 		BodySize:        row.BodySize,
+		Body:            row.Body,
 		DurationMs:      row.DurationMs,
 		RequestID:       row.RequestID,
 		QueryKeysJSON:   row.QueryKeysJson,

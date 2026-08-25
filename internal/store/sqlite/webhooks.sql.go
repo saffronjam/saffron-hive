@@ -87,7 +87,7 @@ func (q *Queries) DeleteWebhookEndpoint(ctx context.Context, id string) error {
 }
 
 const getWebhookDelivery = `-- name: GetWebhookDelivery :one
-SELECT id, endpoint_id, received_at, outcome, http_status, client_ip, user_agent, content_type, body_size, duration_ms, request_id, query_keys_json, header_names_json FROM webhook_deliveries WHERE id = ?
+SELECT id, endpoint_id, received_at, outcome, http_status, client_ip, user_agent, content_type, body_size, duration_ms, request_id, query_keys_json, header_names_json, body FROM webhook_deliveries WHERE id = ?
 `
 
 func (q *Queries) GetWebhookDelivery(ctx context.Context, id string) (WebhookDelivery, error) {
@@ -107,6 +107,7 @@ func (q *Queries) GetWebhookDelivery(ctx context.Context, id string) (WebhookDel
 		&i.RequestID,
 		&i.QueryKeysJson,
 		&i.HeaderNamesJson,
+		&i.Body,
 	)
 	return i, err
 }
@@ -206,9 +207,9 @@ func (q *Queries) HasWebhookRateLimitDeliverySince(ctx context.Context, arg HasW
 const insertWebhookDelivery = `-- name: InsertWebhookDelivery :exec
 INSERT INTO webhook_deliveries (
     id, endpoint_id, received_at, outcome, http_status,
-    client_ip, user_agent, content_type, body_size, duration_ms,
+    client_ip, user_agent, content_type, body_size, body, duration_ms,
     request_id, query_keys_json, header_names_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertWebhookDeliveryParams struct {
@@ -221,6 +222,7 @@ type InsertWebhookDeliveryParams struct {
 	UserAgent       string
 	ContentType     string
 	BodySize        int64
+	Body            *string
 	DurationMs      int64
 	RequestID       *string
 	QueryKeysJson   string
@@ -238,6 +240,7 @@ func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDe
 		arg.UserAgent,
 		arg.ContentType,
 		arg.BodySize,
+		arg.Body,
 		arg.DurationMs,
 		arg.RequestID,
 		arg.QueryKeysJson,
@@ -247,7 +250,7 @@ func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDe
 }
 
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
-SELECT id, endpoint_id, received_at, outcome, http_status, client_ip, user_agent, content_type, body_size, duration_ms, request_id, query_keys_json, header_names_json FROM webhook_deliveries
+SELECT id, endpoint_id, received_at, outcome, http_status, client_ip, user_agent, content_type, body_size, duration_ms, request_id, query_keys_json, header_names_json, body FROM webhook_deliveries
 WHERE webhook_deliveries.endpoint_id = ?1
   AND (CAST(?2 AS TIMESTAMP) IS NULL
        OR received_at < CAST(?2 AS TIMESTAMP))
@@ -284,6 +287,7 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 			&i.RequestID,
 			&i.QueryKeysJson,
 			&i.HeaderNamesJson,
+			&i.Body,
 		); err != nil {
 			return nil, err
 		}

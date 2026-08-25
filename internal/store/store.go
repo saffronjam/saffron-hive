@@ -304,7 +304,7 @@ type UpdateWebhookEndpointParams struct {
 	RateLimitWindowMs int
 }
 
-// WebhookDelivery is sanitized request metadata retained for diagnostics.
+// WebhookDelivery is request metadata and content retained for diagnostics.
 type WebhookDelivery struct {
 	ID              string
 	EndpointID      string
@@ -315,6 +315,7 @@ type WebhookDelivery struct {
 	UserAgent       string
 	ContentType     string
 	BodySize        int64
+	Body            *string
 	DurationMs      int64
 	RequestID       *string
 	QueryKeysJSON   string
@@ -554,6 +555,7 @@ type User struct {
 	Theme              string
 	TimeFormat         string
 	TemperatureUnit    string
+	HapticsEnabled     bool
 	MustChangePassword bool
 	TokenVersion       int64
 	CreatedAt          time.Time
@@ -569,6 +571,7 @@ type UpdateUserProfileParams struct {
 	AvatarPath      *string
 	TimeFormat      *string
 	TemperatureUnit *string
+	HapticsEnabled  *bool
 }
 
 // UserRef is the lightweight creator reference embedded into other rows via

@@ -57,15 +57,15 @@ type EndpointStore interface {
 	ListWebhookDeliveries(ctx context.Context, endpointID string, before *time.Time, limit int) ([]store.WebhookDelivery, error)
 }
 
-// Buffer fans persisted delivery metadata out to GraphQL subscriptions.
+// Buffer fans persisted deliveries out to GraphQL subscriptions.
 type Buffer = pubsub.Fanout[store.WebhookDelivery]
 
 // NewBuffer creates a webhook delivery fan-out.
 func NewBuffer() *Buffer { return pubsub.NewFanout[store.WebhookDelivery]() }
 
 // Event is the transient payload carried by webhook.received. Request values
-// are available to automation evaluation but are never persisted as delivery
-// metadata or activity payload.
+// are available to automation evaluation; delivery history retains the body,
+// while the activity log contains only SafeActivityPayload.
 type Event struct {
 	EndpointID   string              `json:"endpointId"`
 	EndpointName string              `json:"endpointName"`
@@ -235,7 +235,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !endpoint.Enabled {
-		delivery := s.deliveryFor(r, endpoint.ID, start, "disabled", http.StatusGone, 0)
+		delivery := s.deliveryFor(r, endpoint.ID, start, "disabled", http.StatusGone, 0, nil)
 		s.record(r.Context(), delivery)
 		writeJSON(w, http.StatusGone, map[string]string{"error": "webhook disabled"})
 		return
@@ -246,6 +246,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "read request body"})
 		return
 	}
+	bodyText := strings.ToValidUTF8(string(body), "\uFFFD")
 
 	window := time.Duration(endpoint.RateLimitWindowMs) * time.Millisecond
 	s.mu.Lock()
@@ -253,7 +254,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if countErr == nil && count >= int64(endpoint.RateLimitCount) {
 		alreadyRecorded, checkErr := s.deliveries.HasWebhookRateLimitDeliverySince(r.Context(), endpoint.ID, start.Add(-window))
 		if checkErr == nil && !alreadyRecorded {
-			delivery := s.deliveryFor(r, endpoint.ID, start, "rate_limited", http.StatusTooManyRequests, int64(len(body)))
+			delivery := s.deliveryFor(r, endpoint.ID, start, "rate_limited", http.StatusTooManyRequests, int64(len(body)), &bodyText)
 			s.record(r.Context(), delivery)
 		}
 		s.mu.Unlock()
@@ -269,7 +270,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if tooLarge {
-		delivery := s.deliveryFor(r, endpoint.ID, start, "too_large", http.StatusRequestEntityTooLarge, int64(len(body)))
+		delivery := s.deliveryFor(r, endpoint.ID, start, "too_large", http.StatusRequestEntityTooLarge, int64(len(body)), &bodyText)
 		s.record(r.Context(), delivery)
 		s.mu.Unlock()
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "request body exceeds 64 KiB"})
@@ -281,7 +282,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	contentType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
 	if contentType == "application/json" || strings.HasSuffix(contentType, "+json") {
 		if len(body) == 0 || json.Unmarshal(body, &parsed) != nil {
-			delivery := s.deliveryFor(r, endpoint.ID, start, "invalid_json", http.StatusBadRequest, int64(len(body)))
+			delivery := s.deliveryFor(r, endpoint.ID, start, "invalid_json", http.StatusBadRequest, int64(len(body)), &bodyText)
 			s.record(r.Context(), delivery)
 			s.mu.Unlock()
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "malformed JSON body"})
@@ -290,9 +291,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else if len(body) > 0 {
 		value := string(body)
 		textBody = &value
+		_ = json.Unmarshal(body, &parsed)
 	}
 
-	delivery := s.deliveryFor(r, endpoint.ID, start, "accepted", http.StatusAccepted, int64(len(body)))
+	delivery := s.deliveryFor(r, endpoint.ID, start, "accepted", http.StatusAccepted, int64(len(body)), &bodyText)
 	if _, err := s.deliveries.InsertWebhookDelivery(r.Context(), delivery); err != nil {
 		s.mu.Unlock()
 		logger.Error("record webhook delivery", "endpoint_id", endpoint.ID, "error", err)
@@ -335,7 +337,7 @@ func (s *Service) record(ctx context.Context, delivery store.WebhookDelivery) {
 	}
 }
 
-func (s *Service) deliveryFor(r *http.Request, endpointID string, started time.Time, outcome string, status int, bodySize int64) store.WebhookDelivery {
+func (s *Service) deliveryFor(r *http.Request, endpointID string, started time.Time, outcome string, status int, bodySize int64, body *string) store.WebhookDelivery {
 	requestID := strings.TrimSpace(r.Header.Get("X-Request-ID"))
 	if len(requestID) > 200 {
 		requestID = requestID[:200]
@@ -366,6 +368,7 @@ func (s *Service) deliveryFor(r *http.Request, endpointID string, started time.T
 		UserAgent:       truncate(r.UserAgent(), 512),
 		ContentType:     truncate(r.Header.Get("Content-Type"), 200),
 		BodySize:        bodySize,
+		Body:            body,
 		DurationMs:      max(0, s.now().Sub(started).Milliseconds()),
 		RequestID:       requestIDPtr,
 		QueryKeysJSON:   string(queryJSON),
@@ -373,7 +376,7 @@ func (s *Service) deliveryFor(r *http.Request, endpointID string, started time.T
 	}
 }
 
-// RunRetention removes delivery metadata beyond the 30-day retention window.
+// RunRetention removes deliveries beyond the 30-day retention window.
 func RunRetention(ctx context.Context, s DeliveryStore) {
 	prune := func() {
 		if _, err := s.PruneWebhookDeliveriesOlderThan(ctx, time.Now().Add(-30*24*time.Hour)); err != nil && !errors.Is(err, context.Canceled) {

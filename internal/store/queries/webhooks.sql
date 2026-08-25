@@ -81,9 +81,9 @@ ORDER BY lower(a.name), a.id;
 -- name: InsertWebhookDelivery :exec
 INSERT INTO webhook_deliveries (
     id, endpoint_id, received_at, outcome, http_status,
-    client_ip, user_agent, content_type, body_size, duration_ms,
+    client_ip, user_agent, content_type, body_size, body, duration_ms,
     request_id, query_keys_json, header_names_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetWebhookDelivery :one
 SELECT * FROM webhook_deliveries WHERE id = ?;

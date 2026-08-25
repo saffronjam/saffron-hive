@@ -75,7 +75,7 @@ func serveWebhook(service *Service, method, path, contentType string, body []byt
 	return recorder
 }
 
-func TestIncomingWebhookPublishesTransientRequestAndPersistsSafeMetadata(t *testing.T) {
+func TestIncomingWebhookPublishesRequestAndPersistsDiagnosticBody(t *testing.T) {
 	db := newWebhookTestStore(t)
 	bus := eventbus.NewChannelBus()
 	service := NewService(db, bus, NewBuffer())
@@ -131,8 +131,49 @@ func TestIncomingWebhookPublishesTransientRequestAndPersistsSafeMetadata(t *test
 	if delivery.Outcome != "accepted" || delivery.HTTPStatus != http.StatusAccepted || delivery.BodySize == 0 || delivery.RequestID == nil || *delivery.RequestID != "request-42" {
 		t.Fatalf("unexpected delivery: %+v", delivery)
 	}
+	if delivery.Body == nil || *delivery.Body != `{"pipeline":{"status":"failed"}}` {
+		t.Fatalf("delivery body = %v", delivery.Body)
+	}
 	if strings.Contains(delivery.HeaderNamesJSON, "Authorization") || strings.Contains(delivery.HeaderNamesJSON, "Cookie") || strings.Contains(delivery.QueryKeysJSON, "main") {
 		t.Fatalf("delivery persisted request values: %+v", delivery)
+	}
+}
+
+func TestIncomingWebhookFiltersJSONSentAsText(t *testing.T) {
+	db := newWebhookTestStore(t)
+	bus := eventbus.NewChannelBus()
+	service := NewService(db, bus, NewBuffer())
+	endpoint := createWebhookTestEndpoint(t, service, true)
+
+	events := bus.Subscribe(eventbus.EventWebhookReceived)
+	defer bus.Unsubscribe(events)
+	body := `{"NotificationType":"PlaybackStart"}`
+	response := serveWebhook(service, http.MethodPost, endpoint.SecretPath, "text/plain; charset=utf-8", []byte(body), nil)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+
+	select {
+	case envelope := <-events:
+		incoming, ok := envelope.Payload.(Event)
+		if !ok {
+			t.Fatalf("unexpected payload %T", envelope.Payload)
+		}
+		if incoming.Text == nil || *incoming.Text != body {
+			t.Fatalf("text body = %v", incoming.Text)
+		}
+		rule := FilterRule{
+			Source:    FilterBody,
+			Path:      "NotificationType",
+			Operator:  FilterEquals,
+			ValueType: FilterString,
+			Value:     "PlaybackStart",
+		}
+		if !MatchFilters(incoming, []FilterRule{rule}) {
+			t.Fatalf("JSON text body did not match filter: %+v", incoming.Body)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("webhook event was not published")
 	}
 }
 

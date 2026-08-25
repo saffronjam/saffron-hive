@@ -76,7 +76,7 @@ func TestIncomingWebhooksLifecycleAndDelivery(t *testing.T) {
 	deliveryData, err := graphqlQuery(`query($id: ID!) {
 		webhookEndpoint(id: $id) { id lastDeliveryAt }
 		webhookDeliveries(endpointId: $id) {
-			outcome httpStatus userAgent contentType bodySize requestId queryKeys headerNames
+			outcome httpStatus userAgent contentType bodySize body requestId queryKeys headerNames
 		}
 	}`, map[string]any{"id": endpoint.ID})
 	if err != nil {
@@ -93,6 +93,7 @@ func TestIncomingWebhooksLifecycleAndDelivery(t *testing.T) {
 			UserAgent   string   `json:"userAgent"`
 			ContentType string   `json:"contentType"`
 			BodySize    int      `json:"bodySize"`
+			Body        *string  `json:"body"`
 			RequestID   *string  `json:"requestId"`
 			QueryKeys   []string `json:"queryKeys"`
 			HeaderNames []string `json:"headerNames"`
@@ -107,6 +108,9 @@ func TestIncomingWebhooksLifecycleAndDelivery(t *testing.T) {
 	delivery := deliveries.WebhookDeliveries[0]
 	if delivery.Outcome != "accepted" || delivery.HTTPStatus != http.StatusAccepted || delivery.UserAgent != "e2e-ci-runner" || delivery.RequestID == nil || *delivery.RequestID != "e2e-request-1" {
 		t.Fatalf("unexpected delivery: %+v", delivery)
+	}
+	if delivery.Body == nil || *delivery.Body != `{"pipeline":{"status":"failed"}}` {
+		t.Fatalf("unexpected delivery body: %+v", delivery.Body)
 	}
 	if strings.Contains(strings.Join(delivery.HeaderNames, " "), "Authorization") || strings.Contains(string(deliveryData), "must-not-persist") {
 		t.Fatalf("delivery exposed request secrets: %s", deliveryData)

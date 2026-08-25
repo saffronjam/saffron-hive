@@ -35,6 +35,7 @@ func TestWebhookEndpointStoreLifecycleAndReferences(t *testing.T) {
 
 	receivedAt := time.Date(2026, 8, 23, 9, 30, 0, 123456789, time.UTC)
 	requestID := "pipeline-42"
+	body := `{"pipeline":{"status":"failed"}}`
 	_, err = s.InsertWebhookDelivery(ctx, WebhookDelivery{
 		ID:              "delivery-1",
 		EndpointID:      created.ID,
@@ -45,6 +46,7 @@ func TestWebhookEndpointStoreLifecycleAndReferences(t *testing.T) {
 		UserAgent:       "test-runner",
 		ContentType:     "application/json",
 		BodySize:        19,
+		Body:            &body,
 		DurationMs:      2,
 		RequestID:       &requestID,
 		QueryKeysJSON:   `["branch"]`,
@@ -84,7 +86,7 @@ func TestWebhookEndpointStoreLifecycleAndReferences(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(deliveries) != 1 || deliveries[0].RequestID == nil || *deliveries[0].RequestID != requestID {
+	if len(deliveries) != 1 || deliveries[0].RequestID == nil || *deliveries[0].RequestID != requestID || deliveries[0].Body == nil || *deliveries[0].Body != body {
 		t.Fatalf("unexpected deliveries: %+v", deliveries)
 	}
 
