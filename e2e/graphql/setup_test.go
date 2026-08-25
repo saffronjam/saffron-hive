@@ -56,6 +56,25 @@ func TestMain(m *testing.M) {
 		_ = mosquitto.Stop(ctx)
 		log.Fatalf("load bridge devices fixture: %v", err)
 	}
+	bridgeInfo, err := infra.LoadBridgeInfo()
+	if err != nil {
+		publisher.Disconnect()
+		app.Stop()
+		_ = mosquitto.Stop(ctx)
+		log.Fatalf("load bridge info fixture: %v", err)
+	}
+	if err := publisher.PublishBridgeState(true); err != nil {
+		publisher.Disconnect()
+		app.Stop()
+		_ = mosquitto.Stop(ctx)
+		log.Fatalf("publish bridge state: %v", err)
+	}
+	if err := publisher.PublishBridgeInfo(bridgeInfo); err != nil {
+		publisher.Disconnect()
+		app.Stop()
+		_ = mosquitto.Stop(ctx)
+		log.Fatalf("publish bridge info: %v", err)
+	}
 
 	if err := publisher.PublishBridgeDevices(devices); err != nil {
 		publisher.Disconnect()

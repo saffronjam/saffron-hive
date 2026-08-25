@@ -1,0 +1,22 @@
+{
+  "version": "2.7.2",
+  "commit": "a1b2c3d",
+  "coordinator": {
+    "ieee_address": "0x00124b0000000000",
+    "type": "ZStack3x0",
+    "meta": {
+      "revision": 20240710
+    }
+  },
+  "zigbee_herdsman_converters": {
+    "version": "25.30.0"
+  },
+  "zigbee_herdsman": {
+    "version": "6.1.4"
+  },
+  "network": {
+    "channel": 20,
+    "pan_id": 6754,
+    "extended_pan_id": "0x00124b000000abcd"
+  }
+}

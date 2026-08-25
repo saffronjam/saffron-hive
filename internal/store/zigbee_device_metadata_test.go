@@ -56,6 +56,21 @@ func TestZigbeeDeviceMetadataMergeAndIdempotency(t *testing.T) {
 	if err != nil || changed {
 		t.Fatalf("repeated OTA merge = (%v, %v), want unchanged", changed, err)
 	}
+	adapterType, firmware, extendedPAN := "ZStack3x0", "20240710", "0x00124b000000abcd"
+	channel := 20
+	panID := int64(6754)
+	bridgeInfo := zigbeemetadata.BridgeInfo{
+		AdapterType: &adapterType, FirmwareVersion: &firmware, Channel: &channel,
+		PANID: &panID, ExtendedPANID: &extendedPAN,
+	}
+	changed, err = s.MergeZigbeeBridgeInfo(ctx, metadata.DeviceID, bridgeInfo)
+	if err != nil || !changed {
+		t.Fatalf("first bridge info merge = (%v, %v), want changed", changed, err)
+	}
+	changed, err = s.MergeZigbeeBridgeInfo(ctx, metadata.DeviceID, bridgeInfo)
+	if err != nil || changed {
+		t.Fatalf("repeated bridge info merge = (%v, %v), want unchanged", changed, err)
+	}
 
 	loaded, err := s.GetZigbeeDeviceMetadata(ctx, metadata.DeviceID)
 	if err != nil || loaded == nil {
@@ -66,6 +81,9 @@ func TestZigbeeDeviceMetadataMergeAndIdempotency(t *testing.T) {
 	}
 	if loaded.OTA.LatestVersion == nil || *loaded.OTA.LatestVersion != latest {
 		t.Fatalf("latest firmware = %v", loaded.OTA.LatestVersion)
+	}
+	if loaded.BridgeInfo == nil || loaded.BridgeInfo.AdapterType == nil || *loaded.BridgeInfo.AdapterType != adapterType {
+		t.Fatalf("bridge info = %+v", loaded.BridgeInfo)
 	}
 	if len(loaded.Endpoints) != 1 || loaded.Endpoints[0].InputClusters[0] != "genBasic" {
 		t.Fatalf("canonical endpoints = %+v", loaded.Endpoints)
@@ -79,6 +97,9 @@ func TestZigbeeDeviceMetadataMergeAndIdempotency(t *testing.T) {
 	loaded, err = s.GetZigbeeDeviceMetadata(ctx, metadata.DeviceID)
 	if err != nil || loaded.OTA.LatestVersion == nil || *loaded.OTA.LatestVersion != latest {
 		t.Fatalf("bridge upsert did not retain OTA: %+v, %v", loaded, err)
+	}
+	if loaded.BridgeInfo == nil || loaded.BridgeInfo.ExtendedPANID == nil || *loaded.BridgeInfo.ExtendedPANID != extendedPAN {
+		t.Fatalf("bridge upsert did not retain bridge info: %+v", loaded)
 	}
 
 	candidates, err := s.ListZigbeeFirmwareCandidates(ctx)
@@ -121,7 +142,7 @@ func TestZigbeeDeviceMetadataProviderGroupsAndCascade(t *testing.T) {
 	if err != nil || metadata == nil || len(metadata.Groups) != 1 || metadata.Groups[0].Endpoint != 2 {
 		t.Fatalf("provider groups = %+v, %v", metadata, err)
 	}
-	if err := s.DeleteDevice(ctx, "0xabc"); err != nil {
+	if err := s.PurgeDevice(ctx, "0xabc"); err != nil {
 		t.Fatal(err)
 	}
 	metadata, err = s.GetZigbeeDeviceMetadata(ctx, "0xabc")

@@ -32,12 +32,28 @@ type Metadata struct {
 	SoftwareBuildID    *string
 	DateCode           *string
 	Definition         *Definition
+	BridgeInfo         *BridgeInfo
 	Endpoints          []Endpoint
 	OTA                OTAStatus
 	Groups             []GroupReference
 	BridgeFingerprint  string
 	OTAFingerprint     string
 	UpdatedAt          time.Time
+}
+
+// BridgeInfo contains stable coordinator, network, and Zigbee2MQTT runtime
+// diagnostics reported by bridge/info.
+type BridgeInfo struct {
+	AdapterType                     *string
+	FirmwareVersion                 *string
+	Channel                         *int
+	PANID                           *int64
+	ExtendedPANID                   *string
+	Zigbee2MQTTVersion              *string
+	Zigbee2MQTTCommit               *string
+	ZigbeeHerdsmanVersion           *string
+	ZigbeeHerdsmanConvertersVersion *string
+	Fingerprint                     string
 }
 
 // Definition describes the Zigbee2MQTT converter selected for a device.
@@ -136,6 +152,22 @@ func Normalize(in Metadata) Metadata {
 		definition.Icon = cleanStringPtr(definition.Icon)
 		out.Definition = &definition
 	}
+	if in.BridgeInfo != nil {
+		info := *in.BridgeInfo
+		info.AdapterType = cleanStringPtr(info.AdapterType)
+		info.FirmwareVersion = cleanStringPtr(info.FirmwareVersion)
+		info.ExtendedPANID = cleanStringPtr(info.ExtendedPANID)
+		if info.ExtendedPANID != nil {
+			normalized := strings.ToLower(*info.ExtendedPANID)
+			info.ExtendedPANID = &normalized
+		}
+		info.Zigbee2MQTTVersion = cleanStringPtr(info.Zigbee2MQTTVersion)
+		info.Zigbee2MQTTCommit = cleanStringPtr(info.Zigbee2MQTTCommit)
+		info.ZigbeeHerdsmanVersion = cleanStringPtr(info.ZigbeeHerdsmanVersion)
+		info.ZigbeeHerdsmanConvertersVersion = cleanStringPtr(info.ZigbeeHerdsmanConvertersVersion)
+		info.Fingerprint = ComputeBridgeInfoFingerprint(info)
+		out.BridgeInfo = &info
+	}
 	out.OTA.State = cleanStringPtr(in.OTA.State)
 	out.Endpoints = append([]Endpoint{}, in.Endpoints...)
 	for i := range out.Endpoints {
@@ -175,6 +207,14 @@ func Normalize(in Metadata) Metadata {
 	out.BridgeFingerprint = out.ComputeBridgeFingerprint()
 	out.OTAFingerprint = ComputeOTAFingerprint(out.OTA)
 	return out
+}
+
+// ComputeBridgeInfoFingerprint returns the deterministic fingerprint for the
+// stable diagnostics selected from bridge/info.
+func ComputeBridgeInfoFingerprint(info BridgeInfo) string {
+	info.Fingerprint = ""
+	b, _ := json.Marshal(info)
+	return hashBytes(b)
 }
 
 // ComputeBridgeFingerprint returns the deterministic fingerprint for fields

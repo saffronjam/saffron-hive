@@ -28,6 +28,8 @@ const (
 	EventProviderGroupCommandRequested EventType = "provider_group.command_requested"
 	EventConfigurationRequested        EventType = "configuration.requested"
 	EventNativeEffectRequested         EventType = "native_effect.requested"
+	EventNativeEffectResult            EventType = "native_effect.result"
+	EventNativeEffectSupportChanged    EventType = "native_effect.support_changed"
 	EventSceneApplied                  EventType = "scene.applied"
 	EventSceneActivated                EventType = "scene.activated"
 	EventSceneDeactivated              EventType = "scene.deactivated"
@@ -59,6 +61,9 @@ const (
 	// EventZigbeeMetadataSynced carries the bridge/devices description for one
 	// Zigbee device. The metadata persister owns deduplication and storage.
 	EventZigbeeMetadataSynced EventType = "zigbee.metadata_synced"
+	// EventZigbeeBridgeInfoSynced carries stable coordinator and network
+	// diagnostics reported by bridge/info.
+	EventZigbeeBridgeInfoSynced EventType = "zigbee.bridge_info_synced"
 	// EventZigbeeOTAStatusChanged carries an OTA update object from a Zigbee
 	// device state payload.
 	EventZigbeeOTAStatusChanged EventType = "zigbee.ota_status_changed"

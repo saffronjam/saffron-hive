@@ -38,6 +38,30 @@ func (p *Publisher) PublishBridgeDevices(devices []byte) error {
 	return token.Error()
 }
 
+// PublishBridgeState publishes the retained Zigbee2MQTT bridge state.
+func (p *Publisher) PublishBridgeState(online bool) error {
+	state := "offline"
+	if online {
+		state = "online"
+	}
+	payload, err := json.Marshal(struct {
+		State string `json:"state"`
+	}{State: state})
+	if err != nil {
+		return err
+	}
+	token := p.client.Publish("zigbee2mqtt/bridge/state", 0, true, payload)
+	token.Wait()
+	return token.Error()
+}
+
+// PublishBridgeInfo publishes the retained Zigbee2MQTT bridge diagnostics.
+func (p *Publisher) PublishBridgeInfo(info []byte) error {
+	token := p.client.Publish("zigbee2mqtt/bridge/info", 0, true, info)
+	token.Wait()
+	return token.Error()
+}
+
 // PublishBridgeGroups publishes the complete bridge/groups registry as a
 // retained message.
 func (p *Publisher) PublishBridgeGroups(groups []byte) error {

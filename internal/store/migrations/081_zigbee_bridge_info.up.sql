@@ -1,0 +1,10 @@
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_adapter_type TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_firmware_version TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_channel INTEGER;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_pan_id INTEGER;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_extended_pan_id TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_zigbee2mqtt_version TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_zigbee2mqtt_commit TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_herdsman_version TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_converters_version TEXT;
+ALTER TABLE zigbee_device_metadata ADD COLUMN bridge_info_fingerprint TEXT NOT NULL DEFAULT '';

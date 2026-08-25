@@ -5,7 +5,11 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
        endpoints, ota_state, ota_installed_version, ota_latest_version,
-       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at
+       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
+       bridge_adapter_type, bridge_firmware_version, bridge_channel,
+       bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
+       bridge_zigbee2mqtt_commit, bridge_herdsman_version,
+       bridge_converters_version, bridge_info_fingerprint
 FROM zigbee_device_metadata
 WHERE device_id = ?;
 
@@ -54,6 +58,35 @@ ON CONFLICT(device_id) DO UPDATE SET
 WHERE zigbee_device_metadata.bridge_fingerprint != excluded.bridge_fingerprint
 RETURNING device_id;
 
+-- name: MergeZigbeeBridgeInfo :one
+INSERT INTO zigbee_device_metadata (
+    device_id, bridge_adapter_type, bridge_firmware_version, bridge_channel,
+    bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
+    bridge_zigbee2mqtt_commit, bridge_herdsman_version,
+    bridge_converters_version, bridge_info_fingerprint
+) VALUES (
+    sqlc.arg('device_id'), sqlc.arg('bridge_adapter_type'),
+    sqlc.arg('bridge_firmware_version'), sqlc.arg('bridge_channel'),
+    sqlc.arg('bridge_pan_id'), sqlc.arg('bridge_extended_pan_id'),
+    sqlc.arg('bridge_zigbee2mqtt_version'), sqlc.arg('bridge_zigbee2mqtt_commit'),
+    sqlc.arg('bridge_herdsman_version'), sqlc.arg('bridge_converters_version'),
+    sqlc.arg('bridge_info_fingerprint')
+)
+ON CONFLICT(device_id) DO UPDATE SET
+    bridge_adapter_type = excluded.bridge_adapter_type,
+    bridge_firmware_version = excluded.bridge_firmware_version,
+    bridge_channel = excluded.bridge_channel,
+    bridge_pan_id = excluded.bridge_pan_id,
+    bridge_extended_pan_id = excluded.bridge_extended_pan_id,
+    bridge_zigbee2mqtt_version = excluded.bridge_zigbee2mqtt_version,
+    bridge_zigbee2mqtt_commit = excluded.bridge_zigbee2mqtt_commit,
+    bridge_herdsman_version = excluded.bridge_herdsman_version,
+    bridge_converters_version = excluded.bridge_converters_version,
+    bridge_info_fingerprint = excluded.bridge_info_fingerprint,
+    updated_at = CURRENT_TIMESTAMP
+WHERE zigbee_device_metadata.bridge_info_fingerprint != excluded.bridge_info_fingerprint
+RETURNING device_id;
+
 -- name: MergeZigbeeOTAStatus :one
 INSERT INTO zigbee_device_metadata (
     device_id, ota_state, ota_installed_version, ota_latest_version,
@@ -79,7 +112,11 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
        endpoints, ota_state, ota_installed_version, ota_latest_version,
-       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at
+       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
+       bridge_adapter_type, bridge_firmware_version, bridge_channel,
+       bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
+       bridge_zigbee2mqtt_commit, bridge_herdsman_version,
+       bridge_converters_version, bridge_info_fingerprint
 FROM zigbee_device_metadata
 WHERE definition_supports_ota = true
   AND LOWER(COALESCE(ota_state, '')) = 'available'

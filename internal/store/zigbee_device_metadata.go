@@ -80,6 +80,31 @@ func (s *DB) UpsertZigbeeBridgeMetadata(ctx context.Context, metadata zigbeemeta
 	return true, nil
 }
 
+// MergeZigbeeBridgeInfo merges coordinator and network diagnostics while
+// retaining bridge/devices and OTA fields. It reports whether the value changed.
+func (s *DB) MergeZigbeeBridgeInfo(ctx context.Context, id device.DeviceID, info zigbeemetadata.BridgeInfo) (bool, error) {
+	metadata := zigbeemetadata.Normalize(zigbeemetadata.Metadata{BridgeInfo: &info})
+	info = *metadata.BridgeInfo
+	_, err := s.q.MergeZigbeeBridgeInfo(ctx, sqlite.MergeZigbeeBridgeInfoParams{
+		DeviceID: id, BridgeAdapterType: info.AdapterType,
+		BridgeFirmwareVersion: info.FirmwareVersion,
+		BridgeChannel:         intPtrToNullInt64(info.Channel), BridgePanID: info.PANID,
+		BridgeExtendedPanID:      info.ExtendedPANID,
+		BridgeZigbee2mqttVersion: info.Zigbee2MQTTVersion,
+		BridgeZigbee2mqttCommit:  info.Zigbee2MQTTCommit,
+		BridgeHerdsmanVersion:    info.ZigbeeHerdsmanVersion,
+		BridgeConvertersVersion:  info.ZigbeeHerdsmanConvertersVersion,
+		BridgeInfoFingerprint:    info.Fingerprint,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("merge zigbee bridge info: %w", err)
+	}
+	return true, nil
+}
+
 // MergeZigbeeOTAStatus merges OTA state while retaining bridge-owned fields. It
 // reports whether the stored value changed.
 func (s *DB) MergeZigbeeOTAStatus(ctx context.Context, id device.DeviceID, status zigbeemetadata.OTAStatus) (bool, error) {
@@ -145,6 +170,21 @@ func zigbeeMetadataFromRow(row sqlite.ZigbeeDeviceMetadatum) (zigbeemetadata.Met
 		},
 		BridgeFingerprint: row.BridgeFingerprint, OTAFingerprint: row.OtaFingerprint,
 		UpdatedAt: row.UpdatedAt,
+	}
+	if row.BridgeAdapterType != nil || row.BridgeFirmwareVersion != nil ||
+		row.BridgeChannel != nil || row.BridgePanID != nil || row.BridgeExtendedPanID != nil ||
+		row.BridgeZigbee2mqttVersion != nil || row.BridgeZigbee2mqttCommit != nil ||
+		row.BridgeHerdsmanVersion != nil || row.BridgeConvertersVersion != nil {
+		metadata.BridgeInfo = &zigbeemetadata.BridgeInfo{
+			AdapterType: row.BridgeAdapterType, FirmwareVersion: row.BridgeFirmwareVersion,
+			Channel: nullInt64ToIntPtr(row.BridgeChannel), PANID: row.BridgePanID,
+			ExtendedPANID:                   row.BridgeExtendedPanID,
+			Zigbee2MQTTVersion:              row.BridgeZigbee2mqttVersion,
+			Zigbee2MQTTCommit:               row.BridgeZigbee2mqttCommit,
+			ZigbeeHerdsmanVersion:           row.BridgeHerdsmanVersion,
+			ZigbeeHerdsmanConvertersVersion: row.BridgeConvertersVersion,
+			Fingerprint:                     row.BridgeInfoFingerprint,
+		}
 	}
 	if row.IeeeAddress != nil {
 		metadata.IEEEAddress = *row.IeeeAddress

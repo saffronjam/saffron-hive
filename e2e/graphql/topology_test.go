@@ -13,7 +13,7 @@ import (
 )
 
 func TestTopology_CoordinatorRegistersAsHubDevice(t *testing.T) {
-	data, err := graphqlQuery(`query { devices { id type name friendlyName } }`, nil)
+	data, err := graphqlQuery(`query { devices { id type name friendlyName available } }`, nil)
 	if err != nil {
 		t.Fatalf("devices query: %v", err)
 	}
@@ -22,6 +22,7 @@ func TestTopology_CoordinatorRegistersAsHubDevice(t *testing.T) {
 			ID           string `json:"id"`
 			Type         string `json:"type"`
 			FriendlyName string `json:"friendlyName"`
+			Available    bool   `json:"available"`
 		} `json:"devices"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
@@ -31,6 +32,9 @@ func TestTopology_CoordinatorRegistersAsHubDevice(t *testing.T) {
 		if d.ID == "0x00124b0000000000" {
 			if d.Type != "hub" {
 				t.Fatalf("coordinator type = %q, want hub", d.Type)
+			}
+			if !d.Available {
+				t.Fatal("coordinator is offline while bridge/state is online")
 			}
 			return
 		}

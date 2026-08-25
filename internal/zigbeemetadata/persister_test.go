@@ -12,7 +12,19 @@ import (
 type persisterStore struct {
 	mu          sync.Mutex
 	bridgePrint map[device.DeviceID]string
+	infoPrint   map[device.DeviceID]string
 	otaPrint    map[device.DeviceID]string
+}
+
+func (s *persisterStore) MergeZigbeeBridgeInfo(_ context.Context, id device.DeviceID, info BridgeInfo) (bool, error) {
+	fingerprint := ComputeBridgeInfoFingerprint(info)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.infoPrint[id] == fingerprint {
+		return false, nil
+	}
+	s.infoPrint[id] = fingerprint
+	return true, nil
 }
 
 func (s *persisterStore) UpsertZigbeeBridgeMetadata(_ context.Context, metadata Metadata) (bool, error) {
@@ -51,10 +63,11 @@ func (p *recordingPublisher) Publish(event eventbus.Event) {
 func TestRunPersisterPublishesOnlyCommittedChanges(t *testing.T) {
 	ctx := context.Background()
 	store := &persisterStore{
-		bridgePrint: make(map[device.DeviceID]string), otaPrint: make(map[device.DeviceID]string),
+		bridgePrint: make(map[device.DeviceID]string), infoPrint: make(map[device.DeviceID]string),
+		otaPrint: make(map[device.DeviceID]string),
 	}
 	publisher := &recordingPublisher{}
-	events := make(chan eventbus.Event, 4)
+	events := make(chan eventbus.Event, 6)
 	done := make(chan struct{})
 	go func() {
 		RunPersister(ctx, publisher, events, store)
@@ -63,6 +76,10 @@ func TestRunPersisterPublishesOnlyCommittedChanges(t *testing.T) {
 	metadata := Normalize(Metadata{DeviceID: "0xabc", IEEEAddress: "0xabc"})
 	events <- eventbus.Event{Type: eventbus.EventZigbeeMetadataSynced, DeviceID: "0xabc", Payload: metadata}
 	events <- eventbus.Event{Type: eventbus.EventZigbeeMetadataSynced, DeviceID: "0xabc", Payload: metadata}
+	adapterType := "ZStack3x0"
+	info := BridgeInfo{AdapterType: &adapterType}
+	events <- eventbus.Event{Type: eventbus.EventZigbeeBridgeInfoSynced, DeviceID: "0xabc", Payload: info}
+	events <- eventbus.Event{Type: eventbus.EventZigbeeBridgeInfoSynced, DeviceID: "0xabc", Payload: info}
 	version := int64(2)
 	ota := OTAStatus{LatestVersion: &version}
 	events <- eventbus.Event{Type: eventbus.EventZigbeeOTAStatusChanged, DeviceID: "0xabc", Payload: ota}
@@ -72,8 +89,8 @@ func TestRunPersisterPublishesOnlyCommittedChanges(t *testing.T) {
 
 	publisher.mu.Lock()
 	defer publisher.mu.Unlock()
-	if len(publisher.events) != 2 {
-		t.Fatalf("metadata updated events = %d, want 2", len(publisher.events))
+	if len(publisher.events) != 3 {
+		t.Fatalf("metadata updated events = %d, want 3", len(publisher.events))
 	}
 	for _, event := range publisher.events {
 		if event.Type != eventbus.EventZigbeeMetadataUpdated || event.DeviceID != "0xabc" {

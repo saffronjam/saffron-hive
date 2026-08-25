@@ -27,7 +27,11 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
        endpoints, ota_state, ota_installed_version, ota_latest_version,
-       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at
+       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
+       bridge_adapter_type, bridge_firmware_version, bridge_channel,
+       bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
+       bridge_zigbee2mqtt_commit, bridge_herdsman_version,
+       bridge_converters_version, bridge_info_fingerprint
 FROM zigbee_device_metadata
 WHERE device_id = ?
 `
@@ -64,6 +68,16 @@ func (q *Queries) GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.D
 		&i.BridgeFingerprint,
 		&i.OtaFingerprint,
 		&i.UpdatedAt,
+		&i.BridgeAdapterType,
+		&i.BridgeFirmwareVersion,
+		&i.BridgeChannel,
+		&i.BridgePanID,
+		&i.BridgeExtendedPanID,
+		&i.BridgeZigbee2mqttVersion,
+		&i.BridgeZigbee2mqttCommit,
+		&i.BridgeHerdsmanVersion,
+		&i.BridgeConvertersVersion,
+		&i.BridgeInfoFingerprint,
 	)
 	return i, err
 }
@@ -75,7 +89,11 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
        endpoints, ota_state, ota_installed_version, ota_latest_version,
-       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at
+       ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
+       bridge_adapter_type, bridge_firmware_version, bridge_channel,
+       bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
+       bridge_zigbee2mqtt_commit, bridge_herdsman_version,
+       bridge_converters_version, bridge_info_fingerprint
 FROM zigbee_device_metadata
 WHERE definition_supports_ota = true
   AND LOWER(COALESCE(ota_state, '')) = 'available'
@@ -122,6 +140,16 @@ func (q *Queries) ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDev
 			&i.BridgeFingerprint,
 			&i.OtaFingerprint,
 			&i.UpdatedAt,
+			&i.BridgeAdapterType,
+			&i.BridgeFirmwareVersion,
+			&i.BridgeChannel,
+			&i.BridgePanID,
+			&i.BridgeExtendedPanID,
+			&i.BridgeZigbee2mqttVersion,
+			&i.BridgeZigbee2mqttCommit,
+			&i.BridgeHerdsmanVersion,
+			&i.BridgeConvertersVersion,
+			&i.BridgeInfoFingerprint,
 		); err != nil {
 			return nil, err
 		}
@@ -182,6 +210,69 @@ func (q *Queries) ListZigbeeProviderGroupsForDevice(ctx context.Context, memberI
 		return nil, err
 	}
 	return items, nil
+}
+
+const mergeZigbeeBridgeInfo = `-- name: MergeZigbeeBridgeInfo :one
+INSERT INTO zigbee_device_metadata (
+    device_id, bridge_adapter_type, bridge_firmware_version, bridge_channel,
+    bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
+    bridge_zigbee2mqtt_commit, bridge_herdsman_version,
+    bridge_converters_version, bridge_info_fingerprint
+) VALUES (
+    ?1, ?2,
+    ?3, ?4,
+    ?5, ?6,
+    ?7, ?8,
+    ?9, ?10,
+    ?11
+)
+ON CONFLICT(device_id) DO UPDATE SET
+    bridge_adapter_type = excluded.bridge_adapter_type,
+    bridge_firmware_version = excluded.bridge_firmware_version,
+    bridge_channel = excluded.bridge_channel,
+    bridge_pan_id = excluded.bridge_pan_id,
+    bridge_extended_pan_id = excluded.bridge_extended_pan_id,
+    bridge_zigbee2mqtt_version = excluded.bridge_zigbee2mqtt_version,
+    bridge_zigbee2mqtt_commit = excluded.bridge_zigbee2mqtt_commit,
+    bridge_herdsman_version = excluded.bridge_herdsman_version,
+    bridge_converters_version = excluded.bridge_converters_version,
+    bridge_info_fingerprint = excluded.bridge_info_fingerprint,
+    updated_at = CURRENT_TIMESTAMP
+WHERE zigbee_device_metadata.bridge_info_fingerprint != excluded.bridge_info_fingerprint
+RETURNING device_id
+`
+
+type MergeZigbeeBridgeInfoParams struct {
+	DeviceID                 device.DeviceID
+	BridgeAdapterType        *string
+	BridgeFirmwareVersion    *string
+	BridgeChannel            *int64
+	BridgePanID              *int64
+	BridgeExtendedPanID      *string
+	BridgeZigbee2mqttVersion *string
+	BridgeZigbee2mqttCommit  *string
+	BridgeHerdsmanVersion    *string
+	BridgeConvertersVersion  *string
+	BridgeInfoFingerprint    string
+}
+
+func (q *Queries) MergeZigbeeBridgeInfo(ctx context.Context, arg MergeZigbeeBridgeInfoParams) (device.DeviceID, error) {
+	row := q.db.QueryRowContext(ctx, mergeZigbeeBridgeInfo,
+		arg.DeviceID,
+		arg.BridgeAdapterType,
+		arg.BridgeFirmwareVersion,
+		arg.BridgeChannel,
+		arg.BridgePanID,
+		arg.BridgeExtendedPanID,
+		arg.BridgeZigbee2mqttVersion,
+		arg.BridgeZigbee2mqttCommit,
+		arg.BridgeHerdsmanVersion,
+		arg.BridgeConvertersVersion,
+		arg.BridgeInfoFingerprint,
+	)
+	var device_id device.DeviceID
+	err := row.Scan(&device_id)
+	return device_id, err
 }
 
 const mergeZigbeeOTAStatus = `-- name: MergeZigbeeOTAStatus :one

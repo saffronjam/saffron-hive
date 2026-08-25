@@ -14,6 +14,7 @@ var logger = logging.Named("zigbee_metadata")
 // Store is the persistence surface used by the metadata event consumer.
 type Store interface {
 	UpsertZigbeeBridgeMetadata(context.Context, Metadata) (bool, error)
+	MergeZigbeeBridgeInfo(context.Context, device.DeviceID, BridgeInfo) (bool, error)
 	MergeZigbeeOTAStatus(context.Context, device.DeviceID, OTAStatus) (bool, error)
 }
 
@@ -55,6 +56,12 @@ func persistWithRetry(ctx context.Context, store Store, event eventbus.Event) (b
 				return false, nil
 			}
 			changed, err = store.UpsertZigbeeBridgeMetadata(ctx, metadata)
+		case eventbus.EventZigbeeBridgeInfoSynced:
+			info, ok := event.Payload.(BridgeInfo)
+			if !ok {
+				return false, nil
+			}
+			changed, err = store.MergeZigbeeBridgeInfo(ctx, device.DeviceID(event.DeviceID), info)
 		case eventbus.EventZigbeeOTAStatusChanged:
 			status, ok := event.Payload.(OTAStatus)
 			if !ok {

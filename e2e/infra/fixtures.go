@@ -16,6 +16,11 @@ func LoadBridgeDevices() ([]byte, error) {
 	return os.ReadFile(filepath.Join(fixturesDir(), "bridge_devices.json"))
 }
 
+// LoadBridgeInfo returns the bridge_info.json fixture content.
+func LoadBridgeInfo() ([]byte, error) {
+	return os.ReadFile(filepath.Join(fixturesDir(), "bridge_info.json"))
+}
+
 // LoadLightState returns the light_state.json fixture content.
 func LoadLightState() ([]byte, error) {
 	return os.ReadFile(filepath.Join(fixturesDir(), "light_state.json"))

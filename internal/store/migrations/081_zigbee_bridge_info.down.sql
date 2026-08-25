@@ -1,0 +1,10 @@
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_info_fingerprint;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_converters_version;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_herdsman_version;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_zigbee2mqtt_commit;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_zigbee2mqtt_version;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_extended_pan_id;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_pan_id;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_channel;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_firmware_version;
+ALTER TABLE zigbee_device_metadata DROP COLUMN bridge_adapter_type;
