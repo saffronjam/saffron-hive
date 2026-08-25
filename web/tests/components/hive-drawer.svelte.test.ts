@@ -47,4 +47,43 @@ describe("HiveDrawer", () => {
 
     expect(document.querySelector("[role=option][data-selected]")).toBeNull();
   });
+
+  it("keeps the pending row highlighted while every row is disabled", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    const onselect = vi.fn();
+    instance = mount(HiveDrawer, {
+      target: host,
+      props: {
+        open: true,
+        disabled: true,
+        pendingItem: { type: "device", id: "tree-2" },
+        groups: [
+          {
+            heading: "Devices",
+            items: [
+              { type: "device", id: "tree-2", name: "Tree 2" },
+              { type: "device", id: "tree-3", name: "Tree 3" },
+            ],
+          },
+        ],
+        onselect,
+      },
+    });
+    flushSync();
+
+    const options = [...document.querySelectorAll<HTMLElement>("[role=option]")];
+    const pending = options.find((option) => option.textContent?.includes("Tree 2"))!;
+
+    expect(options.every((option) => option.hasAttribute("data-disabled"))).toBe(true);
+    expect(pending.getAttribute("data-pending")).toBe("true");
+    expect(pending.getAttribute("aria-busy")).toBe("true");
+    expect(pending.className).toContain("data-[pending=true]:bg-muted");
+    expect(pending.querySelector(".animate-spin")).not.toBeNull();
+    expect(pending.closest(".pl-5")).not.toBeNull();
+
+    options[1].click();
+    flushSync();
+    expect(onselect).not.toHaveBeenCalled();
+  });
 });

@@ -127,7 +127,10 @@
 	<div class:pl-5={pendingItem !== undefined}>
 		{#each groups as group (group.heading)}
 			{#if group.items.length > 0}
-				<CommandGroup heading={group.heading} class={pendingItem !== undefined ? "overflow-visible!" : undefined}>
+				<CommandGroup
+					heading={group.heading}
+					class={pendingItem !== undefined ? "overflow-visible!" : undefined}
+				>
 					{#each group.items as item (item.id)}
 						{@const Icon = item.icon}
 						{@const checked = isSelected(item.type, item.id)}
@@ -145,6 +148,7 @@
 							{#if pending}
 								<Loader2
 									class="pointer-events-none absolute top-1/2 -left-5 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+									aria-hidden="true"
 								/>
 							{/if}
 							{#if item.iconRef || Icon}
