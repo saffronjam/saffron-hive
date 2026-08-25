@@ -163,5 +163,23 @@ func (a *ZigbeeAdapter) handleGroupCommand(req device.ProviderGroupCommand) {
 	topic := "zigbee2mqtt/" + req.FriendlyName + "/set"
 	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
 		logger.Error("failed to publish group command", "topic", topic, "provider_group_id", req.ProviderGroupID, "error", err)
+		if req.NativeEffect != "" {
+			for _, id := range req.MemberIDs {
+				a.publishNativeEffectResult(id, req.NativeEffect, req.State.Origin.ID, device.NativeEffectRunUnconfirmed, "publish_failed")
+			}
+		}
+		return
+	}
+	if req.NativeEffect != "" {
+		for _, id := range req.MemberIDs {
+			a.mu.RLock()
+			friendlyName, ok := a.idToName[id]
+			a.mu.RUnlock()
+			if !ok {
+				a.publishNativeEffectResult(id, req.NativeEffect, req.State.Origin.ID, device.NativeEffectRunUnconfirmed, "device_not_found")
+				continue
+			}
+			a.trackNativeEffect(id, friendlyName, req.NativeEffect, req.State.Origin.ID)
+		}
 	}
 }

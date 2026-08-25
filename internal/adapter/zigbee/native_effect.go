@@ -1,9 +1,13 @@
 package zigbee
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"strings"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 // terminatorHueEffect is the Hue-specific name for stopping an in-progress
@@ -17,6 +21,44 @@ const (
 
 type z2mEffectPayload struct {
 	Effect string `json:"effect"`
+}
+
+type z2mStateGetPayload struct {
+	State string `json:"state"`
+}
+
+const (
+	philipsRawStateFlag  = 0x0001
+	philipsRawEffectFlag = 0x0020
+
+	nativeEffectReadDelay = 1100 * time.Millisecond
+	nativeEffectTimeout   = 2900 * time.Millisecond
+)
+
+var philipsPersistentEffectCodes = map[string]byte{
+	"candle":     0x01,
+	"fireplace":  0x02,
+	"colorloop":  0x03,
+	"sunrise":    0x09,
+	"sparkle":    0x0a,
+	"opal":       0x0b,
+	"glisten":    0x0c,
+	"sunset":     0x0d,
+	"underwater": 0x0e,
+	"cosmos":     0x0f,
+	"sunbeam":    0x10,
+	"enchant":    0x11,
+}
+
+type pendingNativeEffect struct {
+	deviceID     device.DeviceID
+	name         string
+	runID        string
+	friendlyName string
+	expectedCode byte
+	awaitingRead bool
+	readTimer    *time.Timer
+	timeoutTimer *time.Timer
 }
 
 // TerminatorFor returns the native-effect terminator name for dev. If the
@@ -96,5 +138,182 @@ func (a *ZigbeeAdapter) handleNativeEffect(req device.NativeEffectRequest) {
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
 	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
 		logger.Error("failed to publish native effect", "topic", topic, "error", err)
+		a.publishNativeEffectResult(req.DeviceID, req.Name, req.Origin.ID, device.NativeEffectRunUnconfirmed, "publish_failed")
+		return
+	}
+	a.trackNativeEffect(req.DeviceID, friendlyName, req.Name, req.Origin.ID)
+}
+
+func (a *ZigbeeAdapter) trackNativeEffect(deviceID device.DeviceID, friendlyName, name, runID string) {
+	expectedCode, verifiable := philipsPersistentEffectCodes[name]
+	if !verifiable {
+		a.publishNativeEffectResult(deviceID, name, runID, device.NativeEffectRunUnconfirmed, "not_verifiable")
+		return
+	}
+
+	pending := &pendingNativeEffect{
+		deviceID: deviceID, name: name, runID: runID,
+		friendlyName: friendlyName, expectedCode: expectedCode,
+	}
+	pending.readTimer = time.AfterFunc(nativeEffectReadDelay, func() {
+		a.requestNativeEffectReadback(pending)
+	})
+	pending.timeoutTimer = time.AfterFunc(nativeEffectTimeout, func() {
+		a.finishNativeEffect(pending, device.NativeEffectRunUnconfirmed, "timeout")
+	})
+	a.nativeEffectMu.Lock()
+	previous := a.pendingNativeEffects[deviceID]
+	a.pendingNativeEffects[deviceID] = pending
+	a.nativeEffectMu.Unlock()
+	if previous != nil {
+		if previous.readTimer != nil {
+			previous.readTimer.Stop()
+		}
+		if previous.timeoutTimer != nil {
+			previous.timeoutTimer.Stop()
+		}
+		a.publishNativeEffectResult(previous.deviceID, previous.name, previous.runID, device.NativeEffectRunUnconfirmed, "preempted")
+	}
+
+}
+
+func (a *ZigbeeAdapter) requestNativeEffectReadback(pending *pendingNativeEffect) {
+	a.nativeEffectMu.Lock()
+	if a.pendingNativeEffects[pending.deviceID] != pending {
+		a.nativeEffectMu.Unlock()
+		return
+	}
+	pending.awaitingRead = true
+	a.nativeEffectMu.Unlock()
+
+	payload, err := json.Marshal(z2mStateGetPayload{})
+	if err != nil {
+		a.finishNativeEffect(pending, device.NativeEffectRunUnconfirmed, "get_encode_failed")
+		return
+	}
+	topic := "zigbee2mqtt/" + pending.friendlyName + "/get"
+	if err := a.mqtt.Publish(topic, 0, false, payload); err != nil {
+		logger.Error("failed to request native effect readback", "topic", topic, "error", err)
+		a.finishNativeEffect(pending, device.NativeEffectRunUnconfirmed, "get_publish_failed")
+	}
+}
+
+func (a *ZigbeeAdapter) handleNativeEffectReadback(deviceID device.DeviceID, payload []byte) {
+	a.nativeEffectMu.Lock()
+	pending := a.pendingNativeEffects[deviceID]
+	ready := pending != nil && pending.awaitingRead
+	a.nativeEffectMu.Unlock()
+	if !ready {
+		return
+	}
+
+	var state z2mDeviceState
+	if err := json.Unmarshal(payload, &state); err != nil || state.PhilipsRaw == nil || strings.TrimSpace(*state.PhilipsRaw) == "" {
+		return
+	}
+	on, effectCode, hasEffect, ok := parsePhilipsRawEffect(*state.PhilipsRaw)
+	if !ok {
+		a.finishNativeEffect(pending, device.NativeEffectRunUnconfirmed, "malformed_readback")
+		return
+	}
+	if !on {
+		a.finishNativeEffect(pending, device.NativeEffectRunUnconfirmed, "device_off")
+		return
+	}
+	if !hasEffect || effectCode == 0 {
+		a.finishNativeEffect(pending, device.NativeEffectRunUnsupported, "effect_not_active")
+		return
+	}
+	if effectCode == pending.expectedCode {
+		a.finishNativeEffect(pending, device.NativeEffectRunConfirmed, "effect_active")
+		return
+	}
+	a.finishNativeEffect(pending, device.NativeEffectRunUnconfirmed, "different_effect_active")
+}
+
+func parsePhilipsRawEffect(value string) (on bool, effectCode byte, hasEffect bool, ok bool) {
+	raw, err := hex.DecodeString(strings.TrimSpace(value))
+	if err != nil || len(raw) < 3 {
+		return false, 0, false, false
+	}
+	flags := uint16(raw[0]) | uint16(raw[1])<<8
+	if flags&philipsRawStateFlag == 0 {
+		return false, 0, false, false
+	}
+	index := 2
+	on = raw[index] != 0
+	index++
+	fieldSizes := []struct {
+		flag uint16
+		size int
+	}{
+		{0x0002, 1},
+		{0x0004, 2},
+		{0x0008, 4},
+	}
+	for _, field := range fieldSizes {
+		if flags&field.flag == 0 {
+			continue
+		}
+		index += field.size
+		if index > len(raw) {
+			return false, 0, false, false
+		}
+	}
+	if flags&0x0010 != 0 {
+		return false, 0, false, false
+	}
+	if flags&philipsRawEffectFlag == 0 {
+		return on, 0, false, true
+	}
+	if index >= len(raw) {
+		return false, 0, false, false
+	}
+	return on, raw[index], true, true
+}
+
+func (a *ZigbeeAdapter) finishNativeEffect(pending *pendingNativeEffect, status device.NativeEffectRunStatus, reason string) {
+	a.nativeEffectMu.Lock()
+	if a.pendingNativeEffects[pending.deviceID] != pending {
+		a.nativeEffectMu.Unlock()
+		return
+	}
+	delete(a.pendingNativeEffects, pending.deviceID)
+	a.nativeEffectMu.Unlock()
+	if pending.readTimer != nil {
+		pending.readTimer.Stop()
+	}
+	if pending.timeoutTimer != nil {
+		pending.timeoutTimer.Stop()
+	}
+	a.publishNativeEffectResult(pending.deviceID, pending.name, pending.runID, status, reason)
+}
+
+func (a *ZigbeeAdapter) publishNativeEffectResult(deviceID device.DeviceID, name, runID string, status device.NativeEffectRunStatus, reason string) {
+	a.bus.Publish(eventbus.Event{
+		Type:      eventbus.EventNativeEffectResult,
+		DeviceID:  string(deviceID),
+		Timestamp: time.Now(),
+		Payload: device.NativeEffectResult{
+			DeviceID: deviceID, Name: name, RunID: runID, Status: status, Reason: reason,
+		},
+	})
+}
+
+func (a *ZigbeeAdapter) cancelNativeEffectVerifications() {
+	a.nativeEffectMu.Lock()
+	pending := make([]*pendingNativeEffect, 0, len(a.pendingNativeEffects))
+	for _, item := range a.pendingNativeEffects {
+		pending = append(pending, item)
+	}
+	a.pendingNativeEffects = make(map[device.DeviceID]*pendingNativeEffect)
+	a.nativeEffectMu.Unlock()
+	for _, item := range pending {
+		if item.readTimer != nil {
+			item.readTimer.Stop()
+		}
+		if item.timeoutTimer != nil {
+			item.timeoutTimer.Stop()
+		}
 	}
 }

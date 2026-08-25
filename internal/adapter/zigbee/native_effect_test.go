@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 type capturedLog struct {
@@ -231,5 +232,62 @@ func TestNativeEffect_UnknownDevice_DropsAndWarns(t *testing.T) {
 	pubs := mqtt.GetPublished()
 	if len(pubs) != 0 {
 		t.Fatalf("expected no publishes, got %d", len(pubs))
+	}
+}
+
+func TestParsePhilipsRawEffectFixtures(t *testing.T) {
+	tests := []struct {
+		name       string
+		raw        string
+		on         bool
+		effectCode byte
+		hasEffect  bool
+	}{
+		{name: "kitchen table without active effect", raw: "0b0001b7594d1e99", on: true},
+		{name: "tree with sunset", raw: "ab0001706e81446a0d80", on: true, effectCode: 0x0d, hasEffect: true},
+		{name: "tree with underwater", raw: "ab0001706e81446a0e80", on: true, effectCode: 0x0e, hasEffect: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			on, effectCode, hasEffect, ok := parsePhilipsRawEffect(tt.raw)
+			if !ok || on != tt.on || effectCode != tt.effectCode || hasEffect != tt.hasEffect {
+				t.Fatalf("parsePhilipsRawEffect(%q) = on=%v effect=%#x hasEffect=%v ok=%v", tt.raw, on, effectCode, hasEffect, ok)
+			}
+		})
+	}
+}
+
+func TestNativeEffectReadbackClassifiesConfirmedAndUnsupported(t *testing.T) {
+	tests := []struct {
+		name   string
+		raw    string
+		status device.NativeEffectRunStatus
+	}{
+		{name: "confirmed", raw: "ab0001706e81446a0e80", status: device.NativeEffectRunConfirmed},
+		{name: "unsupported", raw: "0b0001b7594d1e99", status: device.NativeEffectRunUnsupported},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adapter, _, bus, _, _ := newTestAdapterWithReader()
+			adapter.trackNativeEffect("lamp", "lamp", "underwater", "run-1")
+			adapter.nativeEffectMu.Lock()
+			pending := adapter.pendingNativeEffects["lamp"]
+			adapter.nativeEffectMu.Unlock()
+			pending.readTimer.Stop()
+			adapter.requestNativeEffectReadback(pending)
+			adapter.handleNativeEffectReadback("lamp", []byte(`{"state":"ON","philips_raw":"`+tt.raw+`"}`))
+			adapter.cancelNativeEffectVerifications()
+
+			for _, event := range bus.getEvents() {
+				result, ok := event.Payload.(device.NativeEffectResult)
+				if event.Type == eventbus.EventNativeEffectResult && ok {
+					if result.Status != tt.status || result.RunID != "run-1" || result.Name != "underwater" {
+						t.Fatalf("unexpected result: %+v", result)
+					}
+					return
+				}
+			}
+			t.Fatal("native effect result was not published")
+		})
 	}
 }
