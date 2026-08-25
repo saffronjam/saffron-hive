@@ -6,6 +6,7 @@
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
+		rememberedLightPalette,
 	} from "$lib/device-tint";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
@@ -72,6 +73,7 @@
 		),
 	);
 	const tintColors = $derived(appearance.colors);
+	const inactiveTintColors = $derived(rememberedLightPalette(roomDevices));
 	const tintStrength = $derived(appearance.tintStrength);
 
 	function noteInteract() {
@@ -117,10 +119,13 @@
 </script>
 
 <EntityCard
+	pressFeedback
+	class="dashboard-card"
 	entity={room}
 	fallbackIcon={DoorOpen}
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
+	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
 	tintInactive={!brightnessActive}
 	{brightnessFill}

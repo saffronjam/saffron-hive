@@ -21,6 +21,7 @@
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
+		rememberedLightPalette,
 		sceneGlowColor,
 	} from "$lib/device-tint";
 	import { parsePayload } from "$lib/scene-editable";
@@ -46,6 +47,7 @@
 	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
+	import { haptics } from "$lib/stores/haptics.svelte";
 
 	interface RoomEntity {
 		id: string;
@@ -201,6 +203,7 @@
 		),
 	);
 	const tintColors = $derived(roomAppearance.colors);
+	const inactiveTintColors = $derived(rememberedLightPalette(roomDevices));
 	const tintStrength = $derived(roomAppearance.tintStrength);
 
 	function noteRoomInteract() {
@@ -343,19 +346,23 @@
 
 		{#if room}
 			<EntityCard
+				pressFeedback
+				class="dashboard-card"
 				entity={room}
 				fallbackIcon={DoorOpen}
 				subtitle={deviceCollectionSummary(roomDevices)}
 				tintColors={tintColors.length > 0 ? tintColors : null}
+				inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 				{tintStrength}
 				tintInactive={!roomBrightnessActive}
 				brightnessFill={roomBrightnessFill}
 				dragOpts={roomDragOpts}
 				readOnly
 				size="sm"
-				onclick={() => {
+				onclick={(_entity, event) => {
 					if (popoverDismissedRecently()) return;
 					if (room) {
+						haptics.play("selection", event);
 						commitGroupToggle(client, roomDevices, !isOn, {
 							targetType: CommandTargetType.Room,
 							targetId: room.id,
@@ -458,6 +465,7 @@
 						<Button
 							variant="outline"
 							size="sm"
+							haptic="execute"
 							class="h-8 shrink-0 gap-1.5 px-3 text-sm transition-colors duration-300 {active
 								? 'scene-active'
 								: ''}"

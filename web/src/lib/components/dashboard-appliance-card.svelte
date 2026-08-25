@@ -10,6 +10,7 @@
 	import { getContextClient } from "@urql/svelte";
 	import { ArrowRight, Thermometer } from "@lucide/svelte";
 	import { deviceIcon, deviceDisplayName } from "$lib/utils";
+	import { haptics } from "$lib/stores/haptics.svelte";
 
 	interface Props {
 		device: Device;
@@ -41,8 +42,9 @@
 			: formatTemperature(device.state.targetTemperature, me.user?.temperatureUnit ?? "celsius"),
 	);
 
-	function handleToggle() {
+	function handleToggle(_entity: { id: string }, event: MouseEvent | KeyboardEvent) {
 		if (!hasOnOff || !device.available) return;
+		haptics.play("selection", event);
 		void client
 			.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on: !isOn } })
 			.toPromise();
@@ -53,13 +55,14 @@
 	entity={{ id: device.id, name: deviceDisplayName(device), icon: device.icon ?? null }}
 	fallbackIcon={Icon}
 	{subtitle}
-	tintColors={isOn ? [APPLIANCE_TINT_COLOR] : null}
+	tintColors={[APPLIANCE_TINT_COLOR]}
 	tintStrength={1}
 	tintInactive={!isOn}
 	readOnly
 	size="sm"
+	pressFeedback
 	onclick={handleToggle}
-	class={extraClass}
+	class="dashboard-card {extraClass}"
 >
 	{#snippet subtitleTrailing()}
 		{#if isClimate}

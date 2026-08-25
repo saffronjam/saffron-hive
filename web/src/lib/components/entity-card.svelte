@@ -13,6 +13,7 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
+	import { tintIconGradient } from "$lib/device-tint";
 	import { DoorOpen, EllipsisVertical, Pencil, Plus, Trash2 } from "@lucide/svelte";
 	import { groupDisplayName } from "$lib/utils";
 
@@ -34,6 +35,11 @@
 		tagRoomsLabel?: string;
 		leadingActions?: Snippet;
 		tintColors?: string[] | null;
+		/**
+		 * Palette used by the icon while `tintInactive` is true. This lets a card
+		 * retain its configured appearance while its live tint is absent.
+		 */
+		inactiveTintColors?: string[] | null;
 		/**
 		 * 0..1 multiplier on the tint gradient's mix percentage. `1` keeps the
 		 * full default mix (vibrant); `0` resolves the gradient stops to
@@ -66,13 +72,15 @@
 		 * footprint so they line up in a grid regardless of footer content.
 		 */
 		class?: string;
+		/** Plays a brief neutral press pulse without changing the card's live tint. */
+		pressFeedback?: boolean;
 		/**
 		 * Whole-card click handler. When set, the card wrapper becomes a
 		 * keyboard-focusable button-like region (role="button", Enter/Space
 		 * activate). Use only with `readOnly` so there are no nested
 		 * interactive controls inside that would conflict.
 		 */
-		onclick?: (entity: T) => void;
+		onclick?: (entity: T, event: MouseEvent | KeyboardEvent) => void;
 		/**
 		 * Fired when the pointer first reaches the card. Cards that link to an
 		 * editor use it to warm that editor's query — see
@@ -145,11 +153,13 @@
 		tagRoomsLabel = "Tag rooms",
 		leadingActions,
 		tintColors = null,
+		inactiveTintColors = null,
 		tintStrength = 1,
 		tintInactive = null,
 		footer,
 		readOnly = false,
 		class: extraClass = "",
+		pressFeedback = false,
 		onclick,
 		onpointerenter,
 		iconArea,
@@ -164,14 +174,20 @@
 	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
 	const canEditIcon = $derived(iconEditable && !!oniconchange && !readOnly);
 	const displayName = $derived(groupDisplayName(entity));
+	let cardElement = $state<HTMLDivElement>();
 	let retainedTintColors = $state<string[] | null>(null);
 	let tintReleaseTimer: ReturnType<typeof setTimeout> | null = null;
+	const currentTintColors = $derived(
+		tintInactive === true && inactiveTintColors && inactiveTintColors.length > 0
+			? inactiveTintColors
+			: tintColors,
+	);
 
 	$effect(() => {
-		if (tintColors && tintColors.length > 0) {
+		if (currentTintColors && currentTintColors.length > 0) {
 			if (tintReleaseTimer) clearTimeout(tintReleaseTimer);
 			tintReleaseTimer = null;
-			retainedTintColors = [...tintColors];
+			retainedTintColors = [...currentTintColors];
 			return;
 		}
 		if (brightnessFill != null && retainedTintColors) {
@@ -190,15 +206,40 @@
 	});
 
 	const renderedTintColors = $derived(
-		tintColors && tintColors.length > 0 ? tintColors : retainedTintColors,
+		currentTintColors && currentTintColors.length > 0 ? currentTintColors : retainedTintColors,
 	);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!onclick) return;
 		if (e.key === "Enter" || e.key === " ") {
 			e.preventDefault();
-			onclick(entity);
+			if (!e.repeat) startPressFlash(e.target);
+			onclick(entity, e);
 		}
+	}
+
+	const nestedInteractiveSelector =
+		'button, a, input, select, textarea, [role="button"], [role="slider"], [role="switch"]';
+
+	function startPressFlash(target: EventTarget | null) {
+		if (!pressFeedback || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+		if (!cardElement) return;
+		if (target instanceof Element) {
+			const interactive = target.closest(nestedInteractiveSelector);
+			if (interactive && interactive !== cardElement) return;
+		}
+		cardElement.removeAttribute("data-press-flash");
+		void cardElement.offsetWidth;
+		cardElement.setAttribute("data-press-flash", "");
+	}
+
+	function handleClick(e: MouseEvent) {
+		startPressFlash(e.target);
+		onclick?.(entity, e);
+	}
+
+	function handlePressAnimationEnd(e: AnimationEvent) {
+		if (e.animationName === "press-flash") cardElement?.removeAttribute("data-press-flash");
 	}
 
 	const tintClass = $derived.by(() => {
@@ -251,34 +292,27 @@
 	// Mirror tint-N's linear-gradient across the icon square so the icon's
 	// tinted state matches the card's visual language. tint-1 goes light → mid
 	// → dark of the single colour; tint-2 / tint-3 span the 2–3 hue palette.
-	const iconGradient = $derived.by(() => {
-		if (!renderedTintColors || renderedTintColors.length === 0) return "";
-		if (renderedTintColors.length === 1) {
-			const c = renderedTintColors[0];
-			return `linear-gradient(135deg, color-mix(in srgb, color-mix(in srgb, ${c} 70%, white) 50%, var(--card)), color-mix(in srgb, ${c} 50%, var(--card)), color-mix(in srgb, color-mix(in srgb, ${c} 65%, black) 50%, var(--card)))`;
-		}
-		const stops = renderedTintColors
-			.slice(0, 3)
-			.map((c) => `color-mix(in srgb, ${c} 50%, var(--card))`)
-			.join(", ");
-		return `linear-gradient(135deg, ${stops})`;
-	});
+	const iconGradient = $derived(tintIconGradient(renderedTintColors ?? []));
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="relative flex flex-col overflow-hidden shadow-card bg-card transition-all {sizeClass} {useFill
+	bind:this={cardElement}
+	class="entity-list-card relative flex flex-col overflow-hidden shadow-card bg-card {dragOpts
+		? 'dashboard-drag-lift select-none touch-pan-y'
+		: 'transition-all'} {sizeClass} {useFill
 		? fillClass
 		: showTint
 			? tintClass
-			: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {dragOpts
-		? 'select-none touch-pan-y transition-transform [&[data-dragging=\'true\']]:scale-[1.05]'
+			: ''} {onclick ? 'outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''} {pressFeedback
+		? 'press-flash'
 		: ''} {extraClass}"
 	style={tintStyle}
 	role={onclick ? "button" : undefined}
 	tabindex={onclick ? 0 : undefined}
-	onclick={onclick ? () => onclick(entity) : undefined}
+	onclick={onclick ? handleClick : undefined}
 	onpointerenter={onpointerenter ? () => onpointerenter(entity) : undefined}
+	onanimationend={pressFeedback ? handlePressAnimationEnd : undefined}
 	onkeydown={onclick ? handleKeydown : undefined}
 	use:brightnessDrag={dragOpts ?? { initial: () => 0, onpreview: () => {}, oncommit: () => {}, enabled: () => false }}
 >

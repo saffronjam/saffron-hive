@@ -1,4 +1,9 @@
-import { isLightControlDevice, type Device, type DeviceState } from "$lib/stores/devices";
+import {
+  isLightControlDevice,
+  isRuntimeEnabledDevice,
+  type Device,
+  type DeviceState,
+} from "$lib/stores/devices";
 import { ContactRole } from "$lib/gql/graphql";
 import { formatContactSummary, summarizeContacts } from "$lib/contact-summary";
 import { contactIcon } from "$lib/utils";
@@ -345,7 +350,7 @@ function lightContribution(
 ): LightContribution | null {
   const state = device.state;
   if (
-    device.disabled ||
+    !isRuntimeEnabledDevice(device) ||
     !device.available ||
     !isLightControlDevice(device) ||
     !state ||
@@ -408,7 +413,9 @@ export function aggregateLightAppearance(
 /** Colors retained by a collection's lights, for controls that remain useful while off. */
 export function rememberedLightPalette(devices: Device[]): string[] {
   const colors = devices
-    .filter((device) => !device.disabled && isLightControlDevice(device) && device.state)
+    .filter(
+      (device) => isRuntimeEnabledDevice(device) && isLightControlDevice(device) && device.state,
+    )
     .map((device) => {
       const rgb = visualRgb(device);
       return {
@@ -516,6 +523,19 @@ export function deviceTintBase(device: Device): string | null {
       brightness: state.brightness,
     }),
   );
+}
+
+export function tintIconGradient(colors: string[]): string {
+  if (colors.length === 0) return "";
+  if (colors.length === 1) {
+    const color = colors[0];
+    return `linear-gradient(135deg, color-mix(in srgb, color-mix(in srgb, ${color} 70%, white) 50%, var(--card)), color-mix(in srgb, ${color} 50%, var(--card)), color-mix(in srgb, color-mix(in srgb, ${color} 65%, black) 50%, var(--card)))`;
+  }
+  const stops = colors
+    .slice(0, 3)
+    .map((color) => `color-mix(in srgb, ${color} 50%, var(--card))`)
+    .join(", ");
+  return `linear-gradient(135deg, ${stops})`;
 }
 
 function payloadTintRgb(

@@ -10,6 +10,8 @@
 		fallback: Component;
 		size?: "sm" | "md" | "lg";
 		iconClass?: string;
+		tintBackground?: string | null;
+		tintVisible?: boolean;
 	}
 
 	let {
@@ -18,6 +20,8 @@
 		fallback: Fallback,
 		size = "md",
 		iconClass = "size-4.5 text-muted-foreground",
+		tintBackground = null,
+		tintVisible = false,
 	}: Props = $props();
 
 	// This cell sits on every row of every table, and the picker behind it is a
@@ -34,25 +38,36 @@
 </script>
 
 {#snippet icon()}
-	{#if value}
-		<DynamicIcon icon={value} class={iconClass}>
-			{#snippet fallback()}
-				<Fallback class={iconClass} />
-			{/snippet}
-		</DynamicIcon>
-	{:else}
-		<Fallback class={iconClass} />
+	{#if tintBackground}
+		<div
+			class="pointer-events-none absolute inset-0 transition-opacity duration-300 ease-out {tintVisible
+				? 'opacity-100'
+				: 'opacity-0'}"
+			style:background={tintBackground}
+			aria-hidden="true"
+		></div>
 	{/if}
+	<span class="relative flex items-center justify-center">
+		{#if value}
+			<DynamicIcon icon={value} class={iconClass}>
+				{#snippet fallback()}
+					<Fallback class={iconClass} />
+				{/snippet}
+			</DynamicIcon>
+		{:else}
+			<Fallback class={iconClass} />
+		{/if}
+	</span>
 {/snippet}
 
 {#if picking}
 	<IconPicker {value} {onselect} bind:open>
-		<IconPickerTrigger {size}>
+		<IconPickerTrigger {size} class={tintBackground ? "bg-muted/50" : undefined}>
 			{@render icon()}
 		</IconPickerTrigger>
 	</IconPicker>
 {:else}
-	<IconPickerTrigger {size} onclick={activate}>
+	<IconPickerTrigger {size} onclick={activate} class={tintBackground ? "bg-muted/50" : undefined}>
 		{@render icon()}
 	</IconPickerTrigger>
 {/if}

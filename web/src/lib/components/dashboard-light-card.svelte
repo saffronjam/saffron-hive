@@ -15,11 +15,12 @@
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
 	import { onDestroy } from "svelte";
-	import { aggregateLightAppearance } from "$lib/device-tint";
+	import { aggregateLightAppearance, rememberedLightPalette } from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { commitGroupBrightness, commitGroupColor, commitGroupTemp, commitGroupToggle } from "$lib/group-commands";
+	import { haptics } from "$lib/stores/haptics.svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
 
 	interface Entity {
@@ -76,6 +77,7 @@
 		),
 	);
 	const tintColors = $derived(appearance.colors);
+	const inactiveTintColors = $derived(rememberedLightPalette(devices));
 	const tintStrength = $derived(appearance.tintStrength);
 
 	function noteInteract() {
@@ -143,8 +145,9 @@
 		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined));
 	}
 
-	async function handleToggle() {
+	async function handleToggle(_entity: typeof entity, event: MouseEvent | KeyboardEvent) {
 		if (popoverDismissedRecently()) return;
+		haptics.play("selection", event);
 		const next = !isOn;
 		if (isGroup) {
 			await commitGroupToggle(client, devices, next, { targetType: CommandTargetType.Group, targetId: entity.id });
@@ -169,14 +172,16 @@
 	fallbackIcon={FallbackIcon}
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
+	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
 	tintInactive={!brightnessActive}
 	{brightnessFill}
 	{dragOpts}
 	readOnly
 	size="sm"
+	pressFeedback
 	onclick={handleToggle}
-	class={extraClass}
+	class="dashboard-card {extraClass}"
 >
 	{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
 		{#if hasPicker}

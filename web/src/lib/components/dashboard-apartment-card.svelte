@@ -5,14 +5,16 @@
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
+		rememberedLightPalette,
 	} from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { commitGroupBrightness, commitGroupToggle } from "$lib/group-commands";
+	import { haptics } from "$lib/stores/haptics.svelte";
 	import { popoverDismissedRecently } from "$lib/popover-guard";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
-	import { deviceCollectionSummary } from "$lib/device-collection-summary";
+	import { contactCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
 
 	interface Props {
@@ -58,6 +60,7 @@
 		),
 	);
 	const tintColors = $derived(appearance.colors);
+	const inactiveTintColors = $derived(rememberedLightPalette(devices));
 	const tintStrength = $derived(appearance.tintStrength);
 
 	function noteInteract() {
@@ -93,23 +96,27 @@
 		enabled: () => dimmableLights.length > 0,
 	});
 
-	const subtitle = $derived(deviceCollectionSummary(devices));
+	const subtitle = $derived(contactCollectionSummary(devices));
 </script>
 
 <EntityCard
+	pressFeedback
+	class="dashboard-card"
 	entity={apartmentEntity}
 	fallbackIcon={House}
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
+	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
 	tintInactive={!brightnessActive}
 	{brightnessFill}
 	{dragOpts}
 	readOnly
 	iconAreaSize="sm"
-	onclick={() => {
+	onclick={(_entity, event) => {
 		if (popoverDismissedRecently()) return;
 		if (lights.length === 0) return;
+		haptics.play("selection", event);
 		void commitGroupToggle(client, lights, !isOn);
 	}}
 >

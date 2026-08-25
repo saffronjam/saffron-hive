@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deviceCollectionSummary } from "$lib/device-collection-summary";
+import { contactCollectionSummary, deviceCollectionSummary } from "$lib/device-collection-summary";
 import type { Device } from "$lib/stores/devices";
 import { ContactRole } from "$lib/gql/graphql";
 
@@ -110,5 +110,23 @@ describe("deviceCollectionSummary", () => {
         device({ id: "window", contact: true, contactRole: ContactRole.Window }),
       ]),
     ).toBe("Door open · Window closed");
+  });
+});
+
+describe("contactCollectionSummary", () => {
+  it("shows only doors and windows", () => {
+    expect(
+      contactCollectionSummary([
+        device({ id: "light", light: true, on: true }),
+        device({ id: "door", contact: false, contactRole: ContactRole.Door }),
+        device({ id: "window", contact: true, contactRole: ContactRole.Window }),
+      ]),
+    ).toBe("Door open · Window closed");
+  });
+
+  it("returns no summary without door or window contacts", () => {
+    expect(
+      contactCollectionSummary([device({ id: "light", light: true, on: true })]),
+    ).toBeUndefined();
   });
 });
