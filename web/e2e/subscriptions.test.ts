@@ -207,12 +207,13 @@ describe("subscriptions", () => {
       state: "ON",
       brightness: 100,
     });
-    await publishAvailability("Bedroom Light", true);
+    await publishAvailability("Bedroom Light", false);
 
     const [stateEvent, availabilityEvent] = await Promise.all([statePromise, availabilityPromise]);
 
     expect(stateEvent.deviceStateChanged).toBeDefined();
     expect(availabilityEvent.deviceAvailabilityChanged).toBeDefined();
+    expect(availabilityEvent.deviceAvailabilityChanged.available).toBe(false);
   });
 
   it("should receive deviceAdded events", async () => {

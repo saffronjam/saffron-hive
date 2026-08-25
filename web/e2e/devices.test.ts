@@ -109,6 +109,17 @@ const ZIGBEE_METADATA_QUERY = graphql(`
           name
           endpoint
         }
+        bridgeInfo {
+          adapterType
+          firmwareVersion
+          channel
+          panId
+          extendedPanId
+          zigbee2MqttVersion
+          zigbee2MqttCommit
+          zigbeeHerdsmanVersion
+          zigbeeHerdsmanConvertersVersion
+        }
       }
     }
   }
@@ -172,6 +183,7 @@ describe("devices", () => {
     const hub = result.data!.devices.find((d) => d.id === coordinator!.ieee_address);
     expect(hub).toBeDefined();
     expect(hub!.type).toBe("hub");
+    expect(hub!.available).toBe(true);
   });
 
   it("should have correct device fields matching fixtures", async () => {
@@ -269,6 +281,22 @@ describe("devices", () => {
     expect(unsupported.data?.device?.zigbee2Mqtt?.supported).toBe(false);
     expect(unsupported.data?.device?.zigbee2Mqtt?.definition).toBeNull();
     expect(unsupported.data?.device?.zigbee2Mqtt?.endpoints).toEqual([]);
+
+    const coordinator = await graphqlClient
+      .query(ZIGBEE_METADATA_QUERY, { id: "0x00124b0000000000" }, { requestPolicy: "network-only" })
+      .toPromise();
+    expect(coordinator.error).toBeUndefined();
+    expect(coordinator.data?.device?.zigbee2Mqtt?.bridgeInfo).toEqual({
+      adapterType: "ZStack3x0",
+      firmwareVersion: "20240710",
+      channel: 20,
+      panId: 6754,
+      extendedPanId: "0x00124b000000abcd",
+      zigbee2MqttVersion: "2.7.2",
+      zigbee2MqttCommit: "a1b2c3d",
+      zigbeeHerdsmanVersion: "6.1.4",
+      zigbeeHerdsmanConvertersVersion: "25.30.0",
+    });
   });
 
   it("should reflect state changes after MQTT publish", async () => {

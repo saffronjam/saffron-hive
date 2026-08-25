@@ -4,6 +4,9 @@ import {
   teardownE2E,
   publishBridgeDevices,
   getBridgeDevicesFixture,
+  getBridgeInfoFixture,
+  publishBridgeInfo,
+  publishBridgeState,
   waitForDevices,
 } from "./setup.js";
 
@@ -11,6 +14,8 @@ beforeAll(async () => {
   await setupE2E();
 
   const devices = getBridgeDevicesFixture();
+  await publishBridgeState(true);
+  await publishBridgeInfo(getBridgeInfoFixture());
   await publishBridgeDevices(devices);
 
   // Every entry registers, the coordinator included: it becomes a hub device.

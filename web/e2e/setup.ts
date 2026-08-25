@@ -55,6 +55,10 @@ export function getBridgeDevicesFixture(): unknown[] {
   return loadFixture<unknown[]>("bridge_devices.json");
 }
 
+export function getBridgeInfoFixture(): Record<string, unknown> {
+  return loadFixture<Record<string, unknown>>("bridge_info.json");
+}
+
 export function getLightStateFixture(): Record<string, unknown> {
   return loadFixture<Record<string, unknown>>("light_state.json");
 }
@@ -76,6 +80,20 @@ export async function publishBridgeDevices(devices: unknown[]): Promise<void> {
   await mqttClient.publishAsync("zigbee2mqtt/bridge/devices", JSON.stringify(devices), {
     retain: true,
   });
+}
+
+export async function publishBridgeState(online: boolean): Promise<void> {
+  const { mqttClient } = getContext();
+  await mqttClient.publishAsync(
+    "zigbee2mqtt/bridge/state",
+    JSON.stringify({ state: online ? "online" : "offline" }),
+    { retain: true },
+  );
+}
+
+export async function publishBridgeInfo(info: Record<string, unknown>): Promise<void> {
+  const { mqttClient } = getContext();
+  await mqttClient.publishAsync("zigbee2mqtt/bridge/info", JSON.stringify(info), { retain: true });
 }
 
 export async function publishDeviceState(

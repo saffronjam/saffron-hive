@@ -33,6 +33,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       type: "button",
       available: true,
       disabled: false,
+      deleted: false,
       seen: true,
       roles: {},
       capabilities: [],
@@ -57,6 +58,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       type: "button",
       available: true,
       disabled: false,
+      deleted: false,
       seen: true,
       roles: {},
       capabilities: [],
@@ -88,6 +90,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       type: "sensor",
       available: true,
       disabled: false,
+      deleted: false,
       seen: true,
       roles: {},
       capabilities: [],
@@ -114,7 +117,132 @@ describe("ZigbeeDeviceInfoCard", () => {
     expect(host.textContent).not.toContain("SUCCESSFUL");
     expect(host.textContent).toContain("Supported · Unknown version");
     expect(host.textContent).not.toContain("Supported · -1");
+    expect(Array.from(host.querySelectorAll("dt"), (element) => element.textContent)).not.toContain(
+      "Support",
+    );
     expect(host.textContent).not.toContain("100%");
     expect(host.textContent).toContain("Details");
+  });
+
+  it("renders battery type as plain text below the power source", () => {
+    const device: Device = {
+      id: "0x123",
+      name: null,
+      friendlyName: "Bedroom sensor",
+      source: "zigbee2mqtt",
+      type: "sensor",
+      available: true,
+      disabled: false,
+      deleted: false,
+      seen: true,
+      roles: {},
+      capabilities: [],
+      configuration: [],
+      state: {},
+    };
+    const metadata: Zigbee2MqttDeviceMetadata = {
+      imageCandidate: false,
+      powerSource: "Battery",
+      endpoints: [],
+      groups: [],
+      ota: {},
+    };
+
+    component = mount(ZigbeeDetailsCard, {
+      target: host,
+      props: { device, metadata, batteryType: "CR2477" },
+    });
+
+    const labels = Array.from(host.querySelectorAll("dt"));
+    const powerSource = labels.find((label) => label.textContent === "Power source");
+    const batteryType = labels.find((label) => label.textContent === "Battery type");
+    expect(powerSource).not.toBeUndefined();
+    expect(batteryType).not.toBeUndefined();
+    expect(labels.indexOf(batteryType!)).toBe(labels.indexOf(powerSource!) + 1);
+    const value = batteryType?.parentElement?.querySelector("dd");
+    expect(value?.textContent).toBe("CR2477");
+    expect(value?.childElementCount).toBe(0);
+  });
+
+  it("omits battery type when documentation has no confident value", () => {
+    const device: Device = {
+      id: "0x123",
+      name: null,
+      friendlyName: "Bedroom sensor",
+      source: "zigbee2mqtt",
+      type: "sensor",
+      available: true,
+      disabled: false,
+      deleted: false,
+      seen: true,
+      roles: {},
+      capabilities: [],
+      configuration: [],
+      state: {},
+    };
+    const metadata: Zigbee2MqttDeviceMetadata = {
+      imageCandidate: false,
+      powerSource: "Battery",
+      endpoints: [],
+      groups: [],
+      ota: {},
+    };
+
+    component = mount(ZigbeeDetailsCard, {
+      target: host,
+      props: { device, metadata, batteryType: null },
+    });
+
+    expect(host.textContent).not.toContain("Battery type");
+  });
+
+  it("renders coordinator bridge diagnostics", () => {
+    const device: Device = {
+      id: "0x00124b0000000000",
+      name: null,
+      friendlyName: "Coordinator",
+      source: "zigbee2mqtt",
+      type: "hub",
+      available: true,
+      disabled: false,
+      deleted: false,
+      seen: true,
+      roles: {},
+      capabilities: [],
+      configuration: [],
+      state: {},
+    };
+    const metadata: Zigbee2MqttDeviceMetadata = {
+      imageCandidate: false,
+      endpoints: [],
+      groups: [],
+      ota: {},
+      bridgeInfo: {
+        adapterType: "ZStack3x0",
+        firmwareVersion: "20240710",
+        channel: 20,
+        panId: 6754,
+        extendedPanId: "0x00124b000000abcd",
+        zigbee2MqttVersion: "2.7.2",
+        zigbee2MqttCommit: "unknown",
+        zigbeeHerdsmanVersion: "6.1.4",
+        zigbeeHerdsmanConvertersVersion: "25.30.0",
+      },
+    };
+
+    component = mount(ZigbeeDetailsCard, {
+      target: host,
+      props: { device, metadata },
+    });
+
+    expect(host.textContent).toContain("Coordinator");
+    expect(host.textContent).toContain("ZStack3x0");
+    expect(host.textContent).toContain("0x1A62 · 6754");
+    expect(host.textContent).toContain("0x00124b000000abcd");
+    expect(host.textContent).toContain("zigbee-herdsman");
+    expect(Array.from(host.querySelectorAll("dt"), (element) => element.textContent)).not.toContain(
+      "Commit",
+    );
+    expect(host.textContent).not.toContain("unknown");
   });
 });
