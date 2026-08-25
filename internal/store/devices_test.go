@@ -366,7 +366,7 @@ func TestUpsertDevicePreservesName(t *testing.T) {
 	}
 }
 
-func TestSoftDeleteDevice(t *testing.T) {
+func TestMarkDeviceRemoved(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
@@ -385,7 +385,7 @@ func TestSoftDeleteDevice(t *testing.T) {
 		Removed: true,
 	})
 	if err != nil {
-		t.Fatalf("soft delete: %v", err)
+		t.Fatalf("mark removed: %v", err)
 	}
 
 	d, err := s.GetDevice(ctx, "dev-1")

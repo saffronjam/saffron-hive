@@ -21,7 +21,7 @@ func mustCreateDeviceRow(ctx context.Context, t *testing.T, s *DB, id, name stri
 
 // TestSetDeviceDisabledRoundTrip checks the flag defaults off, survives a
 // round-trip through both the single-device and list projections, and shows up
-// in ListDisabledDeviceIDs.
+// in ListRuntimeDisabledDeviceIDs.
 func TestSetDeviceDisabledRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
@@ -59,7 +59,7 @@ func TestSetDeviceDisabledRoundTrip(t *testing.T) {
 		}
 	}
 
-	ids, err := s.ListDisabledDeviceIDs(ctx)
+	ids, err := s.ListRuntimeDisabledDeviceIDs(ctx)
 	if err != nil {
 		t.Fatalf("list disabled ids: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestSetDeviceDisabledRoundTrip(t *testing.T) {
 	if _, err := s.SetDeviceDisabled(ctx, "d-1", false); err != nil {
 		t.Fatalf("re-enable: %v", err)
 	}
-	ids, err = s.ListDisabledDeviceIDs(ctx)
+	ids, err = s.ListRuntimeDisabledDeviceIDs(ctx)
 	if err != nil {
 		t.Fatalf("list disabled ids after re-enable: %v", err)
 	}
@@ -180,6 +180,12 @@ func TestResolveTargetDeviceIDsSkipsDisabled(t *testing.T) {
 	}
 	if got := s.ResolveTargetDeviceIDs(ctx, device.TargetRoom, "r-1"); !sliceEqual(got, []device.DeviceID{"d-1", "d-2"}) {
 		t.Errorf("after re-enable: got %v, want [d-1 d-2]", got)
+	}
+	if _, err := s.MarkDeviceDeleted(ctx, "d-2"); err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	if got := s.ResolveTargetDeviceIDs(ctx, device.TargetRoom, "r-1"); !sliceEqual(got, []device.DeviceID{"d-1"}) {
+		t.Errorf("with deleted member: got %v, want [d-1]", got)
 	}
 }
 

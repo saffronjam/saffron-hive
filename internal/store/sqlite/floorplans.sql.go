@@ -248,7 +248,7 @@ type DeleteFloorplanPlacementsByMemberParams struct {
 
 // DeleteFloorplanPlacementsByMember drops the map placement of a device or
 // group being deleted. The runtime connection does not enforce foreign keys,
-// so this sweep runs inside the DeleteDevice / DeleteGroup / BatchDeleteGroups
+// so this sweep runs inside the PurgeDevice / DeleteGroup / BatchDeleteGroups
 // transactions rather than relying on a cascade.
 func (q *Queries) DeleteFloorplanPlacementsByMember(ctx context.Context, arg DeleteFloorplanPlacementsByMemberParams) error {
 	_, err := q.db.ExecContext(ctx, deleteFloorplanPlacementsByMember, arg.MemberType, arg.MemberID)

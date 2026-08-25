@@ -77,17 +77,8 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) erro
 	return err
 }
 
-const deleteDevice = `-- name: DeleteDevice :exec
-DELETE FROM devices WHERE id = ?
-`
-
-func (q *Queries) DeleteDevice(ctx context.Context, id device.DeviceID) error {
-	_, err := q.db.ExecContext(ctx, deleteDevice, id)
-	return err
-}
-
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE id = ?
 `
@@ -107,6 +98,7 @@ type GetDeviceRow struct {
 	Available          bool
 	Removed            bool
 	Disabled           bool
+	Deleted            bool
 	Seen               bool
 	LastSeen           *time.Time
 }
@@ -129,6 +121,7 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 		&i.Available,
 		&i.Removed,
 		&i.Disabled,
+		&i.Deleted,
 		&i.Seen,
 		&i.LastSeen,
 	)
@@ -136,7 +129,7 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 `
 
@@ -155,6 +148,7 @@ type ListDevicesRow struct {
 	Available          bool
 	Removed            bool
 	Disabled           bool
+	Deleted            bool
 	Seen               bool
 	LastSeen           *time.Time
 }
@@ -183,6 +177,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 			&i.Available,
 			&i.Removed,
 			&i.Disabled,
+			&i.Deleted,
 			&i.Seen,
 			&i.LastSeen,
 		); err != nil {
@@ -200,7 +195,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE source = ?
 `
@@ -220,6 +215,7 @@ type ListDevicesBySourceRow struct {
 	Available          bool
 	Removed            bool
 	Disabled           bool
+	Deleted            bool
 	Seen               bool
 	LastSeen           *time.Time
 }
@@ -248,6 +244,7 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 			&i.Available,
 			&i.Removed,
 			&i.Disabled,
+			&i.Deleted,
 			&i.Seen,
 			&i.LastSeen,
 		); err != nil {
@@ -264,12 +261,43 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 	return items, nil
 }
 
-const listDisabledDeviceIDs = `-- name: ListDisabledDeviceIDs :many
-SELECT id FROM devices WHERE disabled = true
+const listRuntimeDisabledDeviceIDs = `-- name: ListRuntimeDisabledDeviceIDs :many
+SELECT id FROM devices WHERE disabled = true OR deleted = true
 `
 
-func (q *Queries) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
-	rows, err := q.db.QueryContext(ctx, listDisabledDeviceIDs)
+func (q *Queries) ListRuntimeDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
+	rows, err := q.db.QueryContext(ctx, listRuntimeDisabledDeviceIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []device.DeviceID
+	for rows.Next() {
+		var id device.DeviceID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markDevicesDeleted = `-- name: MarkDevicesDeleted :many
+UPDATE devices
+SET deleted = true, disabled = true
+WHERE deleted = false
+  AND id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+RETURNING id
+`
+
+func (q *Queries) MarkDevicesDeleted(ctx context.Context, idsJson string) ([]device.DeviceID, error) {
+	rows, err := q.db.QueryContext(ctx, markDevicesDeleted, idsJson)
 	if err != nil {
 		return nil, err
 	}
@@ -304,6 +332,46 @@ func (q *Queries) MarkDevicesSeen(ctx context.Context, idsJson string) (int64, e
 	return result.RowsAffected()
 }
 
+const purgeDevice = `-- name: PurgeDevice :exec
+DELETE FROM devices WHERE id = ?
+`
+
+func (q *Queries) PurgeDevice(ctx context.Context, id device.DeviceID) error {
+	_, err := q.db.ExecContext(ctx, purgeDevice, id)
+	return err
+}
+
+const restoreDevices = `-- name: RestoreDevices :many
+UPDATE devices
+SET deleted = false
+WHERE deleted = true
+  AND id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
+RETURNING id
+`
+
+func (q *Queries) RestoreDevices(ctx context.Context, idsJson string) ([]device.DeviceID, error) {
+	rows, err := q.db.QueryContext(ctx, restoreDevices, idsJson)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []device.DeviceID
+	for rows.Next() {
+		var id device.DeviceID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setDeviceDisabled = `-- name: SetDeviceDisabled :exec
 UPDATE devices SET disabled = ? WHERE id = ?
 `
@@ -333,11 +401,10 @@ type SetDeviceNameParams struct {
 // because COALESCE can't distinguish "leave alone" from "set to NULL".
 // UpdateDevice deliberately skips both so MQTT-driven sync (UpsertDevice) and
 // re-sync don't overwrite what the user set.
-// The disabled flag, the name override and the seen flag are user-owned, so each
-// gets its own setter for the same reason the icon column does: UpdateDevice
-// overwrites every column it names, and the device-removal path calls it with an
-// otherwise zero-value struct. UpsertDevice preserves user-owned values and
-// reconciles role categories against the adapter-owned type and capabilities.
+// The disabled and deleted flags, name override and seen flag are user-owned.
+// Their focused mutations keep adapter writes from changing them. UpsertDevice
+// preserves user-owned values and reconciles role categories against the
+// adapter-owned type and capabilities.
 func (q *Queries) SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error {
 	_, err := q.db.ExecContext(ctx, setDeviceName, arg.Name, arg.ID)
 	return err

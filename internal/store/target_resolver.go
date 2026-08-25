@@ -14,10 +14,10 @@ import (
 // kinds — group→room→group→room — terminate. Each device appears at most once
 // in the returned slice; the result is sorted by device ID for stable output.
 //
-// Disabled devices are dropped from the result. This is the resolution every
+// Runtime-disabled devices are dropped from the result. This is the resolution every
 // runtime fan-out goes through (scene apply, automation actions, effect runs,
-// selector expressions), so excluding them here is what keeps a disabled device
-// out of all of them. Removed provider groups are inert while their reference
+// selector expressions), so excluding them here keeps disabled and deleted
+// devices out of all of them. Removed provider groups are inert while their reference
 // rows remain available to editors. Membership rows stay untouched, so an
 // enabled device or returning provider group resumes its existing targets.
 func (s *DB) ResolveTargetDeviceIDs(ctx context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
@@ -38,21 +38,21 @@ func (s *DB) ResolveTargetDeviceIDs(ctx context.Context, targetType device.Targe
 		s.collectRoomDeviceIDs(ctx, targetID, seen, devSeen, &out)
 	}
 
-	out = s.withoutDisabled(ctx, out)
+	out = s.withoutRuntimeDisabled(ctx, out)
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
 
-// withoutDisabled removes disabled devices from ids. The disabled set is read
-// once per resolution rather than joined per member, because the walk visits
+// withoutRuntimeDisabled removes disabled and deleted devices from ids. The set
+// is read once per resolution rather than joined per member, because the walk visits
 // each membership table separately and the disabled set is expected to be tiny.
 // A read failure returns ids unchanged: the adapter command gate is the
-// authoritative check, so failing open here cannot command a disabled device.
-func (s *DB) withoutDisabled(ctx context.Context, ids []device.DeviceID) []device.DeviceID {
+// authoritative check, so failing open here cannot command an excluded device.
+func (s *DB) withoutRuntimeDisabled(ctx context.Context, ids []device.DeviceID) []device.DeviceID {
 	if len(ids) == 0 {
 		return ids
 	}
-	disabled, err := s.ListDisabledDeviceIDs(ctx)
+	disabled, err := s.ListRuntimeDisabledDeviceIDs(ctx)
 	if err != nil || len(disabled) == 0 {
 		return ids
 	}

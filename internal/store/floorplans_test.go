@@ -213,7 +213,7 @@ func TestDoorBindingBlocksRoleChangeAndIsClearedWithDevice(t *testing.T) {
 		t.Fatalf("role update error = %v", err)
 	}
 
-	if err := s.DeleteDevice(ctx, d.ID); err != nil {
+	if err := s.PurgeDevice(ctx, d.ID); err != nil {
 		t.Fatalf("delete device: %v", err)
 	}
 	fp, err := s.GetFloorplanGraph(ctx)
@@ -252,19 +252,19 @@ func TestReplaceFloorplanRejectsOutOfRangeOpenings(t *testing.T) {
 	}
 }
 
-func TestDeleteDeviceClearsItsPlacement(t *testing.T) {
+func TestPurgeDeviceClearsItsPlacement(t *testing.T) {
 	s := seedPlacedPlan(t)
 
-	if err := s.DeleteDevice(context.Background(), "dev-1"); err != nil {
-		t.Fatalf("delete device: %v", err)
+	if err := s.PurgeDevice(context.Background(), "dev-1"); err != nil {
+		t.Fatalf("purge device: %v", err)
 	}
 
 	refs := placementRefs(t, s)
 	if refs["device:dev-1"] {
-		t.Error("the deleted device kept its placement")
+		t.Error("the purged device kept its placement")
 	}
 	if !refs["group:grp-1"] {
-		t.Error("deleting a device removed an unrelated group placement")
+		t.Error("purging a device removed an unrelated group placement")
 	}
 }
 

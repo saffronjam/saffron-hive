@@ -266,7 +266,7 @@ func TestFloorplan_DoorBindingRoundtripAndIntegrity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create door sensor: %v", err)
 	}
-	defer func() { _ = sqlStore.DeleteDevice(ctx, d.ID) }()
+	defer func() { _ = sqlStore.PurgeDevice(ctx, d.ID) }()
 	d, err = sqlStore.UpdateDevice(ctx, store.UpdateDeviceParams{
 		ID:        d.ID,
 		Available: d.Available,
@@ -302,7 +302,7 @@ func TestFloorplan_DoorBindingRoundtripAndIntegrity(t *testing.T) {
 		t.Fatalf("role update error = %v", err)
 	}
 
-	if err := sqlStore.DeleteDevice(ctx, d.ID); err != nil {
+	if err := sqlStore.PurgeDevice(ctx, d.ID); err != nil {
 		t.Fatalf("delete door sensor: %v", err)
 	}
 	fp := queryFloorplan(t)
@@ -372,7 +372,7 @@ func TestFloorplan_PlacementRemovedWithDevice(t *testing.T) {
 		t.Fatalf("expected 1 placement before device delete, got %+v", fp)
 	}
 
-	if err := sqlStore.DeleteDevice(context.Background(), device.DeviceID(deviceID)); err != nil {
+	if err := sqlStore.PurgeDevice(context.Background(), device.DeviceID(deviceID)); err != nil {
 		t.Fatalf("delete device: %v", err)
 	}
 

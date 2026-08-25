@@ -74,6 +74,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 		Available:         row.Available,
 		Removed:           row.Removed,
 		Disabled:          row.Disabled,
+		Deleted:           row.Deleted,
 		Seen:              row.Seen,
 		LastSeen:          derefTime(row.LastSeen),
 	}, nil
@@ -101,6 +102,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 			Available:         r.Available,
 			Removed:           r.Removed,
 			Disabled:          r.Disabled,
+			Deleted:           r.Deleted,
 			Seen:              r.Seen,
 			LastSeen:          derefTime(r.LastSeen),
 		})
@@ -130,6 +132,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 			Available:         r.Available,
 			Removed:           r.Removed,
 			Disabled:          r.Disabled,
+			Deleted:           r.Deleted,
 			Seen:              r.Seen,
 			LastSeen:          derefTime(r.LastSeen),
 		})
@@ -222,6 +225,15 @@ func contactRoleString(role *device.ContactRole) *string {
 // it names and is called with an otherwise zero-value struct by the
 // device-removal path.
 func (s *DB) SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error) {
+	if !disabled {
+		current, err := s.GetDevice(ctx, id)
+		if err != nil {
+			return device.Device{}, err
+		}
+		if current.Deleted {
+			return device.Device{}, fmt.Errorf("enable device: restore %q before enabling it", current.DisplayName())
+		}
+	}
 	if err := s.q.SetDeviceDisabled(ctx, sqlite.SetDeviceDisabledParams{
 		Disabled: disabled,
 		ID:       id,
@@ -229,6 +241,75 @@ func (s *DB) SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled
 		return device.Device{}, fmt.Errorf("set device disabled: %w", err)
 	}
 	return s.GetDevice(ctx, id)
+}
+
+// MarkDeviceDeleted hides and disables a device in Hive while retaining its
+// stored row and references.
+func (s *DB) MarkDeviceDeleted(ctx context.Context, id device.DeviceID) (device.Device, error) {
+	changed, err := s.BatchMarkDevicesDeleted(ctx, []device.DeviceID{id})
+	if err != nil {
+		return device.Device{}, err
+	}
+	if len(changed) > 0 {
+		return changed[0], nil
+	}
+	return s.GetDevice(ctx, id)
+}
+
+// RestoreDevice makes a deleted device visible while leaving it disabled.
+func (s *DB) RestoreDevice(ctx context.Context, id device.DeviceID) (device.Device, error) {
+	changed, err := s.BatchRestoreDevices(ctx, []device.DeviceID{id})
+	if err != nil {
+		return device.Device{}, err
+	}
+	if len(changed) > 0 {
+		return changed[0], nil
+	}
+	return s.GetDevice(ctx, id)
+}
+
+// BatchMarkDevicesDeleted hides and disables existing non-deleted devices and
+// returns the rows that changed.
+func (s *DB) BatchMarkDevicesDeleted(ctx context.Context, ids []device.DeviceID) ([]device.Device, error) {
+	return s.setDevicesDeleted(ctx, ids, true)
+}
+
+// BatchRestoreDevices restores existing deleted devices and returns the rows
+// that changed. Their disabled flag remains set.
+func (s *DB) BatchRestoreDevices(ctx context.Context, ids []device.DeviceID) ([]device.Device, error) {
+	return s.setDevicesDeleted(ctx, ids, false)
+}
+
+func (s *DB) setDevicesDeleted(ctx context.Context, ids []device.DeviceID, deleted bool) ([]device.Device, error) {
+	if len(ids) == 0 {
+		return []device.Device{}, nil
+	}
+	raw := make([]string, len(ids))
+	for i, id := range ids {
+		raw[i] = string(id)
+	}
+	js, err := marshalStringArray(raw)
+	if err != nil {
+		return nil, fmt.Errorf("set devices deleted: %w", err)
+	}
+	var changedIDs []device.DeviceID
+	if deleted {
+		changedIDs, err = s.q.MarkDevicesDeleted(ctx, js)
+	} else {
+		changedIDs, err = s.q.RestoreDevices(ctx, js)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("set devices deleted: %w", err)
+	}
+	changed := make([]device.Device, 0, len(changedIDs))
+	for _, id := range changedIDs {
+		d, getErr := s.GetDevice(ctx, id)
+		if getErr != nil {
+			return nil, getErr
+		}
+		changed = append(changed, d)
+	}
+	return changed, nil
 }
 
 // MarkDevicesSeen clears the new-device flag for the given ids and returns how
@@ -253,12 +334,12 @@ func (s *DB) MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64,
 	return n, nil
 }
 
-// ListDisabledDeviceIDs returns the ids of every disabled device, so callers that
-// resolve a device set through joins can subtract them in one pass.
-func (s *DB) ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
-	ids, err := s.q.ListDisabledDeviceIDs(ctx)
+// ListRuntimeDisabledDeviceIDs returns the ids of devices excluded from command
+// and monitoring paths.
+func (s *DB) ListRuntimeDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error) {
+	ids, err := s.q.ListRuntimeDisabledDeviceIDs(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list disabled device ids: %w", err)
+		return nil, fmt.Errorf("list runtime-disabled device ids: %w", err)
 	}
 	return ids, nil
 }
@@ -342,11 +423,11 @@ func (s *DB) UpdateDeviceDisplayBrightness(ctx context.Context, params UpdateDev
 	return s.GetDevice(ctx, params.ID)
 }
 
-// DeleteDevice deletes a device by its ID together with its floorplan
+// PurgeDevice deletes a device by its ID together with its floorplan
 // placement in one transaction. The placement is deleted explicitly because
 // the runtime connection does not enforce foreign keys, so the schema's
 // ON DELETE CASCADE does not fire on its own.
-func (s *DB) DeleteDevice(ctx context.Context, id device.DeviceID) error {
+func (s *DB) PurgeDevice(ctx context.Context, id device.DeviceID) error {
 	return s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.DeleteFloorplanPlacementsByMember(ctx, sqlite.DeleteFloorplanPlacementsByMemberParams{
 			MemberType: device.TargetDevice,
@@ -357,8 +438,8 @@ func (s *DB) DeleteDevice(ctx context.Context, id device.DeviceID) error {
 		if err := q.DeleteFloorplanDoorBindingsByDevice(ctx, string(id)); err != nil {
 			return fmt.Errorf("delete floorplan door binding for device: %w", err)
 		}
-		if err := q.DeleteDevice(ctx, id); err != nil {
-			return fmt.Errorf("delete device: %w", err)
+		if err := q.PurgeDevice(ctx, id); err != nil {
+			return fmt.Errorf("purge device: %w", err)
 		}
 		return nil
 	})

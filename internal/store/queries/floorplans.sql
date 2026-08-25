@@ -107,7 +107,7 @@ DELETE FROM floorplan_placements WHERE floorplan_id = sqlc.arg('floorplan_id');
 
 -- DeleteFloorplanPlacementsByMember drops the map placement of a device or
 -- group being deleted. The runtime connection does not enforce foreign keys,
--- so this sweep runs inside the DeleteDevice / DeleteGroup / BatchDeleteGroups
+-- so this sweep runs inside the PurgeDevice / DeleteGroup / BatchDeleteGroups
 -- transactions rather than relying on a cascade.
 -- name: DeleteFloorplanPlacementsByMember :exec
 DELETE FROM floorplan_placements

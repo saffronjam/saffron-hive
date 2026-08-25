@@ -41,16 +41,16 @@ ON CONFLICT(id) DO UPDATE SET
     removed       = false;
 
 -- name: GetDevice :one
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE id = ?;
 
 -- name: ListDevices :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices;
 
 -- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, seen, last_seen
+SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE source = ?;
 
@@ -64,11 +64,10 @@ WHERE id = ?;
 -- UpdateDevice deliberately skips both so MQTT-driven sync (UpsertDevice) and
 -- re-sync don't overwrite what the user set.
 
--- The disabled flag, the name override and the seen flag are user-owned, so each
--- gets its own setter for the same reason the icon column does: UpdateDevice
--- overwrites every column it names, and the device-removal path calls it with an
--- otherwise zero-value struct. UpsertDevice preserves user-owned values and
--- reconciles role categories against the adapter-owned type and capabilities.
+-- The disabled and deleted flags, name override and seen flag are user-owned.
+-- Their focused mutations keep adapter writes from changing them. UpsertDevice
+-- preserves user-owned values and reconciles role categories against the
+-- adapter-owned type and capabilities.
 
 -- name: SetDeviceName :exec
 UPDATE devices SET name = ? WHERE id = ?;
@@ -82,8 +81,22 @@ SET controlled_load_role = sqlc.narg('controlled_load_role'),
     contact_role = sqlc.narg('contact_role')
 WHERE id = sqlc.arg('id');
 
--- name: ListDisabledDeviceIDs :many
-SELECT id FROM devices WHERE disabled = true;
+-- name: ListRuntimeDisabledDeviceIDs :many
+SELECT id FROM devices WHERE disabled = true OR deleted = true;
+
+-- name: MarkDevicesDeleted :many
+UPDATE devices
+SET deleted = true, disabled = true
+WHERE deleted = false
+  AND id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)))
+RETURNING id;
+
+-- name: RestoreDevices :many
+UPDATE devices
+SET deleted = false
+WHERE deleted = true
+  AND id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)))
+RETURNING id;
 
 -- name: MarkDevicesSeen :execrows
 UPDATE devices SET seen = true
@@ -107,5 +120,5 @@ UPDATE devices SET display_brightness = ? WHERE id = ?;
 -- name: ClearDeviceDisplayBrightness :exec
 UPDATE devices SET display_brightness = NULL WHERE id = ?;
 
--- name: DeleteDevice :exec
+-- name: PurgeDevice :exec
 DELETE FROM devices WHERE id = ?;

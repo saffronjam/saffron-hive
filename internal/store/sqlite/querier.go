@@ -87,7 +87,6 @@ type Querier interface {
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
-	DeleteDevice(ctx context.Context, id device.DeviceID) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
 	DeleteFloorplanDoorBindingsByDevice(ctx context.Context, deviceID string) error
@@ -97,7 +96,7 @@ type Querier interface {
 	DeleteFloorplanPlacementsByFloorplan(ctx context.Context, floorplanID string) error
 	// DeleteFloorplanPlacementsByMember drops the map placement of a device or
 	// group being deleted. The runtime connection does not enforce foreign keys,
-	// so this sweep runs inside the DeleteDevice / DeleteGroup / BatchDeleteGroups
+	// so this sweep runs inside the PurgeDevice / DeleteGroup / BatchDeleteGroups
 	// transactions rather than relying on a cascade.
 	DeleteFloorplanPlacementsByMember(ctx context.Context, arg DeleteFloorplanPlacementsByMemberParams) error
 	DeleteFloorplanRoomsByFloorplan(ctx context.Context, floorplanID string) error
@@ -107,6 +106,7 @@ type Querier interface {
 	DeleteGroupTags(ctx context.Context, groupID string) error
 	DeleteMaintenanceAcknowledgementsByFingerprints(ctx context.Context, arg DeleteMaintenanceAcknowledgementsByFingerprintsParams) (int64, error)
 	DeleteMaintenanceAcknowledgementsByTaskKey(ctx context.Context, taskKey string) (int64, error)
+	DeleteNativeEffectObservation(ctx context.Context, arg DeleteNativeEffectObservationParams) error
 	DeleteNetworkTopology(ctx context.Context, provider device.Source) error
 	DeleteProviderGroupMembers(ctx context.Context, groupID string) error
 	DeleteRoom(ctx context.Context, id string) error
@@ -137,6 +137,7 @@ type Querier interface {
 	GetFloorplanDoorBindingByDevice(ctx context.Context, deviceID string) (FloorplanDoorBinding, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
+	GetNativeEffectObservation(ctx context.Context, arg GetNativeEffectObservationParams) (NativeEffectObservation, error)
 	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetRoomMemberRoomID(ctx context.Context, id string) (string, error)
@@ -189,7 +190,6 @@ type Querier interface {
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
-	ListDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error)
 	ListEffectClips(ctx context.Context, trackID string) ([]EffectClip, error)
 	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
@@ -206,6 +206,7 @@ type Querier interface {
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
 	ListMaintenanceAcknowledgements(ctx context.Context) ([]MaintenanceAcknowledgement, error)
+	ListNativeEffectObservations(ctx context.Context) ([]NativeEffectObservation, error)
 	ListNetworkTopologies(ctx context.Context) ([]NetworkTopologySnapshot, error)
 	ListProviderGroupMembers(ctx context.Context, provider string) ([]GroupMember, error)
 	ListProviderGroups(ctx context.Context, provider string) ([]ListProviderGroupsRow, error)
@@ -213,6 +214,7 @@ type Querier interface {
 	ListRoomMemberships(ctx context.Context) ([]ListRoomMembershipsRow, error)
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
 	ListRoomsContainingMember(ctx context.Context, arg ListRoomsContainingMemberParams) ([]ListRoomsContainingMemberRow, error)
+	ListRuntimeDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error)
 	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
 	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error)
 	ListSceneExpectedStates(ctx context.Context, sceneID string) ([]SceneExpectedState, error)
@@ -225,13 +227,16 @@ type Querier interface {
 	ListWebhookEndpoints(ctx context.Context) ([]ListWebhookEndpointsRow, error)
 	ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDeviceMetadatum, error)
 	ListZigbeeProviderGroupsForDevice(ctx context.Context, memberID string) ([]ListZigbeeProviderGroupsForDeviceRow, error)
+	MarkDevicesDeleted(ctx context.Context, idsJson string) ([]device.DeviceID, error)
 	MarkDevicesSeen(ctx context.Context, idsJson string) (int64, error)
 	MarkProviderGroupsRemovedExcept(ctx context.Context, arg MarkProviderGroupsRemovedExceptParams) error
+	MergeZigbeeBridgeInfo(ctx context.Context, arg MergeZigbeeBridgeInfoParams) (device.DeviceID, error)
 	MergeZigbeeOTAStatus(ctx context.Context, arg MergeZigbeeOTAStatusParams) (device.DeviceID, error)
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	PruneWebhookDeliveriesOlderThan(ctx context.Context, receivedAt time.Time) (int64, error)
 	PruneWebhookDeliveriesOverLimit(ctx context.Context, arg PruneWebhookDeliveriesOverLimitParams) (int64, error)
+	PurgeDevice(ctx context.Context, id device.DeviceID) error
 	QueryActivityEvents(ctx context.Context, arg QueryActivityEventsParams) ([]ActivityEvent, error)
 	QueryStateHistoryAnchors(ctx context.Context, arg QueryStateHistoryAnchorsParams) ([]QueryStateHistoryAnchorsRow, error)
 	QueryStateHistoryNumericBucketed(ctx context.Context, arg QueryStateHistoryNumericBucketedParams) ([]QueryStateHistoryNumericBucketedRow, error)
@@ -248,17 +253,17 @@ type Querier interface {
 	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
 	ResolveGroupIDByName(ctx context.Context, name *string) (string, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
+	RestoreDevices(ctx context.Context, idsJson string) ([]device.DeviceID, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
 	// The nullable icon and display_color columns need dedicated clear queries
 	// because COALESCE can't distinguish "leave alone" from "set to NULL".
 	// UpdateDevice deliberately skips both so MQTT-driven sync (UpsertDevice) and
 	// re-sync don't overwrite what the user set.
-	// The disabled flag, the name override and the seen flag are user-owned, so each
-	// gets its own setter for the same reason the icon column does: UpdateDevice
-	// overwrites every column it names, and the device-removal path calls it with an
-	// otherwise zero-value struct. UpsertDevice preserves user-owned values and
-	// reconciles role categories against the adapter-owned type and capabilities.
+	// The disabled and deleted flags, name override and seen flag are user-owned.
+	// Their focused mutations keep adapter writes from changing them. UpsertDevice
+	// preserves user-owned values and reconciles role categories against the
+	// adapter-owned type and capabilities.
 	SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error
 	SetDeviceRoles(ctx context.Context, arg SetDeviceRolesParams) error
 	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
@@ -304,6 +309,7 @@ type Querier interface {
 	// override and is never touched here.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertFloorplan(ctx context.Context, arg UpsertFloorplanParams) error
+	UpsertNativeEffectObservation(ctx context.Context, arg UpsertNativeEffectObservationParams) (NativeEffectObservation, error)
 	UpsertNetworkTopology(ctx context.Context, arg UpsertNetworkTopologyParams) error
 	UpsertProviderGroup(ctx context.Context, arg UpsertProviderGroupParams) error
 	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error

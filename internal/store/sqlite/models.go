@@ -99,6 +99,7 @@ type Device struct {
 	DisplayBrightness  *int64
 	ControlledLoadRole *string
 	ContactRole        *string
+	Deleted            bool
 }
 
 type DeviceStateSample struct {
@@ -242,6 +243,14 @@ type MaintenanceAcknowledgement struct {
 	CompletedBy          *string
 }
 
+type NativeEffectObservation struct {
+	DeviceID            string
+	EffectName          string
+	Result              string
+	EvidenceFingerprint string
+	ObservedAt          time.Time
+}
+
 type NetworkTopologySnapshot struct {
 	Provider  device.Source
 	Nodes     string
@@ -333,6 +342,7 @@ type User struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	TokenVersion       int64
+	HapticsEnabled     bool
 }
 
 type WebhookDelivery struct {
@@ -349,6 +359,7 @@ type WebhookDelivery struct {
 	RequestID       *string
 	QueryKeysJson   string
 	HeaderNamesJson string
+	Body            *string
 }
 
 type WebhookEndpoint struct {
@@ -377,32 +388,42 @@ type Zigbee2mqttConfig struct {
 }
 
 type ZigbeeDeviceMetadatum struct {
-	DeviceID              device.DeviceID
-	NetworkType           *string
-	IeeeAddress           *string
-	NetworkAddress        *int64
-	Supported             *bool
-	InterviewState        *string
-	InterviewCompleted    *bool
-	Interviewing          *bool
-	Description           *string
-	Manufacturer          *string
-	ModelID               *string
-	PowerSource           *string
-	SoftwareBuildID       *string
-	DateCode              *string
-	DefinitionModel       *string
-	DefinitionVendor      *string
-	DefinitionDescription *string
-	DefinitionSource      *string
-	DefinitionIcon        *string
-	DefinitionSupportsOta *bool
-	Endpoints             string
-	OtaState              *string
-	OtaInstalledVersion   *int64
-	OtaLatestVersion      *int64
-	OtaProgress           *float64
-	BridgeFingerprint     string
-	OtaFingerprint        string
-	UpdatedAt             time.Time
+	DeviceID                 device.DeviceID
+	NetworkType              *string
+	IeeeAddress              *string
+	NetworkAddress           *int64
+	Supported                *bool
+	InterviewState           *string
+	InterviewCompleted       *bool
+	Interviewing             *bool
+	Description              *string
+	Manufacturer             *string
+	ModelID                  *string
+	PowerSource              *string
+	SoftwareBuildID          *string
+	DateCode                 *string
+	DefinitionModel          *string
+	DefinitionVendor         *string
+	DefinitionDescription    *string
+	DefinitionSource         *string
+	DefinitionIcon           *string
+	DefinitionSupportsOta    *bool
+	Endpoints                string
+	OtaState                 *string
+	OtaInstalledVersion      *int64
+	OtaLatestVersion         *int64
+	OtaProgress              *float64
+	BridgeFingerprint        string
+	OtaFingerprint           string
+	UpdatedAt                time.Time
+	BridgeAdapterType        *string
+	BridgeFirmwareVersion    *string
+	BridgeChannel            *int64
+	BridgePanID              *int64
+	BridgeExtendedPanID      *string
+	BridgeZigbee2mqttVersion *string
+	BridgeZigbee2mqttCommit  *string
+	BridgeHerdsmanVersion    *string
+	BridgeConvertersVersion  *string
+	BridgeInfoFingerprint    string
 }
