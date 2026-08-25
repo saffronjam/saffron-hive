@@ -145,6 +145,16 @@ function createAlarmsStore() {
     }
   }
 
+  async function refresh(client: Client, activeGeneration = startGeneration) {
+    const result = await client
+      .query(ALARMS_QUERY, {}, { requestPolicy: "network-only" })
+      .toPromise();
+    if (!started || activeGeneration !== startGeneration || !result.data?.alarms) return;
+    list.length = 0;
+    list.push(...(result.data.alarms as Alarm[]));
+    saveSessionSnapshot(storage(), "alarms", ALARMS_CACHE_VERSION, list);
+  }
+
   return {
     get list() {
       return list;
@@ -166,15 +176,8 @@ function createAlarmsStore() {
       started = true;
       const generation = ++startGeneration;
 
-      const res = await client
-        .query(ALARMS_QUERY, {}, { requestPolicy: "network-only" })
-        .toPromise();
+      await refresh(client, generation);
       if (!started || generation !== startGeneration) return;
-      if (res.data?.alarms) {
-        list.length = 0;
-        list.push(...(res.data.alarms as Alarm[]));
-        saveSessionSnapshot(storage(), "alarms", ALARMS_CACHE_VERSION, list);
-      }
 
       const sub = client.subscription(ALARM_EVENT_SUBSCRIPTION, {}).subscribe((result) => {
         if (!started || generation !== startGeneration) return;
@@ -189,6 +192,7 @@ function createAlarmsStore() {
       });
       unsubFn = sub.unsubscribe;
     },
+    refresh,
     stop() {
       if (unsubFn) {
         unsubFn();

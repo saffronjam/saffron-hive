@@ -40,7 +40,19 @@
 	import MaintenancePage from "$lib/components/maintenance-page.svelte";
 	import { page } from "$app/stores";
 
-	const client = createGraphQLClient();
+	function reconcileLiveStores() {
+		if (!auth.isAuthenticated()) return;
+		void Promise.allSettled([
+			deviceStore.refresh(client),
+			groupsStore.refresh(client),
+			scenesStore.refresh(client),
+			webhooksStore.refresh(client),
+			alarmsStore.refresh(client),
+			maintenanceStore.refresh(),
+		]);
+	}
+
+	const client = createGraphQLClient({ onReconnect: reconcileLiveStores });
 	setContextClient(client);
 
 	let { children } = $props();

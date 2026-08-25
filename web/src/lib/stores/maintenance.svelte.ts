@@ -154,6 +154,7 @@ function createMaintenanceStore() {
       return completeMany([id]);
     },
     completeMany,
+    refresh,
     async start(nextClient: Client) {
       if (started) return;
       started = true;

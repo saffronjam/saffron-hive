@@ -582,6 +582,16 @@ function createDeviceStore() {
   let lastFetchedAt = 0;
   let revalidateListener: (() => void) | null = null;
 
+  async function refresh(client: Client) {
+    const result = await client
+      .query(DEVICES_QUERY, {}, { requestPolicy: "network-only" })
+      .toPromise();
+    if (!result.data?.devices) return;
+    hydrate(result.data.devices as Device[]);
+    devicesHydrated.set(true);
+    lastFetchedAt = Date.now();
+  }
+
   return {
     subscribe,
     hydrate,
@@ -598,30 +608,18 @@ function createDeviceStore() {
     updateDeleted,
     markSeen,
     removeDevice,
+    refresh,
 
     async start(client: Client) {
       if (started) return;
       started = true;
 
-      const res = await client.query(DEVICES_QUERY, {}).toPromise();
-      if (res.data?.devices) {
-        hydrate(res.data.devices as Device[]);
-        devicesHydrated.set(true);
-        lastFetchedAt = Date.now();
-      }
+      await refresh(client);
 
       revalidateListener = () => {
         if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
         if (Date.now() - lastFetchedAt < STALE_AFTER_MS) return;
-        void client
-          .query(DEVICES_QUERY, {}, { requestPolicy: "network-only" })
-          .toPromise()
-          .then((r) => {
-            if (!r.data?.devices) return;
-            hydrate(r.data.devices as Device[]);
-            devicesHydrated.set(true);
-            lastFetchedAt = Date.now();
-          });
+        void refresh(client);
       };
       window.addEventListener("focus", revalidateListener);
       document.addEventListener("visibilitychange", revalidateListener);

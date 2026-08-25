@@ -5,12 +5,21 @@ import {
   mapExchange,
   subscriptionExchange,
 } from "@urql/svelte";
-import { createClient as createWSClient } from "graphql-ws";
+import { createClient as createWSClient, type Client as WSClient } from "graphql-ws";
 import { goto } from "$app/navigation";
 import { auth } from "$lib/stores/auth.svelte";
 import { sessionTeardown } from "$lib/session";
 
 const REFRESH_HEADER = "X-Refreshed-Token";
+const KEEP_ALIVE_MS = 15_000;
+const PONG_TIMEOUT_MS = 5_000;
+const CONNECTION_ACK_TIMEOUT_MS = 10_000;
+const MAX_RETRY_DELAY_MS = 15_000;
+
+interface GraphQLClientOptions {
+  endpoint?: string;
+  onReconnect?: () => void;
+}
 
 function getWSUrl(httpUrl: string): string {
   const url = new URL(httpUrl, window.location.origin);
@@ -45,12 +54,48 @@ async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit):
   return response;
 }
 
-export function createGraphQLClient(endpoint = "/graphql"): Client {
-  const wsClient = createWSClient({
+export function createGraphQLClient(options: GraphQLClientOptions = {}): Client {
+  const endpoint = options.endpoint ?? "/graphql";
+  let pongTimeout: ReturnType<typeof setTimeout> | null = null;
+  let wsClient: WSClient;
+
+  function clearPongTimeout() {
+    if (pongTimeout === null) return;
+    clearTimeout(pongTimeout);
+    pongTimeout = null;
+  }
+
+  wsClient = createWSClient({
     url: getWSUrl(endpoint),
     connectionParams: () => {
       const token = auth.token;
       return token ? { authToken: token } : {};
+    },
+    keepAlive: KEEP_ALIVE_MS,
+    connectionAckWaitTimeout: CONNECTION_ACK_TIMEOUT_MS,
+    retryAttempts: Number.POSITIVE_INFINITY,
+    retryWait: async (retries) => {
+      const delay = Math.min(1000 * 2 ** retries, MAX_RETRY_DELAY_MS);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    },
+    on: {
+      connected(_socket, _payload, wasRetry) {
+        clearPongTimeout();
+        if (wasRetry && options.onReconnect) setTimeout(options.onReconnect, 0);
+      },
+      ping(received) {
+        if (received) return;
+        clearPongTimeout();
+        pongTimeout = setTimeout(() => {
+          pongTimeout = null;
+          wsClient.terminate();
+        }, PONG_TIMEOUT_MS);
+      },
+      pong(received) {
+        if (received) clearPongTimeout();
+      },
+      closed: clearPongTimeout,
+      error: clearPongTimeout,
     },
   });
 
