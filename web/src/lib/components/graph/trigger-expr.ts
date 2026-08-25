@@ -454,19 +454,50 @@ export function serializeOperatorConfig(config: { operator: string }): string {
   });
 }
 
-export function serializeActionConfig(config: {
+export interface ActionConfigShape {
   actionType: string;
   targetType: string;
   targetId: string;
   targetExpr?: { connector?: string; subject: string; op: string; values: string[] }[];
   payload: string;
-}): string {
+}
+
+export interface NormalizedActionConfig extends ActionConfigShape {
+  targetName: string;
+}
+
+export function normalizeActionConfig(raw: Record<string, unknown>): NormalizedActionConfig {
+  const actionType = (raw.action_type as string) ?? (raw.actionType as string) ?? "";
+  const targetType = (raw.target_type as string) ?? (raw.targetType as string) ?? "";
+  const targetId = (raw.target_id as string) ?? (raw.targetId as string) ?? "";
+  const payload = (raw.payload as string) ?? "";
+  const activatesScene = actionType === "activate_scene";
+  return {
+    actionType,
+    targetType: activatesScene ? "scene" : targetType,
+    targetId: activatesScene ? payload : targetId,
+    targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
+    targetExpr:
+      (raw.target_expr as NormalizedActionConfig["targetExpr"]) ??
+      (raw.targetExpr as NormalizedActionConfig["targetExpr"]) ??
+      [],
+    payload: activatesScene ? "" : payload,
+  };
+}
+
+export function serializeActionConfig(config: ActionConfigShape): string {
+  const activatesScene = config.actionType === "activate_scene";
   return JSON.stringify({
     action_type: config.actionType,
-    target_type: config.targetType,
-    target_id: config.targetId,
-    target_expr: config.targetExpr ?? [],
-    payload: config.actionType === "toggle_device_state" ? "" : config.payload,
+    target_type: activatesScene ? "" : config.targetType,
+    target_id: activatesScene ? "" : config.targetId,
+    target_expr: activatesScene ? [] : (config.targetExpr ?? []),
+    payload:
+      config.actionType === "toggle_device_state"
+        ? ""
+        : activatesScene
+          ? config.targetId
+          : config.payload,
   });
 }
 
@@ -555,14 +586,6 @@ export function validateTriggerConfig(config: TriggerConfig): ValidationError<Tr
     default:
       return null;
   }
-}
-
-export interface ActionConfigShape {
-  actionType: string;
-  targetType: string;
-  targetId: string;
-  targetExpr?: { connector?: string; subject: string; op: string; values: string[] }[];
-  payload: string;
 }
 
 /**

@@ -242,7 +242,7 @@
 </script>
 
 <div
-	class="w-64 rounded-lg border-2 bg-card shadow-md transition-all {data.activated
+	class="{data.config.mode === 'webhook' && data.config.endpointId ? 'w-[20.8rem]' : 'w-64'} rounded-lg border-2 bg-card shadow-md transition-all {data.activated
 		? 'border-automation-trigger shadow-automation-trigger/50 shadow-lg'
 		: 'border-automation-trigger/40'}"
 	data-nodeid={id}

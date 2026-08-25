@@ -814,6 +814,125 @@ func TestAutomations_ToggleAction_Device(t *testing.T) {
 	}
 }
 
+// TestAutomations_ActivateScene follows the persisted automation graph through
+// the runtime scene expansion and MQTT command path.
+func TestAutomations_ActivateScene(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
+
+	sceneData, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name": "Automation Scene E2E",
+			"actions": []map[string]any{
+				{"targetType": "device", "targetId": deviceID},
+			},
+			"devicePayloads": []map[string]any{
+				{"deviceId": deviceID, "payload": `{"on":false,"brightness":37}`},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create scene: %v", err)
+	}
+	var sceneResult struct {
+		CreateScene struct{ ID string } `json:"createScene"`
+	}
+	if err := json.Unmarshal(sceneData, &sceneResult); err != nil {
+		t.Fatalf("unmarshal scene: %v", err)
+	}
+	sceneID := sceneResult.CreateScene.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
+	})
+
+	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
+	actionConfig, _ := json.Marshal(map[string]string{
+		"action_type": "activate_scene",
+		"target_type": "",
+		"target_id":   "",
+		"payload":     sceneID,
+	})
+	automationData, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
+		createAutomation(input: $input) { id nodes { id config } }
+	}`, map[string]any{
+		"input": map[string]any{
+			"name":    "Activate Scene E2E",
+			"enabled": true,
+			"nodes": []map[string]any{
+				{"id": "scene-t1", "type": "trigger", "config": string(triggerConfig)},
+				{"id": "scene-a1", "type": "action", "config": string(actionConfig)},
+			},
+			"edges": []map[string]any{
+				{"fromNodeId": "scene-t1", "toNodeId": "scene-a1"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create automation: %v", err)
+	}
+	var automationResult struct {
+		CreateAutomation struct {
+			ID    string `json:"id"`
+			Nodes []struct {
+				ID     string `json:"id"`
+				Config string `json:"config"`
+			} `json:"nodes"`
+		} `json:"createAutomation"`
+	}
+	if err := json.Unmarshal(automationData, &automationResult); err != nil {
+		t.Fatalf("unmarshal automation: %v", err)
+	}
+	automationID := automationResult.CreateAutomation.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": automationID})
+	})
+
+	var persistedAction map[string]any
+	for _, node := range automationResult.CreateAutomation.Nodes {
+		if node.ID == "scene-a1" {
+			if err := json.Unmarshal([]byte(node.Config), &persistedAction); err != nil {
+				t.Fatalf("unmarshal action config: %v", err)
+			}
+		}
+	}
+	if persistedAction["payload"] != sceneID || persistedAction["target_id"] != "" {
+		t.Fatalf("persisted action config = %#v", persistedAction)
+	}
+
+	cmdCh, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+	if _, err := graphqlMutation(`mutation($id: ID!, $nid: ID!) {
+		fireAutomationTrigger(automationId: $id, nodeId: $nid)
+	}`, map[string]any{"id": automationID, "nid": "scene-t1"}); err != nil {
+		t.Fatalf("fire trigger: %v", err)
+	}
+
+	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
+		select {
+		case msg := <-cmdCh:
+			if msg.Topic != "zigbee2mqtt/Kitchen Light/set" {
+				return false
+			}
+			var payload map[string]any
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				return false
+			}
+			return payload["state"] == "OFF" && payload["brightness"] == float64(37)
+		default:
+			return false
+		}
+	})
+	if !ok {
+		t.Fatal("timed out waiting for activated scene command")
+	}
+}
+
 // TestAutomations_CycleScenes_AdvancesAndWraps creates two scenes targeting
 // different devices and an automation with a cycle_scenes action over both.
 // Firing twice should activate scene A then scene B; a

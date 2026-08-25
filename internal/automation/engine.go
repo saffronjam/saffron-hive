@@ -536,6 +536,15 @@ func evaluateOperator(kind OperatorKind, incoming []NodeID, active map[NodeID]bo
 	}
 }
 
+func actionUsesTargetResolver(actionType string) bool {
+	switch actionType {
+	case ActionActivateScene, ActionCycleScenes, ActionRaiseAlarm, ActionClearAlarm, ActionRunEffect:
+		return false
+	default:
+		return true
+	}
+}
+
 func (e *Engine) executeAction(node Node, automationID string) {
 	actionCfg, ok := node.Config.(ActionConfig)
 	if !ok {
@@ -548,11 +557,11 @@ func (e *Engine) executeAction(node Node, automationID string) {
 		return
 	}
 
-	// Alarm, run-effect, and cycle-scenes actions are not target-scoped via
-	// the resolver: alarms fire exactly once per activation; run-effect
-	// re-resolves the group/room target at each iteration boundary; cycle
-	// dispatches a single scene-apply per fire.
-	if actionCfg.ActionType == ActionRaiseAlarm || actionCfg.ActionType == ActionClearAlarm || actionCfg.ActionType == ActionRunEffect || actionCfg.ActionType == ActionCycleScenes {
+	// Scene, alarm, run-effect, and cycle-scenes actions are not target-scoped
+	// through the action resolver. Each dispatches once per activation; scene
+	// and cycle actions resolve their own scene targets, while effect runs
+	// resolve their target at each iteration boundary.
+	if !actionUsesTargetResolver(actionCfg.ActionType) {
 		e.executor.ExecuteGraphAction(actionCfg)
 		return
 	}

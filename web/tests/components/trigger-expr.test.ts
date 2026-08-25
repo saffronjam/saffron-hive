@@ -4,6 +4,7 @@ import {
   defaultTriggerConfig,
   eventTypeForMode,
   generateFilterExpr,
+  normalizeActionConfig,
   normalizeTriggerConfig,
   serializeActionConfig,
   serializeTriggerConfig,
@@ -315,7 +316,13 @@ describe("normalizeTriggerConfig mode recovery", () => {
         mode: "webhook",
         endpointId: "hook-1",
         webhookFilters: [
-          { source: "body", path: "attempt", operator: "greater_than", value_type: "string", value: "2" },
+          {
+            source: "body",
+            path: "attempt",
+            operator: "greater_than",
+            value_type: "string",
+            value: "2",
+          },
         ],
       }),
     ).toMatchObject({ field: "webhookFilter" });
@@ -350,5 +357,62 @@ describe("action type validation", () => {
     });
 
     expect(JSON.parse(serialized)).toMatchObject({ payload: "" });
+  });
+
+  it("stores activate-scene references in the payload", () => {
+    const serialized = serializeActionConfig({
+      actionType: "activate_scene",
+      targetType: "scene",
+      targetId: "scene-1",
+      payload: "",
+    });
+
+    expect(JSON.parse(serialized)).toEqual({
+      action_type: "activate_scene",
+      target_type: "",
+      target_id: "",
+      target_expr: [],
+      payload: "scene-1",
+    });
+  });
+
+  it("restores activate-scene references from the payload", () => {
+    expect(
+      normalizeActionConfig({
+        action_type: "activate_scene",
+        target_type: "",
+        target_id: "",
+        target_expr: [],
+        payload: "scene-1",
+      }),
+    ).toEqual({
+      actionType: "activate_scene",
+      targetType: "scene",
+      targetId: "scene-1",
+      targetName: "",
+      targetExpr: [],
+      payload: "",
+    });
+  });
+
+  it("round-trips target-scoped actions without changing their contract", () => {
+    const stored = JSON.parse(
+      serializeActionConfig({
+        actionType: "set_device_state",
+        targetType: "device",
+        targetId: "light-1",
+        targetExpr: [],
+        payload: '{"on":true}',
+      }),
+    ) as Record<string, unknown>;
+
+    expect(normalizeActionConfig(stored)).toEqual({
+      actionType: "set_device_state",
+      targetType: "device",
+      targetId: "light-1",
+      targetName: "",
+      targetExpr: [],
+      payload: '{"on":true}',
+    });
   });
 });

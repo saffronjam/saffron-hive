@@ -63,13 +63,14 @@
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
-	import { deviceStore, type Device } from "$lib/stores/devices";
+	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
 	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { holdDrag } from "$lib/actions/hold-drag";
+	import { haptics } from "$lib/stores/haptics.svelte";
 	import {
 		type TriggerConfig,
 		defaultTriggerConfig,
@@ -77,6 +78,7 @@
 		serializeTriggerConfig,
 		generateFilterExpr,
 		serializeOperatorConfig,
+		normalizeActionConfig,
 		serializeActionConfig,
 		validateTriggerConfig,
 		validateActionConfig,
@@ -307,7 +309,7 @@
 
 	// Dropped at the source so every target picker, capability union and
 	// selector on this page follows.
-	const devices = $derived(Object.values($deviceStore).filter((d) => !d.disabled));
+	const devices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	let referencedRemovedGroups = $state<GroupData[]>([]);
 	const groups = $derived.by<GroupData[]>(() => {
 		const active = groupsStore.items;
@@ -667,14 +669,7 @@
 				return { operator: ((raw.kind as string) ?? (raw.operator as string) ?? "AND").toUpperCase() };
 			}
 			if (nodeType === "action") {
-				return {
-					actionType: (raw.action_type as string) ?? (raw.actionType as string) ?? "",
-					targetType: (raw.target_type as string) ?? (raw.targetType as string) ?? "",
-					targetId: (raw.target_id as string) ?? (raw.targetId as string) ?? "",
-					targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
-					targetExpr: (raw.target_expr as Clause[]) ?? (raw.targetExpr as Clause[]) ?? [],
-					payload: (raw.payload as string) ?? "",
-				};
+				return normalizeActionConfig(raw);
 			}
 			return raw as unknown as NodeConfig;
 		} catch {
@@ -1402,11 +1397,14 @@
 		if (node) copyNodes([node]);
 	}
 
-	function fireTriggerFromContextMenu() {
+	function fireTriggerFromContextMenu(event: MouseEvent) {
 		const state = graphContextMenuState;
 		graphContextMenuOpen = false;
 		graphContextMenuState = null;
-		if (savedAutomationEnabled && state?.kind === "node") void handleFireTrigger(state.nodeId);
+		if (savedAutomationEnabled && state?.kind === "node") {
+			haptics.play("execute", event);
+			void handleFireTrigger(state.nodeId);
+		}
 	}
 
 	async function copyTriggerConditionFromContextMenu() {

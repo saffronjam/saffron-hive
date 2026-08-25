@@ -260,6 +260,11 @@ func (m *mockStore) UpdateAutomationLastFired(_ context.Context, id string, fire
 
 func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.TargetType, targetID string) []device.DeviceID {
 	switch targetType {
+	case device.TargetDevice:
+		if targetID == "" {
+			return nil
+		}
+		return []device.DeviceID{device.DeviceID(targetID)}
 	case device.TargetGroup:
 		m.mu.RLock()
 		members := m.groupMembers[targetID]
@@ -279,7 +284,7 @@ func (m *mockStore) ResolveTargetDeviceIDs(_ context.Context, targetType device.
 		copy(out, ids)
 		return out
 	default:
-		return []device.DeviceID{device.DeviceID(targetID)}
+		return nil
 	}
 }
 
