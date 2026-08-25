@@ -51,7 +51,7 @@ func ValidateConfigurationValues(d Device, values []ConfigurationValue) error {
 	if d.Removed {
 		return fmt.Errorf("device %q has been removed", d.DisplayName())
 	}
-	if d.Disabled {
+	if d.RuntimeDisabled() {
 		return fmt.Errorf("device %q is disabled; enable it before sending commands", d.DisplayName())
 	}
 	if len(values) == 0 {

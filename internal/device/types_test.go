@@ -88,3 +88,14 @@ func TestEnabledDevicesExcludesHub(t *testing.T) {
 		t.Fatalf("want only the plain light, got %+v", got)
 	}
 }
+
+func TestEnabledDevicesExcludesDeletedDevice(t *testing.T) {
+	devices := []Device{
+		{ID: "active", Type: Light},
+		{ID: "deleted", Type: Light, Deleted: true},
+	}
+	got := EnabledDevices(devices)
+	if len(got) != 1 || got[0].ID != "active" {
+		t.Fatalf("enabled devices = %+v", got)
+	}
+}

@@ -35,7 +35,7 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
   adapter-owned field changed (friendly name, type, capabilities); persistence
   refreshes those columns. Adapters compare `device.AdapterFingerprint` across
   syncs so an unchanged re-report publishes nothing
-- `device.updated` — a device's user-owned metadata (name override, icon, roles, disabled) changed; carries the updated device so caches (in-memory store) refresh those fields. Never published by an adapter — that is what `device.synced` is for
+- `device.updated` — a device's user-owned metadata (name override, icon, roles, disabled, deleted) changed; carries the updated device so caches (in-memory store) refresh those fields. Never published by an adapter — that is what `device.synced` is for
 - `command.requested` — user or automation wants to set a device state
 - `configuration.requested` — user or automation wants to write device settings
 - `native_effect.requested` — a request to start a named external effect program on a device
@@ -102,7 +102,7 @@ zigbee2mqtt tracks that rename until someone sets a name in Hive.
 
 Scenes, automations, and the dashboard reference generic device IDs only.
 
-A device carries two independent exclusion flags. `removed` is adapter-owned: the
+A device carries three independent exclusion flags. `removed` is adapter-owned: the
 device disappeared from its integration, so the row is kept only to preserve
 scene/automation references. `disabled` is user-owned: the hardware still exists
 but should be left alone (seasonal equipment, something unplugged for a while).
@@ -113,7 +113,14 @@ chokepoint is `store.ResolveTargetDeviceIDs`, which every runtime fan-out
 resolves through; `Mutation.setTargetState` rejects it outright and both
 adapters' command loops drop it as a final gate.
 
-A third flag, `seen`, is false from discovery until the user opens the device
+`deleted` is user-owned and acts as Hive-local deletion. It also disables the
+device, hides it from Hive surfaces except the direct detail page and the
+opt-in `Deleted: Yes` device-list filter, and preserves all references and
+history. Restoring clears `deleted` while leaving `disabled` set so the user
+must enable the device separately. Runtime command paths treat either flag as
+disabled.
+
+A fourth flag, `seen`, is false from discovery until the user opens the device
 list, which is what marks a device as new in the UI. Like `disabled` and the
 name override it is user-owned, so `UpsertDevice` leaves it alone and an adapter
 re-sync cannot re-flag a device.
@@ -196,7 +203,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
   - **Press-and-drag** to set a numeric value: `web/src/lib/actions/brightness-drag.ts` (Svelte action). Wire it on EntityCard via the `dragOpts` prop.
   - **Colour / temp picker**: `web/src/lib/components/light-color-picker.svelte`. `hasColor` / `hasColorTemp` / `hasBrightness` come from `capabilityUnion()` in `web/src/lib/target-resolve.ts`.
   - **Group / room → device fan-out**: `web/src/lib/group-commands.ts` (`commitGroupBrightness`, `commitGroupToggle`, `commitGroupColor`, `commitGroupTemp`, `flattenGroupDevices`).
-  - **Resolve a scene/group/room target to its device list**: `resolveTargetDevices` in `web/src/lib/target-resolve.ts`. It excludes disabled devices by default (matching `store.ResolveTargetDeviceIDs`); editor surfaces that render a disabled member greyed pass `{ includeDisabled: true }`.
+  - **Resolve a scene/group/room target to its device list**: `resolveTargetDevices` in `web/src/lib/target-resolve.ts`. It excludes runtime-disabled devices by default (matching `store.ResolveTargetDeviceIDs`); editor surfaces that render a disabled member greyed pass `{ includeDisabled: true }`. Deleted devices remain hidden in both modes.
   - **Aggregate sensor readings and light appearance**: `aggregateSensorReadings` and `aggregateLightAppearance` in `web/src/lib/device-tint.ts`. Picker swatches use `rememberedLightPalette`; individual brightness uses `brightnessToTintStrength`.
   - **Drawer / sheet** for picking from grouped lists: `HiveDrawer` (`web/src/lib/components/hive-drawer.svelte`). Custom layout drawer: shadcn `Sheet` directly with `side="bottom"`.
   - **Popover outside-click guard** on cards that have a whole-card `onclick`: import from `web/src/lib/popover-guard.ts` and call `markPopoverDismissed()` from the popover's `onOpenChange(open=false)`; gate the card's `onclick` with `popoverDismissedRecently()`. bits-ui Popover is non-modal — without this, the outside click also triggers the underlying card.

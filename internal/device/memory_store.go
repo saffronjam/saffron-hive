@@ -97,8 +97,8 @@ func (s *MemoryStore) ListDevices() []Device {
 }
 
 // Register inserts a device, or merges adapter-owned fields into an existing
-// one. Name, Icon, Roles, Disabled and Seen are user-owned: once a device is known, a
-// re-registration from an adapter (re-discovery, periodic sync) keeps those
+// one. Name, Icon, Roles, Disabled, Deleted and Seen are user-owned: once a
+// device is known, a re-registration from an adapter (re-discovery, periodic sync) keeps those
 // values and updates only the adapter-owned fields (FriendlyName, Source, Type,
 // Capabilities, Available, LastSeen). Roles are preserved while their category
 // applies, defaulted when a category becomes applicable, and cleared otherwise.
@@ -112,6 +112,7 @@ func (s *MemoryStore) Register(d Device) {
 		d.Icon = existing.Icon
 		d.Roles = ReconcileDeviceRoles(d, existing.Roles)
 		d.Disabled = existing.Disabled
+		d.Deleted = existing.Deleted
 		d.Seen = existing.Seen
 	} else {
 		d.Roles = ReconcileDeviceRoles(d, d.Roles)
@@ -120,8 +121,8 @@ func (s *MemoryStore) Register(d Device) {
 }
 
 // UpdateUserFields copies the user-owned metadata (name, icon, roles, disabled,
-// seen) off src onto the registered device, leaving runtime state (availability,
-// last seen, reported state) untouched. A nil name clears the override so the
+// deleted, seen) off src onto the registered device, leaving runtime state
+// (availability, last seen, reported state) untouched. A nil name clears the override so the
 // device falls back to the name its integration reports. If the device is not
 // registered, the call is a no-op.
 //
@@ -139,6 +140,7 @@ func (s *MemoryStore) UpdateUserFields(src Device) {
 	d.Icon = src.Icon
 	d.Roles = src.Roles
 	d.Disabled = src.Disabled
+	d.Deleted = src.Deleted
 	d.Seen = src.Seen
 	s.devices[src.ID] = d
 }

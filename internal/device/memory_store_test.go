@@ -31,6 +31,17 @@ func TestRegisterAndGetDevice(t *testing.T) {
 	}
 }
 
+func TestRegisterPreservesDeleted(t *testing.T) {
+	s := NewMemoryStore()
+	s.Register(Device{ID: "l1", FriendlyName: "Lamp", Type: Light, Deleted: true, Disabled: true})
+	s.Register(Device{ID: "l1", FriendlyName: "Renamed Lamp", Type: Light})
+
+	got, ok := s.GetDevice("l1")
+	if !ok || !got.Deleted || !got.Disabled || got.FriendlyName != "Renamed Lamp" {
+		t.Fatalf("registered device = %+v, found = %v", got, ok)
+	}
+}
+
 func TestRegisterPreservesUserOwnedFieldsOnReRegister(t *testing.T) {
 	s := NewMemoryStore()
 	icon := "lamp"

@@ -582,7 +582,7 @@ func (r *Runner) resolveMembers(ctx context.Context, run *activeRun) []device.De
 	var devices []device.DeviceID
 	if run.target.Type == device.TargetDevice {
 		did := device.DeviceID(run.target.ID)
-		if dev, ok := r.reader.GetDevice(did); !ok || !dev.Disabled {
+		if dev, ok := r.reader.GetDevice(did); !ok || !dev.RuntimeDisabled() {
 			devices = []device.DeviceID{did}
 		}
 	} else {

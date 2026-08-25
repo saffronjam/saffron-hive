@@ -147,7 +147,7 @@ func (s *Service) deriveDeviceTasks(ctx context.Context, acks map[string]map[str
 	}
 	var tasks []Task
 	for _, found := range s.reader.ListDevices() {
-		if found.Removed || found.Disabled {
+		if found.Removed || found.RuntimeDisabled() {
 			continue
 		}
 		state, _ := s.reader.GetDeviceState(found.ID)
@@ -206,7 +206,7 @@ func (s *Service) deriveFirmwareTasks(ctx context.Context, acks map[string]map[s
 			continue
 		}
 		found, ok := s.reader.GetDevice(item.DeviceID)
-		if !ok || found.Removed || found.Disabled {
+		if !ok || found.Removed || found.RuntimeDisabled() {
 			continue
 		}
 		latest := strconv.FormatInt(*item.OTA.LatestVersion, 10)

@@ -93,7 +93,7 @@ var selectableRoles = map[string]struct{}{
 // device_role clauses match against the in-memory device list. An empty
 // expression matches nothing.
 //
-// Disabled devices are excluded from the universe, so they are matched by
+// Runtime-disabled devices are excluded from the universe, so they are matched by
 // neither an including clause nor the complement an is_not clause builds.
 func EvaluateExpression(ctx context.Context, reader StateReader, resolver TargetResolver, expr Expression) []DeviceID {
 	if len(expr) == 0 {

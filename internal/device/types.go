@@ -180,6 +180,9 @@ type Device struct {
 	// (scenes, automations, effects, staleness alarms) while keeping its row and
 	// its detail page. For seasonal hardware that is unplugged but not gone.
 	Disabled bool `json:"disabled"`
+	// Deleted hides the device from Hive surfaces while retaining its row and
+	// every reference to it. A deleted device is also runtime-disabled.
+	Deleted bool `json:"deleted"`
 	// Seen is false between a device being discovered and the user opening the
 	// device list, which is what marks it as new in the UI.
 	Seen     bool      `json:"seen"`
@@ -208,6 +211,13 @@ func (d Device) DisplayName() string {
 		return d.FriendlyName
 	}
 	return string(d.ID)
+}
+
+// RuntimeDisabled reports whether Hive must avoid commanding or monitoring a
+// device. Deleted devices remain disabled until they are restored and enabled
+// as two explicit actions.
+func (d Device) RuntimeDisabled() bool {
+	return d.Disabled || d.Deleted
 }
 
 // AdapterFingerprint summarises the adapter-owned fields that belong in the
@@ -260,7 +270,7 @@ func AdapterFingerprint(d Device) string {
 func EnabledDevices(devs []Device) []Device {
 	out := make([]Device, 0, len(devs))
 	for _, d := range devs {
-		if d.Removed || d.Disabled || d.Type == Hub {
+		if d.Removed || d.RuntimeDisabled() || d.Type == Hub {
 			continue
 		}
 		out = append(out, d)
