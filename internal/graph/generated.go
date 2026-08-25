@@ -32,6 +32,7 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
+	Zigbee2MqttDeviceMetadata() Zigbee2MqttDeviceMetadataResolver
 }
 
 type DirectiveRoot struct {
@@ -158,6 +159,7 @@ type ComplexityRoot struct {
 		Available         func(childComplexity int) int
 		Capabilities      func(childComplexity int) int
 		Configuration     func(childComplexity int) int
+		Deleted           func(childComplexity int) int
 		Disabled          func(childComplexity int) int
 		DisplayBrightness func(childComplexity int) int
 		DisplayColor      func(childComplexity int) int
@@ -398,12 +400,14 @@ type ComplexityRoot struct {
 		BatchAddRoomMembers         func(childComplexity int, roomID string, members []*model.RoomMemberInput) int
 		BatchDeleteAlarms           func(childComplexity int, alarmIds []string) int
 		BatchDeleteAutomations      func(childComplexity int, ids []string) int
+		BatchDeleteDevices          func(childComplexity int, ids []string) int
 		BatchDeleteEffects          func(childComplexity int, ids []string) int
 		BatchDeleteGroups           func(childComplexity int, ids []string) int
 		BatchDeleteRooms            func(childComplexity int, ids []string) int
 		BatchDeleteScenes           func(childComplexity int, ids []string) int
 		BatchDeleteUsers            func(childComplexity int, ids []string) int
 		BatchDeleteWebhookEndpoints func(childComplexity int, ids []string) int
+		BatchRestoreDevices         func(childComplexity int, ids []string) int
 		ChangePassword              func(childComplexity int, input model.ChangePasswordInput) int
 		CompleteFirstPasswordChange func(childComplexity int, newPassword string) int
 		CompleteMaintenanceTasks    func(childComplexity int, ids []string) int
@@ -417,6 +421,7 @@ type ComplexityRoot struct {
 		CreateWebhookEndpoint       func(childComplexity int, input model.CreateWebhookEndpointInput) int
 		DeleteAlarm                 func(childComplexity int, alarmID string) int
 		DeleteAutomation            func(childComplexity int, id string) int
+		DeleteDevice                func(childComplexity int, id string) int
 		DeleteEffect                func(childComplexity int, id string) int
 		DeleteGroup                 func(childComplexity int, id string) int
 		DeleteIntegration           func(childComplexity int, provider string) int
@@ -432,6 +437,7 @@ type ComplexityRoot struct {
 		RemoveGroupMember           func(childComplexity int, id string) int
 		RemoveRoomMember            func(childComplexity int, id string) int
 		ResetUserPassword           func(childComplexity int, id string, newPassword string) int
+		RestoreDevice               func(childComplexity int, id string) int
 		RotateWebhookEndpointSecret func(childComplexity int, id string) int
 		RunEffect                   func(childComplexity int, effectID string, targetType string, targetID string) int
 		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
@@ -458,11 +464,28 @@ type ComplexityRoot struct {
 		UpdateZigbee2MqttConfig     func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 	}
 
+	NativeEffectDeviceRunResult struct {
+		DeviceID func(childComplexity int) int
+		Status   func(childComplexity int) int
+	}
+
+	NativeEffectDeviceSupport struct {
+		DeviceID func(childComplexity int) int
+		Status   func(childComplexity int) int
+	}
+
 	NativeEffectOption struct {
-		DisplayName          func(childComplexity int) int
-		Name                 func(childComplexity int) int
-		Source               func(childComplexity int) int
-		SupportedDeviceCount func(childComplexity int) int
+		ConfirmedDeviceCount   func(childComplexity int) int
+		DisplayName            func(childComplexity int) int
+		Name                   func(childComplexity int) int
+		Source                 func(childComplexity int) int
+		UnsupportedDeviceCount func(childComplexity int) int
+		UntestedDeviceCount    func(childComplexity int) int
+	}
+
+	NativeEffectRunResult struct {
+		Devices func(childComplexity int) int
+		RunID   func(childComplexity int) int
 	}
 
 	NetworkTopology struct {
@@ -503,6 +526,7 @@ type ComplexityRoot struct {
 		MaintenanceTasks       func(childComplexity int) int
 		Me                     func(childComplexity int) int
 		NativeEffectOptions    func(childComplexity int) int
+		NativeEffectSupport    func(childComplexity int, name string) int
 		NetworkTopologies      func(childComplexity int) int
 		Room                   func(childComplexity int, id string) int
 		Rooms                  func(childComplexity int) int
@@ -605,6 +629,7 @@ type ComplexityRoot struct {
 		GroupsChanged              func(childComplexity int) int
 		LogStream                  func(childComplexity int) int
 		MaintenanceChanged         func(childComplexity int) int
+		NativeEffectSupportChanged func(childComplexity int) int
 		NetworkTopologyUpdated     func(childComplexity int, provider *string) int
 		SceneActiveChanged         func(childComplexity int) int
 		WebhookDeliveryRecorded    func(childComplexity int, endpointID *string) int
@@ -643,6 +668,7 @@ type ComplexityRoot struct {
 	User struct {
 		AvatarPath         func(childComplexity int) int
 		CreatedAt          func(childComplexity int) int
+		HapticsEnabled     func(childComplexity int) int
 		ID                 func(childComplexity int) int
 		MustChangePassword func(childComplexity int) int
 		Name               func(childComplexity int) int
@@ -653,6 +679,7 @@ type ComplexityRoot struct {
 	}
 
 	WebhookDelivery struct {
+		Body        func(childComplexity int) int
 		BodySize    func(childComplexity int) int
 		ClientIP    func(childComplexity int) int
 		ContentType func(childComplexity int) int
@@ -693,6 +720,18 @@ type ComplexityRoot struct {
 		TargetType        func(childComplexity int) int
 	}
 
+	Zigbee2MqttBridgeInfo struct {
+		AdapterType                     func(childComplexity int) int
+		Channel                         func(childComplexity int) int
+		ExtendedPanID                   func(childComplexity int) int
+		FirmwareVersion                 func(childComplexity int) int
+		PanID                           func(childComplexity int) int
+		Zigbee2MqttCommit               func(childComplexity int) int
+		Zigbee2MqttVersion              func(childComplexity int) int
+		ZigbeeHerdsmanConvertersVersion func(childComplexity int) int
+		ZigbeeHerdsmanVersion           func(childComplexity int) int
+	}
+
 	Zigbee2MqttConfig struct {
 		Broker              func(childComplexity int) int
 		Enabled             func(childComplexity int) int
@@ -715,12 +754,24 @@ type ComplexityRoot struct {
 		Vendor      func(childComplexity int) int
 	}
 
+	Zigbee2MqttDeviceDocumentation struct {
+		BatteryType   func(childComplexity int) int
+		Description   func(childComplexity int) int
+		Exposes       func(childComplexity int) int
+		LastCheckedAt func(childComplexity int) int
+		Model         func(childComplexity int) int
+		SourceURL     func(childComplexity int) int
+		Vendor        func(childComplexity int) int
+	}
+
 	Zigbee2MqttDeviceMetadata struct {
 		AddressVendor      func(childComplexity int) int
+		BridgeInfo         func(childComplexity int) int
 		DateCode           func(childComplexity int) int
 		Definition         func(childComplexity int) int
 		DefinitionURL      func(childComplexity int) int
 		Description        func(childComplexity int) int
+		Documentation      func(childComplexity int) int
 		Endpoints          func(childComplexity int) int
 		Groups             func(childComplexity int) int
 		IeeeAddress        func(childComplexity int) int
@@ -777,6 +828,10 @@ type DeviceResolver interface {
 }
 type MutationResolver interface {
 	UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error)
+	DeleteDevice(ctx context.Context, id string) (*model.Device, error)
+	RestoreDevice(ctx context.Context, id string) (*model.Device, error)
+	BatchDeleteDevices(ctx context.Context, ids []string) (int, error)
+	BatchRestoreDevices(ctx context.Context, ids []string) (int, error)
 	SetTargetState(ctx context.Context, targetType model.CommandTargetType, targetID string, state model.DeviceStateInput) (bool, error)
 	SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceConfigurationEntryInput) (bool, error)
 	SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error)
@@ -839,7 +894,7 @@ type MutationResolver interface {
 	UpdateEffect(ctx context.Context, input model.UpdateEffectInput) (*model.Effect, error)
 	DeleteEffect(ctx context.Context, id string) (bool, error)
 	RunEffect(ctx context.Context, effectID string, targetType string, targetID string) (*model.ActiveEffect, error)
-	RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.ActiveEffect, error)
+	RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.NativeEffectRunResult, error)
 	StopEffect(ctx context.Context, targetType string, targetID string) (bool, error)
 }
 type QueryResolver interface {
@@ -876,6 +931,7 @@ type QueryResolver interface {
 	Effect(ctx context.Context, id string) (*model.Effect, error)
 	ActiveEffects(ctx context.Context) ([]*model.ActiveEffect, error)
 	NativeEffectOptions(ctx context.Context) ([]*model.NativeEffectOption, error)
+	NativeEffectSupport(ctx context.Context, name string) ([]*model.NativeEffectDeviceSupport, error)
 }
 type SubscriptionResolver interface {
 	DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error)
@@ -894,7 +950,11 @@ type SubscriptionResolver interface {
 	MaintenanceChanged(ctx context.Context) (<-chan *time.Time, error)
 	WebhookDeliveryRecorded(ctx context.Context, endpointID *string) (<-chan *model.WebhookDelivery, error)
 	EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error)
+	NativeEffectSupportChanged(ctx context.Context) (<-chan *time.Time, error)
 	NetworkTopologyUpdated(ctx context.Context, provider *string) (<-chan *model.NetworkTopologyEvent, error)
+}
+type Zigbee2MqttDeviceMetadataResolver interface {
+	Documentation(ctx context.Context, obj *model.Zigbee2MqttDeviceMetadata) (*model.Zigbee2MqttDeviceDocumentation, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -1381,6 +1441,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Configuration(childComplexity), true
+	case "Device.deleted":
+		if e.ComplexityRoot.Device.Deleted == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Deleted(childComplexity), true
 	case "Device.disabled":
 		if e.ComplexityRoot.Device.Disabled == nil {
 			break
@@ -2431,6 +2497,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BatchDeleteAutomations(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteDevices":
+		if e.ComplexityRoot.Mutation.BatchDeleteDevices == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteDevices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteDevices(childComplexity, args["ids"].([]string)), true
 	case "Mutation.batchDeleteEffects":
 		if e.ComplexityRoot.Mutation.BatchDeleteEffects == nil {
 			break
@@ -2497,6 +2574,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BatchDeleteWebhookEndpoints(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchRestoreDevices":
+		if e.ComplexityRoot.Mutation.BatchRestoreDevices == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchRestoreDevices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchRestoreDevices(childComplexity, args["ids"].([]string)), true
 	case "Mutation.changePassword":
 		if e.ComplexityRoot.Mutation.ChangePassword == nil {
 			break
@@ -2640,6 +2728,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteAutomation(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteDevice":
+		if e.ComplexityRoot.Mutation.DeleteDevice == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteDevice_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteDevice(childComplexity, args["id"].(string)), true
 	case "Mutation.deleteEffect":
 		if e.ComplexityRoot.Mutation.DeleteEffect == nil {
 			break
@@ -2805,6 +2904,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ResetUserPassword(childComplexity, args["id"].(string), args["newPassword"].(string)), true
+	case "Mutation.restoreDevice":
+		if e.ComplexityRoot.Mutation.RestoreDevice == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_restoreDevice_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RestoreDevice(childComplexity, args["id"].(string)), true
 	case "Mutation.rotateWebhookEndpointSecret":
 		if e.ComplexityRoot.Mutation.RotateWebhookEndpointSecret == nil {
 			break
@@ -3060,6 +3170,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.UpdateZigbee2MqttConfig(childComplexity, args["input"].(model.Zigbee2MqttConfigInput)), true
 
+	case "NativeEffectDeviceRunResult.deviceId":
+		if e.ComplexityRoot.NativeEffectDeviceRunResult.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectDeviceRunResult.DeviceID(childComplexity), true
+	case "NativeEffectDeviceRunResult.status":
+		if e.ComplexityRoot.NativeEffectDeviceRunResult.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectDeviceRunResult.Status(childComplexity), true
+
+	case "NativeEffectDeviceSupport.deviceId":
+		if e.ComplexityRoot.NativeEffectDeviceSupport.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectDeviceSupport.DeviceID(childComplexity), true
+	case "NativeEffectDeviceSupport.status":
+		if e.ComplexityRoot.NativeEffectDeviceSupport.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectDeviceSupport.Status(childComplexity), true
+
+	case "NativeEffectOption.confirmedDeviceCount":
+		if e.ComplexityRoot.NativeEffectOption.ConfirmedDeviceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectOption.ConfirmedDeviceCount(childComplexity), true
 	case "NativeEffectOption.displayName":
 		if e.ComplexityRoot.NativeEffectOption.DisplayName == nil {
 			break
@@ -3078,12 +3220,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.NativeEffectOption.Source(childComplexity), true
-	case "NativeEffectOption.supportedDeviceCount":
-		if e.ComplexityRoot.NativeEffectOption.SupportedDeviceCount == nil {
+	case "NativeEffectOption.unsupportedDeviceCount":
+		if e.ComplexityRoot.NativeEffectOption.UnsupportedDeviceCount == nil {
 			break
 		}
 
-		return e.ComplexityRoot.NativeEffectOption.SupportedDeviceCount(childComplexity), true
+		return e.ComplexityRoot.NativeEffectOption.UnsupportedDeviceCount(childComplexity), true
+	case "NativeEffectOption.untestedDeviceCount":
+		if e.ComplexityRoot.NativeEffectOption.UntestedDeviceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectOption.UntestedDeviceCount(childComplexity), true
+
+	case "NativeEffectRunResult.devices":
+		if e.ComplexityRoot.NativeEffectRunResult.Devices == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectRunResult.Devices(childComplexity), true
+	case "NativeEffectRunResult.runId":
+		if e.ComplexityRoot.NativeEffectRunResult.RunID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NativeEffectRunResult.RunID(childComplexity), true
 
 	case "NetworkTopology.links":
 		if e.ComplexityRoot.NetworkTopology.Links == nil {
@@ -3297,6 +3458,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.NativeEffectOptions(childComplexity), true
+	case "Query.nativeEffectSupport":
+		if e.ComplexityRoot.Query.NativeEffectSupport == nil {
+			break
+		}
+
+		args, err := ec.field_Query_nativeEffectSupport_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.NativeEffectSupport(childComplexity, args["name"].(string)), true
 	case "Query.networkTopologies":
 		if e.ComplexityRoot.Query.NetworkTopologies == nil {
 			break
@@ -3777,6 +3949,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.MaintenanceChanged(childComplexity), true
+	case "Subscription.nativeEffectSupportChanged":
+		if e.ComplexityRoot.Subscription.NativeEffectSupportChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Subscription.NativeEffectSupportChanged(childComplexity), true
 	case "Subscription.networkTopologyUpdated":
 		if e.ComplexityRoot.Subscription.NetworkTopologyUpdated == nil {
 			break
@@ -3930,6 +4108,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.CreatedAt(childComplexity), true
+	case "User.hapticsEnabled":
+		if e.ComplexityRoot.User.HapticsEnabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.HapticsEnabled(childComplexity), true
 	case "User.id":
 		if e.ComplexityRoot.User.ID == nil {
 			break
@@ -3973,6 +4157,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.User.Username(childComplexity), true
 
+	case "WebhookDelivery.body":
+		if e.ComplexityRoot.WebhookDelivery.Body == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookDelivery.Body(childComplexity), true
 	case "WebhookDelivery.bodySize":
 		if e.ComplexityRoot.WebhookDelivery.BodySize == nil {
 			break
@@ -4151,6 +4341,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Zigbee2MqttBinding.TargetType(childComplexity), true
 
+	case "Zigbee2MqttBridgeInfo.adapterType":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.AdapterType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.AdapterType(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.channel":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.Channel == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.Channel(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.extendedPanId":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.ExtendedPanID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.ExtendedPanID(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.firmwareVersion":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.FirmwareVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.FirmwareVersion(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.panId":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.PanID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.PanID(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.zigbee2MqttCommit":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.Zigbee2MqttCommit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.Zigbee2MqttCommit(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.zigbee2MqttVersion":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.Zigbee2MqttVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.Zigbee2MqttVersion(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.zigbeeHerdsmanConvertersVersion":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.ZigbeeHerdsmanConvertersVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.ZigbeeHerdsmanConvertersVersion(childComplexity), true
+	case "Zigbee2MqttBridgeInfo.zigbeeHerdsmanVersion":
+		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.ZigbeeHerdsmanVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.ZigbeeHerdsmanVersion(childComplexity), true
+
 	case "Zigbee2MqttConfig.broker":
 		if e.ComplexityRoot.Zigbee2MqttConfig.Broker == nil {
 			break
@@ -4249,12 +4494,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Zigbee2MqttDeviceDefinition.Vendor(childComplexity), true
 
+	case "Zigbee2MqttDeviceDocumentation.batteryType":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.BatteryType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.BatteryType(childComplexity), true
+	case "Zigbee2MqttDeviceDocumentation.description":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Description(childComplexity), true
+	case "Zigbee2MqttDeviceDocumentation.exposes":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Exposes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Exposes(childComplexity), true
+	case "Zigbee2MqttDeviceDocumentation.lastCheckedAt":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.LastCheckedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.LastCheckedAt(childComplexity), true
+	case "Zigbee2MqttDeviceDocumentation.model":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Model(childComplexity), true
+	case "Zigbee2MqttDeviceDocumentation.sourceUrl":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.SourceURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.SourceURL(childComplexity), true
+	case "Zigbee2MqttDeviceDocumentation.vendor":
+		if e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Vendor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceDocumentation.Vendor(childComplexity), true
+
 	case "Zigbee2MqttDeviceMetadata.addressVendor":
 		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.AddressVendor == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.AddressVendor(childComplexity), true
+	case "Zigbee2MqttDeviceMetadata.bridgeInfo":
+		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.BridgeInfo == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.BridgeInfo(childComplexity), true
 	case "Zigbee2MqttDeviceMetadata.dateCode":
 		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.DateCode == nil {
 			break
@@ -4279,6 +4573,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Description(childComplexity), true
+	case "Zigbee2MqttDeviceMetadata.documentation":
+		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Documentation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Documentation(childComplexity), true
 	case "Zigbee2MqttDeviceMetadata.endpoints":
 		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Endpoints == nil {
 			break
@@ -4725,6 +5025,13 @@ type Device {
   """
   disabled: Boolean!
   """
+  When true the device is hidden from Hive surfaces except the opt-in deleted
+  device list and its direct detail page. Its integration, history, metadata,
+  memberships and other references remain intact. Deleted devices are disabled;
+  restoring one leaves it disabled until the user enables it separately.
+  """
+  deleted: Boolean!
+  """
   False from the moment an integration discovers a device until the user opens
   the device list, which is what marks it as new in the UI. An adapter re-sync
   never resets it.
@@ -4756,9 +5063,33 @@ type Zigbee2MqttDeviceMetadata {
   dateCode: String
   definition: Zigbee2MqttDeviceDefinition
   definitionUrl: String
+  documentation: Zigbee2MqttDeviceDocumentation
   ota: Zigbee2MqttOtaStatus!
   endpoints: [Zigbee2MqttEndpoint!]!
   groups: [Zigbee2MqttGroupReference!]!
+  bridgeInfo: Zigbee2MqttBridgeInfo
+}
+
+type Zigbee2MqttBridgeInfo {
+  adapterType: String
+  firmwareVersion: String
+  channel: Int
+  panId: Int
+  extendedPanId: String
+  zigbee2MqttVersion: String
+  zigbee2MqttCommit: String
+  zigbeeHerdsmanVersion: String
+  zigbeeHerdsmanConvertersVersion: String
+}
+
+type Zigbee2MqttDeviceDocumentation {
+  sourceUrl: String!
+  lastCheckedAt: DateTime!
+  model: String
+  vendor: String
+  description: String
+  exposes: [String!]!
+  batteryType: String
 }
 
 type Zigbee2MqttDeviceDefinition {
@@ -4970,6 +5301,7 @@ type WebhookDelivery {
   userAgent: String!
   contentType: String!
   bodySize: Int!
+  body: String
   durationMs: Int!
   requestId: String
   queryKeys: [String!]!
@@ -5121,16 +5453,41 @@ type ActiveEffect {
   volatile: Boolean!
 }
 
-"""
-A native effect option as offered by the editor. supportedDeviceCount is
-the number of currently-known devices whose effect capability advertises
-this value.
-"""
+"""A native effect option offered by connected integrations."""
 type NativeEffectOption {
   name: String!
   displayName: String!
   source: String!
-  supportedDeviceCount: Int!
+  confirmedDeviceCount: Int!
+  untestedDeviceCount: Int!
+  unsupportedDeviceCount: Int!
+}
+
+enum NativeEffectSupportStatus {
+  CONFIRMED
+  UNTESTED
+  UNSUPPORTED
+}
+
+enum NativeEffectRunStatus {
+  CONFIRMED
+  UNSUPPORTED
+  UNCONFIRMED
+}
+
+type NativeEffectDeviceSupport {
+  deviceId: ID!
+  status: NativeEffectSupportStatus!
+}
+
+type NativeEffectDeviceRunResult {
+  deviceId: ID!
+  status: NativeEffectRunStatus!
+}
+
+type NativeEffectRunResult {
+  runId: ID!
+  devices: [NativeEffectDeviceRunResult!]!
 }
 
 """
@@ -5478,6 +5835,11 @@ type User {
   """
   temperatureUnit: TemperatureUnit
   """
+  Whether supported touch devices provide brief haptic feedback for direct
+  interactions. Present on full user loads, null on attribution references.
+  """
+  hapticsEnabled: Boolean
+  """
   Timestamp the user was created; used on the profile page as "member since".
   Present on full user loads, null on attribution references.
   """
@@ -5530,6 +5892,7 @@ input UpdateCurrentUserInput {
   theme: Theme
   timeFormat: TimeFormat
   temperatureUnit: TemperatureUnit
+  hapticsEnabled: Boolean
 }
 
 input ChangePasswordInput {
@@ -6052,10 +6415,15 @@ type Query {
   effect(id: ID!): Effect @auth
   activeEffects: [ActiveEffect!]! @auth
   nativeEffectOptions: [NativeEffectOption!]! @auth
+  nativeEffectSupport(name: String!): [NativeEffectDeviceSupport!]! @auth
 }
 
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
+  deleteDevice(id: ID!): Device! @auth
+  restoreDevice(id: ID!): Device! @auth
+  batchDeleteDevices(ids: [ID!]!): Int! @auth
+  batchRestoreDevices(ids: [ID!]!): Int! @auth
   setTargetState(targetType: CommandTargetType!, targetId: ID!, state: DeviceStateInput!): Boolean! @auth
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
@@ -6179,13 +6547,10 @@ type Mutation {
   """
   runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect! @auth
   """
-  Starts a native effect by name on the given target without requiring a
-  stored Effect row. Preempts any effect already running on the target.
-  Native ad-hoc runs are fire-and-forget: no active_effects row is
-  persisted, so Query.activeEffects will not list them. The returned
-  ActiveEffect synthesises a transient view of the run.
+  Requests a native effect and waits briefly for each target device to report
+  whether it started. Devices without a verifiable readback return UNCONFIRMED.
   """
-  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect! @auth
+  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): NativeEffectRunResult! @auth
   """
   Stops any effect currently running on the target. Returns true when a
   run was active, false otherwise.
@@ -6201,7 +6566,7 @@ type Subscription {
   deviceAdded: Device! @auth
   """
   Fires when a device's user-owned metadata changes — name override, icon,
-  roles, display colour, disabled — carrying the full updated device. This is
+  roles, display colour, disabled, deleted — carrying the full updated device. This is
   what keeps a second open tab's rename in step without a reload.
   """
   deviceUpdated: Device! @auth
@@ -6220,6 +6585,7 @@ type Subscription {
   step boundaries are broadcast.
   """
   effectStepActivated(runId: ID): EffectStepEvent! @auth
+  nativeEffectSupportChanged: DateTime! @auth
   """
   Fires after a merged topology snapshot is persisted, so a consumer that
   re-queries on it always reads the new snapshot. When provider is given,
@@ -6322,6 +6688,17 @@ func (ec *executionContext) field_Mutation_batchDeleteAutomations_args(ctx conte
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_batchDeleteDevices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_batchDeleteEffects_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6378,6 +6755,17 @@ func (ec *executionContext) field_Mutation_batchDeleteUsers_args(ctx context.Con
 }
 
 func (ec *executionContext) field_Mutation_batchDeleteWebhookEndpoints_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchRestoreDevices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
@@ -6521,6 +6909,17 @@ func (ec *executionContext) field_Mutation_deleteAlarm_args(ctx context.Context,
 }
 
 func (ec *executionContext) field_Mutation_deleteAutomation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteDevice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
@@ -6703,6 +7102,17 @@ func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Co
 		return nil, err
 	}
 	args["newPassword"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_restoreDevice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -7134,6 +7544,17 @@ func (ec *executionContext) field_Query_logs_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["limit"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_nativeEffectSupport_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
 	return args, nil
 }
 
@@ -8405,6 +8826,8 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -8764,6 +9187,8 @@ func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Con
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -9967,6 +10392,35 @@ func (ec *executionContext) fieldContext_Device_disabled(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Device_deleted(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_deleted,
+		func(ctx context.Context) (any, error) {
+			return obj.Deleted, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_deleted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Device_seen(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10201,12 +10655,16 @@ func (ec *executionContext) fieldContext_Device_zigbee2Mqtt(_ context.Context, f
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_definition(ctx, field)
 			case "definitionUrl":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_definitionUrl(ctx, field)
+			case "documentation":
+				return ec.fieldContext_Zigbee2MqttDeviceMetadata_documentation(ctx, field)
 			case "ota":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_ota(ctx, field)
 			case "endpoints":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_endpoints(ctx, field)
 			case "groups":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_groups(ctx, field)
+			case "bridgeInfo":
+				return ec.fieldContext_Zigbee2MqttDeviceMetadata_bridgeInfo(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttDeviceMetadata", field.Name)
 		},
@@ -11724,6 +12182,8 @@ func (ec *executionContext) fieldContext_Effect_createdBy(_ context.Context, fie
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -13836,6 +14296,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -13891,6 +14353,8 @@ func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -14037,6 +14501,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -14660,6 +15126,8 @@ func (ec *executionContext) fieldContext_MaintenanceTask_device(_ context.Contex
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -14826,6 +15294,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -14848,6 +15318,298 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteDevice,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteDevice(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteDevice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
+			case "capabilities":
+				return ec.fieldContext_Device_capabilities(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
+			case "zigbee2Mqtt":
+				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_restoreDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_restoreDevice,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RestoreDevice(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Device
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_restoreDevice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Device_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Device_name(ctx, field)
+			case "friendlyName":
+				return ec.fieldContext_Device_friendlyName(ctx, field)
+			case "icon":
+				return ec.fieldContext_Device_icon(ctx, field)
+			case "displayColor":
+				return ec.fieldContext_Device_displayColor(ctx, field)
+			case "displayBrightness":
+				return ec.fieldContext_Device_displayBrightness(ctx, field)
+			case "source":
+				return ec.fieldContext_Device_source(ctx, field)
+			case "type":
+				return ec.fieldContext_Device_type(ctx, field)
+			case "roles":
+				return ec.fieldContext_Device_roles(ctx, field)
+			case "capabilities":
+				return ec.fieldContext_Device_capabilities(ctx, field)
+			case "available":
+				return ec.fieldContext_Device_available(ctx, field)
+			case "disabled":
+				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
+			case "seen":
+				return ec.fieldContext_Device_seen(ctx, field)
+			case "lastSeen":
+				return ec.fieldContext_Device_lastSeen(ctx, field)
+			case "state":
+				return ec.fieldContext_Device_state(ctx, field)
+			case "configuration":
+				return ec.fieldContext_Device_configuration(ctx, field)
+			case "zigbee2Mqtt":
+				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_restoreDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteDevices,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteDevices(ctx, fc.Args["ids"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteDevices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteDevices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchRestoreDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchRestoreDevices,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchRestoreDevices(ctx, fc.Args["ids"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchRestoreDevices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchRestoreDevices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -17045,6 +17807,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -17322,6 +18086,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -17396,6 +18162,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCurrentUser(ctx context.
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -18747,7 +19515,7 @@ func (ec *executionContext) _Mutation_runNativeEffect(ctx context.Context, field
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.Auth == nil {
-					var zeroVal *model.ActiveEffect
+					var zeroVal *model.NativeEffectRunResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0)
@@ -18756,7 +19524,7 @@ func (ec *executionContext) _Mutation_runNativeEffect(ctx context.Context, field
 			next = directive1
 			return next
 		},
-		ec.marshalNActiveEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐActiveEffect,
+		ec.marshalNNativeEffectRunResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectRunResult,
 		true,
 		true,
 	)
@@ -18770,20 +19538,12 @@ func (ec *executionContext) fieldContext_Mutation_runNativeEffect(ctx context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_ActiveEffect_id(ctx, field)
-			case "effect":
-				return ec.fieldContext_ActiveEffect_effect(ctx, field)
-			case "targetType":
-				return ec.fieldContext_ActiveEffect_targetType(ctx, field)
-			case "targetId":
-				return ec.fieldContext_ActiveEffect_targetId(ctx, field)
-			case "startedAt":
-				return ec.fieldContext_ActiveEffect_startedAt(ctx, field)
-			case "volatile":
-				return ec.fieldContext_ActiveEffect_volatile(ctx, field)
+			case "runId":
+				return ec.fieldContext_NativeEffectRunResult_runId(ctx, field)
+			case "devices":
+				return ec.fieldContext_NativeEffectRunResult_devices(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type ActiveEffect", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type NativeEffectRunResult", field.Name)
 		},
 	}
 	defer func() {
@@ -18850,6 +19610,122 @@ func (ec *executionContext) fieldContext_Mutation_stopEffect(ctx context.Context
 	if fc.Args, err = ec.field_Mutation_stopEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectDeviceRunResult_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectDeviceRunResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectDeviceRunResult_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectDeviceRunResult_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectDeviceRunResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectDeviceRunResult_status(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectDeviceRunResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectDeviceRunResult_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNNativeEffectRunStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectRunStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectDeviceRunResult_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectDeviceRunResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NativeEffectRunStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectDeviceSupport_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectDeviceSupport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectDeviceSupport_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectDeviceSupport_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectDeviceSupport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectDeviceSupport_status(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectDeviceSupport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectDeviceSupport_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNNativeEffectSupportStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectSupportStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectDeviceSupport_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectDeviceSupport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type NativeEffectSupportStatus does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -18941,14 +19817,14 @@ func (ec *executionContext) fieldContext_NativeEffectOption_source(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _NativeEffectOption_supportedDeviceCount(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
+func (ec *executionContext) _NativeEffectOption_confirmedDeviceCount(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_NativeEffectOption_supportedDeviceCount,
+		ec.fieldContext_NativeEffectOption_confirmedDeviceCount,
 		func(ctx context.Context) (any, error) {
-			return obj.SupportedDeviceCount, nil
+			return obj.ConfirmedDeviceCount, nil
 		},
 		nil,
 		ec.marshalNInt2int,
@@ -18957,7 +19833,7 @@ func (ec *executionContext) _NativeEffectOption_supportedDeviceCount(ctx context
 	)
 }
 
-func (ec *executionContext) fieldContext_NativeEffectOption_supportedDeviceCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_NativeEffectOption_confirmedDeviceCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "NativeEffectOption",
 		Field:      field,
@@ -18965,6 +19841,128 @@ func (ec *executionContext) fieldContext_NativeEffectOption_supportedDeviceCount
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectOption_untestedDeviceCount(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectOption_untestedDeviceCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UntestedDeviceCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectOption_untestedDeviceCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectOption_unsupportedDeviceCount(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectOption_unsupportedDeviceCount,
+		func(ctx context.Context) (any, error) {
+			return obj.UnsupportedDeviceCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectOption_unsupportedDeviceCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectRunResult_runId(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectRunResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectRunResult_runId,
+		func(ctx context.Context) (any, error) {
+			return obj.RunID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectRunResult_runId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectRunResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NativeEffectRunResult_devices(ctx context.Context, field graphql.CollectedField, obj *model.NativeEffectRunResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NativeEffectRunResult_devices,
+		func(ctx context.Context) (any, error) {
+			return obj.Devices, nil
+		},
+		nil,
+		ec.marshalNNativeEffectDeviceRunResult2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceRunResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NativeEffectRunResult_devices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NativeEffectRunResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_NativeEffectDeviceRunResult_deviceId(ctx, field)
+			case "status":
+				return ec.fieldContext_NativeEffectDeviceRunResult_status(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type NativeEffectDeviceRunResult", field.Name)
 		},
 	}
 	return fc, nil
@@ -19345,6 +20343,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -19424,6 +20424,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -19916,6 +20918,8 @@ func (ec *executionContext) fieldContext_Query_webhookDeliveries(ctx context.Con
 				return ec.fieldContext_WebhookDelivery_contentType(ctx, field)
 			case "bodySize":
 				return ec.fieldContext_WebhookDelivery_bodySize(ctx, field)
+			case "body":
+				return ec.fieldContext_WebhookDelivery_body(ctx, field)
 			case "durationMs":
 				return ec.fieldContext_WebhookDelivery_durationMs(ctx, field)
 			case "requestId":
@@ -21047,6 +22051,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -21109,6 +22115,8 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -21371,11 +22379,75 @@ func (ec *executionContext) fieldContext_Query_nativeEffectOptions(_ context.Con
 				return ec.fieldContext_NativeEffectOption_displayName(ctx, field)
 			case "source":
 				return ec.fieldContext_NativeEffectOption_source(ctx, field)
-			case "supportedDeviceCount":
-				return ec.fieldContext_NativeEffectOption_supportedDeviceCount(ctx, field)
+			case "confirmedDeviceCount":
+				return ec.fieldContext_NativeEffectOption_confirmedDeviceCount(ctx, field)
+			case "untestedDeviceCount":
+				return ec.fieldContext_NativeEffectOption_untestedDeviceCount(ctx, field)
+			case "unsupportedDeviceCount":
+				return ec.fieldContext_NativeEffectOption_unsupportedDeviceCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type NativeEffectOption", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_nativeEffectSupport(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_nativeEffectSupport,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().NativeEffectSupport(ctx, fc.Args["name"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.NativeEffectDeviceSupport
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNNativeEffectDeviceSupport2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceSupportᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_nativeEffectSupport(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_NativeEffectDeviceSupport_deviceId(ctx, field)
+			case "status":
+				return ec.fieldContext_NativeEffectDeviceSupport_status(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type NativeEffectDeviceSupport", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_nativeEffectSupport_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -21664,6 +22736,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -21719,6 +22793,8 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -21865,6 +22941,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -22212,6 +23290,8 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -23143,6 +24223,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -23221,6 +24303,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceUpdated(_ context.Co
 				return ec.fieldContext_Device_available(ctx, field)
 			case "disabled":
 				return ec.fieldContext_Device_disabled(ctx, field)
+			case "deleted":
+				return ec.fieldContext_Device_deleted(ctx, field)
 			case "seen":
 				return ec.fieldContext_Device_seen(ctx, field)
 			case "lastSeen":
@@ -23700,6 +24784,8 @@ func (ec *executionContext) fieldContext_Subscription_webhookDeliveryRecorded(ct
 				return ec.fieldContext_WebhookDelivery_contentType(ctx, field)
 			case "bodySize":
 				return ec.fieldContext_WebhookDelivery_bodySize(ctx, field)
+			case "body":
+				return ec.fieldContext_WebhookDelivery_body(ctx, field)
 			case "durationMs":
 				return ec.fieldContext_WebhookDelivery_durationMs(ctx, field)
 			case "requestId":
@@ -23786,6 +24872,48 @@ func (ec *executionContext) fieldContext_Subscription_effectStepActivated(ctx co
 	if fc.Args, err = ec.field_Subscription_effectStepActivated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_nativeEffectSupportChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_nativeEffectSupportChanged,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Subscription().NativeEffectSupportChanged(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *time.Time
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDateTime2ᚖtimeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_nativeEffectSupportChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -24579,6 +25707,35 @@ func (ec *executionContext) fieldContext_User_temperatureUnit(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _User_hapticsEnabled(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_hapticsEnabled,
+		func(ctx context.Context) (any, error) {
+			return obj.HapticsEnabled, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_hapticsEnabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -24893,6 +26050,35 @@ func (ec *executionContext) fieldContext_WebhookDelivery_bodySize(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhookDelivery_body(ctx context.Context, field graphql.CollectedField, obj *model.WebhookDelivery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookDelivery_body,
+		func(ctx context.Context) (any, error) {
+			return obj.Body, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookDelivery_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookDelivery",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -25255,6 +26441,8 @@ func (ec *executionContext) fieldContext_WebhookEndpoint_createdBy(_ context.Con
 				return ec.fieldContext_User_timeFormat(ctx, field)
 			case "temperatureUnit":
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
+			case "hapticsEnabled":
+				return ec.fieldContext_User_hapticsEnabled(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -25513,6 +26701,267 @@ func (ec *executionContext) fieldContext_Zigbee2MqttBinding_targetGroupId(_ cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_adapterType(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_adapterType,
+		func(ctx context.Context) (any, error) {
+			return obj.AdapterType, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_adapterType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_firmwareVersion(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_firmwareVersion,
+		func(ctx context.Context) (any, error) {
+			return obj.FirmwareVersion, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_firmwareVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_channel(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_channel,
+		func(ctx context.Context) (any, error) {
+			return obj.Channel, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_channel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_panId(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_panId,
+		func(ctx context.Context) (any, error) {
+			return obj.PanID, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_panId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_extendedPanId(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_extendedPanId,
+		func(ctx context.Context) (any, error) {
+			return obj.ExtendedPanID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_extendedPanId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_zigbee2MqttVersion(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_zigbee2MqttVersion,
+		func(ctx context.Context) (any, error) {
+			return obj.Zigbee2MqttVersion, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_zigbee2MqttVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_zigbee2MqttCommit(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_zigbee2MqttCommit,
+		func(ctx context.Context) (any, error) {
+			return obj.Zigbee2MqttCommit, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_zigbee2MqttCommit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_zigbeeHerdsmanVersion(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanVersion,
+		func(ctx context.Context) (any, error) {
+			return obj.ZigbeeHerdsmanVersion, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo_zigbeeHerdsmanConvertersVersion(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanConvertersVersion,
+		func(ctx context.Context) (any, error) {
+			return obj.ZigbeeHerdsmanConvertersVersion, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanConvertersVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttBridgeInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -25977,6 +27426,209 @@ func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDefinition_supportsOta
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_sourceUrl(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_sourceUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceURL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_sourceUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_lastCheckedAt(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_lastCheckedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.LastCheckedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_lastCheckedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_model(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_vendor(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_vendor,
+		func(ctx context.Context) (any, error) {
+			return obj.Vendor, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_vendor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_description(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_exposes(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_exposes,
+		func(ctx context.Context) (any, error) {
+			return obj.Exposes, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_exposes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation_batteryType(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDocumentation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceDocumentation_batteryType,
+		func(ctx context.Context) (any, error) {
+			return obj.BatteryType, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_batteryType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceDocumentation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -26518,6 +28170,51 @@ func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_definitionUrl
 	return fc, nil
 }
 
+func (ec *executionContext) _Zigbee2MqttDeviceMetadata_documentation(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceMetadata_documentation,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Zigbee2MqttDeviceMetadata().Documentation(ctx, obj)
+		},
+		nil,
+		ec.marshalOZigbee2MqttDeviceDocumentation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttDeviceDocumentation,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_documentation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceMetadata",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sourceUrl":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_sourceUrl(ctx, field)
+			case "lastCheckedAt":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_lastCheckedAt(ctx, field)
+			case "model":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_model(ctx, field)
+			case "vendor":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_vendor(ctx, field)
+			case "description":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_description(ctx, field)
+			case "exposes":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_exposes(ctx, field)
+			case "batteryType":
+				return ec.fieldContext_Zigbee2MqttDeviceDocumentation_batteryType(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttDeviceDocumentation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Zigbee2MqttDeviceMetadata_ota(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -26636,6 +28333,55 @@ func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_groups(_ cont
 				return ec.fieldContext_Zigbee2MqttGroupReference_endpoint(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttGroupReference", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttDeviceMetadata_bridgeInfo(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttDeviceMetadata_bridgeInfo,
+		func(ctx context.Context) (any, error) {
+			return obj.BridgeInfo, nil
+		},
+		nil,
+		ec.marshalOZigbee2MqttBridgeInfo2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBridgeInfo,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_bridgeInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttDeviceMetadata",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "adapterType":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_adapterType(ctx, field)
+			case "firmwareVersion":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_firmwareVersion(ctx, field)
+			case "channel":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_channel(ctx, field)
+			case "panId":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_panId(ctx, field)
+			case "extendedPanId":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_extendedPanId(ctx, field)
+			case "zigbee2MqttVersion":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_zigbee2MqttVersion(ctx, field)
+			case "zigbee2MqttCommit":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_zigbee2MqttCommit(ctx, field)
+			case "zigbeeHerdsmanVersion":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanVersion(ctx, field)
+			case "zigbeeHerdsmanConvertersVersion":
+				return ec.fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanConvertersVersion(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttBridgeInfo", field.Name)
 		},
 	}
 	return fc, nil
@@ -30664,7 +32410,7 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "theme", "timeFormat", "temperatureUnit"}
+	fieldsInOrder := [...]string{"name", "theme", "timeFormat", "temperatureUnit", "hapticsEnabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -30699,6 +32445,13 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 				return it, err
 			}
 			it.TemperatureUnit = graphql.OmittableOf(data)
+		case "hapticsEnabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hapticsEnabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HapticsEnabled = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -32124,6 +33877,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "disabled":
 			out.Values[i] = ec._Device_disabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "deleted":
+			out.Values[i] = ec._Device_deleted(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -33621,6 +35379,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "deleteDevice":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteDevice(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "restoreDevice":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_restoreDevice(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteDevices":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteDevices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchRestoreDevices":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchRestoreDevices(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "setTargetState":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setTargetState(ctx, field)
@@ -34092,6 +35878,94 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
+var nativeEffectDeviceRunResultImplementors = []string{"NativeEffectDeviceRunResult"}
+
+func (ec *executionContext) _NativeEffectDeviceRunResult(ctx context.Context, sel ast.SelectionSet, obj *model.NativeEffectDeviceRunResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, nativeEffectDeviceRunResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NativeEffectDeviceRunResult")
+		case "deviceId":
+			out.Values[i] = ec._NativeEffectDeviceRunResult_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._NativeEffectDeviceRunResult_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var nativeEffectDeviceSupportImplementors = []string{"NativeEffectDeviceSupport"}
+
+func (ec *executionContext) _NativeEffectDeviceSupport(ctx context.Context, sel ast.SelectionSet, obj *model.NativeEffectDeviceSupport) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, nativeEffectDeviceSupportImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NativeEffectDeviceSupport")
+		case "deviceId":
+			out.Values[i] = ec._NativeEffectDeviceSupport_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._NativeEffectDeviceSupport_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var nativeEffectOptionImplementors = []string{"NativeEffectOption"}
 
 func (ec *executionContext) _NativeEffectOption(ctx context.Context, sel ast.SelectionSet, obj *model.NativeEffectOption) graphql.Marshaler {
@@ -34118,8 +35992,62 @@ func (ec *executionContext) _NativeEffectOption(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "supportedDeviceCount":
-			out.Values[i] = ec._NativeEffectOption_supportedDeviceCount(ctx, field, obj)
+		case "confirmedDeviceCount":
+			out.Values[i] = ec._NativeEffectOption_confirmedDeviceCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "untestedDeviceCount":
+			out.Values[i] = ec._NativeEffectOption_untestedDeviceCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unsupportedDeviceCount":
+			out.Values[i] = ec._NativeEffectOption_unsupportedDeviceCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var nativeEffectRunResultImplementors = []string{"NativeEffectRunResult"}
+
+func (ec *executionContext) _NativeEffectRunResult(ctx context.Context, sel ast.SelectionSet, obj *model.NativeEffectRunResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, nativeEffectRunResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NativeEffectRunResult")
+		case "runId":
+			out.Values[i] = ec._NativeEffectRunResult_runId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "devices":
+			out.Values[i] = ec._NativeEffectRunResult_devices(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -35010,6 +36938,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "nativeEffectSupport":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_nativeEffectSupport(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -35590,6 +37540,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_webhookDeliveryRecorded(ctx, fields[0])
 	case "effectStepActivated":
 		return ec._Subscription_effectStepActivated(ctx, fields[0])
+	case "nativeEffectSupportChanged":
+		return ec._Subscription_nativeEffectSupportChanged(ctx, fields[0])
 	case "networkTopologyUpdated":
 		return ec._Subscription_networkTopologyUpdated(ctx, fields[0])
 	default:
@@ -35851,6 +37803,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_timeFormat(ctx, field, obj)
 		case "temperatureUnit":
 			out.Values[i] = ec._User_temperatureUnit(ctx, field, obj)
+		case "hapticsEnabled":
+			out.Values[i] = ec._User_hapticsEnabled(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
@@ -35934,6 +37888,8 @@ func (ec *executionContext) _WebhookDelivery(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "body":
+			out.Values[i] = ec._WebhookDelivery_body(ctx, field, obj)
 		case "durationMs":
 			out.Values[i] = ec._WebhookDelivery_durationMs(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -36141,6 +38097,58 @@ func (ec *executionContext) _Zigbee2MqttBinding(ctx context.Context, sel ast.Sel
 	return out
 }
 
+var zigbee2MqttBridgeInfoImplementors = []string{"Zigbee2MqttBridgeInfo"}
+
+func (ec *executionContext) _Zigbee2MqttBridgeInfo(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttBridgeInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttBridgeInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Zigbee2MqttBridgeInfo")
+		case "adapterType":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_adapterType(ctx, field, obj)
+		case "firmwareVersion":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_firmwareVersion(ctx, field, obj)
+		case "channel":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_channel(ctx, field, obj)
+		case "panId":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_panId(ctx, field, obj)
+		case "extendedPanId":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_extendedPanId(ctx, field, obj)
+		case "zigbee2MqttVersion":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_zigbee2MqttVersion(ctx, field, obj)
+		case "zigbee2MqttCommit":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_zigbee2MqttCommit(ctx, field, obj)
+		case "zigbeeHerdsmanVersion":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_zigbeeHerdsmanVersion(ctx, field, obj)
+		case "zigbeeHerdsmanConvertersVersion":
+			out.Values[i] = ec._Zigbee2MqttBridgeInfo_zigbeeHerdsmanConvertersVersion(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var zigbee2MqttConfigImplementors = []string{"Zigbee2MqttConfig"}
 
 func (ec *executionContext) _Zigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttConfig) graphql.Marshaler {
@@ -36259,6 +38267,63 @@ func (ec *executionContext) _Zigbee2MqttDeviceDefinition(ctx context.Context, se
 	return out
 }
 
+var zigbee2MqttDeviceDocumentationImplementors = []string{"Zigbee2MqttDeviceDocumentation"}
+
+func (ec *executionContext) _Zigbee2MqttDeviceDocumentation(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttDeviceDocumentation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttDeviceDocumentationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Zigbee2MqttDeviceDocumentation")
+		case "sourceUrl":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_sourceUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastCheckedAt":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_lastCheckedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_model(ctx, field, obj)
+		case "vendor":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_vendor(ctx, field, obj)
+		case "description":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_description(ctx, field, obj)
+		case "exposes":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_exposes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batteryType":
+			out.Values[i] = ec._Zigbee2MqttDeviceDocumentation_batteryType(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var zigbee2MqttDeviceMetadataImplementors = []string{"Zigbee2MqttDeviceMetadata"}
 
 func (ec *executionContext) _Zigbee2MqttDeviceMetadata(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttDeviceMetadata) graphql.Marshaler {
@@ -36273,7 +38338,7 @@ func (ec *executionContext) _Zigbee2MqttDeviceMetadata(ctx context.Context, sel 
 		case "imageCandidate":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_imageCandidate(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "imageVersion":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_imageVersion(ctx, field, obj)
@@ -36309,21 +38374,56 @@ func (ec *executionContext) _Zigbee2MqttDeviceMetadata(ctx context.Context, sel 
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_definition(ctx, field, obj)
 		case "definitionUrl":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_definitionUrl(ctx, field, obj)
+		case "documentation":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Zigbee2MqttDeviceMetadata_documentation(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "ota":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_ota(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "endpoints":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_endpoints(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "groups":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_groups(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "bridgeInfo":
+			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_bridgeInfo(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -38351,6 +40451,58 @@ func (ec *executionContext) marshalNMaintenanceTask2ᚖgithubᚗcomᚋsaffronjam
 	return ec._MaintenanceTask(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNNativeEffectDeviceRunResult2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceRunResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NativeEffectDeviceRunResult) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNativeEffectDeviceRunResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceRunResult(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNativeEffectDeviceRunResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceRunResult(ctx context.Context, sel ast.SelectionSet, v *model.NativeEffectDeviceRunResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NativeEffectDeviceRunResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNativeEffectDeviceSupport2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceSupportᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NativeEffectDeviceSupport) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNNativeEffectDeviceSupport2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceSupport(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNNativeEffectDeviceSupport2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectDeviceSupport(ctx context.Context, sel ast.SelectionSet, v *model.NativeEffectDeviceSupport) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NativeEffectDeviceSupport(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNNativeEffectOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectOptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NativeEffectOption) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -38375,6 +40527,40 @@ func (ec *executionContext) marshalNNativeEffectOption2ᚖgithubᚗcomᚋsaffron
 		return graphql.Null
 	}
 	return ec._NativeEffectOption(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNativeEffectRunResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectRunResult(ctx context.Context, sel ast.SelectionSet, v model.NativeEffectRunResult) graphql.Marshaler {
+	return ec._NativeEffectRunResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNNativeEffectRunResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectRunResult(ctx context.Context, sel ast.SelectionSet, v *model.NativeEffectRunResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._NativeEffectRunResult(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNNativeEffectRunStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectRunStatus(ctx context.Context, v any) (model.NativeEffectRunStatus, error) {
+	var res model.NativeEffectRunStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNNativeEffectRunStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectRunStatus(ctx context.Context, sel ast.SelectionSet, v model.NativeEffectRunStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNNativeEffectSupportStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectSupportStatus(ctx context.Context, v any) (model.NativeEffectSupportStatus, error) {
+	var res model.NativeEffectSupportStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNNativeEffectSupportStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNativeEffectSupportStatus(ctx context.Context, sel ast.SelectionSet, v model.NativeEffectSupportStatus) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNNetworkTopology2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐNetworkTopologyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NetworkTopology) graphql.Marshaler {
@@ -39911,6 +42097,13 @@ func (ec *executionContext) marshalOWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjam
 	return ec._WebhookEndpoint(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOZigbee2MqttBridgeInfo2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBridgeInfo(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttBridgeInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Zigbee2MqttBridgeInfo(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttConfig) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -39923,6 +42116,13 @@ func (ec *executionContext) marshalOZigbee2MqttDeviceDefinition2ᚖgithubᚗcom�
 		return graphql.Null
 	}
 	return ec._Zigbee2MqttDeviceDefinition(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOZigbee2MqttDeviceDocumentation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttDeviceDocumentation(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttDeviceDocumentation) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Zigbee2MqttDeviceDocumentation(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOZigbee2MqttDeviceMetadata2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttDeviceMetadata(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttDeviceMetadata) graphql.Marshaler {

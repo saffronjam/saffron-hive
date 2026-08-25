@@ -75,6 +75,13 @@ type Device {
   """
   disabled: Boolean!
   """
+  When true the device is hidden from Hive surfaces except the opt-in deleted
+  device list and its direct detail page. Its integration, history, metadata,
+  memberships and other references remain intact. Deleted devices are disabled;
+  restoring one leaves it disabled until the user enables it separately.
+  """
+  deleted: Boolean!
+  """
   False from the moment an integration discovers a device until the user opens
   the device list, which is what marks it as new in the UI. An adapter re-sync
   never resets it.
@@ -106,9 +113,33 @@ type Zigbee2MqttDeviceMetadata {
   dateCode: String
   definition: Zigbee2MqttDeviceDefinition
   definitionUrl: String
+  documentation: Zigbee2MqttDeviceDocumentation
   ota: Zigbee2MqttOtaStatus!
   endpoints: [Zigbee2MqttEndpoint!]!
   groups: [Zigbee2MqttGroupReference!]!
+  bridgeInfo: Zigbee2MqttBridgeInfo
+}
+
+type Zigbee2MqttBridgeInfo {
+  adapterType: String
+  firmwareVersion: String
+  channel: Int
+  panId: Int
+  extendedPanId: String
+  zigbee2MqttVersion: String
+  zigbee2MqttCommit: String
+  zigbeeHerdsmanVersion: String
+  zigbeeHerdsmanConvertersVersion: String
+}
+
+type Zigbee2MqttDeviceDocumentation {
+  sourceUrl: String!
+  lastCheckedAt: DateTime!
+  model: String
+  vendor: String
+  description: String
+  exposes: [String!]!
+  batteryType: String
 }
 
 type Zigbee2MqttDeviceDefinition {
@@ -320,6 +351,7 @@ type WebhookDelivery {
   userAgent: String!
   contentType: String!
   bodySize: Int!
+  body: String
   durationMs: Int!
   requestId: String
   queryKeys: [String!]!
@@ -471,16 +503,41 @@ type ActiveEffect {
   volatile: Boolean!
 }
 
-"""
-A native effect option as offered by the editor. supportedDeviceCount is
-the number of currently-known devices whose effect capability advertises
-this value.
-"""
+"""A native effect option offered by connected integrations."""
 type NativeEffectOption {
   name: String!
   displayName: String!
   source: String!
-  supportedDeviceCount: Int!
+  confirmedDeviceCount: Int!
+  untestedDeviceCount: Int!
+  unsupportedDeviceCount: Int!
+}
+
+enum NativeEffectSupportStatus {
+  CONFIRMED
+  UNTESTED
+  UNSUPPORTED
+}
+
+enum NativeEffectRunStatus {
+  CONFIRMED
+  UNSUPPORTED
+  UNCONFIRMED
+}
+
+type NativeEffectDeviceSupport {
+  deviceId: ID!
+  status: NativeEffectSupportStatus!
+}
+
+type NativeEffectDeviceRunResult {
+  deviceId: ID!
+  status: NativeEffectRunStatus!
+}
+
+type NativeEffectRunResult {
+  runId: ID!
+  devices: [NativeEffectDeviceRunResult!]!
 }
 
 """
@@ -828,6 +885,11 @@ type User {
   """
   temperatureUnit: TemperatureUnit
   """
+  Whether supported touch devices provide brief haptic feedback for direct
+  interactions. Present on full user loads, null on attribution references.
+  """
+  hapticsEnabled: Boolean
+  """
   Timestamp the user was created; used on the profile page as "member since".
   Present on full user loads, null on attribution references.
   """
@@ -880,6 +942,7 @@ input UpdateCurrentUserInput {
   theme: Theme
   timeFormat: TimeFormat
   temperatureUnit: TemperatureUnit
+  hapticsEnabled: Boolean
 }
 
 input ChangePasswordInput {
@@ -1402,10 +1465,15 @@ type Query {
   effect(id: ID!): Effect @auth
   activeEffects: [ActiveEffect!]! @auth
   nativeEffectOptions: [NativeEffectOption!]! @auth
+  nativeEffectSupport(name: String!): [NativeEffectDeviceSupport!]! @auth
 }
 
 type Mutation {
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
+  deleteDevice(id: ID!): Device! @auth
+  restoreDevice(id: ID!): Device! @auth
+  batchDeleteDevices(ids: [ID!]!): Int! @auth
+  batchRestoreDevices(ids: [ID!]!): Int! @auth
   setTargetState(targetType: CommandTargetType!, targetId: ID!, state: DeviceStateInput!): Boolean! @auth
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
@@ -1529,13 +1597,10 @@ type Mutation {
   """
   runEffect(effectId: ID!, targetType: String!, targetId: ID!): ActiveEffect! @auth
   """
-  Starts a native effect by name on the given target without requiring a
-  stored Effect row. Preempts any effect already running on the target.
-  Native ad-hoc runs are fire-and-forget: no active_effects row is
-  persisted, so Query.activeEffects will not list them. The returned
-  ActiveEffect synthesises a transient view of the run.
+  Requests a native effect and waits briefly for each target device to report
+  whether it started. Devices without a verifiable readback return UNCONFIRMED.
   """
-  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): ActiveEffect! @auth
+  runNativeEffect(nativeName: String!, targetType: String!, targetId: ID!): NativeEffectRunResult! @auth
   """
   Stops any effect currently running on the target. Returns true when a
   run was active, false otherwise.
@@ -1551,7 +1616,7 @@ type Subscription {
   deviceAdded: Device! @auth
   """
   Fires when a device's user-owned metadata changes — name override, icon,
-  roles, display colour, disabled — carrying the full updated device. This is
+  roles, display colour, disabled, deleted — carrying the full updated device. This is
   what keeps a second open tab's rename in step without a reload.
   """
   deviceUpdated: Device! @auth
@@ -1570,6 +1635,7 @@ type Subscription {
   step boundaries are broadcast.
   """
   effectStepActivated(runId: ID): EffectStepEvent! @auth
+  nativeEffectSupportChanged: DateTime! @auth
   """
   Fires after a merged topology snapshot is persisted, so a consumer that
   re-queries on it always reads the new snapshot. When provider is given,

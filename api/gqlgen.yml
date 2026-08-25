@@ -24,6 +24,10 @@ models:
     fields:
       zigbee2Mqtt:
         resolver: true
+  Zigbee2MqttDeviceMetadata:
+    fields:
+      documentation:
+        resolver: true
   DateTime:
     model:
       - github.com/99designs/gqlgen/graphql.Time

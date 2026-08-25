@@ -291,6 +291,11 @@ type Device struct {
 	// Its row, detail page, live subscriptions and state history are unaffected, and
 	// it still renders as a member of the rooms, groups and scenes it belongs to.
 	Disabled bool `json:"disabled"`
+	// When true the device is hidden from Hive surfaces except the opt-in deleted
+	// device list and its direct detail page. Its integration, history, metadata,
+	// memberships and other references remain intact. Deleted devices are disabled;
+	// restoring one leaves it disabled until the user enables it separately.
+	Deleted bool `json:"deleted"`
 	// False from the moment an integration discovers a device until the user opens
 	// the device list, which is what marks it as new in the UI. An adapter re-sync
 	// never resets it.
@@ -675,14 +680,29 @@ type MaintenanceTask struct {
 type Mutation struct {
 }
 
-// A native effect option as offered by the editor. supportedDeviceCount is
-// the number of currently-known devices whose effect capability advertises
-// this value.
+type NativeEffectDeviceRunResult struct {
+	DeviceID string                `json:"deviceId"`
+	Status   NativeEffectRunStatus `json:"status"`
+}
+
+type NativeEffectDeviceSupport struct {
+	DeviceID string                    `json:"deviceId"`
+	Status   NativeEffectSupportStatus `json:"status"`
+}
+
+// A native effect option offered by connected integrations.
 type NativeEffectOption struct {
-	Name                 string `json:"name"`
-	DisplayName          string `json:"displayName"`
-	Source               string `json:"source"`
-	SupportedDeviceCount int    `json:"supportedDeviceCount"`
+	Name                   string `json:"name"`
+	DisplayName            string `json:"displayName"`
+	Source                 string `json:"source"`
+	ConfirmedDeviceCount   int    `json:"confirmedDeviceCount"`
+	UntestedDeviceCount    int    `json:"untestedDeviceCount"`
+	UnsupportedDeviceCount int    `json:"unsupportedDeviceCount"`
+}
+
+type NativeEffectRunResult struct {
+	RunID   string                         `json:"runId"`
+	Devices []*NativeEffectDeviceRunResult `json:"devices"`
 }
 
 // One integration provider's mesh snapshot: what its latest network scan
@@ -927,6 +947,7 @@ type UpdateCurrentUserInput struct {
 	Theme           graphql.Omittable[*Theme]           `json:"theme,omitempty"`
 	TimeFormat      graphql.Omittable[*TimeFormat]      `json:"timeFormat,omitempty"`
 	TemperatureUnit graphql.Omittable[*TemperatureUnit] `json:"temperatureUnit,omitempty"`
+	HapticsEnabled  graphql.Omittable[*bool]            `json:"hapticsEnabled,omitempty"`
 }
 
 type UpdateDeviceInput struct {
@@ -1020,6 +1041,9 @@ type User struct {
 	// conversion is purely a frontend concern. Present on full user loads, null
 	// on attribution references.
 	TemperatureUnit *TemperatureUnit `json:"temperatureUnit,omitempty"`
+	// Whether supported touch devices provide brief haptic feedback for direct
+	// interactions. Present on full user loads, null on attribution references.
+	HapticsEnabled *bool `json:"hapticsEnabled,omitempty"`
 	// Timestamp the user was created; used on the profile page as "member since".
 	// Present on full user loads, null on attribution references.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
@@ -1041,6 +1065,7 @@ type WebhookDelivery struct {
 	UserAgent   string    `json:"userAgent"`
 	ContentType string    `json:"contentType"`
 	BodySize    int       `json:"bodySize"`
+	Body        *string   `json:"body,omitempty"`
 	DurationMs  int       `json:"durationMs"`
 	RequestID   *string   `json:"requestId,omitempty"`
 	QueryKeys   []string  `json:"queryKeys"`
@@ -1070,6 +1095,18 @@ type Zigbee2MqttBinding struct {
 	TargetIeeeAddress *string `json:"targetIeeeAddress,omitempty"`
 	TargetEndpoint    *int    `json:"targetEndpoint,omitempty"`
 	TargetGroupID     *int    `json:"targetGroupId,omitempty"`
+}
+
+type Zigbee2MqttBridgeInfo struct {
+	AdapterType                     *string `json:"adapterType,omitempty"`
+	FirmwareVersion                 *string `json:"firmwareVersion,omitempty"`
+	Channel                         *int    `json:"channel,omitempty"`
+	PanID                           *int    `json:"panId,omitempty"`
+	ExtendedPanID                   *string `json:"extendedPanId,omitempty"`
+	Zigbee2MqttVersion              *string `json:"zigbee2MqttVersion,omitempty"`
+	Zigbee2MqttCommit               *string `json:"zigbee2MqttCommit,omitempty"`
+	ZigbeeHerdsmanVersion           *string `json:"zigbeeHerdsmanVersion,omitempty"`
+	ZigbeeHerdsmanConvertersVersion *string `json:"zigbeeHerdsmanConvertersVersion,omitempty"`
 }
 
 type Zigbee2MqttConfig struct {
@@ -1115,28 +1152,40 @@ type Zigbee2MqttDeviceDefinition struct {
 	SupportsOta *bool   `json:"supportsOta,omitempty"`
 }
 
+type Zigbee2MqttDeviceDocumentation struct {
+	SourceURL     string    `json:"sourceUrl"`
+	LastCheckedAt time.Time `json:"lastCheckedAt"`
+	Model         *string   `json:"model,omitempty"`
+	Vendor        *string   `json:"vendor,omitempty"`
+	Description   *string   `json:"description,omitempty"`
+	Exposes       []string  `json:"exposes"`
+	BatteryType   *string   `json:"batteryType,omitempty"`
+}
+
 type Zigbee2MqttDeviceMetadata struct {
-	ImageCandidate     bool                         `json:"imageCandidate"`
-	ImageVersion       *string                      `json:"imageVersion,omitempty"`
-	NetworkType        *string                      `json:"networkType,omitempty"`
-	IeeeAddress        *string                      `json:"ieeeAddress,omitempty"`
-	AddressVendor      *string                      `json:"addressVendor,omitempty"`
-	NetworkAddress     *int                         `json:"networkAddress,omitempty"`
-	Supported          *bool                        `json:"supported,omitempty"`
-	InterviewState     *string                      `json:"interviewState,omitempty"`
-	InterviewCompleted *bool                        `json:"interviewCompleted,omitempty"`
-	Interviewing       *bool                        `json:"interviewing,omitempty"`
-	Description        *string                      `json:"description,omitempty"`
-	Manufacturer       *string                      `json:"manufacturer,omitempty"`
-	ModelID            *string                      `json:"modelId,omitempty"`
-	PowerSource        *string                      `json:"powerSource,omitempty"`
-	SoftwareBuildID    *string                      `json:"softwareBuildId,omitempty"`
-	DateCode           *string                      `json:"dateCode,omitempty"`
-	Definition         *Zigbee2MqttDeviceDefinition `json:"definition,omitempty"`
-	DefinitionURL      *string                      `json:"definitionUrl,omitempty"`
-	Ota                *Zigbee2MqttOtaStatus        `json:"ota"`
-	Endpoints          []*Zigbee2MqttEndpoint       `json:"endpoints"`
-	Groups             []*Zigbee2MqttGroupReference `json:"groups"`
+	ImageCandidate     bool                            `json:"imageCandidate"`
+	ImageVersion       *string                         `json:"imageVersion,omitempty"`
+	NetworkType        *string                         `json:"networkType,omitempty"`
+	IeeeAddress        *string                         `json:"ieeeAddress,omitempty"`
+	AddressVendor      *string                         `json:"addressVendor,omitempty"`
+	NetworkAddress     *int                            `json:"networkAddress,omitempty"`
+	Supported          *bool                           `json:"supported,omitempty"`
+	InterviewState     *string                         `json:"interviewState,omitempty"`
+	InterviewCompleted *bool                           `json:"interviewCompleted,omitempty"`
+	Interviewing       *bool                           `json:"interviewing,omitempty"`
+	Description        *string                         `json:"description,omitempty"`
+	Manufacturer       *string                         `json:"manufacturer,omitempty"`
+	ModelID            *string                         `json:"modelId,omitempty"`
+	PowerSource        *string                         `json:"powerSource,omitempty"`
+	SoftwareBuildID    *string                         `json:"softwareBuildId,omitempty"`
+	DateCode           *string                         `json:"dateCode,omitempty"`
+	Definition         *Zigbee2MqttDeviceDefinition    `json:"definition,omitempty"`
+	DefinitionURL      *string                         `json:"definitionUrl,omitempty"`
+	Documentation      *Zigbee2MqttDeviceDocumentation `json:"documentation,omitempty"`
+	Ota                *Zigbee2MqttOtaStatus           `json:"ota"`
+	Endpoints          []*Zigbee2MqttEndpoint          `json:"endpoints"`
+	Groups             []*Zigbee2MqttGroupReference    `json:"groups"`
+	BridgeInfo         *Zigbee2MqttBridgeInfo          `json:"bridgeInfo,omitempty"`
 }
 
 type Zigbee2MqttEndpoint struct {
@@ -2020,6 +2069,120 @@ func (e *MaintenanceKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e MaintenanceKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type NativeEffectRunStatus string
+
+const (
+	NativeEffectRunStatusConfirmed   NativeEffectRunStatus = "CONFIRMED"
+	NativeEffectRunStatusUnsupported NativeEffectRunStatus = "UNSUPPORTED"
+	NativeEffectRunStatusUnconfirmed NativeEffectRunStatus = "UNCONFIRMED"
+)
+
+var AllNativeEffectRunStatus = []NativeEffectRunStatus{
+	NativeEffectRunStatusConfirmed,
+	NativeEffectRunStatusUnsupported,
+	NativeEffectRunStatusUnconfirmed,
+}
+
+func (e NativeEffectRunStatus) IsValid() bool {
+	switch e {
+	case NativeEffectRunStatusConfirmed, NativeEffectRunStatusUnsupported, NativeEffectRunStatusUnconfirmed:
+		return true
+	}
+	return false
+}
+
+func (e NativeEffectRunStatus) String() string {
+	return string(e)
+}
+
+func (e *NativeEffectRunStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NativeEffectRunStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NativeEffectRunStatus", str)
+	}
+	return nil
+}
+
+func (e NativeEffectRunStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NativeEffectRunStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NativeEffectRunStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type NativeEffectSupportStatus string
+
+const (
+	NativeEffectSupportStatusConfirmed   NativeEffectSupportStatus = "CONFIRMED"
+	NativeEffectSupportStatusUntested    NativeEffectSupportStatus = "UNTESTED"
+	NativeEffectSupportStatusUnsupported NativeEffectSupportStatus = "UNSUPPORTED"
+)
+
+var AllNativeEffectSupportStatus = []NativeEffectSupportStatus{
+	NativeEffectSupportStatusConfirmed,
+	NativeEffectSupportStatusUntested,
+	NativeEffectSupportStatusUnsupported,
+}
+
+func (e NativeEffectSupportStatus) IsValid() bool {
+	switch e {
+	case NativeEffectSupportStatusConfirmed, NativeEffectSupportStatusUntested, NativeEffectSupportStatusUnsupported:
+		return true
+	}
+	return false
+}
+
+func (e NativeEffectSupportStatus) String() string {
+	return string(e)
+}
+
+func (e *NativeEffectSupportStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NativeEffectSupportStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NativeEffectSupportStatus", str)
+	}
+	return nil
+}
+
+func (e NativeEffectSupportStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NativeEffectSupportStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NativeEffectSupportStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
