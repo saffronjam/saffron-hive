@@ -184,20 +184,40 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 			Source:       device.SourceZigbee2MQTT,
 			Type:         devType,
 			Capabilities: capabilities,
-			Available:    true,
 		}
-
-		a.stateWriter.Register(dev)
 
 		print := device.AdapterFingerprint(dev)
 		a.mu.Lock()
 		prev, wasKnown := a.knownDevices[id]
+		oldName := a.idToName[id]
+		if oldName != "" && oldName != d.FriendlyName {
+			delete(a.nameToID, oldName)
+		}
 		a.ieeeToID[d.IEEEAddress] = id
 		a.nameToID[d.FriendlyName] = id
 		a.idToName[id] = d.FriendlyName
 		a.knownDevices[id] = print
 		a.configurationFeatures[id] = configuration
 		a.mu.Unlock()
+
+		if pending, ok := a.pendingAvailability[d.FriendlyName]; ok {
+			a.deviceAvailability[id] = pending
+			delete(a.pendingAvailability, d.FriendlyName)
+		}
+		if existing, ok := a.stateReader.GetDevice(id); ok {
+			dev.LastSeen = existing.LastSeen
+		}
+		dev.Available = a.effectiveAvailability(dev)
+		if dev.Available {
+			switch {
+			case dev.Type == device.Hub && !a.lastBridgeSignal.IsZero():
+				dev.LastSeen = a.lastBridgeSignal
+			case a.deviceAvailability[id].known && a.deviceAvailability[id].online:
+				dev.LastSeen = a.deviceAvailability[id].reported
+			}
+		}
+
+		a.stateWriter.Register(dev)
 
 		// zigbee2mqtt republishes the whole device list on every join, leave and
 		// rename, and publishes it again once an interview completes with the
@@ -227,6 +247,11 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 			Timestamp: time.Now(),
 			Payload:   mapBridgeMetadata(d),
 		})
+		if devType == device.Hub {
+			if info, ok := a.bridgeInfo[id]; ok {
+				a.publishBridgeInfo(id, info)
+			}
+		}
 	}
 
 	a.mu.Lock()
@@ -239,6 +264,8 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 	for _, id := range removed {
 		delete(a.knownDevices, id)
 		delete(a.configurationFeatures, id)
+		delete(a.deviceAvailability, id)
+		delete(a.bridgeInfo, id)
 	}
 	a.mu.Unlock()
 

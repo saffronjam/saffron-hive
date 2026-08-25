@@ -117,6 +117,9 @@ type z2mDeviceState struct {
 	Update  *z2mUpdate `json:"update"`
 
 	Action string `json:"action"`
+
+	Effect     string  `json:"effect"`
+	PhilipsRaw *string `json:"philips_raw"`
 }
 
 type z2mUpdate struct {
@@ -141,6 +144,39 @@ type z2mBridgeLog struct {
 
 type z2mAvailability struct {
 	State string `json:"state"`
+}
+
+type z2mBridgeState struct {
+	State string `json:"state"`
+}
+
+type z2mBridgeInfo struct {
+	Version     string               `json:"version"`
+	Commit      string               `json:"commit"`
+	Coordinator z2mBridgeCoordinator `json:"coordinator"`
+	Network     z2mBridgeNetwork     `json:"network"`
+	Herdsman    z2mBridgeVersion     `json:"zigbee_herdsman"`
+	Converters  z2mBridgeVersion     `json:"zigbee_herdsman_converters"`
+}
+
+type z2mBridgeCoordinator struct {
+	IEEEAddress string                   `json:"ieee_address"`
+	Type        string                   `json:"type"`
+	Meta        z2mBridgeCoordinatorMeta `json:"meta"`
+}
+
+type z2mBridgeCoordinatorMeta struct {
+	Revision json.RawMessage `json:"revision"`
+}
+
+type z2mBridgeNetwork struct {
+	Channel       *int            `json:"channel"`
+	PANID         *int64          `json:"pan_id"`
+	ExtendedPANID json.RawMessage `json:"extended_pan_id"`
+}
+
+type z2mBridgeVersion struct {
+	Version string `json:"version"`
 }
 
 // The networkmap response uses camelCase keys, unlike the snake_case of

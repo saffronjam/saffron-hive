@@ -11,10 +11,15 @@ type Message interface {
 // MessageHandler is a callback invoked when a subscribed message arrives.
 type MessageHandler func(msg Message)
 
+// ConnectionStateHandler receives MQTT connection readiness changes. A true
+// value means the client has restored every registered subscription.
+type ConnectionStateHandler func(connected bool)
+
 // MQTTClient is the minimal MQTT interface needed by the adapter.
 type MQTTClient interface {
 	Subscribe(topic string, qos byte, callback MessageHandler) error
 	Publish(topic string, qos byte, retained bool, payload []byte) error
+	SetConnectionStateHandler(handler ConnectionStateHandler)
 	Connect() error
 	Disconnect(quiesce uint)
 	IsConnectionOpen() bool
@@ -34,6 +39,7 @@ type FakeMQTTClient struct {
 	connected     bool
 	subscriptions map[string]MessageHandler
 	published     []FakePublish
+	stateHandler  ConnectionStateHandler
 }
 
 // FakePublish records a single MQTT publish call.
@@ -53,18 +59,42 @@ func NewFakeMQTTClient() *FakeMQTTClient {
 
 // Connect marks the client as connected.
 func (f *FakeMQTTClient) Connect() error {
-	f.connected = true
+	f.setConnectionState(true)
 	return nil
 }
 
 // Disconnect marks the client as disconnected.
 func (f *FakeMQTTClient) Disconnect(_ uint) {
-	f.connected = false
+	f.setConnectionState(false)
 }
 
 // IsConnectionOpen returns the connection state.
 func (f *FakeMQTTClient) IsConnectionOpen() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return f.connected
+}
+
+// SetConnectionStateHandler registers a readiness callback.
+func (f *FakeMQTTClient) SetConnectionStateHandler(handler ConnectionStateHandler) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.stateHandler = handler
+}
+
+// SetConnectionState simulates a broker connection transition in tests.
+func (f *FakeMQTTClient) SetConnectionState(connected bool) {
+	f.setConnectionState(connected)
+}
+
+func (f *FakeMQTTClient) setConnectionState(connected bool) {
+	f.mu.Lock()
+	f.connected = connected
+	handler := f.stateHandler
+	f.mu.Unlock()
+	if handler != nil {
+		handler(connected)
+	}
 }
 
 // Subscribe registers a handler for a topic pattern.

@@ -10,19 +10,22 @@ import (
 
 func setupAdapterWithDevice(t *testing.T, friendlyName, ieee string, devType device.DeviceType) (*ZigbeeAdapter, *FakeMQTTClient, *mockEventBus, *mockStateWriter) {
 	t.Helper()
-	adapter, mqtt, bus, sw := newTestAdapter()
+	adapter, mqtt, bus, sw, reader := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
 
 	id := device.DeviceID(ieee)
-	sw.Register(device.Device{ID: id, FriendlyName: friendlyName, Type: devType, Available: true})
+	dev := device.Device{ID: id, FriendlyName: friendlyName, Source: device.SourceZigbee2MQTT, Type: devType, Available: true}
+	sw.Register(dev)
+	reader.Set(dev)
 
 	adapter.mu.Lock()
 	adapter.nameToID[friendlyName] = id
 	adapter.idToName[id] = friendlyName
 	adapter.ieeeToID[ieee] = id
 	adapter.mu.Unlock()
+	injectSync(adapter, mqtt, "zigbee2mqtt/bridge/state", []byte(`{"state":"online"}`))
 
 	return adapter, mqtt, bus, sw
 }

@@ -22,6 +22,7 @@ type incomingMsg struct {
 	topic   string
 	payload []byte
 	kind    dispatchKind
+	ready   bool
 	ack     chan struct{} // only set for dispatchBarrier
 }
 
@@ -30,12 +31,21 @@ type dispatchKind int
 const (
 	dispatchState dispatchKind = iota
 	dispatchAvailability
+	dispatchBridgeState
+	dispatchBridgeInfo
 	dispatchBridgeDevices
 	dispatchBridgeGroups
 	dispatchBridgeLog
 	dispatchNetworkmap
+	dispatchConnectionState
 	dispatchBarrier
 )
+
+type reportedAvailability struct {
+	known    bool
+	online   bool
+	reported time.Time
+}
 
 var logger = logging.Named("zigbee")
 
@@ -69,6 +79,14 @@ type ZigbeeAdapter struct {
 	idToName              map[device.DeviceID]string
 	knownDevices          map[device.DeviceID]string
 	configurationFeatures map[device.DeviceID]map[string]z2mFeature
+	deviceAvailability    map[device.DeviceID]reportedAvailability
+	pendingAvailability   map[string]reportedAvailability
+	bridgeInfo            map[device.DeviceID]zigbeemetadata.BridgeInfo
+	mqttReady             bool
+	bridgeStateKnown      bool
+	bridgeOnline          bool
+	networkOnline         atomic.Bool
+	lastBridgeSignal      time.Time
 
 	// pendingOrigin holds the origin of the most recent outgoing command per
 	// device. The next inbound state echo claims (and clears) the entry so the
@@ -79,6 +97,8 @@ type ZigbeeAdapter struct {
 	pendingOriginMu            sync.Mutex
 	pendingOrigin              map[device.DeviceID]device.CommandOrigin
 	pendingConfigurationOrigin map[device.DeviceID]device.CommandOrigin
+	nativeEffectMu             sync.Mutex
+	pendingNativeEffects       map[device.DeviceID]*pendingNativeEffect
 
 	// dispatchCh decouples paho's reader goroutine from the handlers that do
 	// the actual parsing, state writes, and event bus publishes. Paho's
@@ -88,6 +108,7 @@ type ZigbeeAdapter struct {
 	// dispatchDone closes when the dispatch goroutine exits so Stop can wait
 	// for in-flight work.
 	dispatchDone chan struct{}
+	dispatchLive atomic.Bool
 	// droppedIn counts paho messages lost to a full dispatch channel, for
 	// visibility from logs. Read-only once Stop has returned.
 	droppedIn atomic.Int64
@@ -111,8 +132,12 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 		idToName:                   make(map[device.DeviceID]string),
 		knownDevices:               make(map[device.DeviceID]string),
 		configurationFeatures:      make(map[device.DeviceID]map[string]z2mFeature),
+		deviceAvailability:         make(map[device.DeviceID]reportedAvailability),
+		pendingAvailability:        make(map[string]reportedAvailability),
+		bridgeInfo:                 make(map[device.DeviceID]zigbeemetadata.BridgeInfo),
 		pendingOrigin:              make(map[device.DeviceID]device.CommandOrigin),
 		pendingConfigurationOrigin: make(map[device.DeviceID]device.CommandOrigin),
+		pendingNativeEffects:       make(map[device.DeviceID]*pendingNativeEffect),
 		stopCh:                     make(chan struct{}),
 		dispatchCh:                 make(chan incomingMsg, dispatchBufferSize),
 		dispatchDone:               make(chan struct{}),
@@ -126,6 +151,22 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 // Doing it this way avoids the "connection lost before Subscribe completed"
 // race on WSS transports.
 func (a *ZigbeeAdapter) Start() error {
+	a.mqtt.SetConnectionStateHandler(func(connected bool) {
+		a.enqueueReliable(incomingMsg{kind: dispatchConnectionState, ready: connected})
+	})
+
+	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/state", 0, func(msg Message) {
+		a.enqueue(incomingMsg{kind: dispatchBridgeState, payload: copyPayload(msg.Payload())})
+	}); err != nil {
+		return err
+	}
+
+	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/info", 0, func(msg Message) {
+		a.enqueue(incomingMsg{kind: dispatchBridgeInfo, payload: copyPayload(msg.Payload())})
+	}); err != nil {
+		return err
+	}
+
 	if err := a.mqtt.Subscribe("zigbee2mqtt/bridge/devices", 0, func(msg Message) {
 		a.enqueue(incomingMsg{kind: dispatchBridgeDevices, payload: copyPayload(msg.Payload())})
 	}); err != nil {
@@ -167,6 +208,7 @@ func (a *ZigbeeAdapter) Start() error {
 	}
 
 	go a.dispatchLoop()
+	a.dispatchLive.Store(true)
 
 	if err := a.mqtt.Connect(); err != nil {
 		return err
@@ -197,6 +239,10 @@ func (a *ZigbeeAdapter) enqueue(msg incomingMsg) {
 	}
 }
 
+func (a *ZigbeeAdapter) enqueueReliable(msg incomingMsg) {
+	a.dispatchCh <- msg
+}
+
 // dispatchLoop drains the dispatch channel and routes each message to its
 // handler. Runs until dispatchCh is closed by Stop.
 func (a *ZigbeeAdapter) dispatchLoop() {
@@ -207,6 +253,10 @@ func (a *ZigbeeAdapter) dispatchLoop() {
 			a.handleStateMessage(msg.topic, msg.payload)
 		case dispatchAvailability:
 			a.handleAvailability(msg.topic, msg.payload)
+		case dispatchBridgeState:
+			a.handleBridgeState(msg.payload)
+		case dispatchBridgeInfo:
+			a.handleBridgeInfo(msg.payload)
 		case dispatchBridgeDevices:
 			a.handleBridgeDevices(msg.payload)
 		case dispatchBridgeGroups:
@@ -215,6 +265,8 @@ func (a *ZigbeeAdapter) dispatchLoop() {
 			a.handleBridgeLog(msg.payload)
 		case dispatchNetworkmap:
 			a.handleNetworkmapResponse(msg.payload)
+		case dispatchConnectionState:
+			a.handleConnectionState(msg.ready)
 		case dispatchBarrier:
 			close(msg.ack)
 		}
@@ -244,6 +296,12 @@ func copyPayload(p []byte) []byte {
 // Waits up to a short deadline for the dispatch goroutine to drain in-flight
 // messages so observers don't see a truncated event stream during shutdown.
 func (a *ZigbeeAdapter) Stop() {
+	a.cancelNativeEffectVerifications()
+	a.mqtt.SetConnectionStateHandler(nil)
+	if a.dispatchLive.Load() {
+		a.enqueueReliable(incomingMsg{kind: dispatchConnectionState, ready: false})
+		a.WaitForDispatchIdle()
+	}
 	close(a.stopCh)
 	if a.cmdCh != nil {
 		a.bus.Unsubscribe(a.cmdCh)
@@ -260,11 +318,21 @@ func (a *ZigbeeAdapter) Stop() {
 	a.mqtt.Disconnect(250)
 
 	close(a.dispatchCh)
+	if !a.dispatchLive.Load() {
+		return
+	}
 	select {
 	case <-a.dispatchDone:
+		a.dispatchLive.Store(false)
 	case <-time.After(2 * time.Second):
 		logger.Warn("dispatch loop did not drain within 2s of Stop")
 	}
+}
+
+// BridgeConnected reports whether Hive's MQTT subscriptions are ready and
+// Zigbee2MQTT reports its bridge online.
+func (a *ZigbeeAdapter) BridgeConnected() bool {
+	return a.networkOnline.Load()
 }
 
 func (a *ZigbeeAdapter) configurationLoop() {
@@ -329,7 +397,7 @@ func (a *ZigbeeAdapter) acceptsCommand(deviceID device.DeviceID) bool {
 	if !found {
 		return true
 	}
-	if dev.Disabled {
+	if dev.RuntimeDisabled() {
 		return false
 	}
 	return dev.Source == device.SourceZigbee2MQTT
@@ -383,26 +451,112 @@ func (a *ZigbeeAdapter) handleAvailability(topic string, payload []byte) {
 	}
 	friendlyName := parts[1]
 
+	var avail z2mAvailability
+	if err := json.Unmarshal(payload, &avail); err != nil {
+		logger.Warn("failed to parse device availability", "topic", topic, "error", err)
+		return
+	}
+	if avail.State != "online" && avail.State != "offline" {
+		logger.Warn("ignoring unknown device availability", "topic", topic, "state", avail.State)
+		return
+	}
+
+	reported := reportedAvailability{known: true, online: avail.State == "online", reported: time.Now()}
 	a.mu.RLock()
 	id, ok := a.nameToID[friendlyName]
 	a.mu.RUnlock()
 	if !ok {
+		a.pendingAvailability[friendlyName] = reported
+		return
+	}
+	a.deviceAvailability[id] = reported
+
+	dev, ok := a.stateReader.GetDevice(id)
+	if !ok {
+		return
+	}
+	a.applyAvailability(dev, a.effectiveAvailability(dev), reported.online)
+}
+
+func (a *ZigbeeAdapter) handleConnectionState(ready bool) {
+	a.mqttReady = ready
+	if !ready {
+		a.bridgeStateKnown = false
+		a.bridgeOnline = false
+		a.invalidateDeviceAvailability()
+	}
+	a.reconcileNetworkAvailability(false)
+}
+
+func (a *ZigbeeAdapter) handleBridgeState(payload []byte) {
+	var state z2mBridgeState
+	if err := json.Unmarshal(payload, &state); err != nil {
+		logger.Warn("failed to parse bridge/state", "error", err)
+		return
+	}
+	if state.State != "online" && state.State != "offline" {
+		logger.Warn("ignoring unknown bridge state", "state", state.State)
 		return
 	}
 
-	var avail z2mAvailability
-	if err := json.Unmarshal(payload, &avail); err != nil {
+	a.bridgeStateKnown = true
+	a.bridgeOnline = state.State == "online"
+	if a.bridgeOnline {
+		a.lastBridgeSignal = time.Now()
+	} else {
+		a.invalidateDeviceAvailability()
+	}
+	a.reconcileNetworkAvailability(a.bridgeOnline)
+}
+
+func (a *ZigbeeAdapter) invalidateDeviceAvailability() {
+	for id, reported := range a.deviceAvailability {
+		reported.known = false
+		a.deviceAvailability[id] = reported
+	}
+}
+
+func (a *ZigbeeAdapter) reconcileNetworkAvailability(touchCoordinator bool) {
+	networkOnline := a.mqttReady && a.bridgeStateKnown && a.bridgeOnline
+	a.networkOnline.Store(networkOnline)
+	for _, dev := range a.stateReader.ListDevices() {
+		if dev.Source != device.SourceZigbee2MQTT {
+			continue
+		}
+		touch := touchCoordinator && dev.Type == device.Hub && networkOnline
+		a.applyAvailability(dev, a.effectiveAvailability(dev), touch)
+	}
+}
+
+func (a *ZigbeeAdapter) effectiveAvailability(dev device.Device) bool {
+	if !a.networkOnline.Load() {
+		return false
+	}
+	if dev.Type == device.Hub {
+		return true
+	}
+	reported, tracked := a.deviceAvailability[dev.ID]
+	if !tracked {
+		return true
+	}
+	return reported.known && reported.online
+}
+
+func (a *ZigbeeAdapter) applyAvailability(dev device.Device, available, touch bool) {
+	changed := dev.Available != available
+	if !changed && !(touch && available) {
 		return
 	}
-
-	online := avail.State == "online"
-	a.stateWriter.SetAvailability(id, online)
+	a.stateWriter.SetAvailability(dev.ID, available)
+	if !changed {
+		return
+	}
 
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceAvailabilityChanged,
-		DeviceID:  string(id),
+		DeviceID:  string(dev.ID),
 		Timestamp: time.Now(),
-		Payload:   online,
+		Payload:   available,
 	})
 }
 
@@ -429,6 +583,7 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	if !ok {
 		return
 	}
+	a.handleNativeEffectReadback(id, payload)
 
 	var statePayload json.RawMessage = payload
 	now := time.Now()

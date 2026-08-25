@@ -28,6 +28,7 @@ type PahoClient struct {
 	mu        sync.Mutex
 	subs      []pahoSub
 	connected chan struct{}
+	state     ConnectionStateHandler
 }
 
 type pahoSub struct {
@@ -106,6 +107,8 @@ func (p *PahoClient) onConnect(c mqtt.Client) {
 		}
 	}
 
+	p.notifyConnectionState(true)
+
 	select {
 	case p.connected <- struct{}{}:
 	default:
@@ -119,6 +122,23 @@ func (p *PahoClient) onConnect(c mqtt.Client) {
 // duplicate client ID surfaces here as a stream of losses on both processes.
 func (p *PahoClient) onConnectionLost(_ mqtt.Client, err error) {
 	logger.Warn("mqtt connection lost, reconnecting", "client_id", p.clientID, "error", err)
+	p.notifyConnectionState(false)
+}
+
+// SetConnectionStateHandler registers a callback for ready/lost transitions.
+func (p *PahoClient) SetConnectionStateHandler(handler ConnectionStateHandler) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.state = handler
+}
+
+func (p *PahoClient) notifyConnectionState(connected bool) {
+	p.mu.Lock()
+	handler := p.state
+	p.mu.Unlock()
+	if handler != nil {
+		handler(connected)
+	}
 }
 
 // Connect establishes the MQTT connection and blocks until an OnConnectHandler
