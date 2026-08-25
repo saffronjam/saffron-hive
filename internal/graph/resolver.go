@@ -15,6 +15,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
+	"github.com/saffronjam/saffron-hive/internal/zigbeedocs"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
@@ -95,8 +96,11 @@ type GraphStore interface {
 	UpdateDeviceDisplayBrightness(ctx context.Context, params store.UpdateDeviceDisplayBrightnessParams) (device.Device, error)
 	SetDeviceName(ctx context.Context, id device.DeviceID, name *string) (device.Device, error)
 	SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error)
+	MarkDeviceDeleted(ctx context.Context, id device.DeviceID) (device.Device, error)
+	RestoreDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
+	BatchMarkDevicesDeleted(ctx context.Context, ids []device.DeviceID) ([]device.Device, error)
+	BatchRestoreDevices(ctx context.Context, ids []device.DeviceID) ([]device.Device, error)
 	MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64, error)
-	DeleteDevice(ctx context.Context, id device.DeviceID) error
 	GetZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID) (*zigbeemetadata.Metadata, error)
 
 	// Scenes
@@ -211,6 +215,11 @@ type AddressVendorResolver interface {
 	Lookup(address string) (string, bool)
 }
 
+// ZigbeeDeviceDocumentationResolver resolves typed Zigbee2MQTT documentation by definition model.
+type ZigbeeDeviceDocumentationResolver interface {
+	Lookup(ctx context.Context, model string) (*zigbeedocs.Documentation, error)
+}
+
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
 type Resolver struct {
@@ -232,10 +241,12 @@ type Resolver struct {
 	Tuya                TuyaController
 	Integrations        IntegrationManager
 	EffectRunner        EffectRunner
+	NativeEffectSupport device.NativeEffectSupportReader
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter
 	BootstrapToken      BootstrapTokenChecker
 	AddressVendors      AddressVendorResolver
+	ZigbeeDocumentation ZigbeeDeviceDocumentationResolver
 	Webhooks            *webhook.Service
 	WebhookBuffer       *webhook.Buffer
 	// AvatarDir is the filesystem directory where per-user avatar files live.

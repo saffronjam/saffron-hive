@@ -1,14 +1,29 @@
 package graph
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/zigbeedocs"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 type fixedAddressVendor struct{}
+
+type fixedZigbeeDocumentation struct {
+	document *zigbeedocs.Documentation
+	err      error
+	models   []string
+}
+
+func (f *fixedZigbeeDocumentation) Lookup(_ context.Context, model string) (*zigbeedocs.Documentation, error) {
+	f.models = append(f.models, model)
+	return f.document, f.err
+}
 
 func (fixedAddressVendor) Lookup(address string) (string, bool) {
 	if address == "0x54ef44100166fcae" {
@@ -100,9 +115,94 @@ func TestZigbee2MQTTDefinitionURL(t *testing.T) {
 		"model/one:two": "https://www.zigbee2mqtt.io/devices/model_one_two.html",
 	}
 	for model, want := range tests {
-		if got := zigbee2MQTTDefinitionURL(model); got != want {
-			t.Errorf("zigbee2MQTTDefinitionURL(%q) = %q, want %q", model, got, want)
+		if got := zigbeedocs.DefinitionURL(model); got != want {
+			t.Errorf("DefinitionURL(%q) = %q, want %q", model, got, want)
 		}
+	}
+}
+
+func TestMapZigbeeBridgeInfo(t *testing.T) {
+	adapterType, firmware := "ZStack3x0", "20240710"
+	channel := 20
+	panID := int64(6754)
+	mapped := mapZigbeeDeviceMetadata(zigbeemetadata.Metadata{
+		BridgeInfo: &zigbeemetadata.BridgeInfo{
+			AdapterType: &adapterType, FirmwareVersion: &firmware,
+			Channel: &channel, PANID: &panID,
+		},
+	}, nil)
+	if mapped.BridgeInfo == nil || mapped.BridgeInfo.AdapterType == nil || *mapped.BridgeInfo.AdapterType != adapterType {
+		t.Fatalf("bridge info = %+v", mapped.BridgeInfo)
+	}
+	if mapped.BridgeInfo.Channel == nil || *mapped.BridgeInfo.Channel != channel ||
+		mapped.BridgeInfo.PanID == nil || *mapped.BridgeInfo.PanID != int(panID) {
+		t.Fatalf("network info = %+v", mapped.BridgeInfo)
+	}
+}
+
+func TestDeviceZigbeeDocumentation(t *testing.T) {
+	env := newTestEnv(t)
+	d := device.Device{ID: "zigbee-docs", Source: device.SourceZigbee2MQTT, Type: device.Sensor}
+	env.stateReader.addDevice(d)
+	model := "SNZB-02P"
+	env.store.zigbeeMetadata[d.ID] = zigbeemetadata.Normalize(zigbeemetadata.Metadata{
+		DeviceID:   d.ID,
+		Definition: &zigbeemetadata.Definition{Model: &model},
+	})
+	checkedAt := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	provider := &fixedZigbeeDocumentation{document: &zigbeedocs.Documentation{
+		SourceURL: "https://www.zigbee2mqtt.io/devices/SNZB-02P.html", LastCheckedAt: checkedAt,
+		Model: "SNZB-02P", Vendor: "SONOFF", Description: "Temperature and humidity sensor",
+		Exposes: []string{"battery", "temperature", "humidity"}, BatteryType: "CR2477",
+	}}
+	env.resolver.ZigbeeDocumentation = provider
+
+	response := env.query(t, `{
+		device(id: "zigbee-docs") {
+			zigbee2Mqtt {
+				documentation { sourceUrl lastCheckedAt model vendor description exposes batteryType }
+			}
+		}
+	}`, nil)
+	if len(response.Errors) != 0 {
+		t.Fatalf("query errors: %+v", response.Errors)
+	}
+	var data struct {
+		Device struct {
+			Metadata struct {
+				Documentation struct {
+					SourceURL, Model, Vendor, Description, BatteryType string
+					LastCheckedAt                                      time.Time
+					Exposes                                            []string
+				} `json:"documentation"`
+			} `json:"zigbee2Mqtt"`
+		} `json:"device"`
+	}
+	if err := json.Unmarshal(response.Data, &data); err != nil {
+		t.Fatal(err)
+	}
+	documentation := data.Device.Metadata.Documentation
+	if documentation.BatteryType != "CR2477" || documentation.Vendor != "SONOFF" || !documentation.LastCheckedAt.Equal(checkedAt) {
+		t.Fatalf("documentation = %+v", documentation)
+	}
+	if len(provider.models) != 1 || provider.models[0] != model {
+		t.Fatalf("looked up models = %#v", provider.models)
+	}
+}
+
+func TestDeviceZigbeeDocumentationFailureIsOptional(t *testing.T) {
+	env := newTestEnv(t)
+	d := device.Device{ID: "zigbee-docs-error", Source: device.SourceZigbee2MQTT, Type: device.Sensor}
+	env.stateReader.addDevice(d)
+	model := "SNZB-02P"
+	env.store.zigbeeMetadata[d.ID] = zigbeemetadata.Normalize(zigbeemetadata.Metadata{
+		DeviceID:   d.ID,
+		Definition: &zigbeemetadata.Definition{Model: &model},
+	})
+	env.resolver.ZigbeeDocumentation = &fixedZigbeeDocumentation{err: errors.New("upstream unavailable")}
+	response := env.query(t, `{ device(id: "zigbee-docs-error") { zigbee2Mqtt { supported documentation { batteryType } } } }`, nil)
+	if len(response.Errors) != 0 || string(response.Data) != `{"device":{"zigbee2Mqtt":{"supported":null,"documentation":null}}}` {
+		t.Fatalf("optional documentation response = %s, %+v", response.Data, response.Errors)
 	}
 }
 

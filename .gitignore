@@ -37,5 +37,6 @@ Thumbs.db
 # Temp
 /tmp/
 
-# Local runtime data (avatars live under HIVE_DATA_DIR; default "." drops them here)
+# Local runtime data (HIVE_DATA_DIR defaults to ".")
 /avatars/
+/zigbee-device-docs/

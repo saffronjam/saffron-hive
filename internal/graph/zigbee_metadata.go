@@ -1,12 +1,11 @@
 package graph
 
 import (
-	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/saffronjam/saffron-hive/internal/deviceimage"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
+	"github.com/saffronjam/saffron-hive/internal/zigbeedocs"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
@@ -46,8 +45,20 @@ func mapZigbeeDeviceMetadata(metadata zigbeemetadata.Metadata, vendors AddressVe
 			Icon: definition.Icon, SupportsOta: definition.SupportsOTA,
 		}
 		if definition.Model != nil {
-			definitionURL := zigbee2MQTTDefinitionURL(*definition.Model)
+			definitionURL := zigbeedocs.DefinitionURL(*definition.Model)
 			out.DefinitionURL = &definitionURL
+		}
+	}
+	if metadata.BridgeInfo != nil {
+		info := metadata.BridgeInfo
+		out.BridgeInfo = &model.Zigbee2MqttBridgeInfo{
+			AdapterType: info.AdapterType, FirmwareVersion: info.FirmwareVersion,
+			Channel: info.Channel, PanID: intFromInt64(info.PANID),
+			ExtendedPanID:                   info.ExtendedPANID,
+			Zigbee2MqttVersion:              info.Zigbee2MQTTVersion,
+			Zigbee2MqttCommit:               info.Zigbee2MQTTCommit,
+			ZigbeeHerdsmanVersion:           info.ZigbeeHerdsmanVersion,
+			ZigbeeHerdsmanConvertersVersion: info.ZigbeeHerdsmanConvertersVersion,
 		}
 	}
 	for _, endpoint := range metadata.Endpoints {
@@ -84,9 +95,16 @@ func mapZigbeeDeviceMetadata(metadata zigbeemetadata.Metadata, vendors AddressVe
 	return out
 }
 
-func zigbee2MQTTDefinitionURL(model string) string {
-	normalized := strings.NewReplacer("/", "_", "|", "_", " ", "_", ":", "_").Replace(model)
-	return "https://www.zigbee2mqtt.io/devices/" + url.PathEscape(normalized) + ".html"
+func mapZigbeeDeviceDocumentation(document zigbeedocs.Documentation) *model.Zigbee2MqttDeviceDocumentation {
+	return &model.Zigbee2MqttDeviceDocumentation{
+		SourceURL:     document.SourceURL,
+		LastCheckedAt: document.LastCheckedAt,
+		Model:         optionalString(document.Model),
+		Vendor:        optionalString(document.Vendor),
+		Description:   optionalString(document.Description),
+		Exposes:       append([]string(nil), document.Exposes...),
+		BatteryType:   optionalString(document.BatteryType),
+	}
 }
 
 func intFromInt64(value *int64) *int {
