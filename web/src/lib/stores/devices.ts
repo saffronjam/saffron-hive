@@ -578,10 +578,6 @@ function createDeviceStore() {
     set(rest);
   }
 
-  const STALE_AFTER_MS = 30_000;
-  let lastFetchedAt = 0;
-  let revalidateListener: (() => void) | null = null;
-
   async function refresh(client: Client) {
     const result = await client
       .query(DEVICES_QUERY, {}, { requestPolicy: "network-only" })
@@ -589,7 +585,6 @@ function createDeviceStore() {
     if (!result.data?.devices) return;
     hydrate(result.data.devices as Device[]);
     devicesHydrated.set(true);
-    lastFetchedAt = Date.now();
   }
 
   return {
@@ -615,14 +610,6 @@ function createDeviceStore() {
       started = true;
 
       await refresh(client);
-
-      revalidateListener = () => {
-        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-        if (Date.now() - lastFetchedAt < STALE_AFTER_MS) return;
-        void refresh(client);
-      };
-      window.addEventListener("focus", revalidateListener);
-      document.addEventListener("visibilitychange", revalidateListener);
 
       const s1 = client.subscription(DEVICE_STATE_CHANGED, {}).subscribe((r) => {
         if (!r.data) return;
@@ -667,12 +654,6 @@ function createDeviceStore() {
     },
 
     stop() {
-      if (revalidateListener) {
-        window.removeEventListener("focus", revalidateListener);
-        document.removeEventListener("visibilitychange", revalidateListener);
-        revalidateListener = null;
-      }
-      lastFetchedAt = 0;
       for (const u of unsubFns) u();
       unsubFns = [];
       started = false;

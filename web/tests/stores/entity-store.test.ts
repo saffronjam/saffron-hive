@@ -125,7 +125,7 @@ describe("start", () => {
     store.stop();
   });
 
-  it("keeps a restored snapshot visible when the revalidate fails", async () => {
+  it("keeps a restored snapshot visible when the startup fetch fails", async () => {
     saveSnapshot(localStorage, "test-rooms", 1, [kitchen]);
     const mock = createMockClient();
     mock.queueResult({ error: { message: "[Network] offline" } });
@@ -167,19 +167,6 @@ describe("stop", () => {
     expect(mock.queryCount).toBe(2);
     expect(store.items).toEqual([hallway]);
     store.stop();
-  });
-
-  it("detaches the revalidate listeners", async () => {
-    const removeSpy = vi.spyOn(window, "removeEventListener");
-    const mock = createMockClient();
-    mock.queueResult({ data: { rooms: [] } });
-    const store = makeStore();
-
-    await store.start(mock.client);
-    store.stop();
-
-    expect(removeSpy).toHaveBeenCalledWith("focus", expect.any(Function));
-    removeSpy.mockRestore();
   });
 });
 

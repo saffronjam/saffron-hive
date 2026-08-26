@@ -15,7 +15,7 @@ interface SubscriptionSink {
  * `subscription(doc, vars).subscribe(sink)`.
  *
  * Queued results are consumed in order; once the queue is empty the last
- * queued result repeats, so a store that revalidates on focus keeps working
+ * queued result repeats, so a store can refresh more than once
  * without the test having to queue one result per refresh.
  */
 export function createMockClient() {

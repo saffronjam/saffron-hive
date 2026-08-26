@@ -22,14 +22,8 @@ export interface EntityStoreOptions<TItem extends Identified, TData> {
   query: TypedDocumentNode<TData, NoVariables>;
   /** Pulls the list out of the query result. */
   select: (data: TData) => TItem[] | null | undefined;
-  /**
-   * How long the data may sit untouched before a regained-focus revalidate is
-   * worth a round trip. Defaults to 30 s.
-   */
-  staleAfterMs?: number;
 }
 
-const DEFAULT_STALE_AFTER_MS = 30_000;
 const PERSIST_DEBOUNCE_MS = 250;
 
 function storage(): Storage | null {
@@ -42,7 +36,7 @@ function storage(): Storage | null {
  * Reads are synchronous and never hit the network: pages render straight from
  * `items`. The store hydrates from its disk snapshot when it is constructed, so
  * the first frame after a cold start already has data, and reconciles with the
- * server when `start` runs and whenever the tab regains focus after going stale.
+ * server when `start` or `refresh` runs.
  *
  * The server announces no structural changes for these entities, so callers
  * apply their own mutation results through `upsert` / `remove` / `replaceAll`.
@@ -51,7 +45,6 @@ export function createEntityStore<TItem extends Identified, TData>(
   options: EntityStoreOptions<TItem, TData>,
 ) {
   const { name, version, query, select } = options;
-  const staleAfterMs = options.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
 
   const restored = loadSnapshot<TItem>(storage(), name, version);
   // Raw, not deep-proxied. These lists are replaced wholesale — every mutator
@@ -63,10 +56,7 @@ export function createEntityStore<TItem extends Identified, TData>(
   let error = $state<string | null>(null);
 
   let started = false;
-  let lastFetchedAt = 0;
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
-  let revalidateListener: (() => void) | null = null;
-  let activeClient: Client | null = null;
 
   const byId = $derived.by(() => {
     const map = new Map<string, TItem>();
@@ -127,7 +117,6 @@ export function createEntityStore<TItem extends Identified, TData>(
     const next = result.data ? select(result.data) : null;
     if (!next) return;
     error = null;
-    lastFetchedAt = Date.now();
     hydrated = true;
     replaceAll(next);
   }
@@ -159,28 +148,11 @@ export function createEntityStore<TItem extends Identified, TData>(
     async start(client: Client) {
       if (started) return;
       started = true;
-      activeClient = client;
-
-      revalidateListener = () => {
-        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-        if (Date.now() - lastFetchedAt < staleAfterMs) return;
-        if (activeClient) void refresh(activeClient);
-      };
-      window.addEventListener("focus", revalidateListener);
-      document.addEventListener("visibilitychange", revalidateListener);
-
       await refresh(client);
     },
 
     stop() {
-      if (revalidateListener) {
-        window.removeEventListener("focus", revalidateListener);
-        document.removeEventListener("visibilitychange", revalidateListener);
-        revalidateListener = null;
-      }
-      activeClient = null;
       started = false;
-      lastFetchedAt = 0;
       flushPersist();
     },
 
@@ -193,7 +165,6 @@ export function createEntityStore<TItem extends Identified, TData>(
       items = [];
       hydrated = false;
       error = null;
-      lastFetchedAt = 0;
       clearSnapshot(storage(), name);
     },
   };

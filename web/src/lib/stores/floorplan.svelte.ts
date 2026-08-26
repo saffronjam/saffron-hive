@@ -77,7 +77,7 @@ const UPDATE_FLOORPLAN = graphql(`
 `);
 
 // There is only ever one plan, held as a list of at most one so it gets the
-// same snapshot, revalidation and teardown as every other shared store.
+// same snapshot, refresh and teardown as every other shared store.
 const base = createEntityStore<Floorplan, FloorplanStoreQuery>({
   name: "floorplan",
   version: 1,
