@@ -25,7 +25,7 @@ The codebase has matured patterns for the things people repeatedly need to build
 | Mobile detection | `IsMobile` in `src/lib/hooks/is-mobile.svelte.ts` (768 px breakpoint). |
 | Live device state | `deviceStore` (writable store) + `devicesHydrated` (readable boolean) in `src/lib/stores/devices.ts`. |
 | Rooms, groups, scenes, automations, effects, floor plan | The shared stores in `src/lib/stores/` — `roomsStore`, `groupsStore`, `scenesStore`, `automationsStore`, `effectsStore`, `floorplanStore`. Read `.items` / `.byId` / `.hydrated`; write through their methods. Never query these root fields from a page. |
-| A new shared list of entities | `createEntityStore` in `src/lib/stores/entity-store.svelte.ts` — snapshot persistence, focus revalidation and teardown come with it. |
+| A new shared list of entities | `createEntityStore` in `src/lib/stores/entity-store.svelte.ts` — snapshot persistence, network refresh and teardown come with it. The root layout refreshes shared stores after WebSocket recovery. |
 | Editor keyboard guard | `isEditableTarget` (skip global shortcuts when typing). |
 | Snapshot-based undo/redo | `HistoryStack`. |
 
@@ -59,7 +59,7 @@ Regenerate with `just codegen` (or `cd web && bun run codegen`). `just codegen-c
 
 ### Canonical patterns
 
-**Single urql client.** `routes/+layout.svelte` creates one `Client` via `createGraphQLClient()` (which sets up `authenticatedFetch`, `graphql-ws` subscriptions, and auth-refresh handling) and publishes it through `setContextClient`. Every other component pulls it via `getContextClient()` — **never** call `createGraphQLClient()` outside the layout.
+**Single urql connection.** `routes/+layout.svelte` creates one connection via `createGraphQLConnection()` (which owns `authenticatedFetch`, `graphql-ws` subscriptions, heartbeat recovery, and auth-refresh handling) and publishes its `Client` through `setContextClient`. Every other component pulls the client via `getContextClient()` — **never** call `createGraphQLConnection()` outside the layout. Persistent page-local subscription data registers a network reconciliation with `onGraphQLRecovered()`.
 
 **Queries.**
 

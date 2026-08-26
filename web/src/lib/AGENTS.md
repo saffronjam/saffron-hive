@@ -48,7 +48,7 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
   page that cannot scope its globals to visibility (data-viewer writes the URL;
   activity grows its feed unboundedly) stays a normal route.
 - `stores/` — Svelte stores:
-  - `entity-store.svelte.ts` — `createEntityStore({ name, version, query, select })`, the primitive every shared list is built on. Hydrates from its disk snapshot at module evaluation, fetches once on `start`, revalidates on window focus after `staleAfterMs`, and exposes `items` / `byId` / `hydrated` / `error` plus `upsert` / `remove` / `removeMany` / `replaceAll` / `refresh` / `clear`. Bump `version` whenever the selection set changes so old snapshots are discarded.
+  - `entity-store.svelte.ts` — `createEntityStore({ name, version, query, select })`, the primitive every shared list is built on. Hydrates from its disk snapshot at module evaluation, fetches once on `start`, and exposes `items` / `byId` / `hydrated` / `error` plus `upsert` / `remove` / `removeMany` / `replaceAll` / `refresh` / `clear`. The root layout calls `refresh` after WebSocket recovery. Bump `version` whenever the selection set changes so old snapshots are discarded.
   - `rooms.svelte.ts`, `groups.svelte.ts`, `scenes.svelte.ts`, `automations.svelte.ts`, `effects.svelte.ts`, `floorplan.svelte.ts` — the shared lists, each owning its own mutations so a write lands in the cache without a follow-up fetch. They hold ids and membership only; join `deviceStore` for device detail. `scenesStore` also owns the single `sceneActiveChanged` subscription and the optimistic `apply`.
   - `devices.ts` — `deviceStore` (writable Map of live device state) + `devicesHydrated` (readable boolean for first-snapshot complete).
   - `theme.ts` — dark/light mode toggle, persisted to localStorage.
@@ -61,7 +61,8 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 ## GraphQL
 
 - `gql/` — graphql-codegen output (do not edit manually — regenerate with `just codegen`).
-- `graphql/client.ts` — `createGraphQLClient()` + `authenticatedFetch`. **Only call `createGraphQLClient()` from `routes/+layout.svelte`.** Every other file uses `getContextClient()` from `@urql/svelte`.
+- `graphql/client.ts` — `createGraphQLConnection()` + `authenticatedFetch`. **Only call `createGraphQLConnection()` from `routes/+layout.svelte`.** Every other file uses `getContextClient()` from `@urql/svelte`.
+- `graphql/app-recovery.ts` — lifecycle reconnect triggers, connection context, and `onGraphQLRecovered()` for reconciling persistent page-local query data after subscriptions resume.
 - `graphql/setup-status.ts` — `SETUP_STATUS_QUERY`, shared by the routing gate and `/setup`. Operation names must be unique across the document set, so a second copy of this query only survives codegen while byte-identical — import it rather than re-declaring it.
 - `graphql-error.ts` — `stripErrorPrefix(message)` drops urql's `[GraphQL] ` / `[Network] ` prefix; `graphqlErrorMessage(error, fallback)` pulls the most useful message out of an urql error. Use instead of hand-rolling the regex.
 
