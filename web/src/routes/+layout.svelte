@@ -7,7 +7,8 @@
 	import SaveButton from "$lib/components/save-button.svelte";
 	import ViewToggle from "$lib/components/view-toggle.svelte";
 	import { setContextClient } from "@urql/svelte";
-	import { createGraphQLClient } from "$lib/graphql/client";
+	import { createGraphQLConnection } from "$lib/graphql/client";
+	import { installAppRecovery, setGraphQLConnectionContext } from "$lib/graphql/app-recovery";
 	import { SETUP_STATUS_QUERY } from "$lib/graphql/setup-status";
 	import { nextRoute } from "$lib/auth-gate";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -40,20 +41,27 @@
 	import MaintenancePage from "$lib/components/maintenance-page.svelte";
 	import { page } from "$app/stores";
 
-	function reconcileLiveStores() {
+	function reconcileAppState() {
 		if (!auth.isAuthenticated()) return;
 		void Promise.allSettled([
 			deviceStore.refresh(client),
+			roomsStore.refresh(client),
 			groupsStore.refresh(client),
 			scenesStore.refresh(client),
+			automationsStore.refresh(client),
+			effectsStore.refresh(client),
 			webhooksStore.refresh(client),
+			floorplanStore.refresh(client),
 			alarmsStore.refresh(client),
 			maintenanceStore.refresh(),
 		]);
 	}
 
-	const client = createGraphQLClient({ onReconnect: reconcileLiveStores });
+	const connection = createGraphQLConnection();
+	const client = connection.client;
 	setContextClient(client);
+	setGraphQLConnectionContext(connection);
+	const stopRecoveryReconciliation = connection.onRecovered(reconcileAppState);
 
 	let { children } = $props();
 
@@ -127,7 +135,13 @@
 		ready = true;
 	}
 
+	let uninstallAppRecovery: (() => void) | null = null;
+
 	onMount(() => {
+		uninstallAppRecovery = installAppRecovery(
+			connection,
+			() => ready && auth.isAuthenticated() && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)),
+		);
 		void gate();
 		prefetchIconPacks();
 	});
@@ -152,6 +166,8 @@
 	});
 
 	onDestroy(() => {
+		uninstallAppRecovery?.();
+		stopRecoveryReconciliation();
 		alarmsStore.stop();
 		maintenanceStore.stop();
 		deviceStore.stop();

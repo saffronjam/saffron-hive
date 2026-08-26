@@ -14,7 +14,7 @@ const ws = vi.hoisted(() => {
 vi.mock("graphql-ws", () => ({ createClient: ws.createClient }));
 vi.mock("$lib/session", () => ({ sessionTeardown: vi.fn() }));
 
-import { createGraphQLClient } from "$lib/graphql/client";
+import { createGraphQLConnection } from "$lib/graphql/client";
 
 function latestOptions(): ClientOptions {
   return ws.createClient.mock.calls.at(-1)![0] as ClientOptions;
@@ -33,21 +33,21 @@ afterEach(() => {
 
 describe("GraphQL WebSocket recovery", () => {
   it("uses a bounded heartbeat and keeps retrying", () => {
-    createGraphQLClient();
+    createGraphQLConnection();
 
     const options = latestOptions();
-    expect(options.keepAlive).toBe(15_000);
-    expect(options.connectionAckWaitTimeout).toBe(10_000);
+    expect(options.keepAlive).toBe(3_000);
+    expect(options.connectionAckWaitTimeout).toBe(3_000);
     expect(options.retryAttempts).toBe(Number.POSITIVE_INFINITY);
     expect(options.retryWait).toBeTypeOf("function");
   });
 
   it("terminates a connection that does not answer a ping", () => {
-    createGraphQLClient();
+    createGraphQLConnection();
     const options = latestOptions();
 
     options.on?.ping?.(false, undefined);
-    vi.advanceTimersByTime(4_999);
+    vi.advanceTimersByTime(1_999);
     expect(ws.terminate).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);
@@ -55,29 +55,85 @@ describe("GraphQL WebSocket recovery", () => {
   });
 
   it("keeps the connection when its pong arrives in time", () => {
-    createGraphQLClient();
+    createGraphQLConnection();
     const options = latestOptions();
 
     options.on?.ping?.(false, undefined);
-    vi.advanceTimersByTime(4_000);
+    vi.advanceTimersByTime(1_500);
     options.on?.pong?.(true, undefined);
-    vi.advanceTimersByTime(1_000);
+    vi.advanceTimersByTime(500);
 
     expect(ws.terminate).not.toHaveBeenCalled();
   });
 
-  it("reconciles live data after a recovered connection", () => {
-    const onReconnect = vi.fn();
-    createGraphQLClient({ onReconnect });
+  it("notifies listeners after a recovered connection", () => {
+    const onRecovered = vi.fn();
+    const connection = createGraphQLConnection();
+    connection.onRecovered(onRecovered);
     const options = latestOptions();
 
     options.on?.connected?.({}, undefined, false);
     vi.runAllTimers();
-    expect(onReconnect).not.toHaveBeenCalled();
+    expect(onRecovered).not.toHaveBeenCalled();
 
     options.on?.connected?.({}, undefined, true);
-    expect(onReconnect).not.toHaveBeenCalled();
+    expect(onRecovered).not.toHaveBeenCalled();
     vi.runAllTimers();
-    expect(onReconnect).toHaveBeenCalledOnce();
+    expect(onRecovered).toHaveBeenCalledWith({ reason: "socket_closed" });
+  });
+
+  it("forces a fresh socket for an app lifecycle recovery", () => {
+    const connection = createGraphQLConnection();
+
+    connection.recover("foreground");
+
+    expect(ws.terminate).toHaveBeenCalledOnce();
+    const params = latestOptions().connectionParams;
+    expect(typeof params).toBe("function");
+    expect((params as () => unknown)()).toMatchObject({ recoveryReason: "foreground" });
+  });
+
+  it("reports a heartbeat timeout and the terminated socket code", () => {
+    const onRecovered = vi.fn();
+    const connection = createGraphQLConnection();
+    connection.onRecovered(onRecovered);
+    const options = latestOptions();
+
+    options.on?.ping?.(false, undefined);
+    vi.advanceTimersByTime(2_000);
+    options.on?.closed?.({ code: 4499 } as CloseEvent);
+    options.on?.connected?.({}, undefined, true);
+    vi.runAllTimers();
+
+    expect(onRecovered).toHaveBeenCalledWith({
+      reason: "heartbeat_timeout",
+      previousCloseCode: 4499,
+    });
+  });
+
+  it("retries immediately once, then backs off from one second", async () => {
+    createGraphQLConnection();
+    const retryWait = latestOptions().retryWait!;
+
+    await expect(retryWait(0)).resolves.toBeUndefined();
+    let settled = false;
+    const waiting = retryWait(1).then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await waiting;
+    expect(settled).toBe(true);
+  });
+
+  it("wakes an exponential retry wait when the app returns", async () => {
+    const connection = createGraphQLConnection();
+    const waiting = latestOptions().retryWait!(5);
+
+    connection.recover("foreground");
+
+    await expect(waiting).resolves.toBeUndefined();
+    expect(ws.terminate).not.toHaveBeenCalled();
   });
 });
