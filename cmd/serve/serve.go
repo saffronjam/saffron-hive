@@ -309,7 +309,8 @@ func Run(ctx context.Context) error {
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{
-		InitFunc: wsInitFunc(authSvc, sqlStore),
+		InitFunc:  wsInitFunc(authSvc, sqlStore),
+		ErrorFunc: wsTransportErrorFunc,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: originChecker(cfg.AllowedOrigins),
 		},
@@ -435,8 +436,98 @@ func wsInitFunc(svc *auth.Service, lookup auth.UserLookup) transport.WebsocketIn
 			MustChangePassword: u.MustChangePassword,
 			TokenVersion:       u.TokenVersion,
 		})
+		if diagnostic, ok := wsRecoveryDiagnosticFromInit(init); ok {
+			attrs := []slog.Attr{
+				slog.String("reason", diagnostic.reason),
+				slog.String("user_id", u.ID),
+			}
+			if diagnostic.previousCloseCode != nil {
+				attrs = append(attrs, slog.Int("previous_close_code", *diagnostic.previousCloseCode))
+			}
+			if clientIP := auth.ClientIPFromContext(authedCtx); clientIP != "" {
+				attrs = append(attrs, slog.String("client_ip", clientIP))
+			}
+			serveLogger.LogAttrs(authedCtx, slog.LevelInfo, "GraphQL WebSocket recovered", attrs...)
+		}
 		return authedCtx, nil, nil
 	}
+}
+
+type wsRecoveryDiagnostic struct {
+	reason            string
+	previousCloseCode *int
+}
+
+var wsRecoveryReasons = map[string]struct{}{
+	"foreground":        {},
+	"page_restore":      {},
+	"network_restored":  {},
+	"heartbeat_timeout": {},
+	"socket_closed":     {},
+	"socket_error":      {},
+}
+
+func wsRecoveryDiagnosticFromInit(init transport.InitPayload) (wsRecoveryDiagnostic, bool) {
+	reason, ok := init["recoveryReason"].(string)
+	if !ok {
+		return wsRecoveryDiagnostic{}, false
+	}
+	if _, ok := wsRecoveryReasons[reason]; !ok {
+		return wsRecoveryDiagnostic{}, false
+	}
+
+	diagnostic := wsRecoveryDiagnostic{reason: reason}
+	if code, ok := wsCloseCode(init["previousCloseCode"]); ok {
+		diagnostic.previousCloseCode = &code
+	}
+	return diagnostic, true
+}
+
+func wsCloseCode(value any) (int, bool) {
+	code, ok := value.(float64)
+	if !ok || code < 0 || code > 4999 || code != float64(int(code)) {
+		return 0, false
+	}
+	return int(code), true
+}
+
+func wsTransportErrorFunc(ctx context.Context, err error) {
+	direction, closeCode := wsTransportErrorDetails(err)
+	attrs := []slog.Attr{
+		slog.String("direction", direction),
+		slog.Any("error", err),
+	}
+	if closeCode != 0 {
+		attrs = append(attrs, slog.Int("close_code", closeCode))
+	}
+	if user, ok := auth.UserFromContext(ctx); ok {
+		attrs = append(attrs, slog.String("user_id", user.ID))
+	}
+	if clientIP := auth.ClientIPFromContext(ctx); clientIP != "" {
+		attrs = append(attrs, slog.String("client_ip", clientIP))
+	}
+
+	if closeCode == websocket.CloseNormalClosure || closeCode == websocket.CloseGoingAway || closeCode == 4499 {
+		serveLogger.LogAttrs(ctx, slog.LevelDebug, "GraphQL WebSocket transport closed", attrs...)
+		return
+	}
+	serveLogger.LogAttrs(ctx, slog.LevelWarn, "GraphQL WebSocket transport failed", attrs...)
+}
+
+func wsTransportErrorDetails(err error) (string, int) {
+	direction := "write"
+	transportErr, ok := err.(transport.WebsocketError)
+	if !ok {
+		return direction, 0
+	}
+	if transportErr.IsReadError {
+		direction = "read"
+	}
+	var closeErr *websocket.CloseError
+	if errors.As(transportErr.Err, &closeErr) {
+		return direction, closeErr.Code
+	}
+	return direction, 0
 }
 
 // seedInitialUser creates the first user from HIVE_INIT_USER / HIVE_INIT_PASSWORD
