@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
@@ -123,12 +124,24 @@
 		unsubscribe = sub.unsubscribe;
 	}
 
-	async function loadInitialLogs() {
+	async function loadInitialLogs(mergeCurrent = false) {
 		const result = await client
-			.query<{ logs: LogEntry[] }>(LOGS_QUERY, { limit: 1000 })
+			.query<{ logs: LogEntry[] }>(LOGS_QUERY, { limit: 1000 }, { requestPolicy: "network-only" })
 			.toPromise();
 		if (result.data) {
-			entries = result.data.logs;
+			if (mergeCurrent) {
+				const keyed = new Map(
+					[...result.data.logs, ...entries].map((entry) => [
+						`${entry.timestamp}\0${entry.level}\0${entry.message}\0${entry.attrs}`,
+						entry,
+					]),
+				);
+				entries = [...keyed.values()]
+					.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+					.slice(-1000);
+			} else {
+				entries = result.data.logs;
+			}
 			requestAnimationFrame(scrollToBottom);
 		}
 	}
@@ -145,6 +158,10 @@
 		loadInitialLogs().then(() => {
 			startSubscription();
 		});
+	});
+
+	onGraphQLRecovered(() => {
+		void loadInitialLogs(true);
 	});
 
 	onDestroy(() => {

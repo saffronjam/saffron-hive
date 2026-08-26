@@ -5,6 +5,7 @@
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile } from "$lib/stores/profile.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
@@ -281,21 +282,24 @@
 		}, 1800);
 	}
 
-	async function loadInitial(advancedMode = advanced) {
+	async function loadInitial(advancedMode = advanced, mergeCurrent = false) {
 		const res = await client
 			.query<{ activity: ActivityEvent[] }>(ACTIVITY_QUERY, {
 				filter: { advanced: advancedMode, limit: PAGE_SIZE },
 			}, { requestPolicy: "network-only" })
 			.toPromise();
 		if (res.data) {
-			const next = boundActivityEvents(res.data.activity);
+			const queried = res.data.activity;
+			const combined = mergeCurrent && advanced === advancedMode
+				? [...new Map([...queried, ...events].map((event) => [event.id, event])).values()]
+				: queried;
+			const next = boundActivityEvents(combined);
 			persistActivitySnapshot(advancedMode, next);
 			if (advanced !== advancedMode) return;
 			events = next;
 			hasMore =
-				next.length === res.data.activity.length &&
 				next.length < MAX_CACHED_EVENTS &&
-				res.data.activity.length === PAGE_SIZE;
+				queried.length === PAGE_SIZE;
 		}
 		if (advanced === advancedMode) ready = true;
 	}
@@ -367,6 +371,10 @@
 		void loadInitial(mountedMode).then(() => {
 			if (advanced === mountedMode) startSubscription();
 		});
+	});
+
+	onGraphQLRecovered(() => {
+		void loadInitial(advanced, true);
 	});
 
 	onDestroy(() => {

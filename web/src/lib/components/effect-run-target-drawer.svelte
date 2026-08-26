@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContextClient, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { toast } from "svelte-sonner";
@@ -105,6 +106,10 @@
 	$effect(() => {
 		if (!drawerOpen || mode !== "native" || !nativeName) return;
 		void loadNativeSupport();
+	});
+
+	onGraphQLRecovered(() => {
+		if (drawerOpen) void loadNativeSupport();
 	});
 
 	$effect(() => {

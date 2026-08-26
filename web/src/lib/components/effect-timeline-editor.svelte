@@ -3,6 +3,7 @@
 	import { toast } from "svelte-sonner";
 	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -106,6 +107,9 @@
 	const nativeSupportUpdates = subscriptionStore({ client: nativeEffectClient, query: NATIVE_EFFECT_SUPPORT_CHANGED });
 	$effect(() => {
 		if (!$nativeSupportUpdates.data?.nativeEffectSupportChanged) return;
+		optionsStore.reexecute({ requestPolicy: "network-only" });
+	});
+	onGraphQLRecovered(() => {
 		optionsStore.reexecute({ requestPolicy: "network-only" });
 	});
 	const nativeOptions = $derived($optionsStore.data?.nativeEffectOptions ?? []);

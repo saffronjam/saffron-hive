@@ -5,6 +5,7 @@
 	import { fly } from "svelte/transition";
 	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { prefetchDetail } from "$lib/prefetch-detail";
 	import { effectsStore, type Effect as StoredEffect } from "$lib/stores/effects.svelte";
 	import { matchesEffectFilter } from "$lib/effect-search";
@@ -106,6 +107,9 @@
 	const nativeOptions = $derived<NativeOption[]>($nativeOptionsQuery.data?.nativeEffectOptions ?? []);
 	$effect(() => {
 		if (!$nativeSupportUpdates.data?.nativeEffectSupportChanged) return;
+		nativeOptionsQuery.reexecute({ requestPolicy: "network-only" });
+	});
+	onGraphQLRecovered(() => {
 		nativeOptionsQuery.reexecute({ requestPolicy: "network-only" });
 	});
 	let createDialogOpen = $state(false);

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import {
 		Select,
 		SelectContent,
@@ -44,6 +45,9 @@
 	const supportUpdates = subscriptionStore({ client, query: NATIVE_EFFECT_SUPPORT_CHANGED });
 	$effect(() => {
 		if (!$supportUpdates.data?.nativeEffectSupportChanged) return;
+		optionsStore.reexecute({ requestPolicy: "network-only" });
+	});
+	onGraphQLRecovered(() => {
 		optionsStore.reexecute({ requestPolicy: "network-only" });
 	});
 

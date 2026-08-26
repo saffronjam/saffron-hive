@@ -76,6 +76,8 @@ type Documents = {
     "\n  mutation E2EDeleteUser($id: ID!) {\n    deleteUser(id: $id)\n  }\n": typeof types.E2EDeleteUserDocument,
     "\n  mutation E2EResetPassword($id: ID!, $p: String!) {\n    resetUserPassword(id: $id, newPassword: $p)\n  }\n": typeof types.E2EResetPasswordDocument,
     "\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      hapticsEnabled\n      avatarPath\n    }\n  }\n": typeof types.E2EMeDocument,
+    "\n  query E2EWebSocketRecoveryDeviceState($id: ID!) {\n    device(id: $id) {\n      state {\n        brightness\n      }\n    }\n  }\n": typeof types.E2EWebSocketRecoveryDeviceStateDocument,
+    "\n  query E2EWebSocketRecoveryLogs {\n    logs(limit: 1000) {\n      message\n      attrs\n    }\n  }\n": typeof types.E2EWebSocketRecoveryLogsDocument,
     "\n  query E2EZigbeeMetadataReady($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        ieeeAddress\n      }\n    }\n  }\n": typeof types.E2EZigbeeMetadataReadyDocument,
     "\n  query E2EMaintenanceTasks {\n    maintenanceTasks {\n      id\n      kind\n    }\n  }\n": typeof types.E2EMaintenanceTasksDocument,
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": typeof types.DeleteAlarmDocument,
@@ -203,7 +205,7 @@ type Documents = {
     "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tfrontendUrl\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateZigbee2MqttConfigDocument,
     "\n\t\tmutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {\n\t\t\ttestZigbee2MqttConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": typeof types.TestZigbee2MqttConnectionDocument,
     "\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\tscanZigbee2MqttNetwork\n\t\t}\n\t": typeof types.ScanZigbee2MqttNetworkDocument,
-    "\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttLastScanDocument,
+    "\n\t\tquery Zigbee2MqttScanState {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttScanStateDocument,
     "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttScanUpdatesDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\ttimeFormat\n\t\t\t\t\ttemperatureUnit\n\t\t\t\t\thapticsEnabled\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogsDocument,
@@ -288,6 +290,8 @@ const documents: Documents = {
     "\n  mutation E2EDeleteUser($id: ID!) {\n    deleteUser(id: $id)\n  }\n": types.E2EDeleteUserDocument,
     "\n  mutation E2EResetPassword($id: ID!, $p: String!) {\n    resetUserPassword(id: $id, newPassword: $p)\n  }\n": types.E2EResetPasswordDocument,
     "\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      hapticsEnabled\n      avatarPath\n    }\n  }\n": types.E2EMeDocument,
+    "\n  query E2EWebSocketRecoveryDeviceState($id: ID!) {\n    device(id: $id) {\n      state {\n        brightness\n      }\n    }\n  }\n": types.E2EWebSocketRecoveryDeviceStateDocument,
+    "\n  query E2EWebSocketRecoveryLogs {\n    logs(limit: 1000) {\n      message\n      attrs\n    }\n  }\n": types.E2EWebSocketRecoveryLogsDocument,
     "\n  query E2EZigbeeMetadataReady($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        ieeeAddress\n      }\n    }\n  }\n": types.E2EZigbeeMetadataReadyDocument,
     "\n  query E2EMaintenanceTasks {\n    maintenanceTasks {\n      id\n      kind\n    }\n  }\n": types.E2EMaintenanceTasksDocument,
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": types.DeleteAlarmDocument,
@@ -415,7 +419,7 @@ const documents: Documents = {
     "\n\t\tmutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {\n\t\t\tupdateZigbee2MqttConfig(input: $input) {\n\t\t\t\tbroker\n\t\t\t\tfrontendUrl\n\t\t\t\tusername\n\t\t\t\tpassword\n\t\t\t\tuseWss\n\t\t\t\tenabled\n\t\t\t\tscanScheduleEnabled\n\t\t\t\tscanHour\n\t\t\t\tscanMinute\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t}\n\t": types.UpdateZigbee2MqttConfigDocument,
     "\n\t\tmutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {\n\t\t\ttestZigbee2MqttConnection(input: $input) {\n\t\t\t\tsuccess\n\t\t\t\tmessage\n\t\t\t}\n\t\t}\n\t": types.TestZigbee2MqttConnectionDocument,
     "\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\tscanZigbee2MqttNetwork\n\t\t}\n\t": types.ScanZigbee2MqttNetworkDocument,
-    "\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttLastScanDocument,
+    "\n\t\tquery Zigbee2MqttScanState {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttScanStateDocument,
     "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttScanUpdatesDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\ttimeFormat\n\t\t\t\t\ttemperatureUnit\n\t\t\t\t\thapticsEnabled\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogsDocument,
@@ -700,6 +704,14 @@ export function graphql(source: "\n  mutation E2EResetPassword($id: ID!, $p: Str
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      hapticsEnabled\n      avatarPath\n    }\n  }\n"): (typeof documents)["\n  query E2EMe {\n    me {\n      id\n      username\n      name\n      theme\n      hapticsEnabled\n      avatarPath\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query E2EWebSocketRecoveryDeviceState($id: ID!) {\n    device(id: $id) {\n      state {\n        brightness\n      }\n    }\n  }\n"): (typeof documents)["\n  query E2EWebSocketRecoveryDeviceState($id: ID!) {\n    device(id: $id) {\n      state {\n        brightness\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query E2EWebSocketRecoveryLogs {\n    logs(limit: 1000) {\n      message\n      attrs\n    }\n  }\n"): (typeof documents)["\n  query E2EWebSocketRecoveryLogs {\n    logs(limit: 1000) {\n      message\n      attrs\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1211,7 +1223,7 @@ export function graphql(source: "\n\t\tmutation ScanZigbee2MqttNetwork {\n\t\t\t
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Zigbee2MqttLastScan {\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery Zigbee2MqttScanState {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery Zigbee2MqttScanState {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

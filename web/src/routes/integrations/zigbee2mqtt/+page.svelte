@@ -3,6 +3,7 @@
 	import { getContextClient, subscriptionStore } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { integrationMeta } from "$lib/integrations";
 	import { hasStoredSecret, secretToSend } from "$lib/redacted-secret";
@@ -66,8 +67,11 @@
 		}
 	`);
 
-	const LAST_SCAN_QUERY = graphql(`
-		query Zigbee2MqttLastScan {
+	const SCAN_STATE_QUERY = graphql(`
+		query Zigbee2MqttScanState {
+			zigbee2MqttConfig {
+				scanStartedAt
+			}
 			networkTopologies {
 				provider
 				scannedAt
@@ -199,10 +203,12 @@
 		loaded = true;
 	}
 
-	async function loadLastScan() {
+	async function loadScanState() {
 		const result = await client
-			.query(LAST_SCAN_QUERY, {}, { requestPolicy: "network-only" })
+			.query(SCAN_STATE_QUERY, {}, { requestPolicy: "network-only" })
 			.toPromise();
+		const startedAt = result.data?.zigbee2MqttConfig?.scanStartedAt;
+		scanStartedAt = startedAt ? new Date(startedAt) : null;
 		const topo = result.data?.networkTopologies.find((t) => t.provider === "zigbee2mqtt");
 		lastScannedAt = topo ? new Date(topo.scannedAt) : null;
 	}
@@ -291,7 +297,11 @@
 			{ label: "Zigbee2MQTT" },
 		];
 		void loadConfig();
-		void loadLastScan();
+		void loadScanState();
+	});
+
+	onGraphQLRecovered(() => {
+		void loadScanState();
 	});
 
 </script>

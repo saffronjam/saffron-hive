@@ -5,6 +5,7 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { getContextClient, queryStore } from "@urql/svelte";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { page } from "$app/state";
 	import { goto, pushState } from "$app/navigation";
 	import {
@@ -318,6 +319,10 @@
 			.toPromise();
 		topologies = result.data?.networkTopologies ?? [];
 	}
+
+	onGraphQLRecovered(() => {
+		void loadTopologies();
+	});
 
 	let armedBrush = $state<ArmedBrush | null>(null);
 	let discardOpen = $state(false);

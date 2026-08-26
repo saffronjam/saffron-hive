@@ -3,6 +3,7 @@
 	import { page } from "$app/state";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
+	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import type { WebhookDetailDeliveriesQuery } from "$lib/gql/graphql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
@@ -101,26 +102,41 @@
 	const usedBy = $derived(usageByEndpoint.get(endpointID) ?? []);
 	type WebhookDelivery = WebhookDetailDeliveriesQuery["webhookDeliveries"][number];
 	let liveDeliveries = $state.raw<WebhookDetailDeliveriesQuery["webhookDeliveries"]>([]);
+	let deliveriesRequest = 0;
+
+	async function loadDeliveries(id: string) {
+		const request = ++deliveriesRequest;
+		const result = await client
+			.query(DELIVERIES_QUERY, { endpointId: id, limit: 100 }, { requestPolicy: "network-only" })
+			.toPromise();
+		if (request === deliveriesRequest && endpointID === id && result.data) {
+			liveDeliveries = [
+				...new Map(
+					[...result.data.webhookDeliveries, ...liveDeliveries].map((delivery) => [delivery.id, delivery]),
+				).values(),
+			]
+				.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+				.slice(0, 100);
+		}
+	}
 
 	$effect(() => {
 		const id = endpointID;
-		let active = true;
 		liveDeliveries = [];
-		void client
-			.query(DELIVERIES_QUERY, { endpointId: id, limit: 100 }, { requestPolicy: "network-only" })
-			.toPromise()
-			.then((result) => {
-				if (active && result.data) liveDeliveries = result.data.webhookDeliveries;
-			});
+		void loadDeliveries(id);
 		const subscription = client.subscription(DELIVERY_SUBSCRIPTION, { endpointId: id }).subscribe((result) => {
 			const delivery = result.data?.webhookDeliveryRecorded;
-			if (!active || !delivery || liveDeliveries.some((item) => item.id === delivery.id)) return;
+			if (endpointID !== id || !delivery || liveDeliveries.some((item) => item.id === delivery.id)) return;
 			liveDeliveries = [delivery, ...liveDeliveries].slice(0, 100);
 		});
 		return () => {
-			active = false;
+			deliveriesRequest++;
 			subscription.unsubscribe();
 		};
+	});
+
+	onGraphQLRecovered(() => {
+		void loadDeliveries(endpointID);
 	});
 
 	let loadedID = $state<string | null>(null);
