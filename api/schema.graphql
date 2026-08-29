@@ -252,68 +252,185 @@ type Scene {
   id: ID!
   name: String!
   icon: String
-  """
-  Rooms this scene is present in, derived from device overlap. A scene
-  appears in a room iff the set of devices its actions resolve to shares
-  at least one device with the room's resolved devices. Drives the
-  per-room dashboard drawer's scene list — no explicit tagging, no
-  separate config.
-  """
   rooms: [Room!]!
-  actions: [SceneAction!]!
-  """
-  Per-device payload overrides the user has saved explicitly. Devices that
-  inherit their room/group default do NOT appear here. Use this for the
-  scene editor's override rows; use effectivePayloads for display tint.
-  """
-  devicePayloads: [SceneDevicePayload!]!
-  """
-  One payload per unique device reached by the scene's action targets
-  (rooms, groups, or direct devices), in the same order apply-scene would
-  command them. Devices without an explicit override appear with a
-  capability-filtered default (warm-white on), so consumers can tint cards,
-  preview apply behaviour, etc. without re-implementing the resolution.
-  """
-  effectivePayloads: [SceneDevicePayload!]!
+  targets: [SceneTargetEntry!]!
+  lighting: SceneLighting!
+  supportingStates: [SceneSupportingState!]!
+  preview: ScenePreview!
   createdBy: User
-  """
-  Non-null while this scene is currently the state of its devices: every
-  device the scene reached at apply time is still in the scene-relevant
-  state the scene asked for. Any change to a scene-relevant field (on,
-  brightness, colorTemp, color) on any of those devices clears this back
-  to null. Use the presence of a value as "is this scene active right now".
-  """
   activatedAt: DateTime
 }
 
 union SceneTarget = Device | Group | Room
 
-"""
-A single rule in a target expression. connector is null on the first clause and
-"and"/"or" on subsequent clauses (evaluated left-to-right). subject is one of
-room/group/device/device_type/device_role; op is is/is_one_of/is_not/is_not_one_of.
-"""
+enum SceneTargetType {
+  device
+  group
+  room
+  expression
+}
+
+enum VibeFieldDomain {
+  full_color
+  white_ambience
+}
+
+enum VibeSourceKind {
+  preset
+  photo
+  guided
+}
+
+enum SceneLightOverrideKind {
+  state
+  effect
+  native_effect
+}
+
+enum TargetClauseConnector {
+  and
+  or
+}
+
+enum TargetClauseSubject {
+  room
+  group
+  device
+  device_type
+  device_role
+  writable_capability
+  reported_capability
+}
+
+enum TargetClauseOperator {
+  is
+  is_one_of
+  is_not
+  is_not_one_of
+}
+
+"""A single rule in a target expression, evaluated from left to right."""
 type TargetClause {
-  connector: String
-  subject: String!
-  op: String!
+  connector: TargetClauseConnector
+  subject: TargetClauseSubject!
+  op: TargetClauseOperator!
   values: [String!]!
 }
 
-type SceneAction {
-  targetType: String!
+type SceneTargetEntry {
+  targetType: SceneTargetType!
   targetId: ID!
-  """Null when targetType is "expression"; otherwise the direct device/group/room."""
   target: SceneTarget
-  """Populated when targetType is "expression"; empty for direct targets."""
   expression: [TargetClause!]!
-  """Optional user label for an expression (Selector) target; empty otherwise."""
   name: String!
 }
 
-type SceneDevicePayload {
+type DesiredSceneState {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: Color
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+}
+
+type SceneLighting {
+  dynamicSource: DynamicSceneSource
+  overrides: [SceneLightOverride!]!
+}
+
+type VibeFieldSample {
+  lightness: Float
+  chroma: Float
+  hue: Float
+  brightness: Float
+  mireds: Float
+}
+
+type DynamicSceneSource {
+  domain: VibeFieldDomain!
+  sourceKind: VibeSourceKind!
+  presetId: ID
+  presetTitle: String
+  guidedSelectedIds: [ID!]!
+  seed: String!
+  brightness: Float!
+  movement: Float!
+  cycleSeconds: Float!
+  gridWidth: Int!
+  gridHeight: Int!
+  samples: [VibeFieldSample!]!
+}
+
+type SceneLightOverride {
   deviceId: ID!
-  payload: String!
+  kind: SceneLightOverrideKind!
+  state: DesiredSceneState
+  effectId: ID
+  nativeEffectName: String
+}
+
+type SceneSupportingState {
+  deviceId: ID!
+  state: DesiredSceneState!
+}
+
+type PreviewPixel {
+  r: Int!
+  g: Int!
+  b: Int!
+}
+
+type PreviewSwatch {
+  x: Float!
+  y: Float!
+  color: PreviewPixel!
+}
+
+type ScenePreview {
+  width: Int!
+  height: Int!
+  pixels: [PreviewPixel!]!
+  swatches: [PreviewSwatch!]!
+}
+
+type VibePreset {
+  id: ID!
+  title: String!
+  category: String!
+  domain: VibeFieldDomain!
+  seed: String!
+  brightness: Float!
+  movement: Float!
+  cycleSeconds: Float!
+  preview: ScenePreview!
+}
+
+type GuidedVibeOption {
+  id: ID!
+  title: String!
+  preview: ScenePreview!
+}
+
+type GuidedVibeRound {
+  round: Int!
+  canFinish: Boolean!
+  complete: Boolean!
+  options: [GuidedVibeOption!]!
+}
+
+type VibePreviewResult {
+  preview: ScenePreview!
+  domain: VibeFieldDomain!
+  seed: String!
+  brightness: Float!
+  movement: Float!
+  cycleSeconds: Float!
+  minimumLightness: Float!
+  maximumLightness: Float!
 }
 
 type AutomationGraph {
@@ -1245,51 +1362,109 @@ input UpdateDeviceRolesInput {
 
 input CreateSceneInput {
   name: String!
-  actions: [SceneActionInput!]!
-  devicePayloads: [SceneDevicePayloadInput!]
+  definition: SceneDefinitionInput!
 }
 
 input TargetClauseInput {
-  connector: String
-  subject: String!
-  op: String!
+  connector: TargetClauseConnector
+  subject: TargetClauseSubject!
+  op: TargetClauseOperator!
   values: [String!]!
 }
 
-input SceneActionInput {
-  targetType: String!
-  targetId: ID!
+input SceneTargetInput {
+  targetType: SceneTargetType!
+  targetId: ID
   expression: [TargetClauseInput!]
   name: String
 }
 
-"""
-SceneDevicePayloadInput is one entry in a scene's per-device payload list.
-The payload field is a JSON string carrying a tagged-union body. Three shapes
-are supported:
+input DesiredSceneStateInput {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: ColorInput
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+}
 
-  static:        {"kind":"static","on":true,"brightness":200,"colorTemp":370}
-  effect:        {"kind":"effect","effect_id":"<id>"}
-  native_effect: {"kind":"native_effect","native_name":"<name>"}
+input PresetVibeRecipeInput {
+  presetId: ID!
+  seed: String
+}
 
-The static shape's optional desired-state fields (on, brightness, colorTemp,
-color, transition) are filtered against the device's writable capabilities at
-apply time. The effect shape starts the named stored timeline/native effect
-run on this device when the scene is applied. The native_effect shape starts
-an auto-discovered native effect (one whose name appears in
-nativeEffectOptions) on this device. Deactivating the scene stops any runs
-started for either effect shape.
-"""
-input SceneDevicePayloadInput {
+input PhotoSampleInput {
+  domain: VibeFieldDomain!
+  seed: String!
+  width: Int!
+  height: Int!
+  rgbBase64: String!
+}
+
+input GuidedVibeRecipeInput {
+  domain: VibeFieldDomain!
+  seed: String!
+  selectedIds: [ID!]!
+}
+
+input VibeSourceInput {
+  preset: PresetVibeRecipeInput
+  photo: PhotoSampleInput
+  guided: GuidedVibeRecipeInput
+}
+
+input DynamicSceneSourceInput {
+  source: VibeSourceInput
+  brightness: Float
+  movement: Float
+  cycleSeconds: Float
+  seed: String
+}
+
+input SceneLightOverrideInput {
   deviceId: ID!
-  payload: String!
+  kind: SceneLightOverrideKind!
+  state: DesiredSceneStateInput
+  effectId: ID
+  nativeEffectName: String
+}
+
+input SceneSupportingStateInput {
+  deviceId: ID!
+  state: DesiredSceneStateInput!
+}
+
+input SceneLightingInput {
+  dynamicSource: DynamicSceneSourceInput
+  overrides: [SceneLightOverrideInput!]!
+}
+
+input SceneDefinitionInput {
+  targets: [SceneTargetInput!]!
+  lighting: SceneLightingInput!
+  supportingStates: [SceneSupportingStateInput!]!
 }
 
 input UpdateSceneInput {
   name: String
   icon: String
-  actions: [SceneActionInput!]
-  devicePayloads: [SceneDevicePayloadInput!]
+  definition: SceneDefinitionInput
+}
+
+input GuidedVibeRoundInput {
+  domain: VibeFieldDomain!
+  seed: String!
+  selectedIds: [ID!]!
+}
+
+input PreviewVibeInput {
+  source: VibeSourceInput!
+  brightness: Float
+  movement: Float
+  cycleSeconds: Float
 }
 
 input CreateAutomationInput {
@@ -1434,6 +1609,9 @@ type Query {
   device(id: ID!): Device @auth
   scenes: [Scene!]! @auth
   scene(id: ID!): Scene @auth
+  vibePresets: [VibePreset!]! @auth
+  guidedVibeRound(input: GuidedVibeRoundInput!): GuidedVibeRound! @auth
+  previewVibe(input: PreviewVibeInput!): VibePreviewResult! @auth
   automations: [AutomationGraph!]! @auth
   automation(id: ID!): AutomationGraph @auth
   webhookEndpoints: [WebhookEndpoint!]! @auth
@@ -1484,6 +1662,7 @@ type Mutation {
   """
   simulateDeviceAction(deviceId: ID!, action: String!): Boolean! @auth
   applyScene(sceneId: ID!): Scene! @auth
+  deactivateScene(sceneId: ID!): Scene! @auth
   createScene(input: CreateSceneInput!): Scene! @auth
   updateScene(id: ID!, input: UpdateSceneInput!): Scene! @auth
   deleteScene(id: ID!): Boolean! @auth

@@ -246,9 +246,8 @@ type CreateRoomInput struct {
 }
 
 type CreateSceneInput struct {
-	Name           string                                        `json:"name"`
-	Actions        []*SceneActionInput                           `json:"actions"`
-	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
+	Name       string                `json:"name"`
+	Definition *SceneDefinitionInput `json:"definition"`
 }
 
 type CreateUserInput struct {
@@ -262,6 +261,30 @@ type CreateWebhookEndpointInput struct {
 	Enabled           graphql.Omittable[*bool] `json:"enabled,omitempty"`
 	RateLimitCount    graphql.Omittable[*int]  `json:"rateLimitCount,omitempty"`
 	RateLimitWindowMs graphql.Omittable[*int]  `json:"rateLimitWindowMs,omitempty"`
+}
+
+type DesiredSceneState struct {
+	On                *bool    `json:"on,omitempty"`
+	Brightness        *int     `json:"brightness,omitempty"`
+	ColorTemp         *int     `json:"colorTemp,omitempty"`
+	Color             *Color   `json:"color,omitempty"`
+	Transition        *float64 `json:"transition,omitempty"`
+	TargetTemperature *float64 `json:"targetTemperature,omitempty"`
+	HvacMode          *string  `json:"hvacMode,omitempty"`
+	FanMode           *string  `json:"fanMode,omitempty"`
+	Swing             *string  `json:"swing,omitempty"`
+}
+
+type DesiredSceneStateInput struct {
+	On                graphql.Omittable[*bool]       `json:"on,omitempty"`
+	Brightness        graphql.Omittable[*int]        `json:"brightness,omitempty"`
+	ColorTemp         graphql.Omittable[*int]        `json:"colorTemp,omitempty"`
+	Color             graphql.Omittable[*ColorInput] `json:"color,omitempty"`
+	Transition        graphql.Omittable[*float64]    `json:"transition,omitempty"`
+	TargetTemperature graphql.Omittable[*float64]    `json:"targetTemperature,omitempty"`
+	HvacMode          graphql.Omittable[*string]     `json:"hvacMode,omitempty"`
+	FanMode           graphql.Omittable[*string]     `json:"fanMode,omitempty"`
+	Swing             graphql.Omittable[*string]     `json:"swing,omitempty"`
 }
 
 type Device struct {
@@ -390,6 +413,29 @@ type DeviceStateInput struct {
 	HvacMode          graphql.Omittable[*string]     `json:"hvacMode,omitempty"`
 	FanMode           graphql.Omittable[*string]     `json:"fanMode,omitempty"`
 	Swing             graphql.Omittable[*string]     `json:"swing,omitempty"`
+}
+
+type DynamicSceneSource struct {
+	Domain            VibeFieldDomain    `json:"domain"`
+	SourceKind        VibeSourceKind     `json:"sourceKind"`
+	PresetID          *string            `json:"presetId,omitempty"`
+	PresetTitle       *string            `json:"presetTitle,omitempty"`
+	GuidedSelectedIds []string           `json:"guidedSelectedIds"`
+	Seed              string             `json:"seed"`
+	Brightness        float64            `json:"brightness"`
+	Movement          float64            `json:"movement"`
+	CycleSeconds      float64            `json:"cycleSeconds"`
+	GridWidth         int                `json:"gridWidth"`
+	GridHeight        int                `json:"gridHeight"`
+	Samples           []*VibeFieldSample `json:"samples"`
+}
+
+type DynamicSceneSourceInput struct {
+	Source       graphql.Omittable[*VibeSourceInput] `json:"source,omitempty"`
+	Brightness   graphql.Omittable[*float64]         `json:"brightness,omitempty"`
+	Movement     graphql.Omittable[*float64]         `json:"movement,omitempty"`
+	CycleSeconds graphql.Omittable[*float64]         `json:"cycleSeconds,omitempty"`
+	Seed         graphql.Omittable[*string]          `json:"seed,omitempty"`
 }
 
 type Effect struct {
@@ -643,6 +689,31 @@ type GroupMember struct {
 	Room       *Room   `json:"room,omitempty"`
 }
 
+type GuidedVibeOption struct {
+	ID      string        `json:"id"`
+	Title   string        `json:"title"`
+	Preview *ScenePreview `json:"preview"`
+}
+
+type GuidedVibeRecipeInput struct {
+	Domain      VibeFieldDomain `json:"domain"`
+	Seed        string          `json:"seed"`
+	SelectedIds []string        `json:"selectedIds"`
+}
+
+type GuidedVibeRound struct {
+	Round     int                 `json:"round"`
+	CanFinish bool                `json:"canFinish"`
+	Complete  bool                `json:"complete"`
+	Options   []*GuidedVibeOption `json:"options"`
+}
+
+type GuidedVibeRoundInput struct {
+	Domain      VibeFieldDomain `json:"domain"`
+	Seed        string          `json:"seed"`
+	SelectedIds []string        `json:"selectedIds"`
+}
+
 type Integration struct {
 	Provider    string  `json:"provider"`
 	Name        string  `json:"name"`
@@ -727,6 +798,38 @@ type NumericSeriesPoint struct {
 	Value float64   `json:"value"`
 }
 
+type PhotoSampleInput struct {
+	Domain    VibeFieldDomain `json:"domain"`
+	Seed      string          `json:"seed"`
+	Width     int             `json:"width"`
+	Height    int             `json:"height"`
+	RgbBase64 string          `json:"rgbBase64"`
+}
+
+type PresetVibeRecipeInput struct {
+	PresetID string                     `json:"presetId"`
+	Seed     graphql.Omittable[*string] `json:"seed,omitempty"`
+}
+
+type PreviewPixel struct {
+	R int `json:"r"`
+	G int `json:"g"`
+	B int `json:"b"`
+}
+
+type PreviewSwatch struct {
+	X     float64       `json:"x"`
+	Y     float64       `json:"y"`
+	Color *PreviewPixel `json:"color"`
+}
+
+type PreviewVibeInput struct {
+	Source       *VibeSourceInput            `json:"source"`
+	Brightness   graphql.Omittable[*float64] `json:"brightness,omitempty"`
+	Movement     graphql.Omittable[*float64] `json:"movement,omitempty"`
+	CycleSeconds graphql.Omittable[*float64] `json:"cycleSeconds,omitempty"`
+}
+
 type Query struct {
 }
 
@@ -763,51 +866,16 @@ type RoomMemberInput struct {
 }
 
 type Scene struct {
-	ID   string  `json:"id"`
-	Name string  `json:"name"`
-	Icon *string `json:"icon,omitempty"`
-	// Rooms this scene is present in, derived from device overlap. A scene
-	// appears in a room iff the set of devices its actions resolve to shares
-	// at least one device with the room's resolved devices. Drives the
-	// per-room dashboard drawer's scene list — no explicit tagging, no
-	// separate config.
-	Rooms   []*Room        `json:"rooms"`
-	Actions []*SceneAction `json:"actions"`
-	// Per-device payload overrides the user has saved explicitly. Devices that
-	// inherit their room/group default do NOT appear here. Use this for the
-	// scene editor's override rows; use effectivePayloads for display tint.
-	DevicePayloads []*SceneDevicePayload `json:"devicePayloads"`
-	// One payload per unique device reached by the scene's action targets
-	// (rooms, groups, or direct devices), in the same order apply-scene would
-	// command them. Devices without an explicit override appear with a
-	// capability-filtered default (warm-white on), so consumers can tint cards,
-	// preview apply behaviour, etc. without re-implementing the resolution.
-	EffectivePayloads []*SceneDevicePayload `json:"effectivePayloads"`
-	CreatedBy         *User                 `json:"createdBy,omitempty"`
-	// Non-null while this scene is currently the state of its devices: every
-	// device the scene reached at apply time is still in the scene-relevant
-	// state the scene asked for. Any change to a scene-relevant field (on,
-	// brightness, colorTemp, color) on any of those devices clears this back
-	// to null. Use the presence of a value as "is this scene active right now".
-	ActivatedAt *time.Time `json:"activatedAt,omitempty"`
-}
-
-type SceneAction struct {
-	TargetType string `json:"targetType"`
-	TargetID   string `json:"targetId"`
-	// Null when targetType is "expression"; otherwise the direct device/group/room.
-	Target SceneTarget `json:"target,omitempty"`
-	// Populated when targetType is "expression"; empty for direct targets.
-	Expression []*TargetClause `json:"expression"`
-	// Optional user label for an expression (Selector) target; empty otherwise.
-	Name string `json:"name"`
-}
-
-type SceneActionInput struct {
-	TargetType string                                  `json:"targetType"`
-	TargetID   string                                  `json:"targetId"`
-	Expression graphql.Omittable[[]*TargetClauseInput] `json:"expression,omitempty"`
-	Name       graphql.Omittable[*string]              `json:"name,omitempty"`
+	ID               string                  `json:"id"`
+	Name             string                  `json:"name"`
+	Icon             *string                 `json:"icon,omitempty"`
+	Rooms            []*Room                 `json:"rooms"`
+	Targets          []*SceneTargetEntry     `json:"targets"`
+	Lighting         *SceneLighting          `json:"lighting"`
+	SupportingStates []*SceneSupportingState `json:"supportingStates"`
+	Preview          *ScenePreview           `json:"preview"`
+	CreatedBy        *User                   `json:"createdBy,omitempty"`
+	ActivatedAt      *time.Time              `json:"activatedAt,omitempty"`
 }
 
 // Emitted whenever a scene's activation state flips. activatedAt is non-null
@@ -818,29 +886,68 @@ type SceneActiveEvent struct {
 	ActivatedAt *time.Time `json:"activatedAt,omitempty"`
 }
 
-type SceneDevicePayload struct {
-	DeviceID string `json:"deviceId"`
-	Payload  string `json:"payload"`
+type SceneDefinitionInput struct {
+	Targets          []*SceneTargetInput          `json:"targets"`
+	Lighting         *SceneLightingInput          `json:"lighting"`
+	SupportingStates []*SceneSupportingStateInput `json:"supportingStates"`
 }
 
-// SceneDevicePayloadInput is one entry in a scene's per-device payload list.
-// The payload field is a JSON string carrying a tagged-union body. Three shapes
-// are supported:
-//
-//	static:        {"kind":"static","on":true,"brightness":200,"colorTemp":370}
-//	effect:        {"kind":"effect","effect_id":"<id>"}
-//	native_effect: {"kind":"native_effect","native_name":"<name>"}
-//
-// The static shape's optional desired-state fields (on, brightness, colorTemp,
-// color, transition) are filtered against the device's writable capabilities at
-// apply time. The effect shape starts the named stored timeline/native effect
-// run on this device when the scene is applied. The native_effect shape starts
-// an auto-discovered native effect (one whose name appears in
-// nativeEffectOptions) on this device. Deactivating the scene stops any runs
-// started for either effect shape.
-type SceneDevicePayloadInput struct {
-	DeviceID string `json:"deviceId"`
-	Payload  string `json:"payload"`
+type SceneLightOverride struct {
+	DeviceID         string                 `json:"deviceId"`
+	Kind             SceneLightOverrideKind `json:"kind"`
+	State            *DesiredSceneState     `json:"state,omitempty"`
+	EffectID         *string                `json:"effectId,omitempty"`
+	NativeEffectName *string                `json:"nativeEffectName,omitempty"`
+}
+
+type SceneLightOverrideInput struct {
+	DeviceID         string                                     `json:"deviceId"`
+	Kind             SceneLightOverrideKind                     `json:"kind"`
+	State            graphql.Omittable[*DesiredSceneStateInput] `json:"state,omitempty"`
+	EffectID         graphql.Omittable[*string]                 `json:"effectId,omitempty"`
+	NativeEffectName graphql.Omittable[*string]                 `json:"nativeEffectName,omitempty"`
+}
+
+type SceneLighting struct {
+	DynamicSource *DynamicSceneSource   `json:"dynamicSource,omitempty"`
+	Overrides     []*SceneLightOverride `json:"overrides"`
+}
+
+type SceneLightingInput struct {
+	DynamicSource graphql.Omittable[*DynamicSceneSourceInput] `json:"dynamicSource,omitempty"`
+	Overrides     []*SceneLightOverrideInput                  `json:"overrides"`
+}
+
+type ScenePreview struct {
+	Width    int              `json:"width"`
+	Height   int              `json:"height"`
+	Pixels   []*PreviewPixel  `json:"pixels"`
+	Swatches []*PreviewSwatch `json:"swatches"`
+}
+
+type SceneSupportingState struct {
+	DeviceID string             `json:"deviceId"`
+	State    *DesiredSceneState `json:"state"`
+}
+
+type SceneSupportingStateInput struct {
+	DeviceID string                  `json:"deviceId"`
+	State    *DesiredSceneStateInput `json:"state"`
+}
+
+type SceneTargetEntry struct {
+	TargetType SceneTargetType `json:"targetType"`
+	TargetID   string          `json:"targetId"`
+	Target     SceneTarget     `json:"target,omitempty"`
+	Expression []*TargetClause `json:"expression"`
+	Name       string          `json:"name"`
+}
+
+type SceneTargetInput struct {
+	TargetType SceneTargetType                         `json:"targetType"`
+	TargetID   graphql.Omittable[*string]              `json:"targetId,omitempty"`
+	Expression graphql.Omittable[[]*TargetClauseInput] `json:"expression,omitempty"`
+	Name       graphql.Omittable[*string]              `json:"name,omitempty"`
 }
 
 type Setting struct {
@@ -877,21 +984,19 @@ type StateSeriesPoint struct {
 type Subscription struct {
 }
 
-// A single rule in a target expression. connector is null on the first clause and
-// "and"/"or" on subsequent clauses (evaluated left-to-right). subject is one of
-// room/group/device/device_type/device_role; op is is/is_one_of/is_not/is_not_one_of.
+// A single rule in a target expression, evaluated from left to right.
 type TargetClause struct {
-	Connector *string  `json:"connector,omitempty"`
-	Subject   string   `json:"subject"`
-	Op        string   `json:"op"`
-	Values    []string `json:"values"`
+	Connector *TargetClauseConnector `json:"connector,omitempty"`
+	Subject   TargetClauseSubject    `json:"subject"`
+	Op        TargetClauseOperator   `json:"op"`
+	Values    []string               `json:"values"`
 }
 
 type TargetClauseInput struct {
-	Connector graphql.Omittable[*string] `json:"connector,omitempty"`
-	Subject   string                     `json:"subject"`
-	Op        string                     `json:"op"`
-	Values    []string                   `json:"values"`
+	Connector graphql.Omittable[*TargetClauseConnector] `json:"connector,omitempty"`
+	Subject   TargetClauseSubject                       `json:"subject"`
+	Op        TargetClauseOperator                      `json:"op"`
+	Values    []string                                  `json:"values"`
 }
 
 // One undirected edge in a mesh snapshot. Kinds: "parent" joins a leaf to the
@@ -1007,10 +1112,9 @@ type UpdateRoomInput struct {
 }
 
 type UpdateSceneInput struct {
-	Name           graphql.Omittable[*string]                    `json:"name,omitempty"`
-	Icon           graphql.Omittable[*string]                    `json:"icon,omitempty"`
-	Actions        graphql.Omittable[[]*SceneActionInput]        `json:"actions,omitempty"`
-	DevicePayloads graphql.Omittable[[]*SceneDevicePayloadInput] `json:"devicePayloads,omitempty"`
+	Name       graphql.Omittable[*string]               `json:"name,omitempty"`
+	Icon       graphql.Omittable[*string]               `json:"icon,omitempty"`
+	Definition graphql.Omittable[*SceneDefinitionInput] `json:"definition,omitempty"`
 }
 
 type UpdateWebhookEndpointInput struct {
@@ -1053,6 +1157,43 @@ type User struct {
 	// flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
 	// on attribution references.
 	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
+}
+
+type VibeFieldSample struct {
+	Lightness  *float64 `json:"lightness,omitempty"`
+	Chroma     *float64 `json:"chroma,omitempty"`
+	Hue        *float64 `json:"hue,omitempty"`
+	Brightness *float64 `json:"brightness,omitempty"`
+	Mireds     *float64 `json:"mireds,omitempty"`
+}
+
+type VibePreset struct {
+	ID           string          `json:"id"`
+	Title        string          `json:"title"`
+	Category     string          `json:"category"`
+	Domain       VibeFieldDomain `json:"domain"`
+	Seed         string          `json:"seed"`
+	Brightness   float64         `json:"brightness"`
+	Movement     float64         `json:"movement"`
+	CycleSeconds float64         `json:"cycleSeconds"`
+	Preview      *ScenePreview   `json:"preview"`
+}
+
+type VibePreviewResult struct {
+	Preview          *ScenePreview   `json:"preview"`
+	Domain           VibeFieldDomain `json:"domain"`
+	Seed             string          `json:"seed"`
+	Brightness       float64         `json:"brightness"`
+	Movement         float64         `json:"movement"`
+	CycleSeconds     float64         `json:"cycleSeconds"`
+	MinimumLightness float64         `json:"minimumLightness"`
+	MaximumLightness float64         `json:"maximumLightness"`
+}
+
+type VibeSourceInput struct {
+	Preset graphql.Omittable[*PresetVibeRecipeInput] `json:"preset,omitempty"`
+	Photo  graphql.Omittable[*PhotoSampleInput]      `json:"photo,omitempty"`
+	Guided graphql.Omittable[*GuidedVibeRecipeInput] `json:"guided,omitempty"`
 }
 
 type WebhookDelivery struct {
@@ -2188,6 +2329,122 @@ func (e NativeEffectSupportStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type SceneLightOverrideKind string
+
+const (
+	SceneLightOverrideKindState        SceneLightOverrideKind = "state"
+	SceneLightOverrideKindEffect       SceneLightOverrideKind = "effect"
+	SceneLightOverrideKindNativeEffect SceneLightOverrideKind = "native_effect"
+)
+
+var AllSceneLightOverrideKind = []SceneLightOverrideKind{
+	SceneLightOverrideKindState,
+	SceneLightOverrideKindEffect,
+	SceneLightOverrideKindNativeEffect,
+}
+
+func (e SceneLightOverrideKind) IsValid() bool {
+	switch e {
+	case SceneLightOverrideKindState, SceneLightOverrideKindEffect, SceneLightOverrideKindNativeEffect:
+		return true
+	}
+	return false
+}
+
+func (e SceneLightOverrideKind) String() string {
+	return string(e)
+}
+
+func (e *SceneLightOverrideKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SceneLightOverrideKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SceneLightOverrideKind", str)
+	}
+	return nil
+}
+
+func (e SceneLightOverrideKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SceneLightOverrideKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SceneLightOverrideKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type SceneTargetType string
+
+const (
+	SceneTargetTypeDevice     SceneTargetType = "device"
+	SceneTargetTypeGroup      SceneTargetType = "group"
+	SceneTargetTypeRoom       SceneTargetType = "room"
+	SceneTargetTypeExpression SceneTargetType = "expression"
+)
+
+var AllSceneTargetType = []SceneTargetType{
+	SceneTargetTypeDevice,
+	SceneTargetTypeGroup,
+	SceneTargetTypeRoom,
+	SceneTargetTypeExpression,
+}
+
+func (e SceneTargetType) IsValid() bool {
+	switch e {
+	case SceneTargetTypeDevice, SceneTargetTypeGroup, SceneTargetTypeRoom, SceneTargetTypeExpression:
+		return true
+	}
+	return false
+}
+
+func (e SceneTargetType) String() string {
+	return string(e)
+}
+
+func (e *SceneTargetType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SceneTargetType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SceneTargetType", str)
+	}
+	return nil
+}
+
+func (e SceneTargetType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SceneTargetType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SceneTargetType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type StateSeriesValueType string
 
 const (
@@ -2240,6 +2497,185 @@ func (e *StateSeriesValueType) UnmarshalJSON(b []byte) error {
 }
 
 func (e StateSeriesValueType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TargetClauseConnector string
+
+const (
+	TargetClauseConnectorAnd TargetClauseConnector = "and"
+	TargetClauseConnectorOr  TargetClauseConnector = "or"
+)
+
+var AllTargetClauseConnector = []TargetClauseConnector{
+	TargetClauseConnectorAnd,
+	TargetClauseConnectorOr,
+}
+
+func (e TargetClauseConnector) IsValid() bool {
+	switch e {
+	case TargetClauseConnectorAnd, TargetClauseConnectorOr:
+		return true
+	}
+	return false
+}
+
+func (e TargetClauseConnector) String() string {
+	return string(e)
+}
+
+func (e *TargetClauseConnector) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TargetClauseConnector(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TargetClauseConnector", str)
+	}
+	return nil
+}
+
+func (e TargetClauseConnector) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TargetClauseConnector) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TargetClauseConnector) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TargetClauseOperator string
+
+const (
+	TargetClauseOperatorIs         TargetClauseOperator = "is"
+	TargetClauseOperatorIsOneOf    TargetClauseOperator = "is_one_of"
+	TargetClauseOperatorIsNot      TargetClauseOperator = "is_not"
+	TargetClauseOperatorIsNotOneOf TargetClauseOperator = "is_not_one_of"
+)
+
+var AllTargetClauseOperator = []TargetClauseOperator{
+	TargetClauseOperatorIs,
+	TargetClauseOperatorIsOneOf,
+	TargetClauseOperatorIsNot,
+	TargetClauseOperatorIsNotOneOf,
+}
+
+func (e TargetClauseOperator) IsValid() bool {
+	switch e {
+	case TargetClauseOperatorIs, TargetClauseOperatorIsOneOf, TargetClauseOperatorIsNot, TargetClauseOperatorIsNotOneOf:
+		return true
+	}
+	return false
+}
+
+func (e TargetClauseOperator) String() string {
+	return string(e)
+}
+
+func (e *TargetClauseOperator) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TargetClauseOperator(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TargetClauseOperator", str)
+	}
+	return nil
+}
+
+func (e TargetClauseOperator) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TargetClauseOperator) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TargetClauseOperator) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TargetClauseSubject string
+
+const (
+	TargetClauseSubjectRoom               TargetClauseSubject = "room"
+	TargetClauseSubjectGroup              TargetClauseSubject = "group"
+	TargetClauseSubjectDevice             TargetClauseSubject = "device"
+	TargetClauseSubjectDeviceType         TargetClauseSubject = "device_type"
+	TargetClauseSubjectDeviceRole         TargetClauseSubject = "device_role"
+	TargetClauseSubjectWritableCapability TargetClauseSubject = "writable_capability"
+	TargetClauseSubjectReportedCapability TargetClauseSubject = "reported_capability"
+)
+
+var AllTargetClauseSubject = []TargetClauseSubject{
+	TargetClauseSubjectRoom,
+	TargetClauseSubjectGroup,
+	TargetClauseSubjectDevice,
+	TargetClauseSubjectDeviceType,
+	TargetClauseSubjectDeviceRole,
+	TargetClauseSubjectWritableCapability,
+	TargetClauseSubjectReportedCapability,
+}
+
+func (e TargetClauseSubject) IsValid() bool {
+	switch e {
+	case TargetClauseSubjectRoom, TargetClauseSubjectGroup, TargetClauseSubjectDevice, TargetClauseSubjectDeviceType, TargetClauseSubjectDeviceRole, TargetClauseSubjectWritableCapability, TargetClauseSubjectReportedCapability:
+		return true
+	}
+	return false
+}
+
+func (e TargetClauseSubject) String() string {
+	return string(e)
+}
+
+func (e *TargetClauseSubject) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TargetClauseSubject(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TargetClauseSubject", str)
+	}
+	return nil
+}
+
+func (e TargetClauseSubject) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TargetClauseSubject) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TargetClauseSubject) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -2405,6 +2841,118 @@ func (e *TimeFormat) UnmarshalJSON(b []byte) error {
 }
 
 func (e TimeFormat) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type VibeFieldDomain string
+
+const (
+	VibeFieldDomainFullColor     VibeFieldDomain = "full_color"
+	VibeFieldDomainWhiteAmbience VibeFieldDomain = "white_ambience"
+)
+
+var AllVibeFieldDomain = []VibeFieldDomain{
+	VibeFieldDomainFullColor,
+	VibeFieldDomainWhiteAmbience,
+}
+
+func (e VibeFieldDomain) IsValid() bool {
+	switch e {
+	case VibeFieldDomainFullColor, VibeFieldDomainWhiteAmbience:
+		return true
+	}
+	return false
+}
+
+func (e VibeFieldDomain) String() string {
+	return string(e)
+}
+
+func (e *VibeFieldDomain) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = VibeFieldDomain(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid VibeFieldDomain", str)
+	}
+	return nil
+}
+
+func (e VibeFieldDomain) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *VibeFieldDomain) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e VibeFieldDomain) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type VibeSourceKind string
+
+const (
+	VibeSourceKindPreset VibeSourceKind = "preset"
+	VibeSourceKindPhoto  VibeSourceKind = "photo"
+	VibeSourceKindGuided VibeSourceKind = "guided"
+)
+
+var AllVibeSourceKind = []VibeSourceKind{
+	VibeSourceKindPreset,
+	VibeSourceKindPhoto,
+	VibeSourceKindGuided,
+}
+
+func (e VibeSourceKind) IsValid() bool {
+	switch e {
+	case VibeSourceKindPreset, VibeSourceKindPhoto, VibeSourceKindGuided:
+		return true
+	}
+	return false
+}
+
+func (e VibeSourceKind) String() string {
+	return string(e)
+}
+
+func (e *VibeSourceKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = VibeSourceKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid VibeSourceKind", str)
+	}
+	return nil
+}
+
+func (e VibeSourceKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *VibeSourceKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e VibeSourceKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

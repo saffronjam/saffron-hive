@@ -155,6 +155,18 @@ type ComplexityRoot struct {
 		Success func(childComplexity int) int
 	}
 
+	DesiredSceneState struct {
+		Brightness        func(childComplexity int) int
+		Color             func(childComplexity int) int
+		ColorTemp         func(childComplexity int) int
+		FanMode           func(childComplexity int) int
+		HvacMode          func(childComplexity int) int
+		On                func(childComplexity int) int
+		Swing             func(childComplexity int) int
+		TargetTemperature func(childComplexity int) int
+		Transition        func(childComplexity int) int
+	}
+
 	Device struct {
 		Available         func(childComplexity int) int
 		Capabilities      func(childComplexity int) int
@@ -233,6 +245,21 @@ type ComplexityRoot struct {
 	DeviceStateEvent struct {
 		DeviceID func(childComplexity int) int
 		State    func(childComplexity int) int
+	}
+
+	DynamicSceneSource struct {
+		Brightness        func(childComplexity int) int
+		CycleSeconds      func(childComplexity int) int
+		Domain            func(childComplexity int) int
+		GridHeight        func(childComplexity int) int
+		GridWidth         func(childComplexity int) int
+		GuidedSelectedIds func(childComplexity int) int
+		Movement          func(childComplexity int) int
+		PresetID          func(childComplexity int) int
+		PresetTitle       func(childComplexity int) int
+		Samples           func(childComplexity int) int
+		Seed              func(childComplexity int) int
+		SourceKind        func(childComplexity int) int
 	}
 
 	Effect struct {
@@ -363,6 +390,19 @@ type ComplexityRoot struct {
 		Room       func(childComplexity int) int
 	}
 
+	GuidedVibeOption struct {
+		ID      func(childComplexity int) int
+		Preview func(childComplexity int) int
+		Title   func(childComplexity int) int
+	}
+
+	GuidedVibeRound struct {
+		CanFinish func(childComplexity int) int
+		Complete  func(childComplexity int) int
+		Options   func(childComplexity int) int
+		Round     func(childComplexity int) int
+	}
+
 	Integration struct {
 		Configured  func(childComplexity int) int
 		Connected   func(childComplexity int) int
@@ -419,6 +459,7 @@ type ComplexityRoot struct {
 		CreateScene                 func(childComplexity int, input model.CreateSceneInput) int
 		CreateUser                  func(childComplexity int, input model.CreateUserInput) int
 		CreateWebhookEndpoint       func(childComplexity int, input model.CreateWebhookEndpointInput) int
+		DeactivateScene             func(childComplexity int, sceneID string) int
 		DeleteAlarm                 func(childComplexity int, alarmID string) int
 		DeleteAutomation            func(childComplexity int, id string) int
 		DeleteDevice                func(childComplexity int, id string) int
@@ -507,6 +548,18 @@ type ComplexityRoot struct {
 		Value func(childComplexity int) int
 	}
 
+	PreviewPixel struct {
+		B func(childComplexity int) int
+		G func(childComplexity int) int
+		R func(childComplexity int) int
+	}
+
+	PreviewSwatch struct {
+		Color func(childComplexity int) int
+		X     func(childComplexity int) int
+		Y     func(childComplexity int) int
+	}
+
 	Query struct {
 		ActiveEffects          func(childComplexity int) int
 		Activity               func(childComplexity int, filter *model.ActivityFilter) int
@@ -521,6 +574,7 @@ type ComplexityRoot struct {
 		Floorplan              func(childComplexity int) int
 		Group                  func(childComplexity int, id string) int
 		Groups                 func(childComplexity int) int
+		GuidedVibeRound        func(childComplexity int, input model.GuidedVibeRoundInput) int
 		Integrations           func(childComplexity int) int
 		Logs                   func(childComplexity int, search *string, limit *int) int
 		MaintenanceTasks       func(childComplexity int) int
@@ -528,6 +582,7 @@ type ComplexityRoot struct {
 		NativeEffectOptions    func(childComplexity int) int
 		NativeEffectSupport    func(childComplexity int, name string) int
 		NetworkTopologies      func(childComplexity int) int
+		PreviewVibe            func(childComplexity int, input model.PreviewVibeInput) int
 		Room                   func(childComplexity int, id string) int
 		Rooms                  func(childComplexity int) int
 		Scene                  func(childComplexity int, id string) int
@@ -538,6 +593,7 @@ type ComplexityRoot struct {
 		StateHistoryFields     func(childComplexity int) int
 		TuyaConfig             func(childComplexity int) int
 		Users                  func(childComplexity int) int
+		VibePresets            func(childComplexity int) int
 		WebhookDeliveries      func(childComplexity int, endpointID string, before *time.Time, limit *int) int
 		WebhookEndpoint        func(childComplexity int, id string) int
 		WebhookEndpoints       func(childComplexity int) int
@@ -562,23 +618,16 @@ type ComplexityRoot struct {
 	}
 
 	Scene struct {
-		Actions           func(childComplexity int) int
-		ActivatedAt       func(childComplexity int) int
-		CreatedBy         func(childComplexity int) int
-		DevicePayloads    func(childComplexity int) int
-		EffectivePayloads func(childComplexity int) int
-		ID                func(childComplexity int) int
-		Icon              func(childComplexity int) int
-		Name              func(childComplexity int) int
-		Rooms             func(childComplexity int) int
-	}
-
-	SceneAction struct {
-		Expression func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Target     func(childComplexity int) int
-		TargetID   func(childComplexity int) int
-		TargetType func(childComplexity int) int
+		ActivatedAt      func(childComplexity int) int
+		CreatedBy        func(childComplexity int) int
+		ID               func(childComplexity int) int
+		Icon             func(childComplexity int) int
+		Lighting         func(childComplexity int) int
+		Name             func(childComplexity int) int
+		Preview          func(childComplexity int) int
+		Rooms            func(childComplexity int) int
+		SupportingStates func(childComplexity int) int
+		Targets          func(childComplexity int) int
 	}
 
 	SceneActiveEvent struct {
@@ -586,9 +635,37 @@ type ComplexityRoot struct {
 		SceneID     func(childComplexity int) int
 	}
 
-	SceneDevicePayload struct {
+	SceneLightOverride struct {
+		DeviceID         func(childComplexity int) int
+		EffectID         func(childComplexity int) int
+		Kind             func(childComplexity int) int
+		NativeEffectName func(childComplexity int) int
+		State            func(childComplexity int) int
+	}
+
+	SceneLighting struct {
+		DynamicSource func(childComplexity int) int
+		Overrides     func(childComplexity int) int
+	}
+
+	ScenePreview struct {
+		Height   func(childComplexity int) int
+		Pixels   func(childComplexity int) int
+		Swatches func(childComplexity int) int
+		Width    func(childComplexity int) int
+	}
+
+	SceneSupportingState struct {
 		DeviceID func(childComplexity int) int
-		Payload  func(childComplexity int) int
+		State    func(childComplexity int) int
+	}
+
+	SceneTargetEntry struct {
+		Expression func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Target     func(childComplexity int) int
+		TargetID   func(childComplexity int) int
+		TargetType func(childComplexity int) int
 	}
 
 	Setting struct {
@@ -676,6 +753,37 @@ type ComplexityRoot struct {
 		Theme              func(childComplexity int) int
 		TimeFormat         func(childComplexity int) int
 		Username           func(childComplexity int) int
+	}
+
+	VibeFieldSample struct {
+		Brightness func(childComplexity int) int
+		Chroma     func(childComplexity int) int
+		Hue        func(childComplexity int) int
+		Lightness  func(childComplexity int) int
+		Mireds     func(childComplexity int) int
+	}
+
+	VibePreset struct {
+		Brightness   func(childComplexity int) int
+		Category     func(childComplexity int) int
+		CycleSeconds func(childComplexity int) int
+		Domain       func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Movement     func(childComplexity int) int
+		Preview      func(childComplexity int) int
+		Seed         func(childComplexity int) int
+		Title        func(childComplexity int) int
+	}
+
+	VibePreviewResult struct {
+		Brightness       func(childComplexity int) int
+		CycleSeconds     func(childComplexity int) int
+		Domain           func(childComplexity int) int
+		MaximumLightness func(childComplexity int) int
+		MinimumLightness func(childComplexity int) int
+		Movement         func(childComplexity int) int
+		Preview          func(childComplexity int) int
+		Seed             func(childComplexity int) int
 	}
 
 	WebhookDelivery struct {
@@ -836,6 +944,7 @@ type MutationResolver interface {
 	SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceConfigurationEntryInput) (bool, error)
 	SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error)
 	ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error)
+	DeactivateScene(ctx context.Context, sceneID string) (*model.Scene, error)
 	CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error)
 	UpdateScene(ctx context.Context, id string, input model.UpdateSceneInput) (*model.Scene, error)
 	DeleteScene(ctx context.Context, id string) (bool, error)
@@ -902,6 +1011,9 @@ type QueryResolver interface {
 	Device(ctx context.Context, id string) (*model.Device, error)
 	Scenes(ctx context.Context) ([]*model.Scene, error)
 	Scene(ctx context.Context, id string) (*model.Scene, error)
+	VibePresets(ctx context.Context) ([]*model.VibePreset, error)
+	GuidedVibeRound(ctx context.Context, input model.GuidedVibeRoundInput) (*model.GuidedVibeRound, error)
+	PreviewVibe(ctx context.Context, input model.PreviewVibeInput) (*model.VibePreviewResult, error)
 	Automations(ctx context.Context) ([]*model.AutomationGraph, error)
 	Automation(ctx context.Context, id string) (*model.AutomationGraph, error)
 	WebhookEndpoints(ctx context.Context) ([]*model.WebhookEndpoint, error)
@@ -1423,6 +1535,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ConnectionTestResult.Success(childComplexity), true
 
+	case "DesiredSceneState.brightness":
+		if e.ComplexityRoot.DesiredSceneState.Brightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.Brightness(childComplexity), true
+	case "DesiredSceneState.color":
+		if e.ComplexityRoot.DesiredSceneState.Color == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.Color(childComplexity), true
+	case "DesiredSceneState.colorTemp":
+		if e.ComplexityRoot.DesiredSceneState.ColorTemp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.ColorTemp(childComplexity), true
+	case "DesiredSceneState.fanMode":
+		if e.ComplexityRoot.DesiredSceneState.FanMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.FanMode(childComplexity), true
+	case "DesiredSceneState.hvacMode":
+		if e.ComplexityRoot.DesiredSceneState.HvacMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.HvacMode(childComplexity), true
+	case "DesiredSceneState.on":
+		if e.ComplexityRoot.DesiredSceneState.On == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.On(childComplexity), true
+	case "DesiredSceneState.swing":
+		if e.ComplexityRoot.DesiredSceneState.Swing == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.Swing(childComplexity), true
+	case "DesiredSceneState.targetTemperature":
+		if e.ComplexityRoot.DesiredSceneState.TargetTemperature == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.TargetTemperature(childComplexity), true
+	case "DesiredSceneState.transition":
+		if e.ComplexityRoot.DesiredSceneState.Transition == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredSceneState.Transition(childComplexity), true
+
 	case "Device.available":
 		if e.ComplexityRoot.Device.Available == nil {
 			break
@@ -1766,6 +1933,79 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceStateEvent.State(childComplexity), true
+
+	case "DynamicSceneSource.brightness":
+		if e.ComplexityRoot.DynamicSceneSource.Brightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.Brightness(childComplexity), true
+	case "DynamicSceneSource.cycleSeconds":
+		if e.ComplexityRoot.DynamicSceneSource.CycleSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.CycleSeconds(childComplexity), true
+	case "DynamicSceneSource.domain":
+		if e.ComplexityRoot.DynamicSceneSource.Domain == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.Domain(childComplexity), true
+	case "DynamicSceneSource.gridHeight":
+		if e.ComplexityRoot.DynamicSceneSource.GridHeight == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.GridHeight(childComplexity), true
+	case "DynamicSceneSource.gridWidth":
+		if e.ComplexityRoot.DynamicSceneSource.GridWidth == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.GridWidth(childComplexity), true
+	case "DynamicSceneSource.guidedSelectedIds":
+		if e.ComplexityRoot.DynamicSceneSource.GuidedSelectedIds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.GuidedSelectedIds(childComplexity), true
+	case "DynamicSceneSource.movement":
+		if e.ComplexityRoot.DynamicSceneSource.Movement == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.Movement(childComplexity), true
+	case "DynamicSceneSource.presetId":
+		if e.ComplexityRoot.DynamicSceneSource.PresetID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.PresetID(childComplexity), true
+	case "DynamicSceneSource.presetTitle":
+		if e.ComplexityRoot.DynamicSceneSource.PresetTitle == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.PresetTitle(childComplexity), true
+	case "DynamicSceneSource.samples":
+		if e.ComplexityRoot.DynamicSceneSource.Samples == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.Samples(childComplexity), true
+	case "DynamicSceneSource.seed":
+		if e.ComplexityRoot.DynamicSceneSource.Seed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.Seed(childComplexity), true
+	case "DynamicSceneSource.sourceKind":
+		if e.ComplexityRoot.DynamicSceneSource.SourceKind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DynamicSceneSource.SourceKind(childComplexity), true
 
 	case "Effect.createdAt":
 		if e.ComplexityRoot.Effect.CreatedAt == nil {
@@ -2297,6 +2537,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.GroupMember.Room(childComplexity), true
 
+	case "GuidedVibeOption.id":
+		if e.ComplexityRoot.GuidedVibeOption.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeOption.ID(childComplexity), true
+	case "GuidedVibeOption.preview":
+		if e.ComplexityRoot.GuidedVibeOption.Preview == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeOption.Preview(childComplexity), true
+	case "GuidedVibeOption.title":
+		if e.ComplexityRoot.GuidedVibeOption.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeOption.Title(childComplexity), true
+
+	case "GuidedVibeRound.canFinish":
+		if e.ComplexityRoot.GuidedVibeRound.CanFinish == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeRound.CanFinish(childComplexity), true
+	case "GuidedVibeRound.complete":
+		if e.ComplexityRoot.GuidedVibeRound.Complete == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeRound.Complete(childComplexity), true
+	case "GuidedVibeRound.options":
+		if e.ComplexityRoot.GuidedVibeRound.Options == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeRound.Options(childComplexity), true
+	case "GuidedVibeRound.round":
+		if e.ComplexityRoot.GuidedVibeRound.Round == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeRound.Round(childComplexity), true
+
 	case "Integration.configured":
 		if e.ComplexityRoot.Integration.Configured == nil {
 			break
@@ -2706,6 +2990,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateWebhookEndpoint(childComplexity, args["input"].(model.CreateWebhookEndpointInput)), true
+	case "Mutation.deactivateScene":
+		if e.ComplexityRoot.Mutation.DeactivateScene == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deactivateScene_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeactivateScene(childComplexity, args["sceneId"].(string)), true
 	case "Mutation.deleteAlarm":
 		if e.ComplexityRoot.Mutation.DeleteAlarm == nil {
 			break
@@ -3309,6 +3604,44 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.NumericSeriesPoint.Value(childComplexity), true
 
+	case "PreviewPixel.b":
+		if e.ComplexityRoot.PreviewPixel.B == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PreviewPixel.B(childComplexity), true
+	case "PreviewPixel.g":
+		if e.ComplexityRoot.PreviewPixel.G == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PreviewPixel.G(childComplexity), true
+	case "PreviewPixel.r":
+		if e.ComplexityRoot.PreviewPixel.R == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PreviewPixel.R(childComplexity), true
+
+	case "PreviewSwatch.color":
+		if e.ComplexityRoot.PreviewSwatch.Color == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PreviewSwatch.Color(childComplexity), true
+	case "PreviewSwatch.x":
+		if e.ComplexityRoot.PreviewSwatch.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PreviewSwatch.X(childComplexity), true
+	case "PreviewSwatch.y":
+		if e.ComplexityRoot.PreviewSwatch.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PreviewSwatch.Y(childComplexity), true
+
 	case "Query.activeEffects":
 		if e.ComplexityRoot.Query.ActiveEffects == nil {
 			break
@@ -3422,6 +3755,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Groups(childComplexity), true
+	case "Query.guidedVibeRound":
+		if e.ComplexityRoot.Query.GuidedVibeRound == nil {
+			break
+		}
+
+		args, err := ec.field_Query_guidedVibeRound_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.GuidedVibeRound(childComplexity, args["input"].(model.GuidedVibeRoundInput)), true
 	case "Query.integrations":
 		if e.ComplexityRoot.Query.Integrations == nil {
 			break
@@ -3475,6 +3819,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.NetworkTopologies(childComplexity), true
+	case "Query.previewVibe":
+		if e.ComplexityRoot.Query.PreviewVibe == nil {
+			break
+		}
+
+		args, err := ec.field_Query_previewVibe_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.PreviewVibe(childComplexity, args["input"].(model.PreviewVibeInput)), true
 	case "Query.room":
 		if e.ComplexityRoot.Query.Room == nil {
 			break
@@ -3550,6 +3905,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Users(childComplexity), true
+	case "Query.vibePresets":
+		if e.ComplexityRoot.Query.VibePresets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.VibePresets(childComplexity), true
 	case "Query.webhookDeliveries":
 		if e.ComplexityRoot.Query.WebhookDeliveries == nil {
 			break
@@ -3653,12 +4014,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.RoomMember.MemberType(childComplexity), true
 
-	case "Scene.actions":
-		if e.ComplexityRoot.Scene.Actions == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Scene.Actions(childComplexity), true
 	case "Scene.activatedAt":
 		if e.ComplexityRoot.Scene.ActivatedAt == nil {
 			break
@@ -3671,18 +4026,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.CreatedBy(childComplexity), true
-	case "Scene.devicePayloads":
-		if e.ComplexityRoot.Scene.DevicePayloads == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Scene.DevicePayloads(childComplexity), true
-	case "Scene.effectivePayloads":
-		if e.ComplexityRoot.Scene.EffectivePayloads == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Scene.EffectivePayloads(childComplexity), true
 	case "Scene.id":
 		if e.ComplexityRoot.Scene.ID == nil {
 			break
@@ -3695,49 +4038,42 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.Icon(childComplexity), true
+	case "Scene.lighting":
+		if e.ComplexityRoot.Scene.Lighting == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.Lighting(childComplexity), true
 	case "Scene.name":
 		if e.ComplexityRoot.Scene.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Scene.Name(childComplexity), true
+	case "Scene.preview":
+		if e.ComplexityRoot.Scene.Preview == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.Preview(childComplexity), true
 	case "Scene.rooms":
 		if e.ComplexityRoot.Scene.Rooms == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Scene.Rooms(childComplexity), true
-
-	case "SceneAction.expression":
-		if e.ComplexityRoot.SceneAction.Expression == nil {
+	case "Scene.supportingStates":
+		if e.ComplexityRoot.Scene.SupportingStates == nil {
 			break
 		}
 
-		return e.ComplexityRoot.SceneAction.Expression(childComplexity), true
-	case "SceneAction.name":
-		if e.ComplexityRoot.SceneAction.Name == nil {
+		return e.ComplexityRoot.Scene.SupportingStates(childComplexity), true
+	case "Scene.targets":
+		if e.ComplexityRoot.Scene.Targets == nil {
 			break
 		}
 
-		return e.ComplexityRoot.SceneAction.Name(childComplexity), true
-	case "SceneAction.target":
-		if e.ComplexityRoot.SceneAction.Target == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SceneAction.Target(childComplexity), true
-	case "SceneAction.targetId":
-		if e.ComplexityRoot.SceneAction.TargetID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SceneAction.TargetID(childComplexity), true
-	case "SceneAction.targetType":
-		if e.ComplexityRoot.SceneAction.TargetType == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SceneAction.TargetType(childComplexity), true
+		return e.ComplexityRoot.Scene.Targets(childComplexity), true
 
 	case "SceneActiveEvent.activatedAt":
 		if e.ComplexityRoot.SceneActiveEvent.ActivatedAt == nil {
@@ -3752,18 +4088,118 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SceneActiveEvent.SceneID(childComplexity), true
 
-	case "SceneDevicePayload.deviceId":
-		if e.ComplexityRoot.SceneDevicePayload.DeviceID == nil {
+	case "SceneLightOverride.deviceId":
+		if e.ComplexityRoot.SceneLightOverride.DeviceID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.SceneDevicePayload.DeviceID(childComplexity), true
-	case "SceneDevicePayload.payload":
-		if e.ComplexityRoot.SceneDevicePayload.Payload == nil {
+		return e.ComplexityRoot.SceneLightOverride.DeviceID(childComplexity), true
+	case "SceneLightOverride.effectId":
+		if e.ComplexityRoot.SceneLightOverride.EffectID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.SceneDevicePayload.Payload(childComplexity), true
+		return e.ComplexityRoot.SceneLightOverride.EffectID(childComplexity), true
+	case "SceneLightOverride.kind":
+		if e.ComplexityRoot.SceneLightOverride.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneLightOverride.Kind(childComplexity), true
+	case "SceneLightOverride.nativeEffectName":
+		if e.ComplexityRoot.SceneLightOverride.NativeEffectName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneLightOverride.NativeEffectName(childComplexity), true
+	case "SceneLightOverride.state":
+		if e.ComplexityRoot.SceneLightOverride.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneLightOverride.State(childComplexity), true
+
+	case "SceneLighting.dynamicSource":
+		if e.ComplexityRoot.SceneLighting.DynamicSource == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneLighting.DynamicSource(childComplexity), true
+	case "SceneLighting.overrides":
+		if e.ComplexityRoot.SceneLighting.Overrides == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneLighting.Overrides(childComplexity), true
+
+	case "ScenePreview.height":
+		if e.ComplexityRoot.ScenePreview.Height == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ScenePreview.Height(childComplexity), true
+	case "ScenePreview.pixels":
+		if e.ComplexityRoot.ScenePreview.Pixels == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ScenePreview.Pixels(childComplexity), true
+	case "ScenePreview.swatches":
+		if e.ComplexityRoot.ScenePreview.Swatches == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ScenePreview.Swatches(childComplexity), true
+	case "ScenePreview.width":
+		if e.ComplexityRoot.ScenePreview.Width == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ScenePreview.Width(childComplexity), true
+
+	case "SceneSupportingState.deviceId":
+		if e.ComplexityRoot.SceneSupportingState.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneSupportingState.DeviceID(childComplexity), true
+	case "SceneSupportingState.state":
+		if e.ComplexityRoot.SceneSupportingState.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneSupportingState.State(childComplexity), true
+
+	case "SceneTargetEntry.expression":
+		if e.ComplexityRoot.SceneTargetEntry.Expression == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneTargetEntry.Expression(childComplexity), true
+	case "SceneTargetEntry.name":
+		if e.ComplexityRoot.SceneTargetEntry.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneTargetEntry.Name(childComplexity), true
+	case "SceneTargetEntry.target":
+		if e.ComplexityRoot.SceneTargetEntry.Target == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneTargetEntry.Target(childComplexity), true
+	case "SceneTargetEntry.targetId":
+		if e.ComplexityRoot.SceneTargetEntry.TargetID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneTargetEntry.TargetID(childComplexity), true
+	case "SceneTargetEntry.targetType":
+		if e.ComplexityRoot.SceneTargetEntry.TargetType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneTargetEntry.TargetType(childComplexity), true
 
 	case "Setting.key":
 		if e.ComplexityRoot.Setting.Key == nil {
@@ -4156,6 +4592,141 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.Username(childComplexity), true
+
+	case "VibeFieldSample.brightness":
+		if e.ComplexityRoot.VibeFieldSample.Brightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibeFieldSample.Brightness(childComplexity), true
+	case "VibeFieldSample.chroma":
+		if e.ComplexityRoot.VibeFieldSample.Chroma == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibeFieldSample.Chroma(childComplexity), true
+	case "VibeFieldSample.hue":
+		if e.ComplexityRoot.VibeFieldSample.Hue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibeFieldSample.Hue(childComplexity), true
+	case "VibeFieldSample.lightness":
+		if e.ComplexityRoot.VibeFieldSample.Lightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibeFieldSample.Lightness(childComplexity), true
+	case "VibeFieldSample.mireds":
+		if e.ComplexityRoot.VibeFieldSample.Mireds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibeFieldSample.Mireds(childComplexity), true
+
+	case "VibePreset.brightness":
+		if e.ComplexityRoot.VibePreset.Brightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Brightness(childComplexity), true
+	case "VibePreset.category":
+		if e.ComplexityRoot.VibePreset.Category == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Category(childComplexity), true
+	case "VibePreset.cycleSeconds":
+		if e.ComplexityRoot.VibePreset.CycleSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.CycleSeconds(childComplexity), true
+	case "VibePreset.domain":
+		if e.ComplexityRoot.VibePreset.Domain == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Domain(childComplexity), true
+	case "VibePreset.id":
+		if e.ComplexityRoot.VibePreset.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.ID(childComplexity), true
+	case "VibePreset.movement":
+		if e.ComplexityRoot.VibePreset.Movement == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Movement(childComplexity), true
+	case "VibePreset.preview":
+		if e.ComplexityRoot.VibePreset.Preview == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Preview(childComplexity), true
+	case "VibePreset.seed":
+		if e.ComplexityRoot.VibePreset.Seed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Seed(childComplexity), true
+	case "VibePreset.title":
+		if e.ComplexityRoot.VibePreset.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreset.Title(childComplexity), true
+
+	case "VibePreviewResult.brightness":
+		if e.ComplexityRoot.VibePreviewResult.Brightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.Brightness(childComplexity), true
+	case "VibePreviewResult.cycleSeconds":
+		if e.ComplexityRoot.VibePreviewResult.CycleSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.CycleSeconds(childComplexity), true
+	case "VibePreviewResult.domain":
+		if e.ComplexityRoot.VibePreviewResult.Domain == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.Domain(childComplexity), true
+	case "VibePreviewResult.maximumLightness":
+		if e.ComplexityRoot.VibePreviewResult.MaximumLightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.MaximumLightness(childComplexity), true
+	case "VibePreviewResult.minimumLightness":
+		if e.ComplexityRoot.VibePreviewResult.MinimumLightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.MinimumLightness(childComplexity), true
+	case "VibePreviewResult.movement":
+		if e.ComplexityRoot.VibePreviewResult.Movement == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.Movement(childComplexity), true
+	case "VibePreviewResult.preview":
+		if e.ComplexityRoot.VibePreviewResult.Preview == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.Preview(childComplexity), true
+	case "VibePreviewResult.seed":
+		if e.ComplexityRoot.VibePreviewResult.Seed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VibePreviewResult.Seed(childComplexity), true
 
 	case "WebhookDelivery.body":
 		if e.ComplexityRoot.WebhookDelivery.Body == nil {
@@ -4826,8 +5397,10 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateSceneInput,
 		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputCreateWebhookEndpointInput,
+		ec.unmarshalInputDesiredSceneStateInput,
 		ec.unmarshalInputDeviceConfigurationEntryInput,
 		ec.unmarshalInputDeviceStateInput,
+		ec.unmarshalInputDynamicSceneSourceInput,
 		ec.unmarshalInputEffectClipInput,
 		ec.unmarshalInputEffectTrackInput,
 		ec.unmarshalInputFloorplanDoorBindingInput,
@@ -4837,11 +5410,19 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputFloorplanRoomInput,
 		ec.unmarshalInputFloorplanVertexInput,
 		ec.unmarshalInputFloorplanWallInput,
+		ec.unmarshalInputGuidedVibeRecipeInput,
+		ec.unmarshalInputGuidedVibeRoundInput,
 		ec.unmarshalInputLoginInput,
+		ec.unmarshalInputPhotoSampleInput,
+		ec.unmarshalInputPresetVibeRecipeInput,
+		ec.unmarshalInputPreviewVibeInput,
 		ec.unmarshalInputRaiseAlarmInput,
 		ec.unmarshalInputRoomMemberInput,
-		ec.unmarshalInputSceneActionInput,
-		ec.unmarshalInputSceneDevicePayloadInput,
+		ec.unmarshalInputSceneDefinitionInput,
+		ec.unmarshalInputSceneLightOverrideInput,
+		ec.unmarshalInputSceneLightingInput,
+		ec.unmarshalInputSceneSupportingStateInput,
+		ec.unmarshalInputSceneTargetInput,
 		ec.unmarshalInputStateHistoryFilter,
 		ec.unmarshalInputTargetClauseInput,
 		ec.unmarshalInputTuyaConfigInput,
@@ -4855,6 +5436,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateRoomInput,
 		ec.unmarshalInputUpdateSceneInput,
 		ec.unmarshalInputUpdateWebhookEndpointInput,
+		ec.unmarshalInputVibeSourceInput,
 		ec.unmarshalInputZigbee2MqttConfigInput,
 	)
 	first := true
@@ -5202,68 +5784,185 @@ type Scene {
   id: ID!
   name: String!
   icon: String
-  """
-  Rooms this scene is present in, derived from device overlap. A scene
-  appears in a room iff the set of devices its actions resolve to shares
-  at least one device with the room's resolved devices. Drives the
-  per-room dashboard drawer's scene list — no explicit tagging, no
-  separate config.
-  """
   rooms: [Room!]!
-  actions: [SceneAction!]!
-  """
-  Per-device payload overrides the user has saved explicitly. Devices that
-  inherit their room/group default do NOT appear here. Use this for the
-  scene editor's override rows; use effectivePayloads for display tint.
-  """
-  devicePayloads: [SceneDevicePayload!]!
-  """
-  One payload per unique device reached by the scene's action targets
-  (rooms, groups, or direct devices), in the same order apply-scene would
-  command them. Devices without an explicit override appear with a
-  capability-filtered default (warm-white on), so consumers can tint cards,
-  preview apply behaviour, etc. without re-implementing the resolution.
-  """
-  effectivePayloads: [SceneDevicePayload!]!
+  targets: [SceneTargetEntry!]!
+  lighting: SceneLighting!
+  supportingStates: [SceneSupportingState!]!
+  preview: ScenePreview!
   createdBy: User
-  """
-  Non-null while this scene is currently the state of its devices: every
-  device the scene reached at apply time is still in the scene-relevant
-  state the scene asked for. Any change to a scene-relevant field (on,
-  brightness, colorTemp, color) on any of those devices clears this back
-  to null. Use the presence of a value as "is this scene active right now".
-  """
   activatedAt: DateTime
 }
 
 union SceneTarget = Device | Group | Room
 
-"""
-A single rule in a target expression. connector is null on the first clause and
-"and"/"or" on subsequent clauses (evaluated left-to-right). subject is one of
-room/group/device/device_type/device_role; op is is/is_one_of/is_not/is_not_one_of.
-"""
+enum SceneTargetType {
+  device
+  group
+  room
+  expression
+}
+
+enum VibeFieldDomain {
+  full_color
+  white_ambience
+}
+
+enum VibeSourceKind {
+  preset
+  photo
+  guided
+}
+
+enum SceneLightOverrideKind {
+  state
+  effect
+  native_effect
+}
+
+enum TargetClauseConnector {
+  and
+  or
+}
+
+enum TargetClauseSubject {
+  room
+  group
+  device
+  device_type
+  device_role
+  writable_capability
+  reported_capability
+}
+
+enum TargetClauseOperator {
+  is
+  is_one_of
+  is_not
+  is_not_one_of
+}
+
+"""A single rule in a target expression, evaluated from left to right."""
 type TargetClause {
-  connector: String
-  subject: String!
-  op: String!
+  connector: TargetClauseConnector
+  subject: TargetClauseSubject!
+  op: TargetClauseOperator!
   values: [String!]!
 }
 
-type SceneAction {
-  targetType: String!
+type SceneTargetEntry {
+  targetType: SceneTargetType!
   targetId: ID!
-  """Null when targetType is "expression"; otherwise the direct device/group/room."""
   target: SceneTarget
-  """Populated when targetType is "expression"; empty for direct targets."""
   expression: [TargetClause!]!
-  """Optional user label for an expression (Selector) target; empty otherwise."""
   name: String!
 }
 
-type SceneDevicePayload {
+type DesiredSceneState {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: Color
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+}
+
+type SceneLighting {
+  dynamicSource: DynamicSceneSource
+  overrides: [SceneLightOverride!]!
+}
+
+type VibeFieldSample {
+  lightness: Float
+  chroma: Float
+  hue: Float
+  brightness: Float
+  mireds: Float
+}
+
+type DynamicSceneSource {
+  domain: VibeFieldDomain!
+  sourceKind: VibeSourceKind!
+  presetId: ID
+  presetTitle: String
+  guidedSelectedIds: [ID!]!
+  seed: String!
+  brightness: Float!
+  movement: Float!
+  cycleSeconds: Float!
+  gridWidth: Int!
+  gridHeight: Int!
+  samples: [VibeFieldSample!]!
+}
+
+type SceneLightOverride {
   deviceId: ID!
-  payload: String!
+  kind: SceneLightOverrideKind!
+  state: DesiredSceneState
+  effectId: ID
+  nativeEffectName: String
+}
+
+type SceneSupportingState {
+  deviceId: ID!
+  state: DesiredSceneState!
+}
+
+type PreviewPixel {
+  r: Int!
+  g: Int!
+  b: Int!
+}
+
+type PreviewSwatch {
+  x: Float!
+  y: Float!
+  color: PreviewPixel!
+}
+
+type ScenePreview {
+  width: Int!
+  height: Int!
+  pixels: [PreviewPixel!]!
+  swatches: [PreviewSwatch!]!
+}
+
+type VibePreset {
+  id: ID!
+  title: String!
+  category: String!
+  domain: VibeFieldDomain!
+  seed: String!
+  brightness: Float!
+  movement: Float!
+  cycleSeconds: Float!
+  preview: ScenePreview!
+}
+
+type GuidedVibeOption {
+  id: ID!
+  title: String!
+  preview: ScenePreview!
+}
+
+type GuidedVibeRound {
+  round: Int!
+  canFinish: Boolean!
+  complete: Boolean!
+  options: [GuidedVibeOption!]!
+}
+
+type VibePreviewResult {
+  preview: ScenePreview!
+  domain: VibeFieldDomain!
+  seed: String!
+  brightness: Float!
+  movement: Float!
+  cycleSeconds: Float!
+  minimumLightness: Float!
+  maximumLightness: Float!
 }
 
 type AutomationGraph {
@@ -6195,51 +6894,109 @@ input UpdateDeviceRolesInput {
 
 input CreateSceneInput {
   name: String!
-  actions: [SceneActionInput!]!
-  devicePayloads: [SceneDevicePayloadInput!]
+  definition: SceneDefinitionInput!
 }
 
 input TargetClauseInput {
-  connector: String
-  subject: String!
-  op: String!
+  connector: TargetClauseConnector
+  subject: TargetClauseSubject!
+  op: TargetClauseOperator!
   values: [String!]!
 }
 
-input SceneActionInput {
-  targetType: String!
-  targetId: ID!
+input SceneTargetInput {
+  targetType: SceneTargetType!
+  targetId: ID
   expression: [TargetClauseInput!]
   name: String
 }
 
-"""
-SceneDevicePayloadInput is one entry in a scene's per-device payload list.
-The payload field is a JSON string carrying a tagged-union body. Three shapes
-are supported:
+input DesiredSceneStateInput {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: ColorInput
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+}
 
-  static:        {"kind":"static","on":true,"brightness":200,"colorTemp":370}
-  effect:        {"kind":"effect","effect_id":"<id>"}
-  native_effect: {"kind":"native_effect","native_name":"<name>"}
+input PresetVibeRecipeInput {
+  presetId: ID!
+  seed: String
+}
 
-The static shape's optional desired-state fields (on, brightness, colorTemp,
-color, transition) are filtered against the device's writable capabilities at
-apply time. The effect shape starts the named stored timeline/native effect
-run on this device when the scene is applied. The native_effect shape starts
-an auto-discovered native effect (one whose name appears in
-nativeEffectOptions) on this device. Deactivating the scene stops any runs
-started for either effect shape.
-"""
-input SceneDevicePayloadInput {
+input PhotoSampleInput {
+  domain: VibeFieldDomain!
+  seed: String!
+  width: Int!
+  height: Int!
+  rgbBase64: String!
+}
+
+input GuidedVibeRecipeInput {
+  domain: VibeFieldDomain!
+  seed: String!
+  selectedIds: [ID!]!
+}
+
+input VibeSourceInput {
+  preset: PresetVibeRecipeInput
+  photo: PhotoSampleInput
+  guided: GuidedVibeRecipeInput
+}
+
+input DynamicSceneSourceInput {
+  source: VibeSourceInput
+  brightness: Float
+  movement: Float
+  cycleSeconds: Float
+  seed: String
+}
+
+input SceneLightOverrideInput {
   deviceId: ID!
-  payload: String!
+  kind: SceneLightOverrideKind!
+  state: DesiredSceneStateInput
+  effectId: ID
+  nativeEffectName: String
+}
+
+input SceneSupportingStateInput {
+  deviceId: ID!
+  state: DesiredSceneStateInput!
+}
+
+input SceneLightingInput {
+  dynamicSource: DynamicSceneSourceInput
+  overrides: [SceneLightOverrideInput!]!
+}
+
+input SceneDefinitionInput {
+  targets: [SceneTargetInput!]!
+  lighting: SceneLightingInput!
+  supportingStates: [SceneSupportingStateInput!]!
 }
 
 input UpdateSceneInput {
   name: String
   icon: String
-  actions: [SceneActionInput!]
-  devicePayloads: [SceneDevicePayloadInput!]
+  definition: SceneDefinitionInput
+}
+
+input GuidedVibeRoundInput {
+  domain: VibeFieldDomain!
+  seed: String!
+  selectedIds: [ID!]!
+}
+
+input PreviewVibeInput {
+  source: VibeSourceInput!
+  brightness: Float
+  movement: Float
+  cycleSeconds: Float
 }
 
 input CreateAutomationInput {
@@ -6384,6 +7141,9 @@ type Query {
   device(id: ID!): Device @auth
   scenes: [Scene!]! @auth
   scene(id: ID!): Scene @auth
+  vibePresets: [VibePreset!]! @auth
+  guidedVibeRound(input: GuidedVibeRoundInput!): GuidedVibeRound! @auth
+  previewVibe(input: PreviewVibeInput!): VibePreviewResult! @auth
   automations: [AutomationGraph!]! @auth
   automation(id: ID!): AutomationGraph @auth
   webhookEndpoints: [WebhookEndpoint!]! @auth
@@ -6434,6 +7194,7 @@ type Mutation {
   """
   simulateDeviceAction(deviceId: ID!, action: String!): Boolean! @auth
   applyScene(sceneId: ID!): Scene! @auth
+  deactivateScene(sceneId: ID!): Scene! @auth
   createScene(input: CreateSceneInput!): Scene! @auth
   updateScene(id: ID!, input: UpdateSceneInput!): Scene! @auth
   deleteScene(id: ID!): Boolean! @auth
@@ -6894,6 +7655,17 @@ func (ec *executionContext) field_Mutation_createWebhookEndpoint_args(ctx contex
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deactivateScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sceneId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sceneId"] = arg0
 	return args, nil
 }
 
@@ -7531,6 +8303,17 @@ func (ec *executionContext) field_Query_group_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_guidedVibeRound_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGuidedVibeRoundInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRoundInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_logs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7555,6 +8338,17 @@ func (ec *executionContext) field_Query_nativeEffectSupport_args(ctx context.Con
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_previewVibe_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNPreviewVibeInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewVibeInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -10012,6 +10806,279 @@ func (ec *executionContext) fieldContext_ConnectionTestResult_message(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _DesiredSceneState_on(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_on,
+		func(ctx context.Context) (any, error) {
+			return obj.On, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_on(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_brightness(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_brightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Brightness, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_brightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_colorTemp(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_colorTemp,
+		func(ctx context.Context) (any, error) {
+			return obj.ColorTemp, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_colorTemp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_color(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_color,
+		func(ctx context.Context) (any, error) {
+			return obj.Color, nil
+		},
+		nil,
+		ec.marshalOColor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐColor,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_color(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "r":
+				return ec.fieldContext_Color_r(ctx, field)
+			case "g":
+				return ec.fieldContext_Color_g(ctx, field)
+			case "b":
+				return ec.fieldContext_Color_b(ctx, field)
+			case "x":
+				return ec.fieldContext_Color_x(ctx, field)
+			case "y":
+				return ec.fieldContext_Color_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Color", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_transition(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_transition,
+		func(ctx context.Context) (any, error) {
+			return obj.Transition, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_transition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_targetTemperature(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_targetTemperature,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetTemperature, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_targetTemperature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_hvacMode(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_hvacMode,
+		func(ctx context.Context) (any, error) {
+			return obj.HvacMode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_hvacMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_fanMode(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_fanMode,
+		func(ctx context.Context) (any, error) {
+			return obj.FanMode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_fanMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredSceneState_swing(ctx context.Context, field graphql.CollectedField, obj *model.DesiredSceneState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DesiredSceneState_swing,
+		func(ctx context.Context) (any, error) {
+			return obj.Swing, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DesiredSceneState_swing(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredSceneState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Device_id(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11839,6 +12906,366 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 				return ec.fieldContext_DeviceState_swing(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeviceState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_domain(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_domain,
+		func(ctx context.Context) (any, error) {
+			return obj.Domain, nil
+		},
+		nil,
+		ec.marshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_domain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type VibeFieldDomain does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_sourceKind(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_sourceKind,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceKind, nil
+		},
+		nil,
+		ec.marshalNVibeSourceKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_sourceKind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type VibeSourceKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_presetId(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_presetId,
+		func(ctx context.Context) (any, error) {
+			return obj.PresetID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_presetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_presetTitle(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_presetTitle,
+		func(ctx context.Context) (any, error) {
+			return obj.PresetTitle, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_presetTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_guidedSelectedIds(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_guidedSelectedIds,
+		func(ctx context.Context) (any, error) {
+			return obj.GuidedSelectedIds, nil
+		},
+		nil,
+		ec.marshalNID2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_guidedSelectedIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_seed(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_seed,
+		func(ctx context.Context) (any, error) {
+			return obj.Seed, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_seed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_brightness(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_brightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Brightness, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_brightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_movement(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_movement,
+		func(ctx context.Context) (any, error) {
+			return obj.Movement, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_movement(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_cycleSeconds(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_cycleSeconds,
+		func(ctx context.Context) (any, error) {
+			return obj.CycleSeconds, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_cycleSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_gridWidth(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_gridWidth,
+		func(ctx context.Context) (any, error) {
+			return obj.GridWidth, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_gridWidth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_gridHeight(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_gridHeight,
+		func(ctx context.Context) (any, error) {
+			return obj.GridHeight, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_gridHeight(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DynamicSceneSource_samples(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DynamicSceneSource_samples,
+		func(ctx context.Context) (any, error) {
+			return obj.Samples, nil
+		},
+		nil,
+		ec.marshalNVibeFieldSample2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldSampleᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DynamicSceneSource_samples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DynamicSceneSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "lightness":
+				return ec.fieldContext_VibeFieldSample_lightness(ctx, field)
+			case "chroma":
+				return ec.fieldContext_VibeFieldSample_chroma(ctx, field)
+			case "hue":
+				return ec.fieldContext_VibeFieldSample_hue(ctx, field)
+			case "brightness":
+				return ec.fieldContext_VibeFieldSample_brightness(ctx, field)
+			case "mireds":
+				return ec.fieldContext_VibeFieldSample_mireds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VibeFieldSample", field.Name)
 		},
 	}
 	return fc, nil
@@ -14614,6 +16041,227 @@ func (ec *executionContext) fieldContext_GroupMember_room(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _GuidedVibeOption_id(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeOption_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeOption_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuidedVibeOption_title(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeOption_title,
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeOption_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuidedVibeOption_preview(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeOption) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeOption_preview,
+		func(ctx context.Context) (any, error) {
+			return obj.Preview, nil
+		},
+		nil,
+		ec.marshalNScenePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScenePreview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeOption_preview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeOption",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "width":
+				return ec.fieldContext_ScenePreview_width(ctx, field)
+			case "height":
+				return ec.fieldContext_ScenePreview_height(ctx, field)
+			case "pixels":
+				return ec.fieldContext_ScenePreview_pixels(ctx, field)
+			case "swatches":
+				return ec.fieldContext_ScenePreview_swatches(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ScenePreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuidedVibeRound_round(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeRound) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeRound_round,
+		func(ctx context.Context) (any, error) {
+			return obj.Round, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeRound_round(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeRound",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuidedVibeRound_canFinish(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeRound) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeRound_canFinish,
+		func(ctx context.Context) (any, error) {
+			return obj.CanFinish, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeRound_canFinish(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeRound",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuidedVibeRound_complete(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeRound) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeRound_complete,
+		func(ctx context.Context) (any, error) {
+			return obj.Complete, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeRound_complete(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeRound",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuidedVibeRound_options(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeRound) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuidedVibeRound_options,
+		func(ctx context.Context) (any, error) {
+			return obj.Options, nil
+		},
+		nil,
+		ec.marshalNGuidedVibeOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeOptionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuidedVibeRound_options(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuidedVibeRound",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_GuidedVibeOption_id(ctx, field)
+			case "title":
+				return ec.fieldContext_GuidedVibeOption_title(ctx, field)
+			case "preview":
+				return ec.fieldContext_GuidedVibeOption_preview(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GuidedVibeOption", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Integration_provider(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -15824,12 +17472,14 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Scene_rooms(ctx, field)
-			case "actions":
-				return ec.fieldContext_Scene_actions(ctx, field)
-			case "devicePayloads":
-				return ec.fieldContext_Scene_devicePayloads(ctx, field)
-			case "effectivePayloads":
-				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
+			case "targets":
+				return ec.fieldContext_Scene_targets(ctx, field)
+			case "lighting":
+				return ec.fieldContext_Scene_lighting(ctx, field)
+			case "supportingStates":
+				return ec.fieldContext_Scene_supportingStates(ctx, field)
+			case "preview":
+				return ec.fieldContext_Scene_preview(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			case "activatedAt":
@@ -15846,6 +17496,82 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_applyScene_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deactivateScene(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deactivateScene,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeactivateScene(ctx, fc.Args["sceneId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Scene
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deactivateScene(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Scene_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Scene_name(ctx, field)
+			case "icon":
+				return ec.fieldContext_Scene_icon(ctx, field)
+			case "rooms":
+				return ec.fieldContext_Scene_rooms(ctx, field)
+			case "targets":
+				return ec.fieldContext_Scene_targets(ctx, field)
+			case "lighting":
+				return ec.fieldContext_Scene_lighting(ctx, field)
+			case "supportingStates":
+				return ec.fieldContext_Scene_supportingStates(ctx, field)
+			case "preview":
+				return ec.fieldContext_Scene_preview(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_Scene_createdBy(ctx, field)
+			case "activatedAt":
+				return ec.fieldContext_Scene_activatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Scene", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deactivateScene_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -15898,12 +17624,14 @@ func (ec *executionContext) fieldContext_Mutation_createScene(ctx context.Contex
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Scene_rooms(ctx, field)
-			case "actions":
-				return ec.fieldContext_Scene_actions(ctx, field)
-			case "devicePayloads":
-				return ec.fieldContext_Scene_devicePayloads(ctx, field)
-			case "effectivePayloads":
-				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
+			case "targets":
+				return ec.fieldContext_Scene_targets(ctx, field)
+			case "lighting":
+				return ec.fieldContext_Scene_lighting(ctx, field)
+			case "supportingStates":
+				return ec.fieldContext_Scene_supportingStates(ctx, field)
+			case "preview":
+				return ec.fieldContext_Scene_preview(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			case "activatedAt":
@@ -15972,12 +17700,14 @@ func (ec *executionContext) fieldContext_Mutation_updateScene(ctx context.Contex
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Scene_rooms(ctx, field)
-			case "actions":
-				return ec.fieldContext_Scene_actions(ctx, field)
-			case "devicePayloads":
-				return ec.fieldContext_Scene_devicePayloads(ctx, field)
-			case "effectivePayloads":
-				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
+			case "targets":
+				return ec.fieldContext_Scene_targets(ctx, field)
+			case "lighting":
+				return ec.fieldContext_Scene_lighting(ctx, field)
+			case "supportingStates":
+				return ec.fieldContext_Scene_supportingStates(ctx, field)
+			case "preview":
+				return ec.fieldContext_Scene_preview(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			case "activatedAt":
@@ -20282,6 +22012,188 @@ func (ec *executionContext) fieldContext_NumericSeriesPoint_value(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _PreviewPixel_r(ctx context.Context, field graphql.CollectedField, obj *model.PreviewPixel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PreviewPixel_r,
+		func(ctx context.Context) (any, error) {
+			return obj.R, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PreviewPixel_r(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewPixel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewPixel_g(ctx context.Context, field graphql.CollectedField, obj *model.PreviewPixel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PreviewPixel_g,
+		func(ctx context.Context) (any, error) {
+			return obj.G, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PreviewPixel_g(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewPixel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewPixel_b(ctx context.Context, field graphql.CollectedField, obj *model.PreviewPixel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PreviewPixel_b,
+		func(ctx context.Context) (any, error) {
+			return obj.B, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PreviewPixel_b(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewPixel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewSwatch_x(ctx context.Context, field graphql.CollectedField, obj *model.PreviewSwatch) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PreviewSwatch_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PreviewSwatch_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewSwatch",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewSwatch_y(ctx context.Context, field graphql.CollectedField, obj *model.PreviewSwatch) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PreviewSwatch_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PreviewSwatch_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewSwatch",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewSwatch_color(ctx context.Context, field graphql.CollectedField, obj *model.PreviewSwatch) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PreviewSwatch_color,
+		func(ctx context.Context) (any, error) {
+			return obj.Color, nil
+		},
+		nil,
+		ec.marshalNPreviewPixel2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewPixel,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PreviewSwatch_color(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewSwatch",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "r":
+				return ec.fieldContext_PreviewPixel_r(ctx, field)
+			case "g":
+				return ec.fieldContext_PreviewPixel_g(ctx, field)
+			case "b":
+				return ec.fieldContext_PreviewPixel_b(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PreviewPixel", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -20499,12 +22411,14 @@ func (ec *executionContext) fieldContext_Query_scenes(_ context.Context, field g
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Scene_rooms(ctx, field)
-			case "actions":
-				return ec.fieldContext_Scene_actions(ctx, field)
-			case "devicePayloads":
-				return ec.fieldContext_Scene_devicePayloads(ctx, field)
-			case "effectivePayloads":
-				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
+			case "targets":
+				return ec.fieldContext_Scene_targets(ctx, field)
+			case "lighting":
+				return ec.fieldContext_Scene_lighting(ctx, field)
+			case "supportingStates":
+				return ec.fieldContext_Scene_supportingStates(ctx, field)
+			case "preview":
+				return ec.fieldContext_Scene_preview(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			case "activatedAt":
@@ -20562,12 +22476,14 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 				return ec.fieldContext_Scene_icon(ctx, field)
 			case "rooms":
 				return ec.fieldContext_Scene_rooms(ctx, field)
-			case "actions":
-				return ec.fieldContext_Scene_actions(ctx, field)
-			case "devicePayloads":
-				return ec.fieldContext_Scene_devicePayloads(ctx, field)
-			case "effectivePayloads":
-				return ec.fieldContext_Scene_effectivePayloads(ctx, field)
+			case "targets":
+				return ec.fieldContext_Scene_targets(ctx, field)
+			case "lighting":
+				return ec.fieldContext_Scene_lighting(ctx, field)
+			case "supportingStates":
+				return ec.fieldContext_Scene_supportingStates(ctx, field)
+			case "preview":
+				return ec.fieldContext_Scene_preview(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_Scene_createdBy(ctx, field)
 			case "activatedAt":
@@ -20584,6 +22500,204 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_scene_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_vibePresets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_vibePresets,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().VibePresets(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.VibePreset
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNVibePreset2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePresetᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_vibePresets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_VibePreset_id(ctx, field)
+			case "title":
+				return ec.fieldContext_VibePreset_title(ctx, field)
+			case "category":
+				return ec.fieldContext_VibePreset_category(ctx, field)
+			case "domain":
+				return ec.fieldContext_VibePreset_domain(ctx, field)
+			case "seed":
+				return ec.fieldContext_VibePreset_seed(ctx, field)
+			case "brightness":
+				return ec.fieldContext_VibePreset_brightness(ctx, field)
+			case "movement":
+				return ec.fieldContext_VibePreset_movement(ctx, field)
+			case "cycleSeconds":
+				return ec.fieldContext_VibePreset_cycleSeconds(ctx, field)
+			case "preview":
+				return ec.fieldContext_VibePreset_preview(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VibePreset", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_guidedVibeRound(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_guidedVibeRound,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().GuidedVibeRound(ctx, fc.Args["input"].(model.GuidedVibeRoundInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.GuidedVibeRound
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGuidedVibeRound2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRound,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_guidedVibeRound(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "round":
+				return ec.fieldContext_GuidedVibeRound_round(ctx, field)
+			case "canFinish":
+				return ec.fieldContext_GuidedVibeRound_canFinish(ctx, field)
+			case "complete":
+				return ec.fieldContext_GuidedVibeRound_complete(ctx, field)
+			case "options":
+				return ec.fieldContext_GuidedVibeRound_options(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GuidedVibeRound", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_guidedVibeRound_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_previewVibe(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_previewVibe,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().PreviewVibe(ctx, fc.Args["input"].(model.PreviewVibeInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.VibePreviewResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNVibePreviewResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePreviewResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_previewVibe(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "preview":
+				return ec.fieldContext_VibePreviewResult_preview(ctx, field)
+			case "domain":
+				return ec.fieldContext_VibePreviewResult_domain(ctx, field)
+			case "seed":
+				return ec.fieldContext_VibePreviewResult_seed(ctx, field)
+			case "brightness":
+				return ec.fieldContext_VibePreviewResult_brightness(ctx, field)
+			case "movement":
+				return ec.fieldContext_VibePreviewResult_movement(ctx, field)
+			case "cycleSeconds":
+				return ec.fieldContext_VibePreviewResult_cycleSeconds(ctx, field)
+			case "minimumLightness":
+				return ec.fieldContext_VibePreviewResult_minimumLightness(ctx, field)
+			case "maximumLightness":
+				return ec.fieldContext_VibePreviewResult_maximumLightness(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VibePreviewResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_previewVibe_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -23141,23 +25255,23 @@ func (ec *executionContext) fieldContext_Scene_rooms(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Scene_actions(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+func (ec *executionContext) _Scene_targets(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Scene_actions,
+		ec.fieldContext_Scene_targets,
 		func(ctx context.Context) (any, error) {
-			return obj.Actions, nil
+			return obj.Targets, nil
 		},
 		nil,
-		ec.marshalNSceneAction2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionᚄ,
+		ec.marshalNSceneTargetEntry2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetEntryᚄ,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Scene_targets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Scene",
 		Field:      field,
@@ -23166,39 +25280,74 @@ func (ec *executionContext) fieldContext_Scene_actions(_ context.Context, field 
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "targetType":
-				return ec.fieldContext_SceneAction_targetType(ctx, field)
+				return ec.fieldContext_SceneTargetEntry_targetType(ctx, field)
 			case "targetId":
-				return ec.fieldContext_SceneAction_targetId(ctx, field)
+				return ec.fieldContext_SceneTargetEntry_targetId(ctx, field)
 			case "target":
-				return ec.fieldContext_SceneAction_target(ctx, field)
+				return ec.fieldContext_SceneTargetEntry_target(ctx, field)
 			case "expression":
-				return ec.fieldContext_SceneAction_expression(ctx, field)
+				return ec.fieldContext_SceneTargetEntry_expression(ctx, field)
 			case "name":
-				return ec.fieldContext_SceneAction_name(ctx, field)
+				return ec.fieldContext_SceneTargetEntry_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SceneAction", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type SceneTargetEntry", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Scene_devicePayloads(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+func (ec *executionContext) _Scene_lighting(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Scene_devicePayloads,
+		ec.fieldContext_Scene_lighting,
 		func(ctx context.Context) (any, error) {
-			return obj.DevicePayloads, nil
+			return obj.Lighting, nil
 		},
 		nil,
-		ec.marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ,
+		ec.marshalNSceneLighting2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLighting,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Scene_devicePayloads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Scene_lighting(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Scene",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "dynamicSource":
+				return ec.fieldContext_SceneLighting_dynamicSource(ctx, field)
+			case "overrides":
+				return ec.fieldContext_SceneLighting_overrides(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SceneLighting", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Scene_supportingStates(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Scene_supportingStates,
+		func(ctx context.Context) (any, error) {
+			return obj.SupportingStates, nil
+		},
+		nil,
+		ec.marshalNSceneSupportingState2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Scene_supportingStates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Scene",
 		Field:      field,
@@ -23207,33 +25356,33 @@ func (ec *executionContext) fieldContext_Scene_devicePayloads(_ context.Context,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "deviceId":
-				return ec.fieldContext_SceneDevicePayload_deviceId(ctx, field)
-			case "payload":
-				return ec.fieldContext_SceneDevicePayload_payload(ctx, field)
+				return ec.fieldContext_SceneSupportingState_deviceId(ctx, field)
+			case "state":
+				return ec.fieldContext_SceneSupportingState_state(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SceneDevicePayload", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type SceneSupportingState", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Scene_effectivePayloads(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+func (ec *executionContext) _Scene_preview(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Scene_effectivePayloads,
+		ec.fieldContext_Scene_preview,
 		func(ctx context.Context) (any, error) {
-			return obj.EffectivePayloads, nil
+			return obj.Preview, nil
 		},
 		nil,
-		ec.marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ,
+		ec.marshalNScenePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScenePreview,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Scene_effectivePayloads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Scene_preview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Scene",
 		Field:      field,
@@ -23241,12 +25390,16 @@ func (ec *executionContext) fieldContext_Scene_effectivePayloads(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "deviceId":
-				return ec.fieldContext_SceneDevicePayload_deviceId(ctx, field)
-			case "payload":
-				return ec.fieldContext_SceneDevicePayload_payload(ctx, field)
+			case "width":
+				return ec.fieldContext_ScenePreview_width(ctx, field)
+			case "height":
+				return ec.fieldContext_ScenePreview_height(ctx, field)
+			case "pixels":
+				return ec.fieldContext_ScenePreview_pixels(ctx, field)
+			case "swatches":
+				return ec.fieldContext_ScenePreview_swatches(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SceneDevicePayload", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type ScenePreview", field.Name)
 		},
 	}
 	return fc, nil
@@ -23332,161 +25485,6 @@ func (ec *executionContext) fieldContext_Scene_activatedAt(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _SceneAction_targetType(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SceneAction_targetType,
-		func(ctx context.Context) (any, error) {
-			return obj.TargetType, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SceneAction_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SceneAction_targetId(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SceneAction_targetId,
-		func(ctx context.Context) (any, error) {
-			return obj.TargetID, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SceneAction_targetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SceneAction_target(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SceneAction_target,
-		func(ctx context.Context) (any, error) {
-			return obj.Target, nil
-		},
-		nil,
-		ec.marshalOSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SceneAction_target(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type SceneTarget does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SceneAction_expression(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SceneAction_expression,
-		func(ctx context.Context) (any, error) {
-			return obj.Expression, nil
-		},
-		nil,
-		ec.marshalNTargetClause2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SceneAction_expression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "connector":
-				return ec.fieldContext_TargetClause_connector(ctx, field)
-			case "subject":
-				return ec.fieldContext_TargetClause_subject(ctx, field)
-			case "op":
-				return ec.fieldContext_TargetClause_op(ctx, field)
-			case "values":
-				return ec.fieldContext_TargetClause_values(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type TargetClause", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SceneAction_name(ctx context.Context, field graphql.CollectedField, obj *model.SceneAction) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SceneAction_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SceneAction_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SceneAction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _SceneActiveEvent_sceneId(ctx context.Context, field graphql.CollectedField, obj *model.SceneActiveEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -23545,12 +25543,12 @@ func (ec *executionContext) fieldContext_SceneActiveEvent_activatedAt(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _SceneDevicePayload_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SceneDevicePayload) (ret graphql.Marshaler) {
+func (ec *executionContext) _SceneLightOverride_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SceneLightOverride) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_SceneDevicePayload_deviceId,
+		ec.fieldContext_SceneLightOverride_deviceId,
 		func(ctx context.Context) (any, error) {
 			return obj.DeviceID, nil
 		},
@@ -23561,9 +25559,9 @@ func (ec *executionContext) _SceneDevicePayload_deviceId(ctx context.Context, fi
 	)
 }
 
-func (ec *executionContext) fieldContext_SceneDevicePayload_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SceneLightOverride_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SceneDevicePayload",
+		Object:     "SceneLightOverride",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -23574,14 +25572,582 @@ func (ec *executionContext) fieldContext_SceneDevicePayload_deviceId(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _SceneDevicePayload_payload(ctx context.Context, field graphql.CollectedField, obj *model.SceneDevicePayload) (ret graphql.Marshaler) {
+func (ec *executionContext) _SceneLightOverride_kind(ctx context.Context, field graphql.CollectedField, obj *model.SceneLightOverride) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_SceneDevicePayload_payload,
+		ec.fieldContext_SceneLightOverride_kind,
 		func(ctx context.Context) (any, error) {
-			return obj.Payload, nil
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNSceneLightOverrideKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneLightOverride_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneLightOverride",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SceneLightOverrideKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneLightOverride_state(ctx context.Context, field graphql.CollectedField, obj *model.SceneLightOverride) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneLightOverride_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalODesiredSceneState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneState,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneLightOverride_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneLightOverride",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "on":
+				return ec.fieldContext_DesiredSceneState_on(ctx, field)
+			case "brightness":
+				return ec.fieldContext_DesiredSceneState_brightness(ctx, field)
+			case "colorTemp":
+				return ec.fieldContext_DesiredSceneState_colorTemp(ctx, field)
+			case "color":
+				return ec.fieldContext_DesiredSceneState_color(ctx, field)
+			case "transition":
+				return ec.fieldContext_DesiredSceneState_transition(ctx, field)
+			case "targetTemperature":
+				return ec.fieldContext_DesiredSceneState_targetTemperature(ctx, field)
+			case "hvacMode":
+				return ec.fieldContext_DesiredSceneState_hvacMode(ctx, field)
+			case "fanMode":
+				return ec.fieldContext_DesiredSceneState_fanMode(ctx, field)
+			case "swing":
+				return ec.fieldContext_DesiredSceneState_swing(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DesiredSceneState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneLightOverride_effectId(ctx context.Context, field graphql.CollectedField, obj *model.SceneLightOverride) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneLightOverride_effectId,
+		func(ctx context.Context) (any, error) {
+			return obj.EffectID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneLightOverride_effectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneLightOverride",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneLightOverride_nativeEffectName(ctx context.Context, field graphql.CollectedField, obj *model.SceneLightOverride) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneLightOverride_nativeEffectName,
+		func(ctx context.Context) (any, error) {
+			return obj.NativeEffectName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneLightOverride_nativeEffectName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneLightOverride",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneLighting_dynamicSource(ctx context.Context, field graphql.CollectedField, obj *model.SceneLighting) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneLighting_dynamicSource,
+		func(ctx context.Context) (any, error) {
+			return obj.DynamicSource, nil
+		},
+		nil,
+		ec.marshalODynamicSceneSource2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDynamicSceneSource,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneLighting_dynamicSource(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneLighting",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "domain":
+				return ec.fieldContext_DynamicSceneSource_domain(ctx, field)
+			case "sourceKind":
+				return ec.fieldContext_DynamicSceneSource_sourceKind(ctx, field)
+			case "presetId":
+				return ec.fieldContext_DynamicSceneSource_presetId(ctx, field)
+			case "presetTitle":
+				return ec.fieldContext_DynamicSceneSource_presetTitle(ctx, field)
+			case "guidedSelectedIds":
+				return ec.fieldContext_DynamicSceneSource_guidedSelectedIds(ctx, field)
+			case "seed":
+				return ec.fieldContext_DynamicSceneSource_seed(ctx, field)
+			case "brightness":
+				return ec.fieldContext_DynamicSceneSource_brightness(ctx, field)
+			case "movement":
+				return ec.fieldContext_DynamicSceneSource_movement(ctx, field)
+			case "cycleSeconds":
+				return ec.fieldContext_DynamicSceneSource_cycleSeconds(ctx, field)
+			case "gridWidth":
+				return ec.fieldContext_DynamicSceneSource_gridWidth(ctx, field)
+			case "gridHeight":
+				return ec.fieldContext_DynamicSceneSource_gridHeight(ctx, field)
+			case "samples":
+				return ec.fieldContext_DynamicSceneSource_samples(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DynamicSceneSource", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneLighting_overrides(ctx context.Context, field graphql.CollectedField, obj *model.SceneLighting) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneLighting_overrides,
+		func(ctx context.Context) (any, error) {
+			return obj.Overrides, nil
+		},
+		nil,
+		ec.marshalNSceneLightOverride2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneLighting_overrides(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneLighting",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_SceneLightOverride_deviceId(ctx, field)
+			case "kind":
+				return ec.fieldContext_SceneLightOverride_kind(ctx, field)
+			case "state":
+				return ec.fieldContext_SceneLightOverride_state(ctx, field)
+			case "effectId":
+				return ec.fieldContext_SceneLightOverride_effectId(ctx, field)
+			case "nativeEffectName":
+				return ec.fieldContext_SceneLightOverride_nativeEffectName(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SceneLightOverride", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ScenePreview_width(ctx context.Context, field graphql.CollectedField, obj *model.ScenePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ScenePreview_width,
+		func(ctx context.Context) (any, error) {
+			return obj.Width, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ScenePreview_width(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ScenePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ScenePreview_height(ctx context.Context, field graphql.CollectedField, obj *model.ScenePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ScenePreview_height,
+		func(ctx context.Context) (any, error) {
+			return obj.Height, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ScenePreview_height(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ScenePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ScenePreview_pixels(ctx context.Context, field graphql.CollectedField, obj *model.ScenePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ScenePreview_pixels,
+		func(ctx context.Context) (any, error) {
+			return obj.Pixels, nil
+		},
+		nil,
+		ec.marshalNPreviewPixel2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewPixelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ScenePreview_pixels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ScenePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "r":
+				return ec.fieldContext_PreviewPixel_r(ctx, field)
+			case "g":
+				return ec.fieldContext_PreviewPixel_g(ctx, field)
+			case "b":
+				return ec.fieldContext_PreviewPixel_b(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PreviewPixel", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ScenePreview_swatches(ctx context.Context, field graphql.CollectedField, obj *model.ScenePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ScenePreview_swatches,
+		func(ctx context.Context) (any, error) {
+			return obj.Swatches, nil
+		},
+		nil,
+		ec.marshalNPreviewSwatch2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewSwatchᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ScenePreview_swatches(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ScenePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_PreviewSwatch_x(ctx, field)
+			case "y":
+				return ec.fieldContext_PreviewSwatch_y(ctx, field)
+			case "color":
+				return ec.fieldContext_PreviewSwatch_color(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PreviewSwatch", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneSupportingState_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SceneSupportingState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneSupportingState_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneSupportingState_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneSupportingState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneSupportingState_state(ctx context.Context, field graphql.CollectedField, obj *model.SceneSupportingState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneSupportingState_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalNDesiredSceneState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneState,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneSupportingState_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneSupportingState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "on":
+				return ec.fieldContext_DesiredSceneState_on(ctx, field)
+			case "brightness":
+				return ec.fieldContext_DesiredSceneState_brightness(ctx, field)
+			case "colorTemp":
+				return ec.fieldContext_DesiredSceneState_colorTemp(ctx, field)
+			case "color":
+				return ec.fieldContext_DesiredSceneState_color(ctx, field)
+			case "transition":
+				return ec.fieldContext_DesiredSceneState_transition(ctx, field)
+			case "targetTemperature":
+				return ec.fieldContext_DesiredSceneState_targetTemperature(ctx, field)
+			case "hvacMode":
+				return ec.fieldContext_DesiredSceneState_hvacMode(ctx, field)
+			case "fanMode":
+				return ec.fieldContext_DesiredSceneState_fanMode(ctx, field)
+			case "swing":
+				return ec.fieldContext_DesiredSceneState_swing(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DesiredSceneState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneTargetEntry_targetType(ctx context.Context, field graphql.CollectedField, obj *model.SceneTargetEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneTargetEntry_targetType,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetType, nil
+		},
+		nil,
+		ec.marshalNSceneTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneTargetEntry_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneTargetEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SceneTargetType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneTargetEntry_targetId(ctx context.Context, field graphql.CollectedField, obj *model.SceneTargetEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneTargetEntry_targetId,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneTargetEntry_targetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneTargetEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneTargetEntry_target(ctx context.Context, field graphql.CollectedField, obj *model.SceneTargetEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneTargetEntry_target,
+		func(ctx context.Context) (any, error) {
+			return obj.Target, nil
+		},
+		nil,
+		ec.marshalOSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneTargetEntry_target(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneTargetEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SceneTarget does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneTargetEntry_expression(ctx context.Context, field graphql.CollectedField, obj *model.SceneTargetEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneTargetEntry_expression,
+		func(ctx context.Context) (any, error) {
+			return obj.Expression, nil
+		},
+		nil,
+		ec.marshalNTargetClause2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneTargetEntry_expression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneTargetEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "connector":
+				return ec.fieldContext_TargetClause_connector(ctx, field)
+			case "subject":
+				return ec.fieldContext_TargetClause_subject(ctx, field)
+			case "op":
+				return ec.fieldContext_TargetClause_op(ctx, field)
+			case "values":
+				return ec.fieldContext_TargetClause_values(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TargetClause", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneTargetEntry_name(ctx context.Context, field graphql.CollectedField, obj *model.SceneTargetEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneTargetEntry_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
 		},
 		nil,
 		ec.marshalNString2string,
@@ -23590,9 +26156,9 @@ func (ec *executionContext) _SceneDevicePayload_payload(ctx context.Context, fie
 	)
 }
 
-func (ec *executionContext) fieldContext_SceneDevicePayload_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SceneTargetEntry_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SceneDevicePayload",
+		Object:     "SceneTargetEntry",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -24992,7 +27558,7 @@ func (ec *executionContext) _TargetClause_connector(ctx context.Context, field g
 			return obj.Connector, nil
 		},
 		nil,
-		ec.marshalOString2ᚖstring,
+		ec.marshalOTargetClauseConnector2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseConnector,
 		true,
 		false,
 	)
@@ -25005,7 +27571,7 @@ func (ec *executionContext) fieldContext_TargetClause_connector(_ context.Contex
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type TargetClauseConnector does not have child fields")
 		},
 	}
 	return fc, nil
@@ -25021,7 +27587,7 @@ func (ec *executionContext) _TargetClause_subject(ctx context.Context, field gra
 			return obj.Subject, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNTargetClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseSubject,
 		true,
 		true,
 	)
@@ -25034,7 +27600,7 @@ func (ec *executionContext) fieldContext_TargetClause_subject(_ context.Context,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type TargetClauseSubject does not have child fields")
 		},
 	}
 	return fc, nil
@@ -25050,7 +27616,7 @@ func (ec *executionContext) _TargetClause_op(ctx context.Context, field graphql.
 			return obj.Op, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNTargetClauseOperator2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseOperator,
 		true,
 		true,
 	)
@@ -25063,7 +27629,7 @@ func (ec *executionContext) fieldContext_TargetClause_op(_ context.Context, fiel
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type TargetClauseOperator does not have child fields")
 		},
 	}
 	return fc, nil
@@ -25789,6 +28355,664 @@ func (ec *executionContext) fieldContext_User_mustChangePassword(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibeFieldSample_lightness(ctx context.Context, field graphql.CollectedField, obj *model.VibeFieldSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibeFieldSample_lightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Lightness, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibeFieldSample_lightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibeFieldSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibeFieldSample_chroma(ctx context.Context, field graphql.CollectedField, obj *model.VibeFieldSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibeFieldSample_chroma,
+		func(ctx context.Context) (any, error) {
+			return obj.Chroma, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibeFieldSample_chroma(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibeFieldSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibeFieldSample_hue(ctx context.Context, field graphql.CollectedField, obj *model.VibeFieldSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibeFieldSample_hue,
+		func(ctx context.Context) (any, error) {
+			return obj.Hue, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibeFieldSample_hue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibeFieldSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibeFieldSample_brightness(ctx context.Context, field graphql.CollectedField, obj *model.VibeFieldSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibeFieldSample_brightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Brightness, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibeFieldSample_brightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibeFieldSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibeFieldSample_mireds(ctx context.Context, field graphql.CollectedField, obj *model.VibeFieldSample) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibeFieldSample_mireds,
+		func(ctx context.Context) (any, error) {
+			return obj.Mireds, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibeFieldSample_mireds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibeFieldSample",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_id(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_title(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_title,
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_category(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_category,
+		func(ctx context.Context) (any, error) {
+			return obj.Category, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_domain(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_domain,
+		func(ctx context.Context) (any, error) {
+			return obj.Domain, nil
+		},
+		nil,
+		ec.marshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_domain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type VibeFieldDomain does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_seed(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_seed,
+		func(ctx context.Context) (any, error) {
+			return obj.Seed, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_seed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_brightness(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_brightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Brightness, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_brightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_movement(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_movement,
+		func(ctx context.Context) (any, error) {
+			return obj.Movement, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_movement(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_cycleSeconds(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_cycleSeconds,
+		func(ctx context.Context) (any, error) {
+			return obj.CycleSeconds, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_cycleSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreset_preview(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreset_preview,
+		func(ctx context.Context) (any, error) {
+			return obj.Preview, nil
+		},
+		nil,
+		ec.marshalNScenePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScenePreview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreset_preview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "width":
+				return ec.fieldContext_ScenePreview_width(ctx, field)
+			case "height":
+				return ec.fieldContext_ScenePreview_height(ctx, field)
+			case "pixels":
+				return ec.fieldContext_ScenePreview_pixels(ctx, field)
+			case "swatches":
+				return ec.fieldContext_ScenePreview_swatches(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ScenePreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_preview(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_preview,
+		func(ctx context.Context) (any, error) {
+			return obj.Preview, nil
+		},
+		nil,
+		ec.marshalNScenePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScenePreview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_preview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "width":
+				return ec.fieldContext_ScenePreview_width(ctx, field)
+			case "height":
+				return ec.fieldContext_ScenePreview_height(ctx, field)
+			case "pixels":
+				return ec.fieldContext_ScenePreview_pixels(ctx, field)
+			case "swatches":
+				return ec.fieldContext_ScenePreview_swatches(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ScenePreview", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_domain(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_domain,
+		func(ctx context.Context) (any, error) {
+			return obj.Domain, nil
+		},
+		nil,
+		ec.marshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_domain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type VibeFieldDomain does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_seed(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_seed,
+		func(ctx context.Context) (any, error) {
+			return obj.Seed, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_seed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_brightness(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_brightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Brightness, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_brightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_movement(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_movement,
+		func(ctx context.Context) (any, error) {
+			return obj.Movement, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_movement(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_cycleSeconds(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_cycleSeconds,
+		func(ctx context.Context) (any, error) {
+			return obj.CycleSeconds, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_cycleSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_minimumLightness(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_minimumLightness,
+		func(ctx context.Context) (any, error) {
+			return obj.MinimumLightness, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_minimumLightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VibePreviewResult_maximumLightness(ctx context.Context, field graphql.CollectedField, obj *model.VibePreviewResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_VibePreviewResult_maximumLightness,
+		func(ctx context.Context) (any, error) {
+			return obj.MaximumLightness, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_VibePreviewResult_maximumLightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VibePreviewResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -31192,7 +34416,7 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "actions", "devicePayloads"}
+	fieldsInOrder := [...]string{"name", "definition"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -31206,20 +34430,13 @@ func (ec *executionContext) unmarshalInputCreateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.Name = data
-		case "actions":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actions"))
-			data, err := ec.unmarshalNSceneActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInputᚄ(ctx, v)
+		case "definition":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("definition"))
+			data, err := ec.unmarshalNSceneDefinitionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDefinitionInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Actions = data
-		case "devicePayloads":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("devicePayloads"))
-			data, err := ec.unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DevicePayloads = graphql.OmittableOf(data)
+			it.Definition = data
 		}
 	}
 	return it, nil
@@ -31325,6 +34542,92 @@ func (ec *executionContext) unmarshalInputCreateWebhookEndpointInput(ctx context
 				return it, err
 			}
 			it.RateLimitWindowMs = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDesiredSceneStateInput(ctx context.Context, obj any) (model.DesiredSceneStateInput, error) {
+	var it model.DesiredSceneStateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"on", "brightness", "colorTemp", "color", "transition", "targetTemperature", "hvacMode", "fanMode", "swing"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "on":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("on"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.On = graphql.OmittableOf(data)
+		case "brightness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("brightness"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Brightness = graphql.OmittableOf(data)
+		case "colorTemp":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("colorTemp"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ColorTemp = graphql.OmittableOf(data)
+		case "color":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("color"))
+			data, err := ec.unmarshalOColorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐColorInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Color = graphql.OmittableOf(data)
+		case "transition":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transition"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Transition = graphql.OmittableOf(data)
+		case "targetTemperature":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetTemperature"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetTemperature = graphql.OmittableOf(data)
+		case "hvacMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hvacMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HvacMode = graphql.OmittableOf(data)
+		case "fanMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fanMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FanMode = graphql.OmittableOf(data)
+		case "swing":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("swing"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Swing = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -31462,6 +34765,64 @@ func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, 
 				return it, err
 			}
 			it.Swing = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDynamicSceneSourceInput(ctx context.Context, obj any) (model.DynamicSceneSourceInput, error) {
+	var it model.DynamicSceneSourceInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"source", "brightness", "movement", "cycleSeconds", "seed"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalOVibeSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = graphql.OmittableOf(data)
+		case "brightness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("brightness"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Brightness = graphql.OmittableOf(data)
+		case "movement":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("movement"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Movement = graphql.OmittableOf(data)
+		case "cycleSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cycleSeconds"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CycleSeconds = graphql.OmittableOf(data)
+		case "seed":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("seed"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Seed = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -31961,6 +35322,94 @@ func (ec *executionContext) unmarshalInputFloorplanWallInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGuidedVibeRecipeInput(ctx context.Context, obj any) (model.GuidedVibeRecipeInput, error) {
+	var it model.GuidedVibeRecipeInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"domain", "seed", "selectedIds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "domain":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("domain"))
+			data, err := ec.unmarshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Domain = data
+		case "seed":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("seed"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Seed = data
+		case "selectedIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selectedIds"))
+			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SelectedIds = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputGuidedVibeRoundInput(ctx context.Context, obj any) (model.GuidedVibeRoundInput, error) {
+	var it model.GuidedVibeRoundInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"domain", "seed", "selectedIds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "domain":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("domain"))
+			data, err := ec.unmarshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Domain = data
+		case "seed":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("seed"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Seed = data
+		case "selectedIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selectedIds"))
+			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SelectedIds = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
 	var it model.LoginInput
 	if obj == nil {
@@ -31993,6 +35442,152 @@ func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj an
 				return it, err
 			}
 			it.Password = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputPhotoSampleInput(ctx context.Context, obj any) (model.PhotoSampleInput, error) {
+	var it model.PhotoSampleInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"domain", "seed", "width", "height", "rgbBase64"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "domain":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("domain"))
+			data, err := ec.unmarshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Domain = data
+		case "seed":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("seed"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Seed = data
+		case "width":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("width"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Width = data
+		case "height":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("height"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Height = data
+		case "rgbBase64":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rgbBase64"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RgbBase64 = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputPresetVibeRecipeInput(ctx context.Context, obj any) (model.PresetVibeRecipeInput, error) {
+	var it model.PresetVibeRecipeInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"presetId", "seed"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "presetId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("presetId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PresetID = data
+		case "seed":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("seed"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Seed = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputPreviewVibeInput(ctx context.Context, obj any) (model.PreviewVibeInput, error) {
+	var it model.PreviewVibeInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"source", "brightness", "movement", "cycleSeconds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalNVibeSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = data
+		case "brightness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("brightness"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Brightness = graphql.OmittableOf(data)
+		case "movement":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("movement"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Movement = graphql.OmittableOf(data)
+		case "cycleSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cycleSeconds"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CycleSeconds = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -32093,8 +35688,184 @@ func (ec *executionContext) unmarshalInputRoomMemberInput(ctx context.Context, o
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, obj any) (model.SceneActionInput, error) {
-	var it model.SceneActionInput
+func (ec *executionContext) unmarshalInputSceneDefinitionInput(ctx context.Context, obj any) (model.SceneDefinitionInput, error) {
+	var it model.SceneDefinitionInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"targets", "lighting", "supportingStates"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "targets":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targets"))
+			data, err := ec.unmarshalNSceneTargetInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Targets = data
+		case "lighting":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lighting"))
+			data, err := ec.unmarshalNSceneLightingInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightingInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Lighting = data
+		case "supportingStates":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("supportingStates"))
+			data, err := ec.unmarshalNSceneSupportingStateInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SupportingStates = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSceneLightOverrideInput(ctx context.Context, obj any) (model.SceneLightOverrideInput, error) {
+	var it model.SceneLightOverrideInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"deviceId", "kind", "state", "effectId", "nativeEffectName"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNSceneLightOverrideKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "state":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
+			data, err := ec.unmarshalODesiredSceneStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneStateInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.State = graphql.OmittableOf(data)
+		case "effectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("effectId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EffectID = graphql.OmittableOf(data)
+		case "nativeEffectName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nativeEffectName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NativeEffectName = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSceneLightingInput(ctx context.Context, obj any) (model.SceneLightingInput, error) {
+	var it model.SceneLightingInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"dynamicSource", "overrides"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "dynamicSource":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dynamicSource"))
+			data, err := ec.unmarshalODynamicSceneSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDynamicSceneSourceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DynamicSource = graphql.OmittableOf(data)
+		case "overrides":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("overrides"))
+			data, err := ec.unmarshalNSceneLightOverrideInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Overrides = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSceneSupportingStateInput(ctx context.Context, obj any) (model.SceneSupportingStateInput, error) {
+	var it model.SceneSupportingStateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"deviceId", "state"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "state":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
+			data, err := ec.unmarshalNDesiredSceneStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneStateInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.State = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSceneTargetInput(ctx context.Context, obj any) (model.SceneTargetInput, error) {
+	var it model.SceneTargetInput
 	if obj == nil {
 		return it, nil
 	}
@@ -32113,18 +35884,18 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 		switch k {
 		case "targetType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetType"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNSceneTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.TargetType = data
 		case "targetId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.TargetID = data
+			it.TargetID = graphql.OmittableOf(data)
 		case "expression":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expression"))
 			data, err := ec.unmarshalOTargetClauseInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInputᚄ(ctx, v)
@@ -32139,43 +35910,6 @@ func (ec *executionContext) unmarshalInputSceneActionInput(ctx context.Context, 
 				return it, err
 			}
 			it.Name = graphql.OmittableOf(data)
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputSceneDevicePayloadInput(ctx context.Context, obj any) (model.SceneDevicePayloadInput, error) {
-	var it model.SceneDevicePayloadInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"deviceId", "payload"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "deviceId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DeviceID = data
-		case "payload":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payload"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Payload = data
 		}
 	}
 	return it, nil
@@ -32259,21 +35993,21 @@ func (ec *executionContext) unmarshalInputTargetClauseInput(ctx context.Context,
 		switch k {
 		case "connector":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("connector"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			data, err := ec.unmarshalOTargetClauseConnector2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseConnector(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Connector = graphql.OmittableOf(data)
 		case "subject":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subject"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNTargetClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseSubject(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Subject = data
 		case "op":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("op"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNTargetClauseOperator2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseOperator(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -32809,7 +36543,7 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "actions", "devicePayloads"}
+	fieldsInOrder := [...]string{"name", "icon", "definition"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -32830,20 +36564,13 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 				return it, err
 			}
 			it.Icon = graphql.OmittableOf(data)
-		case "actions":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actions"))
-			data, err := ec.unmarshalOSceneActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInputᚄ(ctx, v)
+		case "definition":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("definition"))
+			data, err := ec.unmarshalOSceneDefinitionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDefinitionInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Actions = graphql.OmittableOf(data)
-		case "devicePayloads":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("devicePayloads"))
-			data, err := ec.unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DevicePayloads = graphql.OmittableOf(data)
+			it.Definition = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -32895,6 +36622,50 @@ func (ec *executionContext) unmarshalInputUpdateWebhookEndpointInput(ctx context
 				return it, err
 			}
 			it.RateLimitWindowMs = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputVibeSourceInput(ctx context.Context, obj any) (model.VibeSourceInput, error) {
+	var it model.VibeSourceInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"preset", "photo", "guided"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "preset":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("preset"))
+			data, err := ec.unmarshalOPresetVibeRecipeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPresetVibeRecipeInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Preset = graphql.OmittableOf(data)
+		case "photo":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("photo"))
+			data, err := ec.unmarshalOPhotoSampleInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPhotoSampleInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Photo = graphql.OmittableOf(data)
+		case "guided":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("guided"))
+			data, err := ec.unmarshalOGuidedVibeRecipeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRecipeInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Guided = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -33821,6 +37592,58 @@ func (ec *executionContext) _ConnectionTestResult(ctx context.Context, sel ast.S
 	return out
 }
 
+var desiredSceneStateImplementors = []string{"DesiredSceneState"}
+
+func (ec *executionContext) _DesiredSceneState(ctx context.Context, sel ast.SelectionSet, obj *model.DesiredSceneState) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, desiredSceneStateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DesiredSceneState")
+		case "on":
+			out.Values[i] = ec._DesiredSceneState_on(ctx, field, obj)
+		case "brightness":
+			out.Values[i] = ec._DesiredSceneState_brightness(ctx, field, obj)
+		case "colorTemp":
+			out.Values[i] = ec._DesiredSceneState_colorTemp(ctx, field, obj)
+		case "color":
+			out.Values[i] = ec._DesiredSceneState_color(ctx, field, obj)
+		case "transition":
+			out.Values[i] = ec._DesiredSceneState_transition(ctx, field, obj)
+		case "targetTemperature":
+			out.Values[i] = ec._DesiredSceneState_targetTemperature(ctx, field, obj)
+		case "hvacMode":
+			out.Values[i] = ec._DesiredSceneState_hvacMode(ctx, field, obj)
+		case "fanMode":
+			out.Values[i] = ec._DesiredSceneState_fanMode(ctx, field, obj)
+		case "swing":
+			out.Values[i] = ec._DesiredSceneState_swing(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var deviceImplementors = []string{"Device", "SceneTarget"}
 
 func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, obj *model.Device) graphql.Marshaler {
@@ -34273,6 +38096,94 @@ func (ec *executionContext) _DeviceStateEvent(ctx context.Context, sel ast.Selec
 			}
 		case "state":
 			out.Values[i] = ec._DeviceStateEvent_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dynamicSceneSourceImplementors = []string{"DynamicSceneSource"}
+
+func (ec *executionContext) _DynamicSceneSource(ctx context.Context, sel ast.SelectionSet, obj *model.DynamicSceneSource) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dynamicSceneSourceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DynamicSceneSource")
+		case "domain":
+			out.Values[i] = ec._DynamicSceneSource_domain(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sourceKind":
+			out.Values[i] = ec._DynamicSceneSource_sourceKind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "presetId":
+			out.Values[i] = ec._DynamicSceneSource_presetId(ctx, field, obj)
+		case "presetTitle":
+			out.Values[i] = ec._DynamicSceneSource_presetTitle(ctx, field, obj)
+		case "guidedSelectedIds":
+			out.Values[i] = ec._DynamicSceneSource_guidedSelectedIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "seed":
+			out.Values[i] = ec._DynamicSceneSource_seed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "brightness":
+			out.Values[i] = ec._DynamicSceneSource_brightness(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "movement":
+			out.Values[i] = ec._DynamicSceneSource_movement(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cycleSeconds":
+			out.Values[i] = ec._DynamicSceneSource_cycleSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "gridWidth":
+			out.Values[i] = ec._DynamicSceneSource_gridWidth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "gridHeight":
+			out.Values[i] = ec._DynamicSceneSource_gridHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "samples":
+			out.Values[i] = ec._DynamicSceneSource_samples(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -35166,6 +39077,109 @@ func (ec *executionContext) _GroupMember(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var guidedVibeOptionImplementors = []string{"GuidedVibeOption"}
+
+func (ec *executionContext) _GuidedVibeOption(ctx context.Context, sel ast.SelectionSet, obj *model.GuidedVibeOption) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, guidedVibeOptionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GuidedVibeOption")
+		case "id":
+			out.Values[i] = ec._GuidedVibeOption_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._GuidedVibeOption_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "preview":
+			out.Values[i] = ec._GuidedVibeOption_preview(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var guidedVibeRoundImplementors = []string{"GuidedVibeRound"}
+
+func (ec *executionContext) _GuidedVibeRound(ctx context.Context, sel ast.SelectionSet, obj *model.GuidedVibeRound) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, guidedVibeRoundImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GuidedVibeRound")
+		case "round":
+			out.Values[i] = ec._GuidedVibeRound_round(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "canFinish":
+			out.Values[i] = ec._GuidedVibeRound_canFinish(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "complete":
+			out.Values[i] = ec._GuidedVibeRound_complete(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "options":
+			out.Values[i] = ec._GuidedVibeRound_options(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var integrationImplementors = []string{"Integration"}
 
 func (ec *executionContext) _Integration(ctx context.Context, sel ast.SelectionSet, obj *model.Integration) graphql.Marshaler {
@@ -35431,6 +39445,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "applyScene":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_applyScene(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deactivateScene":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deactivateScene(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -36226,6 +40247,104 @@ func (ec *executionContext) _NumericSeriesPoint(ctx context.Context, sel ast.Sel
 	return out
 }
 
+var previewPixelImplementors = []string{"PreviewPixel"}
+
+func (ec *executionContext) _PreviewPixel(ctx context.Context, sel ast.SelectionSet, obj *model.PreviewPixel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, previewPixelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PreviewPixel")
+		case "r":
+			out.Values[i] = ec._PreviewPixel_r(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "g":
+			out.Values[i] = ec._PreviewPixel_g(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "b":
+			out.Values[i] = ec._PreviewPixel_b(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var previewSwatchImplementors = []string{"PreviewSwatch"}
+
+func (ec *executionContext) _PreviewSwatch(ctx context.Context, sel ast.SelectionSet, obj *model.PreviewSwatch) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, previewSwatchImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PreviewSwatch")
+		case "x":
+			out.Values[i] = ec._PreviewSwatch_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._PreviewSwatch_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "color":
+			out.Values[i] = ec._PreviewSwatch_color(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -36318,6 +40437,72 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_scene(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "vibePresets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_vibePresets(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "guidedVibeRound":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_guidedVibeRound(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "previewVibe":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_previewVibe(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -37130,18 +41315,23 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "actions":
-			out.Values[i] = ec._Scene_actions(ctx, field, obj)
+		case "targets":
+			out.Values[i] = ec._Scene_targets(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "devicePayloads":
-			out.Values[i] = ec._Scene_devicePayloads(ctx, field, obj)
+		case "lighting":
+			out.Values[i] = ec._Scene_lighting(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "effectivePayloads":
-			out.Values[i] = ec._Scene_effectivePayloads(ctx, field, obj)
+		case "supportingStates":
+			out.Values[i] = ec._Scene_supportingStates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "preview":
+			out.Values[i] = ec._Scene_preview(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -37149,62 +41339,6 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = ec._Scene_createdBy(ctx, field, obj)
 		case "activatedAt":
 			out.Values[i] = ec._Scene_activatedAt(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var sceneActionImplementors = []string{"SceneAction"}
-
-func (ec *executionContext) _SceneAction(ctx context.Context, sel ast.SelectionSet, obj *model.SceneAction) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, sceneActionImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("SceneAction")
-		case "targetType":
-			out.Values[i] = ec._SceneAction_targetType(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "targetId":
-			out.Values[i] = ec._SceneAction_targetId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "target":
-			out.Values[i] = ec._SceneAction_target(ctx, field, obj)
-		case "expression":
-			out.Values[i] = ec._SceneAction_expression(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "name":
-			out.Values[i] = ec._SceneAction_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -37269,24 +41403,225 @@ func (ec *executionContext) _SceneActiveEvent(ctx context.Context, sel ast.Selec
 	return out
 }
 
-var sceneDevicePayloadImplementors = []string{"SceneDevicePayload"}
+var sceneLightOverrideImplementors = []string{"SceneLightOverride"}
 
-func (ec *executionContext) _SceneDevicePayload(ctx context.Context, sel ast.SelectionSet, obj *model.SceneDevicePayload) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, sceneDevicePayloadImplementors)
+func (ec *executionContext) _SceneLightOverride(ctx context.Context, sel ast.SelectionSet, obj *model.SceneLightOverride) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneLightOverrideImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("SceneDevicePayload")
+			out.Values[i] = graphql.MarshalString("SceneLightOverride")
 		case "deviceId":
-			out.Values[i] = ec._SceneDevicePayload_deviceId(ctx, field, obj)
+			out.Values[i] = ec._SceneLightOverride_deviceId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "payload":
-			out.Values[i] = ec._SceneDevicePayload_payload(ctx, field, obj)
+		case "kind":
+			out.Values[i] = ec._SceneLightOverride_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._SceneLightOverride_state(ctx, field, obj)
+		case "effectId":
+			out.Values[i] = ec._SceneLightOverride_effectId(ctx, field, obj)
+		case "nativeEffectName":
+			out.Values[i] = ec._SceneLightOverride_nativeEffectName(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var sceneLightingImplementors = []string{"SceneLighting"}
+
+func (ec *executionContext) _SceneLighting(ctx context.Context, sel ast.SelectionSet, obj *model.SceneLighting) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneLightingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SceneLighting")
+		case "dynamicSource":
+			out.Values[i] = ec._SceneLighting_dynamicSource(ctx, field, obj)
+		case "overrides":
+			out.Values[i] = ec._SceneLighting_overrides(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var scenePreviewImplementors = []string{"ScenePreview"}
+
+func (ec *executionContext) _ScenePreview(ctx context.Context, sel ast.SelectionSet, obj *model.ScenePreview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, scenePreviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ScenePreview")
+		case "width":
+			out.Values[i] = ec._ScenePreview_width(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "height":
+			out.Values[i] = ec._ScenePreview_height(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pixels":
+			out.Values[i] = ec._ScenePreview_pixels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "swatches":
+			out.Values[i] = ec._ScenePreview_swatches(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var sceneSupportingStateImplementors = []string{"SceneSupportingState"}
+
+func (ec *executionContext) _SceneSupportingState(ctx context.Context, sel ast.SelectionSet, obj *model.SceneSupportingState) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneSupportingStateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SceneSupportingState")
+		case "deviceId":
+			out.Values[i] = ec._SceneSupportingState_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._SceneSupportingState_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var sceneTargetEntryImplementors = []string{"SceneTargetEntry"}
+
+func (ec *executionContext) _SceneTargetEntry(ctx context.Context, sel ast.SelectionSet, obj *model.SceneTargetEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneTargetEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SceneTargetEntry")
+		case "targetType":
+			out.Values[i] = ec._SceneTargetEntry_targetType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetId":
+			out.Values[i] = ec._SceneTargetEntry_targetId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "target":
+			out.Values[i] = ec._SceneTargetEntry_target(ctx, field, obj)
+		case "expression":
+			out.Values[i] = ec._SceneTargetEntry_expression(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._SceneTargetEntry_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -37809,6 +42144,203 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
 			out.Values[i] = ec._User_mustChangePassword(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var vibeFieldSampleImplementors = []string{"VibeFieldSample"}
+
+func (ec *executionContext) _VibeFieldSample(ctx context.Context, sel ast.SelectionSet, obj *model.VibeFieldSample) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vibeFieldSampleImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VibeFieldSample")
+		case "lightness":
+			out.Values[i] = ec._VibeFieldSample_lightness(ctx, field, obj)
+		case "chroma":
+			out.Values[i] = ec._VibeFieldSample_chroma(ctx, field, obj)
+		case "hue":
+			out.Values[i] = ec._VibeFieldSample_hue(ctx, field, obj)
+		case "brightness":
+			out.Values[i] = ec._VibeFieldSample_brightness(ctx, field, obj)
+		case "mireds":
+			out.Values[i] = ec._VibeFieldSample_mireds(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var vibePresetImplementors = []string{"VibePreset"}
+
+func (ec *executionContext) _VibePreset(ctx context.Context, sel ast.SelectionSet, obj *model.VibePreset) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vibePresetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VibePreset")
+		case "id":
+			out.Values[i] = ec._VibePreset_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._VibePreset_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "category":
+			out.Values[i] = ec._VibePreset_category(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "domain":
+			out.Values[i] = ec._VibePreset_domain(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "seed":
+			out.Values[i] = ec._VibePreset_seed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "brightness":
+			out.Values[i] = ec._VibePreset_brightness(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "movement":
+			out.Values[i] = ec._VibePreset_movement(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cycleSeconds":
+			out.Values[i] = ec._VibePreset_cycleSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "preview":
+			out.Values[i] = ec._VibePreset_preview(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var vibePreviewResultImplementors = []string{"VibePreviewResult"}
+
+func (ec *executionContext) _VibePreviewResult(ctx context.Context, sel ast.SelectionSet, obj *model.VibePreviewResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vibePreviewResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VibePreviewResult")
+		case "preview":
+			out.Values[i] = ec._VibePreviewResult_preview(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "domain":
+			out.Values[i] = ec._VibePreviewResult_domain(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "seed":
+			out.Values[i] = ec._VibePreviewResult_seed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "brightness":
+			out.Values[i] = ec._VibePreviewResult_brightness(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "movement":
+			out.Values[i] = ec._VibePreviewResult_movement(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cycleSeconds":
+			out.Values[i] = ec._VibePreviewResult_cycleSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "minimumLightness":
+			out.Values[i] = ec._VibePreviewResult_minimumLightness(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maximumLightness":
+			out.Values[i] = ec._VibePreviewResult_maximumLightness(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -39500,6 +44032,21 @@ func (ec *executionContext) marshalNDateTime2ᚖtimeᚐTime(ctx context.Context,
 	return res
 }
 
+func (ec *executionContext) marshalNDesiredSceneState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneState(ctx context.Context, sel ast.SelectionSet, v *model.DesiredSceneState) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DesiredSceneState(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDesiredSceneStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneStateInput(ctx context.Context, v any) (*model.DesiredSceneStateInput, error) {
+	res, err := ec.unmarshalInputDesiredSceneStateInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNDevice2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice(ctx context.Context, sel ast.SelectionSet, v model.Device) graphql.Marshaler {
 	return ec._Device(ctx, sel, &v)
 }
@@ -40292,6 +44839,51 @@ func (ec *executionContext) marshalNGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaff
 	return ret
 }
 
+func (ec *executionContext) marshalNGuidedVibeOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeOptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GuidedVibeOption) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNGuidedVibeOption2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeOption(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGuidedVibeOption2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeOption(ctx context.Context, sel ast.SelectionSet, v *model.GuidedVibeOption) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GuidedVibeOption(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGuidedVibeRound2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRound(ctx context.Context, sel ast.SelectionSet, v model.GuidedVibeRound) graphql.Marshaler {
+	return ec._GuidedVibeRound(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGuidedVibeRound2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRound(ctx context.Context, sel ast.SelectionSet, v *model.GuidedVibeRound) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GuidedVibeRound(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNGuidedVibeRoundInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRoundInput(ctx context.Context, v any) (model.GuidedVibeRoundInput, error) {
+	res, err := ec.unmarshalInputGuidedVibeRoundInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -40629,6 +45221,63 @@ func (ec *executionContext) marshalNNumericSeriesPoint2ᚖgithubᚗcomᚋsaffron
 	return ec._NumericSeriesPoint(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNPreviewPixel2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewPixelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PreviewPixel) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNPreviewPixel2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewPixel(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNPreviewPixel2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewPixel(ctx context.Context, sel ast.SelectionSet, v *model.PreviewPixel) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PreviewPixel(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPreviewSwatch2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewSwatchᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PreviewSwatch) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNPreviewSwatch2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewSwatch(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNPreviewSwatch2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewSwatch(ctx context.Context, sel ast.SelectionSet, v *model.PreviewSwatch) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PreviewSwatch(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNPreviewVibeInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPreviewVibeInput(ctx context.Context, v any) (model.PreviewVibeInput, error) {
+	res, err := ec.unmarshalInputPreviewVibeInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNRaiseAlarmInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRaiseAlarmInput(ctx context.Context, v any) (model.RaiseAlarmInput, error) {
 	res, err := ec.unmarshalInputRaiseAlarmInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -40740,52 +45389,6 @@ func (ec *executionContext) marshalNScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffron
 	return ec._Scene(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNSceneAction2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneAction) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNSceneAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAction(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNSceneAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAction(ctx context.Context, sel ast.SelectionSet, v *model.SceneAction) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._SceneAction(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNSceneActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInputᚄ(ctx context.Context, v any) ([]*model.SceneActionInput, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*model.SceneActionInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInput(ctx context.Context, v any) (*model.SceneActionInput, error) {
-	res, err := ec.unmarshalInputSceneActionInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNSceneActiveEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActiveEvent(ctx context.Context, sel ast.SelectionSet, v model.SceneActiveEvent) graphql.Marshaler {
 	return ec._SceneActiveEvent(ctx, sel, &v)
 }
@@ -40800,11 +45403,16 @@ func (ec *executionContext) marshalNSceneActiveEvent2ᚖgithubᚗcomᚋsaffronja
 	return ec._SceneActiveEvent(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneDevicePayload) graphql.Marshaler {
+func (ec *executionContext) unmarshalNSceneDefinitionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDefinitionInput(ctx context.Context, v any) (*model.SceneDefinitionInput, error) {
+	res, err := ec.unmarshalInputSceneDefinitionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneLightOverride2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneLightOverride) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNSceneDevicePayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayload(ctx, sel, v[i])
+		return ec.marshalNSceneLightOverride2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverride(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -40816,19 +45424,171 @@ func (ec *executionContext) marshalNSceneDevicePayload2ᚕᚖgithubᚗcomᚋsaff
 	return ret
 }
 
-func (ec *executionContext) marshalNSceneDevicePayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayload(ctx context.Context, sel ast.SelectionSet, v *model.SceneDevicePayload) graphql.Marshaler {
+func (ec *executionContext) marshalNSceneLightOverride2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverride(ctx context.Context, sel ast.SelectionSet, v *model.SceneLightOverride) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._SceneDevicePayload(ctx, sel, v)
+	return ec._SceneLightOverride(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSceneDevicePayloadInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInput(ctx context.Context, v any) (*model.SceneDevicePayloadInput, error) {
-	res, err := ec.unmarshalInputSceneDevicePayloadInput(ctx, v)
+func (ec *executionContext) unmarshalNSceneLightOverrideInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideInputᚄ(ctx context.Context, v any) ([]*model.SceneLightOverrideInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.SceneLightOverrideInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNSceneLightOverrideInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNSceneLightOverrideInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideInput(ctx context.Context, v any) (*model.SceneLightOverrideInput, error) {
+	res, err := ec.unmarshalInputSceneLightOverrideInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSceneLightOverrideKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideKind(ctx context.Context, v any) (model.SceneLightOverrideKind, error) {
+	var res model.SceneLightOverrideKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneLightOverrideKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightOverrideKind(ctx context.Context, sel ast.SelectionSet, v model.SceneLightOverrideKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNSceneLighting2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLighting(ctx context.Context, sel ast.SelectionSet, v *model.SceneLighting) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneLighting(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSceneLightingInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneLightingInput(ctx context.Context, v any) (*model.SceneLightingInput, error) {
+	res, err := ec.unmarshalInputSceneLightingInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNScenePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScenePreview(ctx context.Context, sel ast.SelectionSet, v *model.ScenePreview) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ScenePreview(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSceneSupportingState2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneSupportingState) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNSceneSupportingState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingState(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSceneSupportingState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingState(ctx context.Context, sel ast.SelectionSet, v *model.SceneSupportingState) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneSupportingState(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSceneSupportingStateInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateInputᚄ(ctx context.Context, v any) ([]*model.SceneSupportingStateInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.SceneSupportingStateInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNSceneSupportingStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNSceneSupportingStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateInput(ctx context.Context, v any) (*model.SceneSupportingStateInput, error) {
+	res, err := ec.unmarshalInputSceneSupportingStateInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneTargetEntry2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneTargetEntry) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNSceneTargetEntry2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetEntry(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSceneTargetEntry2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetEntry(ctx context.Context, sel ast.SelectionSet, v *model.SceneTargetEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneTargetEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSceneTargetInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetInputᚄ(ctx context.Context, v any) ([]*model.SceneTargetInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.SceneTargetInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNSceneTargetInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNSceneTargetInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetInput(ctx context.Context, v any) (*model.SceneTargetInput, error) {
+	res, err := ec.unmarshalInputSceneTargetInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSceneTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetType(ctx context.Context, v any) (model.SceneTargetType, error) {
+	var res model.SceneTargetType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetType(ctx context.Context, sel ast.SelectionSet, v model.SceneTargetType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNSetting2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSetting(ctx context.Context, sel ast.SelectionSet, v model.Setting) graphql.Marshaler {
@@ -41019,6 +45779,26 @@ func (ec *executionContext) unmarshalNTargetClauseInput2ᚖgithubᚗcomᚋsaffro
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNTargetClauseOperator2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseOperator(ctx context.Context, v any) (model.TargetClauseOperator, error) {
+	var res model.TargetClauseOperator
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTargetClauseOperator2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseOperator(ctx context.Context, sel ast.SelectionSet, v model.TargetClauseOperator) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNTargetClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseSubject(ctx context.Context, v any) (model.TargetClauseSubject, error) {
+	var res model.TargetClauseSubject
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTargetClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseSubject(ctx context.Context, sel ast.SelectionSet, v model.TargetClauseSubject) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNTopologyLink2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTopologyLinkᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TopologyLink) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -41163,6 +45943,97 @@ func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain(ctx context.Context, v any) (model.VibeFieldDomain, error) {
+	var res model.VibeFieldDomain
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNVibeFieldDomain2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldDomain(ctx context.Context, sel ast.SelectionSet, v model.VibeFieldDomain) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNVibeFieldSample2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldSampleᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.VibeFieldSample) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVibeFieldSample2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldSample(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVibeFieldSample2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeFieldSample(ctx context.Context, sel ast.SelectionSet, v *model.VibeFieldSample) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._VibeFieldSample(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNVibePreset2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePresetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.VibePreset) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVibePreset2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePreset(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVibePreset2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePreset(ctx context.Context, sel ast.SelectionSet, v *model.VibePreset) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._VibePreset(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNVibePreviewResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePreviewResult(ctx context.Context, sel ast.SelectionSet, v model.VibePreviewResult) graphql.Marshaler {
+	return ec._VibePreviewResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNVibePreviewResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibePreviewResult(ctx context.Context, sel ast.SelectionSet, v *model.VibePreviewResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._VibePreviewResult(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVibeSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceInput(ctx context.Context, v any) (*model.VibeSourceInput, error) {
+	res, err := ec.unmarshalInputVibeSourceInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNVibeSourceKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceKind(ctx context.Context, v any) (model.VibeSourceKind, error) {
+	var res model.VibeSourceKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNVibeSourceKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceKind(ctx context.Context, sel ast.SelectionSet, v model.VibeSourceKind) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNWebhookDelivery2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookDelivery(ctx context.Context, sel ast.SelectionSet, v model.WebhookDelivery) graphql.Marshaler {
@@ -41748,6 +46619,21 @@ func (ec *executionContext) marshalODateTime2ᚖtimeᚐTime(ctx context.Context,
 	return res
 }
 
+func (ec *executionContext) marshalODesiredSceneState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneState(ctx context.Context, sel ast.SelectionSet, v *model.DesiredSceneState) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DesiredSceneState(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalODesiredSceneStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneStateInput(ctx context.Context, v any) (*model.DesiredSceneStateInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputDesiredSceneStateInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalODevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDevice(ctx context.Context, sel ast.SelectionSet, v *model.Device) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -41760,6 +46646,21 @@ func (ec *executionContext) marshalODeviceState2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._DeviceState(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalODynamicSceneSource2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDynamicSceneSource(ctx context.Context, sel ast.SelectionSet, v *model.DynamicSceneSource) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DynamicSceneSource(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalODynamicSceneSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDynamicSceneSourceInput(ctx context.Context, v any) (*model.DynamicSceneSourceInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputDynamicSceneSourceInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v *model.Effect) graphql.Marshaler {
@@ -41855,6 +46756,14 @@ func (ec *executionContext) marshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaff
 	return ret
 }
 
+func (ec *executionContext) unmarshalOGuidedVibeRecipeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRecipeInput(ctx context.Context, v any) (*model.GuidedVibeRecipeInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputGuidedVibeRecipeInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -41891,6 +46800,22 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
+func (ec *executionContext) unmarshalOPhotoSampleInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPhotoSampleInput(ctx context.Context, v any) (*model.PhotoSampleInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputPhotoSampleInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOPresetVibeRecipeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPresetVibeRecipeInput(ctx context.Context, v any) (*model.PresetVibeRecipeInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputPresetVibeRecipeInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalORoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoom(ctx context.Context, sel ast.SelectionSet, v *model.Room) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -41905,40 +46830,12 @@ func (ec *executionContext) marshalOScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffron
 	return ec._Scene(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOSceneActionInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInputᚄ(ctx context.Context, v any) ([]*model.SceneActionInput, error) {
+func (ec *executionContext) unmarshalOSceneDefinitionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDefinitionInput(ctx context.Context, v any) (*model.SceneDefinitionInput, error) {
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*model.SceneActionInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNSceneActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneActionInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalOSceneDevicePayloadInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInputᚄ(ctx context.Context, v any) ([]*model.SceneDevicePayloadInput, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*model.SceneDevicePayloadInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNSceneDevicePayloadInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDevicePayloadInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
+	res, err := ec.unmarshalInputSceneDefinitionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOSceneTarget2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTarget(ctx context.Context, sel ast.SelectionSet, v model.SceneTarget) graphql.Marshaler {
@@ -42000,6 +46897,22 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOTargetClauseConnector2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseConnector(ctx context.Context, v any) (*model.TargetClauseConnector, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.TargetClauseConnector)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTargetClauseConnector2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseConnector(ctx context.Context, sel ast.SelectionSet, v *model.TargetClauseConnector) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOTargetClauseInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTargetClauseInputᚄ(ctx context.Context, v any) ([]*model.TargetClauseInput, error) {
@@ -42088,6 +47001,14 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOVibeSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceInput(ctx context.Context, v any) (*model.VibeSourceInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputVibeSourceInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOWebhookEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐWebhookEndpoint(ctx context.Context, sel ast.SelectionSet, v *model.WebhookEndpoint) graphql.Marshaler {
