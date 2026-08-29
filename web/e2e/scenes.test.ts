@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { graphql } from "$lib/gql";
 import { getContext, subscribeMQTTCommands } from "./setup.js";
+import { SceneLightOverrideKind, SceneTargetType } from "$lib/gql/graphql";
 
 const DEVICES_QUERY = graphql(`
   query E2EScenesDevices {
@@ -17,13 +18,19 @@ const CREATE_SCENE = graphql(`
     createScene(input: $input) {
       id
       name
-      actions {
+      targets {
         targetType
         targetId
       }
-      devicePayloads {
-        deviceId
-        payload
+      lighting {
+        overrides {
+          deviceId
+          kind
+          state {
+            on
+            brightness
+          }
+        }
       }
     }
   }
@@ -43,13 +50,19 @@ const SCENE_QUERY = graphql(`
     scene(id: $id) {
       id
       name
-      actions {
+      targets {
         targetType
         targetId
       }
-      devicePayloads {
-        deviceId
-        payload
+      lighting {
+        overrides {
+          deviceId
+          kind
+          state {
+            on
+            brightness
+          }
+        }
       }
     }
   }
@@ -66,13 +79,19 @@ const SCENES_QUERY = graphql(`
     scenes {
       id
       name
-      actions {
+      targets {
         targetType
         targetId
       }
-      devicePayloads {
-        deviceId
-        payload
+      lighting {
+        overrides {
+          deviceId
+          kind
+          state {
+            on
+            brightness
+          }
+        }
       }
     }
   }
@@ -83,13 +102,19 @@ const UPDATE_SCENE = graphql(`
     updateScene(id: $id, input: $input) {
       id
       name
-      actions {
+      targets {
         targetType
         targetId
       }
-      devicePayloads {
-        deviceId
-        payload
+      lighting {
+        overrides {
+          deviceId
+          kind
+          state {
+            on
+            brightness
+          }
+        }
       }
     }
   }
@@ -132,14 +157,23 @@ describe("scenes", () => {
     expect(lightDevice).toBeDefined();
     targetDeviceId = lightDevice!.id;
 
-    const payload = JSON.stringify({ on: true, brightness: 200 });
-
     const result = await graphqlClient
       .mutation(CREATE_SCENE, {
         input: {
           name: "Evening Lights",
-          actions: [{ targetType: "device", targetId: targetDeviceId }],
-          devicePayloads: [{ deviceId: targetDeviceId, payload }],
+          definition: {
+            targets: [{ targetType: SceneTargetType.Device, targetId: targetDeviceId }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: targetDeviceId,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: true, brightness: 200 },
+                },
+              ],
+            },
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
@@ -147,9 +181,9 @@ describe("scenes", () => {
     expect(result.error).toBeUndefined();
     expect(result.data).toBeDefined();
     expect(result.data!.createScene.name).toBe("Evening Lights");
-    expect(result.data!.createScene.actions).toHaveLength(1);
-    expect(result.data!.createScene.actions[0].targetType).toBe("device");
-    expect(result.data!.createScene.actions[0].targetId).toBe(targetDeviceId);
+    expect(result.data!.createScene.targets).toHaveLength(1);
+    expect(result.data!.createScene.targets[0].targetType).toBe("device");
+    expect(result.data!.createScene.targets[0].targetId).toBe(targetDeviceId);
 
     sceneId = result.data!.createScene.id;
   });
@@ -163,7 +197,7 @@ describe("scenes", () => {
     expect(result.data).toBeDefined();
     expect(result.data!.scene).toBeDefined();
     expect(result.data!.scene!.name).toBe("Evening Lights");
-    expect(result.data!.scene!.actions).toHaveLength(1);
+    expect(result.data!.scene!.targets).toHaveLength(1);
   });
 
   it("should apply the scene", async () => {
@@ -199,8 +233,19 @@ describe("scenes", () => {
       .mutation(CREATE_SCENE, {
         input: {
           name: "List Scene A",
-          actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) }],
+          definition: {
+            targets: [{ targetType: SceneTargetType.Device, targetId: lightDevice!.id }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: lightDevice!.id,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: true },
+                },
+              ],
+            },
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
@@ -208,8 +253,19 @@ describe("scenes", () => {
       .mutation(CREATE_SCENE, {
         input: {
           name: "List Scene B",
-          actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: false }) }],
+          definition: {
+            targets: [{ targetType: SceneTargetType.Device, targetId: lightDevice!.id }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: lightDevice!.id,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: false },
+                },
+              ],
+            },
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
@@ -249,8 +305,19 @@ describe("scenes", () => {
       .mutation(CREATE_SCENE, {
         input: {
           name: "Original Scene Name",
-          actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) }],
+          definition: {
+            targets: [{ targetType: SceneTargetType.Device, targetId: lightDevice!.id }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: lightDevice!.id,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: true },
+                },
+              ],
+            },
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
@@ -271,7 +338,7 @@ describe("scenes", () => {
     await graphqlClient.mutation(DELETE_SCENE, { id }).toPromise();
   });
 
-  it("should update scene actions", async () => {
+  it("should update a scene definition", async () => {
     const { graphqlClient } = getContext();
 
     const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
@@ -282,40 +349,62 @@ describe("scenes", () => {
     const created = await graphqlClient
       .mutation(CREATE_SCENE, {
         input: {
-          name: "Actions Test Scene",
-          actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [{ deviceId: lightDevice!.id, payload: JSON.stringify({ on: true }) }],
+          name: "Definition Test Scene",
+          definition: {
+            targets: [{ targetType: SceneTargetType.Device, targetId: lightDevice!.id }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: lightDevice!.id,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: true },
+                },
+              ],
+            },
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
     expect(created.data).toBeDefined();
     const id = created.data!.createScene.id;
 
-    const newPayload = JSON.stringify({ on: false, brightness: 50 });
     const updated = await graphqlClient
       .mutation(UPDATE_SCENE, {
         id,
         input: {
-          actions: [{ targetType: "device", targetId: lightDevice!.id }],
-          devicePayloads: [{ deviceId: lightDevice!.id, payload: newPayload }],
+          definition: {
+            targets: [{ targetType: SceneTargetType.Device, targetId: lightDevice!.id }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: lightDevice!.id,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: false, brightness: 50 },
+                },
+              ],
+            },
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
 
     expect(updated.error).toBeUndefined();
     expect(updated.data).toBeDefined();
-    expect(updated.data!.updateScene.actions).toHaveLength(1);
-    expect(updated.data!.updateScene.devicePayloads).toHaveLength(1);
-    expect(updated.data!.updateScene.devicePayloads[0].payload).toBe(newPayload);
+    expect(updated.data!.updateScene.targets).toHaveLength(1);
+    expect(updated.data!.updateScene.lighting.overrides).toContainEqual(
+      expect.objectContaining({
+        deviceId: lightDevice!.id,
+        kind: SceneLightOverrideKind.State,
+        state: expect.objectContaining({ on: false, brightness: 50 }),
+      }),
+    );
 
     await graphqlClient.mutation(DELETE_SCENE, { id }).toPromise();
   });
 
   it("should apply scene with group target", async () => {
-    // EXPECTED FAIL: Bug #1/#2 -- resolveSceneTarget uses in-memory StateReader for groups,
-    // but groups are only in DB store. When a scene targets a group, the resolver calls
-    // sr.ResolveGroupDevices() which returns empty because groups created via GraphQL
-    // mutations are persisted to the database, not the in-memory state reader.
     const { graphqlClient } = getContext();
 
     const devicesResult = await graphqlClient.query(DEVICES_QUERY, {}).toPromise();
@@ -341,17 +430,24 @@ describe("scenes", () => {
       .mutation(CREATE_SCENE, {
         input: {
           name: "Group Target Scene",
-          actions: [{ targetType: "group", targetId: groupId }],
-          devicePayloads: [
-            {
-              deviceId: lightDevice!.id,
-              payload: JSON.stringify({ on: true, brightness: 255 }),
+          definition: {
+            targets: [{ targetType: SceneTargetType.Group, targetId: groupId }],
+            lighting: {
+              overrides: [
+                {
+                  deviceId: lightDevice!.id,
+                  kind: SceneLightOverrideKind.State,
+                  state: { on: true, brightness: 254 },
+                },
+              ],
             },
-          ],
+            supportingStates: [],
+          },
         },
       })
       .toPromise();
-    expect(scene.data).toBeDefined();
+    expect(scene.error).toBeUndefined();
+    expect(scene.data).not.toBeNull();
     const sceneIdLocal = scene.data!.createScene.id;
 
     const { messages, cleanup } = await subscribeMQTTCommands();

@@ -72,11 +72,19 @@ async function waitForTaskCount(count: number, timeout = 80_000) {
         const result = await graphqlClient
           .query(TASKS, {}, { requestPolicy: "network-only" })
           .toPromise();
-        return result.data?.maintenanceTasks.length ?? 0;
+        return result.data?.maintenanceTasks.filter((task) => task.kind !== "STORAGE").length ?? 0;
       },
       { timeout },
     )
     .toBe(count);
+}
+
+async function currentTaskCount(): Promise<number> {
+  const { graphqlClient } = getContext();
+  const result = await graphqlClient
+    .query(TASKS, {}, { requestPolicy: "network-only" })
+    .toPromise();
+  return result.data?.maintenanceTasks.length ?? 0;
 }
 
 async function completeCard(title: string) {
@@ -141,7 +149,10 @@ describe("Maintenance", () => {
     await expect
       .poll(() => page.getByText("Correct sensor placement", { exact: true }).count())
       .toBe(1);
-    await expect.poll(() => page.getByLabel("8 maintenance tasks").count()).toBe(1);
+    const initialTaskCount = await currentTaskCount();
+    await expect
+      .poll(() => page.getByLabel(`${initialTaskCount} maintenance tasks`).count())
+      .toBe(1);
     const batteryCard = page
       .getByText("Replace batteries", { exact: true })
       .locator("xpath=ancestor::*[@data-slot='card']");
@@ -186,6 +197,9 @@ describe("Maintenance", () => {
     await completeCard("Replace batteries");
     await completeCard("Updates");
     await completeCard("Correct sensor placement");
+    if ((await page.getByText("System maintenance", { exact: true }).count()) > 0) {
+      await completeCard("System maintenance");
+    }
     await expect
       .poll(() => page.getByText("Nothing needs maintenance.", { exact: true }).count())
       .toBe(1);

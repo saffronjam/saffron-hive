@@ -7,7 +7,13 @@ import {
   type Route,
 } from "playwright-core";
 import { graphql } from "$lib/gql";
-import { AlarmKind, AlarmSeverity, EffectKind } from "$lib/gql/graphql";
+import {
+  AlarmKind,
+  AlarmSeverity,
+  EffectKind,
+  SceneLightOverrideKind,
+  SceneTargetType,
+} from "$lib/gql/graphql";
 import { getContext, publishDeviceState } from "./setup.js";
 
 const CREATE_SEARCH_FIXTURES = graphql(`
@@ -122,11 +128,33 @@ async function cleanUpDeletedDevice(): Promise<void> {
 
 beforeAll(async () => {
   const { graphqlClient, appUrl, token } = getContext();
+  const devices = await graphqlClient
+    .query(SEARCH_DEVICES, {}, { requestPolicy: "network-only" })
+    .toPromise();
+  const sceneLight = devices.data?.devices.find(
+    (device) => device.friendlyName === "Living Room Light",
+  );
+  if (!sceneLight) throw new Error("Living Room Light was not found");
   const created = await graphqlClient
     .mutation(CREATE_SEARCH_FIXTURES, {
       room: { name: "Plan 02 Room" },
       group: { name: "Plan 02 Group" },
-      scene: { name: "Plan 02 Scene", actions: [] },
+      scene: {
+        name: "Plan 02 Scene",
+        definition: {
+          targets: [{ targetType: SceneTargetType.Device, targetId: sceneLight.id }],
+          lighting: {
+            overrides: [
+              {
+                deviceId: sceneLight.id,
+                kind: SceneLightOverrideKind.State,
+                state: { on: true, colorTemp: 370 },
+              },
+            ],
+          },
+          supportingStates: [],
+        },
+      },
       automation: { name: "Plan 02 Automation", enabled: false, nodes: [], edges: [] },
       effect: {
         name: "Plan 02 Effect",
@@ -404,7 +432,7 @@ describe("URL-backed search restoration", () => {
       {
         pathname: "/scenes",
         query: "Plan 02 Scene",
-        filter: "empty:yes",
+        filter: "empty:no",
         visibleText: "Plan 02 Scene",
         operation: "ScenesStore",
       },
