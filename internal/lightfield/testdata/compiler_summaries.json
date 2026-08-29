@@ -1,0 +1,17 @@
+{
+  "gradient": {
+    "minimumPerceptualDiversity": 0.08,
+    "maximumNeighbourDelta": 0.45,
+    "minimumLightness": 0.16,
+    "maximumLightness": 0.92
+  },
+  "whiteAmbience": {
+    "minimumMireds": 170,
+    "maximumMireds": 480,
+    "minimumBrightness": 0.12,
+    "maximumBrightness": 0.95
+  },
+  "salientSubject": {
+    "minimumChromaLift": 0.03
+  }
+}
