@@ -3,48 +3,32 @@ package webhook
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	migratesqlite "github.com/golang-migrate/migrate/v4/database/sqlite"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
-	_ "modernc.org/sqlite"
+	"github.com/saffronjam/saffron-hive/internal/testdb"
 )
+
+var webhookStoreTemplate = testdb.NewTemplate(store.Migrations, "migrations")
 
 func newWebhookTestStore(t *testing.T) *store.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := webhookStoreTemplate.Open(
+		filepath.Join(t.TempDir(), "webhook.db"),
+		"_pragma=foreign_keys(1)",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		t.Fatal(err)
-	}
-	source, err := iofs.New(store.Migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	driver, err := migratesqlite.WithInstance(db, &migratesqlite.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := migrate.NewWithInstance("iofs", source, "sqlite", driver)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatal(err)
-	}
 	return store.New(db)
 }
 

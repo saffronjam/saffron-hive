@@ -2,44 +2,29 @@ package history
 
 import (
 	"context"
-	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "modernc.org/sqlite"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/testdb"
 )
+
+var historyStoreTemplate = testdb.NewTemplate(store.Migrations, "migrations")
 
 func newTestStore(t *testing.T) *store.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", "file::memory:?cache=shared")
+	db, err := historyStoreTemplate.Open(
+		filepath.Join(t.TempDir(), "history.db"),
+		"_pragma=foreign_keys(1)",
+	)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
-
-	src, err := iofs.New(store.Migrations, "migrations")
-	if err != nil {
-		t.Fatalf("iofs: %v", err)
-	}
-	drv, err := sqlite.WithInstance(db, &sqlite.Config{})
-	if err != nil {
-		t.Fatalf("driver: %v", err)
-	}
-	m, err := migrate.NewWithInstance("iofs", src, "sqlite", drv)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("up: %v", err)
-	}
 	s := store.New(db)
 	if _, err := s.CreateDevice(context.Background(), store.CreateDeviceParams{
 		ID:           "sensor-1",

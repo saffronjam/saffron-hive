@@ -126,10 +126,24 @@ afterAll(async () => {
 describe("browser WebSocket recovery", () => {
   it("detects a black-holed connection and reconciles missed state without a reload", async () => {
     const { appUrl } = getContext();
+    let setupStatusRequests = 0;
+    await page.route("**/graphql*", async (route) => {
+      const request = route.request();
+      if (`${request.url()} ${request.postData() ?? ""}`.includes("setupStatus")) {
+        setupStatusRequests++;
+        if (setupStatusRequests === 1) {
+          await route.abort("connectionreset");
+          return;
+        }
+      }
+      await route.continue();
+    });
     await publishDeviceState("Living Room Light", { state: "ON", brightness: 41 });
     await waitForBackendBrightness(41);
     await page.goto(`${appUrl}/devices`, { waitUntil: "domcontentloaded" });
     await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(41);
+    expect(setupStatusRequests).toBe(2);
+    await page.unroute("**/graphql*");
     await expect.poll(() => connectionCount, { timeout: UI_TIMEOUT }).toBeGreaterThan(0);
     await expect
       .poll(() => connections.find((connection) => connection.id === connectionCount)?.acknowledged)

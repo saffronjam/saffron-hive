@@ -2,46 +2,31 @@ package activity
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "modernc.org/sqlite"
-
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/testdb"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
 
+var activityStoreTemplate = testdb.NewTemplate(store.Migrations, "migrations")
+
 func newTestStore(t *testing.T) *store.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := activityStoreTemplate.Open(
+		filepath.Join(t.TempDir(), "activity.db"),
+		"_pragma=foreign_keys(1)",
+	)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-
-	src, err := iofs.New(store.Migrations, "migrations")
-	if err != nil {
-		t.Fatalf("iofs: %v", err)
-	}
-	drv, err := sqlite.WithInstance(db, &sqlite.Config{})
-	if err != nil {
-		t.Fatalf("driver: %v", err)
-	}
-	m, err := migrate.NewWithInstance("iofs", src, "sqlite", drv)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("up: %v", err)
-	}
 	return store.New(db)
 }
 

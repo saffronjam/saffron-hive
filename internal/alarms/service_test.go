@@ -2,18 +2,16 @@ package alarms
 
 import (
 	"context"
-	"database/sql"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "modernc.org/sqlite"
-
 	"github.com/saffronjam/saffron-hive/internal/store"
+	"github.com/saffronjam/saffron-hive/internal/testdb"
 )
+
+var alarmStoreTemplate = testdb.NewTemplate(store.Migrations, "migrations")
 
 func newTestStore(t *testing.T) *store.DB {
 	t.Helper()
@@ -21,8 +19,12 @@ func newTestStore(t *testing.T) *store.DB {
 	// TestRaiseRaceUniqueness test) share the same database. An in-memory
 	// SQLite database is per-connection by default, which breaks the
 	// transaction-based race-safety test.
-	tmp := t.TempDir() + "/alarms.db"
-	db, err := sql.Open("sqlite", tmp+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	db, err := alarmStoreTemplate.Open(
+		filepath.Join(t.TempDir(), "alarms.db"),
+		"_pragma=foreign_keys(1)",
+		"_pragma=journal_mode(WAL)",
+		"_pragma=busy_timeout(5000)",
+	)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -31,22 +33,6 @@ func newTestStore(t *testing.T) *store.DB {
 	// the file lock and fail with SQLITE_BUSY.
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
-
-	src, err := iofs.New(store.Migrations, "migrations")
-	if err != nil {
-		t.Fatalf("iofs: %v", err)
-	}
-	drv, err := sqlite.WithInstance(db, &sqlite.Config{})
-	if err != nil {
-		t.Fatalf("driver: %v", err)
-	}
-	m, err := migrate.NewWithInstance("iofs", src, "sqlite", drv)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("up: %v", err)
-	}
 	return store.New(db)
 }
 

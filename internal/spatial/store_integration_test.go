@@ -2,42 +2,26 @@ package spatial
 
 import (
 	"context"
-	"database/sql"
+	"path/filepath"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4"
-	migratesqlite "github.com/golang-migrate/migrate/v4/database/sqlite"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
-	_ "modernc.org/sqlite"
+	"github.com/saffronjam/saffron-hive/internal/testdb"
 )
+
+var spatialStoreTemplate = testdb.NewTemplate(store.Migrations, "migrations")
 
 func spatialTestStore(t *testing.T) *store.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := spatialStoreTemplate.Open(
+		filepath.Join(t.TempDir(), "spatial.db"),
+		"_pragma=foreign_keys(1)",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		t.Fatal(err)
-	}
-	source, err := iofs.New(store.Migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	driver, err := migratesqlite.WithInstance(db, &migratesqlite.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	migrator, err := migrate.NewWithInstance("iofs", source, "sqlite", driver)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := migrator.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatal(err)
-	}
 	return store.New(db)
 }
 

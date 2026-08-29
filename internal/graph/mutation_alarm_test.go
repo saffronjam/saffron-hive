@@ -2,53 +2,39 @@ package graph
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "modernc.org/sqlite"
-	"net/http"
-	"net/http/httptest"
 
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
-	"log/slog"
+	"github.com/saffronjam/saffron-hive/internal/testdb"
 )
+
+var graphAlarmStoreTemplate = testdb.NewTemplate(store.Migrations, "migrations")
 
 // newAlarmTestEnv wires a resolver backed by a real SQLite-backed alarm
 // service. The mutation tests exercise end-to-end: POST → resolver → service
 // → store → response.
 func newAlarmTestEnv(t *testing.T) (*testEnv, *alarms.Service) {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := graphAlarmStoreTemplate.Open(
+		filepath.Join(t.TempDir(), "alarm.db"),
+		"_pragma=foreign_keys(1)",
+	)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-
-	src, err := iofs.New(store.Migrations, "migrations")
-	if err != nil {
-		t.Fatalf("iofs: %v", err)
-	}
-	drv, err := sqlite.WithInstance(db, &sqlite.Config{})
-	if err != nil {
-		t.Fatalf("driver: %v", err)
-	}
-	m, err := migrate.NewWithInstance("iofs", src, "sqlite", drv)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("up: %v", err)
-	}
 	sqlStore := store.New(db)
 
 	sr := newMockStateReader()

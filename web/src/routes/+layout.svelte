@@ -9,7 +9,7 @@
 	import { setContextClient } from "@urql/svelte";
 	import { createGraphQLConnection } from "$lib/graphql/client";
 	import { installAppRecovery, setGraphQLConnectionContext } from "$lib/graphql/app-recovery";
-	import { SETUP_STATUS_QUERY } from "$lib/graphql/setup-status";
+	import { waitForSetupStatus } from "$lib/graphql/setup-status";
 	import { nextRoute } from "$lib/auth-gate";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -72,7 +72,10 @@
 	const PUBLIC_ROUTES = ["/login", "/setup", "/change-password-required"];
 
 	let ready = $state(false);
+	let gateError = $state(false);
+	let gateRunning = $state(false);
 	const loader = delayedLoading(() => !ready);
+	const gateAbortController = new AbortController();
 
 	// The main pages stay mounted (hidden) after their first visit, so a
 	// return costs no rebuild. Each mounts on first visit, not at boot, so
@@ -117,22 +120,32 @@
 	});
 
 	async function gate() {
-		const result = await client.query(SETUP_STATUS_QUERY, {}).toPromise();
-		const hasInitialUser = result.data?.setupStatus?.hasInitialUser ?? false;
-		const isAuthenticated = hasInitialUser && auth.isAuthenticated();
+		if (gateRunning) return;
+		gateRunning = true;
+		gateError = false;
+		try {
+			const { hasInitialUser } = await waitForSetupStatus(client, {
+				signal: gateAbortController.signal,
+			});
+			const isAuthenticated = hasInitialUser && auth.isAuthenticated();
 
-		// Load `me` before deciding so a forced password change redirects before
-		// children render — the post-ready $effect only catches up later.
-		if (isAuthenticated && !me.user) await me.refresh(client);
+			// Load `me` before deciding so a forced password change redirects before
+			// children render — the post-ready $effect only catches up later.
+			if (isAuthenticated && !me.user) await me.refresh(client);
 
-		const target = nextRoute({
-			pathname: $page.url.pathname,
-			hasInitialUser,
-			isAuthenticated,
-			mustChangePassword: me.user?.mustChangePassword ?? false,
-		});
-		if (target) await goto(target, { replaceState: true });
-		ready = true;
+			const target = nextRoute({
+				pathname: $page.url.pathname,
+				hasInitialUser,
+				isAuthenticated,
+				mustChangePassword: me.user?.mustChangePassword ?? false,
+			});
+			if (target) await goto(target, { replaceState: true });
+			ready = true;
+		} catch {
+			if (!gateAbortController.signal.aborted) gateError = true;
+		} finally {
+			gateRunning = false;
+		}
 	}
 
 	let uninstallAppRecovery: (() => void) | null = null;
@@ -166,6 +179,7 @@
 	});
 
 	onDestroy(() => {
+		gateAbortController.abort();
 		uninstallAppRecovery?.();
 		stopRecoveryReconciliation();
 		alarmsStore.stop();
@@ -186,7 +200,12 @@
 </svelte:head>
 
 {#if !ready}
-	{#if loader.visible}
+	{#if gateError}
+		<div class="flex h-screen flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+			<span>Could not reach the server.</span>
+			<SmoothButton label="Try again" variant="outline" size="sm" onclick={gate} />
+		</div>
+	{:else if loader.visible}
 		<div class="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>
 	{/if}
 {:else if PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))}
