@@ -23,22 +23,21 @@ func textValue(p *string) string {
 	return *p
 }
 
-// marshalExpression encodes a scene action's target expression for the
-// nullable scene_actions.expression column. An empty expression is stored as
-// NULL (the action is a direct target).
+// marshalExpression encodes a Scene target expression. An empty expression is
+// stored as NULL because the target is structural.
 func marshalExpression(expr []device.Clause) (*string, error) {
 	if len(expr) == 0 {
 		return nil, nil
 	}
 	b, err := json.Marshal(expr)
 	if err != nil {
-		return nil, fmt.Errorf("marshal scene action expression: %w", err)
+		return nil, fmt.Errorf("marshal Scene target expression: %w", err)
 	}
 	s := string(b)
 	return &s, nil
 }
 
-// unmarshalExpression decodes the nullable scene_actions.expression column.
+// unmarshalExpression decodes a nullable Scene target expression.
 // NULL or invalid JSON yields no expression.
 func unmarshalExpression(raw *string) []device.Clause {
 	if raw == nil || *raw == "" {
@@ -102,24 +101,6 @@ func unmarshalCapabilities(capsJSON string) []device.Capability {
 		return caps
 	}
 	return nil
-}
-
-// MarshalCommand serializes a Command to JSON for storage.
-func MarshalCommand(cmd device.Command) (string, error) {
-	b, err := json.Marshal(cmd)
-	if err != nil {
-		return "", fmt.Errorf("marshal command: %w", err)
-	}
-	return string(b), nil
-}
-
-// UnmarshalCommand deserializes a Command from JSON.
-func UnmarshalCommand(data string) (device.Command, error) {
-	var cmd device.Command
-	if err := json.Unmarshal([]byte(data), &cmd); err != nil {
-		return device.Command{}, fmt.Errorf("unmarshal command: %w", err)
-	}
-	return cmd, nil
 }
 
 func boolToNullInt64(b *bool) *int64 {

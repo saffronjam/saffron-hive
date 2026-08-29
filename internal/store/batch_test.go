@@ -88,7 +88,7 @@ func TestBatchDeleteGroupsAndScenes(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"s-1", "s-2", "s-3"} {
-		if _, err := s.CreateScene(ctx, CreateSceneParams{ID: id, Name: id}); err != nil {
+		if _, err := s.CreateScene(ctx, CreateSceneParams{ID: id, Name: id, Definition: manualDefinition()}); err != nil {
 			t.Fatalf("create scene %s: %v", id, err)
 		}
 	}

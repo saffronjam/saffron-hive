@@ -182,7 +182,7 @@ func TestCreatedByJoinOnScene(t *testing.T) {
 		t.Fatalf("create user: %v", err)
 	}
 	owner := u.ID
-	sc, err := s.CreateScene(ctx, CreateSceneParams{ID: "s-1", Name: "Movie", CreatedBy: &owner})
+	sc, err := s.CreateScene(ctx, CreateSceneParams{ID: "s-1", Name: "Movie", CreatedBy: &owner, Definition: manualDefinition()})
 	if err != nil {
 		t.Fatalf("create scene: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestCreatedByJoinOnScene(t *testing.T) {
 		t.Errorf("scene.CreatedBy = %+v", sc.CreatedBy)
 	}
 
-	scNoOwner, err := s.CreateScene(ctx, CreateSceneParams{ID: "s-2", Name: "Other"})
+	scNoOwner, err := s.CreateScene(ctx, CreateSceneParams{ID: "s-2", Name: "Other", Definition: manualDefinition()})
 	if err != nil {
 		t.Fatalf("create unowned scene: %v", err)
 	}

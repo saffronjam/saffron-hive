@@ -9,6 +9,7 @@ import (
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
+	"github.com/saffronjam/saffron-hive/internal/lightfield"
 )
 
 // CreateDeviceParams holds the parameters for creating a new device. Every
@@ -60,24 +61,25 @@ type UpdateDeviceDisplayBrightnessParams struct {
 
 // CreateSceneParams holds the parameters for creating a new scene.
 type CreateSceneParams struct {
-	ID        string
-	Name      string
-	CreatedBy *string
+	ID         string
+	Name       string
+	CreatedBy  *string
+	Definition SceneDefinition
 }
 
 // UpdateSceneParams holds optional fields for updating a scene.
 // SetIcon distinguishes "leave icon alone" (false) from "set icon to this value"
 // (true, with Icon either a pointer to the new value or nil to clear the column).
 type UpdateSceneParams struct {
-	Name    *string
-	SetIcon bool
-	Icon    *string
+	Name       *string
+	SetIcon    bool
+	Icon       *string
+	Definition *SceneDefinition
 }
 
-// Scene represents a scene row. ActivatedAt is non-nil while the scene is
-// currently active — every device it reached at apply time is still in the
-// scene's desired state. Any scene-relevant state change on any of those
-// devices clears ActivatedAt back to nil.
+// Scene represents a scene row. ActivatedAt is non-nil while its runtime owns
+// the current resolved member set and every owned state field matches the
+// Scene output.
 type Scene struct {
 	ID          string
 	Name        string
@@ -86,104 +88,117 @@ type Scene struct {
 	UpdatedAt   time.Time
 	CreatedBy   *UserRef
 	ActivatedAt *time.Time
+	Definition  SceneDefinition
 }
 
-// SceneExpectedState is the scene-relevant state snapshot taken when a scene
-// was applied to a device. The watcher compares incoming device state events
-// against this snapshot to decide whether the scene is still active.
-// Nil fields mean "unknown at apply time" — any later non-nil value invalidates.
-type SceneExpectedState struct {
-	SceneID    string
-	DeviceID   device.DeviceID
-	On         *bool
-	Brightness *int
-	ColorTemp  *int
-	ColorR     *int
-	ColorG     *int
-	ColorB     *int
-}
-
-// ActiveSceneSnapshot pairs an active scene's ID and activation timestamp
-// with the expected device states captured at apply time. Returned by
-// ListActiveScenesWithExpectedStates for watcher hydration on startup.
-type ActiveSceneSnapshot struct {
-	SceneID     string
-	ActivatedAt time.Time
-	Expected    []SceneExpectedState
-}
-
-// CreateSceneActionParams holds the parameters for adding a scene action.
-type CreateSceneActionParams struct {
-	SceneID    string
-	TargetType string
-	TargetID   string
-	Expression []device.Clause
+// SceneTarget is one ordered structural or Selector lighting target.
+type SceneTarget struct {
+	Type       device.TargetType
+	ID         string
+	Expression device.Expression
 	Name       string
 }
 
-// SceneAction represents a scene action row. When TargetType is "expression"
-// the target is the Expression rule set; otherwise it is the direct
-// (TargetType, TargetID) device/group/room. Name is an optional user label,
-// only meaningful for expression (Selector) targets.
-type SceneAction struct {
-	SceneID    string
-	TargetType string
-	TargetID   string
-	Expression []device.Clause
-	Name       string
+// DesiredState is a concrete Scene state without transport identity or origin.
+type DesiredState struct {
+	On                *bool
+	Brightness        *int
+	ColorTemp         *int
+	Color             *device.Color
+	Transition        *float64
+	TargetTemperature *float64
+	HvacMode          *string
+	FanMode           *string
+	Swing             *string
 }
 
-// SceneTargetRef is a logical membership entry in a scene's target list.
-// TargetType is "device", "group", "room", or "expression" (with Expression set).
-// Name is an optional user label, only meaningful for expression targets.
-type SceneTargetRef struct {
-	TargetType string
-	TargetID   string
-	Expression []device.Clause
-	Name       string
+// DynamicLighting stores an optional canonical field and its runtime controls.
+type DynamicLighting struct {
+	Field      lightfield.Field
+	Seed       int64
+	Brightness float64
+	Movement   float64
+	Cycle      time.Duration
+	Provenance lightfield.Provenance
 }
 
-// SceneDevicePayload is the per-device payload associated with a scene.
-// Keyed by (SceneID, DeviceID). Payload is the raw on-disk JSON; callers
-// parse it with ParseScenePayload to inspect the tagged-union shape.
-type SceneDevicePayload struct {
-	SceneID  string
-	DeviceID device.DeviceID
-	Payload  string
-}
-
-// ScenePayloadKind tags the polymorphic shape of a scene's per-device payload.
-type ScenePayloadKind string
+// SceneLightOverrideKind selects a target-bound per-light override.
+type SceneLightOverrideKind string
 
 const (
-	// ScenePayloadStatic is a desired-state command (on/brightness/color/...).
-	ScenePayloadStatic ScenePayloadKind = "static"
-	// ScenePayloadEffect references a stored timeline/native effect by ID
-	// to start on the device when the scene is applied.
-	ScenePayloadEffect ScenePayloadKind = "effect"
-	// ScenePayloadNativeEffect references an auto-discovered native effect by
-	// name (no stored Effect row) to start on the device when the scene is
-	// applied.
-	ScenePayloadNativeEffect ScenePayloadKind = "native_effect"
+	SceneLightOverrideState        SceneLightOverrideKind = "state"
+	SceneLightOverrideEffect       SceneLightOverrideKind = "effect"
+	SceneLightOverrideNativeEffect SceneLightOverrideKind = "native_effect"
 )
 
-// ScenePayload is the parsed tagged-union form of a scene's per-device payload.
-// Exactly one of Static / EffectID / NativeName is meaningful, selected by
-// Kind. Static is the raw desired-state field map
-// (on/brightness/colorTemp/color/transition); the apply path applies
-// capability gating against it.
-type ScenePayload struct {
-	Kind       ScenePayloadKind
-	Static     map[string]any
-	EffectID   string
-	NativeName string
+// SceneLightOverride replaces selected lighting channels while its device is
+// resolved through a Scene target. Effects replace the composed state.
+type SceneLightOverride struct {
+	DeviceID         device.DeviceID
+	Kind             SceneLightOverrideKind
+	State            *DesiredState
+	EffectID         string
+	NativeEffectName string
 }
 
-// SaveSceneContentParams holds the membership + per-device payload set for a scene.
-type SaveSceneContentParams struct {
-	SceneID  string
-	Targets  []SceneTargetRef
-	Payloads []SceneDevicePayload
+// SceneSupportingState is an explicit non-light Scene member.
+type SceneSupportingState struct {
+	DeviceID device.DeviceID
+	State    DesiredState
+}
+
+// SceneLighting composes an optional dynamic field and sparse target-bound
+// light overrides.
+type SceneLighting struct {
+	Dynamic   *DynamicLighting
+	Overrides []SceneLightOverride
+}
+
+// SceneDefinition is the complete atomic content of a Scene.
+type SceneDefinition struct {
+	Targets    []SceneTarget
+	Lighting   SceneLighting
+	Supporting []SceneSupportingState
+}
+
+// SceneMemberKind identifies how one physical member participates in a run.
+type SceneMemberKind string
+
+const (
+	SceneMemberField        SceneMemberKind = "field"
+	SceneMemberState        SceneMemberKind = "state"
+	SceneMemberEffect       SceneMemberKind = "effect"
+	SceneMemberNativeEffect SceneMemberKind = "native_effect"
+)
+
+// SceneOwnedFields identifies the reported state controlled by one run member.
+type SceneOwnedFields struct {
+	On                bool
+	Brightness        bool
+	ColorTemp         bool
+	Color             bool
+	TargetTemperature bool
+	HvacMode          bool
+	FanMode           bool
+	Swing             bool
+}
+
+// ActiveSceneMember is one physical device owned by an active Scene run.
+type ActiveSceneMember struct {
+	DeviceID    device.DeviceID
+	Kind        SceneMemberKind
+	Owned       SceneOwnedFields
+	Expected    DesiredState
+	EffectRunID string
+}
+
+// ActiveSceneRun is the persistent identity and member snapshot of one run.
+type ActiveSceneRun struct {
+	SceneID             string
+	RunID               string
+	StartedAt           time.Time
+	DefinitionUpdatedAt time.Time
+	Members             []ActiveSceneMember
 }
 
 // CreateAutomationParams holds the parameters for creating an automation.
