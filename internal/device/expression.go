@@ -10,11 +10,13 @@ import (
 type ClauseSubject string
 
 const (
-	SubjectRoom       ClauseSubject = "room"
-	SubjectGroup      ClauseSubject = "group"
-	SubjectDevice     ClauseSubject = "device"
-	SubjectDeviceType ClauseSubject = "device_type"
-	SubjectDeviceRole ClauseSubject = "device_role"
+	SubjectRoom               ClauseSubject = "room"
+	SubjectGroup              ClauseSubject = "group"
+	SubjectDevice             ClauseSubject = "device"
+	SubjectDeviceType         ClauseSubject = "device_type"
+	SubjectDeviceRole         ClauseSubject = "device_role"
+	SubjectWritableCapability ClauseSubject = "writable_capability"
+	SubjectReportedCapability ClauseSubject = "reported_capability"
 )
 
 // ClauseOp names how a clause's values are matched. "is"/"is_one_of" include
@@ -55,7 +57,7 @@ type Expression []Clause
 // deviceRoles returns the physical and semantic roles a device fills.
 func deviceRoles(d Device) map[string]struct{} {
 	roles := map[string]struct{}{string(d.Type): {}}
-	if d.Type == Light || d.Roles.ControlledLoad != nil && *d.Roles.ControlledLoad == ControlledLoadRoleLight {
+	if IsLightControlDevice(d) {
 		roles[string(Light)] = struct{}{}
 	}
 	if d.Type == Climate || d.Roles.ControlledLoad != nil && *d.Roles.ControlledLoad == ControlledLoadRoleAppliance {
@@ -158,6 +160,21 @@ func clauseSet(ctx context.Context, resolver TargetResolver, universe []Device, 
 				}
 			}
 		}
+	case SubjectWritableCapability, SubjectReportedCapability:
+		want := toSet(c.Values)
+		for _, d := range universe {
+			for _, capability := range d.Capabilities {
+				if _, ok := want[capability.Name]; !ok {
+					continue
+				}
+				matches := c.Subject == SubjectWritableCapability && capability.CanSet() ||
+					c.Subject == SubjectReportedCapability && capability.ReportsValue()
+				if matches {
+					include[d.ID] = struct{}{}
+					break
+				}
+			}
+		}
 	}
 
 	if c.Op == OpIsNot || c.Op == OpIsNotOneOf {
@@ -186,7 +203,8 @@ func toSet(values []string) map[string]struct{} {
 func ValidateExpression(expr Expression) error {
 	for i, c := range expr {
 		switch c.Subject {
-		case SubjectRoom, SubjectGroup, SubjectDevice, SubjectDeviceType, SubjectDeviceRole:
+		case SubjectRoom, SubjectGroup, SubjectDevice, SubjectDeviceType, SubjectDeviceRole,
+			SubjectWritableCapability, SubjectReportedCapability:
 		default:
 			return fmt.Errorf("clause %d: unknown subject %q", i, c.Subject)
 		}
@@ -219,6 +237,34 @@ func ValidateExpression(expr Expression) error {
 				}
 			}
 		}
+		if c.Subject == SubjectWritableCapability || c.Subject == SubjectReportedCapability {
+			for _, v := range c.Values {
+				if !validCapabilityIdentifier(v) {
+					return fmt.Errorf("clause %d: invalid capability identifier %q", i, v)
+				}
+			}
+		}
 	}
 	return nil
+}
+
+func validCapabilityIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i := range value {
+		c := value[i]
+		if c == '_' {
+			if i == 0 || i == len(value)-1 || value[i-1] == '_' {
+				return false
+			}
+			continue
+		}
+		if c < 'a' || c > 'z' {
+			if c < '0' || c > '9' || i == 0 {
+				return false
+			}
+		}
+	}
+	return true
 }

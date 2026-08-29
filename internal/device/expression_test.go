@@ -25,10 +25,16 @@ func (s stubResolver) ResolveTargetDeviceIDs(_ context.Context, t TargetType, id
 
 func evalFixture() (*MemoryStore, stubResolver) {
 	s := NewMemoryStore()
-	s.Register(Device{ID: "lamp", Type: Light})
+	s.Register(Device{ID: "lamp", Type: Light, Capabilities: []Capability{
+		{Name: CapOnOff, Access: CapabilityAccessState | CapabilityAccessSet},
+		{Name: CapBrightness, Access: CapabilityAccessState | CapabilityAccessSet},
+		{Name: CapColor, Access: CapabilityAccessState | CapabilityAccessSet},
+		{Name: CapColorTemp, Access: CapabilityAccessState},
+	}})
 	s.Register(Device{ID: "fan", Type: Plug, Capabilities: []Capability{{Name: CapOnOff, Access: 3}}})
 	s.Register(Device{ID: "lamp-plug", Type: Plug, Capabilities: []Capability{{Name: CapOnOff, Access: 3}}, Roles: DeviceRoles{ControlledLoad: Ptr(ControlledLoadRoleLight)}})
 	s.Register(Device{ID: "temp", Type: Sensor})
+	s.Register(Device{ID: "future", Type: Sensor, Capabilities: []Capability{{Name: "future_capability_2", Access: CapabilityAccessSet}}})
 	res := stubResolver{
 		rooms:  map[string][]DeviceID{"living": {"lamp", "fan", "lamp-plug", "temp"}},
 		groups: map[string][]DeviceID{"flowers": {"lamp", "lamp-plug"}},
@@ -103,6 +109,48 @@ func TestEvaluateExpression_IsNotExcludes(t *testing.T) {
 	}
 }
 
+func TestEvaluateExpression_CapabilityAccess(t *testing.T) {
+	s, res := evalFixture()
+
+	writableColor := Expression{{Subject: SubjectWritableCapability, Op: OpIs, Values: []string{CapColor}}}
+	if got := EvaluateExpression(context.Background(), s, res, writableColor); !reflect.DeepEqual(got, []DeviceID{"lamp"}) {
+		t.Fatalf("writable color = %v", got)
+	}
+
+	reportedTemp := Expression{{Subject: SubjectReportedCapability, Op: OpIs, Values: []string{CapColorTemp}}}
+	if got := EvaluateExpression(context.Background(), s, res, reportedTemp); !reflect.DeepEqual(got, []DeviceID{"lamp"}) {
+		t.Fatalf("reported color temp = %v", got)
+	}
+
+	writableTemp := Expression{{Subject: SubjectWritableCapability, Op: OpIs, Values: []string{CapColorTemp}}}
+	if got := EvaluateExpression(context.Background(), s, res, writableTemp); len(got) != 0 {
+		t.Fatalf("writable color temp = %v", got)
+	}
+
+	roomAndWritable := Expression{
+		{Subject: SubjectRoom, Op: OpIs, Values: []string{"living"}},
+		{Connector: ConnectorAnd, Subject: SubjectWritableCapability, Op: OpIsOneOf, Values: []string{CapColor, CapBrightness}},
+	}
+	if got := EvaluateExpression(context.Background(), s, res, roomAndWritable); !reflect.DeepEqual(got, []DeviceID{"lamp"}) {
+		t.Fatalf("room and writable = %v", got)
+	}
+
+	notWritableColor := Expression{{Subject: SubjectWritableCapability, Op: OpIsNot, Values: []string{CapColor}}}
+	if got := EvaluateExpression(context.Background(), s, res, notWritableColor); !reflect.DeepEqual(got, []DeviceID{"fan", "future", "lamp-plug", "temp"}) {
+		t.Fatalf("not writable color = %v", got)
+	}
+
+	futureCapability := Expression{{Subject: SubjectWritableCapability, Op: OpIs, Values: []string{"future_capability_2"}}}
+	if got := EvaluateExpression(context.Background(), s, res, futureCapability); !reflect.DeepEqual(got, []DeviceID{"future"}) {
+		t.Fatalf("future writable capability = %v", got)
+	}
+
+	noneOf := Expression{{Subject: SubjectReportedCapability, Op: OpIsNotOneOf, Values: []string{CapColor, CapColorTemp}}}
+	if got := EvaluateExpression(context.Background(), s, res, noneOf); !reflect.DeepEqual(got, []DeviceID{"fan", "future", "lamp-plug", "temp"}) {
+		t.Fatalf("reports none of = %v", got)
+	}
+}
+
 func TestEvaluateExpression_LeftToRightFold(t *testing.T) {
 	s, res := evalFixture()
 	// (group flowers OR device temp) AND device_type plug
@@ -130,6 +178,7 @@ func TestValidateExpression(t *testing.T) {
 	good := Expression{
 		{Subject: SubjectRoom, Op: OpIs, Values: []string{"living"}},
 		{Connector: ConnectorAnd, Subject: SubjectDeviceRole, Op: OpIsOneOf, Values: []string{"light", "appliance", "door", "window"}},
+		{Connector: ConnectorAnd, Subject: SubjectWritableCapability, Op: OpIsOneOf, Values: []string{"color", "future_capability_2"}},
 	}
 	if err := ValidateExpression(good); err != nil {
 		t.Fatalf("valid expression rejected: %v", err)
@@ -142,6 +191,10 @@ func TestValidateExpression(t *testing.T) {
 		{{Connector: ConnectorAnd, Subject: SubjectRoom, Op: OpIs, Values: []string{"x"}}},
 		{{Subject: SubjectDeviceType, Op: OpIs, Values: []string{"unknown"}}},
 		{{Subject: SubjectDeviceType, Op: OpIs, Values: []string{"door"}}},
+		{{Subject: SubjectWritableCapability, Op: OpIs, Values: []string{"Color"}}},
+		{{Subject: SubjectReportedCapability, Op: OpIs, Values: []string{"_color"}}},
+		{{Subject: SubjectReportedCapability, Op: OpIs, Values: []string{"color_"}}},
+		{{Subject: SubjectReportedCapability, Op: OpIs, Values: []string{"2color"}}},
 		{
 			{Subject: SubjectRoom, Op: OpIs, Values: []string{"x"}},
 			{Subject: SubjectRoom, Op: OpIs, Values: []string{"y"}}, // missing connector
@@ -167,13 +220,32 @@ func TestEvaluateExpression_DisabledExcludedFromUniverse(t *testing.T) {
 	}
 
 	notLight := Expression{{Subject: SubjectDeviceType, Op: OpIsNot, Values: []string{"light"}}}
-	if got := EvaluateExpression(context.Background(), s, res, notLight); !reflect.DeepEqual(got, []DeviceID{"lamp-plug", "temp"}) {
-		t.Errorf("is_not light: got %v, want [lamp-plug temp]", got)
+	if got := EvaluateExpression(context.Background(), s, res, notLight); !reflect.DeepEqual(got, []DeviceID{"future", "lamp-plug", "temp"}) {
+		t.Errorf("is_not light: got %v, want [future lamp-plug temp]", got)
 	}
 
 	setDisabled(t, s, "fan", false)
 	if got := EvaluateExpression(context.Background(), s, res, role); !reflect.DeepEqual(got, []DeviceID{"fan", "lamp-plug"}) {
 		t.Errorf("after re-enable: got %v, want [fan lamp-plug]", got)
+	}
+}
+
+func TestEvaluateExpression_DeletedExcludedFromUniverse(t *testing.T) {
+	s, res := evalFixture()
+	d, ok := s.GetDevice("lamp")
+	if !ok {
+		t.Fatal("lamp not registered")
+	}
+	d.Deleted = true
+	s.UpdateUserFields(d)
+
+	writable := Expression{{Subject: SubjectWritableCapability, Op: OpIs, Values: []string{CapColor}}}
+	if got := EvaluateExpression(context.Background(), s, res, writable); len(got) != 0 {
+		t.Fatalf("deleted writable match = %v", got)
+	}
+	notWritable := Expression{{Subject: SubjectWritableCapability, Op: OpIsNot, Values: []string{CapColor}}}
+	if got := EvaluateExpression(context.Background(), s, res, notWritable); !reflect.DeepEqual(got, []DeviceID{"fan", "future", "lamp-plug", "temp"}) {
+		t.Fatalf("deleted negative match = %v", got)
 	}
 }
 
