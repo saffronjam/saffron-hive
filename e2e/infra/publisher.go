@@ -101,9 +101,13 @@ func (p *Publisher) PublishAvailability(friendlyName string, available bool) err
 func (p *Publisher) SubscribeCommands() (<-chan MQTTMessage, error) {
 	ch := make(chan MQTTMessage, 64)
 	token := p.client.Subscribe("zigbee2mqtt/+/set", 0, func(_ mqtt.Client, msg mqtt.Message) {
-		ch <- MQTTMessage{
+		message := MQTTMessage{
 			Topic:   msg.Topic(),
 			Payload: msg.Payload(),
+		}
+		select {
+		case ch <- message:
+		default:
 		}
 	})
 	token.Wait()
@@ -126,9 +130,13 @@ func (p *Publisher) PublishNetworkmapResponse(payload []byte) error {
 func (p *Publisher) SubscribeNetworkmapRequests() (<-chan MQTTMessage, error) {
 	ch := make(chan MQTTMessage, 8)
 	token := p.client.Subscribe("zigbee2mqtt/bridge/request/networkmap", 0, func(_ mqtt.Client, msg mqtt.Message) {
-		ch <- MQTTMessage{
+		message := MQTTMessage{
 			Topic:   msg.Topic(),
 			Payload: msg.Payload(),
+		}
+		select {
+		case ch <- message:
+		default:
 		}
 	})
 	token.Wait()
