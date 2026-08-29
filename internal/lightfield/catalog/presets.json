@@ -1,0 +1,112 @@
+[
+  {
+    "id": "sunset-glow",
+    "title": "Sunset Glow",
+    "category": "Nature",
+    "domain": "full_color",
+    "seed": 1101,
+    "brightness": 0.82,
+    "movement": 0.28,
+    "cycleSeconds": 720,
+    "field": {"domain":"full_color","width":2,"height":2,"samples":[{"color":{"lightness":0.72,"chroma":0.17,"hue":28}},{"color":{"lightness":0.68,"chroma":0.18,"hue":350}},{"color":{"lightness":0.55,"chroma":0.15,"hue":300}},{"color":{"lightness":0.78,"chroma":0.16,"hue":55}}]}
+  },
+  {
+    "id": "night-sky",
+    "title": "Night Sky",
+    "category": "Nature",
+    "domain": "full_color",
+    "seed": 2202,
+    "brightness": 0.58,
+    "movement": 0.2,
+    "cycleSeconds": 1080,
+    "field": {"domain":"full_color","width":2,"height":2,"samples":[{"color":{"lightness":0.34,"chroma":0.12,"hue":255}},{"color":{"lightness":0.46,"chroma":0.16,"hue":285}},{"color":{"lightness":0.3,"chroma":0.1,"hue":230}},{"color":{"lightness":0.52,"chroma":0.12,"hue":315}}]}
+  },
+  {
+    "id": "forest-canopy",
+    "title": "Forest Canopy",
+    "category": "Nature",
+    "domain": "full_color",
+    "seed": 3303,
+    "brightness": 0.72,
+    "movement": 0.22,
+    "cycleSeconds": 900,
+    "field": {"domain":"full_color","width":2,"height":2,"samples":[{"color":{"lightness":0.48,"chroma":0.12,"hue":135}},{"color":{"lightness":0.63,"chroma":0.14,"hue":105}},{"color":{"lightness":0.42,"chroma":0.1,"hue":155}},{"color":{"lightness":0.7,"chroma":0.11,"hue":78}}]}
+  },
+  {
+    "id": "ocean-drift",
+    "title": "Ocean Drift",
+    "category": "Nature",
+    "domain": "full_color",
+    "seed": 4404,
+    "brightness": 0.76,
+    "movement": 0.35,
+    "cycleSeconds": 660,
+    "field": {"domain":"full_color","width":2,"height":2,"samples":[{"color":{"lightness":0.55,"chroma":0.13,"hue":210}},{"color":{"lightness":0.7,"chroma":0.12,"hue":185}},{"color":{"lightness":0.44,"chroma":0.15,"hue":235}},{"color":{"lightness":0.78,"chroma":0.09,"hue":165}}]}
+  },
+  {
+    "id": "ember-hearth",
+    "title": "Ember Hearth",
+    "category": "Atmosphere",
+    "domain": "full_color",
+    "seed": 5505,
+    "brightness": 0.7,
+    "movement": 0.18,
+    "cycleSeconds": 480,
+    "field": {"domain":"full_color","width":2,"height":2,"samples":[{"color":{"lightness":0.52,"chroma":0.18,"hue":22}},{"color":{"lightness":0.7,"chroma":0.17,"hue":48}},{"color":{"lightness":0.4,"chroma":0.14,"hue":8}},{"color":{"lightness":0.76,"chroma":0.14,"hue":68}}]}
+  },
+  {
+    "id": "aurora-haze",
+    "title": "Aurora Haze",
+    "category": "Atmosphere",
+    "domain": "full_color",
+    "seed": 6606,
+    "brightness": 0.78,
+    "movement": 0.42,
+    "cycleSeconds": 840,
+    "field": {"domain":"full_color","width":2,"height":2,"samples":[{"color":{"lightness":0.62,"chroma":0.16,"hue":155}},{"color":{"lightness":0.7,"chroma":0.17,"hue":290}},{"color":{"lightness":0.5,"chroma":0.15,"hue":220}},{"color":{"lightness":0.76,"chroma":0.14,"hue":335}}]}
+  },
+  {
+    "id": "candlelight",
+    "title": "Candlelight",
+    "category": "Whites",
+    "domain": "white_ambience",
+    "seed": 7707,
+    "brightness": 0.55,
+    "movement": 0.12,
+    "cycleSeconds": 900,
+    "field": {"domain":"white_ambience","width":2,"height":2,"samples":[{"white":{"brightness":0.48,"mireds":500}},{"white":{"brightness":0.62,"mireds":470}},{"white":{"brightness":0.42,"mireds":490}},{"white":{"brightness":0.68,"mireds":450}}]}
+  },
+  {
+    "id": "warm-evening",
+    "title": "Warm Evening",
+    "category": "Whites",
+    "domain": "white_ambience",
+    "seed": 8808,
+    "brightness": 0.68,
+    "movement": 0.08,
+    "cycleSeconds": 1200,
+    "field": {"domain":"white_ambience","width":2,"height":2,"samples":[{"white":{"brightness":0.58,"mireds":420}},{"white":{"brightness":0.72,"mireds":390}},{"white":{"brightness":0.62,"mireds":440}},{"white":{"brightness":0.76,"mireds":370}}]}
+  },
+  {
+    "id": "neutral-focus",
+    "title": "Neutral Focus",
+    "category": "Whites",
+    "domain": "white_ambience",
+    "seed": 9909,
+    "brightness": 0.86,
+    "movement": 0.04,
+    "cycleSeconds": 1500,
+    "field": {"domain":"white_ambience","width":2,"height":2,"samples":[{"white":{"brightness":0.82,"mireds":300}},{"white":{"brightness":0.88,"mireds":285}},{"white":{"brightness":0.8,"mireds":315}},{"white":{"brightness":0.9,"mireds":295}}]}
+  },
+  {
+    "id": "cool-morning",
+    "title": "Cool Morning",
+    "category": "Whites",
+    "domain": "white_ambience",
+    "seed": 10110,
+    "brightness": 0.9,
+    "movement": 0.1,
+    "cycleSeconds": 1080,
+    "field": {"domain":"white_ambience","width":2,"height":2,"samples":[{"white":{"brightness":0.84,"mireds":190}},{"white":{"brightness":0.92,"mireds":170}},{"white":{"brightness":0.8,"mireds":220}},{"white":{"brightness":0.9,"mireds":200}}]}
+  }
+]
