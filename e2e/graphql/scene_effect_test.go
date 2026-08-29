@@ -8,12 +8,7 @@ import (
 	"time"
 )
 
-// TestScenes_MixedStaticAndEffectPayloads exercises the Phase 9 scene
-// integration: a scene with two devices, one static-payload and one
-// effect-payload. Applying the scene must publish a command for the static
-// device and start the effect run for the effect device. Deactivating via
-// drift on the static device stops the spawned effect run.
-func TestScenes_MixedStaticAndEffectPayloads(t *testing.T) {
+func TestScenesStateAndEffectOverrides(t *testing.T) {
 	staticID, err := queryDeviceIDByName("Kitchen Light")
 	if err != nil {
 		t.Fatalf("find static device: %v", err)
@@ -72,20 +67,23 @@ func TestScenes_MixedStaticAndEffectPayloads(t *testing.T) {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteEffect(id: $id) }`, map[string]any{"id": effID})
 	})
 
-	staticPayload := `{"kind":"static","on":true,"brightness":100,"colorTemp":370}`
-	effectPayload := `{"kind":"effect","effect_id":"` + effID + `"}`
 	data, err = graphqlMutation(`mutation($input: CreateSceneInput!) {
 		createScene(input: $input) { id }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name": "Phase9 Mixed",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": staticID},
-				{"targetType": "device", "targetId": effectID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": staticID, "payload": staticPayload},
-				{"deviceId": effectID, "payload": effectPayload},
+			"name": "Lighting with supporting effect",
+			"definition": map[string]any{
+				"targets": []map[string]any{
+					{"targetType": "device", "targetId": staticID},
+					{"targetType": "device", "targetId": effectID},
+				},
+				"lighting": map[string]any{
+					"overrides": []map[string]any{
+						{"deviceId": staticID, "kind": "state", "state": map[string]any{"on": true, "brightness": 100, "colorTemp": 370}},
+						{"deviceId": effectID, "kind": "effect", "effectId": effID},
+					},
+				},
+				"supportingStates": []map[string]any{},
 			},
 		},
 	})
@@ -126,6 +124,10 @@ func TestScenes_MixedStaticAndEffectPayloads(t *testing.T) {
 	if !gotStatic {
 		t.Fatal("expected static command for Kitchen Light after applyScene")
 	}
+	if err := publisher.PublishDeviceState("Kitchen Light",
+		[]byte(`{"state":"ON","brightness":100,"color_temp":370}`)); err != nil {
+		t.Fatalf("publish scene confirmation: %v", err)
+	}
 
 	activeFound := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
 		data, _ := graphqlQuery(`{ activeEffects { effect { id } targetType targetId } }`, nil)
@@ -150,6 +152,7 @@ func TestScenes_MixedStaticAndEffectPayloads(t *testing.T) {
 		t.Fatal("effect run for Bedroom Light never appeared in activeEffects")
 	}
 
+	time.Sleep(2100 * time.Millisecond)
 	if err := publisher.PublishDeviceState("Kitchen Light",
 		[]byte(`{"state":"ON","brightness":50,"color_temp":370}`)); err != nil {
 		t.Fatalf("publish drift: %v", err)

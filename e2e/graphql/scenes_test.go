@@ -3,796 +3,451 @@
 package graphql_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 	"time"
 )
 
-func TestScenes_CreateWithDeviceTarget(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Living Room Light")
+func staticSceneDefinition(targets []map[string]any, state map[string]any, overrides []map[string]any) map[string]any {
+	if overrides == nil {
+		overrides = []map[string]any{}
+	}
+	for _, target := range targets {
+		if target["targetType"] != "device" {
+			continue
+		}
+		deviceID, _ := target["targetId"].(string)
+		hasOverride := false
+		for _, override := range overrides {
+			if override["deviceId"] == deviceID {
+				hasOverride = true
+				break
+			}
+		}
+		if !hasOverride {
+			overrides = append(overrides, map[string]any{"deviceId": deviceID, "kind": "state", "state": state})
+		}
+	}
+	return map[string]any{
+		"targets": targets,
+		"lighting": map[string]any{
+			"overrides": overrides,
+		},
+		"supportingStates": []map[string]any{},
+	}
+}
+
+func createScene(t *testing.T, name string, definition map[string]any) string {
+	t.Helper()
+	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id }
+	}`, map[string]any{"input": map[string]any{"name": name, "definition": definition}})
+	if err != nil {
+		t.Fatalf("create Scene %q: %v", name, err)
+	}
+	var response struct {
+		CreateScene struct{ ID string } `json:"createScene"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		t.Fatalf("decode created Scene: %v", err)
+	}
+	id := response.CreateScene.ID
+	t.Cleanup(func() {
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": id})
+	})
+	return id
+}
+
+func sceneActivatedAt(sceneID string) *string {
+	data, err := graphqlQuery(`query($id: ID!) { scene(id: $id) { activatedAt } }`, map[string]any{"id": sceneID})
+	if err != nil {
+		return nil
+	}
+	var response struct {
+		Scene struct {
+			ActivatedAt *string `json:"activatedAt"`
+		} `json:"scene"`
+	}
+	if json.Unmarshal(data, &response) != nil {
+		return nil
+	}
+	return response.Scene.ActivatedAt
+}
+
+func TestScenesStaticLifecycle(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Bedroom Light")
 	if err != nil {
 		t.Fatalf("find device: %v", err)
 	}
-
+	definition := staticSceneDefinition(
+		[]map[string]any{{"targetType": "device", "targetId": deviceID}},
+		map[string]any{"on": true, "brightness": 151, "colorTemp": 320},
+		nil,
+	)
 	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
 		createScene(input: $input) {
-			id
-			name
-			actions { targetType targetId }
-			devicePayloads { deviceId payload }
+			id name targets { targetType targetId }
+			lighting { overrides { deviceId kind state { on brightness colorTemp } } }
+			preview { width height pixels { r g b } }
 		}
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Evening",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":150}`},
-			},
-		},
-	})
+	}`, map[string]any{"input": map[string]any{"name": "Typed manual", "definition": definition}})
 	if err != nil {
-		t.Fatalf("create scene: %v", err)
+		t.Fatalf("create typed Scene: %v", err)
 	}
-
-	var result struct {
+	var created struct {
 		CreateScene struct {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
-			Actions []struct {
+			Targets []struct {
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-			} `json:"actions"`
-			DevicePayloads []struct {
-				DeviceID string `json:"deviceId"`
-				Payload  string `json:"payload"`
-			} `json:"devicePayloads"`
+			} `json:"targets"`
+			Lighting struct {
+				Overrides []struct {
+					DeviceID string `json:"deviceId"`
+					State    struct {
+						On         bool `json:"on"`
+						Brightness int  `json:"brightness"`
+						ColorTemp  int  `json:"colorTemp"`
+					} `json:"state"`
+				} `json:"overrides"`
+			} `json:"lighting"`
+			Preview struct {
+				Width, Height int
+				Pixels        []struct{ R, G, B int }
+			} `json:"preview"`
 		} `json:"createScene"`
 	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	if err := json.Unmarshal(data, &created); err != nil {
+		t.Fatalf("decode Scene: %v", err)
 	}
-
-	if result.CreateScene.Name != "Evening" {
-		t.Errorf("name=%q, want Evening", result.CreateScene.Name)
-	}
-	if len(result.CreateScene.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.CreateScene.Actions))
-	}
-	if result.CreateScene.Actions[0].TargetID != deviceID {
-		t.Errorf("target id=%q, want %q", result.CreateScene.Actions[0].TargetID, deviceID)
-	}
-
-	sceneID := result.CreateScene.ID
+	sceneID := created.CreateScene.ID
 	t.Cleanup(func() {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
 	})
+	if created.CreateScene.Name != "Typed manual" || len(created.CreateScene.Targets) != 1 || created.CreateScene.Targets[0].TargetID != deviceID {
+		t.Fatalf("typed Scene identity/targets = %+v", created.CreateScene)
+	}
+	if len(created.CreateScene.Lighting.Overrides) != 1 || !created.CreateScene.Lighting.Overrides[0].State.On || created.CreateScene.Lighting.Overrides[0].State.Brightness != 151 || created.CreateScene.Lighting.Overrides[0].State.ColorTemp != 320 {
+		t.Fatalf("lighting overrides = %+v", created.CreateScene.Lighting)
+	}
+	if created.CreateScene.Preview.Width != 1 || created.CreateScene.Preview.Height != 1 || len(created.CreateScene.Preview.Pixels) != 1 {
+		t.Fatalf("static preview = %+v", created.CreateScene.Preview)
+	}
+
+	commands, err := publisher.SubscribeCommands()
+	if err != nil {
+		t.Fatalf("subscribe commands: %v", err)
+	}
+	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id activatedAt } }`, map[string]any{"id": sceneID}); err != nil {
+		t.Fatalf("apply Scene: %v", err)
+	}
+	if !pollUntil(5*time.Second, 25*time.Millisecond, func() bool {
+		select {
+		case message := <-commands:
+			if message.Topic != "zigbee2mqtt/Bedroom Light/set" {
+				return false
+			}
+			var payload map[string]any
+			if json.Unmarshal(message.Payload, &payload) != nil {
+				return false
+			}
+			return payload["state"] == "ON" && payload["brightness"] == float64(151) && payload["color_temp"] == float64(320)
+		default:
+			return false
+		}
+	}) {
+		t.Fatal("typed static command did not reach Bedroom Light")
+	}
+	if sceneActivatedAt(sceneID) == nil {
+		t.Fatal("Scene did not become active")
+	}
+	if _, err := graphqlMutation(`mutation($id: ID!) { deactivateScene(sceneId: $id) { id activatedAt } }`, map[string]any{"id": sceneID}); err != nil {
+		t.Fatalf("stop Scene: %v", err)
+	}
+	if sceneActivatedAt(sceneID) != nil {
+		t.Fatal("Scene remained active after explicit stop")
+	}
 }
 
-func TestScenes_CreateWithGroupTarget(t *testing.T) {
-	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Scene Group" }) { id } }`, nil)
+func TestScenesGroupAndCapabilitySelectorTargets(t *testing.T) {
+	livingID, err := queryDeviceIDByName("Living Room Light")
+	if err != nil {
+		t.Fatalf("find Living Room Light: %v", err)
+	}
+	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Scene target group" }) { id } }`, nil)
 	if err != nil {
 		t.Fatalf("create group: %v", err)
 	}
-	var gr struct {
+	var groupResponse struct {
 		CreateGroup struct{ ID string } `json:"createGroup"`
 	}
-	_ = json.Unmarshal(data, &gr)
-	groupID := gr.CreateGroup.ID
+	_ = json.Unmarshal(data, &groupResponse)
+	groupID := groupResponse.CreateGroup.ID
 	t.Cleanup(func() {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupID})
 	})
-
-	data, err = graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id actions { targetType targetId } }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Group Scene",
-			"actions": []map[string]any{
-				{"targetType": "group", "targetId": groupID},
-			},
-		},
-	})
+	if _, err := graphqlMutation(`mutation($input: AddGroupMemberInput!) { addGroupMember(input: $input) { id } }`, map[string]any{"input": map[string]any{"groupId": groupID, "memberType": "device", "memberId": livingID}}); err != nil {
+		t.Fatalf("add group member: %v", err)
+	}
+	groupSceneID := createScene(t, "Group static", staticSceneDefinition(
+		[]map[string]any{{"targetType": "group", "targetId": groupID}},
+		map[string]any{},
+		[]map[string]any{{"deviceId": livingID, "kind": "state", "state": map[string]any{"on": true, "brightness": 177, "colorTemp": 300}}},
+	))
+	commands, err := publisher.SubscribeCommands()
 	if err != nil {
-		t.Fatalf("create scene: %v", err)
+		t.Fatalf("subscribe commands: %v", err)
 	}
-
-	var result struct {
-		CreateScene struct {
-			ID      string
-			Actions []struct {
-				TargetType string `json:"targetType"`
-				TargetID   string `json:"targetId"`
-			}
-		} `json:"createScene"`
+	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`, map[string]any{"id": groupSceneID}); err != nil {
+		t.Fatalf("apply group Scene: %v", err)
 	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if len(result.CreateScene.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.CreateScene.Actions))
-	}
-	if result.CreateScene.Actions[0].TargetType != "group" {
-		t.Errorf("target type=%q, want group", result.CreateScene.Actions[0].TargetType)
-	}
-
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": result.CreateScene.ID})
-	})
-}
-
-func TestScenes_ExpressionTargetRoundTrip(t *testing.T) {
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) {
-			id
-			actions { targetType name expression { connector subject op values } }
+	if !pollUntil(5*time.Second, 25*time.Millisecond, func() bool {
+		select {
+		case message := <-commands:
+			return message.Topic == "zigbee2mqtt/Living Room Light/set"
+		default:
+			return false
 		}
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Expression Scene",
-			"actions": []map[string]any{
-				{
-					"targetType": "expression",
-					"targetId":   "",
-					"name":       "All lights",
-					"expression": []map[string]any{
-						{"subject": "device_type", "op": "is", "values": []string{"light"}},
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create scene: %v", err)
+	}) {
+		t.Fatal("group target did not resolve to its physical light")
 	}
 
-	var result struct {
+	selector := []map[string]any{
+		{"subject": "device_type", "op": "is", "values": []string{"light"}},
+		{"connector": "and", "subject": "writable_capability", "op": "is", "values": []string{"color"}},
+	}
+	data, err = graphqlMutation(`mutation($input: CreateSceneInput!) {
+		createScene(input: $input) { id targets { targetType name expression { connector subject op values } } }
+	}`, map[string]any{"input": map[string]any{
+		"name": "Colour selector",
+		"definition": staticSceneDefinition(
+			[]map[string]any{{"targetType": "expression", "name": "Full colour lights", "expression": selector}},
+			map[string]any{"on": true, "brightness": 140}, nil,
+		),
+	}})
+	if err != nil {
+		t.Fatalf("create Selector Scene: %v", err)
+	}
+	var selectorResponse struct {
 		CreateScene struct {
-			ID      string
-			Actions []struct {
+			ID      string `json:"id"`
+			Targets []struct {
 				TargetType string `json:"targetType"`
 				Name       string `json:"name"`
 				Expression []struct {
-					Connector *string  `json:"connector"`
-					Subject   string   `json:"subject"`
-					Op        string   `json:"op"`
-					Values    []string `json:"values"`
+					Subject string `json:"subject"`
+					Values  []string
 				} `json:"expression"`
-			}
+			} `json:"targets"`
 		} `json:"createScene"`
 	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
+	_ = json.Unmarshal(data, &selectorResponse)
+	selectorSceneID := selectorResponse.CreateScene.ID
 	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": result.CreateScene.ID})
+		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": selectorSceneID})
 	})
-	if len(result.CreateScene.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.CreateScene.Actions))
-	}
-	a := result.CreateScene.Actions[0]
-	if a.TargetType != "expression" {
-		t.Fatalf("targetType=%q, want expression", a.TargetType)
-	}
-	if a.Name != "All lights" {
-		t.Fatalf("name=%q, want %q", a.Name, "All lights")
-	}
-	if len(a.Expression) != 1 || a.Expression[0].Subject != "device_type" || a.Expression[0].Op != "is" {
-		t.Fatalf("expression did not round-trip: %+v", a.Expression)
-	}
-	if len(a.Expression[0].Values) != 1 || a.Expression[0].Values[0] != "light" {
-		t.Fatalf("expression values=%v, want [light]", a.Expression[0].Values)
-	}
-
-	err = graphqlMutationExpectError(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Bad Expression Scene",
-			"actions": []map[string]any{
-				{
-					"targetType": "expression",
-					"targetId":   "",
-					"expression": []map[string]any{
-						{"subject": "bogus", "op": "is", "values": []string{"x"}},
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("expected createScene with invalid expression to be rejected: %v", err)
+	if len(selectorResponse.CreateScene.Targets) != 1 || len(selectorResponse.CreateScene.Targets[0].Expression) != 2 || selectorResponse.CreateScene.Targets[0].Expression[1].Subject != "writable_capability" || selectorResponse.CreateScene.Targets[0].Expression[1].Values[0] != "color" {
+		t.Fatalf("capability Selector did not round-trip: %+v", selectorResponse.CreateScene.Targets)
 	}
 }
 
-func TestScenes_ApplyScene(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Bedroom Light")
-	if err != nil {
-		t.Fatalf("find device: %v", err)
-	}
-
-	cmdCh, err := publisher.SubscribeCommands()
-	if err != nil {
-		t.Fatalf("subscribe commands: %v", err)
-	}
-
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Apply Test Scene",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":255}`},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create scene: %v", err)
-	}
-	var sr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data, &sr)
-	sceneID := sr.CreateScene.ID
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
-	})
-
-	_, err = graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`, map[string]any{"id": sceneID})
-	if err != nil {
-		t.Fatalf("apply scene: %v", err)
-	}
-
-	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		select {
-		case msg := <-cmdCh:
-			if msg.Topic == "zigbee2mqtt/Bedroom Light/set" {
-				return true
+func guidedSelections(t *testing.T, domain, seed string, count int) []string {
+	t.Helper()
+	selected := []string{}
+	for len(selected) < count {
+		data, err := graphqlQuery(`query($input: GuidedVibeRoundInput!) {
+			guidedVibeRound(input: $input) {
+				round canFinish complete
+				options { id title preview { width height pixels { r g b } swatches { x y color { r g b } } } }
 			}
-		default:
-		}
-		return false
-	})
-	if !ok {
-		t.Fatal("timed out waiting for command on MQTT")
-	}
-}
-
-func TestScenes_QueryAll(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Living Room Light")
-	if err != nil {
-		t.Fatalf("find device: %v", err)
-	}
-
-	sceneInput := map[string]any{
-		"name": "QueryAll Scene A",
-		"actions": []map[string]any{
-			{"targetType": "device", "targetId": deviceID},
-		},
-		"devicePayloads": []map[string]any{
-			{"deviceId": deviceID, "payload": `{"on":true}`},
-		},
-	}
-	data1, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{"input": sceneInput})
-	if err != nil {
-		t.Fatalf("create scene A: %v", err)
-	}
-	var sa struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data1, &sa)
-
-	sceneInput["name"] = "QueryAll Scene B"
-	data2, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{"input": sceneInput})
-	if err != nil {
-		t.Fatalf("create scene B: %v", err)
-	}
-	var sb struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data2, &sb)
-
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sa.CreateScene.ID})
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sb.CreateScene.ID})
-	})
-
-	data, err := graphqlQuery(`{ scenes { id name } }`, nil)
-	if err != nil {
-		t.Fatalf("query scenes: %v", err)
-	}
-
-	var result struct {
-		Scenes []struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"scenes"`
-	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	foundA := false
-	foundB := false
-	for _, s := range result.Scenes {
-		if s.ID == sa.CreateScene.ID {
-			foundA = true
-		}
-		if s.ID == sb.CreateScene.ID {
-			foundB = true
-		}
-	}
-	if !foundA {
-		t.Error("scene A not found in scenes query")
-	}
-	if !foundB {
-		t.Error("scene B not found in scenes query")
-	}
-}
-
-func TestScenes_UpdateScene(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Bedroom Light")
-	if err != nil {
-		t.Fatalf("find device: %v", err)
-	}
-
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id name }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Before Update",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true}`},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create scene: %v", err)
-	}
-	var cr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data, &cr)
-	sceneID := cr.CreateScene.ID
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
-	})
-
-	data, err = graphqlMutation(`mutation($id: ID!, $input: UpdateSceneInput!) {
-		updateScene(id: $id, input: $input) { id name actions { targetId } devicePayloads { deviceId payload } }
-	}`, map[string]any{
-		"id": sceneID,
-		"input": map[string]any{
-			"name": "After Update",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":false,"brightness":50}`},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("update scene: %v", err)
-	}
-
-	var result struct {
-		UpdateScene struct {
-			ID      string `json:"id"`
-			Name    string `json:"name"`
-			Actions []struct {
-				TargetID string `json:"targetId"`
-			} `json:"actions"`
-			DevicePayloads []struct {
-				DeviceID string `json:"deviceId"`
-				Payload  string `json:"payload"`
-			} `json:"devicePayloads"`
-		} `json:"updateScene"`
-	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if result.UpdateScene.Name != "After Update" {
-		t.Errorf("name=%q, want %q", result.UpdateScene.Name, "After Update")
-	}
-	if len(result.UpdateScene.Actions) != 1 {
-		t.Fatalf("expected 1 action, got %d", len(result.UpdateScene.Actions))
-	}
-	if result.UpdateScene.Actions[0].TargetID != deviceID {
-		t.Errorf("action targetId=%q, want %q", result.UpdateScene.Actions[0].TargetID, deviceID)
-	}
-}
-
-func TestScenes_UpdateScene_InvalidID(t *testing.T) {
-	err := graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateSceneInput!) {
-		updateScene(id: $id, input: $input) { id }
-	}`, map[string]any{
-		"id":    "nonexistent-scene-id",
-		"input": map[string]any{"name": "Nope"},
-	})
-	if err != nil {
-		t.Fatalf("expected GraphQL error for invalid scene ID, got: %v", err)
-	}
-}
-
-func TestScenes_ApplySceneWithGroupTarget(t *testing.T) {
-	// EXPECTED FAIL: Bug #1/#2 — resolveSceneTarget uses StateReader (memory store) for groups,
-	// but groups are only in DB. No MQTT command will be sent.
-
-	data, err := graphqlMutation(`mutation { createGroup(input: { name: "Scene Apply Group" }) { id } }`, nil)
-	if err != nil {
-		t.Fatalf("create group: %v", err)
-	}
-	var gr struct {
-		CreateGroup struct{ ID string } `json:"createGroup"`
-	}
-	_ = json.Unmarshal(data, &gr)
-	groupID := gr.CreateGroup.ID
-
-	deviceID, err := queryDeviceIDByName("Living Room Light")
-	if err != nil {
-		t.Fatalf("find device: %v", err)
-	}
-
-	_, err = graphqlMutation(`mutation($input: AddGroupMemberInput!) {
-		addGroupMember(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"groupId":    groupID,
-			"memberType": "device",
-			"memberId":   deviceID,
-		},
-	})
-	if err != nil {
-		t.Fatalf("add member: %v", err)
-	}
-
-	data, err = graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Group Target Scene",
-			"actions": []map[string]any{
-				{"targetType": "group", "targetId": groupID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":200}`},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create scene: %v", err)
-	}
-	var sr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data, &sr)
-	sceneID := sr.CreateScene.ID
-
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteGroup(id: $id) }`, map[string]any{"id": groupID})
-	})
-
-	cmdCh, err := publisher.SubscribeCommands()
-	if err != nil {
-		t.Fatalf("subscribe commands: %v", err)
-	}
-
-	_, err = graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`, map[string]any{"id": sceneID})
-	if err != nil {
-		t.Fatalf("apply scene: %v", err)
-	}
-
-	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		select {
-		case msg := <-cmdCh:
-			if msg.Topic == "zigbee2mqtt/Living Room Light/set" {
-				return true
-			}
-		default:
-		}
-		return false
-	})
-	if !ok {
-		t.Fatal("timed out waiting for MQTT command to Living Room Light — group target resolution failed (Bug #1/#2)")
-	}
-}
-
-// TestScenes_ActivatedAtSetOnApply verifies that applying a scene sets its
-// activatedAt field when the target device's current state matches the scene's
-// desired state.
-func TestScenes_ActivatedAtSetOnApply(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Bedroom Light")
-	if err != nil {
-		t.Fatalf("find device: %v", err)
-	}
-
-	// Seed the device into the exact state the scene will command so the
-	// watcher's expected-vs-current check matches after apply.
-	if err := publisher.PublishDeviceState("Bedroom Light",
-		[]byte(`{"state":"ON","brightness":255,"color_temp":370}`)); err != nil {
-		t.Fatalf("publish seed state: %v", err)
-	}
-	time.Sleep(200 * time.Millisecond)
-
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Active Test Scene",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":255,"colorTemp":370}`},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create scene: %v", err)
-	}
-	var sr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data, &sr)
-	sceneID := sr.CreateScene.ID
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
-	})
-
-	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`,
-		map[string]any{"id": sceneID}); err != nil {
-		t.Fatalf("apply: %v", err)
-	}
-
-	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		data, err := graphqlQuery(`query($id: ID!) { scene(id: $id) { id activatedAt } }`,
-			map[string]any{"id": sceneID})
+		}`, map[string]any{"input": map[string]any{"domain": domain, "seed": seed, "selectedIds": selected}})
 		if err != nil {
-			return false
+			t.Fatalf("guided round %d: %v", len(selected)+1, err)
 		}
-		var sc struct {
-			Scene struct {
-				ID          string  `json:"id"`
-				ActivatedAt *string `json:"activatedAt"`
-			} `json:"scene"`
+		var response struct {
+			GuidedVibeRound struct {
+				Options []struct {
+					ID      string
+					Preview struct {
+						Width, Height int
+						Pixels        []struct{ R, G, B int }
+						Swatches      []struct{ X, Y float64 }
+					} `json:"preview"`
+				} `json:"options"`
+			} `json:"guidedVibeRound"`
 		}
-		if json.Unmarshal(data, &sc) != nil {
-			return false
+		_ = json.Unmarshal(data, &response)
+		if len(response.GuidedVibeRound.Options) != 3 {
+			t.Fatalf("guided round %d options = %d, want 3", len(selected)+1, len(response.GuidedVibeRound.Options))
 		}
-		return sc.Scene.ActivatedAt != nil
-	})
-	if !ok {
-		t.Fatal("activatedAt never became non-null after apply")
+		for _, option := range response.GuidedVibeRound.Options {
+			if option.Preview.Width == 0 || option.Preview.Height == 0 || len(option.Preview.Pixels) != option.Preview.Width*option.Preview.Height || len(option.Preview.Swatches) == 0 {
+				t.Fatalf("guided option %s has an invalid field preview: %+v", option.ID, option.Preview)
+			}
+		}
+		selected = append(selected, response.GuidedVibeRound.Options[0].ID)
 	}
+	return selected
 }
 
-// TestScenes_DeactivatesOnDivergingState verifies the strict invalidation
-// rule: any scene-relevant state change on any device the scene reached
-// clears activatedAt back to null.
-func TestScenes_DeactivatesOnDivergingState(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Kitchen Light")
+func TestScenesAllVibeSourcesAndDomains(t *testing.T) {
+	data, err := graphqlQuery(`{
+		vibePresets { id title category domain seed brightness movement cycleSeconds preview { width height pixels { r g b } } }
+	}`, nil)
 	if err != nil {
-		t.Fatalf("find device: %v", err)
+		t.Fatalf("query Vibe gallery: %v", err)
 	}
-	if err := publisher.PublishDeviceState("Kitchen Light",
-		[]byte(`{"state":"ON","brightness":100,"color_temp":370}`)); err != nil {
-		t.Fatalf("publish seed: %v", err)
+	var catalogue struct {
+		VibePresets []struct {
+			ID, Domain string
+			Preview    struct {
+				Width, Height int
+				Pixels        []struct{ R, G, B int }
+			}
+		} `json:"vibePresets"`
 	}
-	time.Sleep(200 * time.Millisecond)
+	_ = json.Unmarshal(data, &catalogue)
+	if len(catalogue.VibePresets) == 0 {
+		t.Fatal("Vibe gallery is empty")
+	}
+	var fullPreset, whitePreset string
+	for _, preset := range catalogue.VibePresets {
+		if preset.Preview.Width == 0 || preset.Preview.Height == 0 || len(preset.Preview.Pixels) == 0 {
+			t.Fatalf("preset %s has no canonical preview", preset.ID)
+		}
+		if preset.Domain == "full_color" && fullPreset == "" {
+			fullPreset = preset.ID
+		}
+		if preset.Domain == "white_ambience" && whitePreset == "" {
+			whitePreset = preset.ID
+		}
+	}
+	if fullPreset == "" || whitePreset == "" {
+		t.Fatalf("catalogue domains missing: full=%q white=%q", fullPreset, whitePreset)
+	}
 
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Drift Test Scene",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":100,"colorTemp":370}`},
-			},
-		},
+	rgb := base64.StdEncoding.EncodeToString([]byte{
+		255, 70, 30, 250, 180, 50,
+		30, 70, 255, 120, 20, 180,
 	})
+	for _, domain := range []string{"full_color", "white_ambience"} {
+		data, err := graphqlQuery(`query($input: PreviewVibeInput!) {
+			previewVibe(input: $input) { domain seed brightness movement cycleSeconds minimumLightness maximumLightness preview { width height pixels { r g b } swatches { x y color { r g b } } } }
+		}`, map[string]any{"input": map[string]any{"source": map[string]any{"photo": map[string]any{"domain": domain, "seed": "42", "width": 2, "height": 2, "rgbBase64": rgb}}}})
+		if err != nil {
+			t.Fatalf("preview %s Photo Vibe: %v", domain, err)
+		}
+		var preview struct {
+			PreviewVibe struct {
+				Domain  string `json:"domain"`
+				Preview struct {
+					Width, Height int
+					Pixels        []struct{ R, G, B int }
+					Swatches      []struct{ X, Y float64 }
+				} `json:"preview"`
+			} `json:"previewVibe"`
+		}
+		_ = json.Unmarshal(data, &preview)
+		if preview.PreviewVibe.Domain != domain || preview.PreviewVibe.Preview.Width != 24 || preview.PreviewVibe.Preview.Height != 16 || len(preview.PreviewVibe.Preview.Pixels) != 24*16 || len(preview.PreviewVibe.Preview.Swatches) == 0 {
+			t.Fatalf("%s Photo preview = %+v", domain, preview.PreviewVibe)
+		}
+	}
+
+	fullGuided := guidedSelections(t, "full_color", "83", 3)
+	whiteGuided := guidedSelections(t, "white_ambience", "84", 5)
+	deviceID, err := queryDeviceIDByName("Bedroom Light")
 	if err != nil {
-		t.Fatalf("create: %v", err)
+		t.Fatalf("find target light: %v", err)
 	}
-	var sr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
+	targets := []map[string]any{{"targetType": "device", "targetId": deviceID}}
+	sources := []struct {
+		name   string
+		source map[string]any
+		kind   string
+	}{
+		{"Gallery Vibe", map[string]any{"preset": map[string]any{"presetId": fullPreset, "seed": "101"}}, "preset"},
+		{"Photo whites", map[string]any{"photo": map[string]any{"domain": "white_ambience", "seed": "102", "width": 2, "height": 2, "rgbBase64": rgb}}, "photo"},
+		{"Guided three", map[string]any{"guided": map[string]any{"domain": "full_color", "seed": "83", "selectedIds": fullGuided}}, "guided"},
+		{"Guided five", map[string]any{"guided": map[string]any{"domain": "white_ambience", "seed": "84", "selectedIds": whiteGuided}}, "guided"},
 	}
-	_ = json.Unmarshal(data, &sr)
-	sceneID := sr.CreateScene.ID
+	createdIDs := make([]string, 0, len(sources))
+	for _, source := range sources {
+		data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
+			createScene(input: $input) {
+				id preview { width height }
+				lighting { dynamicSource { domain sourceKind seed brightness movement cycleSeconds } }
+			}
+		}`, map[string]any{"input": map[string]any{
+			"name": source.name,
+			"definition": map[string]any{
+				"targets": targets,
+				"lighting": map[string]any{
+					"dynamicSource": map[string]any{"source": source.source, "brightness": 0.72, "movement": 0.25, "cycleSeconds": 90.0},
+					"overrides":     []map[string]any{},
+				},
+				"supportingStates": []map[string]any{},
+			},
+		}})
+		if err != nil {
+			t.Fatalf("create %s: %v", source.name, err)
+		}
+		var response struct {
+			CreateScene struct {
+				ID       string `json:"id"`
+				Lighting struct {
+					DynamicSource struct {
+						SourceKind   string
+						Brightness   float64
+						Movement     float64
+						CycleSeconds float64
+					} `json:"dynamicSource"`
+				} `json:"lighting"`
+				Preview struct{ Width, Height int }
+			} `json:"createScene"`
+		}
+		_ = json.Unmarshal(data, &response)
+		createdIDs = append(createdIDs, response.CreateScene.ID)
+		dynamic := response.CreateScene.Lighting.DynamicSource
+		if dynamic.SourceKind != source.kind || dynamic.Brightness != 0.72 || dynamic.Movement != 0.25 || dynamic.CycleSeconds != 90 || response.CreateScene.Preview.Width != 24 {
+			t.Fatalf("saved %s = %+v", source.name, response.CreateScene)
+		}
+	}
 	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
+		for _, id := range createdIDs {
+			_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": id})
+		}
 	})
 
-	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`,
-		map[string]any{"id": sceneID}); err != nil {
-		t.Fatalf("apply: %v", err)
+	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id activatedAt } }`, map[string]any{"id": createdIDs[0]}); err != nil {
+		t.Fatalf("apply Gallery Vibe: %v", err)
 	}
-
-	activated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		data, _ := graphqlQuery(`query($id: ID!) { scene(id: $id) { activatedAt } }`,
-			map[string]any{"id": sceneID})
-		var sc struct {
-			Scene struct {
-				ActivatedAt *string `json:"activatedAt"`
-			} `json:"scene"`
-		}
-		if json.Unmarshal(data, &sc) != nil {
-			return false
-		}
-		return sc.Scene.ActivatedAt != nil
-	})
-	if !activated {
-		t.Fatal("scene never became active")
+	if sceneActivatedAt(createdIDs[0]) == nil {
+		t.Fatal("Gallery Vibe did not become active")
 	}
-
-	// Drift: change the device's brightness. Strict rule says this invalidates.
-	if err := publisher.PublishDeviceState("Kitchen Light",
-		[]byte(`{"state":"ON","brightness":50,"color_temp":370}`)); err != nil {
-		t.Fatalf("publish drift: %v", err)
-	}
-
-	deactivated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		data, _ := graphqlQuery(`query($id: ID!) { scene(id: $id) { activatedAt } }`,
-			map[string]any{"id": sceneID})
-		var sc struct {
-			Scene struct {
-				ActivatedAt *string `json:"activatedAt"`
-			} `json:"scene"`
-		}
-		if json.Unmarshal(data, &sc) != nil {
-			return false
-		}
-		return sc.Scene.ActivatedAt == nil
-	})
-	if !deactivated {
-		t.Fatal("activatedAt never cleared after divergent state change")
+	if _, err := graphqlMutation(`mutation($id: ID!) { deactivateScene(sceneId: $id) { activatedAt } }`, map[string]any{"id": createdIDs[0]}); err != nil {
+		t.Fatalf("stop Gallery Vibe: %v", err)
 	}
 }
 
-// TestScenes_ActiveChangedSubscription verifies the sceneActiveChanged
-// subscription fires with activatedAt set on activation and null on
-// deactivation.
-func TestScenes_ActiveChangedSubscription(t *testing.T) {
-	deviceID, err := queryDeviceIDByName("Living Room Light")
-	if err != nil {
-		t.Fatalf("find device: %v", err)
-	}
-	if err := publisher.PublishDeviceState("Living Room Light",
-		[]byte(`{"state":"ON","brightness":120,"color_temp":370}`)); err != nil {
-		t.Fatalf("publish seed: %v", err)
-	}
-	time.Sleep(200 * time.Millisecond)
-
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name": "Subscription Active Test",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
+func TestScenesRejectInvalidPhotoAndUnknownUpdate(t *testing.T) {
+	err := graphqlMutationExpectError(`mutation($input: CreateSceneInput!) { createScene(input: $input) { id } }`, map[string]any{"input": map[string]any{
+		"name": "Bad photo",
+		"definition": map[string]any{
+			"targets": []map[string]any{},
+			"lighting": map[string]any{
+				"dynamicSource": map[string]any{"source": map[string]any{"photo": map[string]any{"domain": "full_color", "seed": "1", "width": 512, "height": 512, "rgbBase64": "AAAA"}}},
+				"overrides":     []map[string]any{},
 			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":true,"brightness":120,"colorTemp":370}`},
-			},
+			"supportingStates": []map[string]any{},
 		},
-	})
+	}})
 	if err != nil {
-		t.Fatalf("create: %v", err)
+		t.Fatalf("invalid Photo sample was accepted: %v", err)
 	}
-	var sr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data, &sr)
-	sceneID := sr.CreateScene.ID
-	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sceneID})
-	})
-
-	ch, cleanup, err := wsSubscribe(
-		`subscription { sceneActiveChanged { sceneId activatedAt } }`,
-		nil,
-	)
+	err = graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id } }`, map[string]any{"id": "missing-scene", "input": map[string]any{"name": "Nope"}})
 	if err != nil {
-		t.Fatalf("subscribe: %v", err)
-	}
-	defer cleanup()
-	time.Sleep(200 * time.Millisecond)
-
-	if _, err := graphqlMutation(`mutation($id: ID!) { applyScene(sceneId: $id) { id } }`,
-		map[string]any{"id": sceneID}); err != nil {
-		t.Fatalf("apply: %v", err)
-	}
-
-	sawActivated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		select {
-		case data := <-ch:
-			var ev struct {
-				SceneActiveChanged struct {
-					SceneID     string  `json:"sceneId"`
-					ActivatedAt *string `json:"activatedAt"`
-				} `json:"sceneActiveChanged"`
-			}
-			if json.Unmarshal(data, &ev) != nil {
-				return false
-			}
-			return ev.SceneActiveChanged.SceneID == sceneID && ev.SceneActiveChanged.ActivatedAt != nil
-		default:
-			return false
-		}
-	})
-	if !sawActivated {
-		t.Fatal("timed out waiting for activated subscription event")
-	}
-
-	if err := publisher.PublishDeviceState("Living Room Light",
-		[]byte(`{"state":"OFF","brightness":120,"color_temp":370}`)); err != nil {
-		t.Fatalf("publish drift: %v", err)
-	}
-
-	sawDeactivated := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {
-		select {
-		case data := <-ch:
-			var ev struct {
-				SceneActiveChanged struct {
-					SceneID     string  `json:"sceneId"`
-					ActivatedAt *string `json:"activatedAt"`
-				} `json:"sceneActiveChanged"`
-			}
-			if json.Unmarshal(data, &ev) != nil {
-				return false
-			}
-			return ev.SceneActiveChanged.SceneID == sceneID && ev.SceneActiveChanged.ActivatedAt == nil
-		default:
-			return false
-		}
-	})
-	if !sawDeactivated {
-		t.Fatal("timed out waiting for deactivated subscription event")
-	}
-}
-
-func TestScenes_Delete(t *testing.T) {
-	data, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
-		createScene(input: $input) { id }
-	}`, map[string]any{
-		"input": map[string]any{
-			"name":    "To Delete",
-			"actions": []map[string]any{},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	var sr struct {
-		CreateScene struct{ ID string } `json:"createScene"`
-	}
-	_ = json.Unmarshal(data, &sr)
-
-	data, err = graphqlMutation(`mutation($id: ID!) { deleteScene(id: $id) }`, map[string]any{"id": sr.CreateScene.ID})
-	if err != nil {
-		t.Fatalf("delete: %v", err)
-	}
-
-	var delResult struct {
-		DeleteScene bool `json:"deleteScene"`
-	}
-	_ = json.Unmarshal(data, &delResult)
-	if !delResult.DeleteScene {
-		t.Error("expected deleteScene to return true")
+		t.Fatalf("unknown Scene update was accepted: %v", err)
 	}
 }
