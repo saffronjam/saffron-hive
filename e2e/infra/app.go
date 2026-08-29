@@ -28,8 +28,10 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/nativeeffect"
+	"github.com/saffronjam/saffron-hive/internal/outputowner"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
+	"github.com/saffronjam/saffron-hive/internal/spatial"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
@@ -143,19 +145,23 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	go activityRecorder.Run(appCtx)
 
-	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, e2eTerminator{})
+	outputOwners := outputowner.New()
+	go outputOwners.Run(appCtx, bus)
+	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, e2eTerminator{}, outputOwners)
 	if err := effectRunner.Hydrate(appCtx); err != nil {
 		log.Printf("effect runner hydrate failed: %v", err)
 	}
 	go effectRunner.Run(appCtx)
 
-	sceneWatcher := scene.NewWatcher(bus, sqlStore, targetCommander, memStore, effectRunner)
-	if err := sceneWatcher.Hydrate(appCtx); err != nil {
-		log.Printf("scene watcher hydrate failed: %v", err)
+	spatialResolver := spatial.NewResolver(sqlStore)
+	go spatialResolver.Run(appCtx, bus)
+	sceneRunner := scene.NewRunner(bus, sqlStore, targetCommander, targetCommander, memStore, spatialResolver, effectRunner, outputOwners)
+	if err := sceneRunner.Hydrate(appCtx); err != nil {
+		log.Printf("scene runner hydrate failed: %v", err)
 	}
-	go sceneWatcher.Run(appCtx)
+	go sceneRunner.Run(appCtx)
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner)
+	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
 			log.Printf("automation engine error: %v", err)
@@ -211,6 +217,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		AutomationReloader:  rel,
 		AutomationTriggerer: rel,
 		EffectRunner:        effectRunner,
+		SceneRunner:         sceneRunner,
 		NativeEffectSupport: nativeEffectSupport,
 		Alarms:              alarmSvc,
 		AlarmBuffer:         alarmBuffer,

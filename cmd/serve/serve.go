@@ -42,8 +42,10 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
 	"github.com/saffronjam/saffron-hive/internal/nativeeffect"
 	"github.com/saffronjam/saffron-hive/internal/oui"
+	"github.com/saffronjam/saffron-hive/internal/outputowner"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
+	"github.com/saffronjam/saffron-hive/internal/spatial"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
@@ -190,6 +192,8 @@ func Run(ctx context.Context) error {
 		serveLogger.Warn("initial room-cache refresh failed", "error", err)
 	}
 	spawn("activity.roomcache", func() { roomCache.Run(ctx, bus) })
+	spatialResolver := spatial.NewResolver(sqlStore)
+	spawn("spatial.cache", func() { spatialResolver.Run(ctx, bus) })
 	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	spawn("activity.recorder", func() { activityRecorder.Run(ctx) })
 	spawn("activity.retention", func() { activity.RunRetention(ctx, sqlStore) })
@@ -211,17 +215,19 @@ func Run(ctx context.Context) error {
 		nativeEffectSupport.Run(ctx, nativeEffectEvents)
 	})
 	targetCommander := targetcommand.New(bus, sqlStore, memStore, nativeEffectSupport)
-	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{})
+	outputOwners := outputowner.New()
+	spawn("output.owner", func() { outputOwners.Run(ctx, bus) })
+	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{}, outputOwners)
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)
 	}
 	spawn("effect.runner", func() { effectRunner.Run(ctx) })
 
-	sceneWatcher := scene.NewWatcher(bus, sqlStore, targetCommander, memStore, effectRunner)
-	if err := sceneWatcher.Hydrate(ctx); err != nil {
-		serveLogger.Warn("scene watcher hydrate failed", "error", err)
+	sceneRunner := scene.NewRunner(bus, sqlStore, targetCommander, targetCommander, memStore, spatialResolver, effectRunner, outputOwners)
+	if err := sceneRunner.Hydrate(ctx); err != nil {
+		serveLogger.Warn("scene runner hydrate failed", "error", err)
 	}
-	spawn("scene.watcher", func() { sceneWatcher.Run(ctx) })
+	spawn("scene.runner", func() { sceneRunner.Run(ctx) })
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
@@ -247,7 +253,7 @@ func Run(ctx context.Context) error {
 		serveLogger.Warn("Tuya integration did not start", "error", err)
 	}
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner)
+	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner)
 	spawn("automation.engine", func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			serveLogger.Error("automation engine error", "error", err)
@@ -289,6 +295,7 @@ func Run(ctx context.Context) error {
 		Tuya:                mgr,
 		Integrations:        mgr,
 		EffectRunner:        effectRunner,
+		SceneRunner:         sceneRunner,
 		NativeEffectSupport: nativeEffectSupport,
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
