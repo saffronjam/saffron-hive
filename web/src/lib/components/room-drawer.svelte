@@ -17,14 +17,14 @@
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
+	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon, Square } from "@lucide/svelte";
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
 		rememberedLightPalette,
-		sceneGlowColor,
+		scenePreviewColors,
 	} from "$lib/device-tint";
-	import { parsePayload } from "$lib/scene-editable";
+	import type { ScenePreview } from "$lib/scene-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
 	import {
 		isApplianceDevice,
@@ -65,23 +65,12 @@
 		members: { memberType: string; memberId: string }[];
 	}
 
-	interface SceneAction {
-		targetType: string;
-		targetId: string;
-	}
-
-	interface ScenePayload {
-		deviceId: string;
-		payload: string;
-	}
-
 	interface SceneInfo {
 		id: string;
 		name: string;
 		icon?: string | null;
 		rooms: { id: string }[];
-		actions: SceneAction[];
-		effectivePayloads: ScenePayload[];
+		preview: ScenePreview;
 		activatedAt?: string | null;
 	}
 
@@ -95,6 +84,7 @@
 		client: Client;
 		onclose: () => void;
 		onapplyscene: (scene: { id: string; name: string }) => void;
+		onstopscene: (scene: { id: string; name: string }) => void;
 	}
 
 	let {
@@ -107,6 +97,7 @@
 		client,
 		onclose,
 		onapplyscene,
+		onstopscene,
 	}: Props = $props();
 
 	const roomDevices = $derived.by((): Device[] => {
@@ -458,9 +449,7 @@
 			{#if filteredScenes.length > 0}
 				<div class="mt-1 flex flex-wrap justify-center gap-2">
 					{#each filteredScenes as scene (scene.id)}
-						{@const glow = sceneGlowColor(
-							scene.effectivePayloads.map((p) => parsePayload(p.payload)),
-						)}
+						{@const glow = scenePreviewColors(scene.preview)[0] ?? "transparent"}
 						{@const active = scene.activatedAt != null}
 						<Button
 							variant="outline"
@@ -470,11 +459,16 @@
 								? 'scene-active'
 								: ''}"
 							style="--scene-glow: {glow}"
-							onclick={() => onapplyscene(scene)}
+							onclick={() => active ? onstopscene(scene) : onapplyscene(scene)}
+							aria-label={active ? `Stop ${scene.name}` : `Apply ${scene.name}`}
 						>
-							<AnimatedIcon icon={scene.icon} class="size-4 shrink-0">
-								{#snippet fallback()}<Clapperboard class="size-4 shrink-0" />{/snippet}
-							</AnimatedIcon>
+							{#if active}
+								<Square class="size-4 shrink-0" />
+							{:else}
+								<AnimatedIcon icon={scene.icon} class="size-4 shrink-0">
+									{#snippet fallback()}<Clapperboard class="size-4 shrink-0" />{/snippet}
+								</AnimatedIcon>
+							{/if}
 							<span>{scene.name}</span>
 						</Button>
 					{/each}

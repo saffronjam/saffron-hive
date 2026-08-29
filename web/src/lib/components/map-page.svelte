@@ -243,6 +243,9 @@
 	let additive = $state(false);
 	let selection = $state<EditorSelection>({ ...emptySelection });
 	let editorApi: FloorplanEditorApi | null = $state(null);
+	let framedForVisit = $state(false);
+	let framingForVisit = false;
+	let frameRequest = 0;
 	let copyBuffer = $state<{ vertices: PlanVertex[]; walls: PlanWall[] } | null>(null);
 	/** A copied piece, with the size and angle it was copied at. */
 	let furnitureBuffer = $state<FloorplanFurnitureData | null>(null);
@@ -2115,6 +2118,14 @@
 		}
 	}
 
+	async function handleStopScene(scene: { id: string; name: string }) {
+		try {
+			await scenesStore.deactivate(client, scene.id);
+		} catch (e) {
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Failed to stop the scene."));
+		}
+	}
+
 	onMount(async () => {
 		if (floorplanStore.error) {
 			errors.setWithAutoDismiss(floorplanStore.error);
@@ -2171,10 +2182,36 @@
 	let actionTxSubHandle: { unsubscribe: () => void } | null = null;
 
 	onDestroy(() => {
+		frameRequest++;
 		topologySubHandle?.unsubscribe();
 		txSubHandle?.unsubscribe();
 		actionTxSubHandle?.unsubscribe();
 		if (interactingTimer) clearTimeout(interactingTimer);
+	});
+
+	async function frameVisiblePlan(request: number) {
+		await tick();
+		while (request === frameRequest && visible) {
+			if (editorApi?.fitToContent()) {
+				framedForVisit = true;
+				framingForVisit = false;
+				return;
+			}
+			await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		}
+	}
+
+	$effect(() => {
+		if (!visible) {
+			framedForVisit = false;
+			framingForVisit = false;
+			frameRequest++;
+			return;
+		}
+		if (loading || !editorApi || framedForVisit || framingForVisit) return;
+		framingForVisit = true;
+		const request = ++frameRequest;
+		void frameVisiblePlan(request);
 	});
 
 	$effect(() => {
@@ -2352,7 +2389,10 @@
 			{#if loading}
 				<div class="h-full w-full animate-pulse bg-muted/30"></div>
 			{:else}
-				<div in:fly={{ y: -4, duration: 150 }} class="h-full w-full">
+				<div
+					in:fly={{ y: -4, duration: 150 }}
+					class="h-full w-full {framedForVisit ? 'visible' : 'invisible'}"
+				>
 					<FloorplanEditor
 						{graph}
 						{faces}
@@ -2901,4 +2941,5 @@
 	{client}
 	onclose={closeRoomDrawer}
 	onapplyscene={handleApplyScene}
+	onstopscene={handleStopScene}
 />

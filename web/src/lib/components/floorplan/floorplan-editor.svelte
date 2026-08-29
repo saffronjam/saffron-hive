@@ -97,7 +97,7 @@
 		/** Screen point of a world point, for anchoring chrome to a piece. */
 		worldToClient: (p: PlanPoint) => { left: number; top: number } | null;
 		/** Frame the whole plan — walls, markers and furniture — in the viewport. */
-		fitToContent: () => void;
+		fitToContent: () => boolean;
 	}
 </script>
 
@@ -628,8 +628,10 @@
 	/** Margin the framed plan keeps from the viewport edge, in screen pixels. */
 	const FIT_MARGIN_PX = 24;
 
-	function fitToContent() {
-		if (!svgEl || !zoomBehavior || width === 0 || height === 0) return;
+	function fitToContent(): boolean {
+		if (!svgEl || !zoomBehavior) return false;
+		const viewport = svgEl.getBoundingClientRect();
+		if (viewport.width === 0 || viewport.height === 0) return false;
 		const pts: Point[] = [
 			...graph.vertices.map((v) => ({ x: v.x, y: v.y })),
 			...placements.map((pl) => ({ x: pl.x, y: pl.y })),
@@ -640,8 +642,8 @@
 		// land at 1:1 centred on whatever is there.
 		const spanX = (b?.width ?? 0) * PX_PER_M;
 		const spanY = (b?.height ?? 0) * PX_PER_M;
-		const usableX = Math.max(width - FIT_MARGIN_PX * 2, 1);
-		const usableY = Math.max(height - FIT_MARGIN_PX * 2, 1);
+		const usableX = Math.max(viewport.width - FIT_MARGIN_PX * 2, 1);
+		const usableY = Math.max(viewport.height - FIT_MARGIN_PX * 2, 1);
 		const fit = Math.min(
 			spanX > 0 ? usableX / spanX : Infinity,
 			spanY > 0 ? usableY / spanY : Infinity,
@@ -649,11 +651,12 @@
 		const k = Math.min(Math.max(Number.isFinite(fit) ? fit : 1, 0.2), 8);
 		const cx = b ? (b.minX + b.maxX) / 2 : 0;
 		const cy = b ? (b.minY + b.maxY) / 2 : 0;
-		const x = width / 2 - cx * PX_PER_M * k;
-		const y = height / 2 - cy * PX_PER_M * k;
+		const x = viewport.width / 2 - cx * PX_PER_M * k;
+		const y = viewport.height / 2 - cy * PX_PER_M * k;
 		// Routed through d3 rather than written straight to `transform`, so its
 		// own transform stays in step and the next gesture does not jump.
 		select(svgEl).call(zoomBehavior.transform, zoomIdentity.translate(x, y).scale(k));
+		return true;
 	}
 
 	$effect(() => {

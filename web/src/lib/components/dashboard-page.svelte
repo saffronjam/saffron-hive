@@ -104,6 +104,14 @@
 		}
 	}
 
+	async function handleStopScene(scene: { id: string; name: string }) {
+		try {
+			await scenesStore.deactivate(client, scene.id);
+		} catch (e) {
+			console.error("Failed to stop scene:", graphqlErrorMessage(e, "unknown error"));
+		}
+	}
+
 	const mountTimer = measureMount("dashboard", { ready: () => $devicesHydrated && roomsStore.hydrated });
 	$effect(() => mountTimer.tick());
 </script>
@@ -156,4 +164,5 @@
 	{client}
 	onclose={closeDrawer}
 	onapplyscene={handleApplyScene}
+	onstopscene={handleStopScene}
 />
