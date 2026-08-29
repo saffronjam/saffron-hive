@@ -9,6 +9,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
@@ -124,7 +125,8 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 
 	var sceneName string
 	if evt.Type == eventbus.EventSceneApplied {
-		if id, ok := evt.Payload.(string); ok && id != "" {
+		if applied, ok := evt.Payload.(scene.RunEvent); ok && applied.SceneID != "" {
+			id := applied.SceneID
 			params.SceneID = device.Ptr(id)
 			if sc, err := r.store.GetScene(ctx, id); err == nil {
 				sceneName = sc.Name
