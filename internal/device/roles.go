@@ -2,6 +2,13 @@ package device
 
 import "fmt"
 
+// IsLightControlDevice reports whether a device participates in lighting
+// targets, including plugs explicitly assigned the light role.
+func IsLightControlDevice(d Device) bool {
+	return d.Type == Light ||
+		d.Type == Plug && d.Roles.ControlledLoad != nil && *d.Roles.ControlledLoad == ControlledLoadRoleLight
+}
+
 // ControlledLoadRoleApplies reports whether a device is a controllable plug.
 func ControlledLoadRoleApplies(d Device) bool {
 	if d.Type != Plug {

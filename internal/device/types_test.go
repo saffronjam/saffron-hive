@@ -47,6 +47,18 @@ func TestDeviceRoleDefaultsAndValidation(t *testing.T) {
 	}
 }
 
+func TestIsLightControlDeviceIncludesAssignedPlug(t *testing.T) {
+	if !IsLightControlDevice(Device{Type: Light}) {
+		t.Fatal("physical light was not classified as a lighting device")
+	}
+	if !IsLightControlDevice(Device{Type: Plug, Roles: DeviceRoles{ControlledLoad: Ptr(ControlledLoadRoleLight)}}) {
+		t.Fatal("light-role plug was not classified as a lighting device")
+	}
+	if IsLightControlDevice(Device{Type: Plug, Roles: DeviceRoles{ControlledLoad: Ptr(ControlledLoadRoleAppliance)}}) {
+		t.Fatal("appliance-role plug was classified as a lighting device")
+	}
+}
+
 func TestSourceIsString(t *testing.T) {
 	if string(SourceZigbee2MQTT) != "zigbee2mqtt" {
 		t.Fatalf("expected zigbee2mqtt, got %s", SourceZigbee2MQTT)
