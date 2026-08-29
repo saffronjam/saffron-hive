@@ -288,6 +288,10 @@ func TestDeletedUserCannotLogin(t *testing.T) {
 }
 
 func TestCreatedByPreservedAsNullAfterDelete(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
 	creator := createUserForTest(t, "creator1", "The Creator", "CreatorPw123")
 	creatorTok := loginForTest(t, "creator1", "CreatorPw123")
 	creatorTok = clearForcedChangeForTest(t, "creator1", creatorTok, "CreatorPw123")
@@ -295,7 +299,14 @@ func TestCreatedByPreservedAsNullAfterDelete(t *testing.T) {
 	// Creator creates a scene; createdBy should reference creator.
 	data, _ := rawPost(t, creatorTok,
 		`mutation($input: CreateSceneInput!) { createScene(input: $input) { id createdBy { id } } }`,
-		map[string]any{"input": map[string]any{"name": "Scene by creator1", "actions": []any{}}},
+		map[string]any{"input": map[string]any{
+			"name": "Scene by creator1",
+			"definition": staticSceneDefinition(
+				[]map[string]any{{"targetType": "device", "targetId": deviceID}},
+				map[string]any{"on": true},
+				nil,
+			),
+		}},
 	)
 	if len(data.Errors) > 0 {
 		t.Fatalf("createScene: %v", data.Errors)
@@ -372,6 +383,10 @@ func TestCreateUserSetsMustChangePassword(t *testing.T) {
 }
 
 func TestForcedChangeUserBlockedFromOtherOps(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
 	u := createUserForTest(t, "mcpw2", "Blocked User", "InitialPw123")
 	t.Cleanup(func() { deleteUserForTest(t, u.ID) })
 
@@ -394,7 +409,14 @@ func TestForcedChangeUserBlockedFromOtherOps(t *testing.T) {
 	// And that a write is also blocked.
 	gr, _ = rawPost(t, tok,
 		`mutation($input: CreateSceneInput!) { createScene(input: $input) { id } }`,
-		map[string]any{"input": map[string]any{"name": "should not exist", "actions": []any{}}},
+		map[string]any{"input": map[string]any{
+			"name": "should not exist",
+			"definition": staticSceneDefinition(
+				[]map[string]any{{"targetType": "device", "targetId": deviceID}},
+				map[string]any{"on": true},
+				nil,
+			),
+		}},
 	)
 	if len(gr.Errors) == 0 {
 		t.Fatal("forced-change user reached createScene without password change")

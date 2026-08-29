@@ -182,8 +182,15 @@ multicastDone:
 	sceneData, err := graphqlMutation(`mutation($input: CreateSceneInput!) {
 		createScene(input: $input) { id }
 	}`, map[string]any{"input": map[string]any{
-		"name":    "Provider reference scene",
-		"actions": []map[string]any{{"targetType": "group", "targetId": e2eProviderGroupID}},
+		"name": "Provider reference scene",
+		"definition": staticSceneDefinition(
+			[]map[string]any{{"targetType": "group", "targetId": e2eProviderGroupID}},
+			map[string]any{},
+			[]map[string]any{
+				{"deviceId": livingID, "kind": "state", "state": map[string]any{"on": true}},
+				{"deviceId": bedroomID, "kind": "state", "state": map[string]any{"on": true}},
+			},
+		),
 	}})
 	if err != nil {
 		t.Fatalf("create provider scene: %v", err)
@@ -207,8 +214,8 @@ multicastDone:
 		t.Fatalf("apply provider scene: %v", err)
 	}
 	sceneMessages := collectCommands(sceneCommands, 500*time.Millisecond)
-	if len(sceneMessages) != 1 || sceneMessages[0].Topic != "zigbee2mqtt/E2E Zigbee Lights/set" {
-		t.Fatalf("scene multicast messages = %+v", sceneMessages)
+	if len(sceneMessages) != 2 || sceneMessages[0].Topic == "zigbee2mqtt/E2E Zigbee Lights/set" || sceneMessages[1].Topic == "zigbee2mqtt/E2E Zigbee Lights/set" {
+		t.Fatalf("scene device messages = %+v", sceneMessages)
 	}
 
 	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
@@ -369,7 +376,7 @@ fallbackDone:
 
 	data, err := graphqlQuery(`query($id: ID!) {
 		scene(id: $id) {
-			actions {
+			targets {
 				target { ... on Group { id name source removed resolvedDevices { id } } }
 			}
 		}

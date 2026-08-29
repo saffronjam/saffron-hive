@@ -14,9 +14,26 @@
           "name": "light",
           "property": "light",
           "features": [
-            {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []},
-            {"type": "numeric", "name": "brightness", "property": "brightness", "access": 7, "value_min": 0, "value_max": 254, "features": []},
-            {"type": "numeric", "name": "color_temp", "property": "color_temp", "access": 7, "value_min": 250, "value_max": 454, "unit": "mired", "features": []}
+            { "type": "binary", "name": "state", "property": "state", "access": 7, "features": [] },
+            {
+              "type": "numeric",
+              "name": "brightness",
+              "property": "brightness",
+              "access": 7,
+              "value_min": 0,
+              "value_max": 254,
+              "features": []
+            },
+            {
+              "type": "numeric",
+              "name": "color_temp",
+              "property": "color_temp",
+              "access": 7,
+              "value_min": 250,
+              "value_max": 454,
+              "unit": "mired",
+              "features": []
+            }
           ]
         }
       ]
@@ -37,10 +54,33 @@
           "name": "light",
           "property": "light",
           "features": [
-            {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []},
-            {"type": "numeric", "name": "brightness", "property": "brightness", "access": 7, "value_min": 0, "value_max": 254, "features": []},
-            {"type": "numeric", "name": "color_temp", "property": "color_temp", "access": 7, "value_min": 250, "value_max": 454, "unit": "mired", "features": []},
-            {"type": "composite", "name": "color", "property": "color", "access": 7, "features": []}
+            { "type": "binary", "name": "state", "property": "state", "access": 7, "features": [] },
+            {
+              "type": "numeric",
+              "name": "brightness",
+              "property": "brightness",
+              "access": 7,
+              "value_min": 0,
+              "value_max": 254,
+              "features": []
+            },
+            {
+              "type": "numeric",
+              "name": "color_temp",
+              "property": "color_temp",
+              "access": 7,
+              "value_min": 250,
+              "value_max": 454,
+              "unit": "mired",
+              "features": []
+            },
+            {
+              "type": "composite",
+              "name": "color",
+              "property": "color",
+              "access": 7,
+              "features": []
+            }
           ]
         }
       ]
@@ -61,8 +101,16 @@
           "name": "light",
           "property": "light",
           "features": [
-            {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []},
-            {"type": "numeric", "name": "brightness", "property": "brightness", "access": 7, "value_min": 0, "value_max": 254, "features": []}
+            { "type": "binary", "name": "state", "property": "state", "access": 7, "features": [] },
+            {
+              "type": "numeric",
+              "name": "brightness",
+              "property": "brightness",
+              "access": 7,
+              "value_min": 0,
+              "value_max": 254,
+              "features": []
+            }
           ]
         }
       ]
@@ -78,9 +126,36 @@
       "vendor": "Aqara",
       "description": "Temperature and humidity sensor",
       "exposes": [
-        {"type": "numeric", "name": "temperature", "property": "temperature", "access": 1, "unit": "\u00b0C", "value_min": -20, "value_max": 60, "features": []},
-        {"type": "numeric", "name": "humidity", "property": "humidity", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []},
-        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []}
+        {
+          "type": "numeric",
+          "name": "temperature",
+          "property": "temperature",
+          "access": 1,
+          "unit": "\u00b0C",
+          "value_min": -20,
+          "value_max": 60,
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "humidity",
+          "property": "humidity",
+          "access": 1,
+          "unit": "%",
+          "value_min": 0,
+          "value_max": 100,
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "battery",
+          "property": "battery",
+          "access": 1,
+          "unit": "%",
+          "value_min": 0,
+          "value_max": 100,
+          "features": []
+        }
       ]
     }
   },
@@ -94,8 +169,26 @@
       "vendor": "Xiaomi",
       "description": "MiJia temperature and humidity sensor",
       "exposes": [
-        {"type": "numeric", "name": "temperature", "property": "temperature", "access": 1, "unit": "\u00b0C", "value_min": -20, "value_max": 60, "features": []},
-        {"type": "numeric", "name": "humidity", "property": "humidity", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []}
+        {
+          "type": "numeric",
+          "name": "temperature",
+          "property": "temperature",
+          "access": 1,
+          "unit": "\u00b0C",
+          "value_min": -20,
+          "value_max": 60,
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "humidity",
+          "property": "humidity",
+          "access": 1,
+          "unit": "%",
+          "value_min": 0,
+          "value_max": 100,
+          "features": []
+        }
       ]
     }
   },
@@ -109,7 +202,14 @@
       "vendor": "Aqara",
       "description": "MiJia wireless switch",
       "exposes": [
-        {"type": "enum", "name": "action", "property": "action", "access": 1, "values": ["single", "double", "hold"], "features": []}
+        {
+          "type": "enum",
+          "name": "action",
+          "property": "action",
+          "access": 1,
+          "values": ["single", "double", "hold"],
+          "features": []
+        }
       ]
     }
   },
@@ -123,13 +223,46 @@
       "vendor": "Innr",
       "description": "Smart plug",
       "exposes": [
-        {"type": "switch", "name": "switch", "property": "switch", "features": [
-          {"type": "binary", "name": "state", "property": "state", "access": 7, "features": []}
-        ]},
-        {"type": "numeric", "name": "power", "property": "power", "access": 5, "unit": "W", "features": []},
-        {"type": "numeric", "name": "voltage", "property": "voltage", "access": 5, "unit": "V", "features": []},
-        {"type": "numeric", "name": "current", "property": "current", "access": 5, "unit": "A", "features": []},
-        {"type": "numeric", "name": "energy", "property": "energy", "access": 5, "unit": "kWh", "features": []}
+        {
+          "type": "switch",
+          "name": "switch",
+          "property": "switch",
+          "features": [
+            { "type": "binary", "name": "state", "property": "state", "access": 7, "features": [] }
+          ]
+        },
+        {
+          "type": "numeric",
+          "name": "power",
+          "property": "power",
+          "access": 5,
+          "unit": "W",
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "voltage",
+          "property": "voltage",
+          "access": 5,
+          "unit": "V",
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "current",
+          "property": "current",
+          "access": 5,
+          "unit": "A",
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "energy",
+          "property": "energy",
+          "access": 5,
+          "unit": "kWh",
+          "features": []
+        }
       ]
     }
   },
@@ -143,8 +276,23 @@
       "vendor": "SONOFF",
       "description": "Motion sensor",
       "exposes": [
-        {"type": "binary", "name": "occupancy", "property": "occupancy", "access": 1, "features": []},
-        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "value_min": 0, "value_max": 100, "features": []}
+        {
+          "type": "binary",
+          "name": "occupancy",
+          "property": "occupancy",
+          "access": 1,
+          "features": []
+        },
+        {
+          "type": "numeric",
+          "name": "battery",
+          "property": "battery",
+          "access": 1,
+          "unit": "%",
+          "value_min": 0,
+          "value_max": 100,
+          "features": []
+        }
       ]
     }
   },
@@ -170,14 +318,24 @@
       "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
       "supports_ota": false,
       "exposes": [
-        {"type": "binary", "name": "contact", "property": "contact", "access": 1, "features": []},
-        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "features": []}
+        { "type": "binary", "name": "contact", "property": "contact", "access": 1, "features": [] },
+        {
+          "type": "numeric",
+          "name": "battery",
+          "property": "battery",
+          "access": 1,
+          "unit": "%",
+          "features": []
+        }
       ]
     },
     "endpoints": {
       "1": {
         "bindings": [],
-        "clusters": {"input": ["genBasic", "genIdentify", "ssIasZone", "genPowerCfg"], "output": ["genOta"]},
+        "clusters": {
+          "input": ["genBasic", "genIdentify", "ssIasZone", "genPowerCfg"],
+          "output": ["genOta"]
+        },
         "configured_reportings": []
       }
     }
@@ -202,28 +360,68 @@
       "source": "native",
       "supports_ota": true,
       "exposes": [
-        {"type": "enum", "name": "orientation", "property": "orientation", "access": 1, "values": ["face_up", "face_down", "vertical", "tilt"], "features": []},
-        {"type": "enum", "name": "device_posture", "property": "device_posture", "access": 1, "values": ["normal", "abnormal"], "features": []},
-        {"type": "binary", "name": "contact", "property": "contact", "access": 1, "features": []},
-        {"type": "numeric", "name": "battery", "property": "battery", "access": 1, "unit": "%", "features": []}
+        {
+          "type": "enum",
+          "name": "orientation",
+          "property": "orientation",
+          "access": 1,
+          "values": ["face_up", "face_down", "vertical", "tilt"],
+          "features": []
+        },
+        {
+          "type": "enum",
+          "name": "device_posture",
+          "property": "device_posture",
+          "access": 1,
+          "values": ["normal", "abnormal"],
+          "features": []
+        },
+        { "type": "binary", "name": "contact", "property": "contact", "access": 1, "features": [] },
+        {
+          "type": "numeric",
+          "name": "battery",
+          "property": "battery",
+          "access": 1,
+          "unit": "%",
+          "features": []
+        }
       ]
     },
     "endpoints": {
       "1": {
         "bindings": [
-          {"cluster": "genOnOff", "target": {"type": "endpoint", "ieee_address": "0x00124b0000000000", "endpoint": 1}},
-          {"cluster": "genGroups", "target": {"type": "group", "id": 7}}
+          {
+            "cluster": "genOnOff",
+            "target": { "type": "endpoint", "ieee_address": "0x00124b0000000000", "endpoint": 1 }
+          },
+          { "cluster": "genGroups", "target": { "type": "group", "id": 7 } }
         ],
-        "clusters": {"input": ["closuresDoorLock", "genAnalogInput", "genOnOff", "genIdentify", "genBasic", "manuSpecificLumi"], "output": ["genTime", "genOta"]},
+        "clusters": {
+          "input": [
+            "closuresDoorLock",
+            "genAnalogInput",
+            "genOnOff",
+            "genIdentify",
+            "genBasic",
+            "manuSpecificLumi"
+          ],
+          "output": ["genTime", "genOta"]
+        },
         "configured_reportings": [
-          {"cluster": "genOnOff", "attribute": "onOff", "minimum_report_interval": 0, "maximum_report_interval": 65000, "reportable_change": 1}
+          {
+            "cluster": "genOnOff",
+            "attribute": "onOff",
+            "minimum_report_interval": 0,
+            "maximum_report_interval": 65000,
+            "reportable_change": 1
+          }
         ]
       },
       "2": {
         "profile_id": 260,
         "device_id": 3,
         "bindings": [],
-        "clusters": {"input": ["genAnalogInput"], "output": []},
+        "clusters": { "input": ["genAnalogInput"], "output": [] },
         "configured_reportings": []
       }
     }

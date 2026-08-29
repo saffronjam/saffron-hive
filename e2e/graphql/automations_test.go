@@ -827,11 +827,12 @@ func TestAutomations_ActivateScene(t *testing.T) {
 	}`, map[string]any{
 		"input": map[string]any{
 			"name": "Automation Scene E2E",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
-			"devicePayloads": []map[string]any{
-				{"deviceId": deviceID, "payload": `{"on":false,"brightness":37}`},
+			"definition": map[string]any{
+				"targets": []map[string]any{{"targetType": "device", "targetId": deviceID}},
+				"lighting": map[string]any{
+					"overrides": []map[string]any{{"deviceId": deviceID, "kind": "state", "state": map[string]any{"on": false, "brightness": 37}}},
+				},
+				"supportingStates": []map[string]any{},
 			},
 		},
 	})
@@ -954,11 +955,12 @@ func TestAutomations_CycleScenes_AdvancesAndWraps(t *testing.T) {
 		}`, map[string]any{
 			"input": map[string]any{
 				"name": name,
-				"actions": []map[string]any{
-					{"targetType": "device", "targetId": devID},
-				},
-				"devicePayloads": []map[string]any{
-					{"deviceId": devID, "payload": `{"on":true,"brightness":100}`},
+				"definition": map[string]any{
+					"targets": []map[string]any{{"targetType": "device", "targetId": devID}},
+					"lighting": map[string]any{
+						"overrides": []map[string]any{{"deviceId": devID, "kind": "state", "state": map[string]any{"on": true, "brightness": 100}}},
+					},
+					"supportingStates": []map[string]any{},
 				},
 			},
 		})
@@ -1059,9 +1061,11 @@ func TestAutomations_CycleScenes_RejectsSingleScene(t *testing.T) {
 	}`, map[string]any{
 		"input": map[string]any{
 			"name": "Cycle Scenes Single",
-			"actions": []map[string]any{
-				{"targetType": "device", "targetId": deviceID},
-			},
+			"definition": staticSceneDefinition(
+				[]map[string]any{{"targetType": "device", "targetId": deviceID}},
+				map[string]any{"on": true},
+				nil,
+			),
 		},
 	})
 	if err != nil {

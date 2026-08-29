@@ -133,12 +133,20 @@ func TestErrors_AddGroupMember_InvalidType(t *testing.T) {
 }
 
 func TestErrors_CreateScene_EmptyName(t *testing.T) {
+	deviceID, err := queryDeviceIDByName("Kitchen Light")
+	if err != nil {
+		t.Fatalf("find device: %v", err)
+	}
 	gqlResp, err := graphqlPostRaw(`mutation($input: CreateSceneInput!) {
 		createScene(input: $input) { id name }
 	}`, map[string]any{
 		"input": map[string]any{
-			"name":    "",
-			"actions": []map[string]any{},
+			"name": "",
+			"definition": staticSceneDefinition(
+				[]map[string]any{{"targetType": "device", "targetId": deviceID}},
+				map[string]any{"on": true},
+				nil,
+			),
 		},
 	})
 	if err != nil {
