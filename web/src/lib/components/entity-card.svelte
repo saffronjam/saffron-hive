@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
-	import { onDestroy, type Snippet, type Component } from "svelte";
+	import { goto } from "$app/navigation";
+	import { onDestroy, tick, type Snippet, type Component } from "svelte";
 	import { brightnessDrag, type BrightnessDragOpts } from "$lib/actions/brightness-drag";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
@@ -177,6 +178,7 @@
 	let cardElement = $state<HTMLDivElement>();
 	let retainedTintColors = $state<string[] | null>(null);
 	let tintReleaseTimer: ReturnType<typeof setTimeout> | null = null;
+	let actionMenuOpen = $state(false);
 	const currentTintColors = $derived(
 		tintInactive === true && inactiveTintColors && inactiveTintColors.length > 0
 			? inactiveTintColors
@@ -236,6 +238,13 @@
 	function handleClick(e: MouseEvent) {
 		startPressFlash(e.target);
 		onclick?.(entity, e);
+	}
+
+	async function openEditor() {
+		if (!editHref) return;
+		actionMenuOpen = false;
+		await tick();
+		await goto(editHref);
 	}
 
 	function handlePressAnimationEnd(e: AnimationEvent) {
@@ -367,21 +376,19 @@
 		<div class="flex items-center gap-1">
 			{@render leadingActions?.()}
 			{#if !readOnly}
-				<DropdownMenu>
+				<DropdownMenu bind:open={actionMenuOpen}>
 					<DropdownMenuTrigger>
-						<Button variant="ghost" size="icon-sm" aria-label="{displayName} actions">
-							<EllipsisVertical class="size-4" />
-						</Button>
+						{#snippet child({ props })}
+							<Button {...props} variant="ghost" size="icon-sm" aria-label="{displayName} actions">
+								<EllipsisVertical class="size-4" />
+							</Button>
+						{/snippet}
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" class="w-44">
 						{#if editHref}
-							<DropdownMenuItem>
-								{#snippet child({ props })}
-									<a href={editHref} {...props}>
-										<Pencil class="size-4" />
-										{editLabel}
-									</a>
-								{/snippet}
+							<DropdownMenuItem onclick={openEditor}>
+								<Pencil class="size-4" />
+								{editLabel}
 							</DropdownMenuItem>
 						{/if}
 						{#if onAddTo}

@@ -26,8 +26,13 @@
 	let pendingUrl = $state<string | null>(null);
 	let bypassing = false;
 
-	beforeNavigate(({ to, cancel }) => {
+	beforeNavigate(({ from, to, cancel }) => {
 		if (!blockNavigation || bypassing || !dirty || !to) return;
+		if (
+			from &&
+			from.url.pathname === to.url.pathname &&
+			from.url.search === to.url.search
+		) return;
 		cancel();
 		pendingUrl = to.url.pathname + to.url.search;
 		showDialog = true;

@@ -195,7 +195,7 @@
 	<SidebarProvider>
 		<AppSidebar />
 		<SidebarInset class="min-w-0">
-			<header class="flex h-12 shrink-0 items-center gap-2 shadow-[0_2px_6px_-2px_rgb(0_0_0/var(--header-shadow-opacity))] px-4">
+			<header class="flex h-12 shrink-0 items-center gap-2 px-4">
 				<SidebarTrigger class="-ml-1 shrink-0" />
 				<div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
 					{#each pageHeader.breadcrumbs as crumb, i}

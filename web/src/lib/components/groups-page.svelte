@@ -632,7 +632,7 @@
 	{/if}
 
 	{#if editingGroup}
-		<div in:fly={{ y: -4, duration: 150 }}>
+		<div class="mx-auto max-w-6xl" in:fly={{ y: -4, duration: 150 }}>
 
 			<div class="space-y-6">
 				<div class="rounded-lg shadow-card bg-card p-4">

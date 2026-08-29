@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Slider as SliderPrimitive } from "bits-ui";
 	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	import { onDestroy } from "svelte";
+	import { onDestroy, onMount } from "svelte";
 
 	let {
 		ref = $bindable(null),
@@ -15,6 +15,7 @@
 	// thumb tracks the cursor instantly. A click on the track (no movement)
 	// still uses the smooth transition.
 	let dragging = $state(false);
+	let transitionsReady = $state(false);
 	let downX: number | null = null;
 	let downY: number | null = null;
 	const DRAG_THRESHOLD = 4;
@@ -46,6 +47,19 @@
 	}
 
 	onDestroy(endTracking);
+
+	onMount(() => {
+		let secondFrame: number | null = null;
+		const firstFrame = requestAnimationFrame(() => {
+			secondFrame = requestAnimationFrame(() => {
+				transitionsReady = true;
+			});
+		});
+		return () => {
+			cancelAnimationFrame(firstFrame);
+			if (secondFrame !== null) cancelAnimationFrame(secondFrame);
+		};
+	});
 </script>
 
 <!--
@@ -76,7 +90,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 				data-slot="slider-range"
 				class={cn(
 					"bg-primary absolute select-none data-horizontal:h-full data-vertical:w-full duration-150 ease-out",
-					dragging
+					dragging || !transitionsReady
 						? "transition-none"
 						: "transition-[width,height,transform,left,right,top,bottom]"
 				)}
@@ -88,7 +102,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 				index={thumb.index}
 				class={cn(
 					"border-primary ring-ring/50 size-4 rounded-full border bg-white shadow-sm duration-150 ease-out hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden block shrink-0 select-none disabled:pointer-events-none disabled:opacity-50",
-					dragging
+					dragging || !transitionsReady
 						? "transition-none"
 						: "transition-[color,box-shadow,transform,left,right,top,bottom]"
 				)}

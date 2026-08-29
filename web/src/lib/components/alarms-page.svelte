@@ -214,17 +214,17 @@
 	});
 
 	function severityButtonClass(sev: SeverityKey): string {
-		const base = "border-0 h-7";
-		if (!activeSeverities.has(sev)) return `${base} rounded-none`;
+		const base = "h-7 rounded-none border-0 first:rounded-s-lg last:rounded-e-lg";
+		if (!activeSeverities.has(sev)) return base;
 		// Active tints match the badge palette.
 		switch (sev) {
 			case "HIGH":
-				return `${base} rounded-none bg-destructive/15 text-destructive hover:bg-destructive/20`;
+				return `${base} bg-destructive/15 text-destructive hover:bg-destructive/20`;
 			case "MEDIUM":
-				return `${base} rounded-none bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20`;
+				return `${base} bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20`;
 			case "LOW":
 			default:
-				return `${base} rounded-none bg-teal-500/15 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20`;
+				return `${base} bg-teal-500/15 text-teal-700 dark:text-teal-300 hover:bg-teal-500/20`;
 		}
 	}
 
@@ -263,7 +263,7 @@
 				{/snippet}
 			</TableSelectionToolbar>
 		</div>
-		<div class="flex shrink-0 items-center rounded-md overflow-hidden">
+		<div class="flex shrink-0 items-center overflow-hidden rounded-lg">
 			{#each SEVERITY_OPTIONS as opt (opt.value)}
 				<Button
 					variant={activeSeverities.has(opt.value) ? "secondary" : "ghost"}

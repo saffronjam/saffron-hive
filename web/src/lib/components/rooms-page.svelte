@@ -672,7 +672,7 @@
 	{/if}
 
 	{#if editingRoom}
-		<div class="space-y-6" in:fly={{ y: -4, duration: 150 }}>
+		<div class="mx-auto max-w-6xl space-y-6" in:fly={{ y: -4, duration: 150 }}>
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="room-name">
 					Room Name

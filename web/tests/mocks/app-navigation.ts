@@ -1,6 +1,7 @@
 import { page, setMockPageUrl } from "./app-state.svelte";
 
 export const replaceStateCalls: URL[] = [];
+export const pushStateCalls: Array<{ url: URL; state: App.PageState }> = [];
 export const gotoCalls: Array<{
   url: URL;
   options: {
@@ -10,9 +11,22 @@ export const gotoCalls: Array<{
   };
 }> = [];
 const afterNavigateCallbacks = new Set<() => void>();
+const beforeNavigateCallbacks = new Set<
+  (navigation: { from: { url: URL } | null; to: { url: URL } | null; cancel: () => void }) => void
+>();
 
 export function afterNavigate(callback: () => void): void {
   afterNavigateCallbacks.add(callback);
+}
+
+export function beforeNavigate(
+  callback: (navigation: {
+    from: { url: URL } | null;
+    to: { url: URL } | null;
+    cancel: () => void;
+  }) => void,
+): void {
+  beforeNavigateCallbacks.add(callback);
 }
 
 export function runAfterNavigate(): void {
@@ -40,8 +54,16 @@ export function replaceState(url: string | URL, state: App.PageState): void {
   page.state = state;
 }
 
+export function pushState(url: string | URL, state: App.PageState): void {
+  const next = new URL(url, page.url);
+  pushStateCalls.push({ url: next, state });
+  page.state = state;
+}
+
 export function resetMockNavigation(): void {
   replaceStateCalls.length = 0;
+  pushStateCalls.length = 0;
   gotoCalls.length = 0;
   afterNavigateCallbacks.clear();
+  beforeNavigateCallbacks.clear();
 }
