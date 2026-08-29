@@ -82,6 +82,12 @@ type EffectRunner interface {
 	Stop(target effect.Target) bool
 }
 
+// SceneRunner owns activation and deactivation of Scene runtime state.
+type SceneRunner interface {
+	Apply(ctx context.Context, sceneID string) (store.Scene, error)
+	Deactivate(ctx context.Context, sceneID string) error
+}
+
 // GraphStore is the store surface the GraphQL layer touches. Every method is
 // invoked by a resolver, mutation, or helper in this package; *store.DB
 // satisfies it implicitly.
@@ -110,10 +116,6 @@ type GraphStore interface {
 	UpdateScene(ctx context.Context, id string, params store.UpdateSceneParams) (store.Scene, error)
 	DeleteScene(ctx context.Context, id string) error
 	BatchDeleteScenes(ctx context.Context, ids []string) (int64, error)
-	CreateSceneAction(ctx context.Context, params store.CreateSceneActionParams) (store.SceneAction, error)
-	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
-	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]store.SceneDevicePayload, error)
-	SaveSceneContent(ctx context.Context, params store.SaveSceneContentParams) error
 
 	// Automations
 	CreateAutomation(ctx context.Context, params store.CreateAutomationParams) (store.Automation, error)
@@ -241,6 +243,7 @@ type Resolver struct {
 	Tuya                TuyaController
 	Integrations        IntegrationManager
 	EffectRunner        EffectRunner
+	SceneRunner         SceneRunner
 	NativeEffectSupport device.NativeEffectSupportReader
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter

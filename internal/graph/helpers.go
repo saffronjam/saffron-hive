@@ -17,8 +17,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
+	"github.com/saffronjam/saffron-hive/internal/lightfield"
 	"github.com/saffronjam/saffron-hive/internal/logging"
-	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
 )
@@ -267,6 +267,16 @@ func (r *Resolver) publishGroupMembershipChanged() {
 	}
 	r.EventBus.Publish(eventbus.Event{
 		Type:      eventbus.EventGroupMembershipChanged,
+		Timestamp: time.Now(),
+	})
+}
+
+func (r *Resolver) publishFloorplanUpdated() {
+	if r.EventBus == nil {
+		return
+	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventFloorplanUpdated,
 		Timestamp: time.Now(),
 	})
 }
@@ -678,90 +688,151 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 	return out
 }
 
-func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s GraphStore, sc store.Scene, actions []store.SceneAction, payloads []store.SceneDevicePayload) *model.Scene {
-	ms := &model.Scene{
-		ID:          sc.ID,
-		Name:        sc.Name,
-		Icon:        sc.Icon,
-		CreatedBy:   mapUserRef(sc.CreatedBy),
-		ActivatedAt: sc.ActivatedAt,
+func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s GraphStore, scene store.Scene) *model.Scene {
+	mapped := &model.Scene{
+		ID:               scene.ID,
+		Name:             scene.Name,
+		Icon:             scene.Icon,
+		CreatedBy:        mapUserRef(scene.CreatedBy),
+		ActivatedAt:      scene.ActivatedAt,
+		Rooms:            computeScenePresentRooms(ctx, sr, tr, s, scene.Definition),
+		Targets:          make([]*model.SceneTargetEntry, len(scene.Definition.Targets)),
+		SupportingStates: make([]*model.SceneSupportingState, len(scene.Definition.Supporting)),
 	}
-	ms.Rooms = computeScenePresentRooms(ctx, sr, tr, s, actions)
-	ms.Actions = make([]*model.SceneAction, len(actions))
-	for i, a := range actions {
-		var target model.SceneTarget
-		if a.TargetType != string(device.TargetExpression) {
-			target = resolveSceneTarget(ctx, sr, s, a.TargetType, a.TargetID)
+	for i, target := range scene.Definition.Targets {
+		var resolved model.SceneTarget
+		if target.Type != device.TargetExpression {
+			resolved = resolveSceneTarget(ctx, sr, s, string(target.Type), target.ID)
 		}
-		ms.Actions[i] = &model.SceneAction{
-			TargetType: a.TargetType,
-			TargetID:   a.TargetID,
-			Target:     target,
-			Expression: clausesToModel(a.Expression),
-			Name:       a.Name,
-		}
-	}
-	ms.DevicePayloads = make([]*model.SceneDevicePayload, len(payloads))
-	for i, p := range payloads {
-		ms.DevicePayloads[i] = &model.SceneDevicePayload{
-			DeviceID: string(p.DeviceID),
-			Payload:  p.Payload,
+		mapped.Targets[i] = &model.SceneTargetEntry{
+			TargetType: model.SceneTargetType(target.Type),
+			TargetID:   target.ID,
+			Target:     resolved,
+			Expression: clausesToModel(target.Expression),
+			Name:       target.Name,
 		}
 	}
-	effective := resolveEffectiveScenePayloads(ctx, sr, tr, actions, payloads)
-	ms.EffectivePayloads = make([]*model.SceneDevicePayload, len(effective))
-	for i, p := range effective {
-		ms.EffectivePayloads[i] = &model.SceneDevicePayload{
-			DeviceID: string(p.DeviceID),
-			Payload:  p.Payload,
+	mapped.Lighting = &model.SceneLighting{
+		Overrides: make([]*model.SceneLightOverride, len(scene.Definition.Lighting.Overrides)),
+	}
+	if scene.Definition.Lighting.Dynamic != nil {
+		mapped.Lighting.DynamicSource = mapDynamicLighting(*scene.Definition.Lighting.Dynamic)
+	}
+	for i, override := range scene.Definition.Lighting.Overrides {
+		mappedOverride := &model.SceneLightOverride{DeviceID: string(override.DeviceID), Kind: model.SceneLightOverrideKind(override.Kind)}
+		if override.State != nil {
+			mappedOverride.State = mapDesiredSceneState(*override.State)
+		}
+		if override.EffectID != "" {
+			mappedOverride.EffectID = &override.EffectID
+		}
+		if override.NativeEffectName != "" {
+			mappedOverride.NativeEffectName = &override.NativeEffectName
+		}
+		mapped.Lighting.Overrides[i] = mappedOverride
+	}
+	for i, supporting := range scene.Definition.Supporting {
+		mapped.SupportingStates[i] = &model.SceneSupportingState{
+			DeviceID: string(supporting.DeviceID),
+			State:    mapDesiredSceneState(supporting.State),
 		}
 	}
-	return ms
+	mapped.Preview = previewScene(scene.Definition)
+	return mapped
 }
 
-// resolveEffectiveScenePayloads returns one entry per unique device reached by
-// the scene's action targets (rooms, groups, direct devices, or selector
-// expressions). Devices with an explicit per-device override carry that payload;
-// other devices get the capability-filtered warm-white default serialised as the
-// same JSON shape.
-func resolveEffectiveScenePayloads(
-	ctx context.Context,
-	sr device.StateReader,
-	tr device.TargetResolver,
-	actions []store.SceneAction,
-	payloads []store.SceneDevicePayload,
-) []store.SceneDevicePayload {
-	payloadByDevice := make(map[device.DeviceID]string, len(payloads))
-	for _, p := range payloads {
-		payloadByDevice[p.DeviceID] = p.Payload
+func mapDesiredSceneState(state store.DesiredState) *model.DesiredSceneState {
+	mapped := &model.DesiredSceneState{
+		On:                state.On,
+		Brightness:        state.Brightness,
+		ColorTemp:         state.ColorTemp,
+		Transition:        state.Transition,
+		TargetTemperature: state.TargetTemperature,
+		HvacMode:          state.HvacMode,
+		FanMode:           state.FanMode,
+		Swing:             state.Swing,
 	}
-	seen := make(map[device.DeviceID]struct{})
-	var out []store.SceneDevicePayload
-	for _, a := range actions {
-		var ids []device.DeviceID
-		if a.TargetType == string(device.TargetExpression) {
-			ids = device.EvaluateExpression(ctx, sr, tr, a.Expression)
-		} else {
-			ids = tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID)
+	if state.Color != nil {
+		mapped.Color = &model.Color{R: state.Color.R, G: state.Color.G, B: state.Color.B, X: state.Color.X, Y: state.Color.Y}
+	}
+	return mapped
+}
+
+func mapDynamicLighting(dynamic store.DynamicLighting) *model.DynamicSceneSource {
+	mapped := &model.DynamicSceneSource{
+		Domain:            model.VibeFieldDomain(dynamic.Field.Domain),
+		SourceKind:        model.VibeSourceKind(dynamic.Provenance.Kind),
+		Seed:              strconv.FormatInt(dynamic.Seed, 10),
+		Brightness:        dynamic.Brightness,
+		Movement:          dynamic.Movement,
+		CycleSeconds:      dynamic.Cycle.Seconds(),
+		GridWidth:         dynamic.Field.Width,
+		GridHeight:        dynamic.Field.Height,
+		GuidedSelectedIds: append([]string(nil), dynamic.Provenance.GuidedSelectedIDs...),
+		Samples:           make([]*model.VibeFieldSample, len(dynamic.Field.Samples)),
+	}
+	if dynamic.Provenance.PresetID != "" {
+		mapped.PresetID = &dynamic.Provenance.PresetID
+	}
+	if dynamic.Provenance.PresetTitle != "" {
+		mapped.PresetTitle = &dynamic.Provenance.PresetTitle
+	}
+	for i, sample := range dynamic.Field.Samples {
+		mapped.Samples[i] = &model.VibeFieldSample{}
+		if sample.Color != nil {
+			mapped.Samples[i].Lightness = &sample.Color.Lightness
+			mapped.Samples[i].Chroma = &sample.Color.Chroma
+			mapped.Samples[i].Hue = &sample.Color.Hue
 		}
-		for _, did := range ids {
-			if _, ok := seen[did]; ok {
-				continue
-			}
-			seen[did] = struct{}{}
-			if raw, ok := payloadByDevice[did]; ok {
-				out = append(out, store.SceneDevicePayload{DeviceID: did, Payload: raw})
-				continue
-			}
-			cmd := scene.DefaultScenePayload(sr, did)
-			raw, err := store.MarshalCommand(cmd)
-			if err != nil {
-				continue
-			}
-			out = append(out, store.SceneDevicePayload{DeviceID: did, Payload: raw})
+		if sample.White != nil {
+			mapped.Samples[i].Brightness = &sample.White.Brightness
+			mapped.Samples[i].Mireds = &sample.White.Mireds
 		}
 	}
-	return out
+	return mapped
+}
+
+func previewScene(definition store.SceneDefinition) *model.ScenePreview {
+	if dynamic := definition.Lighting.Dynamic; dynamic != nil {
+		preview, err := lightfield.Preview(dynamic.Field, lightfield.Motion{
+			Seed: dynamic.Seed, Cycle: dynamic.Cycle,
+		}, time.Unix(0, 0).UTC(), 24, 16, 5)
+		if err == nil {
+			return mapPreview(preview)
+		}
+	}
+	rgb := lightfield.RGB{R: 1, G: 0.82, B: 0.62}
+	state := store.DesiredState{}
+	for _, override := range definition.Lighting.Overrides {
+		if override.Kind == store.SceneLightOverrideState && override.State != nil {
+			state = *override.State
+			break
+		}
+	}
+	if state.Color != nil {
+		rgb = lightfield.RGB{R: float64(state.Color.R) / 255, G: float64(state.Color.G) / 255, B: float64(state.Color.B) / 255}
+	} else if state.ColorTemp != nil && *state.ColorTemp > 0 {
+		rgb = lightfield.MiredsToSRGB(float64(*state.ColorTemp))
+	}
+	if state.Brightness != nil {
+		scale := float64(*state.Brightness) / 254
+		rgb.R *= scale
+		rgb.G *= scale
+		rgb.B *= scale
+	}
+	pixel := &model.PreviewPixel{R: int(math.Round(rgb.R * 255)), G: int(math.Round(rgb.G * 255)), B: int(math.Round(rgb.B * 255))}
+	return &model.ScenePreview{Width: 1, Height: 1, Pixels: []*model.PreviewPixel{pixel}, Swatches: []*model.PreviewSwatch{{X: 0.5, Y: 0.5, Color: pixel}}}
+}
+
+func mapPreview(preview lightfield.PreviewData) *model.ScenePreview {
+	mapped := &model.ScenePreview{Width: preview.Width, Height: preview.Height, Pixels: make([]*model.PreviewPixel, len(preview.Pixels)), Swatches: make([]*model.PreviewSwatch, len(preview.Swatches))}
+	for i, pixel := range preview.Pixels {
+		mapped.Pixels[i] = &model.PreviewPixel{R: int(pixel.R), G: int(pixel.G), B: int(pixel.B)}
+	}
+	for i, swatch := range preview.Swatches {
+		mapped.Swatches[i] = &model.PreviewSwatch{X: swatch.Point.X, Y: swatch.Point.Y, Color: &model.PreviewPixel{R: int(swatch.Pixel.R), G: int(swatch.Pixel.G), B: int(swatch.Pixel.B)}}
+	}
+	return mapped
 }
 
 // mapUserRef converts a store.UserRef into the GraphQL User type. Returns nil
@@ -1330,15 +1401,15 @@ func mapGroupMember(ctx context.Context, sr device.StateReader, s GraphStore, m 
 func clausesToModel(expr []device.Clause) []*model.TargetClause {
 	out := make([]*model.TargetClause, len(expr))
 	for i, c := range expr {
-		var connector *string
+		var connector *model.TargetClauseConnector
 		if c.Connector != "" {
-			s := string(c.Connector)
+			s := model.TargetClauseConnector(c.Connector)
 			connector = &s
 		}
 		out[i] = &model.TargetClause{
 			Connector: connector,
-			Subject:   string(c.Subject),
-			Op:        string(c.Op),
+			Subject:   model.TargetClauseSubject(c.Subject),
+			Op:        model.TargetClauseOperator(c.Op),
 			Values:    c.Values,
 		}
 	}
@@ -1362,47 +1433,84 @@ func clausesFromInput(inputs []*model.TargetClauseInput) []device.Clause {
 	return out
 }
 
-// validateSceneTargetExpressions rejects any expression-typed target whose
-// expression is malformed.
-func validateSceneTargetExpressions(targets []store.SceneTargetRef) error {
-	for _, t := range targets {
-		if t.TargetType != string(device.TargetExpression) {
-			continue
+func sceneTargetsFromInput(inputs []*model.SceneTargetInput) []store.SceneTarget {
+	targets := make([]store.SceneTarget, len(inputs))
+	for i, input := range inputs {
+		targets[i] = store.SceneTarget{
+			Type:       device.TargetType(input.TargetType),
+			Expression: clausesFromInput(input.Expression.Value()),
 		}
-		if err := device.ValidateExpression(t.Expression); err != nil {
-			return fmt.Errorf("scene target expression: %w", err)
+		if id := input.TargetID.Value(); id != nil {
+			targets[i].ID = *id
+		}
+		if name := input.Name.Value(); name != nil {
+			targets[i].Name = *name
 		}
 	}
-	return nil
+	return targets
 }
 
-func toSceneTargetRefs(actions []*model.SceneActionInput) []store.SceneTargetRef {
-	out := make([]store.SceneTargetRef, len(actions))
-	for i, a := range actions {
-		name := ""
-		if v := a.Name.Value(); v != nil {
-			name = *v
-		}
-		out[i] = store.SceneTargetRef{
-			TargetType: a.TargetType,
-			TargetID:   a.TargetID,
-			Expression: clausesFromInput(a.Expression.Value()),
-			Name:       name,
-		}
+func desiredStateFromInput(input *model.DesiredSceneStateInput) store.DesiredState {
+	if input == nil {
+		return store.DesiredState{}
 	}
-	return out
+	state := store.DesiredState{
+		On:                input.On.Value(),
+		Brightness:        input.Brightness.Value(),
+		ColorTemp:         input.ColorTemp.Value(),
+		Transition:        input.Transition.Value(),
+		TargetTemperature: input.TargetTemperature.Value(),
+		HvacMode:          input.HvacMode.Value(),
+		FanMode:           input.FanMode.Value(),
+		Swing:             input.Swing.Value(),
+	}
+	if color := input.Color.Value(); color != nil {
+		state.Color = &device.Color{R: color.R, G: color.G, B: color.B, X: color.X, Y: color.Y}
+	}
+	return state
 }
 
-func toSceneDevicePayloads(sceneID string, inputs []*model.SceneDevicePayloadInput) []store.SceneDevicePayload {
-	out := make([]store.SceneDevicePayload, len(inputs))
-	for i, p := range inputs {
-		out[i] = store.SceneDevicePayload{
-			SceneID:  sceneID,
-			DeviceID: device.DeviceID(p.DeviceID),
-			Payload:  p.Payload,
+func sceneLightOverridesFromInput(inputs []*model.SceneLightOverrideInput) ([]store.SceneLightOverride, error) {
+	overrides := make([]store.SceneLightOverride, len(inputs))
+	for i, input := range inputs {
+		override := store.SceneLightOverride{DeviceID: device.DeviceID(input.DeviceID), Kind: store.SceneLightOverrideKind(input.Kind)}
+		switch input.Kind {
+		case model.SceneLightOverrideKindState:
+			if !input.State.IsSet() || input.State.Value() == nil || input.EffectID.IsSet() || input.NativeEffectName.IsSet() {
+				return nil, fmt.Errorf("light override %d requires only state", i)
+			}
+			state := desiredStateFromInput(input.State.Value())
+			override.State = &state
+		case model.SceneLightOverrideKindEffect:
+			if input.State.IsSet() || !input.EffectID.IsSet() || input.EffectID.Value() == nil || input.NativeEffectName.IsSet() {
+				return nil, fmt.Errorf("light override %d requires only effectId", i)
+			}
+			override.EffectID = *input.EffectID.Value()
+		case model.SceneLightOverrideKindNativeEffect:
+			if input.State.IsSet() || input.EffectID.IsSet() || !input.NativeEffectName.IsSet() || input.NativeEffectName.Value() == nil {
+				return nil, fmt.Errorf("light override %d requires only nativeEffectName", i)
+			}
+			override.NativeEffectName = *input.NativeEffectName.Value()
+		default:
+			return nil, fmt.Errorf("light override %d has an invalid kind", i)
+		}
+		overrides[i] = override
+	}
+	return overrides, nil
+}
+
+func sceneSupportingStatesFromInput(inputs []*model.SceneSupportingStateInput) ([]store.SceneSupportingState, error) {
+	supporting := make([]store.SceneSupportingState, len(inputs))
+	for i, input := range inputs {
+		if input.State == nil {
+			return nil, fmt.Errorf("supporting state %d requires state", i)
+		}
+		supporting[i] = store.SceneSupportingState{
+			DeviceID: device.DeviceID(input.DeviceID),
+			State:    desiredStateFromInput(input.State),
 		}
 	}
-	return out
+	return supporting, nil
 }
 
 func loadAndMapScene(ctx context.Context, r *mutationResolver, id string) (*model.Scene, error) {
@@ -1410,15 +1518,7 @@ func loadAndMapScene(ctx context.Context, r *mutationResolver, id string) (*mode
 	if err != nil {
 		return nil, err
 	}
-	actions, err := r.Store.ListSceneActions(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	payloads, err := r.Store.ListSceneDevicePayloads(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s), nil
 }
 
 // entityRef identifies a container in the membership graph for cycle detection.
@@ -1504,18 +1604,21 @@ type sceneRoomLister interface {
 	ListRooms(ctx context.Context) ([]store.Room, error)
 }
 
-func computeScenePresentRooms(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s sceneRoomLister, actions []store.SceneAction) []*model.Room {
+func computeScenePresentRooms(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s sceneRoomLister, definition store.SceneDefinition) []*model.Room {
 	sceneDevs := map[device.DeviceID]struct{}{}
-	for _, a := range actions {
+	for _, target := range definition.Targets {
 		var ids []device.DeviceID
-		if a.TargetType == string(device.TargetExpression) {
-			ids = device.EvaluateExpression(ctx, sr, tr, a.Expression)
+		if target.Type == device.TargetExpression {
+			ids = device.EvaluateExpression(ctx, sr, tr, target.Expression)
 		} else {
-			ids = tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID)
+			ids = tr.ResolveTargetDeviceIDs(ctx, target.Type, target.ID)
 		}
 		for _, id := range ids {
 			sceneDevs[id] = struct{}{}
 		}
+	}
+	for _, supporting := range definition.Supporting {
+		sceneDevs[supporting.DeviceID] = struct{}{}
 	}
 	if len(sceneDevs) == 0 {
 		return []*model.Room{}

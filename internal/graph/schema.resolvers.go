@@ -28,6 +28,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/history"
+	"github.com/saffronjam/saffron-hive/internal/lightfield"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -292,64 +293,56 @@ func (r *mutationResolver) SimulateDeviceAction(ctx context.Context, deviceID st
 
 // ApplyScene is the resolver for the applyScene field.
 func (r *mutationResolver) ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error) {
-	s, err := r.Store.GetScene(ctx, sceneID)
-	if err != nil {
-		return nil, fmt.Errorf("scene %q not found: %w", sceneID, err)
+	if r.SceneRunner == nil {
+		return nil, errors.New("Scene runner is unavailable")
 	}
-	actions, err := r.Store.ListSceneActions(ctx, s.ID)
+	storedScene, err := r.SceneRunner.Apply(ctx, sceneID)
+	if err != nil {
+		return nil, fmt.Errorf("apply Scene %q: %w", sceneID, err)
+	}
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, storedScene), nil
+}
+
+// DeactivateScene is the resolver for the deactivateScene field.
+func (r *mutationResolver) DeactivateScene(ctx context.Context, sceneID string) (*model.Scene, error) {
+	if r.SceneRunner == nil {
+		return nil, errors.New("Scene runner is unavailable")
+	}
+	if err := r.SceneRunner.Deactivate(ctx, sceneID); err != nil {
+		return nil, err
+	}
+	storedScene, err := r.Store.GetScene(ctx, sceneID)
 	if err != nil {
 		return nil, err
 	}
-	payloads, err := r.Store.ListSceneDevicePayloads(ctx, s.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	plan := scene.BuildApplyCommands(ctx, r.TargetResolver, r.StateReader, sceneID, actions, payloads)
-	if err := scene.DispatchApplyCommands(ctx, r.TargetCommander, r.EventBus, actions, payloads, plan); err != nil {
-		return nil, err
-	}
-
-	r.EventBus.Publish(eventbus.Event{
-		Type:      eventbus.EventSceneApplied,
-		Timestamp: time.Now(),
-		Payload:   sceneID,
-	})
-
-	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, storedScene), nil
 }
 
 // CreateScene is the resolver for the createScene field.
 func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error) {
+	definition, err := sceneDefinitionFromInput(input.Definition, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateSceneReferences(ctx, r.Resolver, definition); err != nil {
+		return nil, err
+	}
 	sceneID := uuid.New().String()
-	_, err := r.Store.CreateScene(ctx, store.CreateSceneParams{
-		ID:        sceneID,
-		Name:      input.Name,
-		CreatedBy: currentUserID(ctx),
+	storedScene, err := r.Store.CreateScene(ctx, store.CreateSceneParams{
+		ID:         sceneID,
+		Name:       input.Name,
+		CreatedBy:  currentUserID(ctx),
+		Definition: definition,
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	targets := toSceneTargetRefs(input.Actions)
-	if err := validateSceneTargetExpressions(targets); err != nil {
-		return nil, err
-	}
-	payloads := toSceneDevicePayloads(sceneID, input.DevicePayloads.Value())
-	if err := r.Store.SaveSceneContent(ctx, store.SaveSceneContentParams{
-		SceneID:  sceneID,
-		Targets:  targets,
-		Payloads: payloads,
-	}); err != nil {
-		return nil, err
-	}
-
-	return loadAndMapScene(ctx, r, sceneID)
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, storedScene), nil
 }
 
 // UpdateScene is the resolver for the updateScene field.
 func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input model.UpdateSceneInput) (*model.Scene, error) {
-	_, err := r.Store.GetScene(ctx, id)
+	existing, err := r.Store.GetScene(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("scene %q not found: %w", id, err)
 	}
@@ -365,55 +358,40 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 		params.Icon = icon
 		updateScene = true
 	}
-	if updateScene {
-		if _, err := r.Store.UpdateScene(ctx, id, params); err != nil {
+	if definitionInput, ok := input.Definition.ValueOK(); ok {
+		definition, err := sceneDefinitionFromInput(definitionInput, &existing.Definition)
+		if err != nil {
 			return nil, err
 		}
+		if err := validateSceneReferences(ctx, r.Resolver, definition); err != nil {
+			return nil, err
+		}
+		params.Definition = &definition
+		updateScene = true
 	}
-
-	_, actionsGiven := input.Actions.ValueOK()
-	_, payloadsGiven := input.DevicePayloads.ValueOK()
-	if actionsGiven || payloadsGiven {
-		var targets []store.SceneTargetRef
-		var payloads []store.SceneDevicePayload
-		if actionsGiven {
-			targets = toSceneTargetRefs(input.Actions.Value())
-		} else {
-			existing, err := r.Store.ListSceneActions(ctx, id)
-			if err != nil {
-				return nil, err
-			}
-			targets = make([]store.SceneTargetRef, len(existing))
-			for i, a := range existing {
-				targets[i] = store.SceneTargetRef{TargetType: a.TargetType, TargetID: a.TargetID, Expression: a.Expression, Name: a.Name}
-			}
-		}
-		if payloadsGiven {
-			payloads = toSceneDevicePayloads(id, input.DevicePayloads.Value())
-		} else {
-			existing, err := r.Store.ListSceneDevicePayloads(ctx, id)
-			if err != nil {
-				return nil, err
-			}
-			payloads = existing
-		}
-		if err := validateSceneTargetExpressions(targets); err != nil {
-			return nil, err
-		}
-		if err := r.Store.SaveSceneContent(ctx, store.SaveSceneContentParams{
-			SceneID:  id,
-			Targets:  targets,
-			Payloads: payloads,
-		}); err != nil {
-			return nil, err
-		}
+	if !updateScene {
+		return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, existing), nil
 	}
-
-	return loadAndMapScene(ctx, r, id)
+	updated, err := r.Store.UpdateScene(ctx, id, params)
+	if err != nil {
+		return nil, err
+	}
+	if params.Definition != nil && r.SceneRunner != nil {
+		if err := r.SceneRunner.Deactivate(ctx, id); err != nil {
+			return nil, err
+		}
+		updated.ActivatedAt = nil
+	}
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, updated), nil
 }
 
 // DeleteScene is the resolver for the deleteScene field.
 func (r *mutationResolver) DeleteScene(ctx context.Context, id string) (bool, error) {
+	if r.SceneRunner != nil {
+		if err := r.SceneRunner.Deactivate(ctx, id); err != nil {
+			return false, err
+		}
+	}
 	err := r.Store.DeleteScene(ctx, id)
 	if err != nil {
 		return false, err
@@ -956,6 +934,7 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 	if err := r.Store.ReplaceFloorplan(ctx, params); err != nil {
 		return nil, err
 	}
+	r.publishFloorplanUpdated()
 
 	fp, err := r.Store.GetFloorplanGraph(ctx)
 	if err != nil {
@@ -1487,6 +1466,13 @@ func (r *mutationResolver) DeleteAlarm(ctx context.Context, alarmID string) (boo
 
 // BatchDeleteScenes is the resolver for the batchDeleteScenes field.
 func (r *mutationResolver) BatchDeleteScenes(ctx context.Context, ids []string) (int, error) {
+	if r.SceneRunner != nil {
+		for _, id := range ids {
+			if err := r.SceneRunner.Deactivate(ctx, id); err != nil {
+				return 0, err
+			}
+		}
+	}
 	n, err := r.Store.BatchDeleteScenes(ctx, ids)
 	if err != nil {
 		return 0, err
@@ -1956,16 +1942,8 @@ func (r *queryResolver) Scenes(ctx context.Context) ([]*model.Scene, error) {
 		return nil, err
 	}
 	result := make([]*model.Scene, len(scenes))
-	for i, s := range scenes {
-		actions, err := r.Store.ListSceneActions(ctx, s.ID)
-		if err != nil {
-			return nil, err
-		}
-		payloads, err := r.Store.ListSceneDevicePayloads(ctx, s.ID)
-		if err != nil {
-			return nil, err
-		}
-		result[i] = mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads)
+	for i, storedScene := range scenes {
+		result[i] = mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, storedScene)
 	}
 	return result, nil
 }
@@ -1976,15 +1954,62 @@ func (r *queryResolver) Scene(ctx context.Context, id string) (*model.Scene, err
 	if err != nil {
 		return nil, err
 	}
-	actions, err := r.Store.ListSceneActions(ctx, s.ID)
+	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s), nil
+}
+
+// VibePresets is the resolver for the vibePresets field.
+func (r *queryResolver) VibePresets(ctx context.Context) ([]*model.VibePreset, error) {
+	return cachedVibePresets()
+}
+
+// GuidedVibeRound is the resolver for the guidedVibeRound field.
+func (r *queryResolver) GuidedVibeRound(ctx context.Context, input model.GuidedVibeRoundInput) (*model.GuidedVibeRound, error) {
+	seed, err := parseSceneSeed(input.Seed)
 	if err != nil {
 		return nil, err
 	}
-	payloads, err := r.Store.ListSceneDevicePayloads(ctx, s.ID)
+	recipe := lightfield.GuidedRecipe{Domain: lightfield.Domain(input.Domain), Seed: seed, SelectedIDs: append([]string(nil), input.SelectedIds...)}
+	options, err := lightfield.GuidedOptions(recipe)
+	if err != nil {
+		if len(input.SelectedIds) == 5 {
+			if _, compileErr := lightfield.CompileGuided(recipe); compileErr != nil {
+				return nil, compileErr
+			}
+			return &model.GuidedVibeRound{Round: 5, CanFinish: true, Complete: true, Options: []*model.GuidedVibeOption{}}, nil
+		}
+		return nil, err
+	}
+	mapped := &model.GuidedVibeRound{Round: len(input.SelectedIds) + 1, CanFinish: len(input.SelectedIds) >= 3, Complete: false, Options: make([]*model.GuidedVibeOption, len(options))}
+	for i, option := range options {
+		field, err := lightfield.GuidedOptionField(option, seed)
+		if err != nil {
+			return nil, err
+		}
+		preview, err := lightfield.Preview(field, lightfield.Motion{Seed: seed, Cycle: time.Minute}, time.Unix(0, 0).UTC(), guidedPreviewWidth, guidedPreviewHeight, guidedPreviewSwatches)
+		if err != nil {
+			return nil, err
+		}
+		mapped.Options[i] = &model.GuidedVibeOption{ID: option.ID, Title: option.Title, Preview: mapPreview(preview)}
+	}
+	return mapped, nil
+}
+
+// PreviewVibe is the resolver for the previewVibe field.
+func (r *queryResolver) PreviewVibe(ctx context.Context, input model.PreviewVibeInput) (*model.VibePreviewResult, error) {
+	_, vibe, err := compilePreview(&input)
 	if err != nil {
 		return nil, err
 	}
-	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s, actions, payloads), nil
+	preview, err := lightfield.Preview(vibe.Field, lightfield.Motion{Seed: vibe.Seed, Cycle: vibe.Cycle}, time.Unix(0, 0).UTC(), previewWidth, previewHeight, previewSwatches)
+	if err != nil {
+		return nil, err
+	}
+	minimum, maximum := fieldLightnessBounds(vibe.Field)
+	return &model.VibePreviewResult{
+		Preview: mapPreview(preview), Domain: model.VibeFieldDomain(vibe.Field.Domain),
+		Seed: strconv.FormatInt(vibe.Seed, 10), Brightness: vibe.Brightness, Movement: vibe.Movement,
+		CycleSeconds: vibe.Cycle.Seconds(), MinimumLightness: minimum, MaximumLightness: maximum,
+	}, nil
 }
 
 // Automations is the resolver for the automations field.
@@ -3160,7 +3185,7 @@ func (r *subscriptionResolver) SceneActiveChanged(ctx context.Context) (<-chan *
 				if !ok {
 					return
 				}
-				a, ok := evt.Payload.(scene.ActivationEvent)
+				a, ok := evt.Payload.(scene.RunEvent)
 				if !ok {
 					continue
 				}
