@@ -1,350 +1,368 @@
-// Package scene owns everything about "a scene is currently the state of its
-// devices": applying a scene (building the fan-out commands), snapshotting the
-// expected scene-relevant state at apply time, comparing incoming device-state
-// events against that snapshot, and flipping scenes.activated_at in response.
-//
-// The shared apply helpers (BuildApplyCommands, DefaultScenePayload) live here
-// so the GraphQL resolver, the automation action executor, and the watcher
-// agree on one definition of "what does this scene send to each device."
+// Package scene compiles typed Scene definitions into physical device output
+// and owns the lifecycle of active Scene runs.
 package scene
 
 import (
 	"context"
-	"encoding/json"
-	"reflect"
+	"hash/fnv"
+	"slices"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/lightfield"
+	"github.com/saffronjam/saffron-hive/internal/spatial"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-// DispatchApplyCommands sends a scene plan through structural target dispatch
-// when one direct target produces one shared state. Per-device payloads and
-// mixed targets remain explicit device operations.
-func DispatchApplyCommands(
-	ctx context.Context,
-	commander device.TargetCommander,
-	bus eventbus.Publisher,
-	actions []store.SceneAction,
-	payloads []store.SceneDevicePayload,
-	plan ApplyPlan,
-) error {
-	if commander == nil {
-		for _, cmd := range plan.Commands {
-			bus.Publish(eventbus.Event{Type: eventbus.EventCommandRequested, DeviceID: string(cmd.DeviceID), Timestamp: time.Now(), Payload: cmd})
-		}
-		return nil
-	}
-	if len(actions) == 1 && len(payloads) == 0 && len(plan.Commands) > 0 && actions[0].TargetType != string(device.TargetExpression) && commandsShareState(plan.Commands) {
-		cmd := plan.Commands[0]
-		cmd.DeviceID = ""
-		return commander.CommandTarget(ctx, device.TargetCommand{
-			TargetType: device.TargetType(actions[0].TargetType),
-			TargetID:   actions[0].TargetID,
-			State:      cmd,
-		})
-	}
-	for _, cmd := range plan.Commands {
-		id := cmd.DeviceID
-		cmd.DeviceID = ""
-		if err := commander.CommandTarget(ctx, device.TargetCommand{TargetType: device.TargetDevice, TargetID: string(id), State: cmd}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func commandsShareState(commands []device.Command) bool {
-	first := commands[0]
-	for _, command := range commands[1:] {
-		if command.Origin != first.Origin || !reflect.DeepEqual(CommandToDesired(command), CommandToDesired(first)) {
-			return false
-		}
-	}
-	return true
-}
-
-// DefaultTransitionSeconds is the fade time applied to scene-driven commands
-// for lights with brightness capability so on/off and level changes ease
-// instead of snapping.
+// DefaultTransitionSeconds is the fade time applied to Scene-driven commands.
 const DefaultTransitionSeconds = 0.4
 
-// EffectRun is one effect-kind device payload resolved against a scene's
-// target set: the runner is asked to start a stored effect (EffectID) or an
-// auto-discovered native effect (NativeName) on this device when the scene
-// activates. Exactly one of EffectID / NativeName is set. The watcher uses
-// the same record to track which devices are intentionally evolving so their
-// state changes do not register as drift.
+// PositionResolver maps a resolved target set onto the shared light field.
+type PositionResolver interface {
+	Resolve(context.Context, spatial.TargetContext, int64) ([]spatial.DevicePoint, spatial.Diagnostics, error)
+}
+
+// EffectRun is one stored or provider-native effect behaviour.
 type EffectRun struct {
 	DeviceID   device.DeviceID
 	EffectID   string
 	NativeName string
 }
 
-// ApplyPlan is the result of resolving a scene's actions and payloads against
-// the live device set. Commands are static-payload device commands ready to
-// publish; EffectRuns identify effect-payload devices the runner must start
-// runs on. The two slices are independent — a single scene activation can
-// produce both.
+// ApplyPlan is one resolved frame of a Scene definition.
 type ApplyPlan struct {
-	Commands   []device.Command
-	EffectRuns []EffectRun
+	Commands         []device.Command
+	EffectRuns       []EffectRun
+	DynamicDeviceIDs []device.DeviceID
 }
 
-// BuildApplyCommands resolves a scene's target membership to a unique device
-// set (preserving action order, deduplicating across overlapping groups/rooms)
-// and produces an ApplyPlan: one static command per static-payload device
-// (capability-gated, stamped with OriginScene(sceneID)) plus one EffectRun
-// entry per effect-payload device. Devices without an explicit payload fall
-// back to the capability-filtered warm-white default static command.
-func BuildApplyCommands(
+// dispatchPlan sends a resolved plan, retaining structural multicast when a
+// single target produces one uniform static state.
+func dispatchPlan(
 	ctx context.Context,
-	tr device.TargetResolver,
-	sr device.StateReader,
+	commander device.TargetCommander,
+	bus eventbus.Publisher,
+	_ store.SceneDefinition,
+	plan ApplyPlan,
+) error {
+	return dispatchDeviceCommands(ctx, commander, bus, plan.Commands)
+}
+
+func dispatchDeviceCommands(
+	ctx context.Context,
+	commander device.TargetCommander,
+	bus eventbus.Publisher,
+	commands []device.Command,
+) error {
+	if commander == nil {
+		for _, command := range commands {
+			bus.Publish(eventbus.Event{
+				Type:      eventbus.EventCommandRequested,
+				DeviceID:  string(command.DeviceID),
+				Timestamp: time.Now(),
+				Payload:   command,
+			})
+		}
+		return nil
+	}
+	for _, command := range commands {
+		id := command.DeviceID
+		command.DeviceID = ""
+		if err := commander.CommandTarget(ctx, device.TargetCommand{
+			TargetType: device.TargetDevice,
+			TargetID:   string(id),
+			State:      command,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// BuildApplyPlan resolves a complete definition and renders its current frame.
+// Per-light overrides are target-bound. Supporting states explicitly add
+// non-light Scene members.
+func BuildApplyPlan(
+	ctx context.Context,
+	targetResolver device.TargetResolver,
+	stateReader device.StateReader,
+	positionResolver PositionResolver,
 	sceneID string,
-	actions []store.SceneAction,
-	payloads []store.SceneDevicePayload,
-) ApplyPlan {
-	payloadByDevice := make(map[device.DeviceID]string, len(payloads))
-	for _, p := range payloads {
-		payloadByDevice[p.DeviceID] = p.Payload
+	definition store.SceneDefinition,
+	at time.Time,
+) (ApplyPlan, error) {
+	targetContext := resolveTargetContext(ctx, targetResolver, stateReader, definition.Targets)
+	targeted := make(map[device.DeviceID]bool, len(targetContext.DeviceIDs))
+	for _, id := range targetContext.DeviceIDs {
+		targeted[id] = true
 	}
 
-	seen := make(map[device.DeviceID]struct{})
-	var order []device.DeviceID
-	for _, a := range actions {
-		var ids []device.DeviceID
-		if a.TargetType == string(device.TargetExpression) {
-			ids = device.EvaluateExpression(ctx, sr, tr, a.Expression)
-		} else {
-			ids = tr.ResolveTargetDeviceIDs(ctx, device.TargetType(a.TargetType), a.TargetID)
+	commands := make(map[device.DeviceID]device.Command, len(targetContext.DeviceIDs)+len(definition.Supporting))
+	plan := ApplyPlan{}
+	if dynamic := definition.Lighting.Dynamic; dynamic != nil {
+		points, err := resolvePoints(ctx, positionResolver, targetContext, dynamic.Seed)
+		if err != nil {
+			return ApplyPlan{}, err
 		}
-		for _, did := range ids {
-			if _, ok := seen[did]; ok {
+		motion := lightfield.Motion{
+			Seed:     dynamic.Seed,
+			Movement: dynamic.Movement,
+			Cycle:    dynamic.Cycle,
+		}
+		for _, positioned := range points {
+			target, ok := stateReader.GetDevice(positioned.DeviceID)
+			if !ok {
 				continue
 			}
-			seen[did] = struct{}{}
-			order = append(order, did)
+			sample, err := lightfield.SampleAt(dynamic.Field, positioned.Point, motion, at)
+			if err != nil {
+				return ApplyPlan{}, err
+			}
+			intent, err := lightfield.Project(target, sample, dynamic.Brightness)
+			if err != nil {
+				return ApplyPlan{}, err
+			}
+			commands[positioned.DeviceID] = mergeCommand(commands[positioned.DeviceID], intent.Command(DefaultTransitionSeconds))
+			plan.DynamicDeviceIDs = append(plan.DynamicDeviceIDs, positioned.DeviceID)
 		}
 	}
 
-	origin := device.OriginScene(sceneID)
-	plan := ApplyPlan{
-		Commands:   make([]device.Command, 0, len(order)),
-		EffectRuns: nil,
-	}
-	for _, did := range order {
-		var cmd device.Command
-		if raw, ok := payloadByDevice[did]; ok {
-			parsed, err := store.ParseScenePayload(raw)
-			if err != nil {
-				cmd = DefaultScenePayload(sr, did)
-			} else {
-				switch parsed.Kind {
-				case store.ScenePayloadEffect:
-					plan.EffectRuns = append(plan.EffectRuns, EffectRun{DeviceID: did, EffectID: parsed.EffectID})
-					continue
-				case store.ScenePayloadNativeEffect:
-					plan.EffectRuns = append(plan.EffectRuns, EffectRun{DeviceID: did, NativeName: parsed.NativeName})
-					continue
-				case store.ScenePayloadStatic:
-					cmd = commandFromDesired(sr, did, parsed.Static)
-				default:
-					cmd = DefaultScenePayload(sr, did)
-				}
-			}
-		} else {
-			cmd = DefaultScenePayload(sr, did)
-		}
-		if isEmptyCommand(cmd) {
+	for _, override := range definition.Lighting.Overrides {
+		if !targeted[override.DeviceID] {
 			continue
 		}
-		cmd.Origin = origin
-		plan.Commands = append(plan.Commands, cmd)
-	}
-	return plan
-}
-
-// isEmptyCommand returns true when capability gating has stripped every
-// state-changing field from a command. Scenes targeting a room or group can
-// reach devices that aren't controllable (buttons, sensors); the apply path
-// silently drops their commands so the watcher doesn't track an expected
-// state the device can never report. Transition is excluded from the check —
-// a transition-only command isn't useful on its own and doesn't make a device
-// "controllable" by itself.
-func isEmptyCommand(c device.Command) bool {
-	return c.On == nil &&
-		c.Brightness == nil &&
-		c.ColorTemp == nil &&
-		c.Color == nil &&
-		c.TargetTemperature == nil &&
-		c.HvacMode == nil &&
-		c.FanMode == nil &&
-		c.Swing == nil
-}
-
-// DefaultScenePayload produces the warm-white "on" command a scene sends to a
-// device that has no explicit per-device override. Fields are gated by the
-// device's writable capabilities so commands the device can't accept are
-// omitted rather than silently ignored downstream.
-func DefaultScenePayload(sr device.StateReader, deviceID device.DeviceID) device.Command {
-	cmd := device.Command{DeviceID: deviceID}
-	d, ok := sr.GetDevice(deviceID)
-	if !ok {
-		cmd.On = device.Ptr(true)
-		return cmd
-	}
-	if hasWritableCapability(d, device.CapOnOff) {
-		cmd.On = device.Ptr(true)
-	}
-	if hasWritableCapability(d, device.CapBrightness) {
-		cmd.Brightness = device.Ptr(200)
-		cmd.Transition = device.Ptr(DefaultTransitionSeconds)
-	}
-	if hasWritableCapability(d, device.CapColorTemp) {
-		cmd.ColorTemp = device.Ptr(370)
-	}
-	return cmd
-}
-
-// CommandToDesired reduces a scene's Command back into the map form used for
-// state-match pre-checks in the automation executor. Exported so callers that
-// need to compare "what the scene wants" against "what the device reports" can
-// share one source of truth.
-func CommandToDesired(cmd device.Command) map[string]any {
-	out := map[string]any{}
-	if cmd.On != nil {
-		out["on"] = *cmd.On
-	}
-	if cmd.Brightness != nil {
-		out["brightness"] = *cmd.Brightness
-	}
-	if cmd.ColorTemp != nil {
-		out["colorTemp"] = *cmd.ColorTemp
-	}
-	if cmd.Color != nil {
-		out["color"] = map[string]any{
-			"r": cmd.Color.R,
-			"g": cmd.Color.G,
-			"b": cmd.Color.B,
-			"x": cmd.Color.X,
-			"y": cmd.Color.Y,
+		switch override.Kind {
+		case store.SceneLightOverrideState:
+			commands[override.DeviceID] = mergeCommand(commands[override.DeviceID], commandFromDesired(stateReader, override.DeviceID, *override.State))
+		case store.SceneLightOverrideEffect:
+			delete(commands, override.DeviceID)
+			plan.DynamicDeviceIDs = deleteDeviceID(plan.DynamicDeviceIDs, override.DeviceID)
+			plan.EffectRuns = append(plan.EffectRuns, EffectRun{DeviceID: override.DeviceID, EffectID: override.EffectID})
+		case store.SceneLightOverrideNativeEffect:
+			delete(commands, override.DeviceID)
+			plan.DynamicDeviceIDs = deleteDeviceID(plan.DynamicDeviceIDs, override.DeviceID)
+			plan.EffectRuns = append(plan.EffectRuns, EffectRun{DeviceID: override.DeviceID, NativeName: override.NativeEffectName})
 		}
 	}
-	if cmd.Transition != nil {
-		out["transition"] = *cmd.Transition
+	for _, supporting := range definition.Supporting {
+		commands[supporting.DeviceID] = commandFromDesired(stateReader, supporting.DeviceID, supporting.State)
 	}
-	if cmd.TargetTemperature != nil {
-		out["targetTemperature"] = *cmd.TargetTemperature
+
+	ids := make([]device.DeviceID, 0, len(commands))
+	for id := range commands {
+		ids = append(ids, id)
 	}
-	if cmd.HvacMode != nil {
-		out["hvacMode"] = *cmd.HvacMode
+	slices.Sort(ids)
+	origin := device.OriginScene(sceneID)
+	for _, id := range ids {
+		command := commands[id]
+		if isEmptyCommand(command) {
+			continue
+		}
+		command.Origin = origin
+		plan.Commands = append(plan.Commands, command)
 	}
-	if cmd.FanMode != nil {
-		out["fanMode"] = *cmd.FanMode
-	}
-	if cmd.Swing != nil {
-		out["swing"] = *cmd.Swing
-	}
-	return out
+	return plan, nil
 }
 
-func commandFromDesired(sr device.StateReader, deviceID device.DeviceID, desired map[string]any) device.Command {
-	cmd := device.Command{DeviceID: deviceID}
-	d, hasDevice := sr.GetDevice(deviceID)
-	allow := func(cap string) bool { return hasDevice && hasWritableCapability(d, cap) }
+func mergeCommand(base, patch device.Command) device.Command {
+	if patch.DeviceID != "" {
+		base.DeviceID = patch.DeviceID
+	}
+	if patch.On != nil {
+		base.On = patch.On
+	}
+	if patch.Brightness != nil {
+		base.Brightness = patch.Brightness
+	}
+	if patch.Color != nil {
+		base.Color = patch.Color
+		base.ColorTemp = nil
+	} else if patch.ColorTemp != nil {
+		base.ColorTemp = patch.ColorTemp
+		base.Color = nil
+	}
+	if patch.Transition != nil {
+		base.Transition = patch.Transition
+	}
+	if patch.TargetTemperature != nil {
+		base.TargetTemperature = patch.TargetTemperature
+	}
+	if patch.HvacMode != nil {
+		base.HvacMode = patch.HvacMode
+	}
+	if patch.FanMode != nil {
+		base.FanMode = patch.FanMode
+	}
+	if patch.Swing != nil {
+		base.Swing = patch.Swing
+	}
+	return base
+}
 
-	if v, ok := desired["on"]; ok && allow(device.CapOnOff) {
-		if b, ok := v.(bool); ok {
-			cmd.On = device.Ptr(b)
-		}
-	}
-	if v, ok := desired["brightness"]; ok && allow(device.CapBrightness) {
-		cmd.Brightness = device.Ptr(toInt(v))
-	}
-	if v, ok := desired["color"]; ok && allow(device.CapColor) {
-		if m, ok := v.(map[string]any); ok {
-			c := &device.Color{
-				R: toInt(m["r"]),
-				G: toInt(m["g"]),
-				B: toInt(m["b"]),
+func deleteDeviceID(ids []device.DeviceID, target device.DeviceID) []device.DeviceID {
+	return slices.DeleteFunc(ids, func(id device.DeviceID) bool { return id == target })
+}
+
+func resolveTargetContext(
+	ctx context.Context,
+	resolver device.TargetResolver,
+	reader device.StateReader,
+	targets []store.SceneTarget,
+) spatial.TargetContext {
+	seen := map[device.DeviceID]bool{}
+	positiveRoots := map[device.DeviceID][]spatial.StructuralRoot{}
+	for _, target := range targets {
+		var ids []device.DeviceID
+		if target.Type == device.TargetExpression {
+			ids = device.EvaluateExpression(ctx, reader, resolver, target.Expression)
+			addExpressionRoots(ctx, resolver, ids, target.Expression, positiveRoots)
+		} else {
+			ids = resolver.ResolveTargetDeviceIDs(ctx, target.Type, target.ID)
+			if isStructuralTarget(target.Type) {
+				for _, id := range ids {
+					positiveRoots[id] = append(positiveRoots[id], spatial.StructuralRoot{Type: target.Type, ID: target.ID})
+				}
 			}
-			if x, ok := toFloat(m["x"]); ok {
-				c.X = x
+		}
+		for _, id := range ids {
+			target, ok := reader.GetDevice(id)
+			if !ok || target.Removed || target.RuntimeDisabled() || !device.IsLightControlDevice(target) {
+				delete(positiveRoots, id)
+				continue
 			}
-			if y, ok := toFloat(m["y"]); ok {
-				c.Y = y
+			seen[id] = true
+		}
+	}
+	ids := make([]device.DeviceID, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return spatial.TargetContext{DeviceIDs: ids, PositiveRoots: positiveRoots}
+}
+
+func addExpressionRoots(
+	ctx context.Context,
+	resolver device.TargetResolver,
+	selected []device.DeviceID,
+	expression device.Expression,
+	roots map[device.DeviceID][]spatial.StructuralRoot,
+) {
+	selectedSet := make(map[device.DeviceID]bool, len(selected))
+	for _, id := range selected {
+		selectedSet[id] = true
+	}
+	for _, clause := range expression {
+		if clause.Op == device.OpIsNot || clause.Op == device.OpIsNotOneOf {
+			continue
+		}
+		var targetType device.TargetType
+		switch clause.Subject {
+		case device.SubjectRoom:
+			targetType = device.TargetRoom
+		case device.SubjectGroup:
+			targetType = device.TargetGroup
+		case device.SubjectDevice:
+			targetType = device.TargetDevice
+		default:
+			continue
+		}
+		for _, value := range clause.Values {
+			for _, id := range resolver.ResolveTargetDeviceIDs(ctx, targetType, value) {
+				if selectedSet[id] {
+					roots[id] = append(roots[id], spatial.StructuralRoot{Type: targetType, ID: value})
+				}
 			}
-			cmd.Color = c
 		}
-	}
-	if v, ok := desired["colorTemp"]; ok && cmd.Color == nil && allow(device.CapColorTemp) {
-		cmd.ColorTemp = device.Ptr(toInt(v))
-	}
-	if v, ok := desired["transition"]; ok && allow(device.CapBrightness) {
-		if f, ok := toFloat(v); ok {
-			cmd.Transition = device.Ptr(f)
-		}
-	} else if allow(device.CapBrightness) {
-		cmd.Transition = device.Ptr(DefaultTransitionSeconds)
-	}
-	if v, ok := desired["targetTemperature"]; ok && allow(device.CapTargetTemperature) {
-		if f, ok := toFloat(v); ok {
-			cmd.TargetTemperature = device.Ptr(f)
-		}
-	}
-	if v, ok := desired["hvacMode"]; ok && allow(device.CapHvacMode) {
-		if s, ok := v.(string); ok {
-			cmd.HvacMode = device.Ptr(s)
-		}
-	}
-	if v, ok := desired["fanMode"]; ok && allow(device.CapFanMode) {
-		if s, ok := v.(string); ok {
-			cmd.FanMode = device.Ptr(s)
-		}
-	}
-	if v, ok := desired["swing"]; ok && allow(device.CapSwing) {
-		if s, ok := v.(string); ok {
-			cmd.Swing = device.Ptr(s)
-		}
-	}
-	return cmd
-}
-
-func hasWritableCapability(d device.Device, name string) bool {
-	for _, c := range d.Capabilities {
-		if c.Name == name && c.CanSet() {
-			return true
-		}
-	}
-	return false
-}
-
-func toInt(v any) int {
-	switch n := v.(type) {
-	case float64:
-		return int(n)
-	case int:
-		return n
-	case json.Number:
-		i, _ := n.Int64()
-		return int(i)
-	default:
-		return 0
 	}
 }
 
-func toFloat(v any) (float64, bool) {
-	switch n := v.(type) {
-	case float64:
-		return n, true
-	case int:
-		return float64(n), true
-	case json.Number:
-		f, err := n.Float64()
-		return f, err == nil
-	default:
-		return 0, false
+func isStructuralTarget(targetType device.TargetType) bool {
+	return targetType == device.TargetDevice || targetType == device.TargetGroup || targetType == device.TargetRoom
+}
+
+func resolvePoints(
+	ctx context.Context,
+	resolver PositionResolver,
+	target spatial.TargetContext,
+	seed int64,
+) ([]spatial.DevicePoint, error) {
+	if resolver != nil {
+		points, _, err := resolver.Resolve(ctx, target, seed)
+		return points, err
 	}
+	points := make([]spatial.DevicePoint, len(target.DeviceIDs))
+	for i, id := range target.DeviceIDs {
+		points[i] = spatial.DevicePoint{DeviceID: id, Point: fallbackPoint(id, seed), Source: spatial.PointSourceFallback}
+	}
+	return points, nil
+}
+
+func fallbackPoint(id device.DeviceID, seed int64) lightfield.Point {
+	hash := fnv.New64a()
+	_, _ = hash.Write([]byte(id))
+	value := hash.Sum64() ^ uint64(seed)
+	return lightfield.Point{
+		X: float64(value&0xffff) / float64(0xffff),
+		Y: float64((value>>16)&0xffff) / float64(0xffff),
+	}
+}
+
+func isEmptyCommand(command device.Command) bool {
+	return command.On == nil && command.Brightness == nil && command.ColorTemp == nil &&
+		command.Color == nil && command.TargetTemperature == nil && command.HvacMode == nil &&
+		command.FanMode == nil && command.Swing == nil
+}
+
+func commandFromDesired(reader device.StateReader, id device.DeviceID, desired store.DesiredState) device.Command {
+	command := device.Command{DeviceID: id}
+	target, exists := reader.GetDevice(id)
+	if !exists || target.Removed || target.RuntimeDisabled() {
+		return command
+	}
+	if desired.On != nil && hasWritableCapability(target, device.CapOnOff) {
+		command.On = clone(desired.On)
+	}
+	if desired.Brightness != nil && hasWritableCapability(target, device.CapBrightness) {
+		command.Brightness = clone(desired.Brightness)
+	}
+	if desired.Color != nil && hasWritableCapability(target, device.CapColor) {
+		colour := *desired.Color
+		command.Color = &colour
+	} else if desired.ColorTemp != nil && hasWritableCapability(target, device.CapColorTemp) {
+		command.ColorTemp = clone(desired.ColorTemp)
+	}
+	if desired.Transition != nil && hasWritableCapability(target, device.CapBrightness) {
+		command.Transition = clone(desired.Transition)
+	} else if command.Brightness != nil {
+		command.Transition = device.Ptr(DefaultTransitionSeconds)
+	}
+	if desired.TargetTemperature != nil && hasWritableCapability(target, device.CapTargetTemperature) {
+		command.TargetTemperature = clone(desired.TargetTemperature)
+	}
+	if desired.HvacMode != nil && hasWritableCapability(target, device.CapHvacMode) {
+		command.HvacMode = clone(desired.HvacMode)
+	}
+	if desired.FanMode != nil && hasWritableCapability(target, device.CapFanMode) {
+		command.FanMode = clone(desired.FanMode)
+	}
+	if desired.Swing != nil && hasWritableCapability(target, device.CapSwing) {
+		command.Swing = clone(desired.Swing)
+	}
+	return command
+}
+
+func hasWritableCapability(target device.Device, name string) bool {
+	capability, ok := target.Capability(name)
+	return ok && capability.CanSet()
+}
+
+func clone[T any](value *T) *T {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }

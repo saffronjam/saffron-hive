@@ -3,231 +3,221 @@ package scene
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/lightfield"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 func writableCap(name string) device.Capability {
-	return device.Capability{Name: name, Access: 7}
+	return device.Capability{Name: name, Access: device.CapabilityAccessSet}
 }
 
-// TestBuildApplyCommands_DropsButtonWithStrayPayload regression-tests the
-// "scene immediately deactivates" bug. A scene targeting a room may include a
-// button device whose persisted payload says {"on": false}. Buttons have no
-// on_off capability — emitting a Command with cmd.On=&false would cause the
-// watcher to track an expected on-state the device never reports, instantly
-// flipping the scene back to inactive. The apply path must drop that command
-// entirely.
-func TestBuildApplyCommands_DropsButtonWithStrayPayload(t *testing.T) {
+func TestBuildApplyPlanFiltersManualOutputByCapability(t *testing.T) {
 	state := device.NewMemoryStore()
-	state.Register(device.Device{
-		ID:           "light-1",
-		Capabilities: []device.Capability{writableCap(device.CapOnOff), writableCap(device.CapBrightness)},
-	})
-	state.Register(device.Device{
-		ID:           "button-1",
-		Capabilities: nil,
-	})
-
-	resolver := &fakeResolver{groups: map[string][]device.DeviceID{
-		"room-1": {"light-1", "button-1"},
+	state.Register(device.Device{ID: "light-1", Type: device.Light, Capabilities: []device.Capability{
+		writableCap(device.CapOnOff), writableCap(device.CapBrightness),
+	}})
+	state.Register(device.Device{ID: "plug-1", Type: device.Plug, Capabilities: []device.Capability{writableCap(device.CapOnOff)}})
+	resolver := &fakeResolver{members: map[string][]device.DeviceID{"room-1": {"light-1", "plug-1"}}}
+	definition := manualDefinition(store.SceneTarget{Type: device.TargetRoom, ID: "room-1"})
+	definition.Lighting.Overrides = []store.SceneLightOverride{{
+		DeviceID: "light-1", Kind: store.SceneLightOverrideState,
+		State: &store.DesiredState{On: device.Ptr(true), Brightness: device.Ptr(180)},
 	}}
 
-	actions := []store.SceneAction{{SceneID: "s1", TargetType: "room", TargetID: "room-1"}}
-	payloads := []store.SceneDevicePayload{
-		{SceneID: "s1", DeviceID: "light-1", Payload: `{"on":true,"brightness":200}`},
-		{SceneID: "s1", DeviceID: "button-1", Payload: `{"on":false}`},
-	}
-
-	plan := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, payloads)
-
-	if len(plan.Commands) != 1 {
-		t.Fatalf("expected 1 command (light-1 only), got %d: %+v", len(plan.Commands), plan.Commands)
-	}
-	if plan.Commands[0].DeviceID != "light-1" {
-		t.Errorf("expected light-1, got %s", plan.Commands[0].DeviceID)
-	}
-	if len(plan.EffectRuns) != 0 {
-		t.Errorf("expected no effect runs, got %d", len(plan.EffectRuns))
-	}
-}
-
-// TestBuildApplyCommands_ExpressionTargetNarrowsByType confirms an
-// expression-typed scene action (room is X AND device_type is light) resolves to
-// only the room's lights, dropping the plug.
-func TestBuildApplyCommands_ExpressionTargetNarrowsByType(t *testing.T) {
-	state := device.NewMemoryStore()
-	state.Register(device.Device{
-		ID:           "light-1",
-		Type:         device.Light,
-		Capabilities: []device.Capability{writableCap(device.CapOnOff)},
-	})
-	state.Register(device.Device{
-		ID:           "plug-1",
-		Type:         device.Plug,
-		Capabilities: []device.Capability{writableCap(device.CapOnOff)},
-	})
-
-	resolver := &fakeResolver{groups: map[string][]device.DeviceID{
-		"room-1": {"light-1", "plug-1"},
-	}}
-
-	actions := []store.SceneAction{{
-		SceneID:    "s1",
-		TargetType: string(device.TargetExpression),
-		Expression: []device.Clause{
-			{Subject: device.SubjectRoom, Op: device.OpIs, Values: []string{"room-1"}},
-			{Connector: device.ConnectorAnd, Subject: device.SubjectDeviceType, Op: device.OpIs, Values: []string{"light"}},
-		},
-	}}
-
-	plan := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, nil)
-
-	if len(plan.Commands) != 1 {
-		t.Fatalf("expected 1 command, got %d: %+v", len(plan.Commands), plan.Commands)
-	}
-	if plan.Commands[0].DeviceID != "light-1" {
-		t.Fatalf("expected light-1, got %s", plan.Commands[0].DeviceID)
-	}
-}
-
-// TestBuildApplyCommands_NativeEffectPayloadEmitsEffectRun confirms that a
-// per-device payload tagged kind=native_effect produces an EffectRun carrying
-// NativeName (and no EffectID) instead of a static command.
-func TestBuildApplyCommands_NativeEffectPayloadEmitsEffectRun(t *testing.T) {
-	state := device.NewMemoryStore()
-	state.Register(device.Device{
-		ID:           "light-1",
-		Capabilities: []device.Capability{writableCap(device.CapOnOff), writableCap(device.CapBrightness)},
-	})
-
-	resolver := &fakeResolver{groups: map[string][]device.DeviceID{}}
-
-	actions := []store.SceneAction{{SceneID: "s1", TargetType: "device", TargetID: "light-1"}}
-	payloads := []store.SceneDevicePayload{
-		{SceneID: "s1", DeviceID: "light-1", Payload: `{"kind":"native_effect","native_name":"fireplace"}`},
-	}
-
-	plan := BuildApplyCommands(context.Background(), resolver, state, "s1", actions, payloads)
-
-	if len(plan.Commands) != 0 {
-		t.Errorf("expected no static commands for native effect payload, got %d", len(plan.Commands))
-	}
-	if len(plan.EffectRuns) != 1 {
-		t.Fatalf("expected 1 effect run, got %d", len(plan.EffectRuns))
-	}
-	got := plan.EffectRuns[0]
-	if got.DeviceID != "light-1" {
-		t.Errorf("device id: want light-1, got %s", got.DeviceID)
-	}
-	if got.NativeName != "fireplace" {
-		t.Errorf("native_name: want fireplace, got %q", got.NativeName)
-	}
-	if got.EffectID != "" {
-		t.Errorf("effect_id should be empty for native run, got %q", got.EffectID)
-	}
-}
-
-// TestCommandFromDesired_GatesByCapability ensures a payload field for a
-// device that lacks the matching capability is silently dropped instead of
-// surfacing on the Command (which the watcher would then track as expected
-// state forever).
-func TestCommandFromDesired_GatesByCapability(t *testing.T) {
-	state := device.NewMemoryStore()
-	state.Register(device.Device{
-		ID:           "dim-only",
-		Capabilities: []device.Capability{writableCap(device.CapOnOff), writableCap(device.CapBrightness)},
-	})
-
-	cmd := commandFromDesired(state, "dim-only", map[string]any{
-		"on":         true,
-		"brightness": 150,
-		"colorTemp":  370,
-		"color":      map[string]any{"r": 10, "g": 20, "b": 30, "x": 0.5, "y": 0.4},
-	})
-
-	if cmd.On == nil || !*cmd.On {
-		t.Errorf("expected On=true, got %v", cmd.On)
-	}
-	if cmd.Brightness == nil || *cmd.Brightness != 150 {
-		t.Errorf("expected Brightness=150, got %v", cmd.Brightness)
-	}
-	if cmd.ColorTemp != nil {
-		t.Errorf("expected ColorTemp=nil (no capability), got %v", *cmd.ColorTemp)
-	}
-	if cmd.Color != nil {
-		t.Errorf("expected Color=nil (no capability), got %+v", cmd.Color)
-	}
-}
-
-// TestCommandFromDesired_FrontendPayloadShape locks the contract between the
-// frontend's stored ActionPayload JSON shape (camelCase keys, with a "kind"
-// discriminator), store.ParseScenePayload, and commandFromDesired. The
-// literal payload below is copied from a real scene_device_payloads row.
-func TestCommandFromDesired_FrontendPayloadShape(t *testing.T) {
-	state := device.NewMemoryStore()
-	state.Register(device.Device{
-		ID: "bulb",
-		Capabilities: []device.Capability{
-			writableCap(device.CapOnOff),
-			writableCap(device.CapBrightness),
-			writableCap(device.CapColorTemp),
-		},
-	})
-
-	parsed, err := store.ParseScenePayload(`{"on":true,"brightness":254,"colorTemp":150,"kind":"static"}`)
+	plan, err := BuildApplyPlan(context.Background(), resolver, state, nil, "run-1", definition, time.Unix(0, 0))
 	if err != nil {
-		t.Fatalf("ParseScenePayload: %v", err)
+		t.Fatal(err)
 	}
-	if parsed.Kind != store.ScenePayloadStatic {
-		t.Fatalf("expected static kind, got %q", parsed.Kind)
+	if len(plan.Commands) != 1 || plan.Commands[0].DeviceID != "light-1" {
+		t.Fatalf("commands = %#v", plan.Commands)
 	}
-
-	cmd := commandFromDesired(state, "bulb", parsed.Static)
-
-	if cmd.ColorTemp == nil || *cmd.ColorTemp != 150 {
-		t.Errorf("ColorTemp: want 150, got %v", cmd.ColorTemp)
+	if plan.Commands[0].On == nil || !*plan.Commands[0].On || plan.Commands[0].Brightness == nil || *plan.Commands[0].Brightness != 180 {
+		t.Fatalf("manual command = %#v", plan.Commands[0])
 	}
-	if cmd.Brightness == nil || *cmd.Brightness != 254 {
-		t.Errorf("Brightness: want 254, got %v", cmd.Brightness)
-	}
-	if cmd.On == nil || !*cmd.On {
-		t.Errorf("On: want true, got %v", cmd.On)
+	if plan.Commands[0].Origin != device.OriginScene("run-1") {
+		t.Fatalf("origin = %#v", plan.Commands[0].Origin)
 	}
 }
 
-// TestCommandFromDesired_ColorWinsWhenBothPresent locks the invariant that a
-// stored payload carrying both `color` and `colorTemp` resolves to a colour
-// command with no colour-temperature attached. The two are mutually exclusive
-// light modes on a bulb; sending both makes zigbee2mqtt forward both and Hue
-// firmware silently honours the temperature, overriding the user-picked
-// colour. The frontend's discriminator and the 046 SQL migration both prevent
-// the both-fields-set state from being written or persisted; this guard
-// catches any straggler row at the apply edge.
-func TestCommandFromDesired_ColorWinsWhenBothPresent(t *testing.T) {
+func TestBuildApplyPlanSelectorNarrowsByWritableCapability(t *testing.T) {
 	state := device.NewMemoryStore()
-	state.Register(device.Device{
-		ID: "bulb",
-		Capabilities: []device.Capability{
-			writableCap(device.CapOnOff),
-			writableCap(device.CapBrightness),
-			writableCap(device.CapColor),
-			writableCap(device.CapColorTemp),
+	state.Register(device.Device{ID: "rgb", Type: device.Light, Capabilities: []device.Capability{writableCap(device.CapColor)}})
+	state.Register(device.Device{ID: "white", Type: device.Light, Capabilities: []device.Capability{writableCap(device.CapColorTemp)}})
+	resolver := &fakeResolver{members: map[string][]device.DeviceID{"room-1": {"rgb", "white"}}}
+	definition := manualDefinition(store.SceneTarget{
+		Type: device.TargetExpression,
+		Expression: device.Expression{
+			{Subject: device.SubjectRoom, Op: device.OpIs, Values: []string{"room-1"}},
+			{Connector: device.ConnectorAnd, Subject: device.SubjectWritableCapability, Op: device.OpIs, Values: []string{device.CapColor}},
 		},
 	})
+	definition.Lighting.Overrides = []store.SceneLightOverride{{
+		DeviceID: "rgb", Kind: store.SceneLightOverrideState,
+		State: &store.DesiredState{Color: &device.Color{R: 240, G: 20, B: 80, X: 0.5, Y: 0.3}},
+	}}
 
-	cmd := commandFromDesired(state, "bulb", map[string]any{
-		"on":         true,
-		"brightness": 254,
-		"colorTemp":  370,
-		"color":      map[string]any{"r": 202, "g": 12, "b": 255, "x": 0.2678, "y": 0.1261},
+	plan, err := BuildApplyPlan(context.Background(), resolver, state, nil, "run-1", definition, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Commands) != 1 || plan.Commands[0].DeviceID != "rgb" || plan.Commands[0].Color == nil {
+		t.Fatalf("commands = %#v", plan.Commands)
+	}
+}
+
+func TestBuildApplyPlanDeduplicatesOverlappingTargets(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{ID: "light", Type: device.Light, Capabilities: []device.Capability{writableCap(device.CapOnOff)}})
+	resolver := &fakeResolver{members: map[string][]device.DeviceID{
+		"room":  {"light"},
+		"group": {"light"},
+	}}
+	definition := manualDefinition(
+		store.SceneTarget{Type: device.TargetRoom, ID: "room"},
+		store.SceneTarget{Type: device.TargetGroup, ID: "group"},
+	)
+	definition.Lighting.Overrides = []store.SceneLightOverride{{
+		DeviceID: "light", Kind: store.SceneLightOverrideState,
+		State: &store.DesiredState{On: device.Ptr(true)},
+	}}
+
+	plan, err := BuildApplyPlan(context.Background(), resolver, state, nil, "run", definition, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Commands) != 1 || plan.Commands[0].DeviceID != "light" {
+		t.Fatalf("commands = %#v", plan.Commands)
+	}
+}
+
+func TestBuildApplyPlanEffectOverrideReplacesLighting(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{ID: "light-1", Type: device.Light, Capabilities: []device.Capability{writableCap(device.CapOnOff)}})
+	resolver := &fakeResolver{}
+	definition := manualDefinition(store.SceneTarget{Type: device.TargetDevice, ID: "light-1"})
+	definition.Lighting.Overrides = []store.SceneLightOverride{{DeviceID: "light-1", Kind: store.SceneLightOverrideEffect, EffectID: "fireplace"}}
+
+	plan, err := BuildApplyPlan(context.Background(), resolver, state, nil, "run-1", definition, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Commands) != 0 || len(plan.EffectRuns) != 1 || plan.EffectRuns[0].EffectID != "fireplace" {
+		t.Fatalf("plan = %#v", plan)
+	}
+}
+
+func TestBuildApplyPlanProjectsOneVibeAcrossHeterogeneousLights(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{ID: "rgb", Type: device.Light, Capabilities: []device.Capability{
+		writableCap(device.CapOnOff), writableCap(device.CapBrightness), writableCap(device.CapColor),
+	}})
+	state.Register(device.Device{ID: "white", Type: device.Light, Capabilities: []device.Capability{
+		writableCap(device.CapOnOff), writableCap(device.CapBrightness), writableCap(device.CapColorTemp),
+	}})
+	resolver := &fakeResolver{members: map[string][]device.DeviceID{"room": {"rgb", "white"}}}
+	field := lightfield.NewFullColor(2, 2, []lightfield.ColorSample{
+		{Lightness: 0.7, Chroma: 0.2, Hue: 20}, {Lightness: 0.7, Chroma: 0.2, Hue: 80},
+		{Lightness: 0.7, Chroma: 0.2, Hue: 180}, {Lightness: 0.7, Chroma: 0.2, Hue: 280},
 	})
+	definition := store.SceneDefinition{
+		Targets: []store.SceneTarget{{Type: device.TargetRoom, ID: "room"}},
+		Lighting: store.SceneLighting{
+			Dynamic: &store.DynamicLighting{Field: field, Seed: 42, Brightness: 0.8, Movement: 0.5, Cycle: 10 * time.Minute, Provenance: lightfield.Provenance{Kind: lightfield.SourcePreset}},
+		},
+	}
+	plan, err := BuildApplyPlan(context.Background(), resolver, state, nil, "run-1", definition, time.Unix(100, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Commands) != 2 {
+		t.Fatalf("commands = %#v", plan.Commands)
+	}
+	for _, command := range plan.Commands {
+		switch command.DeviceID {
+		case "rgb":
+			if command.Color == nil || command.ColorTemp != nil {
+				t.Fatalf("RGB command = %#v", command)
+			}
+		case "white":
+			if command.ColorTemp == nil || command.Color != nil {
+				t.Fatalf("white command = %#v", command)
+			}
+		}
+	}
+}
 
-	if cmd.Color == nil || cmd.Color.R != 202 || cmd.Color.G != 12 || cmd.Color.B != 255 {
-		t.Errorf("Color: want (202,12,255), got %+v", cmd.Color)
+func TestBuildApplyPlanAppliesSparseOverridesAndSupportingStates(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{ID: "light-1", Type: device.Light, Capabilities: []device.Capability{
+		writableCap(device.CapOnOff), writableCap(device.CapBrightness), writableCap(device.CapColorTemp),
+	}})
+	state.Register(device.Device{ID: "light-2", Type: device.Light, Capabilities: []device.Capability{
+		writableCap(device.CapOnOff), writableCap(device.CapBrightness), writableCap(device.CapColorTemp),
+	}})
+	state.Register(device.Device{ID: "plug-1", Type: device.Plug, Capabilities: []device.Capability{writableCap(device.CapOnOff)}})
+	resolver := &fakeResolver{members: map[string][]device.DeviceID{"room": {"light-1"}}}
+	definition := store.SceneDefinition{
+		Targets: []store.SceneTarget{{Type: device.TargetRoom, ID: "room"}},
+		Lighting: store.SceneLighting{
+			Overrides: []store.SceneLightOverride{
+				{DeviceID: "light-1", Kind: store.SceneLightOverrideState, State: &store.DesiredState{Brightness: device.Ptr(42)}},
+				{DeviceID: "light-2", Kind: store.SceneLightOverrideState, State: &store.DesiredState{Brightness: device.Ptr(1)}},
+			},
+		},
+		Supporting: []store.SceneSupportingState{{DeviceID: "plug-1", State: store.DesiredState{On: device.Ptr(false)}}},
 	}
-	if cmd.ColorTemp != nil {
-		t.Errorf("ColorTemp: must be nil when Color is set, got %v", *cmd.ColorTemp)
+
+	plan, err := BuildApplyPlan(context.Background(), resolver, state, nil, "run-1", definition, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
 	}
+	if len(plan.Commands) != 2 {
+		t.Fatalf("commands = %#v", plan.Commands)
+	}
+	commands := map[device.DeviceID]device.Command{}
+	for _, command := range plan.Commands {
+		commands[command.DeviceID] = command
+	}
+	light := commands["light-1"]
+	if light.On != nil || light.Brightness == nil || *light.Brightness != 42 || light.ColorTemp != nil {
+		t.Fatalf("sparse light = %#v", light)
+	}
+	if _, exists := commands["light-2"]; exists {
+		t.Fatal("override conferred membership on an untargeted light")
+	}
+	plug := commands["plug-1"]
+	if plug.On == nil || *plug.On {
+		t.Fatalf("supporting state = %#v", plug)
+	}
+}
+
+func TestCommandFromDesiredPrefersColorAndGatesFields(t *testing.T) {
+	state := device.NewMemoryStore()
+	state.Register(device.Device{ID: "bulb", Type: device.Light, Capabilities: []device.Capability{
+		writableCap(device.CapOnOff), writableCap(device.CapBrightness), writableCap(device.CapColor), writableCap(device.CapColorTemp),
+	}})
+	command := commandFromDesired(state, "bulb", store.DesiredState{
+		On: device.Ptr(true), Brightness: device.Ptr(120), ColorTemp: device.Ptr(370),
+		Color: &device.Color{R: 20, G: 30, B: 40, X: 0.2, Y: 0.3}, HvacMode: device.Ptr("heat"),
+	})
+	if command.Color == nil || command.ColorTemp != nil || command.HvacMode != nil {
+		t.Fatalf("command = %#v", command)
+	}
+}
+
+func manualDefinition(targets ...store.SceneTarget) store.SceneDefinition {
+	definition := store.SceneDefinition{Targets: targets}
+	for _, target := range targets {
+		if target.Type != device.TargetDevice {
+			continue
+		}
+		definition.Lighting.Overrides = append(definition.Lighting.Overrides, store.SceneLightOverride{
+			DeviceID: device.DeviceID(target.ID), Kind: store.SceneLightOverrideState,
+			State: &store.DesiredState{On: device.Ptr(true), Brightness: device.Ptr(180)},
+		})
+	}
+	return definition
 }
