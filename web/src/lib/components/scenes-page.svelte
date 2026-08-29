@@ -1,28 +1,18 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
+	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { measureMount } from "$lib/perf";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { prefetchDetail } from "$lib/prefetch-detail";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogFooter,
-		DialogHeader,
-		DialogTitle,
-	} from "$lib/components/ui/dialog/index.js";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import SceneTable from "$lib/components/scene-table.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { sceneRoomLabel } from "$lib/list-helpers";
-	import { sceneTintColors } from "$lib/device-tint";
-	import { parsePayload } from "$lib/scene-editable";
+	import { scenePreviewColors } from "$lib/device-tint";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
@@ -34,14 +24,21 @@
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
-	import { scenesStore, type Scene } from "$lib/stores/scenes.svelte";
+	import { scenesStore, type Scene as SceneData } from "$lib/stores/scenes.svelte";
+	import { vibeCatalog } from "$lib/stores/vibe-catalog.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
-	import { Plus, Clapperboard, Play, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
+	import { Plus, Clapperboard, Play, Square, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
+	import {
+		SceneLightOverrideKind,
+		SceneTargetType,
+		type DesiredSceneStateInput,
+		type SceneDefinitionInput,
+	} from "$lib/gql/graphql";
 
 	interface Props {
 		/**
@@ -54,34 +51,6 @@
 
 	let { visible }: Props = $props();
 
-	interface SceneAction {
-		targetType: string;
-		targetId: string;
-	}
-
-	interface SceneDevicePayload {
-		deviceId: string;
-		payload: string;
-	}
-
-	interface SceneRoomRef {
-		id: string;
-		name: string;
-		icon?: string | null;
-	}
-
-	interface SceneData {
-		id: string;
-		name: string;
-		icon?: string | null;
-		rooms: SceneRoomRef[];
-		actions: SceneAction[];
-		devicePayloads: SceneDevicePayload[];
-		effectivePayloads: SceneDevicePayload[];
-		createdBy?: { id: string; username: string; name: string } | null;
-		activatedAt?: string | null;
-	}
-
 	type SceneTargetKind = "device" | "group" | "room";
 
 	function isScenePickerTarget(d: Device): boolean {
@@ -91,16 +60,12 @@
 	}
 
 	const clientRef = getContextClient();
+	const loader = delayedLoading(() => !scenesStore.hydrated && scenesStore.error === null);
 	const scenes = $derived(scenesStore.items);
 	const devicesRef = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const groupsRef = $derived(groupsStore.items);
 	const roomsRef = $derived(roomsStore.items);
 	let applyingId = $state<string | null>(null);
-	let createDialogOpen = $state(false);
-	let newSceneName = $state("");
-	let createLoading = $state(false);
-	let newSceneNameInput = $state<HTMLInputElement | null>(null);
-
 	let quickAddScene = $state<SceneData | null>(null);
 	let quickAddOpen = $state(false);
 	let pendingQuickAdds: { targetType: SceneTargetKind; targetId: string }[] = [];
@@ -108,7 +73,7 @@
 
 	const quickAddDrawerGroups = $derived.by((): DrawerGroup<SceneTargetKind>[] => {
 		if (!quickAddScene) return [];
-		const existing = new Set(quickAddScene.actions.map((a) => `${a.targetType}:${a.targetId}`));
+		const existing = new Set(quickAddScene.targets.map((a) => `${a.targetType}:${a.targetId}`));
 		const result: DrawerGroup<SceneTargetKind>[] = [];
 
 		const devs = devicesRef.filter(
@@ -180,12 +145,35 @@
 		const scene = quickAddScene;
 		const picks = pendingQuickAdds;
 		pendingQuickAdds = [];
-		const newActions = [
-			...scene.actions.map((a) => ({ targetType: a.targetType, targetId: a.targetId })),
-			...picks,
+		const newTargets = [
+			...scene.targets.map((a) => ({ targetType: a.targetType as SceneTargetType, targetId: a.targetId })),
+			...picks.map((pick) => ({ ...pick, targetType: pick.targetType as SceneTargetType })),
 		];
 		try {
-			await scenesStore.update(clientRef, scene.id, { actions: newActions });
+			const overrides = scene.lighting.overrides.map((override) => ({
+				deviceId: override.deviceId,
+				kind: override.kind as SceneLightOverrideKind,
+				state: override.state as DesiredSceneStateInput | null | undefined,
+				effectId: override.effectId,
+				nativeEffectName: override.nativeEffectName,
+			}));
+			const definition: SceneDefinitionInput = {
+				targets: newTargets,
+				lighting: {
+					dynamicSource: scene.lighting.dynamicSource ? {
+						seed: scene.lighting.dynamicSource.seed,
+						brightness: scene.lighting.dynamicSource.brightness,
+						movement: scene.lighting.dynamicSource.movement,
+						cycleSeconds: scene.lighting.dynamicSource.cycleSeconds,
+					} : undefined,
+					overrides,
+				},
+				supportingStates: scene.supportingStates.map((supporting) => ({
+					deviceId: supporting.deviceId,
+					state: supporting.state as DesiredSceneStateInput,
+				})),
+			};
+			await scenesStore.update(clientRef, scene.id, { definition });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not update the scene."));
 		}
@@ -195,8 +183,9 @@
 
 	$effect(() => {
 		if (!visible) return;
+		void vibeCatalog.load(clientRef);
 		pageHeader.breadcrumbs = [{ label: "Scenes" }];
-		pageHeader.actions = [{ label: "Create Scene", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
+		pageHeader.actions = [{ label: "Create Scene", mobileLabel: "Create", icon: Plus, onclick: () => goto("/scenes/new") }];
 		pageHeader.viewToggle = {
 			value: view,
 			onchange: (v) => {
@@ -212,32 +201,6 @@
 	const selection = createTableSelection();
 	let batchDeleteConfirm = $state(false);
 	let batchDeleteLoading = $state(false);
-
-	async function handleCreateScene(options: { keepOpen?: boolean } = {}) {
-		if (!clientRef || !newSceneName.trim()) return;
-		createLoading = true;
-		errors.clear();
-
-		let created: Scene;
-		try {
-			created = await scenesStore.create(clientRef, newSceneName.trim());
-		} catch (e) {
-			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not create the scene."));
-			return;
-		}
-
-		createLoading = false;
-		newSceneName = "";
-
-		if (options.keepOpen) {
-			newSceneNameInput?.focus();
-			return;
-		}
-
-		createDialogOpen = false;
-		goto(`/scenes/${created.id}`);
-	}
 
 	async function handleRename(scene: SceneData, newName: string) {
 		if (!clientRef) return;
@@ -267,6 +230,19 @@
 			await scenesStore.apply(clientRef, scene.id);
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not apply the scene."));
+		} finally {
+			applyingId = null;
+		}
+	}
+
+	async function handleStop(scene: SceneData) {
+		if (!clientRef) return;
+		applyingId = scene.id;
+		errors.clear();
+		try {
+			await scenesStore.deactivate(clientRef, scene.id);
+		} catch (e) {
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not stop the scene."));
 		} finally {
 			applyingId = null;
 		}
@@ -360,11 +336,11 @@
 		for (const d of devicesRef) deviceIdByNameLower.set(deviceDisplayName(d).toLowerCase(), d.id);
 
 		return scenes.filter((s) => {
-			if (targetValues.length > 0 && !s.actions.some((a) => targetValues.includes(a.targetType)))
+			if (targetValues.length > 0 && !s.targets.some((a) => targetValues.includes(a.targetType)))
 				return false;
 			if (deviceValues.length > 0) {
 				const matches = deviceValues.some((v) =>
-					s.actions.some((a) => {
+					s.targets.some((a) => {
 						if (a.targetType !== "device") return false;
 						const device = devicesRef.find((d) => d.id === a.targetId);
 						return device ? deviceDisplayName(device).toLowerCase().includes(v) : false;
@@ -373,7 +349,7 @@
 				if (!matches) return false;
 			}
 			if (emptyValues.length > 0) {
-				const isEmpty = s.actions.length === 0;
+				const isEmpty = s.targets.length === 0 && s.supportingStates.length === 0;
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
@@ -420,8 +396,15 @@
 		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 
+	{#if scenesStore.error}
+		<ErrorBanner class="mb-4" message={scenesStore.error} />
+	{/if}
 
-	{#if scenesStore.hydrated}
+	{#if !scenesStore.hydrated}
+		{#if loader.visible}
+			<p class="text-sm text-muted-foreground">Loading scenes…</p>
+		{/if}
+	{:else}
 		<div in:fly={{ y: -4, duration: 150 }}>
 			{#if scenes.length === 0}
 				<div class="rounded-lg shadow-card bg-card p-12 text-center">
@@ -432,7 +415,7 @@
 					<p class="mt-2 text-sm text-muted-foreground">
 						Create a scene to save device state presets and apply them with a single action.
 					</p>
-					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
+					<Button class="mt-4" onclick={() => goto("/scenes/new")}>
 						<Plus class="size-4" />
 						<span>Create your first scene</span>
 					</Button>
@@ -475,15 +458,14 @@
 						{#snippet card()}
 							<AnimatedGrid>
 								{#each filteredScenes as scene (scene.id)}
-									{@const noTargets = scene.effectivePayloads.length === 0}
+									{@const noTargets = scene.targets.length === 0 && scene.supportingStates.length === 0}
 									{@const applying = applyingId === scene.id}
 									{@const active = scene.activatedAt != null}
-									{@const tintColors = sceneTintColors(scene.effectivePayloads.map((p) => parsePayload(p.payload)))}
+									{@const tintColors = scenePreviewColors(scene.preview)}
 									<EntityCard
 										entity={scene}
-										onpointerenter={(s) => prefetchDetail(clientRef, "scene", s.id)}
 										fallbackIcon={Clapperboard}
-										subtitle="{scene.effectivePayloads.length} target{scene.effectivePayloads.length === 1
+										subtitle="{scene.targets.length + scene.supportingStates.length} target{scene.targets.length + scene.supportingStates.length === 1
 											? ''
 											: 's'}"
 										tintColors={tintColors.length > 0 ? tintColors : null}
@@ -502,17 +484,31 @@
 											{/if}
 										{/snippet}
 										{#snippet leadingActions()}
-											<Button
-												variant="ghost"
-												size="icon-sm"
-												haptic="execute"
-												onclick={() => handleApply(scene)}
-												disabled={applying || noTargets || active}
-												class="transition-opacity duration-200"
-												aria-label="Apply scene"
-											>
-												<Play class="size-4" />
-											</Button>
+											{#if active}
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													haptic="execute"
+													onclick={() => handleStop(scene)}
+													disabled={applying}
+													class="transition-opacity duration-200"
+													aria-label="Stop scene"
+												>
+													<Square class="size-4" />
+												</Button>
+											{:else}
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													haptic="execute"
+													onclick={() => handleApply(scene)}
+													disabled={applying || noTargets}
+													class="transition-opacity duration-200"
+													aria-label="Apply scene"
+												>
+													<Play class="size-4" />
+												</Button>
+											{/if}
 										{/snippet}
 									</EntityCard>
 								{/each}
@@ -524,6 +520,7 @@
 								{selection}
 								{applyingId}
 								onapply={handleApply}
+								onstop={handleStop}
 								ondelete={(s) => (deleteConfirmScene = s)}
 								onrename={handleRename}
 								oniconchange={handleIconChange}
@@ -535,48 +532,6 @@
 			{/if}
 		</div>
 	{/if}
-
-	<Dialog bind:open={createDialogOpen}>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>Create Scene</DialogTitle>
-				<DialogDescription>
-					Give your new scene a name. You can add targets and configure states in the editor.
-				</DialogDescription>
-			</DialogHeader>
-			<form
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleCreateScene();
-				}}
-			>
-				<Input bind:ref={newSceneNameInput} bind:value={newSceneName} placeholder="Scene name" autofocus />
-				<DialogFooter class="mt-4">
-					<Button
-						variant="outline"
-						type="button"
-						onclick={() => {
-							createDialogOpen = false;
-							newSceneName = "";
-						}}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="secondary"
-						type="button"
-						disabled={!newSceneName.trim() || createLoading}
-						onclick={() => handleCreateScene({ keepOpen: true })}
-					>
-						Create more
-					</Button>
-					<Button type="submit" disabled={!newSceneName.trim() || createLoading}>
-						{createLoading ? "Creating..." : "Create"}
-					</Button>
-				</DialogFooter>
-			</form>
-		</DialogContent>
-	</Dialog>
 
 	<ConfirmDialog
 		bind:open={() => deleteConfirmScene !== null, (v) => { if (!v) deleteConfirmScene = null; }}
@@ -591,7 +546,7 @@
 	<ConfirmDialog
 		open={batchDeleteConfirm}
 		title="Delete {selection.count} scene{selection.count === 1 ? '' : 's'}?"
-		description="This permanently deletes the selected scenes and all their actions. This cannot be undone."
+		description="This permanently deletes the selected scenes and their compositions. This cannot be undone."
 		confirmLabel="Delete"
 		loading={batchDeleteLoading}
 		onconfirm={handleBatchDelete}

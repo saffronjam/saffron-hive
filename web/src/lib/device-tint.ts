@@ -7,7 +7,7 @@ import {
 import { ContactRole } from "$lib/gql/graphql";
 import { formatContactSummary, summarizeContacts } from "$lib/contact-summary";
 import { contactIcon } from "$lib/utils";
-import type { ActionPayload, StaticActionPayload } from "$lib/scene-editable";
+import type { DesiredSceneState, ScenePreview } from "$lib/scene-editable";
 import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
 import type { Component } from "svelte";
@@ -145,26 +145,20 @@ export interface TintInput {
 }
 
 /**
- * Per-payload view used for tint computation: the flat-field projection of the
- * payload's discriminated {@link StaticActionPayload.light}. Callers that
- * already operate on flat device state (`Device.state.color` /
- * `.colorTemp`) skip this and build a {@link TintInput} directly.
+ * Converts a typed Scene desired state to the shared tint vocabulary.
  */
-function staticPayloadTintInput(payload: StaticActionPayload, deviceType?: string): TintInput {
+function sceneStateTintInput(state: DesiredSceneState, deviceType?: string): TintInput {
   return {
     type: deviceType,
-    on: payload.on,
-    color:
-      payload.light?.kind === "color"
-        ? { r: payload.light.r, g: payload.light.g, b: payload.light.b }
-        : null,
-    colorTemp: payload.light?.kind === "colorTemp" ? payload.light.mireds : null,
-    brightness: payload.brightness,
+    on: state.on,
+    color: state.color,
+    colorTemp: state.colorTemp,
+    brightness: state.brightness,
   };
 }
 
-function staticPayloadIsSwitchOnly(payload: StaticActionPayload): boolean {
-  return payload.light === undefined && payload.brightness == null;
+function sceneStateIsSwitchOnly(state: DesiredSceneState): boolean {
+  return state.color == null && state.colorTemp == null && state.brightness == null;
 }
 
 export function resolveTintRgb(input: TintInput): RGB {
@@ -481,14 +475,13 @@ export function deviceTintColor(device: Device): string | null {
  * properties so CSS can interpolate between values. Empty when no payload is
  * switched on.
  */
-export function sceneTintColors(payloads: ActionPayload[]): string[] {
+export function sceneStateTintColors(states: DesiredSceneState[]): string[] {
   const nonSwitchColors: RGB[] = [];
   const switchColors: RGB[] = [];
-  for (const payload of payloads) {
-    if (payload.kind !== "static") continue;
-    if (!payload.on) continue;
-    const rgb = resolveTintRgb(staticPayloadTintInput(payload));
-    if (staticPayloadIsSwitchOnly(payload)) switchColors.push(rgb);
+  for (const state of states) {
+    if (!state.on) continue;
+    const rgb = resolveTintRgb(sceneStateTintInput(state));
+    if (sceneStateIsSwitchOnly(state)) switchColors.push(rgb);
     else nonSwitchColors.push(rgb);
   }
   const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
@@ -538,43 +531,15 @@ export function tintIconGradient(colors: string[]): string {
   return `linear-gradient(135deg, ${stops})`;
 }
 
-function payloadTintRgb(
-  payload: ActionPayload,
-  device: Device | undefined,
-): { rgb: RGB; isSwitchOnly: boolean; on: boolean } {
-  if (payload.kind !== "static") {
-    return { rgb: NEUTRAL, isSwitchOnly: false, on: false };
-  }
-  const rgb = resolveTintRgb(staticPayloadTintInput(payload, device?.type));
-  return { rgb, isSwitchOnly: staticPayloadIsSwitchOnly(payload), on: payload.on === true };
+export function scenePreviewColors(preview: ScenePreview): string[] {
+  return preview.swatches.slice(0, 3).map((swatch) => toCss(swatch.color));
 }
 
-/**
- * Returns a CSS `linear-gradient(...)` string representing the scene's
- * desired colors across its devices. Colored/tempered/dimmable lights
- * contribute their hues; scenes made entirely of switch-style toggles fall
- * back to a cream gradient; scenes with no payloads fall back to neutral.
- */
-export function sceneTint(
-  payloads: Map<string, ActionPayload>,
-  devicesById: Map<string, Device>,
-): string {
-  const nonSwitchColors: RGB[] = [];
-  const switchColors: RGB[] = [];
-  for (const [deviceId, payload] of payloads) {
-    const device = devicesById.get(deviceId);
-    const { rgb, isSwitchOnly, on } = payloadTintRgb(payload, device);
-    if (!on) continue;
-    if (isSwitchOnly) switchColors.push(rgb);
-    else nonSwitchColors.push(rgb);
-  }
-  const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
-  if (picked.length === 0) return toCss(NEUTRAL);
-  const unique = dedupe(picked).slice(0, 3);
-  if (unique.length === 1)
-    return `linear-gradient(135deg, ${toCss(unique[0])}, ${toCss(unique[0])})`;
-  const stops = unique.map(toCss).join(", ");
-  return `linear-gradient(135deg, ${stops})`;
+export function scenePreviewGradient(preview: ScenePreview): string {
+  const colors = scenePreviewColors(preview);
+  if (colors.length === 0) return toCss(NEUTRAL);
+  if (colors.length === 1) return `linear-gradient(135deg, ${colors[0]}, ${colors[0]})`;
+  return `linear-gradient(135deg, ${colors.join(", ")})`;
 }
 
 export interface AggregatedReading {
@@ -699,31 +664,3 @@ function dedupe(colors: RGB[]): RGB[] {
  * as {@link sceneTintColors} and returns the first deduplicated hue, or
  * a brand-token fallback when nothing resolves.
  */
-export function sceneGlowColor(payloads: ActionPayload[]): string {
-  const colors = sceneTintColors(payloads);
-  return colors[0] ?? "var(--brand)";
-}
-
-/**
- * Scene tint derived purely from a list of `ActionPayload`s (no device
- * registry needed). Useful for scene cards/tables that only have stored
- * payloads available.
- */
-export function sceneTintFromPayloads(payloads: ActionPayload[]): string {
-  const nonSwitchColors: RGB[] = [];
-  const switchColors: RGB[] = [];
-  for (const payload of payloads) {
-    if (payload.kind !== "static") continue;
-    if (!payload.on) continue;
-    const rgb = resolveTintRgb(staticPayloadTintInput(payload));
-    if (staticPayloadIsSwitchOnly(payload)) switchColors.push(rgb);
-    else nonSwitchColors.push(rgb);
-  }
-  const picked = nonSwitchColors.length > 0 ? nonSwitchColors : switchColors;
-  if (picked.length === 0) return toCss(NEUTRAL);
-  const unique = dedupe(picked).slice(0, 3);
-  if (unique.length === 1)
-    return `linear-gradient(135deg, ${toCss(unique[0])}, ${toCss(unique[0])})`;
-  const stops = unique.map(toCss).join(", ");
-  return `linear-gradient(135deg, ${stops})`;
-}

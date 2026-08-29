@@ -107,8 +107,8 @@ export function groupMemberBreakdown(members: GroupMemberLike[]): string {
   return parts.join(", ");
 }
 
-/** A minimal scene action shape — just the `targetType` field is needed. */
-export interface SceneActionLike {
+/** A minimal Scene target shape — just the `targetType` field is needed. */
+export interface SceneTargetLike {
   targetType: string;
 }
 
@@ -134,16 +134,16 @@ export function sceneRoomLabel(rooms: SceneRoomLike[]): string {
  * Examples: "3 devices", "1 device, 2 groups", "1 room, 3 selectors".
  * Empty input → "No targets".
  */
-export function sceneTargetBreakdown(actions: SceneActionLike[]): string {
+export function sceneTargetBreakdown(targets: SceneTargetLike[]): string {
   let d = 0;
   let g = 0;
   let r = 0;
   let e = 0;
-  for (const a of actions) {
-    if (a.targetType === "device") d++;
-    else if (a.targetType === "group") g++;
-    else if (a.targetType === "room") r++;
-    else if (a.targetType === "expression") e++;
+  for (const target of targets) {
+    if (target.targetType === "device") d++;
+    else if (target.targetType === "group") g++;
+    else if (target.targetType === "room") r++;
+    else if (target.targetType === "expression") e++;
   }
   const parts: string[] = [];
   if (d > 0) parts.push(`${d} device${d === 1 ? "" : "s"}`);

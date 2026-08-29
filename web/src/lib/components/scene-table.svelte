@@ -18,43 +18,16 @@
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
 	import { sceneTargetBreakdown } from "$lib/list-helpers";
-	import { Clapperboard, Play, Plus } from "@lucide/svelte";
-	import { sceneTintFromPayloads } from "$lib/device-tint";
-	import { parsePayload } from "$lib/scene-editable";
-
-	interface SceneAction {
-		targetType: string;
-		targetId: string;
-	}
-
-	interface SceneDevicePayload {
-		deviceId: string;
-		payload: string;
-	}
-
-	interface SceneRoomRef {
-		id: string;
-		name: string;
-		icon?: string | null;
-	}
-
-	interface SceneData {
-		id: string;
-		name: string;
-		icon?: string | null;
-		rooms: SceneRoomRef[];
-		actions: SceneAction[];
-		devicePayloads: SceneDevicePayload[];
-		effectivePayloads: SceneDevicePayload[];
-		createdBy?: { id: string; username: string; name: string } | null;
-		activatedAt?: string | null;
-	}
+	import { Clapperboard, Play, Plus, Square } from "@lucide/svelte";
+	import { scenePreviewGradient } from "$lib/device-tint";
+	import type { Scene as SceneData } from "$lib/stores/scenes.svelte";
 
 	interface Props {
 		scenes: SceneData[];
 		selection: TableSelection;
 		applyingId: string | null;
 		onapply: (scene: SceneData) => void;
+		onstop?: (scene: SceneData) => void;
 		ondelete: (scene: SceneData) => void;
 		onrename: (scene: SceneData, newName: string) => void;
 		oniconchange: (scene: SceneData, icon: string | null) => void;
@@ -66,6 +39,7 @@
 		selection,
 		applyingId,
 		onapply,
+		onstop,
 		ondelete,
 		onrename,
 		oniconchange,
@@ -105,7 +79,7 @@
 		{
 			key: "targets",
 			label: "Targets",
-			sortValue: (s) => s.effectivePayloads.length,
+			sortValue: (s) => s.targets.length + s.supportingStates.length,
 			cell: targetsCell,
 		},
 		{
@@ -158,7 +132,7 @@
 {#snippet colorCell(s: SceneData)}
 	{@const active = s.activatedAt != null}
 	<div class="transition-opacity duration-300 ease-out" style="opacity: {active ? 1 : 0.35}">
-		<HiveColorSwatch color={sceneTintFromPayloads(s.effectivePayloads.map((p) => parsePayload(p.payload)))} />
+		<HiveColorSwatch color={scenePreviewGradient(s.preview)} />
 	</div>
 {/snippet}
 
@@ -171,18 +145,19 @@
 {/snippet}
 
 {#snippet targetsCell(s: SceneData)}
+	{@const count = s.targets.length + s.supportingStates.length}
 	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{#if s.effectivePayloads.length === 0}
+		{#if count === 0}
 			No targets
 		{:else}
-			{s.effectivePayloads.length} target{s.effectivePayloads.length === 1 ? "" : "s"}
+			{count} target{count === 1 ? "" : "s"}
 		{/if}
 	</span>
 {/snippet}
 
 {#snippet breakdownCell(s: SceneData)}
 	<span class="text-sm text-muted-foreground">
-		{sceneTargetBreakdown(s.actions)}
+		{sceneTargetBreakdown(s.targets)}
 	</span>
 {/snippet}
 
@@ -205,7 +180,7 @@
 {#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(s: SceneData)}
-	{@const noTargets = s.effectivePayloads.length === 0}
+	{@const noTargets = s.targets.length + s.supportingStates.length === 0}
 	{@const applying = applyingId === s.id}
 	{@const active = s.activatedAt != null}
 	<RowActionsCell
@@ -215,15 +190,19 @@
 		deleteLabel="Delete scene"
 	>
 		{#snippet leading()}
-			{#if active || noTargets}
+			{#if noTargets}
 				<Tooltip>
 					<TooltipTrigger>
 						<Button variant="ghost" size="icon-sm" disabled class="transition-opacity duration-200" aria-label="Apply scene">
 							<Play class="size-4" />
 						</Button>
 					</TooltipTrigger>
-					<TooltipContent>{active ? "Active" : "No targets"}</TooltipContent>
+					<TooltipContent>No targets</TooltipContent>
 				</Tooltip>
+			{:else if active}
+				<Button variant="ghost" size="icon-sm" haptic="execute" onclick={() => onstop?.(s)} disabled={applying} aria-label="Stop scene">
+					<Square class="size-4" />
+				</Button>
 			{:else}
 				<Button
 					variant="ghost"
