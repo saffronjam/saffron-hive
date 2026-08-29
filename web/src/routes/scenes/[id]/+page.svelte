@@ -1,659 +1,221 @@
 <script lang="ts">
-	import { page } from "$app/stores";
+	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import { onMount, onDestroy } from "svelte";
-	import { fly } from "svelte/transition";
+	import { onMount } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { SCENE_DETAIL_QUERY as SCENE_QUERY } from "$lib/graphql/details";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import SceneEditorComponent from "$lib/components/scene-editor.svelte";
-	import HiveDrawer from "$lib/components/hive-drawer.svelte";
-	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import SceneEditor from "$lib/components/scene-editor.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { ArrowLeft, Group, DoorOpen, Clapperboard, Play, X } from "@lucide/svelte";
-	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
-	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import { deviceStore, isRuntimeEnabledDevice, isSceneTarget, type Device } from "$lib/stores/devices";
-	import { roomsStore } from "$lib/stores/rooms.svelte";
-	import { groupsStore } from "$lib/stores/groups.svelte";
-	import { scenesStore } from "$lib/stores/scenes.svelte";
-	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import {
+		editorDefinitionInput,
+		sceneControllableDeviceCount,
 		sceneToEditorState,
-		stringifyPayload,
-		staticFieldsOf,
+		type EditorState,
 		type SceneData,
-		type ActionPayload,
-		type EditableTarget,
-		type TargetKind,
-		type DevicePayloadMap,
-		newTargetUid,
+		type ScenePreview,
 	} from "$lib/scene-editable";
-	import { effectSummary, nativeOptionLabel, type EffectSummary } from "$lib/effect-editable";
-	import { EffectKind } from "$lib/gql/graphql";
-	import {
-		resolveTargetDevices,
-		evaluateExpression,
-		type Clause,
-		type GroupLite,
-		type RoomLite,
-	} from "$lib/target-resolve";
+	import { effectSummary, type EffectSummary } from "$lib/effect-editable";
+	import { deviceStore, isRuntimeEnabledDevice } from "$lib/stores/devices";
+	import { groupsStore } from "$lib/stores/groups.svelte";
+	import { roomsStore } from "$lib/stores/rooms.svelte";
+	import { scenesStore } from "$lib/stores/scenes.svelte";
+	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import type { GroupLite, RoomLite } from "$lib/target-resolve";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { ArrowLeft, Clapperboard, Play, Plus, Square, X } from "@lucide/svelte";
 
-	const sceneId = $derived($page.params.id);
-
-	const UPDATE_SCENE = graphql(`
-		mutation SceneEditUpdate($id: ID!, $input: UpdateSceneInput!) {
-			updateScene(id: $id, input: $input) {
-				id
-				name
-				icon
-				actions {
-					targetType
-					targetId
-					name
-					expression {
-						connector
-						subject
-						op
-						values
-					}
-					target {
-						... on Device {
-							__typename
-							id
-							# Aliased because Group.name and Room.name in the sibling arms are
-							# non-null, and GraphQL will not merge fields of differing nullability.
-							deviceName: name
-							type
-							capabilities { name type values valueMin valueMax unit canSet reportsValue canGet category label description }
-							available
-							disabled
-							friendlyName
-							seen
-							lastSeen
-							state {
-								on
-								brightness
-								colorTemp
-								color { r g b x y }
-								transition
-								temperature
-								humidity
-								pressure
-								illuminance
-								battery
-								power
-								voltage
-								current
-								energy
-							}
-						}
-						... on Group {
-							__typename
-							id
-							groupName: name
-							friendlyName
-							source
-							removed
-							icon
-							members {
-								id
-								memberType
-								memberId
-							}
-							resolvedDevices {
-								id
-								name
-								type
-								source
-								available
-								disabled
-								friendlyName
-								seen
-								lastSeen
-								capabilities { name type values valueMin valueMax unit canSet reportsValue canGet category label description }
-								state {
-									on
-									brightness
-									colorTemp
-									color { r g b x y }
-									transition
-									temperature
-									humidity
-									pressure
-									illuminance
-									battery
-									power
-									voltage
-									current
-									energy
-								}
-							}
-						}
-						... on Room {
-							__typename
-							id
-							name
-							icon
-							resolvedDevices {
-								id
-								name
-								type
-								source
-								available
-								disabled
-								friendlyName
-								seen
-								lastSeen
-								capabilities { name type values valueMin valueMax unit canSet reportsValue canGet category label description }
-								state {
-									on
-									brightness
-									colorTemp
-									color { r g b x y }
-									transition
-									temperature
-									humidity
-									pressure
-									illuminance
-									battery
-									power
-									voltage
-									current
-									energy
-								}
-							}
-						}
-					}
-				}
-				devicePayloads {
-					deviceId
-					payload
-				}
-				activatedAt
-			}
+	const EFFECTS = graphql(`
+		query SceneEditorEffects {
+			effects { id name icon kind nativeName loop requiredCapabilities }
 		}
 	`);
 
-	const SET_DEVICE_STATE = graphql(`
-		mutation SceneEditSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+	const sceneId = $derived(page.params.id ?? "");
+	const client = getContextClient();
+	const devices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
+	const groups = $derived<GroupLite[]>(groupsStore.items.map((group) => ({
+		id: group.id,
+		name: group.name,
+		friendlyName: group.friendlyName,
+		icon: group.icon,
+		removed: group.removed,
+		members: group.members,
+	})));
+	const rooms = $derived<RoomLite[]>(roomsStore.items.map((room) => ({
+		id: room.id,
+		name: room.name,
+		icon: room.icon,
+		members: room.members,
+		resolvedDevices: room.resolvedDevices,
+	})));
+
+	let name = $state("");
+	let icon = $state<string | null>(null);
+	let editorState = $state<EditorState | null>(null);
+	let preview = $state<ScenePreview | null>(null);
+	let effects = $state<EffectSummary[]>([]);
+	let loading = $state(true);
+	let saving = $state(false);
+	let applying = $state(false);
+	let error = $state<string | null>(null);
+	let savedSignature = $state("");
+	let dirty = $state(false);
+	let vibePickerOpen = $state(false);
+	let initializedSceneId = "";
+
+	const active = $derived(scenesStore.byId.get(sceneId)?.activatedAt != null);
+	const controllableDeviceCount = $derived(
+		editorState ? sceneControllableDeviceCount(editorState, devices, groups, rooms) : 0,
+	);
+
+	function currentSignature(state = editorState, sceneName = name, sceneIcon = icon): string {
+		return state ? JSON.stringify({ name: sceneName, icon: sceneIcon, definition: editorDefinitionInput(state) }) : "";
+	}
+
+	function refreshDirty() {
+		dirty = editorState !== null && currentSignature() !== savedSignature;
+	}
+
+	function cloneState(source: EditorState): EditorState {
+		return structuredClone($state.snapshot(source)) as EditorState;
+	}
+
+	function setInitialScene(value: SceneData) {
+		name = value.name;
+		icon = value.icon ?? null;
+		editorState = sceneToEditorState(value);
+		preview = value.preview;
+		savedSignature = currentSignature(editorState, name, icon);
+		dirty = false;
+		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: value.name }];
+	}
+
+	function handleEditorChange(next: EditorState) {
+		if (
+			editorState &&
+			JSON.stringify(editorDefinitionInput(editorState)) === JSON.stringify(editorDefinitionInput(next))
+		) {
+			return;
 		}
-	`);
+		editorState = cloneState(next);
+		refreshDirty();
+	}
 
-	const EFFECTS_QUERY = graphql(`
-		query SceneEditEffects {
-			effects {
-				id
-				name
-				icon
-				kind
-				nativeName
-				loop
-				requiredCapabilities
+	async function save() {
+		if (!editorState || !name.trim()) return;
+		saving = true;
+		error = null;
+		try {
+			const updated = await scenesStore.update(client, sceneId, {
+				name: name.trim(),
+				icon,
+				definition: editorDefinitionInput(editorState),
+			});
+			name = updated.name;
+			icon = updated.icon ?? null;
+			preview = updated.preview;
+			if (editorState.dynamicSource && updated.lighting.dynamicSource) {
+				editorState = {
+					...editorState,
+					dynamicSource: { ...editorState.dynamicSource, seed: updated.lighting.dynamicSource.seed },
+				};
 			}
-			nativeEffectOptions {
-				name
-				displayName
-				confirmedDeviceCount
-				untestedDeviceCount
-				unsupportedDeviceCount
-			}
+			savedSignature = currentSignature(editorState, name, icon);
+			dirty = false;
+			pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: updated.name }];
+		} catch (caught) {
+			error = graphqlErrorMessage(caught, "Could not save the scene.");
+		} finally {
+			saving = false;
 		}
-	`);
-
-	interface SceneQueryResult {
-		scene: SceneData | null;
 	}
 
-	interface UpdateSceneResult {
-		updateScene: SceneData;
+	async function applyOrStop() {
+		if (!editorState || dirty || (!active && controllableDeviceCount === 0)) return;
+		applying = true;
+		error = null;
+		try {
+			if (active) await scenesStore.deactivate(client, sceneId);
+			else await scenesStore.apply(client, sceneId);
+		} catch (caught) {
+			error = graphqlErrorMessage(caught, active ? "Could not stop the scene." : "Could not apply the scene.");
+		} finally {
+			applying = false;
+		}
 	}
-
-	interface SetDeviceStateResult {
-		setTargetState: boolean;
-	}
-
-	const clientRef = getContextClient();
-	let scene = $state<SceneData | null>(null);
 
 	onMount(() => {
 		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: "Scene" }];
+		pageHeader.viewToggle = null;
+		void client.query(EFFECTS, {}).toPromise().then((result) => {
+			if (result.data) effects = result.data.effects.map(effectSummary);
+		});
 	});
 
 	$effect(() => {
+		const id = sceneId;
+		if (initializedSceneId === id) return;
+		const scene = scenesStore.byId.get(id);
 		if (scene) {
-			pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: scene.name }];
-		}
-	});
-
-	$effect(() => {
-		const sceneActive = scene !== null && scenesStore.byId.get(scene.id)?.activatedAt != null;
-		pageHeader.actions = [
-			{
-				label: "Activate",
-				icon: Play,
-				variant: "outline" as const,
-				onclick: handleActivate,
-				disabled: activating || !scene || isDirty || sceneActive,
-				hideLabelOnMobile: true,
-			},
-			{ label: "Cancel", icon: X, variant: "outline" as const, onclick: handleCancel, hideLabelOnMobile: true },
-			{ label: "Save", saving, onclick: handleSave, disabled: saving || !sceneName.trim() || !isDirty, hideLabelOnMobile: true },
-		];
-	});
-	// Dropped at the source so the whole page follows: the target tree, its
-	// reachable counts, the Add drawer and every resolution.
-	const allDevices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
-	const allGroups = $derived(groupsStore.items);
-	const allRooms = $derived(roomsStore.items);
-	let allEffects = $state<EffectSummary[]>([]);
-	let loading = $state(true);
-	let saving = $state(false);
-	const errors = new BannerError();
-	let unsubscribers: (() => void)[] = [];
-
-	let sceneName = $state("");
-	let sceneIcon = $state<string | null>(null);
-	let targets = $state<EditableTarget[]>([]);
-	let payloadsByDevice = $state<DevicePayloadMap>(new Map());
-	let pickerOpen = $state(false);
-	let savedSceneName = $state("");
-	let savedSceneIcon = $state<string | null>(null);
-	let savedTargetsJson = $state("");
-	let savedPayloadsJson = $state("");
-
-	function serializePayloads(map: DevicePayloadMap): string {
-		return JSON.stringify(
-			Array.from(map.entries())
-				.sort(([a], [b]) => a.localeCompare(b))
-				.map(([k, v]) => [k, v]),
-		);
-	}
-
-	// Dirty tracking compares target content, not client-only identity, so
-	// removing and re-adding the same target does not register as a change.
-	function serializeTargets(ts: EditableTarget[]): string {
-		return JSON.stringify(ts, (k, v) => (k === "uid" ? undefined : v));
-	}
-
-	const isDirty = $derived(
-		sceneName !== savedSceneName ||
-		sceneIcon !== savedSceneIcon ||
-		serializeTargets(targets) !== savedTargetsJson ||
-		serializePayloads(payloadsByDevice) !== savedPayloadsJson,
-	);
-
-	let commandTimers = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
-	const devicesById = $derived(new Map(allDevices.map((d) => [d.id, d])));
-	const groupsLite = $derived<GroupLite[]>(
-		allGroups.map((g) => ({
-			id: g.id,
-			name: groupDisplayName(g),
-			friendlyName: g.friendlyName,
-			icon: g.icon,
-			members: g.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
-		})),
-	);
-	const roomsLite = $derived<RoomLite[]>(
-		allRooms.map((r) => ({
-			id: r.id,
-			name: r.name,
-			icon: r.icon,
-			members: r.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
-		})),
-	);
-
-	const existingTargetKeys = $derived(new Set(targets.map((t) => `${t.type}:${t.id}`)));
-	const availableDevices = $derived(
-		allDevices.filter((d) => isSceneTarget(d) && !existingTargetKeys.has(`device:${d.id}`)),
-	);
-	const availableGroups = $derived(allGroups.filter((g) => !existingTargetKeys.has(`group:${g.id}`)));
-	const availableRooms = $derived(allRooms.filter((r) => !existingTargetKeys.has(`room:${r.id}`)));
-
-	const pickerDrawerGroups = $derived.by((): DrawerGroup<TargetKind>[] => {
-		const result: DrawerGroup<TargetKind>[] = [];
-		if (availableDevices.length > 0) {
-			result.push({
-				heading: "Devices",
-				items: availableDevices.map((d) => ({
-					type: "device" as const,
-					id: d.id,
-					name: deviceDisplayName(d),
-					icon: deviceIcon(d.type, d.roles.contact),
-					iconRef: d.icon ?? null,
-					searchValue: `${deviceDisplayName(d)} ${d.type}`,
-				})),
-			});
-		}
-		if (availableGroups.length > 0) {
-			result.push({
-				heading: "Groups",
-				items: availableGroups.map((g) => ({
-					type: "group" as const,
-					id: g.id,
-					name: groupDisplayName(g),
-					icon: Group,
-					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
-				})),
-			});
-		}
-		if (availableRooms.length > 0) {
-			result.push({
-				heading: "Rooms",
-				items: availableRooms.map((r) => ({
-					type: "room" as const,
-					id: r.id,
-					name: r.name,
-					icon: DoorOpen,
-					badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
-				})),
-			});
-		}
-		return result;
-	});
-
-	function sendDeviceCommand(deviceId: string, payload: ActionPayload) {
-		if (!clientRef) return;
-		if (payload.kind !== "static") return;
-		const existing = commandTimers.get(deviceId);
-		if (existing) clearTimeout(existing);
-		const timer = setTimeout(() => {
-			commandTimers.delete(deviceId);
-			clientRef?.mutation<SetDeviceStateResult>(SET_DEVICE_STATE, {
-				deviceId,
-				state: staticFieldsOf(payload),
-			}).toPromise();
-		}, 300);
-		commandTimers.set(deviceId, timer);
-	}
-
-	function handleDevicePayloadUpdate(deviceId: string, payload: ActionPayload) {
-		const next = new Map(payloadsByDevice);
-		next.set(deviceId, payload);
-		payloadsByDevice = next;
-	}
-
-	function reachableDeviceIds(): Set<string> {
-		const ids = new Set<string>();
-		for (const t of targets) {
-			const resolved =
-				t.type === "expression"
-					? evaluateExpression(t.expression ?? [], allDevices, groupsLite, roomsLite)
-					: resolveTargetDevices({ type: t.type, id: t.id }, allDevices, groupsLite, roomsLite);
-			for (const d of resolved) {
-				if (isSceneTarget(d)) ids.add(d.id);
-			}
-		}
-		return ids;
-	}
-
-	function handleTargetRemove(index: number) {
-		targets = targets.filter((_, i) => i !== index);
-		const stillReachable = reachableDeviceIds();
-		const next = new Map<string, ActionPayload>();
-		for (const [did, p] of payloadsByDevice) {
-			if (stillReachable.has(did)) next.set(did, p);
-		}
-		payloadsByDevice = next;
-	}
-
-	function handleAddExpression() {
-		targets = [
-			...targets,
-			{ uid: newTargetUid(), type: "expression", id: "", name: "Selector", expression: [] },
-		];
-	}
-
-	function handleTargetExpressionChange(index: number, expression: Clause[]) {
-		targets = targets.map((t, i) => (i === index ? { ...t, expression } : t));
-	}
-
-	function handleTargetNameChange(index: number, name: string) {
-		targets = targets.map((t, i) => (i === index ? { ...t, name: name || "Selector" } : t));
-	}
-
-	function handleAddTarget(memberType: TargetKind, memberId: string) {
-		if (memberType === "device") {
-			const d = allDevices.find((x) => x.id === memberId);
-			if (!d) return;
-			targets = [
-				...targets,
-				{ uid: newTargetUid(), type: "device", id: d.id, name: deviceDisplayName(d), deviceType: d.type },
-			];
-		} else if (memberType === "group") {
-			const g = allGroups.find((x) => x.id === memberId);
-			if (!g) return;
-			targets = [
-				...targets,
-				{
-					uid: newTargetUid(),
-					type: "group",
-					id: g.id,
-					name: groupDisplayName(g),
-					icon: (g as unknown as { icon?: string | null }).icon ?? null,
-				},
-			];
-		} else {
-			const r = allRooms.find((x) => x.id === memberId);
-			if (!r) return;
-			targets = [
-				...targets,
-				{ uid: newTargetUid(), type: "room", id: r.id, name: r.name, icon: r.icon ?? null },
-			];
-		}
-	}
-
-	async function handleSave() {
-		if (!clientRef || !scene) return;
-		saving = true;
-		errors.clear();
-
-		const actions = targets.map((t) =>
-			t.type === "expression"
-				? {
-						targetType: "expression",
-						targetId: "",
-						expression: t.expression ?? [],
-						name: t.name && t.name !== "Selector" ? t.name : "",
-					}
-				: { targetType: t.type, targetId: t.id },
-		);
-		const devicePayloads = Array.from(payloadsByDevice.entries())
-			.filter(([deviceId]) => {
-				const d = devicesById.get(deviceId);
-				return d != null && isSceneTarget(d);
-			})
-			.map(([deviceId, payload]) => ({
-				deviceId,
-				payload: stringifyPayload(payload),
-			}));
-
-		const result = await clientRef
-			.mutation<UpdateSceneResult>(UPDATE_SCENE, {
-				id: scene.id,
-				input: {
-					name: sceneName.trim() || scene.name,
-					icon: sceneIcon,
-					actions,
-					devicePayloads,
-				},
-			})
-			.toPromise();
-
-		saving = false;
-
-		if (result.error || !result.data?.updateScene) {
-			errors.setWithAutoDismiss(result.error?.message ?? "Failed to save scene");
+			setInitialScene(scene as unknown as SceneData);
+			initializedSceneId = id;
+			loading = false;
 			return;
 		}
-
-		const updated = result.data.updateScene;
-		scene = updated;
-		sceneName = updated.name;
-		sceneIcon = updated.icon ?? null;
-
-		savedSceneName = sceneName;
-		savedSceneIcon = sceneIcon;
-		savedTargetsJson = serializeTargets(targets);
-		savedPayloadsJson = serializePayloads(payloadsByDevice);
-	}
-
-	function handleCancel() {
-		goto("/scenes");
-	}
-
-	let activating = $state(false);
-
-	async function handleActivate() {
-		if (!clientRef || !scene) return;
-		activating = true;
-		errors.clear();
-		try {
-			await scenesStore.apply(clientRef, scene.id);
-		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not apply the scene."));
-		} finally {
-			activating = false;
-		}
-	}
-
-	onMount(() => {
-		const client = clientRef;
-
-		client
-			.query<SceneQueryResult>(SCENE_QUERY, { id: sceneId })
-			.toPromise()
-			.then((result) => {
-				loading = false;
-				if (result.data?.scene) {
-					scene = result.data.scene;
-					sceneName = result.data.scene.name;
-					sceneIcon = result.data.scene.icon ?? null;
-					const state = sceneToEditorState(result.data.scene);
-					targets = state.targets;
-					payloadsByDevice = state.payloads;
-					savedSceneName = sceneName;
-					savedSceneIcon = sceneIcon;
-					savedTargetsJson = serializeTargets(targets);
-					savedPayloadsJson = serializePayloads(payloadsByDevice);
-				} else {
-					errors.message = "Scene not found";
-				}
-			})
-			.catch(() => {
-				loading = false;
-				errors.message = "Failed to load scene";
-			});
-
-		client
-			.query(EFFECTS_QUERY, {})
-			.toPromise()
-			.then((result) => {
-				if (!result.data) return;
-				const timelineEffects: EffectSummary[] = result.data.effects.map(effectSummary);
-				const nativeEffects: EffectSummary[] = result.data.nativeEffectOptions.map((opt) => ({
-					id: `native:${opt.name}`,
-					name: nativeOptionLabel(opt.name, opt.displayName),
-					icon: null,
-					kind: EffectKind.Native,
-					nativeName: opt.name,
-					loop: false,
-					requiredCapabilities: [],
-				}));
-				allEffects = [...timelineEffects, ...nativeEffects];
-			});
-
+		loading = !scenesStore.hydrated;
 	});
 
-	onDestroy(() => {
-		for (const unsub of unsubscribers) {
-			unsub();
-		}
-		for (const timer of commandTimers.values()) {
-			clearTimeout(timer);
-		}
+	$effect(() => {
+		pageHeader.actions = [
+			{ label: active ? "Stop" : "Apply", icon: active ? Square : Play, variant: "outline", onclick: applyOrStop, disabled: applying || dirty || !editorState || (!active && controllableDeviceCount === 0), hideLabelOnMobile: true },
+			{ label: "Cancel", icon: X, variant: "outline", onclick: () => goto("/scenes"), hideLabelOnMobile: true },
+			{ label: "Save", saving, onclick: save, disabled: saving || !dirty || !name.trim(), hideLabelOnMobile: true },
+		];
 	});
+
 </script>
 
-<UnsavedGuard dirty={isDirty} />
+<UnsavedGuard {dirty} />
 
-<div>
+{#if error}<ErrorBanner class="mb-4" message={error} ondismiss={() => (error = null)} />{/if}
 
-	{#if errors.message}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
-
-	{#if loading}
-		<div class="space-y-4">
-			<div class="h-16 animate-pulse rounded-xl shadow-card bg-card"></div>
-			<div class="h-64 animate-pulse rounded-xl shadow-card bg-card"></div>
+{#if loading}
+	<div class="rounded-lg shadow-card bg-card p-12 text-center text-muted-foreground">Loading scene…</div>
+{:else if !editorState || !preview}
+	<div class="rounded-lg shadow-card bg-card p-12 text-center">
+		<p class="text-muted-foreground">This scene could not be found.</p>
+		<Button class="mt-4" variant="outline" onclick={() => goto("/scenes")}><ArrowLeft class="size-4" /> Back to scenes</Button>
+	</div>
+{:else}
+	<div class="mx-auto max-w-6xl space-y-6">
+		<div class="flex items-center gap-3 rounded-lg shadow-card bg-card p-4">
+			<IconPicker value={icon} onselect={(value) => { icon = value; refreshDirty(); }}>
+				<IconPickerTrigger ariaLabel="Choose scene icon">
+					<AnimatedIcon {icon} class="size-5">{#snippet fallback()}<Clapperboard class="size-5" />{/snippet}</AnimatedIcon>
+				</IconPickerTrigger>
+			</IconPicker>
+			<Input value={name} oninput={(event) => { name = event.currentTarget.value; refreshDirty(); }} aria-label="Scene name" class="max-w-md text-lg font-medium" />
+			{#if !editorState.dynamicSource}
+				<Button class="ml-auto sm:w-auto sm:gap-1 sm:px-2.5" variant="outline" size="icon-sm" onclick={() => (vibePickerOpen = true)} aria-label="Add source"><Plus class="size-4" /><span class="hidden sm:inline">Add source</span></Button>
+			{/if}
 		</div>
-	{:else if scene}
-		<div class="flex flex-col gap-4" in:fly={{ y: -4, duration: 150 }}>
-			<div class="rounded-lg shadow-card bg-card p-4">
-				<label class="mb-2 block text-sm font-medium text-foreground" for="scene-name">
-					Scene Name
-				</label>
-				<div class="flex items-center gap-3">
-					<IconPicker value={sceneIcon} onselect={(icon) => (sceneIcon = icon)}>
-						<IconPickerTrigger size="lg" ariaLabel="Change icon">
-							<AnimatedIcon icon={sceneIcon} class="size-5 text-muted-foreground">
-								{#snippet fallback()}<Clapperboard class="size-5 text-muted-foreground" />{/snippet}
-							</AnimatedIcon>
-						</IconPickerTrigger>
-					</IconPicker>
-					<Input
-						id="scene-name"
-						bind:value={sceneName}
-						placeholder="Scene name"
-					/>
-				</div>
-			</div>
-
-			<SceneEditorComponent
-				{targets}
-				{payloadsByDevice}
-				{devicesById}
-				{groupsLite}
-				{roomsLite}
-				effects={allEffects}
-				onupdatedevicepayload={handleDevicePayloadUpdate}
-				onsendcommand={sendDeviceCommand}
-				onremovetarget={handleTargetRemove}
-				onaddtarget={() => (pickerOpen = true)}
-				onaddexpression={handleAddExpression}
-				onupdatetargetexpression={handleTargetExpressionChange}
-				onupdatetargetname={handleTargetNameChange}
-			/>
-		</div>
-	{:else}
-		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-lg font-medium text-foreground">Scene not found</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				The scene you're looking for doesn't exist or has been removed.
-			</p>
-			<Button variant="outline" class="mt-4" href="/scenes">
-				<ArrowLeft class="size-4" />
-				Back to Scenes
-			</Button>
-		</div>
-	{/if}
-
-	<HiveDrawer
-		bind:open={pickerOpen}
-		title="Add Targets"
-		description="Pick devices, groups, or rooms to include in this scene."
-		groups={pickerDrawerGroups}
-		multiple
-		onselect={handleAddTarget}
-	/>
-</div>
+		<SceneEditor
+			editor={editorState}
+			{preview}
+			{devices}
+			{groups}
+			{rooms}
+			{effects}
+			onchange={handleEditorChange}
+			onpreviewchange={(value) => (preview = value)}
+			bind:vibePickerOpen
+			showAddVibeInTargets={false}
+		/>
+	</div>
+{/if}

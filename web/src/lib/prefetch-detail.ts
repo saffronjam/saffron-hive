@@ -1,14 +1,9 @@
 import type { Client } from "@urql/svelte";
-import {
-  AUTOMATION_DETAIL_QUERY,
-  EFFECT_DETAIL_QUERY,
-  SCENE_DETAIL_QUERY,
-} from "$lib/graphql/details";
+import { AUTOMATION_DETAIL_QUERY, EFFECT_DETAIL_QUERY } from "$lib/graphql/details";
 
-export type DetailKind = "scene" | "automation" | "effect";
+export type DetailKind = "automation" | "effect";
 
 const DOCUMENTS = {
-  scene: SCENE_DETAIL_QUERY,
   automation: AUTOMATION_DETAIL_QUERY,
   effect: EFFECT_DETAIL_QUERY,
 };
