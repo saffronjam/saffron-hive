@@ -5,7 +5,11 @@ declare global {
     // interface Error {}
     // interface Locals {}
     // interface PageData {}
-    // interface PageState {}
+    interface PageState {
+      dashboardRoomId?: string;
+      mapRoomId?: string;
+      sceneCreateStage?: "start" | "look" | "targets" | "adjust" | "name";
+    }
     // interface Platform {}
   }
 }
