@@ -1,829 +1,808 @@
 <script lang="ts">
-	import { slide } from "svelte/transition";
-	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { onMount, tick } from "svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { flip } from "svelte/animate";
+	import { cubicIn, cubicOut } from "svelte/easing";
+	import { fly, slide } from "svelte/transition";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Popover, PopoverContent, PopoverTrigger } from "$lib/components/ui/popover/index.js";
+	import { Slider } from "$lib/components/ui/slider/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import HiveIcon from "$lib/components/hive-icon.svelte";
-	import LightColorPicker from "$lib/components/light-color-picker.svelte";
-	import { ChevronDown, ChevronRight, Eye, Filter, Palette, Pencil, Plus, Sparkles, Trash2 } from "@lucide/svelte";
-	import { deviceSceneCapabilities, deviceHasCapability, isSceneTarget, type Device, type DeviceState } from "$lib/stores/devices";
-	import {
-		defaultScenePayload,
-		type ActionPayload,
-		type StaticActionPayload,
-		type LightMode,
-		type DevicePayloadMap,
-		type EditableTarget,
-	} from "$lib/scene-editable";
-	import EffectPickerDrawer from "$lib/components/effect-picker-drawer.svelte";
-	import type { EffectPickerSelection } from "$lib/components/effect-picker-drawer.svelte";
-	import { EffectKind } from "$lib/gql/graphql";
-	import type { EffectSummary } from "$lib/effect-editable";
-	import {
-		resolveTargetDevices,
-		evaluateExpression,
-		type Clause,
-		type GroupLite,
-		type RoomLite,
-	} from "$lib/target-resolve";
-	import { buildTargetTree, type TargetTreeNode } from "$lib/target-tree";
-	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
-	import { Input } from "$lib/components/ui/input/index.js";
+	import { Popover, PopoverContent, PopoverTrigger } from "$lib/components/ui/popover/index.js";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
 		DropdownMenuItem,
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
+	import { Input } from "$lib/components/ui/input/index.js";
 	import {
-		Dialog,
-		DialogContent,
-		DialogFooter,
-		DialogHeader,
-		DialogTitle,
-	} from "$lib/components/ui/dialog/index.js";
+		Tabs,
+		TabsContent,
+		TabsList,
+		TabsTrigger,
+	} from "$lib/components/ui/tabs/index.js";
+	import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "$lib/components/ui/dialog/index.js";
+	import HiveDrawer from "$lib/components/hive-drawer.svelte";
+	import type { DrawerGroup } from "$lib/components/hive-drawer";
+	import HiveChip from "$lib/components/hive-chip.svelte";
+	import HiveIcon from "$lib/components/hive-icon.svelte";
+	import LightColorPicker from "$lib/components/light-color-picker.svelte";
+	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
+	import VibePreview from "$lib/components/vibe-preview.svelte";
+	import VibeSourcePicker from "$lib/components/vibe-source-picker.svelte";
+	import EffectPickerDrawer, { type EffectPickerSelection } from "$lib/components/effect-picker-drawer.svelte";
+	import DeviceStateEditor from "$lib/components/graph/device-state-editor.svelte";
+	import {
+		capturedSceneState,
+		defaultDesiredState,
+		initialSupportingState,
+		newTargetUid,
+		resolveSceneTargetLights,
+		stateEmpty,
+		type DesiredSceneState,
+		type DynamicLighting,
+		type EditorState,
+		type SceneLightOverride,
+		type ScenePreview,
+	} from "$lib/scene-editable";
+	import {
+		deviceSceneCapabilities,
+		deviceStore,
+		isLightControlDevice,
+		type Device,
+	} from "$lib/stores/devices";
+	import {
+		evaluateExpression,
+		type Clause,
+		type GroupLite,
+		type RoomLite,
+	} from "$lib/target-resolve";
+	import { buildTargetTree, type TargetTreeNode } from "$lib/target-tree";
+	import type { EffectSummary } from "$lib/effect-editable";
+	import { deviceDisplayName, deviceIcon, groupDisplayName } from "$lib/utils";
+	import { rgbToXy } from "$lib/color";
+	import { miredToRgb } from "$lib/device-tint";
+	import { randomVibeSeed } from "$lib/vibe-seed";
+	import {
+		cycleSecondsToPacePosition,
+		formatVibeCycle,
+		pacePositionToCycleSeconds,
+	} from "$lib/vibe-preview";
+	import { vibeCatalog } from "$lib/stores/vibe-catalog.svelte";
+	import {
+		ChevronDown,
+		ChevronRight,
+		DoorOpen,
+		Eye,
+		Filter,
+		Group as GroupIcon,
+		Lightbulb,
+		Palette,
+		Pencil,
+		Plus,
+		Shuffle,
+		SlidersHorizontal,
+		Sparkles,
+		Trash2,
+		X,
+	} from "@lucide/svelte";
+
+	type DirectTargetKind = "device" | "group" | "room";
 
 	interface Props {
-		targets: EditableTarget[];
-		payloadsByDevice: DevicePayloadMap;
-		devicesById: Map<string, Device>;
-		groupsLite: GroupLite[];
-		roomsLite: RoomLite[];
+		editor: EditorState;
+		preview: ScenePreview;
+		devices: Device[];
+		groups: GroupLite[];
+		rooms: RoomLite[];
 		effects?: EffectSummary[];
-		onupdatedevicepayload: (deviceId: string, payload: ActionPayload) => void;
-		onsendcommand: (deviceId: string, payload: ActionPayload) => void;
-		onremovetarget: (index: number) => void;
-		onaddtarget: () => void;
-		onaddexpression: () => void;
-		onupdatetargetexpression: (index: number, expression: Clause[]) => void;
-		onupdatetargetname: (index: number, name: string) => void;
+		onchange: (state: EditorState) => void;
+		onpreviewchange?: (preview: ScenePreview) => void;
+		vibePickerOpen?: boolean;
+		showAddVibeInTargets?: boolean;
 	}
 
 	let {
-		targets,
-		payloadsByDevice,
-		devicesById,
-		groupsLite,
-		roomsLite,
+		editor,
+		preview,
+		devices,
+		groups,
+		rooms,
 		effects = [],
-		onupdatedevicepayload,
-		onsendcommand,
-		onremovetarget,
-		onaddtarget,
-		onaddexpression,
-		onupdatetargetexpression,
-		onupdatetargetname,
+		onchange,
+		onpreviewchange,
+		vibePickerOpen = $bindable(false),
+		showAddVibeInTargets = true,
 	}: Props = $props();
+	const client = getContextClient();
+	let targetDrawerOpen = $state(false);
+	let supportingDrawerOpen = $state(false);
+	let effectPicker = $state<{ deviceId: string; caps: string[] } | null>(null);
+	let targetLiveMode = $state(false);
+	let targetActionMode = $state<"edit" | "live">("edit");
+	let pendingTargetActionMode = $state<"edit" | "live" | null>(null);
+	let targetActionsVisible = $state(true);
+	let supportingLiveMode = $state(false);
+	let sidePanel = $state("targets");
+	let reducedMotion = $state(false);
+	let rowTransitionsReady = $state(false);
+	let expanded = $state(new Set<string>());
+	let selectorEditor = $state<{ uid: string | null; name: string; expression: Clause[] } | null>(null);
+	let previewBrightness = $state(1);
+	let previewMovement = $state(0);
+	let previewCycleSeconds = $state(720);
+	let previewPacePosition = $state(cycleSecondsToPacePosition(720));
+	let previewSeed = $state("0");
 
-	let editingIndex = $state<number | null>(null);
-	let editName = $state("");
-	let editExpr = $state<Clause[]>([]);
+	onMount(() => {
+		const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+		const syncMotion = () => (reducedMotion = media.matches);
+		syncMotion();
+		media.addEventListener("change", syncMotion);
+		requestAnimationFrame(() => (rowTransitionsReady = true));
+		return () => media.removeEventListener("change", syncMotion);
+	});
 
-	function openSelectorEdit(index: number, name: string, expression: Clause[]) {
-		editingIndex = index;
-		editName = name === "Selector" ? "" : name;
-		editExpr = expression;
+	$effect(() => {
+		void vibeCatalog.load(client);
+	});
+
+	$effect(() => {
+		const dynamic = editor.dynamicSource;
+		if (!dynamic) return;
+		previewBrightness = dynamic.brightness;
+		previewMovement = dynamic.movement;
+		previewCycleSeconds = dynamic.cycleSeconds;
+		previewPacePosition = cycleSecondsToPacePosition(dynamic.cycleSeconds);
+		previewSeed = dynamic.seed;
+	});
+
+	const devicesById = $derived(new Map(devices.map((device) => [device.id, device])));
+	const resolvedLights = $derived(
+		resolveSceneTargetLights(editor.targets, devices, groups, rooms, { includeDisabled: true }),
+	);
+	const targetDrawerGroups = $derived.by((): DrawerGroup<DirectTargetKind>[] => {
+		const existing = new Set(editor.targets.filter((target) => target.type !== "expression").map((target) => `${target.type}:${target.id}`));
+		return [
+			{
+				heading: "Devices",
+				items: devices.filter((device) => isLightControlDevice(device) && !existing.has(`device:${device.id}`)).map((device) => ({
+					type: "device" as const,
+					id: device.id,
+					name: deviceDisplayName(device),
+					icon: deviceIcon(device.type, device.roles.contact),
+					iconRef: device.icon,
+				})),
+			},
+			{
+				heading: "Groups",
+				items: groups.filter((group) => !group.removed && !existing.has(`group:${group.id}`)).map((group) => ({
+					type: "group" as const,
+					id: group.id,
+					name: groupDisplayName(group),
+					icon: GroupIcon,
+					iconRef: group.icon,
+				})),
+			},
+			{
+				heading: "Rooms",
+				items: rooms.filter((room) => !existing.has(`room:${room.id}`)).map((room) => ({
+					type: "room" as const,
+					id: room.id,
+					name: room.name ?? room.id,
+					icon: DoorOpen,
+					iconRef: room.icon,
+				})),
+			},
+		];
+	});
+
+	const supportingGroups = $derived.by((): DrawerGroup<"device">[] => [{
+		heading: "Devices",
+		items: devices.filter((device) => !isLightControlDevice(device) && initialSupportingState(device) !== null && !editor.supportingStates.has(device.id)).map((device) => ({
+			type: "device" as const,
+			id: device.id,
+			name: deviceDisplayName(device),
+			icon: deviceIcon(device.type, device.roles.contact),
+			iconRef: device.icon,
+			badgeType: device.type,
+		})),
+	}]);
+
+	function update(next: Partial<EditorState>) {
+		onchange({ ...editor, ...next });
+	}
+
+	function updateDynamic(values: Partial<DynamicLighting>) {
+		if (!editor.dynamicSource) return;
+		update({ dynamicSource: { ...editor.dynamicSource, ...values } });
+	}
+
+	function shuffleVibe() {
+		previewSeed = randomVibeSeed();
+		updateDynamic({ seed: previewSeed });
+	}
+
+	function addTarget(type: DirectTargetKind, id: string) {
+		let name = id;
+		let icon: string | null | undefined;
+		let deviceType: string | undefined;
+		if (type === "device") {
+			const device = devices.find((candidate) => candidate.id === id);
+			if (!device) return;
+			name = deviceDisplayName(device);
+			icon = device.icon;
+			deviceType = device.type;
+		} else if (type === "group") {
+			const group = groups.find((candidate) => candidate.id === id);
+			if (!group) return;
+			name = groupDisplayName(group);
+			icon = group.icon;
+		} else {
+			const room = rooms.find((candidate) => candidate.id === id);
+			if (!room) return;
+			name = room.name ?? id;
+			icon = room.icon;
+		}
+		update({ targets: [...editor.targets, { uid: newTargetUid(), type, id, name, icon, deviceType }] });
 	}
 
 	function addSelector() {
-		const newIndex = targets.length;
-		onaddexpression();
-		openSelectorEdit(newIndex, "Selector", []);
+		selectorEditor = { uid: null, name: "", expression: [] };
 	}
 
-	function saveSelectorEdit() {
-		if (editingIndex !== null) {
-			onupdatetargetexpression(editingIndex, editExpr);
-			onupdatetargetname(editingIndex, editName.trim());
-		}
-		editingIndex = null;
-	}
-
-	let effectPicker = $state<{ deviceId: string; caps: string[] } | null>(null);
-
-	let mode = $state<"edit" | "live">("edit");
-	let expanded = $state<Set<string>>(new Set());
-
-	const allDevices = $derived(Array.from(devicesById.values()));
-
-	interface TopTreeNode {
-		key: string;
-		target: EditableTarget;
-		targetIndex: number;
-		devices: Device[];
-		root: TargetTreeNode | null;
-	}
-
-	const tree = $derived.by<TopTreeNode[]>(() => {
-		return targets
-			.map((t, index) => ({ t, index }))
-			.sort((a, b) => a.t.name.localeCompare(b.t.name, undefined, { numeric: true }))
-			.map(({ t, index }) => {
-				const rootKey = t.uid;
-				if (t.type === "expression") {
-					const devices = evaluateExpression(
-						t.expression ?? [],
-						allDevices,
-						groupsLite,
-						roomsLite,
-					).filter(isSceneTarget);
-					return { key: rootKey, target: t, targetIndex: index, devices, root: null };
-				}
-				const resolved = resolveTargetDevices(
-					{ type: t.type, id: t.id },
-					allDevices,
-					groupsLite,
-					roomsLite,
-				);
-				const devices = resolved.filter(isSceneTarget);
-				const root = buildTargetTree(
-					rootKey,
-					{ type: t.type, id: t.id },
-					devicesById,
-					groupsLite,
-					roomsLite,
-					{ deviceFilter: isSceneTarget },
-				);
-				return {
-					key: rootKey,
-					target: t,
-					targetIndex: index,
-					devices,
-					root,
-				};
-			});
-	});
-
-	const reachableDevices = $derived.by<Device[]>(() => {
-		const seen = new Set<string>();
-		const result: Device[] = [];
-		for (const node of tree) {
-			for (const d of node.devices) {
-				if (!seen.has(d.id)) {
-					seen.add(d.id);
-					result.push(d);
-				}
-			}
-		}
-		return result;
-	});
-
-	function toggleExpanded(key: string) {
-		const next = new Set(expanded);
-		if (next.has(key)) next.delete(key);
-		else next.add(key);
-		expanded = next;
-	}
-
-	function isExpanded(key: string): boolean {
-		return expanded.has(key);
-	}
-
-	function payloadFor(device: Device): ActionPayload {
-		return payloadsByDevice.get(device.id) ?? defaultScenePayload(device);
-	}
-
-	function staticPayloadFor(device: Device): StaticActionPayload {
-		const p = payloadFor(device);
-		return p.kind === "static" ? p : defaultScenePayload(device);
-	}
-
-	function liveValueFor(device: Device): StaticActionPayload {
-		const s = device.state;
-		return {
-			kind: "static",
-			on: s?.on ?? undefined,
-			brightness: s?.brightness ?? undefined,
-			light: deriveLightMode(s),
+	function editSelector(uid: string) {
+		const target = editor.targets.find((candidate) => candidate.uid === uid);
+		if (!target || target.type !== "expression") return;
+		selectorEditor = {
+			uid,
+			name: target.name === "Selector" ? "" : target.name,
+			expression: target.expression ?? [],
 		};
 	}
 
-	function deriveLightMode(state: DeviceState | null | undefined): LightMode | undefined {
-		if (!state) return undefined;
-		if (state.color) {
-			const { r, g, b, x, y } = state.color;
-			return { kind: "color", r, g, b, x, y };
-		}
-		if (state.colorTemp != null) {
-			return { kind: "colorTemp", mireds: state.colorTemp };
-		}
-		return undefined;
-	}
-
-	function displayValueFor(device: Device): StaticActionPayload {
-		return mode === "live" ? liveValueFor(device) : staticPayloadFor(device);
-	}
-
-	function isEffectMode(device: Device): boolean {
-		const k = payloadFor(device).kind;
-		return k === "effect" || k === "native_effect";
-	}
-
-	function effectFor(device: Device): EffectSummary | null {
-		const p = payloadFor(device);
-		if (p.kind === "effect") {
-			return effects.find((e) => e.id === p.effectId) ?? null;
-		}
-		if (p.kind === "native_effect") {
-			return (
-				effects.find((e) => e.kind === EffectKind.Native && e.nativeName === p.nativeName) ?? null
-			);
-		}
-		return null;
-	}
-
-	function deviceCapsList(device: Device): string[] {
-		const caps = deviceSceneCapabilities(device);
-		const names: string[] = [];
-		if (caps.hasOnOff) names.push("on_off");
-		if (caps.hasBrightness) names.push("brightness");
-		if (caps.hasColor) names.push("color");
-		if (caps.hasColorTemp) names.push("color_temp");
-		return names;
-	}
-
-	function setStaticMode(device: Device) {
-		onupdatedevicepayload(device.id, defaultScenePayload(device));
-	}
-
-	function openEffectPicker(device: Device) {
-		effectPicker = { deviceId: device.id, caps: deviceCapsList(device) };
-	}
-
-	function handleEffectPick(selection: EffectPickerSelection) {
-		const target = effectPicker;
-		if (!target) return;
-		if (selection.kind === "native") {
-			onupdatedevicepayload(target.deviceId, {
-				kind: "native_effect",
-				nativeName: selection.nativeName,
+	function saveSelector() {
+		const selection = selectorEditor;
+		if (!selection) return;
+		const name = selection.name.trim() || "Selector";
+		if (selection.uid === null) {
+			update({
+				targets: [
+					...editor.targets,
+					{
+						uid: newTargetUid(),
+						type: "expression",
+						id: "",
+						name,
+						expression: selection.expression,
+					},
+				],
 			});
 		} else {
-			onupdatedevicepayload(target.deviceId, { kind: "effect", effectId: selection.effectId });
+			update({
+				targets: editor.targets.map((target) =>
+					target.uid === selection.uid
+						? { ...target, name, expression: selection.expression }
+						: target,
+				),
+			});
 		}
+		selectorEditor = null;
+	}
+
+	function removeTarget(uid: string) {
+		const targets = editor.targets.filter((target) => target.uid !== uid);
+		const resolved = new Set(resolveEditorTargets(targets).map((device) => device.id));
+		const overrides = new Map(
+			Array.from(editor.overrides).filter(([deviceId]) => resolved.has(deviceId)),
+		);
+		update({ targets, overrides });
+	}
+
+	function setOverride(override: SceneLightOverride) {
+		const overrides = new Map(editor.overrides);
+		overrides.set(override.deviceId, override);
+		update({ overrides });
+	}
+
+	function clearOverride(deviceId: string) {
+		const overrides = new Map(editor.overrides);
+		overrides.delete(deviceId);
+		update({ overrides });
+	}
+
+	function stateOverride(deviceId: string): DesiredSceneState {
+		const current = editor.overrides.get(deviceId);
+		return current?.kind === "state" ? current.state : {};
+	}
+
+	function cleanState(state: DesiredSceneState): DesiredSceneState {
+		return Object.fromEntries(
+			Object.entries(state).filter(([, value]) => value != null),
+		) as DesiredSceneState;
+	}
+
+	function updateStateOverride(deviceId: string, patch: Partial<DesiredSceneState>) {
+		const state = cleanState({ ...stateOverride(deviceId), ...patch });
+		if (stateEmpty(state)) clearOverride(deviceId);
+		else setOverride({ kind: "state", deviceId, state });
+	}
+
+	function clearStateField(deviceId: string, field: keyof DesiredSceneState) {
+		updateStateOverride(deviceId, { [field]: null });
+	}
+
+	function useStateOverride(device: Device) {
+		const current = editor.overrides.get(device.id);
+		if (current?.kind === "state") return;
+		if (current) clearOverride(device.id);
+	}
+
+	function captureAllTargets() {
+		const overrides = new Map(editor.overrides);
+		for (const device of resolvedLights) {
+			const state = capturedSceneState(device);
+			if (state) overrides.set(device.id, { kind: "state", deviceId: device.id, state });
+		}
+		update({ overrides });
+	}
+
+	function setTargetMode(live: boolean) {
+		targetLiveMode = live;
+		const next = live ? "live" : "edit";
+		if (next === targetActionMode) {
+			pendingTargetActionMode = null;
+			targetActionsVisible = true;
+			return;
+		}
+		pendingTargetActionMode = next;
+		targetActionsVisible = false;
+	}
+
+	async function finishTargetActionExit(event: Event) {
+		if (event.target !== event.currentTarget) return;
+		const next = pendingTargetActionMode;
+		if (!next) return;
+		targetActionMode = next;
+		pendingTargetActionMode = null;
+		await tick();
+		targetActionsVisible = true;
+	}
+
+	function resolveEditorTargets(targets: EditorState["targets"]): Device[] {
+		return resolveSceneTargetLights(targets, devices, groups, rooms, { includeDisabled: true });
+	}
+
+	function openEffect(device: Device) {
+		effectPicker = { deviceId: device.id, caps: device.capabilities.filter((capability) => capability.canSet).map((capability) => capability.name) };
+	}
+
+	function pickEffect(selection: EffectPickerSelection) {
+		const target = effectPicker;
+		if (!target) return;
+		if (selection.kind === "timeline") setOverride({ kind: "effect", deviceId: target.deviceId, effectId: selection.effectId });
+		else setOverride({ kind: "native_effect", deviceId: target.deviceId, nativeEffectName: selection.nativeName });
 		effectPicker = null;
 	}
 
-	function rgbToXy(r: number, g: number, b: number): { x: number; y: number } {
-		let rn = r / 255;
-		let gn = g / 255;
-		let bn = b / 255;
-		rn = rn > 0.04045 ? Math.pow((rn + 0.055) / 1.055, 2.4) : rn / 12.92;
-		gn = gn > 0.04045 ? Math.pow((gn + 0.055) / 1.055, 2.4) : gn / 12.92;
-		bn = bn > 0.04045 ? Math.pow((bn + 0.055) / 1.055, 2.4) : bn / 12.92;
-		const X = rn * 0.4124 + gn * 0.3576 + bn * 0.1805;
-		const Y = rn * 0.2126 + gn * 0.7152 + bn * 0.0722;
-		const Z = rn * 0.0193 + gn * 0.1192 + bn * 0.9505;
-		const sum = X + Y + Z;
-		if (sum === 0) return { x: 0, y: 0 };
-		return {
-			x: Math.round((X / sum) * 10000) / 10000,
-			y: Math.round((Y / sum) * 10000) / 10000,
-		};
+	function addSupporting(_type: "device", id: string) {
+		const device = devices.find((candidate) => candidate.id === id);
+		if (!device) return;
+		const state = initialSupportingState(device);
+		if (!state) return;
+		const supportingStates = new Map(editor.supportingStates);
+		supportingStates.set(id, { deviceId: id, state });
+		update({ supportingStates });
 	}
 
-	function lightModesEqual(a: LightMode | undefined, b: LightMode | undefined): boolean {
-		if (a === undefined && b === undefined) return true;
-		if (a === undefined || b === undefined) return false;
-		if (a.kind !== b.kind) return false;
-		if (a.kind === "colorTemp" && b.kind === "colorTemp") return a.mireds === b.mireds;
-		if (a.kind === "color" && b.kind === "color") return a.r === b.r && a.g === b.g && a.b === b.b;
-		return false;
+	function updateSupportingPayload(deviceId: string, payload: string) {
+		let state: DesiredSceneState = {};
+		try { state = JSON.parse(payload) as DesiredSceneState; } catch { return; }
+		const supportingStates = new Map(editor.supportingStates);
+		if (Object.keys(state).length === 0) supportingStates.delete(deviceId);
+		else supportingStates.set(deviceId, { deviceId, state });
+		update({ supportingStates });
 	}
 
-	function mergePayload(
-		base: StaticActionPayload,
-		patch: Partial<StaticActionPayload>,
-	): StaticActionPayload {
-		return { ...base, ...patch, kind: "static" };
+	function removeSupporting(id: string) {
+		const supportingStates = new Map(editor.supportingStates);
+		supportingStates.delete(id);
+		update({ supportingStates });
 	}
 
-	function applyChange(device: Device, patch: Partial<StaticActionPayload>) {
-		if (mode === "live") {
-			onsendcommand(device.id, mergePayload(liveValueFor(device), patch));
-		} else {
-			onupdatedevicepayload(device.id, mergePayload(staticPayloadFor(device), patch));
-		}
+	function captureSupporting(device: Device) {
+		const state = capturedSceneState(device);
+		if (!state) return;
+		const supportingStates = new Map(editor.supportingStates);
+		supportingStates.set(device.id, { deviceId: device.id, state });
+		update({ supportingStates });
 	}
 
-	function setDeviceOn(device: Device, on: boolean) {
-		applyChange(device, { on });
+	function chooseVibe() {
+		vibePickerOpen = true;
 	}
 
-	$effect(() => {
-		if (mode !== "live") return;
-		for (const device of reachableDevices) {
-			const state = device.state;
-			if (!state) continue;
-			const current = payloadFor(device);
-			if (current.kind !== "static") continue;
-			const liveLight = deriveLightMode(state);
-			const next: StaticActionPayload = {
-				kind: "static",
-				on: state.on ?? current.on,
-				brightness: state.brightness ?? current.brightness,
-				light: liveLight ?? current.light,
-			};
-			if (
-				next.on === current.on &&
-				next.brightness === current.brightness &&
-				lightModesEqual(next.light, current.light)
-			)
-				continue;
-			onupdatedevicepayload(device.id, next);
-		}
-	});
-
-	function brightnessPercent(state: DeviceState | null | undefined): string {
-		if (!state || state.brightness == null) return "";
-		return `${Math.round((state.brightness / 254) * 100)}%`;
+	function setDynamicSource(dynamicSource: DynamicLighting, nextPreview: ScenePreview) {
+		update({ dynamicSource });
+		onpreviewchange?.(nextPreview);
+		vibePickerOpen = false;
 	}
 
-	function colorCss(color: { r: number; g: number; b: number } | null | undefined): string | null {
-		if (!color) return null;
-		return `rgb(${color.r}, ${color.g}, ${color.b})`;
+	function toggleFolder(key: string) {
+		const next = new Set(expanded);
+		if (next.has(key)) next.delete(key); else next.add(key);
+		expanded = next;
 	}
 
-	function miredToRgb(mireds: number): { r: number; g: number; b: number } {
-		const temp = 10000 / mireds;
-		let r: number;
-		let g: number;
-		let b: number;
-		if (temp <= 66) {
-			r = 255;
-			g = 99.4708025861 * Math.log(temp) - 161.1195681661;
-			b = temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
-		} else {
-			r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
-			g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
-			b = 255;
-		}
-		const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-		return { r: clamp(r), g: clamp(g), b: clamp(b) };
+	function targetTree(target: EditorState["targets"][number]): TargetTreeNode | null {
+		if (target.type === "expression") return null;
+		return buildTargetTree(target.uid, { type: target.type, id: target.id }, devicesById, groups, rooms, { deviceFilter: isLightControlDevice });
 	}
 
-	function previewColorCss(
-		payload: StaticActionPayload,
-		caps: { hasColor: boolean; hasColorTemp: boolean },
-	): string | null {
-		const light = payload.light;
-		if (!light) return null;
-		if (light.kind === "color" && caps.hasColor) {
-			return colorCss({ r: light.r, g: light.g, b: light.b });
-		}
-		if (light.kind === "colorTemp" && caps.hasColorTemp) {
-			return colorCss(miredToRgb(light.mireds));
+	function targetExpressionDevices(target: EditorState["targets"][number]): Device[] {
+		return evaluateExpression(target.expression ?? [], devices, groups, rooms).filter(isLightControlDevice);
+	}
+
+	function overrideLabel(override: SceneLightOverride): string {
+		if (override.kind === "state") return "State";
+		if (override.kind === "effect") return effects.find((effect) => effect.id === override.effectId)?.name ?? "Effect";
+		return override.nativeEffectName;
+	}
+
+	function displayState(device: Device): DesiredSceneState {
+		if (targetLiveMode) return capturedSceneState(device) ?? {};
+		return stateOverride(device.id);
+	}
+
+	function swatchColor(state: DesiredSceneState): string | null {
+		if (state.color) return `rgb(${state.color.r}, ${state.color.g}, ${state.color.b})`;
+		if (state.colorTemp != null) {
+			const color = miredToRgb(state.colorTemp);
+			return `rgb(${color.r}, ${color.g}, ${color.b})`;
 		}
 		return null;
 	}
+
+	function setColor(deviceId: string, color: { r: number; g: number; b: number }) {
+		const xy = rgbToXy(color.r, color.g, color.b);
+		updateStateOverride(deviceId, { color: { ...color, ...xy }, colorTemp: null });
+	}
+
+	function setColorTemp(deviceId: string, colorTemp: number) {
+		updateStateOverride(deviceId, { colorTemp, color: null });
+	}
+
+	function setPower(deviceId: string, on: boolean) {
+		updateStateOverride(deviceId, { on });
+	}
 </script>
 
-{#snippet payloadModeToggle(device: Device)}
-	{@const isEffect = isEffectMode(device)}
-	<div class="flex items-center rounded-md border border-border dark:border-input">
-		<Button
-			variant={!isEffect ? "secondary" : "ghost"}
-			size="sm"
-			class="rounded-r-none border-0 h-7 px-2"
-			onclick={() => setStaticMode(device)}
-			aria-pressed={!isEffect}
-			aria-label="Use static state for {device.name}"
-		>
-			<Palette class="size-3.5" />
-		</Button>
-		<Button
-			variant={isEffect ? "secondary" : "ghost"}
-			size="sm"
-			class="rounded-l-none border-0 h-7 px-2"
-			onclick={() => openEffectPicker(device)}
-			aria-pressed={isEffect}
-			aria-label="Use effect for {device.name}"
-		>
-			<Sparkles class="size-3.5" />
-		</Button>
-	</div>
-{/snippet}
-
-{#snippet effectChip(device: Device)}
-	{@const eff = effectFor(device)}
-	<Badge
-		variant="secondary"
-		class="cursor-default text-xs"
-		role="button"
-		tabindex={0}
-		onclick={(e: MouseEvent) => {
-			e.stopPropagation();
-			openEffectPicker(device);
-		}}
-	>
-		<Sparkles class="size-3" />
-		<span class="truncate">{eff?.name ?? "Pick effect"}</span>
-	</Badge>
-{/snippet}
-
-{#snippet adjustTrigger(device: Device, caps: { hasColor: boolean; hasColorTemp: boolean; hasBrightness: boolean })}
-	{@const p = displayValueFor(device)}
-	{@const hasDot = caps.hasColor || caps.hasColorTemp}
-	{@const dotCss = hasDot ? previewColorCss(p, caps) : null}
+{#snippet statePicker(device: Device)}
+	{@const capabilities = deviceSceneCapabilities(device)}
+	{@const state = stateOverride(device.id)}
 	<Popover>
 		<PopoverTrigger>
-			<Button variant="ghost" size="icon-sm" aria-label={`Adjust ${device.name}`}>
-				{#if hasDot}
-					<div
-						class="h-4 w-4 rounded-full border border-border transition-colors duration-200"
-						style:background-color={dotCss ?? "transparent"}
-					></div>
-				{:else}
-					<Palette class="size-4" />
-				{/if}
+			<Button
+				variant={editor.overrides.get(device.id)?.kind === "state" ? "secondary" : "ghost"}
+				size="icon-sm"
+				class="rounded-r-none border-0"
+				onclick={() => useStateOverride(device)}
+				aria-label={`Adjust ${deviceDisplayName(device)}`}
+			>
+				<Palette class="size-3.5" />
 			</Button>
 		</PopoverTrigger>
-		<PopoverContent class="w-72 space-y-4 p-3" align="end">
+		<PopoverContent class="w-72 space-y-3 p-3" align="end">
 			<LightColorPicker
-				color={p.light?.kind === "color" ? { r: p.light.r, g: p.light.g, b: p.light.b } : null}
-				colorTemp={p.light?.kind === "colorTemp" ? p.light.mireds : null}
-				brightness={p.brightness ?? null}
-				hasColor={caps.hasColor}
-				hasColorTemp={caps.hasColorTemp}
-				hasBrightness={caps.hasBrightness}
-				oncolorchange={(c) => {
-					const xy = rgbToXy(c.r, c.g, c.b);
-					applyChange(device, { light: { kind: "color", r: c.r, g: c.g, b: c.b, x: xy.x, y: xy.y } });
-				}}
-				ontempchange={(t) => applyChange(device, { light: { kind: "colorTemp", mireds: t } })}
-				onbrightnesschange={(v) => applyChange(device, { brightness: v })}
+				color={state.color ?? null}
+				colorTemp={state.colorTemp ?? null}
+				brightness={state.brightness ?? null}
+				hasColor={capabilities.hasColor}
+				hasColorTemp={capabilities.hasColorTemp}
+				hasBrightness={capabilities.hasBrightness}
+				oncolorchange={(color) => setColor(device.id, color)}
+				ontempchange={(colorTemp) => setColorTemp(device.id, colorTemp)}
+				onbrightnesschange={(brightness) => updateStateOverride(device.id, { brightness })}
+				compact
 			/>
+			<div class="flex flex-wrap gap-1 border-t border-border pt-3">
+				{#if capabilities.hasOnOff}
+					<Button
+						variant={state.on != null ? "secondary" : "outline"}
+						size="xs"
+						onclick={() => state.on != null ? clearStateField(device.id, "on") : setPower(device.id, true)}
+					>Power</Button>
+				{/if}
+				{#if capabilities.hasBrightness}
+					<Button
+						variant={state.brightness != null ? "secondary" : "outline"}
+						size="xs"
+						onclick={() => state.brightness != null ? clearStateField(device.id, "brightness") : updateStateOverride(device.id, { brightness: defaultDesiredState(device).brightness ?? 200 })}
+					>Brightness</Button>
+				{/if}
+				{#if capabilities.hasColor || capabilities.hasColorTemp}
+					<Button
+						variant={state.color != null || state.colorTemp != null ? "secondary" : "outline"}
+						size="xs"
+						onclick={() => {
+							if (state.color != null || state.colorTemp != null) {
+								updateStateOverride(device.id, { color: null, colorTemp: null });
+							} else if (capabilities.hasColorTemp) {
+								setColorTemp(device.id, 370);
+							} else {
+								setColor(device.id, { r: 255, g: 255, b: 255 });
+							}
+						}}
+					>Color</Button>
+				{/if}
+				{#if !stateEmpty(state)}
+					<Button variant="ghost" size="xs" class="ml-auto" onclick={() => clearOverride(device.id)}>Clear</Button>
+				{/if}
+			</div>
 		</PopoverContent>
 	</Popover>
 {/snippet}
 
-{#snippet topLevelRow(node: TopTreeNode)}
-	{@const isDeviceRow = node.target.type === "device"}
-	{@const deviceForRow = isDeviceRow ? devicesById.get(node.target.id) : null}
-	{@const rowCaps = deviceForRow ? deviceSceneCapabilities(deviceForRow) : null}
-	{@const rowHasRich = rowCaps
-		? rowCaps.hasBrightness || rowCaps.hasColor || rowCaps.hasColorTemp
-		: false}
-	<div
-		class="flex items-center gap-1 rounded-md p-2 transition-colors hover:bg-muted/60"
-		role="button"
-		tabindex={0}
-		onclick={() => (isDeviceRow ? undefined : toggleExpanded(node.key))}
-		onkeydown={(e) => {
-			if ((e.key === "Enter" || e.key === " ") && !isDeviceRow) {
-				e.preventDefault();
-				toggleExpanded(node.key);
-			}
-		}}
-	>
-		{#if !isDeviceRow}
-			{#if isExpanded(node.key)}
-				<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
-			{:else}
-				<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
-			{/if}
+{#snippet rowControls(device: Device)}
+	{@const override = editor.overrides.get(device.id)}
+	{@const capabilities = deviceSceneCapabilities(device)}
+	{@const state = displayState(device)}
+	{@const color = swatchColor(state)}
+	<div class="flex items-center gap-2" onclick={(event) => event.stopPropagation()} role="presentation">
+		{#if targetLiveMode}
+			{#if color}<span class="size-4 rounded-full border border-border" style:background-color={color}></span>{/if}
+			{#if capabilities.hasOnOff}<Switch checked={state.on ?? false} disabled aria-label={`${deviceDisplayName(device)} live power`} />{/if}
 		{:else}
-			<span class="w-4 shrink-0"></span>
-		{/if}
-
-		{#if isDeviceRow}
-			<HiveIcon
-				type={node.target.deviceType ?? "device"}
-				contactRole={deviceForRow?.roles.contact}
-				class="size-4 shrink-0 text-muted-foreground"
-			/>
-		{:else}
-			<HiveIcon
-				type={node.target.type}
-				iconOverride={node.target.icon}
-				class="size-4 shrink-0 text-muted-foreground"
-			/>
-		{/if}
-		<span class="truncate text-sm font-medium {node.target.removed ? 'text-muted-foreground' : ''}">{node.target.name}</span>
-		{#if node.target.removed}<Badge variant="outline" class="text-[10px] text-muted-foreground">Removed</Badge>{/if}
-		{#if !isDeviceRow}
-			<span class="shrink-0 text-xs text-muted-foreground">{node.devices.length}</span>
-		{/if}
-
-		<span class="flex-1"></span>
-
-		<div
-			class="flex items-center gap-2"
-			onclick={(e) => e.stopPropagation()}
-			role="presentation"
-		>
-			{#if mode === "live" && deviceForRow}
-				{@render liveIndicators(deviceForRow)}
-			{/if}
-			{#if deviceForRow && rowHasRich && mode === "edit"}
-				{@render payloadModeToggle(deviceForRow)}
-			{/if}
-			{#if deviceForRow && rowHasRich && isEffectMode(deviceForRow) && mode === "edit"}
-				{@render effectChip(deviceForRow)}
+			<div class="flex items-center rounded-md border border-border dark:border-input">
+				{@render statePicker(device)}
+				<Button
+					variant={override?.kind === "effect" || override?.kind === "native_effect" ? "secondary" : "ghost"}
+					size="icon-sm"
+					class="rounded-l-none border-0"
+					onclick={() => openEffect(device)}
+					aria-label={`Choose effect for ${deviceDisplayName(device)}`}
+				><Sparkles class="size-3.5" /></Button>
+			</div>
+			{#if override?.kind === "effect" || override?.kind === "native_effect"}
+				<Button variant="ghost" size="xs" onclick={() => openEffect(device)}><Sparkles class="size-3.5" />{overrideLabel(override)}</Button>
 			{:else}
-				{#if deviceForRow && rowHasRich && rowCaps}
-					{@render adjustTrigger(deviceForRow, rowCaps)}
-				{/if}
-				{#if deviceForRow}
+				<span
+					class="size-4 rounded-full border border-border transition-colors duration-200"
+					class:bg-muted={color === null}
+					style:background-color={color ?? undefined}
+				></span>
+				{#if capabilities.hasOnOff}
 					<Switch
-						checked={displayValueFor(deviceForRow).on ?? false}
-						onCheckedChange={(c) => setDeviceOn(deviceForRow, c)}
-						aria-label={`Toggle ${deviceForRow.name}`}
+						checked={state.on ?? false}
+						class={state.on == null ? "opacity-40" : ""}
+						onCheckedChange={(on) => setPower(device.id, on)}
+						aria-label={`Set ${deviceDisplayName(device)} power`}
 					/>
 				{/if}
 			{/if}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				onclick={(e) => {
-					e.stopPropagation();
-					onremovetarget(node.targetIndex);
-				}}
-				aria-label="Remove target"
-			>
-				<Trash2 class="size-4" />
-			</Button>
-		</div>
+			{#if override}
+				<Button variant="ghost" size="icon-xs" onclick={() => clearOverride(device.id)} aria-label={`Clear override for ${deviceDisplayName(device)}`}><X class="size-3.5" /></Button>
+			{/if}
+		{/if}
 	</div>
 {/snippet}
 
-{#snippet folderChildren(parent: TargetTreeNode)}
-	{#if parent.kind === "device"}
-		{@render deviceLeaf(parent.device)}
-	{:else}
-		{#each parent.children as child (child.key)}
+{#snippet deviceRow(device: Device, targetUid: string | null = null)}
+	<div class="flex min-h-10 items-center gap-2 rounded-md px-2 py-1.5 transition-colors duration-200 hover:bg-muted/60">
+		<HiveIcon type={device.type} contactRole={device.roles.contact} iconOverride={device.icon} class="size-4 shrink-0 text-muted-foreground" />
+		<span class="min-w-0 flex-1 truncate text-sm">{deviceDisplayName(device)}</span>
+		{@render rowControls(device)}
+		{#if targetUid}
+			<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(targetUid)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button>
+		{/if}
+	</div>
+{/snippet}
+
+{#snippet folderChildren(node: TargetTreeNode)}
+	{#if node.kind !== "device"}
+		{#each node.children as child (child.key)}
 			{#if child.kind === "device"}
-				{@render deviceLeaf(child.device)}
+				{@render deviceRow(child.device)}
 			{:else}
 				{@render folderRow(child)}
 			{/if}
 		{/each}
-		{#if parent.children.length === 0}
-			<p class="px-2 py-1 text-xs text-muted-foreground">
-				{parent.truncated ? "Nesting limit reached." : "Empty."}
-			</p>
+		{#if node.children.length === 0}
+			<p class="px-2 py-1 text-xs text-muted-foreground">{node.truncated ? "Nesting limit reached." : "Empty."}</p>
 		{/if}
 	{/if}
 {/snippet}
 
 {#snippet folderRow(node: TargetTreeNode)}
 	{#if node.kind !== "device"}
-		<div class="flex flex-col" transition:slide={{ duration: 200 }}>
+		<div class="flex flex-col">
+			<div class="flex min-h-9 items-center gap-2 rounded-md px-2 py-1 transition-colors duration-200 outline-none hover:bg-muted/60" role="button" tabindex={-1} onclick={() => toggleFolder(node.key)} onkeydown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleFolder(node.key); } }}>
+				{#if expanded.has(node.key)}<ChevronDown class="size-4 shrink-0 text-muted-foreground" />{:else}<ChevronRight class="size-4 shrink-0 text-muted-foreground" />{/if}
+				<HiveIcon type={node.kind} iconOverride={node.icon} class="size-4 shrink-0 text-muted-foreground" />
+				<span class="truncate text-sm">{node.name}</span><span class="text-xs text-muted-foreground">{node.reachableCount}</span>
+			</div>
 			<div
-				class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60"
-				role="button"
-				tabindex={0}
-				onclick={() => toggleExpanded(node.key)}
-				onkeydown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						toggleExpanded(node.key);
-					}
-				}}
+				class="grid {expanded.has(node.key) ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'} transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
+				aria-hidden={!expanded.has(node.key)}
 			>
-				{#if isExpanded(node.key)}
-					<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
-				{:else}
-					<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
-				{/if}
-				<HiveIcon
-					type={node.kind}
-					iconOverride={node.icon ?? undefined}
-					class="size-4 shrink-0 text-muted-foreground"
-				/>
-				<span class="truncate text-sm">{node.name}</span>
-				<span class="shrink-0 text-xs text-muted-foreground">{node.reachableCount}</span>
-			</div>
-			{#if isExpanded(node.key)}
-				<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
-					{@render folderChildren(node)}
+				<div class="min-h-0 overflow-hidden" inert={!expanded.has(node.key)}>
+					<div class="flex flex-col gap-1 pb-1 pl-6">{@render folderChildren(node)}</div>
 				</div>
-			{/if}
+			</div>
 		</div>
 	{/if}
 {/snippet}
 
-{#snippet deviceLeaf(device: Device)}
-	{@const leafCaps = deviceSceneCapabilities(device)}
-	{@const leafHasRich =
-		leafCaps.hasBrightness || leafCaps.hasColor || leafCaps.hasColorTemp}
-	<div class="flex items-center gap-1 rounded-md p-1.5 transition-colors hover:bg-muted/60">
-		<HiveIcon
-			type={device.type}
-			contactRole={device.roles.contact}
-			class="size-4 shrink-0 text-muted-foreground"
-		/>
-		<span class="truncate text-sm">{device.name}</span>
-		<span class="flex-1"></span>
-		<div
-			class="flex items-center gap-2"
-			onclick={(e) => e.stopPropagation()}
-			role="presentation"
-		>
-			{#if mode === "live"}
-				{@render liveIndicators(device)}
-			{/if}
-			{#if leafHasRich && mode === "edit"}
-				{@render payloadModeToggle(device)}
-			{/if}
-			{#if leafHasRich && isEffectMode(device) && mode === "edit"}
-				{@render effectChip(device)}
-			{:else}
-				{#if leafHasRich}
-					{@render adjustTrigger(device, leafCaps)}
-				{/if}
-				<Switch
-					checked={displayValueFor(device).on ?? false}
-					onCheckedChange={(c) => setDeviceOn(device, c)}
-					aria-label={`Toggle ${device.name}`}
-				/>
-			{/if}
-		</div>
-	</div>
-{/snippet}
-
-{#snippet liveIndicators(device: Device)}
-	{@const state = device.state}
-	{#if state?.on != null}
-		<span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-			<span
-				class="h-2 w-2 rounded-full {state.on ? 'bg-status-online' : 'bg-muted-foreground/50'}"
-			></span>
-			{state.on ? "On" : "Off"}
-		</span>
+{#snippet targetRow(target: EditorState["targets"][number])}
+	{#if target.type === "device"}
+		{@const device = devicesById.get(target.id)}
+		{#if device}{@render deviceRow(device, target.uid)}{/if}
 	{:else}
-		<Badge variant="outline" class="text-xs">
-			{device.available ? "Online" : "Offline"}
-		</Badge>
-	{/if}
-	{#if state?.brightness != null}
-		<Badge variant="secondary" class="text-xs">{brightnessPercent(state)}</Badge>
+		{@const expressionDevices = target.type === "expression" ? targetExpressionDevices(target) : []}
+		{@const tree = target.type === "expression" ? null : targetTree(target)}
+		{@const count = target.type === "expression" ? expressionDevices.length : tree?.kind === "device" ? 1 : (tree?.reachableCount ?? 0)}
+		<div class="flex flex-col">
+			<div class="flex min-h-10 items-center gap-2 rounded-md px-2 py-1.5 transition-colors duration-200 outline-none hover:bg-muted/60" role="button" tabindex={-1} onclick={() => toggleFolder(target.uid)} onkeydown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleFolder(target.uid); } }}>
+				{#if expanded.has(target.uid)}<ChevronDown class="size-4 shrink-0 text-muted-foreground" />{:else}<ChevronRight class="size-4 shrink-0 text-muted-foreground" />{/if}
+				{#if target.type === "expression"}<Filter class="size-4 shrink-0 text-muted-foreground" />{:else}<HiveIcon type={target.type} iconOverride={target.icon} class="size-4 shrink-0 text-muted-foreground" />{/if}
+				<span class="truncate text-sm font-medium">{target.name}</span><span class="text-xs text-muted-foreground">{count}</span><span class="flex-1"></span>
+				<div class="flex items-center gap-1" onclick={(event) => event.stopPropagation()} role="presentation">
+					{#if target.type === "expression"}<Button variant="ghost" size="icon-sm" onclick={() => editSelector(target.uid)} aria-label={`Edit ${target.name}`}><Pencil class="size-4" /></Button>{/if}
+					<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(target.uid)} aria-label={`Remove ${target.name}`}><Trash2 class="size-4" /></Button>
+				</div>
+			</div>
+			<div
+				class="grid {expanded.has(target.uid) ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'} transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
+				aria-hidden={!expanded.has(target.uid)}
+			>
+				<div class="min-h-0 overflow-hidden" inert={!expanded.has(target.uid)}>
+					<div class="flex flex-col gap-1 pb-1 pl-6">
+					{#if target.type === "expression"}
+						{#each expressionDevices as device (device.id)}{@render deviceRow(device)}{/each}
+					{:else if tree && tree.kind !== "device"}
+						{@render folderChildren(tree)}
+					{/if}
+					</div>
+				</div>
+			</div>
+		</div>
 	{/if}
 {/snippet}
 
-<div class="flex flex-col gap-3 rounded-lg shadow-card bg-card p-3">
-	<div class="flex items-center justify-between gap-2">
-		<h2 class="text-sm font-medium text-foreground">Targets</h2>
-		<div class="flex items-center gap-2">
-			<div class="flex items-center rounded-md border border-border dark:border-input">
-				<Button
-					variant={mode === "edit" ? "secondary" : "ghost"}
-					size="sm"
-					class="rounded-r-none border-0"
-					onclick={() => (mode = "edit")}
-					aria-pressed={mode === "edit"}
-				>
-					<Pencil class="size-3.5" />
-					<span class="hidden sm:inline">Edit</span>
-				</Button>
-				<Button
-					variant={mode === "live" ? "secondary" : "ghost"}
-					size="sm"
-					class="rounded-l-none border-0"
-					onclick={() => (mode = "live")}
-					aria-pressed={mode === "live"}
-				>
-					<Eye class="size-3.5" />
-					<span class="hidden sm:inline">Live</span>
-				</Button>
+<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+	{#if editor.dynamicSource}
+		<section class="space-y-5 rounded-lg bg-card p-5 shadow-card">
+			<div class="flex items-start justify-between gap-3">
+				<div class="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
+					<h2 class="text-lg font-medium">Lighting</h2>
+					<div class="flex flex-wrap items-center gap-2"><HiveChip type="color" label={editor.dynamicSource.domain === "white_ambience" ? "White" : "Color"} /><HiveChip type="scene" label={editor.dynamicSource.presetTitle ?? (editor.dynamicSource.sourceKind === "photo" ? "Photo" : "Guided")} /></div>
+				</div>
+				<div class="flex shrink-0 gap-1 sm:gap-2">
+					<Button variant="outline" size="icon-sm" class="sm:w-auto sm:gap-1 sm:px-2.5" onclick={chooseVibe} aria-label="Change source"><Pencil class="size-4" /><span class="hidden sm:inline">Change</span></Button>
+					<Button variant="ghost" size="icon-sm" class="text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto sm:gap-1 sm:px-2.5" onclick={() => update({ dynamicSource: null })} aria-label="Remove source"><X class="size-4" /><span class="hidden sm:inline">Remove</span></Button>
+				</div>
 			</div>
-			<DropdownMenu>
-				<DropdownMenuTrigger>
-					{#snippet child({ props })}
-						<Button {...props} variant="outline" size="sm">
-							<Plus class="size-3.5" />
-							<span class="hidden sm:inline">Add</span>
-						</Button>
-					{/snippet}
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" class="min-w-44">
-					<DropdownMenuItem class="whitespace-nowrap" onclick={onaddtarget}>
-						<Plus class="size-4" />
-						Simple target
-					</DropdownMenuItem>
-					<DropdownMenuItem class="whitespace-nowrap" onclick={addSelector}>
-						<Filter class="size-4" />
-						Selector
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</div>
-	</div>
+			<div class="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+				<div class="min-h-80 overflow-hidden rounded-lg"><VibePreview {preview} brightness={previewBrightness} movement={previewMovement} cycleSeconds={previewCycleSeconds} seed={previewSeed} /></div>
+				<div class="space-y-5">
+					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-brightness">Brightness</label><span class="tabular-nums text-muted-foreground">{Math.round(previewBrightness * 100)}%</span></div><Slider id="scene-vibe-brightness" type="single" min={0.05} max={1} step={0.01} bind:value={previewBrightness} onValueCommit={(value) => updateDynamic({ brightness: value })} /></div>
+					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-movement">Movement</label><span class="text-muted-foreground">{previewMovement === 0 ? "Still" : previewMovement < 0.4 ? "Gentle" : previewMovement < 0.75 ? "Flowing" : "Alive"}</span></div><Slider id="scene-vibe-movement" type="single" min={0} max={1} step={0.01} bind:value={previewMovement} onValueCommit={(value) => updateDynamic({ movement: value })} /></div>
+					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-pace">Pace</label><span class="tabular-nums text-muted-foreground">{formatVibeCycle(previewCycleSeconds)}</span></div><Slider id="scene-vibe-pace" type="single" min={0} max={100} step={1} bind:value={previewPacePosition} onValueChange={(value) => (previewCycleSeconds = pacePositionToCycleSeconds(value))} onValueCommit={(value) => { previewCycleSeconds = pacePositionToCycleSeconds(value); updateDynamic({ cycleSeconds: previewCycleSeconds }); }} disabled={previewMovement === 0} /></div>
+					<Button variant="outline" size="sm" onclick={shuffleVibe}><Shuffle class="size-4" /> Shuffle</Button>
+				</div>
+			</div>
+		</section>
+	{:else}
+		<div class="hidden lg:block" aria-hidden="true"></div>
+	{/if}
 
-	<div>
-		{#if tree.length === 0}
-			<p class="px-1 py-2 text-sm text-muted-foreground">No targets yet.</p>
-		{:else}
-			<div class="flex flex-col gap-1">
-				{#each tree as node (node.key)}
-					<div class="flex flex-col" transition:slide={{ duration: 200 }}>
-						{#if node.target.type === "expression"}
-							<div
-								class="flex items-center gap-1 rounded-md p-2 transition-colors hover:bg-muted/60"
-								role="button"
-								tabindex={0}
-								onclick={() => toggleExpanded(node.key)}
-								onkeydown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										toggleExpanded(node.key);
-									}
-								}}
-							>
-								{#if isExpanded(node.key)}
-									<ChevronDown class="size-4 shrink-0 text-muted-foreground" />
-								{:else}
-									<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
-								{/if}
-								<Filter class="size-4 shrink-0 text-muted-foreground" />
-								<span class="truncate text-sm font-medium">{node.target.name || "Selector"}</span>
-								<span class="shrink-0 text-xs text-muted-foreground">{node.devices.length}</span>
-								<span class="flex-1"></span>
-								{#if mode === "edit"}
-									<Button
-										variant="ghost"
-										size="icon-sm"
-										onclick={(e) => {
-											e.stopPropagation();
-											openSelectorEdit(node.targetIndex, node.target.name, node.target.expression ?? []);
-										}}
-										aria-label="Edit selector"
-									>
-										<Pencil class="size-4" />
-									</Button>
-								{/if}
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									onclick={(e) => {
-										e.stopPropagation();
-										onremovetarget(node.targetIndex);
-									}}
-									aria-label="Remove target"
+	<section class="min-w-0 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
+		<Tabs bind:value={sidePanel} class="gap-4">
+			<div class="space-y-3">
+				<TabsList class="grid w-full grid-cols-2">
+					<TabsTrigger value="targets">Targets</TabsTrigger>
+					<TabsTrigger value="supporting">Supporting devices</TabsTrigger>
+				</TabsList>
+
+				<div class="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
+					{#if sidePanel === "targets"}
+						<div class="flex items-center rounded-md border border-border dark:border-input">
+							<Button variant={!targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-r-none border-0" onclick={() => setTargetMode(false)} aria-pressed={!targetLiveMode}><Pencil class="size-3.5" /><span class="hidden sm:inline">Edit</span></Button>
+							<Button variant={targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-l-none border-0" onclick={() => setTargetMode(true)} aria-pressed={targetLiveMode}><Eye class="size-3.5" /><span class="hidden sm:inline">Live</span></Button>
+						</div>
+						<div class="ml-auto flex items-center gap-2">
+							{#if showAddVibeInTargets && !editor.dynamicSource}<Button variant="outline" size="sm" onclick={chooseVibe}><Plus class="size-4" /> Add source</Button>{/if}
+							{#if targetActionsVisible}
+								<div
+									class="flex items-center gap-2"
+									onoutroend={finishTargetActionExit}
+									in:fly={{ x: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 150, easing: cubicOut }}
+									out:fly={{ x: reducedMotion ? 0 : -6, duration: reducedMotion ? 0 : 130, easing: cubicIn }}
 								>
-									<Trash2 class="size-4" />
-								</Button>
-							</div>
-							{#if isExpanded(node.key)}
-								<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
-									{#each node.devices as d (d.id)}
-										{@render deviceLeaf(d)}
-									{/each}
+									{#if targetActionMode === "live"}
+										<Button variant="outline" size="sm" onclick={captureAllTargets}>Capture all</Button>
+									{:else}
+										<DropdownMenu>
+											<DropdownMenuTrigger>
+												{#snippet child({ props })}
+													<Button {...props} variant="outline" size="sm"><Plus class="size-4" /> Add</Button>
+												{/snippet}
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> Simple</DropdownMenuItem>
+												<DropdownMenuItem onclick={addSelector}><SlidersHorizontal class="size-4" /> Selector</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									{/if}
 								</div>
 							{/if}
-						{:else}
-							{@render topLevelRow(node)}
-							{#if node.root && node.root.kind !== "device" && isExpanded(node.key)}
-								<div class="flex flex-col gap-1 pb-1 pl-6" transition:slide={{ duration: 200 }}>
-									{@render folderChildren(node.root)}
-								</div>
-							{/if}
-						{/if}
-					</div>
-				{/each}
+						</div>
+					{:else}
+						<Button variant={supportingLiveMode ? "default" : "outline"} size="sm" onclick={() => (supportingLiveMode = !supportingLiveMode)}><Eye class="size-4" /> Live</Button>
+						<Button variant="outline" size="sm" class="ml-auto" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> Add</Button>
+					{/if}
+				</div>
 			</div>
-		{/if}
-	</div>
+
+			<TabsContent value="targets" class="m-0 space-y-3">
+				<div class="flex flex-col gap-1">
+					{#each editor.targets as target (target.uid)}
+						<div in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }} animate:flip={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 160 }}>{@render targetRow(target)}</div>
+					{/each}
+				</div>
+			</TabsContent>
+
+			<TabsContent value="supporting" class="m-0 space-y-4">
+				<div class="space-y-2">
+					{#each Array.from(editor.supportingStates.values()) as supporting (supporting.deviceId)}
+						{@const device = devices.find((candidate) => candidate.id === supporting.deviceId) ?? $deviceStore[supporting.deviceId]}
+						{#if device}
+							<div class="rounded-lg bg-muted px-3 py-2" in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }}>
+								<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? "Off" : "Live"}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)}>Capture</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button></div></div>
+								{#if !supportingLiveMode}<div class="mt-2"><DeviceStateEditor target={null} capabilities={device.capabilities} value={JSON.stringify(supporting.state)} onchange={(payload) => updateSupportingPayload(device.id, payload)} {devices} {groups} {rooms} compact /></div>{/if}
+							</div>
+						{/if}
+					{/each}
+				</div>
+			</TabsContent>
+		</Tabs>
+	</section>
 </div>
 
-<EffectPickerDrawer
-	open={effectPicker !== null}
-	caps={effectPicker?.caps ?? []}
-	{effects}
-	onclose={() => (effectPicker = null)}
-	onselect={handleEffectPick}
-/>
+<HiveDrawer bind:open={targetDrawerOpen} title="Add lighting targets" description="Choose devices, groups, or rooms." multiple groups={targetDrawerGroups} onselect={addTarget} />
+<HiveDrawer bind:open={supportingDrawerOpen} title="Add supporting devices" description="Add controllable non-light devices." multiple groups={supportingGroups} onselect={addSupporting} />
+<EffectPickerDrawer open={effectPicker !== null} {effects} caps={effectPicker?.caps ?? []} onselect={pickEffect} onclose={() => (effectPicker = null)} />
 
-<Dialog
-	open={editingIndex !== null}
-	onOpenChange={(o) => {
-		if (!o) editingIndex = null;
-	}}
->
+<Dialog bind:open={vibePickerOpen}>
+	<DialogContent class="sm:max-w-4xl">
+		<DialogHeader><DialogTitle>{editor.dynamicSource ? "Change source" : "Add source"}</DialogTitle></DialogHeader>
+		<VibeSourcePicker onselect={setDynamicSource} />
+	</DialogContent>
+</Dialog>
+
+<Dialog open={selectorEditor !== null} onOpenChange={(open) => { if (!open) selectorEditor = null; }}>
 	<DialogContent class="sm:max-w-lg">
-		<DialogHeader>
-			<DialogTitle>Edit selector</DialogTitle>
-		</DialogHeader>
-		<div class="flex flex-col gap-3">
-			<div class="flex flex-col gap-1.5">
-				<span class="text-xs font-medium text-muted-foreground">Name (optional)</span>
-				<Input bind:value={editName} placeholder="Selector" class="h-8 text-sm" />
-			</div>
-			<div class="flex flex-col gap-1.5">
-				<span class="text-xs font-medium text-muted-foreground">Rules</span>
+		<DialogHeader><DialogTitle>{selectorEditor?.uid ? "Edit selector" : "Add selector"}</DialogTitle></DialogHeader>
+		{#if selectorEditor}
+			<div class="space-y-4">
+				<Input
+					value={selectorEditor.name}
+					oninput={(event) => (selectorEditor = { ...selectorEditor!, name: event.currentTarget.value })}
+					placeholder="Selector name"
+					aria-label="Selector name"
+				/>
 				<TargetSelectorField
-					value={editExpr}
-					onchange={(expr) => (editExpr = expr)}
-					devices={allDevices}
-					groups={groupsLite}
-					rooms={roomsLite}
+					value={selectorEditor.expression}
+					onchange={(expression) => (selectorEditor = { ...selectorEditor!, expression })}
+					{devices}
+					{groups}
+					{rooms}
 				/>
 			</div>
-		</div>
+		{/if}
 		<DialogFooter>
-			<Button variant="ghost" size="sm" onclick={() => (editingIndex = null)}>Cancel</Button>
-			<Button variant="default" size="sm" onclick={saveSelectorEdit}>Done</Button>
+			<Button variant="ghost" size="sm" onclick={() => (selectorEditor = null)}>Cancel</Button>
+			<Button size="sm" onclick={saveSelector}>Done</Button>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>
