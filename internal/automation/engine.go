@@ -40,8 +40,6 @@ var logger = logging.Named("automation")
 type automationStore interface {
 	ListEnabledAutomations(ctx context.Context) ([]store.Automation, error)
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
-	ListSceneActions(ctx context.Context, sceneID string) ([]store.SceneAction, error)
-	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]store.SceneDevicePayload, error)
 	UpdateAutomationLastFired(ctx context.Context, id string, firedAt time.Time) error
 	ResolveGroupIDByName(ctx context.Context, name string) (string, bool, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, bool, error)
@@ -99,13 +97,13 @@ func (e *Engine) Stats() Stats {
 // NewEngine creates a new automation Engine. alarmSvc may be nil in tests
 // that don't exercise alarm actions; runner may be nil in tests that don't
 // exercise run_effect or scene-payload effect dispatch.
-func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner) *Engine {
+func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner, scenes SceneRunner) *Engine {
 	engine := &Engine{
 		bus:              bus,
 		reader:           reader,
 		store:            s,
 		resolver:         resolver,
-		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc, runner),
+		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc, runner, scenes),
 		now:              time.Now,
 		baseCtx:          context.Background(),
 		triggers:         make(map[string][]compiledTrigger),

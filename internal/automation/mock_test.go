@@ -101,40 +101,39 @@ func (m *mockStateReader) setGroupDevices(gid device.GroupID, deviceIDs []device
 // test-helper methods configure in-memory fixtures the engine/action code
 // then reads through the interface methods.
 type mockStore struct {
-	mu            sync.RWMutex
-	automations   []store.Automation
-	nodes         map[string][]store.AutomationNode
-	edges         map[string][]store.AutomationEdge
-	sceneActions  map[string][]store.SceneAction
-	scenePayloads map[string][]store.SceneDevicePayload
-	sceneErr      map[string]error
-	scenes        map[string]store.Scene
-	groupMembers  map[string][]store.GroupMember
-	roomMembers   map[string][]device.DeviceID
-	groupNames    map[string]string
-	roomNames     map[string]string
-	nodeState     map[string]string
+	mu           sync.RWMutex
+	automations  []store.Automation
+	nodes        map[string][]store.AutomationNode
+	edges        map[string][]store.AutomationEdge
+	sceneErr     map[string]error
+	scenes       map[string]store.Scene
+	groupMembers map[string][]store.GroupMember
+	roomMembers  map[string][]device.DeviceID
+	groupNames   map[string]string
+	roomNames    map[string]string
+	nodeState    map[string]string
 }
 
 func newMockStore() *mockStore {
 	return &mockStore{
-		nodes:         make(map[string][]store.AutomationNode),
-		edges:         make(map[string][]store.AutomationEdge),
-		sceneActions:  make(map[string][]store.SceneAction),
-		scenePayloads: make(map[string][]store.SceneDevicePayload),
-		sceneErr:      make(map[string]error),
-		scenes:        make(map[string]store.Scene),
-		groupMembers:  make(map[string][]store.GroupMember),
-		roomMembers:   make(map[string][]device.DeviceID),
-		groupNames:    make(map[string]string),
-		roomNames:     make(map[string]string),
-		nodeState:     make(map[string]string),
+		nodes:        make(map[string][]store.AutomationNode),
+		edges:        make(map[string][]store.AutomationEdge),
+		sceneErr:     make(map[string]error),
+		scenes:       make(map[string]store.Scene),
+		groupMembers: make(map[string][]store.GroupMember),
+		roomMembers:  make(map[string][]device.DeviceID),
+		groupNames:   make(map[string]string),
+		roomNames:    make(map[string]string),
+		nodeState:    make(map[string]string),
 	}
 }
 
 func (m *mockStore) GetScene(_ context.Context, id string) (store.Scene, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	if err, ok := m.sceneErr[id]; ok {
+		return store.Scene{}, err
+	}
 	sc, ok := m.scenes[id]
 	if !ok {
 		return store.Scene{}, sql.ErrNoRows
@@ -230,21 +229,6 @@ func (m *mockStore) GetAutomationGraph(_ context.Context, automationID string) (
 	}, nil
 }
 
-func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store.SceneAction, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if err, ok := m.sceneErr[sceneID]; ok {
-		return nil, err
-	}
-	return m.sceneActions[sceneID], nil
-}
-
-func (m *mockStore) ListSceneDevicePayloads(_ context.Context, sceneID string) ([]store.SceneDevicePayload, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.scenePayloads[sceneID], nil
-}
-
 func (m *mockStore) UpdateAutomationLastFired(_ context.Context, id string, firedAt time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -314,18 +298,6 @@ func (m *mockStore) removeAutomation(id string) {
 	m.automations = out
 	delete(m.nodes, id)
 	delete(m.edges, id)
-}
-
-func (m *mockStore) setSceneActions(sceneID string, actions []store.SceneAction) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.sceneActions[sceneID] = actions
-}
-
-func (m *mockStore) setSceneDevicePayloads(sceneID string, payloads []store.SceneDevicePayload) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.scenePayloads[sceneID] = payloads
 }
 
 func (m *mockStore) setSceneError(sceneID string, err error) {

@@ -17,7 +17,7 @@ func TestExecuteActionExpressionTargetFiltersByType(t *testing.T) {
 	reader.addDevice(device.Device{ID: "fan", FriendlyName: "fan", Type: device.Plug, Capabilities: onOff})
 	s.setRoomDevices("room-1", []device.DeviceID{"lamp", "fan"})
 
-	engine := NewEngine(bus, reader, s, s, nil, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil, nil)
 
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)

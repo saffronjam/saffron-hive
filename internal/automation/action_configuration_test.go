@@ -31,7 +31,7 @@ func TestConfigureDevicePublishesTypedRequest(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventConfigurationRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, store, store, nil, nil)
+	executor := NewActionExecutor(bus, reader, store, store, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		AutomationID: "automation-1",
 		ActionType:   ActionConfigureDevice,
@@ -69,7 +69,7 @@ func TestConfigureDeviceSkipsConfirmedValue(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventConfigurationRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, store, store, nil, nil)
+	executor := NewActionExecutor(bus, reader, store, store, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionConfigureDevice,
 		TargetType: TargetDevice,

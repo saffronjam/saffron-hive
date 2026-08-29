@@ -43,7 +43,7 @@ func TestChangeValue_AbsoluteDelta_InRange(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -73,7 +73,7 @@ func TestChangeValue_PercentDelta_InRange(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -104,7 +104,7 @@ func TestChangeValue_ClampsAtMax(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -134,7 +134,7 @@ func TestChangeValue_ClampsAtMin(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -167,7 +167,7 @@ func TestChangeValue_UnknownState_NoCommand(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -193,7 +193,7 @@ func TestChangeValue_StateAlreadyMatches_Skips(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -230,7 +230,7 @@ func TestChangeValue_FieldNotOnDevice_NoCommand(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
@@ -256,7 +256,7 @@ func TestChangeValue_ZeroDelta_NoCommand(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,

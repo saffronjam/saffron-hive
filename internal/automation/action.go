@@ -11,7 +11,6 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
-	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
@@ -44,6 +43,11 @@ type EffectRunner interface {
 	Stop(target effect.Target) bool
 }
 
+// SceneRunner owns Scene activation for automation actions.
+type SceneRunner interface {
+	Apply(context.Context, string) (store.Scene, error)
+}
+
 // ActionExecutor resolves automation actions into event bus commands (or, for
 // alarm actions, into alarm service calls).
 type ActionExecutor struct {
@@ -53,6 +57,7 @@ type ActionExecutor struct {
 	resolver  device.TargetResolver
 	alarms    AlarmRaiser
 	runner    EffectRunner
+	scenes    SceneRunner
 	commander device.TargetCommander
 
 	// baseCtx scopes every side-effect initiated by an action. Set by
@@ -68,7 +73,7 @@ type ActionExecutor struct {
 
 // NewActionExecutor creates an ActionExecutor. runner may be nil for tests
 // that do not exercise run_effect actions or scene-payload effect dispatch.
-func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner) *ActionExecutor {
+func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner, scenes SceneRunner) *ActionExecutor {
 	executor := &ActionExecutor{
 		bus:      bus,
 		reader:   reader,
@@ -76,6 +81,7 @@ func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s auto
 		resolver: resolver,
 		alarms:   alarmSvc,
 		runner:   runner,
+		scenes:   scenes,
 		baseCtx:  context.Background(),
 	}
 	if commander, ok := resolver.(device.TargetCommander); ok {
@@ -733,61 +739,12 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 }
 
 func (a *ActionExecutor) executeActivateScene(sceneID string) {
-	ctx := a.baseCtx
-	actions, err := a.store.ListSceneActions(ctx, sceneID)
-	if err != nil {
-		logger.Error("scene not found", "scene_id", sceneID, "error", err)
+	if a.scenes == nil {
+		logger.Error("Scene runner unavailable", "scene_id", sceneID)
 		return
 	}
-	payloads, err := a.store.ListSceneDevicePayloads(ctx, sceneID)
-	if err != nil {
-		logger.Error("scene payloads unavailable", "scene_id", sceneID, "error", err)
-		return
-	}
-	if len(actions) == 0 {
-		return
-	}
-
-	plan := scene.BuildApplyCommands(ctx, a.resolver, a.reader, sceneID, actions, payloads)
-	shouldDispatch := false
-	dispatchPlan := plan
-	dispatchPlan.Commands = nil
-	for _, cmd := range plan.Commands {
-		if a.stateMatches(cmd.DeviceID, scene.CommandToDesired(cmd)) {
-			a.stateMatchSkips.Add(1)
-			logger.Debug("scene action skipped: device already matches desired state",
-				"device_id", cmd.DeviceID, "scene_id", sceneID)
-			continue
-		}
-		shouldDispatch = true
-		dispatchPlan.Commands = append(dispatchPlan.Commands, cmd)
-	}
-	if shouldDispatch {
-		if a.commander != nil && len(actions) == 1 && len(payloads) == 0 && actions[0].TargetType != string(device.TargetExpression) {
-			dispatchPlan.Commands = plan.Commands
-		}
-		if err := scene.DispatchApplyCommands(ctx, a.commander, a.bus, actions, payloads, dispatchPlan); err != nil {
-			logger.Error("scene target dispatch failed", "scene_id", sceneID, "error", err)
-		}
-	}
-	if len(plan.EffectRuns) > 0 && a.runner != nil {
-		for _, r := range plan.EffectRuns {
-			target := effect.Target{Type: device.TargetDevice, ID: string(r.DeviceID)}
-			var err error
-			if r.NativeName != "" {
-				_, err = a.runner.StartNative(ctx, r.NativeName, target)
-			} else {
-				_, err = a.runner.Start(ctx, r.EffectID, target)
-			}
-			if err != nil {
-				logger.Error("scene effect start from automation failed",
-					"scene_id", sceneID,
-					"device_id", r.DeviceID,
-					"effect_id", r.EffectID,
-					"native_name", r.NativeName,
-					"error", err)
-			}
-		}
+	if _, err := a.scenes.Apply(a.baseCtx, sceneID); err != nil {
+		logger.Error("Scene activation failed", "scene_id", sceneID, "error", err)
 	}
 }
 

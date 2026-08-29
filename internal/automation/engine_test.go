@@ -12,9 +12,13 @@ import (
 )
 
 func setupEngine(t *testing.T, reader *mockStateReader, s *mockStore) (*Engine, eventbus.EventBus, func()) {
+	return setupEngineWithScenes(t, reader, s, nil)
+}
+
+func setupEngineWithScenes(t *testing.T, reader *mockStateReader, s *mockStore, scenes SceneRunner) (*Engine, eventbus.EventBus, func()) {
 	t.Helper()
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil, nil)
+	engine := NewEngine(bus, reader, s, s, nil, nil, scenes)
 	engine.now = func() time.Time {
 		return time.Date(2025, 1, 6, 22, 30, 0, 0, time.UTC)
 	}
@@ -135,11 +139,6 @@ func TestEngineIncomingWebhookTriggerMatchesEndpointAndFilters(t *testing.T) {
 
 func TestEngineIncomingWebhookActivatesScene(t *testing.T) {
 	reader := newMockStateReader()
-	reader.addDevice(device.Device{
-		ID:           "light-1",
-		FriendlyName: "light-1",
-		Capabilities: []device.Capability{{Name: device.CapOnOff, Access: 7}},
-	})
 	s := newMockStore()
 	s.addAutomationGraph(
 		store.Automation{ID: "auto-scene", Name: "Jellyfin scene", Enabled: true},
@@ -149,32 +148,26 @@ func TestEngineIncomingWebhookActivatesScene(t *testing.T) {
 		},
 		[]store.AutomationEdge{{AutomationID: "auto-scene", FromNodeID: "trigger-webhook", ToNodeID: "action-scene"}},
 	)
-	s.setSceneActions("scene-1", []store.SceneAction{
-		{SceneID: "scene-1", TargetType: "device", TargetID: "light-1"},
-	})
-	s.setSceneDevicePayloads("scene-1", []store.SceneDevicePayload{
-		{SceneID: "scene-1", DeviceID: "light-1", Payload: `{"on":true}`},
-	})
-
-	_, bus, cancel := setupEngine(t, reader, s)
+	runner := &mockSceneRunner{}
+	_, bus, cancel := setupEngineWithScenes(t, reader, s, runner)
 	defer cancel()
-	commands := bus.Subscribe(eventbus.EventCommandRequested)
-	defer bus.Unsubscribe(commands)
 
 	bus.Publish(eventbus.Event{Type: eventbus.EventWebhookReceived, Payload: webhook.Event{
 		EndpointID: "jellyfin",
 		Body:       map[string]any{"NotificationType": "PlaybackStart"},
 	}})
 
-	select {
-	case evt := <-commands:
-		cmd := evt.Payload.(device.Command)
-		if cmd.DeviceID != "light-1" || cmd.On == nil || !*cmd.On {
-			t.Fatalf("scene command = %+v", cmd)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if applied := runner.appliedScenes(); len(applied) == 1 {
+			if applied[0] != "scene-1" {
+				t.Fatalf("applied scenes = %v, want [scene-1]", applied)
+			}
+			return
 		}
-	case <-time.After(time.Second):
-		t.Fatal("matching webhook did not activate the scene")
+		time.Sleep(time.Millisecond)
 	}
+	t.Fatal("matching webhook did not activate the scene")
 }
 
 func TestEngineTriggerConditionFalse(t *testing.T) {

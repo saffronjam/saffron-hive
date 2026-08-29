@@ -33,7 +33,7 @@ func TestToggleAction_DeviceCurrentlyOn_FlipsOff(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionToggleDeviceState,
 		TargetType: TargetDevice,
@@ -62,7 +62,7 @@ func TestToggleAction_DeviceCurrentlyOff_FlipsOn(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionToggleDeviceState,
 		TargetType: TargetDevice,
@@ -90,7 +90,7 @@ func TestToggleAction_DeviceUnknownState_DefaultsOn(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionToggleDeviceState,
 		TargetType: TargetDevice,

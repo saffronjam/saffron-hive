@@ -49,7 +49,7 @@ func TestRunEffectStartsRunOnDeviceTarget(t *testing.T) {
 	s := newMockStore()
 	runner := &recordingRunner{}
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
@@ -77,7 +77,7 @@ func TestRunEffectStartsRunOnGroupTargetWithoutFanOut(t *testing.T) {
 	s := newMockStore()
 	runner := &recordingRunner{}
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetGroup,
@@ -103,7 +103,7 @@ func TestRunEffectStartsOneRunPerExpressionDevice(t *testing.T) {
 	reader.addDevice(device.Device{ID: "lamp-1", Type: device.Light})
 	reader.addDevice(device.Device{ID: "lamp-2", Type: device.Light})
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetType(device.TargetExpression),
@@ -133,7 +133,7 @@ func TestRunEffectMissingEffectIDIsNoop(t *testing.T) {
 	s := newMockStore()
 	runner := &recordingRunner{}
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
@@ -154,7 +154,7 @@ func TestRunEffectInvalidTargetTypeIsNoop(t *testing.T) {
 	s := newMockStore()
 	runner := &recordingRunner{}
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: "scene",
@@ -174,7 +174,7 @@ func TestRunEffectNoRunnerIsNoop(t *testing.T) {
 	reader := newMockStateReader()
 	s := newMockStore()
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, nil)
+	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
@@ -189,7 +189,7 @@ func TestRunEffectStartsNativeRunOnDeviceTarget(t *testing.T) {
 	s := newMockStore()
 	runner := &recordingRunner{}
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
@@ -220,7 +220,7 @@ func TestRunEffectRejectsBothEffectIDAndNativeName(t *testing.T) {
 	s := newMockStore()
 	runner := &recordingRunner{}
 
-	executor := NewActionExecutor(bus, reader, s, s, nil, runner)
+	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
 	executor.ExecuteGraphAction(ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
