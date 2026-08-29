@@ -5,6 +5,7 @@
 	} from "$lib/components/ui/command/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
+	import HiveChip from "$lib/components/hive-chip.svelte";
 	import EntitySelector from "$lib/components/entity-selector.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import type { DrawerGroup, DrawerItem } from "$lib/components/hive-drawer";
@@ -161,7 +162,9 @@
 								</AnimatedIcon>
 							{/if}
 							<span class="flex-1 truncate">{item.name}</span>
-							{#if item.badge}
+							{#if item.badgeType}
+								<HiveChip type={item.badgeType} class="ml-auto" />
+							{:else if item.badge}
 								<Badge variant="outline" class="ml-auto">{item.badge}</Badge>
 							{/if}
 						</CommandItem>

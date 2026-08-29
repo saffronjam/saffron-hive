@@ -36,6 +36,8 @@
 				return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30";
 			case "button":
 				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
+			case "color":
+				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
 			case "plug":
 				return "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30";
 			case "speaker":

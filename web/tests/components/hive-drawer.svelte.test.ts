@@ -5,8 +5,9 @@ import HiveDrawer from "$lib/components/hive-drawer.svelte";
 let instance: ReturnType<typeof mount> | null = null;
 let host: HTMLDivElement | null = null;
 
-afterEach(() => {
-  if (instance) unmount(instance);
+afterEach(async () => {
+  if (instance) await unmount(instance);
+  await new Promise((resolve) => setTimeout(resolve, 30));
   host?.remove();
   instance = null;
   host = null;
@@ -34,8 +35,8 @@ describe("HiveDrawer", () => {
     });
     flushSync();
 
-    const livingRoom = [...document.querySelectorAll<HTMLElement>("[role=option]")].find(
-      (option) => option.textContent?.includes("Living room"),
+    const livingRoom = [...document.querySelectorAll<HTMLElement>("[role=option]")].find((option) =>
+      option.textContent?.includes("Living room"),
     )!;
     livingRoom.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
     flushSync();
@@ -85,5 +86,41 @@ describe("HiveDrawer", () => {
     options[1].click();
     flushSync();
     expect(onselect).not.toHaveBeenCalled();
+  });
+
+  it("renders semantic device badges through HiveChip", () => {
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    instance = mount(HiveDrawer, {
+      target: host,
+      props: {
+        open: true,
+        groups: [
+          {
+            heading: "Devices",
+            items: [
+              {
+                type: "device",
+                id: "temperature",
+                name: "Temperature sensor",
+                badgeType: "sensor",
+              },
+            ],
+          },
+        ],
+        onselect: vi.fn(),
+      },
+    });
+    flushSync();
+
+    const option = [...document.querySelectorAll<HTMLElement>("[role=option]")].find((row) =>
+      row.textContent?.includes("Temperature sensor"),
+    );
+    expect(option?.textContent).toContain("Sensor");
+    expect(option?.querySelector(".text-cyan-700")).not.toBeNull();
   });
 });

@@ -19,6 +19,12 @@ afterEach(() => {
 describe("HiveChip maintenance kinds", () => {
   const cases = [
     {
+      type: "sensor",
+      label: "Sensor",
+      colorClass: "text-cyan-700",
+      iconClass: "lucide-gauge",
+    },
+    {
       type: "battery",
       label: "Battery",
       colorClass: "text-green-700",
@@ -41,6 +47,12 @@ describe("HiveChip maintenance kinds", () => {
       label: "Storage",
       colorClass: "text-slate-700",
       iconClass: "lucide-hard-drive",
+    },
+    {
+      type: "color",
+      label: "Color",
+      colorClass: "text-purple-700",
+      iconClass: "lucide-palette",
     },
   ];
 

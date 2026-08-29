@@ -143,6 +143,7 @@ export function semanticIcon(type: string, contactRole?: ContactRole | null): Co
     case "brightness":
       return SunMedium;
     case "colorTemp":
+    case "color":
       return Palette;
     case "power":
     case "voltage":

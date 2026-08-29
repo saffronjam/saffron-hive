@@ -13,6 +13,7 @@ export interface DrawerItem<U extends string = string> {
    */
   iconRef?: string | null;
   badge?: string;
+  badgeType?: string;
   searchValue?: string;
   /**
    * Renders the row muted and inert: it cannot be selected and it does not
