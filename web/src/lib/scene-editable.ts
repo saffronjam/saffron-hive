@@ -1,20 +1,103 @@
-import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
+import {
+  deviceSceneCapabilities,
+  isLightControlDevice,
+  isRuntimeEnabledDevice,
+  type Device,
+} from "$lib/stores/devices";
 import { deviceDisplayName, groupDisplayName } from "$lib/utils";
-import type { Clause } from "$lib/target-resolve";
+import {
+  evaluateExpression,
+  resolveTargetDevices,
+  type Clause,
+  type GroupLite,
+  type RoomLite,
+} from "$lib/target-resolve";
+import {
+  SceneLightOverrideKind,
+  SceneTargetType,
+  type DesiredSceneStateInput,
+  type SceneDefinitionInput,
+  type VibeFieldDomain,
+} from "$lib/gql/graphql";
 
-export interface SceneAction {
-  targetType: string;
-  targetId: string;
-  target: SceneTargetData | null;
-  payload: string;
-  expression?: Clause[];
-  name?: string;
+export type TargetKind = "device" | "group" | "room" | "expression";
+export type VibeDomain = "full_color" | "white_ambience";
+export type VibeSourceKind = "preset" | "photo" | "guided";
+
+export interface SceneColor {
+  r: number;
+  g: number;
+  b: number;
+  x?: number;
+  y?: number;
+}
+
+export interface DesiredSceneState {
+  on?: boolean | null;
+  brightness?: number | null;
+  colorTemp?: number | null;
+  color?: SceneColor | null;
+  transition?: number | null;
+  targetTemperature?: number | null;
+  hvacMode?: string | null;
+  fanMode?: string | null;
+  swing?: string | null;
+}
+
+export interface VibeFieldSample {
+  lightness?: number | null;
+  chroma?: number | null;
+  hue?: number | null;
+  brightness?: number | null;
+  mireds?: number | null;
+}
+
+export interface DynamicLighting {
+  domain: VibeDomain;
+  sourceKind: VibeSourceKind;
+  presetId?: string | null;
+  presetTitle?: string | null;
+  guidedSelectedIds: string[];
+  seed: string;
+  brightness: number;
+  movement: number;
+  cycleSeconds: number;
+  gridWidth: number;
+  gridHeight: number;
+  samples: VibeFieldSample[];
+  sourceInput?:
+    | { preset: { presetId: string; seed?: string } }
+    | {
+        photo: {
+          domain: VibeFieldDomain;
+          seed: string;
+          width: number;
+          height: number;
+          rgbBase64: string;
+        };
+      }
+    | { guided: { domain: VibeFieldDomain; seed: string; selectedIds: string[] } };
+}
+
+type StoredDynamicLighting = Omit<
+  DynamicLighting,
+  "guidedSelectedIds" | "gridWidth" | "gridHeight" | "samples"
+> &
+  Partial<Pick<DynamicLighting, "guidedSelectedIds" | "gridWidth" | "gridHeight" | "samples">>;
+
+export type SceneLightOverride =
+  | { kind: "state"; deviceId: string; state: DesiredSceneState }
+  | { kind: "effect"; deviceId: string; effectId: string }
+  | { kind: "native_effect"; deviceId: string; nativeEffectName: string };
+
+export interface SceneSupportingState {
+  deviceId: string;
+  state: DesiredSceneState;
 }
 
 export interface SceneTargetData {
   __typename: string;
   id: string;
-  /** Room arm only; nullable names on other arms are aliased below. */
   name?: string;
   groupName?: string | null;
   deviceName?: string | null;
@@ -23,124 +106,40 @@ export interface SceneTargetData {
   source?: string;
   removed?: boolean;
   type?: string;
-  members?: GroupMemberData[];
+  members?: { id: string; memberType: string; memberId: string }[];
   resolvedDevices?: Device[];
-  devices?: Device[];
 }
 
-export interface GroupMemberData {
-  id: string;
-  memberType: string;
-  memberId: string;
+export interface SceneTargetEntry {
+  targetType: TargetKind;
+  targetId: string;
+  target?: SceneTargetData | null;
+  expression?: Clause[];
+  name?: string;
 }
 
-export interface SceneDevicePayloadEntry {
-  deviceId: string;
-  payload: string;
-}
-
-export interface SceneRoomRef {
-  id: string;
-  name: string;
-  icon?: string | null;
+export interface ScenePreview {
+  width: number;
+  height: number;
+  pixels: { r: number; g: number; b: number }[];
+  swatches: { x: number; y: number; color: { r: number; g: number; b: number } }[];
 }
 
 export interface SceneData {
   id: string;
   name: string;
   icon?: string | null;
-  rooms?: SceneRoomRef[];
-  actions: SceneAction[];
-  devicePayloads: SceneDevicePayloadEntry[];
+  targets: SceneTargetEntry[];
+  lighting: {
+    dynamicSource?: ({ __typename?: string } & StoredDynamicLighting) | null;
+    overrides: ({ __typename?: string } & SceneLightOverride)[];
+  };
+  supportingStates: ({ __typename?: string } & SceneSupportingState)[];
+  preview: ScenePreview;
   activatedAt?: string | null;
 }
 
-export interface GroupData {
-  id: string;
-  name: string;
-  icon?: string | null;
-  members: GroupMemberData[];
-  resolvedDevices: Device[];
-}
-
-export interface RoomMemberData {
-  id: string;
-  memberType: string;
-  memberId: string;
-  device?: Device | null;
-  group?: {
-    id: string;
-    name: string;
-    icon?: string | null;
-    resolvedDevices?: { id: string }[];
-  } | null;
-}
-
-export interface RoomData {
-  id: string;
-  name: string;
-  icon?: string | null;
-  members: RoomMemberData[];
-  resolvedDevices: Device[];
-}
-
-/**
- * Discriminator over a light's white-point. A bulb at any instant is either
- * in colour-temperature mode (driven by mireds) or in colour mode (driven by
- * RGB+xy chromaticity) — never both. Modelling the mutual exclusion in the
- * type prevents construction sites from accidentally setting both: the bulb
- * silently honours one and ignores the other, so a payload with both is
- * ambiguous user intent.
- *
- * Absent (`light: undefined`) means the payload does not touch the bulb's
- * white-point — useful for on/off + brightness-only commands, or for devices
- * with no colour capability at all.
- */
-export type LightMode =
-  | { kind: "colorTemp"; mireds: number }
-  | { kind: "color"; r: number; g: number; b: number; x: number; y: number };
-
-export interface StaticActionPayload {
-  kind: "static";
-  on?: boolean;
-  brightness?: number;
-  light?: LightMode;
-}
-
-export interface EffectActionPayload {
-  kind: "effect";
-  effectId: string;
-}
-
-export interface NativeEffectActionPayload {
-  kind: "native_effect";
-  nativeName: string;
-}
-
-export type ActionPayload = StaticActionPayload | EffectActionPayload | NativeEffectActionPayload;
-
-/**
- * Flat-field shape used by the live device-command path (the GraphQL
- * `DeviceStateInput` and the on-disk JSON in `scene_device_payloads.payload`).
- * Mirrors the shared internal-map convention used by backend code; the nested
- * {@link LightMode} from {@link StaticActionPayload} is flattened to `color`
- * or `colorTemp` here via {@link staticFieldsOf} / {@link stringifyPayload}.
- */
-export interface StaticPayloadFields {
-  on?: boolean;
-  brightness?: number;
-  colorTemp?: number;
-  color?: { r: number; g: number; b: number; x: number; y: number };
-}
-
-export type TargetKind = "device" | "group" | "room" | "expression";
-
 export interface EditableTarget {
-  /**
-   * Stable client-side identity, preserved across edits/reorders so keyed list
-   * rendering can track a target by identity rather than array position. Not
-   * persisted — the save path maps target fields explicitly.
-   */
   uid: string;
   type: TargetKind;
   id: string;
@@ -151,167 +150,281 @@ export interface EditableTarget {
   expression?: Clause[];
 }
 
-/** Mint a stable client-side identity for a freshly created editable target. */
+export interface EditorState {
+  targets: EditableTarget[];
+  dynamicSource: DynamicLighting | null;
+  overrides: Map<string, SceneLightOverride>;
+  supportingStates: Map<string, SceneSupportingState>;
+}
+
 export function newTargetUid(): string {
   return crypto.randomUUID();
 }
 
-export type DevicePayloadMap = Map<string, ActionPayload>;
-
-/**
- * Read a stored scene payload. The on-disk shape carries `color` / `colorTemp`
- * as flat siblings (the lingua franca of the internal command/state map shared
- * with backend code); this function lifts them into the discriminated
- * {@link LightMode} the rest of the frontend uses. A row carrying both fields is
- * ambiguous, and the explicit RGB colour wins, which is the rule the SQL heal
- * migration applies at rest.
- */
-export function parsePayload(raw: string): ActionPayload {
-  let obj: Record<string, unknown> = {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      obj = parsed as Record<string, unknown>;
-    }
-  } catch {
-    // fall through to empty static payload
-  }
-  if (obj.kind === "effect") {
-    const effectId = typeof obj.effect_id === "string" ? obj.effect_id : "";
-    return { kind: "effect", effectId };
-  }
-  if (obj.kind === "native_effect") {
-    const nativeName = typeof obj.native_name === "string" ? obj.native_name : "";
-    return { kind: "native_effect", nativeName };
-  }
-  const out: StaticActionPayload = { kind: "static" };
-  if (typeof obj.on === "boolean") out.on = obj.on;
-  if (typeof obj.brightness === "number") out.brightness = obj.brightness;
-  const colorMode = parseFlatColor(obj.color);
-  if (colorMode) {
-    out.light = colorMode;
-  } else if (typeof obj.colorTemp === "number") {
-    out.light = { kind: "colorTemp", mireds: obj.colorTemp };
-  }
-  return out;
-}
-
-function parseFlatColor(raw: unknown): LightMode | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const c = raw as Record<string, unknown>;
-  if (
-    typeof c.r !== "number" ||
-    typeof c.g !== "number" ||
-    typeof c.b !== "number" ||
-    typeof c.x !== "number" ||
-    typeof c.y !== "number"
-  ) {
-    return null;
-  }
-  return { kind: "color", r: c.r, g: c.g, b: c.b, x: c.x, y: c.y };
-}
-
-/**
- * Write a payload back to the on-disk shape. The nested `light` discriminator
- * is flattened to the `color` / `colorTemp` siblings the storage layer
- * (`scene_device_payloads.payload`) and backend `commandFromDesired` consume.
- */
-export function stringifyPayload(payload: ActionPayload): string {
-  if (payload.kind === "effect") {
-    return JSON.stringify({ kind: "effect", effect_id: payload.effectId });
-  }
-  if (payload.kind === "native_effect") {
-    return JSON.stringify({ kind: "native_effect", native_name: payload.nativeName });
-  }
-  return JSON.stringify({ kind: "static", ...flattenStaticPayload(payload) });
-}
-
-function flattenStaticPayload(payload: StaticActionPayload): StaticPayloadFields {
-  const flat: StaticPayloadFields = {};
-  if (payload.on !== undefined) flat.on = payload.on;
-  if (payload.brightness !== undefined) flat.brightness = payload.brightness;
-  if (payload.light?.kind === "color") {
-    const { r, g, b, x, y } = payload.light;
-    flat.color = { r, g, b, x, y };
-  } else if (payload.light?.kind === "colorTemp") {
-    flat.colorTemp = payload.light.mireds;
-  }
-  return flat;
-}
-
-/**
- * Flat-field view of a static payload, matching the GraphQL `DeviceStateInput`
- * shape used by the live device-command path. Effect payloads return an empty
- * object — they carry no per-field state.
- */
-export function staticFieldsOf(payload: ActionPayload): StaticPayloadFields {
-  if (payload.kind !== "static") {
-    return {};
-  }
-  return flattenStaticPayload(payload);
-}
-
-export function buildTargetInfo(action: SceneAction): EditableTarget {
-  if (action.targetType === "expression") {
+export function buildTargetInfo(target: SceneTargetEntry): EditableTarget {
+  if (target.targetType === "expression") {
     return {
       uid: newTargetUid(),
       type: "expression",
       id: "",
-      name: action.name || "Selector",
-      expression: action.expression ?? [],
+      name: target.name || "Selector",
+      expression: target.expression ?? [],
     };
   }
-  const t = action.target;
-  if (t?.__typename === "Group") {
+  const resolved = target.target;
+  if (target.targetType === "group") {
     return {
       uid: newTargetUid(),
       type: "group",
-      id: t.id,
-      name: groupDisplayName({ id: t.id, name: t.groupName, friendlyName: t.friendlyName }),
-      icon: t.icon ?? null,
-      removed: t.removed ?? false,
+      id: target.targetId,
+      name:
+        resolved?.__typename === "Group"
+          ? groupDisplayName({
+              id: resolved.id,
+              name: resolved.groupName,
+              friendlyName: resolved.friendlyName,
+            })
+          : target.name || target.targetId,
+      icon: resolved?.__typename === "Group" ? (resolved.icon ?? null) : null,
+      removed: resolved?.__typename === "Group" ? (resolved.removed ?? false) : false,
     };
   }
-  if (t?.__typename === "Room") {
+  if (target.targetType === "room") {
     return {
       uid: newTargetUid(),
       type: "room",
-      id: t.id,
-      name: t.name ?? t.id,
-      icon: t.icon ?? null,
+      id: target.targetId,
+      name:
+        resolved?.__typename === "Room"
+          ? (resolved.name ?? resolved.id)
+          : target.name || target.targetId,
+      icon: resolved?.__typename === "Room" ? (resolved.icon ?? null) : null,
     };
   }
   return {
     uid: newTargetUid(),
     type: "device",
-    id: t?.id ?? "",
-    name: t
-      ? deviceDisplayName({ id: t.id, name: t.deviceName, friendlyName: t.friendlyName })
-      : "",
-    deviceType: t?.type,
+    id: target.targetId,
+    name:
+      resolved?.__typename === "Device"
+        ? deviceDisplayName({
+            id: resolved.id,
+            name: resolved.deviceName,
+            friendlyName: resolved.friendlyName,
+          })
+        : target.name || target.targetId,
+    deviceType: resolved?.__typename === "Device" ? resolved.type : undefined,
   };
 }
 
-export interface EditorState {
-  targets: EditableTarget[];
-  payloads: DevicePayloadMap;
+export function sceneToEditorState(scene: SceneData): EditorState {
+  const dynamicSource = scene.lighting.dynamicSource;
+  return {
+    targets: scene.targets.map(buildTargetInfo),
+    dynamicSource: dynamicSource
+      ? {
+          ...dynamicSource,
+          guidedSelectedIds: dynamicSource.guidedSelectedIds ?? [],
+          gridWidth: dynamicSource.gridWidth ?? 0,
+          gridHeight: dynamicSource.gridHeight ?? 0,
+          samples: dynamicSource.samples ?? [],
+        }
+      : null,
+    overrides: new Map(scene.lighting.overrides.map((override) => [override.deviceId, override])),
+    supportingStates: new Map(
+      scene.supportingStates.map((supporting) => [supporting.deviceId, supporting]),
+    ),
+  };
 }
 
-export function sceneToEditorState(s: SceneData): EditorState {
-  const targets = s.actions.map(buildTargetInfo);
-  const payloads: DevicePayloadMap = new Map();
-  for (const p of s.devicePayloads) {
-    payloads.set(p.deviceId, parsePayload(p.payload));
+export function defaultDesiredState(device?: Device): DesiredSceneState {
+  if (!device) return { on: true, brightness: 200, colorTemp: 370 };
+  const capabilities = deviceSceneCapabilities(device);
+  const state: DesiredSceneState = {};
+  if (capabilities.hasOnOff) state.on = true;
+  if (capabilities.hasBrightness) state.brightness = 200;
+  if (capabilities.hasColorTemp) state.colorTemp = 370;
+  if (stateEmpty(state) && capabilities.hasColor) state.color = { r: 255, g: 255, b: 255 };
+  return state;
+}
+
+export function capturedSceneState(device: Device): DesiredSceneState | null {
+  const source = device.state;
+  if (!source) return null;
+  const writable = new Set(
+    device.capabilities
+      .filter((capability) => capability.canSet)
+      .map((capability) => capability.name),
+  );
+  const state: DesiredSceneState = {};
+  if ((writable.has("on_off") || writable.has("state")) && source.on != null) state.on = source.on;
+  if (writable.has("brightness") && source.brightness != null) state.brightness = source.brightness;
+  if (writable.has("color_temp") && source.colorTemp != null) state.colorTemp = source.colorTemp;
+  if (writable.has("color") && source.color) state.color = source.color;
+  if (writable.has("target_temperature") && source.targetTemperature != null)
+    state.targetTemperature = source.targetTemperature;
+  if (writable.has("hvac_mode") && source.hvacMode) state.hvacMode = source.hvacMode;
+  if (writable.has("fan_mode") && source.fanMode) state.fanMode = source.fanMode;
+  if (writable.has("swing") && source.swing) state.swing = source.swing;
+  return stateEmpty(state) ? null : state;
+}
+
+export function initialSupportingState(device: Device): DesiredSceneState | null {
+  if (device.type === "sensor" || isLightControlDevice(device)) return null;
+  return (
+    capturedSceneState(device) ??
+    (() => {
+      const state = defaultDesiredState(device);
+      return stateEmpty(state) ? null : state;
+    })()
+  );
+}
+
+export function stateEmpty(state: DesiredSceneState): boolean {
+  return Object.values(state).every((value) => value == null);
+}
+
+function desiredStateControlsDevice(state: DesiredSceneState, device: Device): boolean {
+  const writable = new Set(
+    device.capabilities
+      .filter((capability) => capability.canSet)
+      .map((capability) => capability.name),
+  );
+  return (
+    (state.on != null && writable.has("on_off")) ||
+    (state.brightness != null && writable.has("brightness")) ||
+    (state.colorTemp != null && writable.has("color_temp")) ||
+    (state.color != null && writable.has("color")) ||
+    (state.transition != null && writable.has("brightness")) ||
+    (state.targetTemperature != null && writable.has("target_temperature")) ||
+    (state.hvacMode != null && writable.has("hvac_mode")) ||
+    (state.fanMode != null && writable.has("fan_mode")) ||
+    (state.swing != null && writable.has("swing"))
+  );
+}
+
+export function resolveSceneTargetLights(
+  targets: EditorState["targets"],
+  devices: Device[],
+  groups: GroupLite[],
+  rooms: RoomLite[],
+  options?: { includeDisabled?: boolean },
+): Device[] {
+  const unique = new Map<string, Device>();
+  for (const target of targets) {
+    const resolved =
+      target.type === "expression"
+        ? evaluateExpression(target.expression ?? [], devices, groups, rooms)
+        : resolveTargetDevices(
+            { type: target.type, id: target.id },
+            devices,
+            groups,
+            rooms,
+            options,
+          );
+    for (const device of resolved) {
+      if (isLightControlDevice(device)) unique.set(device.id, device);
+    }
   }
-  return { targets, payloads };
+  return Array.from(unique.values());
 }
 
-export function defaultScenePayload(device: Device | undefined): StaticActionPayload {
-  if (!device) return { kind: "static", on: true };
-  const caps = deviceSceneCapabilities(device);
-  const payload: StaticActionPayload = { kind: "static" };
-  if (caps.hasOnOff) payload.on = true;
-  if (caps.hasBrightness) payload.brightness = 200;
-  if (caps.hasColorTemp) payload.light = { kind: "colorTemp", mireds: 370 };
-  return payload;
+export function sceneControllableDeviceCount(
+  state: EditorState,
+  devices: Device[],
+  groups: GroupLite[],
+  rooms: RoomLite[],
+): number {
+  const enabledDevices = devices.filter(isRuntimeEnabledDevice);
+  const controlled = new Set<string>();
+  const fieldCapabilities = new Set(["on_off", "brightness", "color", "color_temp"]);
+
+  for (const device of resolveSceneTargetLights(state.targets, enabledDevices, groups, rooms)) {
+    const override = state.overrides.get(device.id);
+    if (override?.kind === "effect" || override?.kind === "native_effect") {
+      controlled.add(device.id);
+      continue;
+    }
+    const dynamicControlsDevice =
+      state.dynamicSource !== null &&
+      device.capabilities.some(
+        (capability) => capability.canSet && fieldCapabilities.has(capability.name),
+      );
+    const overrideControlsDevice =
+      override?.kind === "state" && desiredStateControlsDevice(override.state, device);
+    if (dynamicControlsDevice || overrideControlsDevice) controlled.add(device.id);
+  }
+
+  const devicesById = new Map(enabledDevices.map((device) => [device.id, device]));
+  for (const supporting of state.supportingStates.values()) {
+    const device = devicesById.get(supporting.deviceId);
+    if (device && desiredStateControlsDevice(supporting.state, device)) controlled.add(device.id);
+  }
+  return controlled.size;
+}
+
+export function sceneStateInput(state: DesiredSceneState): DesiredSceneStateInput {
+  const input: DesiredSceneStateInput = {};
+  if (state.on != null) input.on = state.on;
+  if (state.brightness != null) input.brightness = state.brightness;
+  if (state.colorTemp != null) input.colorTemp = state.colorTemp;
+  if (state.color != null) {
+    input.color = { ...state.color, x: state.color.x ?? 0, y: state.color.y ?? 0 };
+  }
+  if (state.transition != null) input.transition = state.transition;
+  if (state.targetTemperature != null) input.targetTemperature = state.targetTemperature;
+  if (state.hvacMode != null) input.hvacMode = state.hvacMode;
+  if (state.fanMode != null) input.fanMode = state.fanMode;
+  if (state.swing != null) input.swing = state.swing;
+  return input;
+}
+
+export function editorDefinitionInput(state: EditorState): SceneDefinitionInput {
+  const targets = state.targets.map((target) => ({
+    targetType: target.type as SceneTargetType,
+    targetId: target.type === "expression" ? undefined : target.id,
+    expression: target.type === "expression" ? (target.expression ?? []) : undefined,
+    name: target.name || undefined,
+  }));
+  const overrides = Array.from(state.overrides.values()).map((override) => {
+    if (override.kind === "state") {
+      return {
+        deviceId: override.deviceId,
+        kind: SceneLightOverrideKind.State,
+        state: sceneStateInput(override.state),
+      };
+    }
+    if (override.kind === "effect") {
+      return {
+        deviceId: override.deviceId,
+        kind: SceneLightOverrideKind.Effect,
+        effectId: override.effectId,
+      };
+    }
+    return {
+      deviceId: override.deviceId,
+      kind: SceneLightOverrideKind.NativeEffect,
+      nativeEffectName: override.nativeEffectName,
+    };
+  });
+  const dynamicSource = state.dynamicSource
+    ? {
+        source: state.dynamicSource.sourceInput,
+        brightness: state.dynamicSource.brightness,
+        movement: state.dynamicSource.movement,
+        cycleSeconds: state.dynamicSource.cycleSeconds,
+        seed: state.dynamicSource.seed,
+      }
+    : undefined;
+  return {
+    targets,
+    lighting: {
+      dynamicSource,
+      overrides,
+    },
+    supportingStates: Array.from(state.supportingStates.values()).map((supporting) => ({
+      deviceId: supporting.deviceId,
+      state: sceneStateInput(supporting.state),
+    })),
+  };
 }
