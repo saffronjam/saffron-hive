@@ -6,9 +6,25 @@ const scene = {
   name: "Cozy",
   icon: null,
   rooms: [],
-  actions: [{ targetType: "room", targetId: "living-room" }],
-  devicePayloads: [],
-  effectivePayloads: [{ deviceId: "light-1", payload: '{"on":true}' }],
+  targets: [
+    {
+      targetType: "room",
+      targetId: "living-room",
+      name: "Living room",
+      expression: [],
+    },
+  ],
+  lighting: {
+    dynamicSource: null,
+    overrides: [],
+  },
+  supportingStates: [],
+  preview: {
+    width: 1,
+    height: 1,
+    pixels: [{ r: 255, g: 210, b: 160 }],
+    swatches: [{ x: 0.5, y: 0.5, color: { r: 255, g: 210, b: 160 } }],
+  },
   createdBy: null,
   activatedAt: null,
 };
@@ -24,6 +40,22 @@ beforeEach(() => {
 });
 
 describe("scenesStore", () => {
+  it("does not hydrate scenes from an incompatible cache generation", async () => {
+    localStorage.setItem(
+      "hive:cache:scenes",
+      JSON.stringify({
+        v: 2,
+        items: [{ id: "cached-scene", name: "Cached", targets: [] }],
+      }),
+    );
+
+    const fresh = await bootStore();
+
+    expect(fresh.scenesStore.items).toEqual([]);
+    expect(fresh.scenesStore.hydrated).toBe(false);
+    fresh.scenesStore.stop();
+  });
+
   it("keeps the active state stable while an apply result settles", async () => {
     const fresh = await bootStore();
     const mock = createMockClient();
@@ -85,6 +117,21 @@ describe("scenesStore", () => {
     expect(fresh.scenesStore.byId.get(scene.id)?.activatedAt).not.toBeNull();
     await vi.advanceTimersByTimeAsync(1);
     expect(fresh.scenesStore.byId.get(scene.id)?.activatedAt).toBeNull();
+    fresh.scenesStore.stop();
+  });
+
+  it("optimistically stops and restores active state when stop fails", async () => {
+    const fresh = await bootStore();
+    const active = { ...scene, activatedAt: "2026-08-25T18:00:00Z" };
+    const mock = createMockClient();
+    mock.queueResult({ data: { scenes: [active] } });
+    await fresh.scenesStore.start(mock.client);
+
+    mock.queueMutationResult({ error: new Error("stop failed") });
+    const stopping = fresh.scenesStore.deactivate(mock.client, scene.id);
+    expect(fresh.scenesStore.byId.get(scene.id)?.activatedAt).toBeNull();
+    await expect(stopping).rejects.toThrow();
+    expect(fresh.scenesStore.byId.get(scene.id)?.activatedAt).toBe(active.activatedAt);
     fresh.scenesStore.stop();
   });
 });

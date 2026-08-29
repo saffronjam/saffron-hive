@@ -15,17 +15,89 @@ graphql(`
       name
       icon
     }
-    actions {
+    targets {
       targetType
       targetId
+      name
+      expression {
+        connector
+        subject
+        op
+        values
+      }
     }
-    devicePayloads {
-      deviceId
-      payload
+    lighting {
+      dynamicSource {
+        domain
+        sourceKind
+        presetId
+        presetTitle
+        seed
+        brightness
+        movement
+        cycleSeconds
+      }
+      overrides {
+        deviceId
+        kind
+        state {
+          on
+          brightness
+          colorTemp
+          color {
+            r
+            g
+            b
+            x
+            y
+          }
+          transition
+          targetTemperature
+          hvacMode
+          fanMode
+          swing
+        }
+        effectId
+        nativeEffectName
+      }
     }
-    effectivePayloads {
+    supportingStates {
       deviceId
-      payload
+      state {
+        on
+        brightness
+        colorTemp
+        color {
+          r
+          g
+          b
+          x
+          y
+        }
+        transition
+        targetTemperature
+        hvacMode
+        fanMode
+        swing
+      }
+    }
+    preview {
+      width
+      height
+      pixels {
+        r
+        g
+        b
+      }
+      swatches {
+        x
+        y
+        color {
+          r
+          g
+          b
+        }
+      }
     }
     createdBy {
       id
@@ -91,7 +163,7 @@ const SCENE_ACTIVE_CHANGED = graphql(`
 
 const base = createEntityStore<Scene, ScenesStoreQuery>({
   name: "scenes",
-  version: 1,
+  version: 3,
   query: SCENES_QUERY,
   select: (data) => data.scenes,
 });
@@ -202,10 +274,8 @@ export const scenesStore = {
     base.stop();
   },
 
-  async create(client: Client, name: string): Promise<Scene> {
-    const result = await client
-      .mutation(CREATE_SCENE, { input: { name, actions: [] } })
-      .toPromise();
+  async create(client: Client, input: import("$lib/gql/graphql").CreateSceneInput): Promise<Scene> {
+    const result = await client.mutation(CREATE_SCENE, { input }).toPromise();
     if (result.error || !result.data) throw result.error ?? new Error("createScene failed");
     base.upsert(result.data.createScene);
     return result.data.createScene;
@@ -249,5 +319,27 @@ export const scenesStore = {
       ...result.data.applyScene,
       activatedAt: base.byId.get(id)?.activatedAt ?? null,
     });
+  },
+
+  async deactivate(client: Client, id: string): Promise<void> {
+    const previous = base.byId.get(id)?.activatedAt ?? null;
+    setActivatedAt(id, null);
+    const result = await client
+      .mutation(
+        graphql(`
+          mutation ScenesStoreStop($sceneId: ID!) {
+            deactivateScene(sceneId: $sceneId) {
+              ...SceneFields
+            }
+          }
+        `),
+        { sceneId: id },
+      )
+      .toPromise();
+    if (result.error || !result.data) {
+      setActivatedAt(id, previous);
+      throw result.error ?? new Error("deactivateScene failed");
+    }
+    base.upsert(result.data.deactivateScene);
   },
 };
