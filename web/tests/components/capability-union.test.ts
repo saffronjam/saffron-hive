@@ -9,7 +9,14 @@ import {
   type GroupLite,
   type RoomLite,
 } from "$lib/target-resolve";
-import { CapabilityCategory, ContactRole, ControlledLoadRole, type Device } from "$lib/gql/graphql";
+import {
+  CapabilityCategory,
+  ContactRole,
+  ControlledLoadRole,
+  TargetClauseOperator,
+  TargetClauseSubject,
+  type Device,
+} from "$lib/gql/graphql";
 
 function cap(
   name: string,
@@ -303,7 +310,13 @@ describe("disabled devices", () => {
   });
 
   it("leave the expression universe, so is_not cannot resurrect them", () => {
-    const notLight = [{ subject: "device_type", op: "is_not", values: ["light"] }];
+    const notLight = [
+      {
+        subject: TargetClauseSubject.DeviceType,
+        op: TargetClauseOperator.IsNot,
+        values: ["light"],
+      },
+    ];
     expect(evaluateExpression(notLight, [light, offPlug], [], [])).toEqual([]);
     const onPlug = { ...offPlug, disabled: false };
     expect(evaluateExpression(notLight, [light, onPlug], [], []).map((d) => d.id)).toEqual([
@@ -379,7 +392,13 @@ describe("semantic device roles", () => {
   const devices = [appliancePlug, lightPlug, climate, door, generalContact] as Device[];
 
   it("resolves inherent and selected appliance roles", () => {
-    const expression = [{ subject: "device_role", op: "is", values: ["appliance"] }];
+    const expression = [
+      {
+        subject: TargetClauseSubject.DeviceRole,
+        op: TargetClauseOperator.Is,
+        values: ["appliance"],
+      },
+    ];
     expect(
       evaluateExpression(expression, devices, [], [])
         .map((device) => device.id)
@@ -388,7 +407,13 @@ describe("semantic device roles", () => {
   });
 
   it("resolves door roles without including general contacts", () => {
-    const expression = [{ subject: "device_role", op: "is", values: ["door"] }];
+    const expression = [
+      {
+        subject: TargetClauseSubject.DeviceRole,
+        op: TargetClauseOperator.Is,
+        values: ["door"],
+      },
+    ];
     expect(evaluateExpression(expression, devices, [], []).map((device) => device.id)).toEqual([
       "door",
     ]);

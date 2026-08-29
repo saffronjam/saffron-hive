@@ -89,4 +89,49 @@ describe("TargetSelectorField", () => {
     expect(deviceOption.textContent).toContain("Button");
     expect(deviceOption.textContent).toContain("Living room");
   });
+
+  it("offers writable capabilities with product labels", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    const devices = [
+      {
+        id: "rgb-1",
+        name: "Colour lamp",
+        type: "light",
+        disabled: false,
+        deleted: false,
+        roles: {},
+        capabilities: [
+          {
+            name: "color",
+            type: "composite",
+            canSet: true,
+            reportsValue: true,
+            canGet: false,
+          },
+        ],
+      },
+    ] as unknown as Device[];
+    instance = mount(TargetSelectorField, {
+      target: host,
+      props: { value: [], onchange: vi.fn(), devices, groups: [], rooms: [] },
+    });
+    flushSync();
+
+    const input = host.querySelector("input")!;
+    input.focus();
+    flushSync();
+    const pick = (label: string) => {
+      const option = [...host!.querySelectorAll<HTMLElement>("[role=option]")].find(
+        (candidate) => candidate.textContent?.trim() === label,
+      )!;
+      option.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      flushSync();
+    };
+
+    pick("Can set");
+    expect(input.placeholder).toBe("includes…");
+    pick("includes");
+    expect(host.textContent).toContain("Full colour");
+  });
 });

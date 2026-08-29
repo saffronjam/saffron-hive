@@ -13,6 +13,7 @@ import {
   validateTriggerConfig,
   type TriggerConfig,
 } from "$lib/components/graph/trigger-expr";
+import { TargetClauseOperator, TargetClauseSubject } from "$lib/gql/graphql";
 
 describe("capabilityToExprProperty", () => {
   it.each([
@@ -63,7 +64,13 @@ describe("run_effect action validation", () => {
         actionType: "run_effect",
         targetType: "expression",
         targetId: "",
-        targetExpr: [{ subject: "device_type", op: "is", values: ["light"] }],
+        targetExpr: [
+          {
+            subject: TargetClauseSubject.DeviceType,
+            op: TargetClauseOperator.Is,
+            values: ["light"],
+          },
+        ],
         payload: '{"effect_id":"fireplace"}',
       }),
     ).toBeNull();
@@ -352,7 +359,13 @@ describe("action type validation", () => {
       actionType: "toggle_device_state",
       targetType: "expression",
       targetId: "",
-      targetExpr: [{ subject: "device_type", op: "is", values: ["light"] }],
+      targetExpr: [
+        {
+          subject: TargetClauseSubject.DeviceType,
+          op: TargetClauseOperator.Is,
+          values: ["light"],
+        },
+      ],
       payload: '{"on":true,"brightness":254}',
     });
 

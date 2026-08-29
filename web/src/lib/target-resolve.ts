@@ -1,5 +1,14 @@
-import { ContactRole, ControlledLoadRole, type Capability, type Device } from "$lib/gql/graphql";
+import {
+  ContactRole,
+  ControlledLoadRole,
+  TargetClauseConnector,
+  TargetClauseOperator,
+  TargetClauseSubject,
+  type Capability,
+  type Device,
+} from "$lib/gql/graphql";
 import { isHiveVisibleDevice, isRuntimeEnabledDevice } from "$lib/stores/devices";
+import { sentenceCase } from "$lib/utils";
 
 export interface GroupLite {
   id: string;
@@ -36,20 +45,22 @@ function selectable(devices: Device[]): Device[] {
 
 /** A subject a target-expression clause matches against. */
 export const CLAUSE_SUBJECTS = [
-  { value: "room", label: "Room" },
-  { value: "group", label: "Group" },
-  { value: "device", label: "Device" },
-  { value: "device_type", label: "Device type" },
-  { value: "device_role", label: "Device role" },
+  { value: TargetClauseSubject.Room, label: "Room" },
+  { value: TargetClauseSubject.Group, label: "Group" },
+  { value: TargetClauseSubject.Device, label: "Device" },
+  { value: TargetClauseSubject.DeviceType, label: "Device type" },
+  { value: TargetClauseSubject.DeviceRole, label: "Device role" },
+  { value: TargetClauseSubject.WritableCapability, label: "Can set" },
+  { value: TargetClauseSubject.ReportedCapability, label: "Reports" },
 ] as const;
 export type ClauseSubject = (typeof CLAUSE_SUBJECTS)[number]["value"];
 
 /** How a clause's values are matched. */
 export const CLAUSE_OPS = [
-  { value: "is", label: "is" },
-  { value: "is_one_of", label: "is one of" },
-  { value: "is_not", label: "is not" },
-  { value: "is_not_one_of", label: "is not one of" },
+  { value: TargetClauseOperator.Is, label: "is" },
+  { value: TargetClauseOperator.IsOneOf, label: "is one of" },
+  { value: TargetClauseOperator.IsNot, label: "is not" },
+  { value: TargetClauseOperator.IsNotOneOf, label: "is not one of" },
 ] as const;
 export type ClauseOp = (typeof CLAUSE_OPS)[number]["value"];
 
@@ -68,10 +79,47 @@ export const CLAUSE_DEVICE_ROLES = [...CLAUSE_DEVICE_TYPES, "appliance", "door",
 
 /** One rule in a target expression. connector is absent on the first clause. */
 export interface Clause {
-  connector?: string;
-  subject: string;
-  op: string;
+  connector?: TargetClauseConnector;
+  subject: TargetClauseSubject;
+  op: TargetClauseOperator;
   values: string[];
+}
+
+const CAPABILITY_LABELS: Record<string, string> = {
+  color: "Full colour",
+  color_temp: "Tunable white",
+  brightness: "Dimming",
+  on_off: "Switchable",
+};
+
+export function capabilityLabel(name: string, capabilities: Capability[] = []): string {
+  return (
+    CAPABILITY_LABELS[name] ??
+    capabilities.find((capability) => capability.name === name)?.label ??
+    sentenceCase(name)
+  );
+}
+
+export function capabilityOptions(
+  devices: Device[],
+  subject: TargetClauseSubject.WritableCapability | TargetClauseSubject.ReportedCapability,
+): { value: string; label: string }[] {
+  const byName = new Map<string, Capability>();
+  for (const device of devices) {
+    for (const capability of device.capabilities ?? []) {
+      const eligible =
+        subject === TargetClauseSubject.WritableCapability
+          ? capability.canSet
+          : capability.reportsValue;
+      if (eligible && !byName.has(capability.name)) byName.set(capability.name, capability);
+    }
+  }
+  return Array.from(byName.values())
+    .map((capability) => ({
+      value: capability.name,
+      label: capabilityLabel(capability.name, [capability]),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function deviceRoles(d: Pick<Device, "type" | "roles">): string[] {
@@ -111,14 +159,29 @@ export function evaluateExpression(
           include.add(d.id);
         }
       }
-    } else if (c.subject === "device_type") {
+    } else if (c.subject === TargetClauseSubject.DeviceType) {
       const want = new Set(c.values);
       for (const d of devices) if (want.has(d.type)) include.add(d.id);
-    } else if (c.subject === "device_role") {
+    } else if (c.subject === TargetClauseSubject.DeviceRole) {
       const want = new Set(c.values);
       for (const d of devices) if (deviceRoles(d).some((r) => want.has(r))) include.add(d.id);
+    } else if (
+      c.subject === TargetClauseSubject.WritableCapability ||
+      c.subject === TargetClauseSubject.ReportedCapability
+    ) {
+      const want = new Set(c.values);
+      for (const d of devices) {
+        const matches = d.capabilities.some(
+          (capability) =>
+            want.has(capability.name) &&
+            (c.subject === TargetClauseSubject.WritableCapability
+              ? capability.canSet
+              : capability.reportsValue),
+        );
+        if (matches) include.add(d.id);
+      }
     }
-    if (c.op === "is_not" || c.op === "is_not_one_of") {
+    if (c.op === TargetClauseOperator.IsNot || c.op === TargetClauseOperator.IsNotOneOf) {
       const excluded = new Set<string>();
       for (const d of devices) if (!include.has(d.id)) excluded.add(d.id);
       return excluded;
@@ -131,7 +194,7 @@ export function evaluateExpression(
     const set = clauseSet(c);
     if (i === 0) {
       acc = set;
-    } else if (c.connector === "or") {
+    } else if (c.connector === TargetClauseConnector.Or) {
       for (const id of set) acc.add(id);
     } else {
       const next = new Set<string>();

@@ -1,3 +1,5 @@
+import type { Clause } from "$lib/target-resolve";
+
 export type TriggerMode =
   | ""
   | "device_state"
@@ -458,7 +460,7 @@ export interface ActionConfigShape {
   actionType: string;
   targetType: string;
   targetId: string;
-  targetExpr?: { connector?: string; subject: string; op: string; values: string[] }[];
+  targetExpr?: Clause[];
   payload: string;
 }
 

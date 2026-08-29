@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { tick } from "svelte";
+	import { flip } from "svelte/animate";
+	import { fly } from "svelte/transition";
 	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
@@ -11,12 +13,14 @@
 		CLAUSE_OPS,
 		CLAUSE_DEVICE_ROLES,
 		CLAUSE_DEVICE_TYPES,
+		capabilityLabel,
+		capabilityOptions,
 		evaluateExpression,
 		type Clause,
 		type GroupLite,
 		type RoomLite,
 	} from "$lib/target-resolve";
-	import type { Device } from "$lib/gql/graphql";
+	import { TargetClauseConnector, TargetClauseOperator, TargetClauseSubject, type Device } from "$lib/gql/graphql";
 
 	interface Props {
 		value: Clause[];
@@ -45,6 +49,13 @@
 	let inputRef = $state<HTMLInputElement | null>(null);
 	let wrapperRef = $state<HTMLDivElement | null>(null);
 
+	function motionDuration(duration: number): number {
+		if (typeof window === "undefined" || typeof Element.prototype.animate !== "function") return 0;
+		return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+			? 0
+			: duration;
+	}
+
 	function onFocusOut(e: FocusEvent) {
 		const next = e.relatedTarget as Node | null;
 		if (!next || !wrapperRef?.contains(next)) open = false;
@@ -65,9 +76,21 @@
 	const deviceRoomLabels = $derived(roomLabelsByDevice(rooms));
 
 	const subjectLabel = (v: string) => CLAUSE_SUBJECTS.find((s) => s.value === v)?.label ?? v;
-	const opLabel = (v: string) => CLAUSE_OPS.find((o) => o.value === v)?.label ?? v;
+	const isCapabilitySubject = (subject?: string) =>
+		subject === TargetClauseSubject.WritableCapability || subject === TargetClauseSubject.ReportedCapability;
+	const opLabel = (subject: string | undefined, v: string) => {
+		if (!isCapabilitySubject(subject)) return CLAUSE_OPS.find((o) => o.value === v)?.label ?? v;
+		return {
+			[TargetClauseOperator.Is]: "includes",
+			[TargetClauseOperator.IsOneOf]: "includes any of",
+			[TargetClauseOperator.IsNot]: "does not include",
+			[TargetClauseOperator.IsNotOneOf]: "includes none of",
+		}[v] ?? v;
+	};
 	const valueLabel = (subject: string, v: string) => {
-		const label = subject === "device_type" || subject === "device_role"
+		const label = isCapabilitySubject(subject)
+			? capabilityLabel(v, devices.flatMap((device) => device.capabilities ?? []))
+			: subject === "device_type" || subject === "device_role"
 			? v.charAt(0).toUpperCase() + v.slice(1)
 			: (nameById.get(v) ?? v);
 		return subject === "group" && removedGroupIDs.has(v) ? `${label} (Removed)` : label;
@@ -87,6 +110,9 @@
 	);
 
 	function valueOptions(subject: string): Option[] {
+		if (subject === TargetClauseSubject.WritableCapability || subject === TargetClauseSubject.ReportedCapability) {
+			return capabilityOptions(devices, subject);
+		}
 		if (subject === "device_type" || subject === "device_role") {
 			const kinds = subject === "device_type" ? CLAUSE_DEVICE_TYPES : CLAUSE_DEVICE_ROLES;
 			return kinds.map((kind) => ({
@@ -111,9 +137,9 @@
 			o.label.toLowerCase().includes(q) ||
 			o.value.toLowerCase().includes(q) ||
 			o.roomLabel?.toLowerCase().includes(q);
-		if (phase === "connector") return [{ value: "and", label: "and" }, { value: "or", label: "or" }].filter(match);
+		if (phase === "connector") return [{ value: TargetClauseConnector.And, label: "and" }, { value: TargetClauseConnector.Or, label: "or" }].filter(match);
 		if (phase === "subject") return CLAUSE_SUBJECTS.map((s) => ({ value: s.value, label: s.label })).filter(match);
-		if (phase === "op") return CLAUSE_OPS.map((o) => ({ value: o.value, label: o.label })).filter(match);
+		if (phase === "op") return CLAUSE_OPS.map((o) => ({ value: o.value, label: opLabel(draft.subject, o.value) })).filter(match);
 		return valueOptions(draft.subject ?? "").filter((o) => !draft.values.includes(o.value)).filter(match);
 	});
 
@@ -157,8 +183,12 @@
 	function commit(d: { connector?: string; subject?: string; op?: string; values: string[] }) {
 		if (disabled) return;
 		if (!d.subject || !d.op || d.values.length === 0) return;
-		const clause: Clause = { subject: d.subject, op: d.op, values: d.values };
-		if (value.length > 0) clause.connector = d.connector ?? "and";
+		const clause: Clause = {
+			subject: d.subject as Clause["subject"],
+			op: d.op as Clause["op"],
+			values: d.values,
+		};
+		if (value.length > 0) clause.connector = (d.connector ?? TargetClauseConnector.And) as Clause["connector"];
 		onchange([...value, clause]);
 		draft = { values: [] };
 		query = "";
@@ -232,7 +262,7 @@
 					? "Add a rule…"
 					: "field…"
 				: phase === "op"
-					? "is / is not…"
+					? isCapabilitySubject(draft.subject) ? "includes…" : "is / is not…"
 					: "value…",
 	);
 </script>
@@ -248,39 +278,46 @@
 			}}
 			role="presentation"
 		>
-			{#each value as clause, i (i)}
-				{#if i > 0}
-					<span class="text-[11px] font-medium uppercase text-muted-foreground">{clause.connector ?? "and"}</span>
-				{/if}
-				<span class={cn(badgeVariants({ variant: "secondary" }), "gap-1")}>
-					{subjectLabel(clause.subject)} {opLabel(clause.op)}
-					{clause.values.map((v) => valueLabel(clause.subject, v)).join(", ")}
-					<button
-						type="button"
-						{disabled}
-						class="text-muted-foreground hover:text-foreground"
-						onclick={(e) => {
-							e.stopPropagation();
-							removeClause(i);
-						}}
-						aria-label="Remove rule"
-					>
-						<X class="size-3" />
-					</button>
+			{#each value as clause, i (clause)}
+				<span
+					class="inline-flex items-center gap-1"
+					in:fly={{ x: 6, duration: motionDuration(150) }}
+					out:fly={{ x: -6, duration: motionDuration(130) }}
+					animate:flip={{ duration: motionDuration(150) }}
+				>
+					{#if i > 0}
+						<span class="text-[11px] font-medium uppercase text-muted-foreground">{clause.connector ?? "and"}</span>
+					{/if}
+					<span class={cn(badgeVariants({ variant: "secondary" }), "gap-1")}>
+						{subjectLabel(clause.subject)} {opLabel(clause.subject, clause.op)}
+						{clause.values.map((v) => valueLabel(clause.subject, v)).join(", ")}
+						<button
+							type="button"
+							{disabled}
+							class="text-muted-foreground hover:text-foreground"
+							onclick={(e) => {
+								e.stopPropagation();
+								removeClause(i);
+							}}
+							aria-label="Remove rule"
+						>
+							<X class="size-3" />
+						</button>
+					</span>
 				</span>
 			{/each}
 
 			{#if draft.connector}
-				<span class="text-[11px] font-medium uppercase text-muted-foreground">{draft.connector}</span>
+				<span class="text-[11px] font-medium uppercase text-muted-foreground" in:fly={{ x: 6, duration: motionDuration(150) }} out:fly={{ x: -6, duration: motionDuration(130) }}>{draft.connector}</span>
 			{/if}
 			{#if draft.subject}
-				<span class={badgeVariants({ variant: "outline" })}>{subjectLabel(draft.subject)}</span>
+				<span class={badgeVariants({ variant: "outline" })} in:fly={{ x: 6, duration: motionDuration(150) }} out:fly={{ x: -6, duration: motionDuration(130) }}>{subjectLabel(draft.subject)}</span>
 			{/if}
 			{#if draft.op}
-				<span class={badgeVariants({ variant: "outline" })}>{opLabel(draft.op)}</span>
+				<span class={badgeVariants({ variant: "outline" })} in:fly={{ x: 6, duration: motionDuration(150) }} out:fly={{ x: -6, duration: motionDuration(130) }}>{opLabel(draft.subject, draft.op)}</span>
 			{/if}
 			{#each draft.values as v (v)}
-				<span class={badgeVariants({ variant: "outline" })}>{valueLabel(draft.subject ?? "", v)}</span>
+				<span class={badgeVariants({ variant: "outline" })} in:fly={{ x: 6, duration: motionDuration(150) }} out:fly={{ x: -6, duration: motionDuration(130) }}>{valueLabel(draft.subject ?? "", v)}</span>
 			{/each}
 
 			<input
