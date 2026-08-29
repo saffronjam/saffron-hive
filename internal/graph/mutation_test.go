@@ -200,21 +200,6 @@ func TestQueryDeviceUsesLiveAvailability(t *testing.T) {
 func TestMutationApplyScene(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.scenes["scene1"] = store.Scene{ID: "scene1", Name: "Evening"}
-	env.store.sceneActions["scene1"] = []store.SceneAction{
-		{SceneID: "scene1", TargetType: "device", TargetID: "d1"},
-	}
-	env.stateReader.addDevice(device.Device{
-		ID:           "d1",
-		FriendlyName: "Light 1",
-		Capabilities: []device.Capability{
-			{Name: device.CapOnOff, Access: 7},
-		},
-	})
-
-	cmdCh := env.bus.Subscribe(eventbus.EventCommandRequested)
-	defer env.bus.Unsubscribe(cmdCh)
-	ch := env.bus.Subscribe(eventbus.EventSceneApplied)
-	defer env.bus.Unsubscribe(ch)
 
 	resp := env.query(t, `mutation { applyScene(sceneId: "scene1") { id name } }`, nil)
 	if len(resp.Errors) > 0 {
@@ -234,39 +219,32 @@ func TestMutationApplyScene(t *testing.T) {
 		t.Errorf("expected name Evening, got %s", data.ApplyScene.Name)
 	}
 
-	select {
-	case evt := <-cmdCh:
-		cmd, ok := evt.Payload.(device.Command)
-		if !ok {
-			t.Fatalf("payload is not Command: %T", evt.Payload)
-		}
-		if cmd.Origin.Kind != device.OriginKindScene || cmd.Origin.ID != "scene1" {
-			t.Fatalf("expected scene origin scene1, got %+v", cmd.Origin)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for command")
-	}
-
-	select {
-	case evt := <-ch:
-		if evt.Type != eventbus.EventSceneApplied {
-			t.Fatalf("expected EventSceneApplied, got %s", evt.Type)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for event")
+	if got := env.sceneRunner.appliedScenes(); len(got) != 1 || got[0] != "scene1" {
+		t.Fatalf("applied scenes = %v, want [scene1]", got)
 	}
 }
 
 func TestMutationCreateScene(t *testing.T) {
 	env := newTestEnv(t)
+	env.stateReader.addDevice(device.Device{ID: "d1", Type: device.Light})
+	env.stateReader.addDevice(device.Device{ID: "d2", Type: device.Light})
 
-	resp := env.query(t, `mutation($input: CreateSceneInput!) { createScene(input: $input) { id name actions { targetType targetId } } }`,
+	resp := env.query(t, `mutation($input: CreateSceneInput!) { createScene(input: $input) { id name targets { targetType targetId } lighting { overrides { deviceId kind state { on brightness } } } } }`,
 		map[string]any{
 			"input": map[string]any{
 				"name": "Movie Night",
-				"actions": []map[string]any{
-					{"targetType": "device", "targetId": "d1"},
-					{"targetType": "device", "targetId": "d2"},
+				"definition": map[string]any{
+					"targets": []map[string]any{
+						{"targetType": "device", "targetId": "d1"},
+						{"targetType": "device", "targetId": "d2"},
+					},
+					"lighting": map[string]any{
+						"overrides": []map[string]any{
+							{"deviceId": "d1", "kind": "state", "state": map[string]any{"on": true, "brightness": 180}},
+							{"deviceId": "d2", "kind": "state", "state": map[string]any{"on": true, "brightness": 180}},
+						},
+					},
+					"supportingStates": []map[string]any{},
 				},
 			},
 		})
@@ -278,10 +256,21 @@ func TestMutationCreateScene(t *testing.T) {
 		CreateScene struct {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
-			Actions []struct {
+			Targets []struct {
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-			} `json:"actions"`
+			} `json:"targets"`
+			Lighting struct {
+				Overrides []struct {
+					DeviceID   string `json:"deviceId"`
+					On         *bool  `json:"on"`
+					Brightness *int   `json:"brightness"`
+					State      struct {
+						On         *bool `json:"on"`
+						Brightness *int  `json:"brightness"`
+					} `json:"state"`
+				} `json:"overrides"`
+			} `json:"lighting"`
 		} `json:"createScene"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
@@ -290,8 +279,11 @@ func TestMutationCreateScene(t *testing.T) {
 	if data.CreateScene.Name != "Movie Night" {
 		t.Errorf("expected name Movie Night, got %s", data.CreateScene.Name)
 	}
-	if len(data.CreateScene.Actions) != 2 {
-		t.Errorf("expected 2 actions, got %d", len(data.CreateScene.Actions))
+	if len(data.CreateScene.Targets) != 2 {
+		t.Errorf("expected 2 targets, got %d", len(data.CreateScene.Targets))
+	}
+	if len(data.CreateScene.Lighting.Overrides) != 2 || data.CreateScene.Lighting.Overrides[0].State.On == nil || !*data.CreateScene.Lighting.Overrides[0].State.On || data.CreateScene.Lighting.Overrides[0].State.Brightness == nil || *data.CreateScene.Lighting.Overrides[0].State.Brightness != 180 {
+		t.Errorf("unexpected lighting overrides: %+v", data.CreateScene.Lighting)
 	}
 	if !env.store.createSceneCalled {
 		t.Error("expected CreateScene to be called on store")
@@ -300,17 +292,20 @@ func TestMutationCreateScene(t *testing.T) {
 
 func TestMutationUpdateScene(t *testing.T) {
 	env := newTestEnv(t)
-	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Old Name"}
-	env.store.sceneActions["s1"] = []store.SceneAction{
-		{SceneID: "s1", TargetType: "device", TargetID: "d1"},
-	}
+	env.stateReader.addDevice(device.Device{ID: "d1", Type: device.Light})
+	env.stateReader.addDevice(device.Device{ID: "d2", Type: device.Light})
+	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Old Name", Definition: store.SceneDefinition{Targets: []store.SceneTarget{{Type: device.TargetDevice, ID: "d1"}}}}
 
-	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id actions { targetType targetId } } }`,
+	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id targets { targetType targetId } } }`,
 		map[string]any{
 			"id": "s1",
 			"input": map[string]any{
-				"actions": []map[string]any{
-					{"targetType": "device", "targetId": "d2"},
+				"definition": map[string]any{
+					"targets": []map[string]any{{"targetType": "device", "targetId": "d2"}},
+					"lighting": map[string]any{
+						"overrides": []map[string]any{{"deviceId": "d2", "kind": "state", "state": map[string]any{"on": true}}},
+					},
+					"supportingStates": []map[string]any{},
 				},
 			},
 		})
@@ -321,20 +316,23 @@ func TestMutationUpdateScene(t *testing.T) {
 	var data struct {
 		UpdateScene struct {
 			ID      string `json:"id"`
-			Actions []struct {
+			Targets []struct {
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-			} `json:"actions"`
+			} `json:"targets"`
 		} `json:"updateScene"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if len(data.UpdateScene.Actions) != 1 {
-		t.Fatalf("expected 1 action after update, got %d", len(data.UpdateScene.Actions))
+	if len(data.UpdateScene.Targets) != 1 {
+		t.Fatalf("expected 1 target after update, got %d", len(data.UpdateScene.Targets))
 	}
-	if data.UpdateScene.Actions[0].TargetID != "d2" {
-		t.Errorf("expected targetId d2, got %s", data.UpdateScene.Actions[0].TargetID)
+	if data.UpdateScene.Targets[0].TargetID != "d2" {
+		t.Errorf("expected targetId d2, got %s", data.UpdateScene.Targets[0].TargetID)
+	}
+	if got := env.sceneRunner.deactivatedScenes(); len(got) != 1 || got[0] != "s1" {
+		t.Fatalf("deactivated scenes = %v, want [s1]", got)
 	}
 }
 
@@ -349,6 +347,9 @@ func TestMutationDeleteScene(t *testing.T) {
 
 	if !env.store.deleteSceneCalled {
 		t.Error("expected DeleteScene to be called on store")
+	}
+	if got := env.sceneRunner.deactivatedScenes(); len(got) != 1 || got[0] != "s1" {
+		t.Fatalf("deactivated scenes = %v, want [s1]", got)
 	}
 }
 

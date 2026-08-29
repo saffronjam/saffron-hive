@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/saffronjam/saffron-hive/internal/auth"
@@ -16,6 +17,7 @@ func batchResolver(env *testEnv) *mutationResolver {
 		Resolver: &Resolver{
 			StateReader:        env.stateReader,
 			Store:              env.store,
+			SceneRunner:        env.sceneRunner,
 			TargetResolver:     env.store,
 			EventBus:           env.bus,
 			AutomationReloader: env.reloader,
@@ -90,6 +92,9 @@ func TestBatchDeleteScenesCountsDeletions(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("count = %d, want 2 (missing is ignored)", n)
+	}
+	if got := env.sceneRunner.deactivatedScenes(); !reflect.DeepEqual(got, []string{"s1", "s2", "missing"}) {
+		t.Fatalf("deactivated scenes = %v", got)
 	}
 }
 

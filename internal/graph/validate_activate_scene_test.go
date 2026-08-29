@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
@@ -57,7 +58,7 @@ func TestValidateAutomationInputActivateScene(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			st := newMockStore()
 			if tt.seedScene {
-				if _, err := st.CreateScene(ctx, store.CreateSceneParams{ID: "scene-1", Name: "Scene"}); err != nil {
+				if _, err := st.CreateScene(ctx, store.CreateSceneParams{ID: "scene-1", Name: "Scene", Definition: store.SceneDefinition{Supporting: []store.SceneSupportingState{{DeviceID: "device-1", State: store.DesiredState{On: device.Ptr(true)}}}}}); err != nil {
 					t.Fatalf("seed scene: %v", err)
 				}
 			}

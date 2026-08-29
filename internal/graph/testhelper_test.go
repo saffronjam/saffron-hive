@@ -31,6 +31,7 @@ type testEnv struct {
 	bus          *eventbus.ChannelBus
 	reloader     *mockReloader
 	effectRunner *mockEffectRunner
+	sceneRunner  *mockSceneRunner
 	resolver     *Resolver
 }
 
@@ -42,6 +43,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	bus := eventbus.NewChannelBus()
 	rl := &mockReloader{}
 	er := newMockEffectRunner(st)
+	sceneRunner := &mockSceneRunner{store: st}
 	maintenanceBuffer := maintenance.NewBuffer()
 	maintenanceService := maintenance.NewService(st, sr, maintenanceBuffer, ".", func(string) (float64, error) { return 1, nil })
 
@@ -56,6 +58,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		EventBus:           bus,
 		AutomationReloader: rl,
 		EffectRunner:       er,
+		SceneRunner:        sceneRunner,
 		LogBuffer:          logging.NewBuffer(),
 		LevelVar:           levelVar,
 		Maintenance:        maintenanceService,
@@ -90,6 +93,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		bus:          bus,
 		reloader:     rl,
 		effectRunner: er,
+		sceneRunner:  sceneRunner,
 		resolver:     resolver,
 	}
 }

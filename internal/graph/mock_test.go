@@ -100,8 +100,6 @@ func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceSt
 type mockStore struct {
 	mu                  sync.RWMutex
 	scenes              map[string]store.Scene
-	sceneActions        map[string][]store.SceneAction
-	scenePayloads       map[string][]store.SceneDevicePayload
 	automations         map[string]store.Automation
 	automationNodes     map[string][]store.AutomationNode
 	automationEdges     map[string][]store.AutomationEdge
@@ -132,6 +130,39 @@ type mockStore struct {
 	toggleCalled            bool
 	updatePasswordHashErr   error
 	updatePasswordHashCalls int
+}
+
+type mockSceneRunner struct {
+	mu          sync.Mutex
+	store       *mockStore
+	applied     []string
+	deactivated []string
+}
+
+func (m *mockSceneRunner) Apply(ctx context.Context, sceneID string) (store.Scene, error) {
+	m.mu.Lock()
+	m.applied = append(m.applied, sceneID)
+	m.mu.Unlock()
+	return m.store.GetScene(ctx, sceneID)
+}
+
+func (m *mockSceneRunner) Deactivate(_ context.Context, sceneID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.deactivated = append(m.deactivated, sceneID)
+	return nil
+}
+
+func (m *mockSceneRunner) appliedScenes() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]string(nil), m.applied...)
+}
+
+func (m *mockSceneRunner) deactivatedScenes() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]string(nil), m.deactivated...)
 }
 
 func (m *mockStore) ListMaintenanceAcknowledgements(_ context.Context) ([]store.MaintenanceAcknowledgement, error) {
@@ -196,8 +227,6 @@ func (m *mockStore) ListZigbeeFirmwareCandidates(_ context.Context) ([]zigbeemet
 func newMockStore() *mockStore {
 	return &mockStore{
 		scenes:          make(map[string]store.Scene),
-		sceneActions:    make(map[string][]store.SceneAction),
-		scenePayloads:   make(map[string][]store.SceneDevicePayload),
 		automations:     make(map[string]store.Automation),
 		automationNodes: make(map[string][]store.AutomationNode),
 		automationEdges: make(map[string][]store.AutomationEdge),
@@ -438,7 +467,7 @@ func (m *mockStore) CreateScene(_ context.Context, params store.CreateSceneParam
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.createSceneCalled = true
-	s := store.Scene{ID: params.ID, Name: params.Name}
+	s := store.Scene{ID: params.ID, Name: params.Name, Definition: params.Definition}
 	m.scenes[params.ID] = s
 	return s, nil
 }
@@ -472,8 +501,14 @@ func (m *mockStore) UpdateScene(_ context.Context, id string, params store.Updat
 	}
 	if params.Name != nil {
 		s.Name = *params.Name
-		m.scenes[id] = s
 	}
+	if params.SetIcon {
+		s.Icon = params.Icon
+	}
+	if params.Definition != nil {
+		s.Definition = *params.Definition
+	}
+	m.scenes[id] = s
 	return s, nil
 }
 
@@ -482,7 +517,6 @@ func (m *mockStore) DeleteScene(_ context.Context, id string) error {
 	defer m.mu.Unlock()
 	m.deleteSceneCalled = true
 	delete(m.scenes, id)
-	delete(m.sceneActions, id)
 	return nil
 }
 
@@ -493,51 +527,10 @@ func (m *mockStore) BatchDeleteScenes(_ context.Context, ids []string) (int64, e
 	for _, id := range ids {
 		if _, ok := m.scenes[id]; ok {
 			delete(m.scenes, id)
-			delete(m.sceneActions, id)
 			n++
 		}
 	}
 	return n, nil
-}
-
-func (m *mockStore) CreateSceneAction(_ context.Context, params store.CreateSceneActionParams) (store.SceneAction, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	sa := store.SceneAction{
-		SceneID:    params.SceneID,
-		TargetType: params.TargetType,
-		TargetID:   params.TargetID,
-	}
-	m.sceneActions[params.SceneID] = append(m.sceneActions[params.SceneID], sa)
-	return sa, nil
-}
-
-func (m *mockStore) ListSceneActions(_ context.Context, sceneID string) ([]store.SceneAction, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.sceneActions[sceneID], nil
-}
-
-func (m *mockStore) ListSceneDevicePayloads(_ context.Context, sceneID string) ([]store.SceneDevicePayload, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.scenePayloads[sceneID], nil
-}
-
-func (m *mockStore) SaveSceneContent(_ context.Context, params store.SaveSceneContentParams) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	actions := make([]store.SceneAction, len(params.Targets))
-	for i, t := range params.Targets {
-		actions[i] = store.SceneAction{
-			SceneID:    params.SceneID,
-			TargetType: t.TargetType,
-			TargetID:   t.TargetID,
-		}
-	}
-	m.sceneActions[params.SceneID] = actions
-	m.scenePayloads[params.SceneID] = append([]store.SceneDevicePayload(nil), params.Payloads...)
-	return nil
 }
 
 func (m *mockStore) CreateAutomation(_ context.Context, params store.CreateAutomationParams) (store.Automation, error) {

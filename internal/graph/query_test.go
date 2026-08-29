@@ -195,13 +195,10 @@ func TestQueryDeviceSensorState(t *testing.T) {
 
 func TestQueryScenes(t *testing.T) {
 	env := newTestEnv(t)
-	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Evening"}
+	env.store.scenes["s1"] = store.Scene{ID: "s1", Name: "Evening", Definition: store.SceneDefinition{Targets: []store.SceneTarget{{Type: device.TargetDevice, ID: "d1"}}}}
 	env.store.scenes["s2"] = store.Scene{ID: "s2", Name: "Movie"}
-	env.store.sceneActions["s1"] = []store.SceneAction{
-		{SceneID: "s1", TargetType: "device", TargetID: "d1"},
-	}
 
-	resp := env.query(t, `{ scenes { id name actions { targetType targetId } } }`, nil)
+	resp := env.query(t, `{ scenes { id name targets { targetType targetId } lighting { overrides { deviceId } dynamicSource { seed } } } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -210,10 +207,10 @@ func TestQueryScenes(t *testing.T) {
 		Scenes []struct {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
-			Actions []struct {
+			Targets []struct {
 				TargetType string `json:"targetType"`
 				TargetID   string `json:"targetId"`
-			} `json:"actions"`
+			} `json:"targets"`
 		} `json:"scenes"`
 	}
 	if err := json.Unmarshal(resp.Data, &data); err != nil {
