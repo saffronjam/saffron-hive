@@ -19,6 +19,26 @@ graphql(`
       targetType
       targetId
       name
+      target {
+        ... on Device {
+          id
+          deviceName: name
+          friendlyName
+          type
+        }
+        ... on Group {
+          id
+          groupName: name
+          friendlyName
+          icon
+          removed
+        }
+        ... on Room {
+          id
+          name
+          icon
+        }
+      }
       expression {
         connector
         subject
@@ -163,7 +183,7 @@ const SCENE_ACTIVE_CHANGED = graphql(`
 
 const base = createEntityStore<Scene, ScenesStoreQuery>({
   name: "scenes",
-  version: 3,
+  version: 4,
   query: SCENES_QUERY,
   select: (data) => data.scenes,
 });

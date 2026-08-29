@@ -669,8 +669,73 @@
 	{/if}
 {/snippet}
 
-<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
-	{#if editor.dynamicSource}
+{#snippet targetToolbar()}
+	<div class="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
+		<div class="flex items-center rounded-md border border-border dark:border-input">
+			<Button variant={!targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-r-none border-0" onclick={() => setTargetMode(false)} aria-pressed={!targetLiveMode}><Pencil class="size-3.5" /><span class="hidden sm:inline">Edit</span></Button>
+			<Button variant={targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-l-none border-0" onclick={() => setTargetMode(true)} aria-pressed={targetLiveMode}><Eye class="size-3.5" /><span class="hidden sm:inline">Live</span></Button>
+		</div>
+		<div class="ml-auto flex items-center gap-2">
+			{#if showAddVibeInTargets && !editor.dynamicSource}<Button variant="outline" size="sm" onclick={chooseVibe}><Plus class="size-4" /> Add source</Button>{/if}
+			{#if targetActionsVisible}
+				<div
+					class="flex items-center gap-2"
+					onoutroend={finishTargetActionExit}
+					in:fly={{ x: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 150, easing: cubicOut }}
+					out:fly={{ x: reducedMotion ? 0 : -6, duration: reducedMotion ? 0 : 130, easing: cubicIn }}
+				>
+					{#if targetActionMode === "live"}
+						<Button variant="outline" size="sm" onclick={captureAllTargets}>Capture all</Button>
+					{:else}
+						<DropdownMenu>
+							<DropdownMenuTrigger>
+								{#snippet child({ props })}
+									<Button {...props} variant="outline" size="sm"><Plus class="size-4" /> Add</Button>
+								{/snippet}
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> Simple</DropdownMenuItem>
+								<DropdownMenuItem onclick={addSelector}><SlidersHorizontal class="size-4" /> Selector</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					{/if}
+				</div>
+			{/if}
+		</div>
+	</div>
+{/snippet}
+
+{#snippet supportingToolbar()}
+	<div class="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
+		<Button variant={supportingLiveMode ? "default" : "outline"} size="sm" onclick={() => (supportingLiveMode = !supportingLiveMode)}><Eye class="size-4" /> Live</Button>
+		<Button variant="outline" size="sm" class="ml-auto" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> Add</Button>
+	</div>
+{/snippet}
+
+{#snippet targetList()}
+	<div class="flex flex-col gap-1">
+		{#each editor.targets as target (target.uid)}
+			<div in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }} animate:flip={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 160 }}>{@render targetRow(target)}</div>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet supportingList()}
+	<div class="space-y-2">
+		{#each Array.from(editor.supportingStates.values()) as supporting (supporting.deviceId)}
+			{@const device = devices.find((candidate) => candidate.id === supporting.deviceId) ?? $deviceStore[supporting.deviceId]}
+			{#if device}
+				<div class="rounded-lg bg-muted px-3 py-2" in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }}>
+					<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? "Off" : "Live"}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)}>Capture</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button></div></div>
+					{#if !supportingLiveMode}<div class="mt-2"><DeviceStateEditor target={null} capabilities={device.capabilities} value={JSON.stringify(supporting.state)} onchange={(payload) => updateSupportingPayload(device.id, payload)} {devices} {groups} {rooms} compact /></div>{/if}
+				</div>
+			{/if}
+		{/each}
+	</div>
+{/snippet}
+
+{#if editor.dynamicSource}
+	<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
 		<section class="space-y-5 rounded-lg bg-card p-5 shadow-card">
 			<div class="flex items-start justify-between gap-3">
 				<div class="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
@@ -692,82 +757,46 @@
 				</div>
 			</div>
 		</section>
-	{:else}
-		<div class="hidden lg:block" aria-hidden="true"></div>
-	{/if}
 
-	<section class="min-w-0 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
-		<Tabs bind:value={sidePanel} class="gap-4">
-			<div class="space-y-3">
-				<TabsList class="grid w-full grid-cols-2">
-					<TabsTrigger value="targets">Targets</TabsTrigger>
-					<TabsTrigger value="supporting">Supporting devices</TabsTrigger>
-				</TabsList>
-
-				<div class="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
+		<section class="min-w-0 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
+			<Tabs bind:value={sidePanel} class="gap-4">
+				<div class="space-y-3">
+					<TabsList class="grid w-full grid-cols-2">
+						<TabsTrigger value="targets">Targets</TabsTrigger>
+						<TabsTrigger value="supporting">Supporting devices</TabsTrigger>
+					</TabsList>
 					{#if sidePanel === "targets"}
-						<div class="flex items-center rounded-md border border-border dark:border-input">
-							<Button variant={!targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-r-none border-0" onclick={() => setTargetMode(false)} aria-pressed={!targetLiveMode}><Pencil class="size-3.5" /><span class="hidden sm:inline">Edit</span></Button>
-							<Button variant={targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-l-none border-0" onclick={() => setTargetMode(true)} aria-pressed={targetLiveMode}><Eye class="size-3.5" /><span class="hidden sm:inline">Live</span></Button>
-						</div>
-						<div class="ml-auto flex items-center gap-2">
-							{#if showAddVibeInTargets && !editor.dynamicSource}<Button variant="outline" size="sm" onclick={chooseVibe}><Plus class="size-4" /> Add source</Button>{/if}
-							{#if targetActionsVisible}
-								<div
-									class="flex items-center gap-2"
-									onoutroend={finishTargetActionExit}
-									in:fly={{ x: reducedMotion ? 0 : 6, duration: reducedMotion ? 0 : 150, easing: cubicOut }}
-									out:fly={{ x: reducedMotion ? 0 : -6, duration: reducedMotion ? 0 : 130, easing: cubicIn }}
-								>
-									{#if targetActionMode === "live"}
-										<Button variant="outline" size="sm" onclick={captureAllTargets}>Capture all</Button>
-									{:else}
-										<DropdownMenu>
-											<DropdownMenuTrigger>
-												{#snippet child({ props })}
-													<Button {...props} variant="outline" size="sm"><Plus class="size-4" /> Add</Button>
-												{/snippet}
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end">
-												<DropdownMenuItem onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> Simple</DropdownMenuItem>
-												<DropdownMenuItem onclick={addSelector}><SlidersHorizontal class="size-4" /> Selector</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
-									{/if}
-								</div>
-							{/if}
-						</div>
+						{@render targetToolbar()}
 					{:else}
-						<Button variant={supportingLiveMode ? "default" : "outline"} size="sm" onclick={() => (supportingLiveMode = !supportingLiveMode)}><Eye class="size-4" /> Live</Button>
-						<Button variant="outline" size="sm" class="ml-auto" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> Add</Button>
+						{@render supportingToolbar()}
 					{/if}
 				</div>
-			</div>
 
-			<TabsContent value="targets" class="m-0 space-y-3">
-				<div class="flex flex-col gap-1">
-					{#each editor.targets as target (target.uid)}
-						<div in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }} animate:flip={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 160 }}>{@render targetRow(target)}</div>
-					{/each}
-				</div>
-			</TabsContent>
+				<TabsContent value="targets" class="m-0 space-y-3">
+					{@render targetList()}
+				</TabsContent>
 
-			<TabsContent value="supporting" class="m-0 space-y-4">
-				<div class="space-y-2">
-					{#each Array.from(editor.supportingStates.values()) as supporting (supporting.deviceId)}
-						{@const device = devices.find((candidate) => candidate.id === supporting.deviceId) ?? $deviceStore[supporting.deviceId]}
-						{#if device}
-							<div class="rounded-lg bg-muted px-3 py-2" in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }}>
-								<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? "Off" : "Live"}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)}>Capture</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button></div></div>
-								{#if !supportingLiveMode}<div class="mt-2"><DeviceStateEditor target={null} capabilities={device.capabilities} value={JSON.stringify(supporting.state)} onchange={(payload) => updateSupportingPayload(device.id, payload)} {devices} {groups} {rooms} compact /></div>{/if}
-							</div>
-						{/if}
-					{/each}
-				</div>
-			</TabsContent>
-		</Tabs>
-	</section>
-</div>
+				<TabsContent value="supporting" class="m-0 space-y-4">
+					{@render supportingList()}
+				</TabsContent>
+			</Tabs>
+		</section>
+	</div>
+{:else}
+	<div class="grid items-start gap-6 lg:grid-cols-2">
+		<section class="min-w-0 space-y-4 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
+			<h2 class="text-lg font-medium">Targets</h2>
+			{@render targetToolbar()}
+			{@render targetList()}
+		</section>
+
+		<section class="min-w-0 space-y-4 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
+			<h2 class="text-lg font-medium">Supporting devices</h2>
+			{@render supportingToolbar()}
+			{@render supportingList()}
+		</section>
+	</div>
+{/if}
 
 <HiveDrawer bind:open={targetDrawerOpen} title="Add lighting targets" description="Choose devices, groups, or rooms." multiple groups={targetDrawerGroups} onselect={addTarget} />
 <HiveDrawer bind:open={supportingDrawerOpen} title="Add supporting devices" description="Add controllable non-light devices." multiple groups={supportingGroups} onselect={addSupporting} />

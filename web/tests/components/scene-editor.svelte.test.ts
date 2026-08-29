@@ -79,7 +79,7 @@ describe("SceneEditor", () => {
     expect(host.textContent).not.toContain("Used by lights without an override");
   });
 
-  it("keeps manual lighting in the target tree", async () => {
+  it("shows manual scene devices in separate full-width columns", async () => {
     const mock = createMockClient();
     instance = mount(SceneEditor, {
       target: host,
@@ -99,6 +99,22 @@ describe("SceneEditor", () => {
     expect(host.textContent).not.toContain("Lighting");
     expect(host.textContent).not.toContain("Fallback");
     expect(host.querySelector('[aria-label="About supporting devices"]')).toBeNull();
+    expect(host.querySelector('[role="tab"]')).toBeNull();
+    expect(
+      Array.from(host.querySelectorAll("h2")).map((heading) => heading.textContent?.trim()),
+    ).toEqual(["Targets", "Supporting devices"]);
+    expect(host.querySelectorAll("section")).toHaveLength(2);
+  });
+
+  it("keeps targets and supporting devices tabbed beside a Vibe", async () => {
+    const mock = createMockClient();
+    instance = mount(SceneEditor, {
+      target: host,
+      props: { editor, preview, devices: [], groups: [], rooms: [], onchange: vi.fn() },
+      context: new Map([["$$_urql", mock.client]]),
+    });
+
+    await vi.waitFor(() => expect(host.textContent).toContain("Night sky"));
     expect(host.querySelector('[role="tab"][data-value="targets"]')).not.toBeNull();
     expect(host.querySelector('[role="tab"][data-value="supporting"]')).not.toBeNull();
   });

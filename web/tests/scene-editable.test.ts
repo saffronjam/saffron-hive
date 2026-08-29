@@ -58,6 +58,25 @@ describe("typed scene editing", () => {
     ).toMatchObject({ type: "group", id: "ceiling", name: "Ceiling lights" });
   });
 
+  it("uses resolved room names when stored labels are empty", () => {
+    expect(
+      buildTargetInfo({
+        targetType: "room",
+        targetId: "ddb95775-a017-402e-bbc5-f2a569ce013a",
+        name: "",
+        target: {
+          __typename: "Room",
+          id: "ddb95775-a017-402e-bbc5-f2a569ce013a",
+          name: "Hallway",
+        },
+      }),
+    ).toMatchObject({
+      type: "room",
+      id: "ddb95775-a017-402e-bbc5-f2a569ce013a",
+      name: "Hallway",
+    });
+  });
+
   it("maps the lighting layers into the editor state", () => {
     const scene: SceneData = {
       id: "scene-1",

@@ -455,16 +455,23 @@ describe("advanced Scene browser journeys", () => {
   it("creates Individual lights with captured state and an explicit supporting appliance plug", async () => {
     await openCreation();
     await page.getByRole("button", { name: /Individual lights/ }).click();
-    await addDrawerTarget("Bedroom Light");
+    await addDrawerTarget(ROOM_NAME);
     await page.getByRole("button", { name: "Add", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByText("Lava Lamp", { exact: true }).click();
     await dialog.getByRole("button", { name: "Add 1 item" }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await finishCreation("Browser Individual Scene");
+    await page.getByRole("heading", { name: "Targets", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Supporting devices", exact: true }).waitFor();
+    await page.getByText(ROOM_NAME, { exact: true }).waitFor();
     await expect
       .poll(() => page.getByText("Lava Lamp", { exact: true }).count())
       .toBeGreaterThan(0);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByText(ROOM_NAME, { exact: true }).waitFor();
+    expect(await page.getByText(roomId, { exact: true }).count()).toBe(0);
     await expect
       .poll(() => page.getByText("Lava Lamp", { exact: true }).count())
       .toBeGreaterThan(0);
