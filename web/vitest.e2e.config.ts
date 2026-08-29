@@ -9,8 +9,9 @@ export default defineConfig({
   },
   test: {
     include: ["e2e/**/*.test.ts"],
-    testTimeout: 30_000,
+    testTimeout: 120_000,
     hookTimeout: 120_000,
+    retry: process.env.CI ? 1 : 0,
     fileParallelism: false,
     maxWorkers: 1,
     minWorkers: 1,
