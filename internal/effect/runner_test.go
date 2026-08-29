@@ -316,11 +316,11 @@ func colorTempClip(startMs, transitionMs, mireds int) Clip {
 }
 
 func makeRunner(rec *recorder, store EffectStore, reader device.StateReader, term NativeEffectStopper) *Runner {
-	return NewRunner(rec, fakeTargets{}, reader, store, term)
+	return NewRunner(rec, fakeTargets{}, reader, store, term, nil)
 }
 
 func makeRunnerWithTargets(rec *recorder, store EffectStore, reader device.StateReader, targets device.TargetResolver, term NativeEffectStopper) *Runner {
-	return NewRunner(rec, targets, reader, store, term)
+	return NewRunner(rec, targets, reader, store, term, nil)
 }
 
 func deviceTarget(id string) Target {
@@ -336,7 +336,17 @@ func startDriftLoop(t *testing.T, r *Runner) (cancel context.CancelFunc, done <-
 	ctx, c := context.WithCancel(context.Background())
 	d := make(chan struct{})
 	go func() {
-		r.Run(ctx)
+		var workers sync.WaitGroup
+		workers.Add(2)
+		go func() {
+			defer workers.Done()
+			r.owners.Run(ctx, r.bus)
+		}()
+		go func() {
+			defer workers.Done()
+			r.Run(ctx)
+		}()
+		workers.Wait()
 		close(d)
 	}()
 	t.Cleanup(func() {
@@ -477,7 +487,7 @@ func TestRunnerTimeline_RandomTransitionWithinBounds(t *testing.T) {
 		}},
 	})
 	sampler := &fixedSampler{values: []int{50}}
-	r := NewRunnerWithRand(rec, fakeTargets{}, newFakeReader(), st, nil, sampler)
+	r := NewRunnerWithRand(rec, fakeTargets{}, newFakeReader(), st, nil, nil, sampler)
 
 	if _, err := r.Start(context.Background(), "e1", deviceTarget("dev-1")); err != nil {
 		t.Fatalf("Start: %v", err)

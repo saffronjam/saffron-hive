@@ -13,6 +13,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
+	"github.com/saffronjam/saffron-hive/internal/outputowner"
 )
 
 // Persistence and reboot recovery: Loop timeline runs are persisted to
@@ -88,11 +89,10 @@ type Runner struct {
 	reader    device.StateReader
 	store     EffectStore
 	term      NativeEffectStopper
+	owners    *outputowner.Coordinator
 
 	mu     sync.Mutex
 	active map[targetKey]*activeRun
-
-	driftCh <-chan eventbus.Event
 
 	// rand seeds the per-clip random transition sampler. Tests can swap it for
 	// a seeded source via NewRunnerWithRand for reproducibility.
@@ -114,46 +114,43 @@ func (defaultSampler) IntN(n int) int { return rand.IntN(n) }
 
 // NewRunner constructs a Runner and immediately subscribes its drift goroutine
 // to the bus.
-func NewRunner(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper) *Runner {
-	return NewRunnerWithRand(bus, targets, reader, st, term, defaultSampler{})
+func NewRunner(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper, owners *outputowner.Coordinator) *Runner {
+	return NewRunnerWithRand(bus, targets, reader, st, term, owners, defaultSampler{})
 }
 
 // NewRunnerWithRand is NewRunner with an injected transitionSampler. Tests
 // pass a seeded implementation to make per-clip transition picks reproducible.
-func NewRunnerWithRand(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper, sampler transitionSampler) *Runner {
+func NewRunnerWithRand(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper, owners *outputowner.Coordinator, sampler transitionSampler) *Runner {
+	if owners == nil {
+		owners = outputowner.New()
+	}
 	r := &Runner{
 		bus:     bus,
 		targets: targets,
 		reader:  reader,
 		store:   st,
 		term:    term,
+		owners:  owners,
 		active:  make(map[targetKey]*activeRun),
 		rand:    sampler,
 	}
 	if commander, ok := targets.(device.TargetCommander); ok {
 		r.commander = commander
 	}
-	r.driftCh = bus.Subscribe(
-		eventbus.EventCommandRequested,
-		eventbus.EventProviderGroupCommandRequested,
-	)
 	return r
 }
 
-// Run blocks until ctx is done, consuming command events and stopping any
-// active run whose device set matches a foreign command.
+// Run blocks until ctx is done and then terminates every active run.
 func (r *Runner) Run(ctx context.Context) {
-	defer r.bus.Unsubscribe(r.driftCh)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case evt, ok := <-r.driftCh:
-			if !ok {
-				return
-			}
-			r.handleDrift(evt)
-		}
+	<-ctx.Done()
+	r.mu.Lock()
+	targets := make([]Target, 0, len(r.active))
+	for _, run := range r.active {
+		targets = append(targets, run.target)
+	}
+	r.mu.Unlock()
+	for _, target := range targets {
+		r.stopWithReason(target, eventbus.EffectEndReasonStopped)
 	}
 }
 
@@ -328,6 +325,7 @@ func (r *Runner) deleteActive(target Target) {
 }
 
 func (r *Runner) preempt(run *activeRun) {
+	r.owners.Release(effectOwner(run))
 	run.cancel()
 	<-run.done
 
@@ -383,6 +381,7 @@ func (r *Runner) unregister(run *activeRun) {
 		delete(r.active, key)
 	}
 	r.mu.Unlock()
+	r.owners.Release(effectOwner(run))
 	if stillOwner {
 		r.deleteActive(run.target)
 		r.publishEnded(run, eventbus.EffectEndReasonCompleted)
@@ -596,8 +595,35 @@ func (r *Runner) resolveMembers(ctx context.Context, run *activeRun) []device.De
 	r.mu.Lock()
 	run.members = set
 	r.mu.Unlock()
+	r.owners.Acquire(effectOwner(run), devices, func(loss outputowner.Loss) {
+		reason := eventbus.EffectEndReasonPreempted
+		if loss.Reason == outputowner.LossForeign {
+			reason = eventbus.EffectEndReasonDrift
+		}
+		r.stopRunWithReason(run, reason)
+	})
 
 	return devices
+}
+
+func effectOwner(run *activeRun) outputowner.Owner {
+	return outputowner.Owner{Kind: outputowner.KindEffect, RunID: run.runID}
+}
+
+func (r *Runner) stopRunWithReason(run *activeRun, reason eventbus.EffectEndReason) bool {
+	key := keyFor(run.target)
+	r.mu.Lock()
+	current, ok := r.active[key]
+	if !ok || current != run {
+		r.mu.Unlock()
+		return false
+	}
+	delete(r.active, key)
+	r.mu.Unlock()
+	r.preempt(run)
+	r.deleteActive(run.target)
+	r.publishEnded(run, reason)
+	return true
 }
 
 // commandForDevice returns the command to publish for did derived from tmpl,
@@ -714,59 +740,6 @@ func fieldsToCommand(fields map[string]any) device.Command {
 		}
 	}
 	return cmd
-}
-
-func (r *Runner) handleDrift(evt eventbus.Event) {
-	var memberIDs []device.DeviceID
-	var origin device.CommandOrigin
-	switch evt.Type {
-	case eventbus.EventCommandRequested:
-		cmd, ok := evt.Payload.(device.Command)
-		if !ok || cmd.DeviceID == "" {
-			return
-		}
-		memberIDs = []device.DeviceID{cmd.DeviceID}
-		origin = cmd.Origin
-	case eventbus.EventProviderGroupCommandRequested:
-		cmd, ok := evt.Payload.(device.ProviderGroupCommand)
-		if !ok || len(cmd.MemberIDs) == 0 {
-			return
-		}
-		memberIDs = cmd.MemberIDs
-		origin = cmd.State.Origin
-	default:
-		return
-	}
-
-	r.mu.Lock()
-	var toStop []Target
-	for _, run := range r.active {
-		member := false
-		for _, id := range memberIDs {
-			if _, member = run.members[id]; member {
-				break
-			}
-		}
-		if !member {
-			continue
-		}
-		if origin.Kind == device.OriginKindEffect && origin.ID == run.runID {
-			continue
-		}
-		toStop = append(toStop, run.target)
-	}
-	r.mu.Unlock()
-
-	for _, t := range toStop {
-		if r.stopWithReason(t, eventbus.EffectEndReasonDrift) {
-			logger.Info("effect run stopped by foreign drift",
-				"target_type", t.Type,
-				"target_id", t.ID,
-				"foreign_origin_kind", origin.Kind,
-				"foreign_origin_id", origin.ID,
-				"affected_member_count", len(memberIDs))
-		}
-	}
 }
 
 func (r *Runner) publishCommand(ctx context.Context, run *activeRun, cmd device.Command) {
