@@ -17,8 +17,11 @@ All Go application code lives here. The `internal/` directory is a Go convention
 - `graph/` — GraphQL resolver implementations (gqlgen-generated boilerplate + hand-written resolvers).
 - `history/` — persists device state samples into SQLite and exposes a retention loop that prunes them. The recorder decomposes each `EventDeviceStateChanged` into one row per non-nil scalar field so cross-device time series share a single shape.
 - `logging/` — custom slog `TeeHandler` that writes to stderr **and** captures entries into a ring buffer, which the frontend `/logs` page streams via a GraphQL subscription.
+- `lightfield/` — pure canonical field, source compilers, perceptual interpolation, continuous-time motion, capability projection, and preview sampling for Vibe lighting.
+- `outputowner/` — physical-device lease coordinator shared by dynamic Scene and Effect runs.
 - `pubsub/` — tiny in-process fan-out primitives. Used by services (activity, alarms, GraphQL subscription resolvers) to broadcast events to per-subscriber buffered channels.
-- `scene/` — scene apply runtime (building command fan-out, default payloads), expected-state snapshot at apply time, and the watcher that compares incoming device-state events against the snapshot to flip `scenes.activated_at`.
+- `scene/` — coordinated Manual/Vibe Scene runtime: typed plan compilation, active-run persistence, output ownership, continuous rendering, drift/membership handling, hydration, apply, and explicit stop.
+- `spatial/` — deterministic group-aware device coordinates built from placements, membership paths, linked room geometry, and seeded fallback layout.
 - `topology/` — mesh-topology persister: subscribes to `topology.scanned`, merges each scan with the stored snapshot (carrying stale parent links forward for devices that slept through it), persists, and announces `topology.updated`. Powers the map's connectivity view.
 - `store/` — database layer. `queries/*.sql` (sqlc input) → `sqlite/` (sqlc-generated Go, committed). Domain-facing wrapper methods on `*store.DB` live in `users.go`, `scenes.go`, etc. `migrations/` holds the golang-migrate schema migrations (unchanged by the sqlc pipeline). See `store/CLAUDE.md` for the query gate patterns.
 - `version/` — build-time version string (single const injected via ldflags at build).
@@ -46,7 +49,8 @@ graph/               → device/, eventbus/, activity/, alarms/, auth/, automati
                        adapterManager, so graph/ never imports an adapter package.
 history/             → device/, eventbus/, narrow historyStore interface
 pubsub/              → stdlib only
-scene/               → device/, eventbus/, effect/, narrow sceneStore interface
+scene/               → device/, eventbus/, effect/, lightfield/, outputowner/, spatial/, narrow sceneStore interface
+spatial/             → device/, eventbus/, narrow spatialStore interface
 topology/            → device/, eventbus/, narrow Store interface
 store/               → device/, store/sqlite/ (generated)
 config/, logging/, version/  → stdlib only

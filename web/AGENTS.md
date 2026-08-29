@@ -17,6 +17,8 @@ The codebase has matured patterns for the things people repeatedly need to build
 | Card colour / temp picker that fans out to a group | Reuse `LightColorPicker` inside a Popover whose handlers call `commitGroupColor` / `commitGroupTemp` from `src/lib/group-commands.ts` through the shared `throttle()`. |
 | Group / room → device fan-out commits | `src/lib/group-commands.ts`: `commitGroupBrightness`, `commitGroupToggle`, `commitGroupColor`, `commitGroupTemp`, `flattenGroupDevices`. |
 | Resolve a scene/group/room target to its flattened device list | `src/lib/target-resolve.ts` — `resolveTargetDevices`, `capabilityUnion`. |
+| Render a canonical Scene field preview | `src/lib/components/vibe-preview.svelte`; pure raster/tint helpers live in `src/lib/vibe-preview.ts`. |
+| Summarize Vibe target adaptation | `src/lib/scene-capability-summary.ts` — deduplicated Full colour / Tunable white / Dimming / Switch only / Skipped classification. |
 | Aggregate sensor readings or live light appearance across a device list | `src/lib/device-tint.ts` — `aggregateSensorReadings`, `aggregateLightAppearance`. Picker swatches use `rememberedLightPalette`; individual brightness uses `brightnessToTintStrength`. |
 | Drawer for picking from grouped lists | `src/lib/components/hive-drawer.svelte`. For a layout drawer with custom content: shadcn `Sheet` directly with `side="bottom"`. |
 | Popover outside-click on a whole-card-clickable surface | bits-ui Popover is non-modal — outside clicks bubble to underlying handlers. Stamp with `markPopoverDismissed()` (from `src/lib/popover-guard.ts`) inside the popover's `onOpenChange(open=false)`, and gate the card's `onclick` with `popoverDismissedRecently()`. |
@@ -131,7 +133,7 @@ resolves to a plain inlined type and needs no unwrapping at the point of use.
 rejects duplicates at build time. Name a page-scoped document
 `<PageContext><Action>`, e.g. `query EffectsPageNativeOptions { … }`.
 
-**Detail queries that a store cannot cover** (the scene, automation and effect
+**Detail queries that a store cannot cover** (the automation and effect
 editors) live in `$lib/graphql/details.ts` so the list page can warm one into
 the cache on hover via `prefetchDetail` from `$lib/prefetch-detail`.
 

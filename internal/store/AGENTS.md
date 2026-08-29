@@ -43,4 +43,4 @@ The gate idioms — copy these when adding a new query:
 
 Consumers of this package depend on a narrow interface they define locally, listing only the methods they call; `*DB` satisfies them structurally. There is no global `Store` interface — if you find yourself wanting to type something as `store.Store`, declare an interface in your own package instead.
 
-Type overrides in `sqlc.yaml` map TEXT columns with domain meaning to their `internal/device` types directly, so mapping is usually a struct copy. Examples include `devices.id`, `devices.source`, `devices.type`, `scene_actions.target_type`, `group_members.member_type`, `room_members.member_type`; the full list lives in `sqlc.yaml`.
+Type overrides in `sqlc.yaml` map columns with domain meaning to their `internal/device` types directly, so mapping is usually a struct copy. Examples include `devices.id`, `devices.source`, `devices.type`, `scene_targets.target_type`, `scene_device_behaviors.device_id`, `group_members.member_type`, and `room_members.member_type`; the full list lives in `sqlc.yaml`.

@@ -132,7 +132,9 @@ re-sync cannot re-flag a device.
 - Availability is tracked per device via zigbee2mqtt's availability feature
 
 ### Scenes
-A scene is a named collection of desired device states. Applying a scene publishes commands for each device. Zigbee groups can be used for synchronized multi-device commands where supported.
+A Scene combines lighting targets, one typed lighting design, and explicit per-device behaviours. Manual lighting applies a capability-filtered desired state. Vibe lighting stores a canonical perceptual field with a domain (`full_color` or `white_ambience`), seed, movement, brightness, and pace; the Scene runner samples it across resolved device positions and continuous UTC time. Gallery, Photo, and Guided are source recipes that compile into the same persisted field.
+
+Scene targets can be devices, groups, rooms, or capability-aware Selectors. Target resolution deduplicates physical devices. Explicit state/effect/native-effect behaviours replace lighting output for their device and also make that device a Scene member. The persistent active-run snapshot supports drift detection and deterministic restart. Scene and Effect runtimes share physical-device output ownership so overlap preempts cleanly. Explicit stop releases ownership without restoring device state.
 
 ### Automations
 Event-driven rules defined as trigger type + condition expression + action list.
@@ -154,7 +156,7 @@ Full causal chain tracking (A→B→C→A) is intentionally not implemented — 
 ### Dashboard
 Real-time web UI powered by GraphQL subscriptions for live state updates. Interactive controls (sliders, color pickers) for lights. Sensor data visualization. All data fetching and mutations go through the GraphQL API — no separate REST or WebSocket protocols.
 
-**Self-managed — no dashboard config.** The dashboard is fully derived from existing structural data: room membership, group membership, scene actions, device capabilities. Surfaces like "which scenes appear in a room's drawer" come from device-set intersection (`scene.actions` resolved against `room.members`), not a separate tag table; "which controls show on a card" come from a device's capabilities, not a per-card config. If you find yourself reaching for a junction table or settings object whose only job is to mirror data the system already has, that's drift — derive it instead. New persisted state is reserved for things genuinely independent of the structural model (icons, display preferences, naming).
+**Self-managed — no dashboard config.** The dashboard is fully derived from existing structural data: room membership, group membership, Scene targets and behaviours, and device capabilities. Surfaces like "which Scenes appear in a room's drawer" come from physical-device-set intersection, not a separate tag table; "which controls show on a card" come from a device's capabilities, not a per-card config. If you find yourself reaching for a junction table or settings object whose only job is to mirror data the system already has, that's drift — derive it instead. New persisted state is reserved for things genuinely independent of the structural model (icons, display preferences, naming).
 
 ### Database and migrations
 SQLite for persistence. Migrations managed by golang-migrate as numbered up/down SQL files embedded into the binary via `go:embed` (`internal/store/migrations.go`). The migrator runs as a separate `saffron-hive migrate` subcommand (`cmd/migrate/migrate.go`) — `cmd/serve/` does not auto-migrate. How that subcommand is invoked at deploy time lives outside this repo.
@@ -272,7 +274,7 @@ it is this way now**.
 
 Three independent vocabularies coexist; pick the one that matches the layer you're writing in and don't cross-pollinate.
 
-- **Internal payload maps — camelCase.** The `map[string]any` representation passed between scene apply (`internal/scene/apply.go`), the automation action executor and `stateMatches` (`internal/automation/action.go`), the effect runner (`internal/effect/runner.go`), the capability filter (`internal/device/filter.go`), and the automation expression context (`internal/automation/expr.go`); plus the JSON stored in `scene_device_payloads.payload`. Keys: `on`, `brightness`, `colorTemp`, `color`, `transition`. Matches the GraphQL schema (`DeviceState.colorTemp`) and the frontend's `ActionPayload`. Adding a new field requires the same casing across every reader, writer, and the filter map — a missed lookup silently drops the field, there is no compile-time check across the boundary.
+- **Internal payload maps — camelCase.** The `map[string]any` representation used by generic automation actions, effect clips, capability filtering, and automation expression context uses keys such as `on`, `brightness`, `colorTemp`, `color`, and `transition`. Scene composition uses concrete domain types. Map keys match the GraphQL vocabulary (`DeviceState.colorTemp`); adding a generic action field requires the same casing across every map reader and writer.
 - **MQTT / zigbee2mqtt wire format — snake_case.** Lives only in `internal/adapter/zigbee/dto.go` (struct tags), `state.go`, `command.go`, and the e2e MQTT fixtures. Never leaks past the adapter.
 - **Capability names — snake_case.** `device.CapColorTemp = "color_temp"` and friends mirror the capability strings Z2M emits in `bridge/devices`. Used as device capability identifiers (matched against `Device.Capabilities`), never as JSON map keys.
 - **Effect clip kind names — snake_case.** `set_color_temp`, `set_color_rgb`, etc. Independent identifier vocabulary for effect step types.
