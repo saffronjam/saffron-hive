@@ -43,7 +43,7 @@ const (
 	EventEffectStepActivated EventType = "effect.step_activated"
 	// EventEffectEnded is emitted by the effect runner when a run terminates
 	// for any reason (manual stop, drift preempt, natural completion, or a
-	// preempting Start). Subscribers (scene watcher) use it to release any
+	// preempting Start). Subscribers such as the Scene runner use it to release any
 	// per-run bookkeeping they hold against the run.
 	EventEffectEnded EventType = "effect.ended"
 	// EventRoomMembershipChanged signals that some room/device membership
@@ -55,6 +55,9 @@ const (
 	// The activity room cache subscribes to it because group reshuffles can
 	// change which room a device transitively belongs to.
 	EventGroupMembershipChanged EventType = "group.membership_changed"
+	// EventFloorplanUpdated signals that a committed floor-plan graph or its
+	// placements changed. Consumers reload the graph from the store.
+	EventFloorplanUpdated EventType = "floorplan.updated"
 	// EventProviderGroupsSynced carries a complete provider-owned group
 	// snapshot. A persister applies it atomically before announcing changes.
 	EventProviderGroupsSynced EventType = "provider.groups_synced"
@@ -116,7 +119,7 @@ const (
 )
 
 // EffectEndedEvent is the payload for EventEffectEnded. It identifies the
-// terminated run and its target so subscribers (scene watcher) can release
+// terminated run and its target so subscribers such as the Scene runner can release
 // per-run bookkeeping.
 type EffectEndedEvent struct {
 	RunID      string          `json:"runId"`
