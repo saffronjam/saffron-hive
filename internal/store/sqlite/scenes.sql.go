@@ -25,15 +25,6 @@ func (q *Queries) BatchDeleteScenes(ctx context.Context, idsJson string) (int64,
 	return result.RowsAffected()
 }
 
-const clearSceneActivatedAt = `-- name: ClearSceneActivatedAt :exec
-UPDATE scenes SET activated_at = NULL WHERE id = ?
-`
-
-func (q *Queries) ClearSceneActivatedAt(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, clearSceneActivatedAt, id)
-	return err
-}
-
 const clearSceneIcon = `-- name: ClearSceneIcon :exec
 UPDATE scenes SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -58,30 +49,6 @@ func (q *Queries) CreateScene(ctx context.Context, arg CreateSceneParams) error 
 	return err
 }
 
-const createSceneAction = `-- name: CreateSceneAction :exec
-INSERT INTO scene_actions (scene_id, target_type, target_id, expression, name)
-VALUES (?, ?, ?, ?, ?)
-`
-
-type CreateSceneActionParams struct {
-	SceneID    string
-	TargetType device.TargetType
-	TargetID   string
-	Expression *string
-	Name       *string
-}
-
-func (q *Queries) CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error {
-	_, err := q.db.ExecContext(ctx, createSceneAction,
-		arg.SceneID,
-		arg.TargetType,
-		arg.TargetID,
-		arg.Expression,
-		arg.Name,
-	)
-	return err
-}
-
 const deleteScene = `-- name: DeleteScene :exec
 DELETE FROM scenes WHERE id = ?
 `
@@ -91,50 +58,57 @@ func (q *Queries) DeleteScene(ctx context.Context, id string) error {
 	return err
 }
 
-const deleteSceneActionsByScene = `-- name: DeleteSceneActionsByScene :exec
-DELETE FROM scene_actions WHERE scene_id = ?
+const deleteSceneDynamicSamples = `-- name: DeleteSceneDynamicSamples :exec
+DELETE FROM scene_dynamic_samples WHERE scene_id = ?
 `
 
-func (q *Queries) DeleteSceneActionsByScene(ctx context.Context, sceneID string) error {
-	_, err := q.db.ExecContext(ctx, deleteSceneActionsByScene, sceneID)
+func (q *Queries) DeleteSceneDynamicSamples(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneDynamicSamples, sceneID)
 	return err
 }
 
-const deleteSceneDevicePayloadsByScene = `-- name: DeleteSceneDevicePayloadsByScene :exec
-DELETE FROM scene_device_payloads WHERE scene_id = ?
+const deleteSceneDynamicSource = `-- name: DeleteSceneDynamicSource :exec
+DELETE FROM scene_dynamic_sources WHERE scene_id = ?
 `
 
-func (q *Queries) DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error {
-	_, err := q.db.ExecContext(ctx, deleteSceneDevicePayloadsByScene, sceneID)
+func (q *Queries) DeleteSceneDynamicSource(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneDynamicSource, sceneID)
 	return err
 }
 
-const deleteSceneDevicePayloadsNotIn = `-- name: DeleteSceneDevicePayloadsNotIn :execrows
-DELETE FROM scene_device_payloads
-WHERE scene_id = ?
-  AND device_id NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
+const deleteSceneLightOverrides = `-- name: DeleteSceneLightOverrides :exec
+DELETE FROM scene_light_overrides WHERE scene_id = ?
 `
 
-type DeleteSceneDevicePayloadsNotInParams struct {
-	SceneID string
-	KeepIds string
+func (q *Queries) DeleteSceneLightOverrides(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneLightOverrides, sceneID)
+	return err
 }
 
-func (q *Queries) DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteSceneDevicePayloadsNotIn, arg.SceneID, arg.KeepIds)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
+const deleteSceneSupportingStates = `-- name: DeleteSceneSupportingStates :exec
+DELETE FROM scene_supporting_states WHERE scene_id = ?
+`
+
+func (q *Queries) DeleteSceneSupportingStates(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneSupportingStates, sceneID)
+	return err
+}
+
+const deleteSceneTargets = `-- name: DeleteSceneTargets :exec
+DELETE FROM scene_targets WHERE scene_id = ?
+`
+
+func (q *Queries) DeleteSceneTargets(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneTargets, sceneID)
+	return err
 }
 
 const getScene = `-- name: GetScene :one
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, s.activated_at,
-       u.id   AS creator_id,
-       u.username AS creator_username,
-       u.name AS creator_name
+SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
+       u.id AS creator_id, u.username AS creator_username, u.name AS creator_name
 FROM scenes s
 LEFT JOIN users u ON u.id = s.created_by
+LEFT JOIN active_scene_runs r ON r.scene_id = s.id
 WHERE s.id = ?
 `
 
@@ -167,25 +141,210 @@ func (q *Queries) GetScene(ctx context.Context, id string) (GetSceneRow, error) 
 	return i, err
 }
 
-const listActiveScenes = `-- name: ListActiveScenes :many
-SELECT id, activated_at FROM scenes WHERE activated_at IS NOT NULL
+const getSceneDynamicSource = `-- name: GetSceneDynamicSource :one
+SELECT scene_id, domain, source_kind, preset_id, preset_title, guided_selected_ids, seed, brightness, movement, cycle_nanos, grid_width, grid_height FROM scene_dynamic_sources WHERE scene_id = ?
 `
 
-type ListActiveScenesRow struct {
-	ID          string
-	ActivatedAt *time.Time
+func (q *Queries) GetSceneDynamicSource(ctx context.Context, sceneID string) (SceneDynamicSource, error) {
+	row := q.db.QueryRowContext(ctx, getSceneDynamicSource, sceneID)
+	var i SceneDynamicSource
+	err := row.Scan(
+		&i.SceneID,
+		&i.Domain,
+		&i.SourceKind,
+		&i.PresetID,
+		&i.PresetTitle,
+		&i.GuidedSelectedIds,
+		&i.Seed,
+		&i.Brightness,
+		&i.Movement,
+		&i.CycleNanos,
+		&i.GridWidth,
+		&i.GridHeight,
+	)
+	return i, err
 }
 
-func (q *Queries) ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listActiveScenes)
+const insertSceneDynamicSample = `-- name: InsertSceneDynamicSample :exec
+INSERT INTO scene_dynamic_samples (
+    scene_id, position, lightness, chroma, hue, brightness, mireds
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+`
+
+type InsertSceneDynamicSampleParams struct {
+	SceneID    string
+	Position   int64
+	Lightness  *float64
+	Chroma     *float64
+	Hue        *float64
+	Brightness *float64
+	Mireds     *float64
+}
+
+func (q *Queries) InsertSceneDynamicSample(ctx context.Context, arg InsertSceneDynamicSampleParams) error {
+	_, err := q.db.ExecContext(ctx, insertSceneDynamicSample,
+		arg.SceneID,
+		arg.Position,
+		arg.Lightness,
+		arg.Chroma,
+		arg.Hue,
+		arg.Brightness,
+		arg.Mireds,
+	)
+	return err
+}
+
+const insertSceneLightOverride = `-- name: InsertSceneLightOverride :exec
+INSERT INTO scene_light_overrides (
+    scene_id, device_id, kind, on_state, brightness, color_temp,
+    color_r, color_g, color_b, color_x, color_y, transition,
+    target_temperature, hvac_mode, fan_mode, swing, effect_id, native_effect_name
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type InsertSceneLightOverrideParams struct {
+	SceneID           string
+	DeviceID          string
+	Kind              string
+	OnState           *int64
+	Brightness        *int64
+	ColorTemp         *int64
+	ColorR            *int64
+	ColorG            *int64
+	ColorB            *int64
+	ColorX            *float64
+	ColorY            *float64
+	Transition        *float64
+	TargetTemperature *float64
+	HvacMode          *string
+	FanMode           *string
+	Swing             *string
+	EffectID          *string
+	NativeEffectName  *string
+}
+
+func (q *Queries) InsertSceneLightOverride(ctx context.Context, arg InsertSceneLightOverrideParams) error {
+	_, err := q.db.ExecContext(ctx, insertSceneLightOverride,
+		arg.SceneID,
+		arg.DeviceID,
+		arg.Kind,
+		arg.OnState,
+		arg.Brightness,
+		arg.ColorTemp,
+		arg.ColorR,
+		arg.ColorG,
+		arg.ColorB,
+		arg.ColorX,
+		arg.ColorY,
+		arg.Transition,
+		arg.TargetTemperature,
+		arg.HvacMode,
+		arg.FanMode,
+		arg.Swing,
+		arg.EffectID,
+		arg.NativeEffectName,
+	)
+	return err
+}
+
+const insertSceneSupportingState = `-- name: InsertSceneSupportingState :exec
+INSERT INTO scene_supporting_states (
+    scene_id, device_id, on_state, brightness, color_temp,
+    color_r, color_g, color_b, color_x, color_y, transition,
+    target_temperature, hvac_mode, fan_mode, swing
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type InsertSceneSupportingStateParams struct {
+	SceneID           string
+	DeviceID          string
+	OnState           *int64
+	Brightness        *int64
+	ColorTemp         *int64
+	ColorR            *int64
+	ColorG            *int64
+	ColorB            *int64
+	ColorX            *float64
+	ColorY            *float64
+	Transition        *float64
+	TargetTemperature *float64
+	HvacMode          *string
+	FanMode           *string
+	Swing             *string
+}
+
+func (q *Queries) InsertSceneSupportingState(ctx context.Context, arg InsertSceneSupportingStateParams) error {
+	_, err := q.db.ExecContext(ctx, insertSceneSupportingState,
+		arg.SceneID,
+		arg.DeviceID,
+		arg.OnState,
+		arg.Brightness,
+		arg.ColorTemp,
+		arg.ColorR,
+		arg.ColorG,
+		arg.ColorB,
+		arg.ColorX,
+		arg.ColorY,
+		arg.Transition,
+		arg.TargetTemperature,
+		arg.HvacMode,
+		arg.FanMode,
+		arg.Swing,
+	)
+	return err
+}
+
+const insertSceneTarget = `-- name: InsertSceneTarget :exec
+INSERT INTO scene_targets (scene_id, position, target_type, target_id, expression, name)
+VALUES (?, ?, ?, ?, ?, ?)
+`
+
+type InsertSceneTargetParams struct {
+	SceneID    string
+	Position   int64
+	TargetType device.TargetType
+	TargetID   *string
+	Expression *string
+	Name       *string
+}
+
+func (q *Queries) InsertSceneTarget(ctx context.Context, arg InsertSceneTargetParams) error {
+	_, err := q.db.ExecContext(ctx, insertSceneTarget,
+		arg.SceneID,
+		arg.Position,
+		arg.TargetType,
+		arg.TargetID,
+		arg.Expression,
+		arg.Name,
+	)
+	return err
+}
+
+const listSceneDynamicSamples = `-- name: ListSceneDynamicSamples :many
+SELECT scene_id, position, lightness, chroma, hue, brightness, mireds FROM scene_dynamic_samples WHERE scene_id = ? ORDER BY position
+`
+
+func (q *Queries) ListSceneDynamicSamples(ctx context.Context, sceneID string) ([]SceneDynamicSample, error) {
+	rows, err := q.db.QueryContext(ctx, listSceneDynamicSamples, sceneID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListActiveScenesRow
+	var items []SceneDynamicSample
 	for rows.Next() {
-		var i ListActiveScenesRow
-		if err := rows.Scan(&i.ID, &i.ActivatedAt); err != nil {
+		var i SceneDynamicSample
+		if err := rows.Scan(
+			&i.SceneID,
+			&i.Position,
+			&i.Lightness,
+			&i.Chroma,
+			&i.Hue,
+			&i.Brightness,
+			&i.Mireds,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -199,23 +358,114 @@ func (q *Queries) ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, 
 	return items, nil
 }
 
-const listSceneActions = `-- name: ListSceneActions :many
-SELECT scene_id, target_type, target_id, expression, name
-FROM scene_actions
-WHERE scene_id = ?
+const listSceneLightOverrides = `-- name: ListSceneLightOverrides :many
+SELECT scene_id, device_id, kind, on_state, brightness, color_temp, color_r, color_g, color_b, color_x, color_y, transition, target_temperature, hvac_mode, fan_mode, swing, effect_id, native_effect_name FROM scene_light_overrides WHERE scene_id = ? ORDER BY device_id
 `
 
-func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error) {
-	rows, err := q.db.QueryContext(ctx, listSceneActions, sceneID)
+func (q *Queries) ListSceneLightOverrides(ctx context.Context, sceneID string) ([]SceneLightOverride, error) {
+	rows, err := q.db.QueryContext(ctx, listSceneLightOverrides, sceneID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SceneAction
+	var items []SceneLightOverride
 	for rows.Next() {
-		var i SceneAction
+		var i SceneLightOverride
 		if err := rows.Scan(
 			&i.SceneID,
+			&i.DeviceID,
+			&i.Kind,
+			&i.OnState,
+			&i.Brightness,
+			&i.ColorTemp,
+			&i.ColorR,
+			&i.ColorG,
+			&i.ColorB,
+			&i.ColorX,
+			&i.ColorY,
+			&i.Transition,
+			&i.TargetTemperature,
+			&i.HvacMode,
+			&i.FanMode,
+			&i.Swing,
+			&i.EffectID,
+			&i.NativeEffectName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSceneSupportingStates = `-- name: ListSceneSupportingStates :many
+SELECT scene_id, device_id, on_state, brightness, color_temp, color_r, color_g, color_b, color_x, color_y, transition, target_temperature, hvac_mode, fan_mode, swing FROM scene_supporting_states WHERE scene_id = ? ORDER BY device_id
+`
+
+func (q *Queries) ListSceneSupportingStates(ctx context.Context, sceneID string) ([]SceneSupportingState, error) {
+	rows, err := q.db.QueryContext(ctx, listSceneSupportingStates, sceneID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SceneSupportingState
+	for rows.Next() {
+		var i SceneSupportingState
+		if err := rows.Scan(
+			&i.SceneID,
+			&i.DeviceID,
+			&i.OnState,
+			&i.Brightness,
+			&i.ColorTemp,
+			&i.ColorR,
+			&i.ColorG,
+			&i.ColorB,
+			&i.ColorX,
+			&i.ColorY,
+			&i.Transition,
+			&i.TargetTemperature,
+			&i.HvacMode,
+			&i.FanMode,
+			&i.Swing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSceneTargets = `-- name: ListSceneTargets :many
+SELECT scene_id, position, target_type, target_id, expression, name
+FROM scene_targets
+WHERE scene_id = ?
+ORDER BY position
+`
+
+func (q *Queries) ListSceneTargets(ctx context.Context, sceneID string) ([]SceneTarget, error) {
+	rows, err := q.db.QueryContext(ctx, listSceneTargets, sceneID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SceneTarget
+	for rows.Next() {
+		var i SceneTarget
+		if err := rows.Scan(
+			&i.SceneID,
+			&i.Position,
 			&i.TargetType,
 			&i.TargetID,
 			&i.Expression,
@@ -234,42 +484,13 @@ func (q *Queries) ListSceneActions(ctx context.Context, sceneID string) ([]Scene
 	return items, nil
 }
 
-const listSceneDevicePayloads = `-- name: ListSceneDevicePayloads :many
-SELECT scene_id, device_id, payload
-FROM scene_device_payloads
-WHERE scene_id = ?
-`
-
-func (q *Queries) ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error) {
-	rows, err := q.db.QueryContext(ctx, listSceneDevicePayloads, sceneID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []SceneDevicePayload
-	for rows.Next() {
-		var i SceneDevicePayload
-		if err := rows.Scan(&i.SceneID, &i.DeviceID, &i.Payload); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listScenes = `-- name: ListScenes :many
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, s.activated_at,
-       u.id   AS creator_id,
-       u.username AS creator_username,
-       u.name AS creator_name
+SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
+       u.id AS creator_id, u.username AS creator_username, u.name AS creator_name
 FROM scenes s
 LEFT JOIN users u ON u.id = s.created_by
+LEFT JOIN active_scene_runs r ON r.scene_id = s.id
+ORDER BY s.created_at, s.id
 `
 
 type ListScenesRow struct {
@@ -317,20 +538,6 @@ func (q *Queries) ListScenes(ctx context.Context) ([]ListScenesRow, error) {
 	return items, nil
 }
 
-const setSceneActivatedAt = `-- name: SetSceneActivatedAt :exec
-UPDATE scenes SET activated_at = ? WHERE id = ?
-`
-
-type SetSceneActivatedAtParams struct {
-	ActivatedAt *time.Time
-	ID          string
-}
-
-func (q *Queries) SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error {
-	_, err := q.db.ExecContext(ctx, setSceneActivatedAt, arg.ActivatedAt, arg.ID)
-	return err
-}
-
 const updateSceneIcon = `-- name: UpdateSceneIcon :exec
 UPDATE scenes SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -359,19 +566,55 @@ func (q *Queries) UpdateSceneName(ctx context.Context, arg UpdateSceneNameParams
 	return err
 }
 
-const upsertSceneDevicePayload = `-- name: UpsertSceneDevicePayload :exec
-INSERT INTO scene_device_payloads (scene_id, device_id, payload)
-VALUES (?, ?, ?)
-ON CONFLICT(scene_id, device_id) DO UPDATE SET payload = excluded.payload
+const upsertSceneDynamicSource = `-- name: UpsertSceneDynamicSource :exec
+INSERT INTO scene_dynamic_sources (
+    scene_id, domain, source_kind, preset_id, preset_title, guided_selected_ids,
+    seed, brightness, movement, cycle_nanos, grid_width, grid_height
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(scene_id) DO UPDATE SET
+    domain = excluded.domain,
+    source_kind = excluded.source_kind,
+    preset_id = excluded.preset_id,
+    preset_title = excluded.preset_title,
+    guided_selected_ids = excluded.guided_selected_ids,
+    seed = excluded.seed,
+    brightness = excluded.brightness,
+    movement = excluded.movement,
+    cycle_nanos = excluded.cycle_nanos,
+    grid_width = excluded.grid_width,
+    grid_height = excluded.grid_height
 `
 
-type UpsertSceneDevicePayloadParams struct {
-	SceneID  string
-	DeviceID device.DeviceID
-	Payload  string
+type UpsertSceneDynamicSourceParams struct {
+	SceneID           string
+	Domain            string
+	SourceKind        string
+	PresetID          *string
+	PresetTitle       *string
+	GuidedSelectedIds *string
+	Seed              int64
+	Brightness        float64
+	Movement          float64
+	CycleNanos        int64
+	GridWidth         int64
+	GridHeight        int64
 }
 
-func (q *Queries) UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error {
-	_, err := q.db.ExecContext(ctx, upsertSceneDevicePayload, arg.SceneID, arg.DeviceID, arg.Payload)
+func (q *Queries) UpsertSceneDynamicSource(ctx context.Context, arg UpsertSceneDynamicSourceParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSceneDynamicSource,
+		arg.SceneID,
+		arg.Domain,
+		arg.SourceKind,
+		arg.PresetID,
+		arg.PresetTitle,
+		arg.GuidedSelectedIds,
+		arg.Seed,
+		arg.Brightness,
+		arg.Movement,
+		arg.CycleNanos,
+		arg.GridWidth,
+		arg.GridHeight,
+	)
 	return err
 }

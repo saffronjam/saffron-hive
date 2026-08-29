@@ -19,6 +19,40 @@ type ActiveEffect struct {
 	Volatile   int64
 }
 
+type ActiveSceneMember struct {
+	SceneID             string
+	DeviceID            device.DeviceID
+	BehaviorKind        string
+	OwnsOn              int64
+	OwnsBrightness      int64
+	OwnsColorTemp       int64
+	OwnsColor           int64
+	OwnsTemperature     int64
+	OwnsHvacMode        int64
+	OwnsFanMode         int64
+	OwnsSwing           int64
+	ExpectedOn          *int64
+	ExpectedBrightness  *int64
+	ExpectedColorTemp   *int64
+	ExpectedColorR      *int64
+	ExpectedColorG      *int64
+	ExpectedColorB      *int64
+	ExpectedColorX      *float64
+	ExpectedColorY      *float64
+	ExpectedTemperature *float64
+	ExpectedHvacMode    *string
+	ExpectedFanMode     *string
+	ExpectedSwing       *string
+	EffectRunID         *string
+}
+
+type ActiveSceneRun struct {
+	SceneID             string
+	RunID               string
+	StartedAt           time.Time
+	DefinitionUpdatedAt time.Time
+}
+
 type ActivityEvent struct {
 	ID             int64
 	Type           string
@@ -275,38 +309,85 @@ type RoomMember struct {
 }
 
 type Scene struct {
-	ID          string
-	Name        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Icon        *string
-	CreatedBy   *string
-	ActivatedAt *time.Time
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Icon      *string
+	CreatedBy *string
 }
 
-type SceneAction struct {
+type SceneDynamicSample struct {
 	SceneID    string
+	Position   int64
+	Lightness  *float64
+	Chroma     *float64
+	Hue        *float64
+	Brightness *float64
+	Mireds     *float64
+}
+
+type SceneDynamicSource struct {
+	SceneID           string
+	Domain            string
+	SourceKind        string
+	PresetID          *string
+	PresetTitle       *string
+	GuidedSelectedIds *string
+	Seed              int64
+	Brightness        float64
+	Movement          float64
+	CycleNanos        int64
+	GridWidth         int64
+	GridHeight        int64
+}
+
+type SceneLightOverride struct {
+	SceneID           string
+	DeviceID          string
+	Kind              string
+	OnState           *int64
+	Brightness        *int64
+	ColorTemp         *int64
+	ColorR            *int64
+	ColorG            *int64
+	ColorB            *int64
+	ColorX            *float64
+	ColorY            *float64
+	Transition        *float64
+	TargetTemperature *float64
+	HvacMode          *string
+	FanMode           *string
+	Swing             *string
+	EffectID          *string
+	NativeEffectName  *string
+}
+
+type SceneSupportingState struct {
+	SceneID           string
+	DeviceID          string
+	OnState           *int64
+	Brightness        *int64
+	ColorTemp         *int64
+	ColorR            *int64
+	ColorG            *int64
+	ColorB            *int64
+	ColorX            *float64
+	ColorY            *float64
+	Transition        *float64
+	TargetTemperature *float64
+	HvacMode          *string
+	FanMode           *string
+	Swing             *string
+}
+
+type SceneTarget struct {
+	SceneID    string
+	Position   int64
 	TargetType device.TargetType
-	TargetID   string
+	TargetID   *string
 	Expression *string
 	Name       *string
-}
-
-type SceneDevicePayload struct {
-	SceneID  string
-	DeviceID device.DeviceID
-	Payload  string
-}
-
-type SceneExpectedState struct {
-	SceneID    string
-	DeviceID   device.DeviceID
-	OnState    *int64
-	Brightness *int64
-	ColorTemp  *int64
-	ColorR     *int64
-	ColorG     *int64
-	ColorB     *int64
 }
 
 type Setting struct {

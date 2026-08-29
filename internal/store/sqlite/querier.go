@@ -38,7 +38,6 @@ type Querier interface {
 	ClearEffectNativeName(ctx context.Context, id string) error
 	ClearGroupIcon(ctx context.Context, id string) error
 	ClearRoomIcon(ctx context.Context, id string) error
-	ClearSceneActivatedAt(ctx context.Context, id string) error
 	ClearSceneIcon(ctx context.Context, id string) error
 	ClearUserAvatar(ctx context.Context, id string) error
 	// Sets a fresh password hash and clears the must_change_password flag in one
@@ -78,10 +77,11 @@ type Querier interface {
 	// because COALESCE can't distinguish "leave alone" from "set to NULL".
 	CreateRoom(ctx context.Context, arg CreateRoomParams) error
 	CreateScene(ctx context.Context, arg CreateSceneParams) error
-	CreateSceneAction(ctx context.Context, arg CreateSceneActionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error
 	DeleteActiveEffectByTarget(ctx context.Context, arg DeleteActiveEffectByTargetParams) error
+	DeleteActiveSceneMembers(ctx context.Context, sceneID string) error
+	DeleteActiveSceneRun(ctx context.Context, sceneID string) (int64, error)
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
@@ -111,16 +111,18 @@ type Querier interface {
 	DeleteProviderGroupMembers(ctx context.Context, groupID string) error
 	DeleteRoom(ctx context.Context, id string) error
 	DeleteScene(ctx context.Context, id string) error
-	DeleteSceneActionsByScene(ctx context.Context, sceneID string) error
-	DeleteSceneDevicePayloadsByScene(ctx context.Context, sceneID string) error
-	DeleteSceneDevicePayloadsNotIn(ctx context.Context, arg DeleteSceneDevicePayloadsNotInParams) (int64, error)
-	DeleteSceneExpectedStatesByScene(ctx context.Context, sceneID string) error
+	DeleteSceneDynamicSamples(ctx context.Context, sceneID string) error
+	DeleteSceneDynamicSource(ctx context.Context, sceneID string) error
+	DeleteSceneLightOverrides(ctx context.Context, sceneID string) error
+	DeleteSceneSupportingStates(ctx context.Context, sceneID string) error
+	DeleteSceneTargets(ctx context.Context, sceneID string) error
 	DeleteTuyaConfig(ctx context.Context) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	DeleteZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) error
+	GetActiveSceneRun(ctx context.Context, sceneID string) (ActiveSceneRun, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
@@ -142,6 +144,7 @@ type Querier interface {
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
 	GetRoomMemberRoomID(ctx context.Context, id string) (string, error)
 	GetScene(ctx context.Context, id string) (GetSceneRow, error)
+	GetSceneDynamicSource(ctx context.Context, sceneID string) (SceneDynamicSource, error)
 	GetSetting(ctx context.Context, key string) (Setting, error)
 	GetTuyaConfig(ctx context.Context) (GetTuyaConfigRow, error)
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
@@ -154,6 +157,7 @@ type Querier interface {
 	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
 	GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) (ZigbeeDeviceMetadatum, error)
 	HasWebhookRateLimitDeliverySince(ctx context.Context, arg HasWebhookRateLimitDeliverySinceParams) (bool, error)
+	InsertActiveSceneMember(ctx context.Context, arg InsertActiveSceneMemberParams) error
 	// Activity event persistence. QueryActivityEvents is the only query in the
 	// codebase with fully-dynamic filters, so it uses every gate trick we have:
 	//
@@ -175,15 +179,19 @@ type Querier interface {
 	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
 	InsertMaintenanceAcknowledgement(ctx context.Context, arg InsertMaintenanceAcknowledgementParams) error
 	InsertProviderGroupMember(ctx context.Context, arg InsertProviderGroupMemberParams) error
+	InsertSceneDynamicSample(ctx context.Context, arg InsertSceneDynamicSampleParams) error
+	InsertSceneLightOverride(ctx context.Context, arg InsertSceneLightOverrideParams) error
+	InsertSceneSupportingState(ctx context.Context, arg InsertSceneSupportingStateParams) error
+	InsertSceneTarget(ctx context.Context, arg InsertSceneTargetParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) error
 	LatestStateSample(ctx context.Context, arg LatestStateSampleParams) (LatestStateSampleRow, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
-	ListActiveScenes(ctx context.Context) ([]ListActiveScenesRow, error)
+	ListActiveSceneMembers(ctx context.Context) ([]ActiveSceneMember, error)
+	ListActiveSceneRuns(ctx context.Context) ([]ActiveSceneRun, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
 	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
-	ListAllSceneExpectedStates(ctx context.Context) ([]SceneExpectedState, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
@@ -215,9 +223,10 @@ type Querier interface {
 	ListRooms(ctx context.Context) ([]ListRoomsRow, error)
 	ListRoomsContainingMember(ctx context.Context, arg ListRoomsContainingMemberParams) ([]ListRoomsContainingMemberRow, error)
 	ListRuntimeDisabledDeviceIDs(ctx context.Context) ([]device.DeviceID, error)
-	ListSceneActions(ctx context.Context, sceneID string) ([]SceneAction, error)
-	ListSceneDevicePayloads(ctx context.Context, sceneID string) ([]SceneDevicePayload, error)
-	ListSceneExpectedStates(ctx context.Context, sceneID string) ([]SceneExpectedState, error)
+	ListSceneDynamicSamples(ctx context.Context, sceneID string) ([]SceneDynamicSample, error)
+	ListSceneLightOverrides(ctx context.Context, sceneID string) ([]SceneLightOverride, error)
+	ListSceneSupportingStates(ctx context.Context, sceneID string) ([]SceneSupportingState, error)
+	ListSceneTargets(ctx context.Context, sceneID string) ([]SceneTarget, error)
 	ListScenes(ctx context.Context) ([]ListScenesRow, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListTuyaDevices(ctx context.Context) ([]TuyaDevice, error)
@@ -266,13 +275,14 @@ type Querier interface {
 	// adapter-owned type and capabilities.
 	SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error
 	SetDeviceRoles(ctx context.Context, arg SetDeviceRolesParams) error
-	SetSceneActivatedAt(ctx context.Context, arg SetSceneActivatedAtParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	// UnlinkFloorplanRoomsByRoom clears the Hive-room link on the faces that point
 	// at a room being deleted. COALESCE copies the room's name into faces that have
 	// no loose label yet, so the label survives the deletion; runs inside the
 	// DeleteRoom / BatchDeleteRooms transactions before the rooms row goes away.
 	UnlinkFloorplanRoomsByRoom(ctx context.Context, roomID string) error
+	UpdateActiveSceneMemberEffectRun(ctx context.Context, arg UpdateActiveSceneMemberEffectRunParams) error
+	UpdateActiveSceneMemberExpected(ctx context.Context, arg UpdateActiveSceneMemberExpectedParams) error
 	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
 	// Partial update via COALESCE(narg, col) gate. Nil narg values leave their
 	// column untouched. The nullable icon column can't be cleared through this
@@ -304,6 +314,7 @@ type Querier interface {
 	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) error
 	UpdateWebhookEndpointSecretHash(ctx context.Context, arg UpdateWebhookEndpointSecretHashParams) error
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
+	UpsertActiveSceneRun(ctx context.Context, arg UpsertActiveSceneRunParams) error
 	// Refreshes every adapter-owned column, including the friendly name, and clears
 	// the removed flag when a device reappears. The name column is the user's
 	// override and is never touched here.
@@ -312,8 +323,7 @@ type Querier interface {
 	UpsertNativeEffectObservation(ctx context.Context, arg UpsertNativeEffectObservationParams) (NativeEffectObservation, error)
 	UpsertNetworkTopology(ctx context.Context, arg UpsertNetworkTopologyParams) error
 	UpsertProviderGroup(ctx context.Context, arg UpsertProviderGroupParams) error
-	UpsertSceneDevicePayload(ctx context.Context, arg UpsertSceneDevicePayloadParams) error
-	UpsertSceneExpectedState(ctx context.Context, arg UpsertSceneExpectedStateParams) error
+	UpsertSceneDynamicSource(ctx context.Context, arg UpsertSceneDynamicSourceParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
 	UpsertTuyaDevice(ctx context.Context, arg UpsertTuyaDeviceParams) error
