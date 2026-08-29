@@ -138,13 +138,17 @@ async function selectGuidedRounds(count: 3 | 5): Promise<void> {
   for (let round = 1; round <= count; round++) {
     const choices = page.locator(`[aria-label="Guided vibe choices ${round}"] button`);
     try {
-      await expect.poll(() => choices.count(), { timeout: 10_000 }).toBe(3);
+      await expect.poll(() => choices.count(), { timeout: 10_000 }).toBe(5);
     } catch {
       throw new Error(
         `Guided round ${round} did not load:\n${await page.locator("main").last().innerText()}`,
       );
     }
     await choices.first().press("Enter");
+  }
+  if (count === 5) {
+    await page.getByRole("heading", { name: "Choose where it lives" }).waitFor();
+    return;
   }
   const use = page.getByRole("button", { name: "Use this vibe" });
   await use.waitFor();
@@ -156,8 +160,12 @@ async function selectGuidedRounds(count: 3 | 5): Promise<void> {
 async function selectGuidedRoundsByClick(count: 3 | 5): Promise<void> {
   for (let round = 1; round <= count; round++) {
     const choices = page.locator(`[aria-label="Guided vibe choices ${round}"] button`);
-    await expect.poll(() => choices.count(), { timeout: 10_000 }).toBe(3);
+    await expect.poll(() => choices.count(), { timeout: 10_000 }).toBe(5);
     await choices.first().click();
+  }
+  if (count === 5) {
+    await page.getByRole("heading", { name: "Choose where it lives" }).waitFor();
+    return;
   }
   const use = page.getByRole("button", { name: "Use this vibe" });
   await use.waitFor();
@@ -367,9 +375,9 @@ describe("advanced Scene browser journeys", () => {
     expect(await page.getByText("Loading scene…", { exact: true }).count()).toBe(0);
     expect(await sceneActions.isVisible()).toBe(false);
 
-    const targetSection = page.locator("section").filter({
-      has: page.getByRole("heading", { name: "Targets", exact: true }),
-    });
+    const targetSection = page
+      .getByRole("tab", { name: "Targets", exact: true })
+      .locator("xpath=ancestor::section[1]");
     await targetSection.getByRole("button", { name: "Add", exact: true }).click();
     await page.getByRole("menuitem", { name: "Simple", exact: true }).click();
     const targetDrawer = page.getByRole("dialog");

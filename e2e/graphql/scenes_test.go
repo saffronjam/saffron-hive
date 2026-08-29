@@ -279,8 +279,8 @@ func guidedSelections(t *testing.T, domain, seed string, count int) []string {
 			} `json:"guidedVibeRound"`
 		}
 		_ = json.Unmarshal(data, &response)
-		if len(response.GuidedVibeRound.Options) != 3 {
-			t.Fatalf("guided round %d options = %d, want 3", len(selected)+1, len(response.GuidedVibeRound.Options))
+		if len(response.GuidedVibeRound.Options) != 5 {
+			t.Fatalf("guided round %d options = %d, want 5", len(selected)+1, len(response.GuidedVibeRound.Options))
 		}
 		for _, option := range response.GuidedVibeRound.Options {
 			if option.Preview.Width == 0 || option.Preview.Height == 0 || len(option.Preview.Pixels) != option.Preview.Width*option.Preview.Height || len(option.Preview.Swatches) == 0 {
