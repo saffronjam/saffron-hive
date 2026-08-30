@@ -11,9 +11,9 @@ function itemText(item: unknown): string {
   return typeof item === "string" ? item : "";
 }
 
-afterEach(() => {
-  if (instance) unmount(instance);
-  if (dialogInstance) unmount(dialogInstance);
+afterEach(async () => {
+  if (instance) await unmount(instance);
+  if (dialogInstance) await unmount(dialogInstance);
   host?.remove();
   instance = null;
   dialogInstance = null;

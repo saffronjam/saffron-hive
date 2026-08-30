@@ -47,8 +47,8 @@ beforeEach(() => {
   document.body.appendChild(host);
 });
 
-afterEach(() => {
-  if (instance) unmount(instance);
+afterEach(async () => {
+  if (instance) await unmount(instance);
   instance = null;
   webhooksStore.stop();
   automationsStore.stop();

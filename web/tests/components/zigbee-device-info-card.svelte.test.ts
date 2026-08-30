@@ -16,8 +16,8 @@ beforeEach(() => {
   document.body.appendChild(host);
 });
 
-afterEach(() => {
-  if (component) void unmount(component);
+afterEach(async () => {
+  if (component) await unmount(component);
   component = null;
   host.remove();
   vi.restoreAllMocks();

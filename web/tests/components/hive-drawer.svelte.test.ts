@@ -7,7 +7,6 @@ let host: HTMLDivElement | null = null;
 
 afterEach(async () => {
   if (instance) await unmount(instance);
-  await new Promise((resolve) => setTimeout(resolve, 30));
   host?.remove();
   instance = null;
   host = null;
