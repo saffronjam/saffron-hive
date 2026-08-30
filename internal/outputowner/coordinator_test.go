@@ -1,13 +1,11 @@
 package outputowner
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 func TestAcquirePreemptsTheCompletePriorOwnerOnce(t *testing.T) {
@@ -65,43 +63,5 @@ func TestForeignCommandRevokesOwnerButOwnOriginDoesNot(t *testing.T) {
 	case loss := <-losses:
 		t.Fatalf("owner lost twice: %#v", loss)
 	default:
-	}
-}
-
-func TestRunHandlesOverlappingProviderGroupCommands(t *testing.T) {
-	coordinator := New()
-	bus := eventbus.NewChannelBus()
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		coordinator.Run(ctx, bus)
-		close(done)
-	}()
-	defer func() {
-		cancel()
-		<-done
-	}()
-
-	losses := make(chan Loss, 1)
-	owner := Owner{Kind: KindEffect, RunID: "effect-1"}
-	coordinator.Acquire(owner, []device.DeviceID{"a", "b"}, func(loss Loss) { losses <- loss })
-	command := eventbus.Event{Type: eventbus.EventProviderGroupCommandRequested, Payload: device.ProviderGroupCommand{
-		MemberIDs: []device.DeviceID{"b", "c"},
-		State:     device.Command{Origin: device.OriginUser()},
-	}}
-	deadline := time.NewTimer(time.Second)
-	defer deadline.Stop()
-	for {
-		bus.Publish(command)
-		select {
-		case loss := <-losses:
-			if loss.Owner != owner || len(loss.Devices) != 2 {
-				t.Fatalf("loss = %#v", loss)
-			}
-			return
-		case <-deadline.C:
-			t.Fatal("provider group command did not revoke overlapping ownership")
-		case <-time.After(time.Millisecond):
-		}
 	}
 }

@@ -12,6 +12,9 @@ func TestEventTypeConstants(t *testing.T) {
 		EventDeviceAdded:               "device.added",
 		EventDeviceRemoved:             "device.removed",
 		EventCommandRequested:          "command.requested",
+		EventCommandDispatched:         "command.dispatched",
+		EventCommandConfirmed:          "command.confirmed",
+		EventCommandFailed:             "command.failed",
 		EventSceneApplied:              "scene.applied",
 		EventAutomationTriggered:       "automation.triggered",
 	}

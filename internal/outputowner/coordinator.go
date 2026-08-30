@@ -2,12 +2,10 @@
 package outputowner
 
 import (
-	"context"
 	"slices"
 	"sync"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 // Kind identifies a runtime that emits continuing physical output.
@@ -58,34 +56,6 @@ type Coordinator struct {
 // New constructs an empty coordinator.
 func New() *Coordinator {
 	return &Coordinator{byDevice: map[device.DeviceID]Owner{}, owners: map[Owner]*ownerRecord{}}
-}
-
-// Run consumes physical command requests and reports foreign ownership loss.
-func (c *Coordinator) Run(ctx context.Context, bus eventbus.EventBus) {
-	commands := bus.Subscribe(eventbus.EventCommandRequested, eventbus.EventProviderGroupCommandRequested)
-	defer bus.Unsubscribe(commands)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case event, ok := <-commands:
-			if !ok {
-				return
-			}
-			switch event.Type {
-			case eventbus.EventCommandRequested:
-				command, ok := event.Payload.(device.Command)
-				if ok && command.DeviceID != "" {
-					c.ForeignCommand([]device.DeviceID{command.DeviceID}, command.Origin)
-				}
-			case eventbus.EventProviderGroupCommandRequested:
-				command, ok := event.Payload.(device.ProviderGroupCommand)
-				if ok {
-					c.ForeignCommand(command.MemberIDs, command.State.Origin)
-				}
-			}
-		}
-	}
 }
 
 // Acquire atomically grants all devices to owner. Any owner displaced on one

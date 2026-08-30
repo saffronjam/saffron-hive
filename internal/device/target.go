@@ -6,9 +6,10 @@ import "context"
 type TargetType string
 
 const (
-	TargetDevice TargetType = "device"
-	TargetGroup  TargetType = "group"
-	TargetRoom   TargetType = "room"
+	TargetDevice    TargetType = "device"
+	TargetGroup     TargetType = "group"
+	TargetRoom      TargetType = "room"
+	TargetDeviceSet TargetType = "device_set"
 	// TargetExpression marks a target defined by a rule Expression rather than
 	// a single device/group/room id. The resolver does not handle it; callers
 	// evaluate the expression via EvaluateExpression.
@@ -25,6 +26,7 @@ type TargetResolver interface {
 type TargetCommand struct {
 	TargetType   TargetType
 	TargetID     string
+	DeviceIDs    []DeviceID
 	State        Command
 	NativeEffect string
 }
@@ -33,6 +35,12 @@ type TargetCommand struct {
 // groups, or rooms through the most suitable provider path.
 type TargetCommander interface {
 	CommandTarget(context.Context, TargetCommand) error
+}
+
+// ConfigurationCommander submits device configuration through the shared
+// physical-output path.
+type ConfigurationCommander interface {
+	CommandConfiguration(context.Context, ConfigurationRequest) error
 }
 
 // ProviderGroupCommand is a provider-addressed multicast operation. Adapters

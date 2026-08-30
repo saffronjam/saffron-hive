@@ -22,20 +22,22 @@ const (
 	// (name, icon, roles, disabled) — distinct from runtime state or
 	// availability. It carries the updated device.Device; subscribers refresh
 	// their cached view of those fields.
-	EventDeviceUpdated                 EventType = "device.updated"
-	EventDeviceRemoved                 EventType = "device.removed"
-	EventCommandRequested              EventType = "command.requested"
-	EventProviderGroupCommandRequested EventType = "provider_group.command_requested"
-	EventConfigurationRequested        EventType = "configuration.requested"
-	EventNativeEffectRequested         EventType = "native_effect.requested"
-	EventNativeEffectResult            EventType = "native_effect.result"
-	EventNativeEffectSupportChanged    EventType = "native_effect.support_changed"
-	EventSceneApplied                  EventType = "scene.applied"
-	EventSceneActivated                EventType = "scene.activated"
-	EventSceneDeactivated              EventType = "scene.deactivated"
-	EventAutomationTriggered           EventType = "automation.triggered"
-	EventAutomationNodeActivated       EventType = "automation.node_activated"
-	EventWebhookReceived               EventType = "webhook.received"
+	EventDeviceUpdated              EventType = "device.updated"
+	EventDeviceRemoved              EventType = "device.removed"
+	EventCommandRequested           EventType = "command.requested"
+	EventCommandDispatched          EventType = "command.dispatched"
+	EventCommandConfirmed           EventType = "command.confirmed"
+	EventCommandFailed              EventType = "command.failed"
+	EventConfigurationRequested     EventType = "configuration.requested"
+	EventNativeEffectRequested      EventType = "native_effect.requested"
+	EventNativeEffectResult         EventType = "native_effect.result"
+	EventNativeEffectSupportChanged EventType = "native_effect.support_changed"
+	EventSceneApplied               EventType = "scene.applied"
+	EventSceneActivated             EventType = "scene.activated"
+	EventSceneDeactivated           EventType = "scene.deactivated"
+	EventAutomationTriggered        EventType = "automation.triggered"
+	EventAutomationNodeActivated    EventType = "automation.node_activated"
+	EventWebhookReceived            EventType = "webhook.received"
 	// EventEffectStepActivated is emitted by the effect runner around each
 	// step it processes (Active=true on enter, Active=false on exit). The
 	// frontend live view uses it to highlight the running step inside an
@@ -77,8 +79,8 @@ const (
 	EventGroupSynced EventType = "group.synced"
 	// EventNetworkTopologyScanned is published by an adapter when a mesh
 	// network scan completes, carrying the freshly parsed
-	// device.NetworkTopology (pre-merge). The topology persister is its only
-	// subscriber.
+	// device.NetworkTopology (pre-merge). The topology persister stores it and
+	// the output controller resumes continuous provider traffic.
 	EventNetworkTopologyScanned EventType = "topology.scanned"
 	// EventNetworkTopologyUpdated is published by the topology persister after
 	// a merged snapshot is stored, carrying NetworkTopologyUpdatedEvent. It is
