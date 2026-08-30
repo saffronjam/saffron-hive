@@ -2,6 +2,8 @@ package tuya
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -35,7 +37,17 @@ type deviceStore interface {
 // all writes happen on that goroutine.
 type conn struct {
 	productID string
-	cmds      chan map[string]any
+	cmds      chan localCommand
+}
+
+type localCommand struct {
+	dps    map[string]any
+	result chan error
+}
+
+// OutputObserver receives device reports before they are published.
+type OutputObserver interface {
+	ObserveState(device.DeviceID, device.DeviceState) device.OutputObservation
 }
 
 // Adapter bridges Tuya devices to the event bus over the local (LAN) protocol.
@@ -47,7 +59,6 @@ type Adapter struct {
 	writer device.StateWriter
 	store  deviceStore
 
-	cmdCh  <-chan eventbus.Event
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
@@ -57,6 +68,7 @@ type Adapter struct {
 	// loop has already reported, keyed by device id.
 	knownDevices map[device.DeviceID]string
 	creds        map[device.DeviceID]store.TuyaDevice
+	observer     OutputObserver
 }
 
 // NewAdapter creates the Tuya adapter. ds persists per-device local-control
@@ -81,9 +93,6 @@ func (a *Adapter) Start(ctx context.Context) error {
 	if _, err := a.Sync(ctx); err != nil {
 		return err
 	}
-	a.cmdCh = a.bus.Subscribe(eventbus.EventCommandRequested)
-	a.wg.Add(1)
-	go a.commandLoop(ctx)
 	a.mu.Lock()
 	creds := make(map[device.DeviceID]store.TuyaDevice, len(a.creds))
 	for id, cr := range a.creds {
@@ -101,10 +110,14 @@ func (a *Adapter) Stop() {
 	if a.cancel != nil {
 		a.cancel()
 	}
-	if a.cmdCh != nil {
-		a.bus.Unsubscribe(a.cmdCh)
-	}
 	a.wg.Wait()
+}
+
+// SetOutputObserver routes state acknowledgements through Hive's delivery ledger.
+func (a *Adapter) SetOutputObserver(observer OutputObserver) {
+	a.mu.Lock()
+	a.observer = observer
+	a.mu.Unlock()
 }
 
 // Sync enumerates devices from the cloud, registers them, refreshes their
@@ -219,7 +232,7 @@ func (a *Adapter) startConn(ctx context.Context, id device.DeviceID, cr store.Tu
 		a.setAvailability(id, false)
 		return
 	}
-	c := &conn{productID: cr.ProductID, cmds: make(chan map[string]any, 4)}
+	c := &conn{productID: cr.ProductID, cmds: make(chan localCommand)}
 	a.mu.Lock()
 	a.conns[id] = c
 	a.mu.Unlock()
@@ -273,10 +286,12 @@ func (a *Adapter) runConn(ctx context.Context, id device.DeviceID, cr store.Tuya
 				live = false
 			case dps := <-dpsCh:
 				a.publishLocalState(id, dps, c.productID)
-			case dps := <-c.cmds:
-				if err := dev.SendControl(dps); err != nil {
+			case command := <-c.cmds:
+				err := dev.SendControl(command.dps)
+				if err != nil {
 					logger.Warn("tuya local control failed", "device_id", id, "error", err)
 				}
+				command.result <- err
 			case <-ticker.C:
 				if err := dev.SendHeartbeat(); err != nil {
 					live = false
@@ -293,56 +308,69 @@ func (a *Adapter) runConn(ctx context.Context, id device.DeviceID, cr store.Tuya
 	}
 }
 
-func (a *Adapter) commandLoop(ctx context.Context) {
-	defer a.wg.Done()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case evt, ok := <-a.cmdCh:
-			if !ok {
-				return
-			}
-			cmd, ok := evt.Payload.(device.Command)
-			if !ok {
-				continue
-			}
-			dev, found := a.reader.GetDevice(cmd.DeviceID)
-			if !found || dev.RuntimeDisabled() || dev.Source != device.SourceTuya {
-				continue
-			}
-			a.mu.Lock()
-			c := a.conns[cmd.DeviceID]
-			a.mu.Unlock()
-			if c == nil {
-				logger.Warn("tuya command ignored: no local connection for device (not reachable on LAN?)",
-					"device_id", cmd.DeviceID)
-				continue
-			}
-			dps := commandToDPS(cmd, c.productID)
-			if len(dps) == 0 {
-				logger.Warn("tuya command produced no data points",
-					"device_id", cmd.DeviceID, "product_id", c.productID)
-				continue
-			}
-			logger.Debug("tuya command routed to device", "device_id", cmd.DeviceID, "dps", dps)
-			select {
-			case c.cmds <- dps:
-			default:
-				logger.Warn("tuya command dropped; queue full", "device_id", cmd.DeviceID)
-			}
-		}
+// DispatchState serializes one command through the device's persistent LAN connection.
+func (a *Adapter) DispatchState(ctx context.Context, command device.Command) error {
+	dev, found := a.reader.GetDevice(command.DeviceID)
+	if !found || dev.RuntimeDisabled() || dev.Source != device.SourceTuya {
+		return fmt.Errorf("device %q is not writable through Tuya", command.DeviceID)
 	}
+	a.mu.Lock()
+	connection := a.conns[command.DeviceID]
+	a.mu.Unlock()
+	if connection == nil {
+		return fmt.Errorf("device %q has no Tuya LAN connection", command.DeviceID)
+	}
+	dps := commandToDPS(command, connection.productID)
+	if len(dps) == 0 {
+		return fmt.Errorf("command for device %q produced no Tuya data points", command.DeviceID)
+	}
+	result := make(chan error, 1)
+	request := localCommand{dps: dps, result: result}
+	select {
+	case connection.cmds <- request:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	select {
+	case err := <-result:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// DispatchGroupState reports that Tuya has no provider-group multicast path.
+func (a *Adapter) DispatchGroupState(context.Context, device.ProviderGroupCommand) error {
+	return errors.New("Tuya provider groups are unavailable")
+}
+
+// DispatchConfiguration reports that Tuya configuration writes are unavailable.
+func (a *Adapter) DispatchConfiguration(context.Context, device.ConfigurationRequest) error {
+	return errors.New("Tuya device configuration is unavailable")
+}
+
+// DispatchNativeEffect reports that Tuya native effects are unavailable.
+func (a *Adapter) DispatchNativeEffect(context.Context, device.NativeEffectRequest) error {
+	return errors.New("Tuya native effects are unavailable")
 }
 
 func (a *Adapter) publishLocalState(id device.DeviceID, dps map[string]any, productID string) {
 	state := localDPSToState(dps, productID)
+	a.mu.Lock()
+	observer := a.observer
+	a.mu.Unlock()
+	observation := device.OutputObservation{Transition: state.Transition}
+	if observer != nil {
+		observation = observer.ObserveState(id, state)
+	}
 	a.writer.UpdateDeviceState(id, state)
+	reported := state
+	reported.Transition = observation.Transition
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  string(id),
 		Timestamp: time.Now(),
-		Payload:   device.DeviceStateChange{State: state},
+		Payload:   device.DeviceStateChange{State: reported, Origin: observation.Origin},
 	})
 }
 
