@@ -203,6 +203,12 @@ type ColorInput struct {
 	Y float64 `json:"y"`
 }
 
+type CommandTargetInput struct {
+	Type      CommandTargetType           `json:"type"`
+	ID        graphql.Omittable[*string]  `json:"id,omitempty"`
+	DeviceIds graphql.Omittable[[]string] `json:"deviceIds,omitempty"`
+}
+
 type ConnectionTestResult struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
@@ -1266,7 +1272,11 @@ type Zigbee2MqttConfig struct {
 	// When the in-flight topology scan was requested, null when none is running.
 	// The scan reports nothing until it finishes, so elapsed time is the only
 	// honest progress there is.
-	ScanStartedAt *time.Time `json:"scanStartedAt,omitempty"`
+	ScanStartedAt                *time.Time `json:"scanStartedAt,omitempty"`
+	InteractiveCommandsPerSecond int        `json:"interactiveCommandsPerSecond"`
+	ContinuousCommandsPerSecond  int        `json:"continuousCommandsPerSecond"`
+	// Devices currently sharing Zigbee's continuous output lane.
+	ActiveContinuousDeviceIds []string `json:"activeContinuousDeviceIds"`
 }
 
 type Zigbee2MqttConfigInput struct {
@@ -1280,8 +1290,10 @@ type Zigbee2MqttConfigInput struct {
 	ScanScheduleEnabled bool `json:"scanScheduleEnabled"`
 	// Daily scan time. Null while the schedule is disabled keeps the stored time,
 	// so switching the schedule off never erases it.
-	ScanHour   graphql.Omittable[*int] `json:"scanHour,omitempty"`
-	ScanMinute graphql.Omittable[*int] `json:"scanMinute,omitempty"`
+	ScanHour                     graphql.Omittable[*int] `json:"scanHour,omitempty"`
+	ScanMinute                   graphql.Omittable[*int] `json:"scanMinute,omitempty"`
+	InteractiveCommandsPerSecond int                     `json:"interactiveCommandsPerSecond"`
+	ContinuousCommandsPerSecond  int                     `json:"continuousCommandsPerSecond"`
 }
 
 type Zigbee2MqttDeviceDefinition struct {
@@ -1645,20 +1657,22 @@ func (e CapabilityCategory) MarshalJSON() ([]byte, error) {
 type CommandTargetType string
 
 const (
-	CommandTargetTypeDevice CommandTargetType = "DEVICE"
-	CommandTargetTypeGroup  CommandTargetType = "GROUP"
-	CommandTargetTypeRoom   CommandTargetType = "ROOM"
+	CommandTargetTypeDevice    CommandTargetType = "DEVICE"
+	CommandTargetTypeGroup     CommandTargetType = "GROUP"
+	CommandTargetTypeRoom      CommandTargetType = "ROOM"
+	CommandTargetTypeDeviceSet CommandTargetType = "DEVICE_SET"
 )
 
 var AllCommandTargetType = []CommandTargetType{
 	CommandTargetTypeDevice,
 	CommandTargetTypeGroup,
 	CommandTargetTypeRoom,
+	CommandTargetTypeDeviceSet,
 }
 
 func (e CommandTargetType) IsValid() bool {
 	switch e {
-	case CommandTargetTypeDevice, CommandTargetTypeGroup, CommandTargetTypeRoom:
+	case CommandTargetTypeDevice, CommandTargetTypeGroup, CommandTargetTypeRoom, CommandTargetTypeDeviceSet:
 		return true
 	}
 	return false

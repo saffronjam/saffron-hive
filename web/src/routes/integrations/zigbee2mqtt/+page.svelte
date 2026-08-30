@@ -16,7 +16,8 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import NumberInput from "$lib/components/number-input.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import { CircleCheck, CircleX, Loader2, Radar, Save, Unplug } from "@lucide/svelte";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
+	import { CircleCheck, CircleX, Info, Loader2, Radar, Save, Unplug } from "@lucide/svelte";
 
 	const ZIGBEE2MQTT_CONFIG_QUERY = graphql(`
 		query Zigbee2MqttConfigPage {
@@ -31,6 +32,8 @@
 				scanHour
 				scanMinute
 				scanStartedAt
+				interactiveCommandsPerSecond
+				continuousCommandsPerSecond
 			}
 		}
 	`);
@@ -48,6 +51,8 @@
 				scanHour
 				scanMinute
 				scanStartedAt
+				interactiveCommandsPerSecond
+				continuousCommandsPerSecond
 			}
 		}
 	`);
@@ -103,6 +108,8 @@
 		scanHour?: number | null;
 		scanMinute?: number | null;
 		scanStartedAt?: string | null;
+		interactiveCommandsPerSecond: number;
+		continuousCommandsPerSecond: number;
 	};
 
 	const client = getContextClient();
@@ -121,6 +128,8 @@
 	let scanScheduleEnabled = $state(false);
 	let scanHour = $state<number | null>(null);
 	let scanMinute = $state<number | null>(null);
+	let interactiveCommandsPerSecond = $state(10);
+	let continuousCommandsPerSecond = $state(2);
 	let lastScannedAt = $state<Date | null>(null);
 	let original = $state("");
 	let storedPassword = $state(false);
@@ -136,6 +145,8 @@
 			scanScheduleEnabled,
 			scanHour,
 			scanMinute,
+			interactiveCommandsPerSecond,
+			continuousCommandsPerSecond,
 		});
 	}
 
@@ -146,6 +157,18 @@
 		scanScheduleEnabled && (scanHour == null || scanMinute == null),
 	);
 	const frontendUrlError = $derived.by(() => validateFrontendUrl(frontendUrl));
+	const commandRateError = $derived.by(() => {
+		if (interactiveCommandsPerSecond < 1 || interactiveCommandsPerSecond > 50) {
+			return "Interactive rate must be between 1 and 50 commands per second.";
+		}
+		if (continuousCommandsPerSecond < 1 || continuousCommandsPerSecond > 10) {
+			return "Continuous rate must be between 1 and 10 commands per second.";
+		}
+		if (continuousCommandsPerSecond > interactiveCommandsPerSecond) {
+			return "Continuous rate cannot exceed the interactive rate.";
+		}
+		return "";
+	});
 
 	function validateFrontendUrl(value: string): string {
 		if (value.trim() === "") return "";
@@ -177,6 +200,8 @@
 			scanScheduleEnabled,
 			scanHour,
 			scanMinute,
+			interactiveCommandsPerSecond,
+			continuousCommandsPerSecond,
 		};
 	}
 
@@ -189,6 +214,8 @@
 		scanScheduleEnabled = config?.scanScheduleEnabled ?? false;
 		scanHour = config?.scanHour ?? null;
 		scanMinute = config?.scanMinute ?? null;
+		interactiveCommandsPerSecond = config?.interactiveCommandsPerSecond ?? 10;
+		continuousCommandsPerSecond = config?.continuousCommandsPerSecond ?? 2;
 		scanStartedAt = config?.scanStartedAt ? new Date(config.scanStartedAt) : null;
 		storedPassword = hasStoredSecret(config?.password);
 		password = "";
@@ -284,7 +311,12 @@
 				icon: Save,
 				onclick: saveConfig,
 				disabled:
-					!isDirty || saving || !hasBroker || scheduleIncomplete || frontendUrlError !== "",
+					!isDirty ||
+					saving ||
+					!hasBroker ||
+					scheduleIncomplete ||
+					frontendUrlError !== "" ||
+					commandRateError !== "",
 				hideLabelOnMobile: true,
 			},
 		];
@@ -416,12 +448,86 @@
 		</div>
 
 		<div class="mt-8 border-t border-border pt-6 grid gap-4 max-w-xl">
-			<div>
+			<div class="flex items-center gap-1.5">
+				<h2 class="text-sm font-semibold">Command traffic</h2>
+				<Tooltip>
+					<TooltipTrigger class="text-muted-foreground" aria-label="About command traffic">
+						<Info class="size-3.5" />
+					</TooltipTrigger>
+					<TooltipContent>
+						Interactive work includes controls, automations, and applying a scene. Continuous work
+						keeps moving scenes in motion and yields while interactive work is waiting.
+					</TooltipContent>
+				</Tooltip>
+			</div>
+
+			<div class="grid gap-4 sm:grid-cols-2">
+				<div class="grid gap-1.5">
+					<div class="flex items-center gap-1.5">
+						<label for="z2m-interactive-rate" class="text-sm font-medium">
+							Interactive commands per second
+						</label>
+						<Tooltip>
+							<TooltipTrigger class="text-muted-foreground" aria-label="About interactive command rate">
+								<Info class="size-3.5" />
+							</TooltipTrigger>
+							<TooltipContent>
+								Commands from controls, automations, and applying scenes. They take priority over
+								continuous updates.
+							</TooltipContent>
+						</Tooltip>
+					</div>
+					<NumberInput
+						id="z2m-interactive-rate"
+						value={interactiveCommandsPerSecond}
+						onValueChange={(value) => (interactiveCommandsPerSecond = value ?? 10)}
+						min={1}
+						max={50}
+						disabled={!loaded}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<div class="flex items-center gap-1.5">
+						<label for="z2m-continuous-rate" class="text-sm font-medium">
+							Continuous commands per second
+						</label>
+						<Tooltip>
+							<TooltipTrigger class="text-muted-foreground" aria-label="About continuous command rate">
+								<Info class="size-3.5" />
+							</TooltipTrigger>
+							<TooltipContent>
+								Background updates that keep moving scenes in motion. They yield while interactive
+								commands are waiting.
+							</TooltipContent>
+						</Tooltip>
+					</div>
+					<NumberInput
+						id="z2m-continuous-rate"
+						value={continuousCommandsPerSecond}
+						onValueChange={(value) => (continuousCommandsPerSecond = value ?? 2)}
+						min={1}
+						max={10}
+						disabled={!loaded}
+					/>
+				</div>
+			</div>
+			{#if commandRateError}
+				<FieldError id="z2m-command-rate-error" message={commandRateError} />
+			{/if}
+		</div>
+
+		<div class="mt-8 border-t border-border pt-6 grid gap-4 max-w-xl">
+			<div class="flex items-center gap-1.5">
 				<h2 class="text-sm font-semibold">Network topology</h2>
-				<p class="mt-1 text-sm text-muted-foreground">
-					A scan maps which devices relay for which, shown as the map's Connectivity view. It
-					takes a few minutes and slows the Zigbee network while it runs.
-				</p>
+				<Tooltip>
+					<TooltipTrigger class="text-muted-foreground" aria-label="About network topology">
+						<Info class="size-3.5" />
+					</TooltipTrigger>
+					<TooltipContent>
+						A scan maps which devices relay for which, shown as the map's Connectivity view. It
+						takes a few minutes and slows the Zigbee network while it runs.
+					</TooltipContent>
+				</Tooltip>
 			</div>
 
 			<div class="flex flex-wrap items-center gap-3">
@@ -491,7 +597,8 @@
 			<li>3. Enable zigbee2mqtt's availability feature for online / offline state.</li>
 		</ol>
 		<p class="mt-4 text-sm text-muted-foreground">
-			Saving reconnects to the broker. Device subscriptions are interrupted briefly.
+			Connection and scan-schedule changes reconnect to the broker. Command-rate changes apply
+			without interrupting device subscriptions.
 		</p>
 	</aside>
 </div>

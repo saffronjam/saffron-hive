@@ -575,23 +575,52 @@ func zigbee2MQTTScanSchedule(ctx context.Context, s GraphStore, input model.Zigb
 	return hour, minute, nil
 }
 
-func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig, scanStartedAt *time.Time) *model.Zigbee2MqttConfig {
+func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig, scanStartedAt *time.Time, activeContinuousDeviceIDs []device.DeviceID) *model.Zigbee2MqttConfig {
 	password := ""
 	if cfg.Password != "" {
 		password = redactedPasswordSentinel
 	}
-	return &model.Zigbee2MqttConfig{
-		Broker:              cfg.Broker,
-		FrontendURL:         cfg.FrontendURL,
-		Username:            cfg.Username,
-		Password:            password,
-		UseWss:              cfg.UseWSS,
-		Enabled:             cfg.Enabled,
-		ScanScheduleEnabled: cfg.ScanScheduleEnabled,
-		ScanHour:            intPtrFromInt64(cfg.ScanHour),
-		ScanMinute:          intPtrFromInt64(cfg.ScanMinute),
-		ScanStartedAt:       scanStartedAt,
+	activeIDs := make([]string, len(activeContinuousDeviceIDs))
+	for index, id := range activeContinuousDeviceIDs {
+		activeIDs[index] = string(id)
 	}
+	return &model.Zigbee2MqttConfig{
+		Broker:                       cfg.Broker,
+		FrontendURL:                  cfg.FrontendURL,
+		Username:                     cfg.Username,
+		Password:                     password,
+		UseWss:                       cfg.UseWSS,
+		Enabled:                      cfg.Enabled,
+		ScanScheduleEnabled:          cfg.ScanScheduleEnabled,
+		ScanHour:                     intPtrFromInt64(cfg.ScanHour),
+		ScanMinute:                   intPtrFromInt64(cfg.ScanMinute),
+		ScanStartedAt:                scanStartedAt,
+		InteractiveCommandsPerSecond: int(cfg.InteractiveCommandsPerSecond),
+		ContinuousCommandsPerSecond:  int(cfg.ContinuousCommandsPerSecond),
+		ActiveContinuousDeviceIds:    activeIDs,
+	}
+}
+
+func (r *Resolver) activeContinuousDeviceIDs(provider device.Source) []device.DeviceID {
+	if r.OutputStatus == nil {
+		return []device.DeviceID{}
+	}
+	return r.OutputStatus.ContinuousDeviceIDs(provider)
+}
+
+func zigbee2MQTTConnectionUnchanged(left, right store.Zigbee2MQTTConfig) bool {
+	return left.Broker == right.Broker &&
+		left.Username == right.Username &&
+		left.Password == right.Password &&
+		left.UseWSS == right.UseWSS &&
+		left.Enabled == right.Enabled &&
+		left.ScanScheduleEnabled == right.ScanScheduleEnabled &&
+		pointerEqual(left.ScanHour, right.ScanHour) &&
+		pointerEqual(left.ScanMinute, right.ScanMinute)
+}
+
+func pointerEqual[T comparable](left, right *T) bool {
+	return left == nil && right == nil || left != nil && right != nil && *left == *right
 }
 
 func intPtrFromInt64(v *int64) *int {

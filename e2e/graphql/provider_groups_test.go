@@ -159,7 +159,7 @@ func TestProviderGroupsLifecycleOwnershipAndMulticast(t *testing.T) {
 		t.Fatalf("subscribe multicast commands: %v", err)
 	}
 	if _, err := graphqlMutation(`mutation($id: ID!) {
-		setTargetState(targetType: GROUP, targetId: $id, state: { on: true })
+		setTargetState(target: { type: GROUP, id: $id }, state: { on: true })
 	}`, map[string]any{"id": e2eProviderGroupID}); err != nil {
 		t.Fatalf("command provider group: %v", err)
 	}
@@ -337,7 +337,7 @@ multicastDone:
 		t.Fatalf("subscribe fallback commands: %v", err)
 	}
 	if _, err := graphqlMutation(`mutation($id: ID!) {
-		setTargetState(targetType: GROUP, targetId: $id, state: { on: false })
+		setTargetState(target: { type: GROUP, id: $id }, state: { on: false })
 	}`, map[string]any{"id": e2eProviderGroupID}); err != nil {
 		t.Fatalf("command group with disabled member: %v", err)
 	}

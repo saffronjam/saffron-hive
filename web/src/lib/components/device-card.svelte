@@ -133,7 +133,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+			setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
 		}
 	`);
 
@@ -177,7 +177,7 @@
 
 	<Card
 		size="sm"
-		class="device-list-card h-full min-h-28 transition-all {isNew
+		class="h-full min-h-28 transition-all {isNew
 			? 'ring-new'
 			: 'hover:shadow-card-hover'} {tintColor
 			? 'tint-1'

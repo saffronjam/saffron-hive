@@ -221,7 +221,7 @@ func TestDevices_SetDeviceState(t *testing.T) {
 	}
 
 	_, err = graphqlMutation(`mutation($deviceId: ID!, $state: DeviceStateInput!) {
-		setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+		setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
 	}`, map[string]any{
 		"deviceId": deviceID,
 		"state": map[string]any{
@@ -303,7 +303,7 @@ func TestDevices_DeleteAndRestore(t *testing.T) {
 	}
 
 	command := `mutation($deviceId: ID!, $state: DeviceStateInput!) {
-		setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+		setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
 	}`
 	commandVariables := map[string]any{
 		"deviceId": deviceID,
@@ -477,7 +477,7 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 
 func TestDevices_SetDeviceState_InvalidID(t *testing.T) {
 	err := graphqlMutationExpectError(`mutation($deviceId: ID!, $state: DeviceStateInput!) {
-		setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+		setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
 	}`, map[string]any{
 		"deviceId": "nonexistent-device-id",
 		"state": map[string]any{

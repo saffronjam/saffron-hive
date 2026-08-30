@@ -31,6 +31,9 @@ func TestSubscriptionDeviceStateChanged(t *testing.T) {
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  "d1",
 		Timestamp: time.Now(),
+		Payload: device.DeviceStateChange{
+			State: device.DeviceState{Brightness: device.Ptr(200), Transition: device.Ptr(1.8)},
+		},
 	})
 
 	select {
@@ -43,6 +46,9 @@ func TestSubscriptionDeviceStateChanged(t *testing.T) {
 		}
 		if evt.State.On == nil || !*evt.State.On {
 			t.Error("expected on=true")
+		}
+		if evt.State.Transition == nil || *evt.State.Transition != 1.8 {
+			t.Errorf("expected transition=1.8, got %v", evt.State.Transition)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for subscription event")

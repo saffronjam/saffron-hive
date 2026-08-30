@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from "svelte";
 	import { getContextClient } from "@urql/svelte";
+	import { graphql } from "$lib/gql";
 	import { flip } from "svelte/animate";
 	import { cubicIn, cubicOut } from "svelte/easing";
 	import { fly, slide } from "svelte/transition";
@@ -87,6 +88,15 @@
 		X,
 	} from "@lucide/svelte";
 
+	const SCENE_OUTPUT_RATE_QUERY = graphql(`
+		query SceneOutputRate {
+			zigbee2MqttConfig {
+				continuousCommandsPerSecond
+				activeContinuousDeviceIds
+			}
+		}
+	`);
+
 	type DirectTargetKind = "device" | "group" | "room";
 
 	interface Props {
@@ -133,6 +143,8 @@
 	let previewCycleSeconds = $state(720);
 	let previewPacePosition = $state(cycleSecondsToPacePosition(720));
 	let previewSeed = $state("0");
+	let continuousCommandsPerSecond = $state(2);
+	let activeContinuousDeviceIds = $state<string[]>([]);
 
 	onMount(() => {
 		const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -140,7 +152,21 @@
 		syncMotion();
 		media.addEventListener("change", syncMotion);
 		requestAnimationFrame(() => (rowTransitionsReady = true));
-		return () => media.removeEventListener("change", syncMotion);
+		const loadOutputRate = () => client
+			.query(SCENE_OUTPUT_RATE_QUERY, {}, { requestPolicy: "network-only" })
+			.toPromise()
+			.then((result) => {
+				continuousCommandsPerSecond =
+					result.data?.zigbee2MqttConfig?.continuousCommandsPerSecond ?? 2;
+				activeContinuousDeviceIds =
+					result.data?.zigbee2MqttConfig?.activeContinuousDeviceIds ?? [];
+			});
+		void loadOutputRate();
+		const outputRateTimer = setInterval(() => void loadOutputRate(), 5000);
+		return () => {
+			media.removeEventListener("change", syncMotion);
+			clearInterval(outputRateTimer);
+		};
 	});
 
 	$effect(() => {
@@ -161,6 +187,37 @@
 	const resolvedLights = $derived(
 		resolveSceneTargetLights(editor.targets, devices, groups, rooms, { includeDisabled: true }),
 	);
+	const dynamicZigbeeLightIds = $derived.by(() => {
+		const excluded = new Set(
+			Array.from(editor.overrides.values())
+				.map((override) => override.deviceId),
+		);
+		return resolvedLights.filter(
+			(device) =>
+				device.source === "zigbee2mqtt" &&
+				!device.disabled &&
+				!device.deleted &&
+				!excluded.has(device.id),
+		).map((device) => device.id);
+	});
+	const dynamicZigbeeLightCount = $derived(dynamicZigbeeLightIds.length);
+	const projectedContinuousZigbeeLightCount = $derived(
+		new Set([...activeContinuousDeviceIds, ...dynamicZigbeeLightIds]).size,
+	);
+	const zigbeeRevisitSeconds = $derived(
+		projectedContinuousZigbeeLightCount / Math.max(1, continuousCommandsPerSecond),
+	);
+	const zigbeeUpdatesPerCycle = $derived(
+		zigbeeRevisitSeconds > 0 ? previewCycleSeconds / zigbeeRevisitSeconds : 0,
+	);
+	const zigbeeMotionBands = $derived(
+		dynamicZigbeeLightCount === 0 ? 3 : Math.min(3, Math.floor(zigbeeUpdatesPerCycle / 4)),
+	);
+
+	function formatRevisit(seconds: number): string {
+		if (seconds < 1) return `${Math.round(seconds * 10) / 10}s`;
+		return `${Math.round(seconds)}s`;
+	}
 	const targetDrawerGroups = $derived.by((): DrawerGroup<DirectTargetKind>[] => {
 		const existing = new Set(editor.targets.filter((target) => target.type !== "expression").map((target) => `${target.type}:${target.id}`));
 		return [
@@ -748,11 +805,28 @@
 				</div>
 			</div>
 			<div class="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-				<div class="min-h-80 overflow-hidden rounded-lg"><VibePreview {preview} brightness={previewBrightness} movement={previewMovement} cycleSeconds={previewCycleSeconds} seed={previewSeed} /></div>
+				<div class="min-h-80 overflow-hidden rounded-lg"><VibePreview {preview} brightness={previewBrightness} movement={previewMovement} cycleSeconds={previewCycleSeconds} seed={previewSeed} maximumTemporalFrequency={zigbeeMotionBands} /></div>
 				<div class="space-y-5">
 					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-brightness">Brightness</label><span class="tabular-nums text-muted-foreground">{Math.round(previewBrightness * 100)}%</span></div><Slider id="scene-vibe-brightness" type="single" min={0.05} max={1} step={0.01} bind:value={previewBrightness} onValueCommit={(value) => updateDynamic({ brightness: value })} /></div>
 					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-movement">Movement</label><span class="text-muted-foreground">{previewMovement === 0 ? "Still" : previewMovement < 0.4 ? "Gentle" : previewMovement < 0.75 ? "Flowing" : "Alive"}</span></div><Slider id="scene-vibe-movement" type="single" min={0} max={1} step={0.01} bind:value={previewMovement} onValueCommit={(value) => updateDynamic({ movement: value })} /></div>
-					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-pace">Pace</label><span class="tabular-nums text-muted-foreground">{formatVibeCycle(previewCycleSeconds)}</span></div><Slider id="scene-vibe-pace" type="single" min={0} max={100} step={1} bind:value={previewPacePosition} onValueChange={(value) => (previewCycleSeconds = pacePositionToCycleSeconds(value))} onValueCommit={(value) => { previewCycleSeconds = pacePositionToCycleSeconds(value); updateDynamic({ cycleSeconds: previewCycleSeconds }); }} disabled={previewMovement === 0} /></div>
+					<div class="space-y-2">
+						<div class="flex justify-between text-sm"><label for="scene-vibe-pace">Pace</label><span class="tabular-nums text-muted-foreground">{formatVibeCycle(previewCycleSeconds)}</span></div>
+						<Slider id="scene-vibe-pace" type="single" min={0} max={100} step={1} bind:value={previewPacePosition} onValueChange={(value) => (previewCycleSeconds = pacePositionToCycleSeconds(value))} onValueCommit={(value) => { previewCycleSeconds = pacePositionToCycleSeconds(value); updateDynamic({ cycleSeconds: previewCycleSeconds }); }} disabled={previewMovement === 0} />
+						{#if previewMovement > 0 && dynamicZigbeeLightCount > 0}
+							<p class="text-xs text-muted-foreground">
+								{dynamicZigbeeLightCount} {dynamicZigbeeLightCount === 1 ? "scene light" : "scene lights"} · {projectedContinuousZigbeeLightCount} Zigbee {projectedContinuousZigbeeLightCount === 1 ? "light" : "lights"} sharing continuous output · about {formatRevisit(zigbeeRevisitSeconds)} between updates per light.
+							</p>
+							{#if zigbeeMotionBands === 0}
+								<p class="text-xs text-destructive">
+									This cycle is too fast for the available continuous output. Hive will hold the motion still to avoid abrupt colour jumps. Choose a longer cycle or increase the continuous command rate.
+								</p>
+							{:else if zigbeeMotionBands < 3}
+								<p class="text-xs text-muted-foreground">
+									Hive will simplify the motion to keep transitions smooth. Choose a longer cycle or increase the continuous command rate for full motion detail.
+								</p>
+							{/if}
+						{/if}
+					</div>
 					<Button variant="outline" size="sm" onclick={shuffleVibe}><Shuffle class="size-4" /> Shuffle</Button>
 				</div>
 			</div>

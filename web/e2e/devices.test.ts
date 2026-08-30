@@ -133,7 +133,7 @@ interface BridgeDevice {
 
 const SET_DEVICE_STATE = graphql(`
   mutation E2ESetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-    setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+    setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
   }
 `);
 
@@ -273,6 +273,22 @@ describe("devices", () => {
     expect(p100.data?.device?.zigbee2Mqtt?.endpoints).toHaveLength(2);
     expect(p100.data?.device?.zigbee2Mqtt?.endpoints[0].bindings).toHaveLength(2);
     expect(p100.data?.device?.zigbee2Mqtt?.endpoints[0].reportings).toHaveLength(1);
+
+    await expect
+      .poll(
+        async () => {
+          const result = await graphqlClient
+            .query(
+              ZIGBEE_METADATA_QUERY,
+              { id: "0x00124b0000000001" },
+              { requestPolicy: "network-only" },
+            )
+            .toPromise();
+          return result.data?.device?.zigbee2Mqtt?.supported;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(false);
 
     const unsupported = await graphqlClient
       .query(ZIGBEE_METADATA_QUERY, { id: "0x00124b0000000001" }, { requestPolicy: "network-only" })

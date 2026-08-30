@@ -484,7 +484,7 @@ type ComplexityRoot struct {
 		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
 		ScanZigbee2MqttNetwork      func(childComplexity int) int
 		SetDeviceConfiguration      func(childComplexity int, deviceID string, settings []*model.DeviceConfigurationEntryInput) int
-		SetTargetState              func(childComplexity int, targetType model.CommandTargetType, targetID string, state model.DeviceStateInput) int
+		SetTargetState              func(childComplexity int, target model.CommandTargetInput, state model.DeviceStateInput) int
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
 		SyncTuyaDevices             func(childComplexity int) int
@@ -841,16 +841,19 @@ type ComplexityRoot struct {
 	}
 
 	Zigbee2MqttConfig struct {
-		Broker              func(childComplexity int) int
-		Enabled             func(childComplexity int) int
-		FrontendURL         func(childComplexity int) int
-		Password            func(childComplexity int) int
-		ScanHour            func(childComplexity int) int
-		ScanMinute          func(childComplexity int) int
-		ScanScheduleEnabled func(childComplexity int) int
-		ScanStartedAt       func(childComplexity int) int
-		UseWss              func(childComplexity int) int
-		Username            func(childComplexity int) int
+		ActiveContinuousDeviceIds    func(childComplexity int) int
+		Broker                       func(childComplexity int) int
+		ContinuousCommandsPerSecond  func(childComplexity int) int
+		Enabled                      func(childComplexity int) int
+		FrontendURL                  func(childComplexity int) int
+		InteractiveCommandsPerSecond func(childComplexity int) int
+		Password                     func(childComplexity int) int
+		ScanHour                     func(childComplexity int) int
+		ScanMinute                   func(childComplexity int) int
+		ScanScheduleEnabled          func(childComplexity int) int
+		ScanStartedAt                func(childComplexity int) int
+		UseWss                       func(childComplexity int) int
+		Username                     func(childComplexity int) int
 	}
 
 	Zigbee2MqttDeviceDefinition struct {
@@ -940,7 +943,7 @@ type MutationResolver interface {
 	RestoreDevice(ctx context.Context, id string) (*model.Device, error)
 	BatchDeleteDevices(ctx context.Context, ids []string) (int, error)
 	BatchRestoreDevices(ctx context.Context, ids []string) (int, error)
-	SetTargetState(ctx context.Context, targetType model.CommandTargetType, targetID string, state model.DeviceStateInput) (bool, error)
+	SetTargetState(ctx context.Context, target model.CommandTargetInput, state model.DeviceStateInput) (bool, error)
 	SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceConfigurationEntryInput) (bool, error)
 	SimulateDeviceAction(ctx context.Context, deviceID string, action string) (bool, error)
 	ApplyScene(ctx context.Context, sceneID string) (*model.Scene, error)
@@ -3270,7 +3273,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetTargetState(childComplexity, args["targetType"].(model.CommandTargetType), args["targetId"].(string), args["state"].(model.DeviceStateInput)), true
+		return e.ComplexityRoot.Mutation.SetTargetState(childComplexity, args["target"].(model.CommandTargetInput), args["state"].(model.DeviceStateInput)), true
 	case "Mutation.simulateDeviceAction":
 		if e.ComplexityRoot.Mutation.SimulateDeviceAction == nil {
 			break
@@ -4967,12 +4970,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Zigbee2MqttBridgeInfo.ZigbeeHerdsmanVersion(childComplexity), true
 
+	case "Zigbee2MqttConfig.activeContinuousDeviceIds":
+		if e.ComplexityRoot.Zigbee2MqttConfig.ActiveContinuousDeviceIds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.ActiveContinuousDeviceIds(childComplexity), true
 	case "Zigbee2MqttConfig.broker":
 		if e.ComplexityRoot.Zigbee2MqttConfig.Broker == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttConfig.Broker(childComplexity), true
+	case "Zigbee2MqttConfig.continuousCommandsPerSecond":
+		if e.ComplexityRoot.Zigbee2MqttConfig.ContinuousCommandsPerSecond == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.ContinuousCommandsPerSecond(childComplexity), true
 	case "Zigbee2MqttConfig.enabled":
 		if e.ComplexityRoot.Zigbee2MqttConfig.Enabled == nil {
 			break
@@ -4985,6 +5000,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttConfig.FrontendURL(childComplexity), true
+	case "Zigbee2MqttConfig.interactiveCommandsPerSecond":
+		if e.ComplexityRoot.Zigbee2MqttConfig.InteractiveCommandsPerSecond == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.InteractiveCommandsPerSecond(childComplexity), true
 	case "Zigbee2MqttConfig.password":
 		if e.ComplexityRoot.Zigbee2MqttConfig.Password == nil {
 			break
@@ -5389,6 +5410,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAutomationNodeInput,
 		ec.unmarshalInputChangePasswordInput,
 		ec.unmarshalInputColorInput,
+		ec.unmarshalInputCommandTargetInput,
 		ec.unmarshalInputCreateAutomationInput,
 		ec.unmarshalInputCreateEffectInput,
 		ec.unmarshalInputCreateGroupInput,
@@ -6622,6 +6644,10 @@ type Zigbee2MqttConfig {
   honest progress there is.
   """
   scanStartedAt: DateTime
+  interactiveCommandsPerSecond: Int!
+  continuousCommandsPerSecond: Int!
+  "Devices currently sharing Zigbee's continuous output lane."
+  activeContinuousDeviceIds: [ID!]!
 }
 
 type Integration {
@@ -6824,6 +6850,8 @@ input Zigbee2MqttConfigInput {
   """
   scanHour: Int
   scanMinute: Int
+  interactiveCommandsPerSecond: Int! = 10
+  continuousCommandsPerSecond: Int! = 2
 }
 
 input TuyaConfigInput {
@@ -6849,6 +6877,13 @@ enum CommandTargetType {
   DEVICE
   GROUP
   ROOM
+  DEVICE_SET
+}
+
+input CommandTargetInput {
+  type: CommandTargetType!
+  id: ID
+  deviceIds: [ID!]
 }
 
 input DeviceConfigurationEntryInput {
@@ -7184,7 +7219,7 @@ type Mutation {
   restoreDevice(id: ID!): Device! @auth
   batchDeleteDevices(ids: [ID!]!): Int! @auth
   batchRestoreDevices(ids: [ID!]!): Int! @auth
-  setTargetState(targetType: CommandTargetType!, targetId: ID!, state: DeviceStateInput!): Boolean! @auth
+  setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
@@ -7960,21 +7995,16 @@ func (ec *executionContext) field_Mutation_setDeviceConfiguration_args(ctx conte
 func (ec *executionContext) field_Mutation_setTargetState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "targetType", ec.unmarshalNCommandTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetType)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "target", ec.unmarshalNCommandTargetInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetInput)
 	if err != nil {
 		return nil, err
 	}
-	args["targetType"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetId", ec.unmarshalNID2string)
+	args["target"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "state", ec.unmarshalNDeviceStateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceStateInput)
 	if err != nil {
 		return nil, err
 	}
-	args["targetId"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "state", ec.unmarshalNDeviceStateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceStateInput)
-	if err != nil {
-		return nil, err
-	}
-	args["state"] = arg2
+	args["state"] = arg1
 	return args, nil
 }
 
@@ -17272,7 +17302,7 @@ func (ec *executionContext) _Mutation_setTargetState(ctx context.Context, field 
 		ec.fieldContext_Mutation_setTargetState,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetTargetState(ctx, fc.Args["targetType"].(model.CommandTargetType), fc.Args["targetId"].(string), fc.Args["state"].(model.DeviceStateInput))
+			return ec.Resolvers.Mutation().SetTargetState(ctx, fc.Args["target"].(model.CommandTargetInput), fc.Args["state"].(model.DeviceStateInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -19232,6 +19262,12 @@ func (ec *executionContext) fieldContext_Mutation_updateZigbee2MqttConfig(ctx co
 				return ec.fieldContext_Zigbee2MqttConfig_scanMinute(ctx, field)
 			case "scanStartedAt":
 				return ec.fieldContext_Zigbee2MqttConfig_scanStartedAt(ctx, field)
+			case "interactiveCommandsPerSecond":
+				return ec.fieldContext_Zigbee2MqttConfig_interactiveCommandsPerSecond(ctx, field)
+			case "continuousCommandsPerSecond":
+				return ec.fieldContext_Zigbee2MqttConfig_continuousCommandsPerSecond(ctx, field)
+			case "activeContinuousDeviceIds":
+				return ec.fieldContext_Zigbee2MqttConfig_activeContinuousDeviceIds(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
 		},
@@ -23667,6 +23703,12 @@ func (ec *executionContext) fieldContext_Query_zigbee2MqttConfig(_ context.Conte
 				return ec.fieldContext_Zigbee2MqttConfig_scanMinute(ctx, field)
 			case "scanStartedAt":
 				return ec.fieldContext_Zigbee2MqttConfig_scanStartedAt(ctx, field)
+			case "interactiveCommandsPerSecond":
+				return ec.fieldContext_Zigbee2MqttConfig_interactiveCommandsPerSecond(ctx, field)
+			case "continuousCommandsPerSecond":
+				return ec.fieldContext_Zigbee2MqttConfig_continuousCommandsPerSecond(ctx, field)
+			case "activeContinuousDeviceIds":
+				return ec.fieldContext_Zigbee2MqttConfig_activeContinuousDeviceIds(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
 		},
@@ -30481,6 +30523,93 @@ func (ec *executionContext) fieldContext_Zigbee2MqttConfig_scanStartedAt(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Zigbee2MqttConfig_interactiveCommandsPerSecond(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_interactiveCommandsPerSecond,
+		func(ctx context.Context) (any, error) {
+			return obj.InteractiveCommandsPerSecond, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_interactiveCommandsPerSecond(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_continuousCommandsPerSecond(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_continuousCommandsPerSecond,
+		func(ctx context.Context) (any, error) {
+			return obj.ContinuousCommandsPerSecond, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_continuousCommandsPerSecond(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_activeContinuousDeviceIds(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_activeContinuousDeviceIds,
+		func(ctx context.Context) (any, error) {
+			return obj.ActiveContinuousDeviceIds, nil
+		},
+		nil,
+		ec.marshalNID2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_activeContinuousDeviceIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Zigbee2MqttDeviceDefinition_model(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceDefinition) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -34164,6 +34293,50 @@ func (ec *executionContext) unmarshalInputColorInput(ctx context.Context, obj an
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCommandTargetInput(ctx context.Context, obj any) (model.CommandTargetInput, error) {
+	var it model.CommandTargetInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"type", "id", "deviceIds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalNCommandTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = graphql.OmittableOf(data)
+		case "deviceIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceIds = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Context, obj any) (model.CreateAutomationInput, error) {
 	var it model.CreateAutomationInput
 	if obj == nil {
@@ -36682,7 +36855,14 @@ func (ec *executionContext) unmarshalInputZigbee2MqttConfigInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"broker", "frontendUrl", "username", "password", "useWss", "enabled", "scanScheduleEnabled", "scanHour", "scanMinute"}
+	if _, present := asMap["interactiveCommandsPerSecond"]; !present {
+		asMap["interactiveCommandsPerSecond"] = 10
+	}
+	if _, present := asMap["continuousCommandsPerSecond"]; !present {
+		asMap["continuousCommandsPerSecond"] = 2
+	}
+
+	fieldsInOrder := [...]string{"broker", "frontendUrl", "username", "password", "useWss", "enabled", "scanScheduleEnabled", "scanHour", "scanMinute", "interactiveCommandsPerSecond", "continuousCommandsPerSecond"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -36752,6 +36932,20 @@ func (ec *executionContext) unmarshalInputZigbee2MqttConfigInput(ctx context.Con
 				return it, err
 			}
 			it.ScanMinute = graphql.OmittableOf(data)
+		case "interactiveCommandsPerSecond":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("interactiveCommandsPerSecond"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.InteractiveCommandsPerSecond = data
+		case "continuousCommandsPerSecond":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("continuousCommandsPerSecond"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContinuousCommandsPerSecond = data
 		}
 	}
 	return it, nil
@@ -42730,6 +42924,21 @@ func (ec *executionContext) _Zigbee2MqttConfig(ctx context.Context, sel ast.Sele
 			out.Values[i] = ec._Zigbee2MqttConfig_scanMinute(ctx, field, obj)
 		case "scanStartedAt":
 			out.Values[i] = ec._Zigbee2MqttConfig_scanStartedAt(ctx, field, obj)
+		case "interactiveCommandsPerSecond":
+			out.Values[i] = ec._Zigbee2MqttConfig_interactiveCommandsPerSecond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "continuousCommandsPerSecond":
+			out.Values[i] = ec._Zigbee2MqttConfig_continuousCommandsPerSecond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "activeContinuousDeviceIds":
+			out.Values[i] = ec._Zigbee2MqttConfig_activeContinuousDeviceIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -43927,6 +44136,11 @@ func (ec *executionContext) marshalNCapabilityCategory2githubᚗcomᚋsaffronjam
 
 func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐChangePasswordInput(ctx context.Context, v any) (model.ChangePasswordInput, error) {
 	res, err := ec.unmarshalInputChangePasswordInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCommandTargetInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetInput(ctx context.Context, v any) (model.CommandTargetInput, error) {
+	res, err := ec.unmarshalInputCommandTargetInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -46762,6 +46976,42 @@ func (ec *executionContext) unmarshalOGuidedVibeRecipeInput2ᚖgithubᚗcomᚋsa
 	}
 	res, err := ec.unmarshalInputGuidedVibeRecipeInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {

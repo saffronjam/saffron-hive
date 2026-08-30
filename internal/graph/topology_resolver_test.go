@@ -14,9 +14,11 @@ import (
 
 func z2mInput(scheduleEnabled bool, hour, minute *int) model.Zigbee2MqttConfigInput {
 	in := model.Zigbee2MqttConfigInput{
-		Broker:              "mqtt.example.com:1883",
-		Enabled:             true,
-		ScanScheduleEnabled: scheduleEnabled,
+		Broker:                       "mqtt.example.com:1883",
+		Enabled:                      true,
+		ScanScheduleEnabled:          scheduleEnabled,
+		InteractiveCommandsPerSecond: 10,
+		ContinuousCommandsPerSecond:  2,
 	}
 	if hour != nil {
 		in.ScanHour = graphql.OmittableOf(hour)
@@ -84,6 +86,37 @@ func TestUpdateZigbee2MqttConfigDisableKeepsStoredTime(t *testing.T) {
 	}
 	if st.zigbee2mqttCfg.ScanHour == nil || *st.zigbee2mqttCfg.ScanHour != 4 {
 		t.Fatalf("stored time erased: %+v", st.zigbee2mqttCfg)
+	}
+}
+
+func TestUpdateZigbee2MqttConfigAppliesRateOnlyChangeWithoutReconnect(t *testing.T) {
+	st := newMockStore()
+	st.zigbee2mqttCfg = &store.Zigbee2MQTTConfig{
+		Broker: "mqtt.example.com:1883", Enabled: true,
+		InteractiveCommandsPerSecond: 10, ContinuousCommandsPerSecond: 2,
+	}
+	controller := &mockIntegrationController{}
+	r := &Resolver{Store: st, Zigbee2MQTT: controller}
+	input := z2mInput(false, nil, nil)
+	input.InteractiveCommandsPerSecond = 8
+	input.ContinuousCommandsPerSecond = 1
+
+	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), input); err != nil {
+		t.Fatal(err)
+	}
+	if controller.reconnects != 0 || len(controller.rateUpdates) != 1 || controller.rateUpdates[0] != [2]int{8, 1} {
+		t.Fatalf("reconnects=%d rate updates=%v", controller.reconnects, controller.rateUpdates)
+	}
+}
+
+func TestUpdateZigbee2MqttConfigValidatesCommandRates(t *testing.T) {
+	for _, rates := range [][2]int{{0, 1}, {51, 1}, {10, 0}, {10, 11}, {2, 3}} {
+		input := z2mInput(false, nil, nil)
+		input.InteractiveCommandsPerSecond = rates[0]
+		input.ContinuousCommandsPerSecond = rates[1]
+		if _, err := (&mutationResolver{&Resolver{Store: newMockStore()}}).UpdateZigbee2MqttConfig(context.Background(), input); err == nil {
+			t.Fatalf("rates %v accepted", rates)
+		}
 	}
 }
 

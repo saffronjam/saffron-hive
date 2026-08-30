@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mount, unmount } from "svelte";
+import { flushSync, mount, tick, unmount } from "svelte";
 import SceneEditor from "$lib/components/scene-editor.svelte";
 import VibeSourcePicker from "$lib/components/vibe-source-picker.svelte";
 import { createMockClient } from "../helpers/mock-client";
@@ -55,7 +55,6 @@ beforeEach(() => {
 
 afterEach(async () => {
   if (instance) await unmount(instance);
-  await new Promise((resolve) => setTimeout(resolve, 30));
   instance = null;
   host.remove();
   vi.restoreAllMocks();
@@ -72,8 +71,9 @@ describe("SceneEditor", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("Night sky"));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    flushSync();
+    await tick();
+    expect(host.textContent).toContain("Night sky");
     expect(onchange).not.toHaveBeenCalled();
     expect(host.textContent).not.toContain("Fallback");
     expect(host.textContent).not.toContain("Used by lights without an override");
@@ -94,7 +94,8 @@ describe("SceneEditor", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("Targets"));
+    flushSync();
+    expect(host.textContent).toContain("Targets");
     expect(host.textContent).toContain("Add source");
     expect(host.textContent).not.toContain("Lighting");
     expect(host.textContent).not.toContain("Fallback");
@@ -114,7 +115,8 @@ describe("SceneEditor", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("Night sky"));
+    flushSync();
+    expect(host.textContent).toContain("Night sky");
     expect(host.querySelector('[role="tab"][data-value="targets"]')).not.toBeNull();
     expect(host.querySelector('[role="tab"][data-value="supporting"]')).not.toBeNull();
   });
@@ -146,7 +148,8 @@ describe("SceneEditor", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("Flori"));
+    flushSync();
+    expect(host.textContent).toContain("Flori");
     const targets = Array.from(host.querySelectorAll("section")).find((section) =>
       section.textContent?.includes("Targets"),
     );
@@ -156,7 +159,8 @@ describe("SceneEditor", () => {
     const expansion = row?.nextElementSibling;
     expect(expansion?.classList.contains("grid-rows-[0fr]")).toBe(true);
     row?.click();
-    await vi.waitFor(() => expect(expansion?.classList.contains("grid-rows-[1fr]")).toBe(true));
+    flushSync();
+    expect(expansion?.classList.contains("grid-rows-[1fr]")).toBe(true);
     expect(row?.nextElementSibling).toBe(expansion);
   });
 
@@ -183,11 +187,12 @@ describe("SceneEditor", () => {
       Array.from(targets?.querySelectorAll("button") ?? []).find(
         (candidate) => candidate.textContent?.trim() === name,
       );
-    await vi.waitFor(() => expect(button("Add")).toBeDefined());
+    flushSync();
+    expect(button("Add")).toBeDefined();
     expect(button("Selector")).toBeUndefined();
     const modeControl = button("Edit")?.parentElement;
     button("Live")?.click();
-    await vi.waitFor(() => expect(button("Capture all")).toBeDefined());
+    await vi.waitFor(() => expect(button("Capture all")).toBeDefined(), { interval: 1 });
     expect(button("Add")).toBeUndefined();
     expect(button("Selector")).toBeUndefined();
     expect(button("Edit")?.parentElement).toBe(modeControl);
@@ -207,7 +212,8 @@ describe("SceneEditor", () => {
     );
     expect(shuffle).toBeDefined();
     shuffle!.click();
-    await vi.waitFor(() => expect(onchange).toHaveBeenCalledOnce());
+    flushSync();
+    expect(onchange).toHaveBeenCalledOnce();
     const next = onchange.mock.calls[0][0] as EditorState;
     expect(next.dynamicSource).not.toBeNull();
     expect(next.dynamicSource?.seed).not.toBe("19");
@@ -235,7 +241,8 @@ describe("SceneEditor", () => {
     );
     expect(remove).toBeDefined();
     remove!.click();
-    await vi.waitFor(() => expect(onchange).toHaveBeenCalledOnce());
+    flushSync();
+    expect(onchange).toHaveBeenCalledOnce();
     const next = onchange.mock.calls[0][0] as EditorState;
     expect(next.dynamicSource).toBeNull();
     expect(next.overrides).toEqual(state.overrides);
@@ -249,7 +256,8 @@ describe("SceneEditor", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("Gallery"));
+    flushSync();
+    expect(host.textContent).toContain("Gallery");
     expect(host.textContent).toContain("Photo");
     expect(host.textContent).toContain("Guided");
   });

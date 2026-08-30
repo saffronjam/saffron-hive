@@ -21,7 +21,7 @@ func TestMutationSetTargetState(t *testing.T) {
 	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
 	defer env.bus.Unsubscribe(ch)
 
-	resp := env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "d1", state: {brightness: 200}) }`, nil)
+	resp := env.query(t, `mutation { setTargetState(target: {type: DEVICE, id: "d1"}, state: {brightness: 200}) }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -46,11 +46,67 @@ func TestMutationSetTargetState(t *testing.T) {
 	}
 }
 
+func TestMutationSetTargetStateDeviceSet(t *testing.T) {
+	env := newTestEnv(t)
+	now := time.Now().Truncate(time.Second)
+	for _, id := range []device.DeviceID{"d1", "d2"} {
+		env.stateReader.addDevice(device.Device{
+			ID:           id,
+			FriendlyName: string(id),
+			Source:       device.SourceZigbee2MQTT,
+			Type:         device.Light,
+			Capabilities: []device.Capability{{Name: device.CapOnOff, Access: 3}},
+			Available:    true,
+			LastSeen:     now,
+		})
+	}
+
+	ch := env.bus.Subscribe(eventbus.EventCommandRequested)
+	defer env.bus.Unsubscribe(ch)
+
+	resp := env.query(t, `mutation {
+		setTargetState(target: {type: DEVICE_SET, deviceIds: ["d1", "d2", "d1"]}, state: {on: false})
+	}`, nil)
+	if len(resp.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", resp.Errors)
+	}
+
+	seen := map[device.DeviceID]bool{}
+	for range 2 {
+		select {
+		case evt := <-ch:
+			command, ok := evt.Payload.(device.Command)
+			if !ok {
+				t.Fatalf("payload is not Command: %T", evt.Payload)
+			}
+			seen[command.DeviceID] = true
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for device-set commands")
+		}
+	}
+	if !seen["d1"] || !seen["d2"] || len(seen) != 2 {
+		t.Fatalf("got requested devices %v, want d1 and d2 once each", seen)
+	}
+}
+
+func TestMutationSetTargetStateRejectsEmptyDeviceSet(t *testing.T) {
+	env := newTestEnv(t)
+	resp := env.query(t, `mutation {
+		setTargetState(target: {type: DEVICE_SET, deviceIds: []}, state: {on: false})
+	}`, nil)
+	if len(resp.Errors) == 0 {
+		t.Fatal("empty device set must fail")
+	}
+	if !strings.Contains(resp.Errors[0].Message, "at least one") {
+		t.Fatalf("error should explain the device-set requirement, got %q", resp.Errors[0].Message)
+	}
+}
+
 func TestMutationSetTargetStateRejectsHub(t *testing.T) {
 	env := newTestEnv(t)
 	env.stateReader.addDevice(device.Device{ID: "coord", FriendlyName: "Coordinator", Source: device.SourceZigbee2MQTT, Type: device.Hub, Available: true})
 
-	resp := env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "coord", state: {on: true}) }`, nil)
+	resp := env.query(t, `mutation { setTargetState(target: {type: DEVICE, id: "coord"}, state: {on: true}) }`, nil)
 	if len(resp.Errors) == 0 {
 		t.Fatal("commanding a hub must fail")
 	}
@@ -534,7 +590,7 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	drainDeviceUpdate(t, updates, env.stateReader)
 
 	for _, m := range []struct{ name, doc string }{
-		{"setTargetState", `mutation { setTargetState(targetType: DEVICE, targetId: "ac", state: {on: true}) }`},
+		{"setTargetState", `mutation { setTargetState(target: {type: DEVICE, id: "ac"}, state: {on: true}) }`},
 		{"simulateDeviceAction", `mutation { simulateDeviceAction(deviceId: "ac", action: "single") }`},
 	} {
 		resp = env.query(t, m.doc, nil)
@@ -556,7 +612,7 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 		t.Fatalf("unexpected errors re-enabling: %v", resp.Errors)
 	}
 	drainDeviceUpdate(t, updates, env.stateReader)
-	resp = env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "ac", state: {on: true}) }`, nil)
+	resp = env.query(t, `mutation { setTargetState(target: {type: DEVICE, id: "ac"}, state: {on: true}) }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("re-enabled device still rejects commands: %v", resp.Errors)
 	}
@@ -593,7 +649,7 @@ func TestMutationDeleteRestoreDevice(t *testing.T) {
 	}
 	drainDeviceUpdate(t, updates, env.stateReader)
 
-	resp = env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "lamp", state: {on: true}) }`, nil)
+	resp = env.query(t, `mutation { setTargetState(target: {type: DEVICE, id: "lamp"}, state: {on: true}) }`, nil)
 	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "deleted") {
 		t.Fatalf("deleted command error = %v", resp.Errors)
 	}
@@ -620,7 +676,7 @@ func TestMutationDeleteRestoreDevice(t *testing.T) {
 	}
 	drainDeviceUpdate(t, updates, env.stateReader)
 
-	resp = env.query(t, `mutation { setTargetState(targetType: DEVICE, targetId: "lamp", state: {on: true}) }`, nil)
+	resp = env.query(t, `mutation { setTargetState(target: {type: DEVICE, id: "lamp"}, state: {on: true}) }`, nil)
 	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "disabled") {
 		t.Fatalf("restored command error = %v", resp.Errors)
 	}

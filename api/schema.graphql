@@ -1090,6 +1090,10 @@ type Zigbee2MqttConfig {
   honest progress there is.
   """
   scanStartedAt: DateTime
+  interactiveCommandsPerSecond: Int!
+  continuousCommandsPerSecond: Int!
+  "Devices currently sharing Zigbee's continuous output lane."
+  activeContinuousDeviceIds: [ID!]!
 }
 
 type Integration {
@@ -1292,6 +1296,8 @@ input Zigbee2MqttConfigInput {
   """
   scanHour: Int
   scanMinute: Int
+  interactiveCommandsPerSecond: Int! = 10
+  continuousCommandsPerSecond: Int! = 2
 }
 
 input TuyaConfigInput {
@@ -1317,6 +1323,13 @@ enum CommandTargetType {
   DEVICE
   GROUP
   ROOM
+  DEVICE_SET
+}
+
+input CommandTargetInput {
+  type: CommandTargetType!
+  id: ID
+  deviceIds: [ID!]
 }
 
 input DeviceConfigurationEntryInput {
@@ -1652,7 +1665,7 @@ type Mutation {
   restoreDevice(id: ID!): Device! @auth
   batchDeleteDevices(ids: [ID!]!): Int! @auth
   batchRestoreDevices(ids: [ID!]!): Int! @auth
-  setTargetState(targetType: CommandTargetType!, targetId: ID!, state: DeviceStateInput!): Boolean! @auth
+  setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic

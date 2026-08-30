@@ -20,12 +20,8 @@ export interface RoomLite {
 }
 
 const GROUP_COMMANDS_SET_DEVICE_STATE = graphql(`
-  mutation GroupCommandsSetTargetState(
-    $targetType: CommandTargetType!
-    $targetId: ID!
-    $state: DeviceStateInput!
-  ) {
-    setTargetState(targetType: $targetType, targetId: $targetId, state: $state)
+  mutation GroupCommandsSetTargetState($target: CommandTargetInput!, $state: DeviceStateInput!) {
+    setTargetState(target: $target, state: $state)
   }
 `);
 
@@ -42,21 +38,13 @@ async function commitState(
   target?: CommandTarget,
 ): Promise<void> {
   const active = commandable(devices);
-  if (target && active.length === targets.length) {
-    await client.mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { ...target, state }).toPromise();
-    return;
-  }
-  await Promise.all(
-    targets.map((device) =>
-      client
-        .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, {
-          targetType: CommandTargetType.Device,
-          targetId: device.id,
-          state,
-        })
-        .toPromise(),
-    ),
-  );
+  const commandTarget =
+    target && active.length === targets.length
+      ? { type: target.targetType, id: target.targetId }
+      : { type: CommandTargetType.DeviceSet, deviceIds: targets.map((device) => device.id) };
+  await client
+    .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { target: commandTarget, state })
+    .toPromise();
 }
 
 /**

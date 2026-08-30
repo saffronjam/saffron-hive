@@ -15,7 +15,7 @@
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { markPopoverDismissed, popoverDismissedRecently } from "$lib/popover-guard";
 	import { onDestroy } from "svelte";
-	import { aggregateLightAppearance, rememberedLightPalette } from "$lib/device-tint";
+	import { aggregateLightAppearance, lightTintTransitionSeconds, rememberedLightPalette } from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -44,7 +44,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+			setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
 		}
 	`);
 
@@ -79,6 +79,7 @@
 	const tintColors = $derived(appearance.colors);
 	const inactiveTintColors = $derived(rememberedLightPalette(devices));
 	const tintStrength = $derived(appearance.tintStrength);
+	const tintTransitionSeconds = $derived(lightTintTransitionSeconds(devices));
 
 	function noteInteract() {
 		if (interactingTimer) clearTimeout(interactingTimer);
@@ -174,6 +175,7 @@
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
+	{tintTransitionSeconds}
 	tintInactive={!brightnessActive}
 	{brightnessFill}
 	{dragOpts}
@@ -181,7 +183,7 @@
 	size="sm"
 	pressFeedback
 	onclick={handleToggle}
-	class="dashboard-card {extraClass}"
+	class={extraClass}
 >
 	{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
 		{#if hasPicker}
@@ -191,15 +193,15 @@
 				<Popover bind:open={pickerOpen} onOpenChange={onPopoverChange}>
 					<PopoverTrigger>
 						{#snippet child({ props })}
-							<button
-								type="button"
-								{...props}
-								class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+								<button
+									type="button"
+									{...props}
+									class="relative flex size-7 shrink-0 items-center justify-center rounded-icon bg-muted/50 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
 								aria-label={`Adjust ${entity.name} colour`}
 							>
 								{#if hasTint}
 									<div
-										class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+										class="pointer-events-none absolute inset-0 rounded-icon transition-opacity duration-300 ease-out"
 										style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
 										aria-hidden="true"
 									></div>
@@ -226,10 +228,10 @@
 				</Popover>
 			</span>
 		{:else}
-			<div class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50">
+			<div class="relative flex size-7 shrink-0 items-center justify-center rounded-icon bg-muted/50">
 				{#if hasTint}
 					<div
-						class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+						class="pointer-events-none absolute inset-0 rounded-icon transition-opacity duration-300 ease-out"
 						style="background: {iconGradient}; opacity: {ti === true ? 1 : 0}"
 						aria-hidden="true"
 					></div>

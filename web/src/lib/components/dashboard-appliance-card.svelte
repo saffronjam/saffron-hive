@@ -21,7 +21,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setTargetState(targetType: DEVICE, targetId: $deviceId, state: $state)
+			setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
 		}
 	`);
 
@@ -62,7 +62,7 @@
 	size="sm"
 	pressFeedback
 	onclick={handleToggle}
-	class="dashboard-card {extraClass}"
+	class={extraClass}
 >
 	{#snippet subtitleTrailing()}
 		{#if isClimate}

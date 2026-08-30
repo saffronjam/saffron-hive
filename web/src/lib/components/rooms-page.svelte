@@ -64,7 +64,7 @@
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {
-			setTargetState(targetType: ROOM, targetId: $targetId, state: $state)
+			setTargetState(target: { type: ROOM, id: $targetId }, state: $state)
 		}
 	`);
 

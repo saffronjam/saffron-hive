@@ -190,8 +190,19 @@ func (r *mutationResolver) BatchRestoreDevices(ctx context.Context, ids []string
 }
 
 // SetTargetState is the resolver for the setTargetState field.
-func (r *mutationResolver) SetTargetState(ctx context.Context, targetType model.CommandTargetType, targetID string, state model.DeviceStateInput) (bool, error) {
-	domainType := device.TargetType(strings.ToLower(string(targetType)))
+func (r *mutationResolver) SetTargetState(ctx context.Context, target model.CommandTargetInput, state model.DeviceStateInput) (bool, error) {
+	domainType := device.TargetType(strings.ToLower(string(target.Type)))
+	targetID := ""
+	if value, set := target.ID.ValueOK(); set && value != nil {
+		targetID = *value
+	}
+	var targetDeviceIDs []device.DeviceID
+	if values, set := target.DeviceIds.ValueOK(); set {
+		targetDeviceIDs = deviceIDs(values)
+	}
+	if domainType == device.TargetDeviceSet && len(targetDeviceIDs) == 0 {
+		return false, fmt.Errorf("device-set target requires at least one device id")
+	}
 	if domainType == device.TargetDevice {
 		d, ok := r.StateReader.GetDevice(device.DeviceID(targetID))
 		if !ok {
@@ -225,6 +236,7 @@ func (r *mutationResolver) SetTargetState(ctx context.Context, targetType model.
 	if err := r.TargetCommander.CommandTarget(ctx, device.TargetCommand{
 		TargetType: domainType,
 		TargetID:   targetID,
+		DeviceIDs:  targetDeviceIDs,
 		State:      cmd,
 	}); err != nil {
 		return false, err
@@ -254,16 +266,13 @@ func (r *mutationResolver) SetDeviceConfiguration(ctx context.Context, deviceID 
 	if err := device.ValidateConfigurationValues(d, values); err != nil {
 		return false, err
 	}
-	r.EventBus.Publish(eventbus.Event{
-		Type:      eventbus.EventConfigurationRequested,
-		DeviceID:  deviceID,
-		Timestamp: time.Now(),
-		Payload: device.ConfigurationRequest{
-			DeviceID: id,
-			Values:   values,
-			Origin:   device.OriginUser(),
-		},
-	})
+	commander, ok := r.TargetCommander.(device.ConfigurationCommander)
+	if !ok {
+		return false, fmt.Errorf("configuration commander is unavailable")
+	}
+	if err := commander.CommandConfiguration(ctx, device.ConfigurationRequest{DeviceID: id, Values: values, Origin: device.OriginUser()}); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -947,11 +956,23 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 }
 
 // UpdateZigbee2MqttConfig is the resolver for the updateZigbee2MqttConfig field.
-// Saving always reapplies the configuration to the adapter, so a reachable
-// broker connects immediately. The row is persisted even when the reconnect
-// fails; the error reports that the connection did not come up, not that the
-// save was lost.
+// Connection and scan-schedule changes reconfigure the adapter. Traffic-rate
+// changes update the output controller without interrupting subscriptions.
+// The row is persisted even when a reconnect fails.
 func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error) {
+	if input.InteractiveCommandsPerSecond < 1 || input.InteractiveCommandsPerSecond > 50 {
+		return nil, fmt.Errorf("interactive command rate must be between 1 and 50 per second")
+	}
+	if input.ContinuousCommandsPerSecond < 1 || input.ContinuousCommandsPerSecond > 10 {
+		return nil, fmt.Errorf("continuous command rate must be between 1 and 10 per second")
+	}
+	if input.ContinuousCommandsPerSecond > input.InteractiveCommandsPerSecond {
+		return nil, fmt.Errorf("continuous command rate cannot exceed the interactive command rate")
+	}
+	existing, err := r.Store.GetZigbee2MQTTConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
 	password, err := zigbee2MQTTPassword(ctx, r.Store, input.Password)
 	if err != nil {
 		return nil, err
@@ -965,25 +986,29 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 		return nil, err
 	}
 	cfg := store.Zigbee2MQTTConfig{
-		Broker:              strings.TrimSpace(input.Broker),
-		FrontendURL:         frontendURL,
-		Username:            strings.TrimSpace(input.Username),
-		Password:            password,
-		UseWSS:              input.UseWss,
-		Enabled:             input.Enabled,
-		ScanScheduleEnabled: input.ScanScheduleEnabled,
-		ScanHour:            scanHour,
-		ScanMinute:          scanMinute,
+		Broker:                       strings.TrimSpace(input.Broker),
+		FrontendURL:                  frontendURL,
+		Username:                     strings.TrimSpace(input.Username),
+		Password:                     password,
+		UseWSS:                       input.UseWss,
+		Enabled:                      input.Enabled,
+		ScanScheduleEnabled:          input.ScanScheduleEnabled,
+		ScanHour:                     scanHour,
+		ScanMinute:                   scanMinute,
+		InteractiveCommandsPerSecond: int64(input.InteractiveCommandsPerSecond),
+		ContinuousCommandsPerSecond:  int64(input.ContinuousCommandsPerSecond),
 	}
 	if err := r.Store.UpsertZigbee2MQTTConfig(ctx, cfg); err != nil {
 		return nil, err
 	}
 	if r.Zigbee2MQTT != nil {
-		if err := r.Zigbee2MQTT.ReconnectZigbee2MQTT(ctx); err != nil {
+		if existing != nil && zigbee2MQTTConnectionUnchanged(*existing, cfg) {
+			r.Zigbee2MQTT.UpdateZigbee2MQTTCommandRates(input.InteractiveCommandsPerSecond, input.ContinuousCommandsPerSecond)
+		} else if err := r.Zigbee2MQTT.ReconnectZigbee2MQTT(ctx); err != nil {
 			return nil, fmt.Errorf("saved config but failed to reconnect Zigbee2MQTT: %w", err)
 		}
 	}
-	return mapZigbee2MQTTConfig(cfg, r.zigbee2MQTTScanStartedAt(ctx)), nil
+	return mapZigbee2MQTTConfig(cfg, r.zigbee2MQTTScanStartedAt(ctx), r.activeContinuousDeviceIDs(device.SourceZigbee2MQTT)), nil
 }
 
 // TestZigbee2MqttConnection is the resolver for the testZigbee2MqttConnection field.
@@ -2459,7 +2484,7 @@ func (r *queryResolver) Zigbee2MqttConfig(ctx context.Context) (*model.Zigbee2Mq
 	if cfg == nil {
 		return nil, nil
 	}
-	return mapZigbee2MQTTConfig(*cfg, r.zigbee2MQTTScanStartedAt(ctx)), nil
+	return mapZigbee2MQTTConfig(*cfg, r.zigbee2MQTTScanStartedAt(ctx), r.activeContinuousDeviceIDs(device.SourceZigbee2MQTT)), nil
 }
 
 // TuyaConfig is the resolver for the tuyaConfig field.
@@ -2840,6 +2865,9 @@ func (r *subscriptionResolver) DeviceStateChanged(ctx context.Context, deviceID 
 				state := resolveDeviceStateFromReader(r.StateReader, device.DeviceID(evt.DeviceID))
 				if state == nil {
 					continue
+				}
+				if change, ok := evt.Payload.(device.DeviceStateChange); ok {
+					state.Transition = change.State.Transition
 				}
 				select {
 				case out <- &model.DeviceStateEvent{

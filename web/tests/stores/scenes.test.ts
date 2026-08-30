@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockClient } from "../helpers/mock-client";
+import { createScenesStore } from "$lib/stores/scenes.svelte";
 
 const scene = {
   id: "scene-1",
@@ -29,9 +30,8 @@ const scene = {
   activatedAt: null,
 };
 
-async function bootStore() {
-  vi.resetModules();
-  return await import("$lib/stores/scenes.svelte");
+function bootStore() {
+  return { scenesStore: createScenesStore() };
 }
 
 beforeEach(() => {
@@ -49,7 +49,7 @@ describe("scenesStore", () => {
       }),
     );
 
-    const fresh = await bootStore();
+    const fresh = bootStore();
 
     expect(fresh.scenesStore.items).toEqual([]);
     expect(fresh.scenesStore.hydrated).toBe(false);
@@ -57,7 +57,7 @@ describe("scenesStore", () => {
   });
 
   it("keeps the active state stable while an apply result settles", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { scenes: [scene] } });
     await fresh.scenesStore.start(mock.client);
@@ -77,7 +77,7 @@ describe("scenesStore", () => {
   });
 
   it("suppresses a delayed deactivation until activation is confirmed", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { scenes: [scene] } });
     await fresh.scenesStore.start(mock.client);
@@ -101,7 +101,7 @@ describe("scenesStore", () => {
 
   it("reconciles a deferred deactivation when the settle window expires", async () => {
     vi.useFakeTimers();
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { scenes: [scene] } });
     await fresh.scenesStore.start(mock.client);
@@ -121,7 +121,7 @@ describe("scenesStore", () => {
   });
 
   it("optimistically stops and restores active state when stop fails", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const active = { ...scene, activatedAt: "2026-08-25T18:00:00Z" };
     const mock = createMockClient();
     mock.queueResult({ data: { scenes: [active] } });
