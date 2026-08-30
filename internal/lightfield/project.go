@@ -51,18 +51,15 @@ func Project(target device.Device, sample Sample, brightnessScale float64) (Ligh
 		return intent, err
 	}
 
-	brightness := 0.0
 	switch domain {
 	case DomainFullColor:
-		brightness = sample.Color.Lightness
 		projectColor(target, *sample.Color, &intent)
 	case DomainWhiteAmbience:
-		brightness = sample.White.Brightness
 		projectWhite(target, *sample.White, &intent)
 	}
 	if capability, ok := writableCapability(target, device.CapBrightness); ok {
 		low, high := capabilityRange(capability, 1, 254)
-		value := low + brightness*brightnessScale*(high-low)
+		value := low + brightnessScale*(high-low)
 		intent.Brightness = device.Ptr(int(math.Round(clamp(value, low, high))))
 	}
 	if _, ok := writableCapability(target, device.CapOnOff); ok {

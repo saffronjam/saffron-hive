@@ -67,8 +67,12 @@ func TestProjectWhitePrefersTemperatureAndClampsRanges(t *testing.T) {
 	if intent.Color != nil || intent.ColorTemp == nil || *intent.ColorTemp != 400 {
 		t.Fatalf("white projection = %#v", intent)
 	}
-	if intent.Brightness == nil || *intent.Brightness != 48 {
-		t.Fatalf("brightness = %v, want 48", intent.Brightness)
+	if intent.Brightness == nil || *intent.Brightness != 60 {
+		t.Fatalf("brightness = %v, want 60", intent.Brightness)
+	}
+	darker, err := Project(target, Sample{White: &WhiteSample{Brightness: 0.1, Mireds: 300}}, 0.5)
+	if err != nil || darker.Brightness == nil || *darker.Brightness != 60 {
+		t.Fatalf("field sample changed absolute scene brightness: %#v, %v", darker, err)
 	}
 	rgbOnly, _ := Project(testLight("rgb", writable(device.CapColor)), Sample{White: &WhiteSample{Brightness: 0.8, Mireds: 370}}, 1)
 	if rgbOnly.Color == nil || rgbOnly.ColorTemp != nil {
