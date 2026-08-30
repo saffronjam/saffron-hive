@@ -1,15 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { get } from "svelte/store";
-import { deviceStore, devicesHydrated } from "$lib/stores/devices";
+import { createDeviceStore, deviceStore, devicesHydrated } from "$lib/stores/devices";
 import { cacheKey, saveSnapshot } from "$lib/entity-cache";
 
 const SNAPSHOT = "devices";
 const VERSION = 4;
-
-// Re-importing drags the whole generated GraphQL graph along, so the two cases
-// that genuinely need a fresh module evaluation get a wide budget and the rest
-// run against the already-imported singleton.
-const BOOT_TIMEOUT_MS = 60_000;
 
 function makeDevice(id: string, name: string) {
   return {
@@ -32,16 +27,6 @@ function makeDevice(id: string, name: string) {
   };
 }
 
-/**
- * Boots the store fresh so its module-evaluation-time snapshot read runs
- * against whatever is in localStorage right now. Fake timers stay off during
- * the import — a dynamic import cannot resolve under them.
- */
-async function bootStore() {
-  vi.resetModules();
-  return await import("$lib/stores/devices");
-}
-
 beforeEach(() => {
   // clear() also cancels any write still pending on a real timer, which would
   // otherwise swallow the scheduling the fake-timer tests below rely on.
@@ -56,33 +41,25 @@ afterEach(() => {
 describe("deviceStore boot hydration", () => {
   // The device list is the largest payload in the app; without this it is the
   // one page that still waits on the network before it can render anything.
-  it(
-    "restores a snapshot synchronously, so the list paints on the first frame",
-    async () => {
-      saveSnapshot(localStorage, SNAPSHOT, VERSION, [
-        makeDevice("d1", "Kitchen Light"),
-        makeDevice("d2", "Hall Light"),
-      ]);
+  it("restores a snapshot synchronously, so the list paints on the first frame", () => {
+    saveSnapshot(localStorage, SNAPSHOT, VERSION, [
+      makeDevice("d1", "Kitchen Light"),
+      makeDevice("d2", "Hall Light"),
+    ]);
 
-      const fresh = await bootStore();
+    const fresh = createDeviceStore();
 
-      expect(get(fresh.devicesHydrated)).toBe(true);
-      expect(Object.keys(get(fresh.deviceStore)).sort()).toEqual(["d1", "d2"]);
-      expect(get(fresh.deviceStore).d1.name).toBe("Kitchen Light");
-    },
-    BOOT_TIMEOUT_MS,
-  );
+    expect(get(fresh.devicesHydrated)).toBe(true);
+    expect(Object.keys(get(fresh.deviceStore)).sort()).toEqual(["d1", "d2"]);
+    expect(get(fresh.deviceStore).d1.name).toBe("Kitchen Light");
+  });
 
-  it(
-    "stays unhydrated with no snapshot, so an empty list is never mistaken for loaded",
-    async () => {
-      const fresh = await bootStore();
+  it("stays unhydrated with no snapshot, so an empty list is never mistaken for loaded", () => {
+    const fresh = createDeviceStore();
 
-      expect(get(fresh.devicesHydrated)).toBe(false);
-      expect(Object.keys(get(fresh.deviceStore))).toEqual([]);
-    },
-    BOOT_TIMEOUT_MS,
-  );
+    expect(get(fresh.devicesHydrated)).toBe(false);
+    expect(Object.keys(get(fresh.deviceStore))).toEqual([]);
+  });
 });
 
 describe("deviceStore snapshot writes", () => {

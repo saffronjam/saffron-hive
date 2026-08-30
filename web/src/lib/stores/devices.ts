@@ -385,8 +385,6 @@ function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.localStorage;
 }
 
-const restoredDevices = loadSnapshot<Device>(storage(), SNAPSHOT_NAME, SNAPSHOT_VERSION);
-
 function toMap(devices: Device[]): DeviceMap {
   const map: DeviceMap = {};
   for (const device of devices) {
@@ -400,9 +398,9 @@ function toMap(devices: Device[]): DeviceMap {
  * the list paints on the first frame after a cold start and the network
  * reconcile corrects it a moment later.
  */
-export const devicesHydrated = writable(restoredDevices !== null);
-
-function createDeviceStore() {
+export function createDeviceStore() {
+  const restoredDevices = loadSnapshot<Device>(storage(), SNAPSHOT_NAME, SNAPSHOT_VERSION);
+  const devicesHydrated = writable(restoredDevices !== null);
   let current: DeviceMap = restoredDevices ? toMap(restoredDevices) : {};
   let started = false;
   let unsubFns: Array<() => void> = [];
@@ -587,7 +585,7 @@ function createDeviceStore() {
     devicesHydrated.set(true);
   }
 
-  return {
+  const deviceStore = {
     subscribe,
     hydrate,
     updateState,
@@ -670,9 +668,11 @@ function createDeviceStore() {
       clearSnapshot(storage(), SNAPSHOT_NAME);
     },
   };
+
+  return { deviceStore, devicesHydrated };
 }
 
-export const deviceStore = createDeviceStore();
+export const { deviceStore, devicesHydrated } = createDeviceStore();
 
 export function deviceHasCapability(device: Device, name: string): boolean {
   return device.capabilities.some((c) => c.name === name);

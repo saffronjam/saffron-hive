@@ -73,7 +73,7 @@ function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.sessionStorage;
 }
 
-function createMaintenanceStore() {
+export function createMaintenanceStore() {
   const restored = loadSessionSnapshot<MaintenanceTask[]>(storage(), "maintenance", CACHE_VERSION);
   let items = $state<MaintenanceTask[]>(restored ?? []);
   let hydrated = $state(restored !== null);

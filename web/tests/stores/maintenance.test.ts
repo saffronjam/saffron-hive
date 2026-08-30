@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockClient } from "../helpers/mock-client";
 import { saveSessionSnapshot } from "$lib/session-cache";
+import { createMaintenanceStore } from "$lib/stores/maintenance.svelte";
 
 const task = {
   id: "task-1",
@@ -24,9 +25,8 @@ const task = {
   },
 };
 
-async function bootStore() {
-  vi.resetModules();
-  return await import("$lib/stores/maintenance.svelte");
+function bootStore() {
+  return { maintenanceStore: createMaintenanceStore() };
 }
 
 beforeEach(() => {
@@ -35,21 +35,21 @@ beforeEach(() => {
 
 describe("maintenanceStore", () => {
   it("starts unhydrated without a session snapshot", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     expect(fresh.maintenanceStore.items).toEqual([]);
     expect(fresh.maintenanceStore.hydrated).toBe(false);
   });
 
   it("treats a cached empty snapshot as hydrated", async () => {
     saveSessionSnapshot(sessionStorage, "maintenance", 3, []);
-    const fresh = await bootStore();
+    const fresh = bootStore();
     expect(fresh.maintenanceStore.items).toEqual([]);
     expect(fresh.maintenanceStore.hydrated).toBe(true);
   });
 
   it("hydrates synchronously and reconciles in the background", async () => {
     saveSessionSnapshot(sessionStorage, "maintenance", 3, [task]);
-    const fresh = await bootStore();
+    const fresh = bootStore();
     expect(fresh.maintenanceStore.items.map((item) => item.id)).toEqual(["task-1"]);
     expect(fresh.maintenanceStore.hydrated).toBe(true);
 
@@ -63,7 +63,7 @@ describe("maintenanceStore", () => {
   });
 
   it("completes rows optimistically and persists the reconciled snapshot", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { maintenanceTasks: [task] } });
     await fresh.maintenanceStore.start(mock.client);
@@ -78,7 +78,7 @@ describe("maintenanceStore", () => {
   });
 
   it("hides maintenance for deleted devices", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({
       data: {
@@ -92,7 +92,7 @@ describe("maintenanceStore", () => {
   });
 
   it("restores rows when completion fails and clears session data", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { maintenanceTasks: [task] } });
     await fresh.maintenanceStore.start(mock.client);

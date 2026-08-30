@@ -36,7 +36,7 @@ function applyTheme(theme: Theme, animate = false): void {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
 }
 
-function createThemeStore() {
+export function createThemeStore() {
   const initial = getInitialTheme();
   const { subscribe, set, update } = writable<Theme>(initial);
 

@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { get } from "svelte/store";
+import { createThemeStore } from "$lib/stores/theme";
 
 const STORAGE_KEY = "saffron-hive-theme";
 
@@ -18,13 +20,11 @@ beforeEach(() => {
       onchange: null,
     })),
   );
-  vi.resetModules();
 });
 
 describe("theme store", () => {
   it("defaults to dark when no stored preference and system prefers dark", async () => {
-    const { theme } = await import("$lib/stores/theme");
-    const { get } = await import("svelte/store");
+    const theme = createThemeStore();
     expect(get(theme)).toBe("dark");
   });
 
@@ -42,20 +42,18 @@ describe("theme store", () => {
         onchange: null,
       })),
     );
-    const { theme } = await import("$lib/stores/theme");
-    const { get } = await import("svelte/store");
+    const theme = createThemeStore();
     expect(get(theme)).toBe("light");
   });
 
   it("reads stored preference from localStorage", async () => {
     localStorage.setItem(STORAGE_KEY, "light");
-    const { theme } = await import("$lib/stores/theme");
-    const { get } = await import("svelte/store");
+    const theme = createThemeStore();
     expect(get(theme)).toBe("light");
   });
 
   it("setTheme persists to localStorage and applies class", async () => {
-    const { theme } = await import("$lib/stores/theme");
+    const theme = createThemeStore();
 
     theme.setTheme("light");
     expect(localStorage.getItem(STORAGE_KEY)).toBe("light");
@@ -67,8 +65,7 @@ describe("theme store", () => {
   });
 
   it("toggle switches between dark and light", async () => {
-    const { theme } = await import("$lib/stores/theme");
-    const { get } = await import("svelte/store");
+    const theme = createThemeStore();
 
     theme.setTheme("dark");
     theme.toggle();
