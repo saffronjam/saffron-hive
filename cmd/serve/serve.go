@@ -42,12 +42,12 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
 	"github.com/saffronjam/saffron-hive/internal/nativeeffect"
 	"github.com/saffronjam/saffron-hive/internal/oui"
+	"github.com/saffronjam/saffron-hive/internal/output"
 	"github.com/saffronjam/saffron-hive/internal/outputowner"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/spatial"
 	"github.com/saffronjam/saffron-hive/internal/store"
-	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/version"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
@@ -214,9 +214,11 @@ func Run(ctx context.Context) error {
 		defer bus.Unsubscribe(nativeEffectEvents)
 		nativeEffectSupport.Run(ctx, nativeEffectEvents)
 	})
-	targetCommander := targetcommand.New(bus, sqlStore, memStore, nativeEffectSupport)
 	outputOwners := outputowner.New()
-	spawn("output.owner", func() { outputOwners.Run(ctx, bus) })
+	outputController := output.New(bus, sqlStore, memStore, nativeEffectSupport, outputOwners)
+	mgr.output = outputController
+	spawn("output.controller", func() { outputController.Run(ctx) })
+	targetCommander := outputController
 	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{}, outputOwners)
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)
@@ -296,6 +298,7 @@ func Run(ctx context.Context) error {
 		Integrations:        mgr,
 		EffectRunner:        effectRunner,
 		SceneRunner:         sceneRunner,
+		OutputStatus:        outputController,
 		NativeEffectSupport: nativeEffectSupport,
 		Auth:                authSvc,
 		LoginLimiter:        loginLimiter,
@@ -576,6 +579,7 @@ type adapterManager struct {
 	store              *store.DB
 	bus                eventbus.EventBus
 	memStore           *device.MemoryStore
+	output             *output.Controller
 	mqttClientID       string
 	scanStartedAt      time.Time
 	scanCron           *cron.Cron
@@ -604,7 +608,13 @@ func (m *adapterManager) ScanZigbee2MQTTNetwork(ctx context.Context) error {
 	if m.scanStartedAtLocked(ctx) != nil {
 		return fmt.Errorf("a network scan is already running")
 	}
+	if m.output != nil {
+		m.output.PauseContinuous(device.SourceZigbee2MQTT, time.Now().Add(scanWindow))
+	}
 	if err := m.adapter.RequestNetworkmap(); err != nil {
+		if m.output != nil {
+			m.output.ResumeContinuous(device.SourceZigbee2MQTT)
+		}
 		return err
 	}
 	m.scanStartedAt = time.Now()
@@ -674,10 +684,16 @@ func (m *adapterManager) Stop() {
 	defer m.mu.Unlock()
 	m.stopScanCronLocked()
 	if m.adapter != nil {
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceZigbee2MQTT, m.adapter)
+		}
 		m.adapter.Stop()
 		m.adapter = nil
 	}
 	if m.tuya != nil {
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceTuya, m.tuya)
+		}
 		m.tuya.Stop()
 		m.tuya = nil
 	}
@@ -699,6 +715,9 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if m.adapter != nil {
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceZigbee2MQTT, m.adapter)
+		}
 		m.adapter.Stop()
 		m.adapter = nil
 	}
@@ -720,12 +739,24 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 	})
 
 	adapter := zigbee.NewZigbeeAdapter(client, m.bus, m.memStore, m.memStore)
+	if m.output != nil {
+		adapter.SetOutputObserver(m.output)
+	}
 	if err := adapter.Start(); err != nil {
 		// Roll back the partial construction: tear down the Paho goroutines
 		// and leave the manager in a clean "not connected" state so a retry
 		// doesn't try to Stop() a half-initialised adapter.
 		adapter.Stop()
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceZigbee2MQTT, adapter)
+		}
 		return fmt.Errorf("start zigbee2mqtt adapter: %w", err)
+	}
+	if m.output != nil {
+		m.output.RegisterActuator(device.SourceZigbee2MQTT, adapter, output.Policy{
+			InteractivePerSecond: float64(cfg.InteractiveCommandsPerSecond),
+			ContinuousPerSecond:  float64(cfg.ContinuousCommandsPerSecond),
+		})
 	}
 	m.adapter = adapter
 
@@ -748,6 +779,17 @@ func (m *adapterManager) ReconnectZigbee2MQTT(ctx context.Context) error {
 
 	serveLogger.Info("Zigbee2MQTT connected", "broker", cfg.Broker, "client_id", m.mqttClientID)
 	return nil
+}
+
+// UpdateZigbee2MQTTCommandRates applies traffic limits without interrupting the broker connection.
+func (m *adapterManager) UpdateZigbee2MQTTCommandRates(interactive, continuous int) {
+	if m.output == nil {
+		return
+	}
+	m.output.UpdatePolicy(device.SourceZigbee2MQTT, output.Policy{
+		InteractivePerSecond: float64(interactive),
+		ContinuousPerSecond:  float64(continuous),
+	})
 }
 
 // TestZigbee2MQTT opens a throwaway broker connection with the given credentials
@@ -779,6 +821,9 @@ func (m *adapterManager) ReconnectTuya(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if m.tuya != nil {
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceTuya, m.tuya)
+		}
 		m.tuya.Stop()
 		m.tuya = nil
 	}
@@ -796,9 +841,18 @@ func (m *adapterManager) ReconnectTuya(ctx context.Context) error {
 		return err
 	}
 	adapter := tuya.NewAdapter(client, m.bus, m.memStore, m.store)
+	if m.output != nil {
+		adapter.SetOutputObserver(m.output)
+	}
 	if err := adapter.Start(ctx); err != nil {
 		adapter.Stop()
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceTuya, adapter)
+		}
 		return fmt.Errorf("start tuya adapter: %w", err)
+	}
+	if m.output != nil {
+		m.output.RegisterActuator(device.SourceTuya, adapter, output.Policy{InteractivePerSecond: 1000, ContinuousPerSecond: 1})
 	}
 	m.tuya = adapter
 	serveLogger.Info("Tuya integration connected", "region", cfg.Region)
@@ -858,6 +912,9 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 	case device.SourceZigbee2MQTT:
 		m.mu.Lock()
 		if m.adapter != nil {
+			if m.output != nil {
+				m.output.UnregisterActuator(device.SourceZigbee2MQTT, m.adapter)
+			}
 			m.adapter.Stop()
 			m.adapter = nil
 		}
@@ -876,6 +933,9 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 	case device.SourceTuya:
 		m.mu.Lock()
 		if m.tuya != nil {
+			if m.output != nil {
+				m.output.UnregisterActuator(device.SourceTuya, m.tuya)
+			}
 			m.tuya.Stop()
 			m.tuya = nil
 		}

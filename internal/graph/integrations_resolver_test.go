@@ -19,9 +19,18 @@ type mockIntegrationController struct {
 	scanRequested int
 	scanStartedAt *time.Time
 	scanErr       error
+	reconnects    int
+	rateUpdates   [][2]int
 }
 
-func (m *mockIntegrationController) ReconnectZigbee2MQTT(context.Context) error { return nil }
+func (m *mockIntegrationController) ReconnectZigbee2MQTT(context.Context) error {
+	m.reconnects++
+	return nil
+}
+
+func (m *mockIntegrationController) UpdateZigbee2MQTTCommandRates(interactive, continuous int) {
+	m.rateUpdates = append(m.rateUpdates, [2]int{interactive, continuous})
+}
 
 func (m *mockIntegrationController) TestZigbee2MQTT(context.Context, store.Zigbee2MQTTConfig) error {
 	return nil

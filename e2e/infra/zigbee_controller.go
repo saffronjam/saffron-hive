@@ -19,6 +19,8 @@ type zigbeeController struct {
 
 func (c *zigbeeController) ReconnectZigbee2MQTT(context.Context) error { return nil }
 
+func (c *zigbeeController) UpdateZigbee2MQTTCommandRates(int, int) {}
+
 func (c *zigbeeController) TestZigbee2MQTT(context.Context, store.Zigbee2MQTTConfig) error {
 	return nil
 }

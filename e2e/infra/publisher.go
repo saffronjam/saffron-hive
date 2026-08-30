@@ -3,6 +3,8 @@ package infra
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -11,6 +13,11 @@ import (
 // Publisher wraps an MQTT client for publishing fake zigbee2mqtt messages.
 type Publisher struct {
 	client mqtt.Client
+
+	mu                 sync.RWMutex
+	deviceNames        map[string]bool
+	deviceNamesByIEEE  map[string]string
+	groupMembersByName map[string][]string
 }
 
 // NewPublisher creates and connects a new MQTT publisher to the given broker.
@@ -28,11 +35,17 @@ func NewPublisher(brokerURL string) (*Publisher, error) {
 		return nil, fmt.Errorf("connect publisher: %w", err)
 	}
 
-	return &Publisher{client: client}, nil
+	return &Publisher{
+		client:             client,
+		deviceNames:        map[string]bool{},
+		deviceNamesByIEEE:  map[string]string{},
+		groupMembersByName: map[string][]string{},
+	}, nil
 }
 
 // PublishBridgeDevices publishes the bridge/devices payload (retained).
 func (p *Publisher) PublishBridgeDevices(devices []byte) error {
+	p.rememberDevices(devices)
 	token := p.client.Publish("zigbee2mqtt/bridge/devices", 0, true, devices)
 	token.Wait()
 	return token.Error()
@@ -65,6 +78,7 @@ func (p *Publisher) PublishBridgeInfo(info []byte) error {
 // PublishBridgeGroups publishes the complete bridge/groups registry as a
 // retained message.
 func (p *Publisher) PublishBridgeGroups(groups []byte) error {
+	p.rememberGroups(groups)
 	token := p.client.Publish("zigbee2mqtt/bridge/groups", 0, true, groups)
 	token.Wait()
 	return token.Error()
@@ -109,12 +123,74 @@ func (p *Publisher) SubscribeCommands() (<-chan MQTTMessage, error) {
 		case ch <- message:
 		default:
 		}
+		go p.acknowledgeCommand(message)
 	})
 	token.Wait()
 	if err := token.Error(); err != nil {
 		return nil, err
 	}
 	return ch, nil
+}
+
+func (p *Publisher) rememberDevices(payload []byte) {
+	var entries []struct {
+		IEEEAddress  string `json:"ieee_address"`
+		FriendlyName string `json:"friendly_name"`
+	}
+	if json.Unmarshal(payload, &entries) != nil {
+		return
+	}
+	p.mu.Lock()
+	p.deviceNames = make(map[string]bool, len(entries))
+	p.deviceNamesByIEEE = make(map[string]string, len(entries))
+	for _, entry := range entries {
+		if entry.FriendlyName == "" {
+			continue
+		}
+		p.deviceNames[entry.FriendlyName] = true
+		if entry.IEEEAddress != "" {
+			p.deviceNamesByIEEE[entry.IEEEAddress] = entry.FriendlyName
+		}
+	}
+	p.mu.Unlock()
+}
+
+func (p *Publisher) rememberGroups(payload []byte) {
+	var entries []struct {
+		FriendlyName string `json:"friendly_name"`
+		Members      []struct {
+			IEEEAddress string `json:"ieee_address"`
+		} `json:"members"`
+	}
+	if json.Unmarshal(payload, &entries) != nil {
+		return
+	}
+	p.mu.Lock()
+	p.groupMembersByName = make(map[string][]string, len(entries))
+	for _, entry := range entries {
+		for _, member := range entry.Members {
+			if name := p.deviceNamesByIEEE[member.IEEEAddress]; name != "" {
+				p.groupMembersByName[entry.FriendlyName] = append(p.groupMembersByName[entry.FriendlyName], name)
+			}
+		}
+	}
+	p.mu.Unlock()
+}
+
+func (p *Publisher) acknowledgeCommand(message MQTTMessage) {
+	target := strings.TrimSuffix(strings.TrimPrefix(message.Topic, "zigbee2mqtt/"), "/set")
+	p.mu.RLock()
+	var names []string
+	if p.deviceNames[target] {
+		names = []string{target}
+	} else {
+		names = append(names, p.groupMembersByName[target]...)
+	}
+	p.mu.RUnlock()
+	for _, name := range names {
+		token := p.client.Publish("zigbee2mqtt/"+name, 0, false, message.Payload)
+		token.Wait()
+	}
 }
 
 // PublishNetworkmapResponse publishes a bridge/response/networkmap payload,

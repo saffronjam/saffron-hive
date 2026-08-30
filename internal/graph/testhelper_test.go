@@ -15,7 +15,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
-	"github.com/saffronjam/saffron-hive/internal/targetcommand"
+	"github.com/saffronjam/saffron-hive/internal/output"
+	"github.com/saffronjam/saffron-hive/internal/outputowner"
 )
 
 // testUser is the synthetic identity attached to every request from the
@@ -49,12 +50,14 @@ func newTestEnv(t *testing.T) *testEnv {
 
 	levelVar := &slog.LevelVar{}
 	levelVar.Set(slog.LevelInfo)
+	outputController := output.New(bus, st, sr, nil, outputowner.New())
 
 	resolver := &Resolver{
 		StateReader:        sr,
 		Store:              st,
 		TargetResolver:     st,
-		TargetCommander:    targetcommand.New(bus, st, sr, nil),
+		TargetCommander:    outputController,
+		OutputStatus:       outputController,
 		EventBus:           bus,
 		AutomationReloader: rl,
 		EffectRunner:       er,

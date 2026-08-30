@@ -28,12 +28,12 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/graph"
 	"github.com/saffronjam/saffron-hive/internal/history"
 	"github.com/saffronjam/saffron-hive/internal/nativeeffect"
+	"github.com/saffronjam/saffron-hive/internal/output"
 	"github.com/saffronjam/saffron-hive/internal/outputowner"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/spatial"
 	"github.com/saffronjam/saffron-hive/internal/store"
-	"github.com/saffronjam/saffron-hive/internal/targetcommand"
 	"github.com/saffronjam/saffron-hive/internal/topology"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
@@ -110,11 +110,6 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	})
 
 	adapter := zigbee.NewZigbeeAdapter(mqttClient, bus, memStore, memStore)
-	if err := adapter.Start(); err != nil {
-		cancel()
-		_ = db.Close()
-		return nil, fmt.Errorf("start adapter: %w", err)
-	}
 
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
@@ -131,7 +126,17 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		eventbus.EventDeviceSynced,
 	)
 	go nativeEffectSupport.Run(appCtx, nativeEffectEvents)
-	targetCommander := targetcommand.New(bus, sqlStore, memStore, nativeEffectSupport)
+	outputOwners := outputowner.New()
+	outputController := output.New(bus, sqlStore, memStore, nativeEffectSupport, outputOwners)
+	adapter.SetOutputObserver(outputController)
+	go outputController.Run(appCtx)
+	if err := adapter.Start(); err != nil {
+		cancel()
+		_ = db.Close()
+		return nil, fmt.Errorf("start adapter: %w", err)
+	}
+	outputController.RegisterActuator(device.SourceZigbee2MQTT, adapter, output.Policy{})
+	targetCommander := outputController
 	webhookBuffer := webhook.NewBuffer()
 	webhookService := webhook.NewService(sqlStore, bus, webhookBuffer)
 	go webhook.RunRetention(appCtx, sqlStore)
@@ -145,8 +150,6 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	activityRecorder := activity.NewRecorder(bus, sqlStore, memStore, roomCache, activityBuffer)
 	go activityRecorder.Run(appCtx)
 
-	outputOwners := outputowner.New()
-	go outputOwners.Run(appCtx, bus)
 	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, e2eTerminator{}, outputOwners)
 	if err := effectRunner.Hydrate(appCtx); err != nil {
 		log.Printf("effect runner hydrate failed: %v", err)

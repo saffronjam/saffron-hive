@@ -37,6 +37,7 @@ type Zigbee2MQTTController interface {
 	// running adapter first. An unconfigured or disabled integration is not an
 	// error; the adapter simply stays down.
 	ReconnectZigbee2MQTT(ctx context.Context) error
+	UpdateZigbee2MQTTCommandRates(interactive, continuous int)
 	// TestZigbee2MQTT opens a throwaway broker connection with the given
 	// credentials without disturbing the running adapter.
 	TestZigbee2MQTT(ctx context.Context, cfg store.Zigbee2MQTTConfig) error
@@ -86,6 +87,11 @@ type EffectRunner interface {
 type SceneRunner interface {
 	Apply(ctx context.Context, sceneID string) (store.Scene, error)
 	Deactivate(ctx context.Context, sceneID string) error
+}
+
+// OutputStatusReader exposes provider-wide continuous lane occupancy.
+type OutputStatusReader interface {
+	ContinuousDeviceIDs(device.Source) []device.DeviceID
 }
 
 // GraphStore is the store surface the GraphQL layer touches. Every method is
@@ -244,6 +250,7 @@ type Resolver struct {
 	Integrations        IntegrationManager
 	EffectRunner        EffectRunner
 	SceneRunner         SceneRunner
+	OutputStatus        OutputStatusReader
 	NativeEffectSupport device.NativeEffectSupportReader
 	Auth                *auth.Service
 	LoginLimiter        *auth.LoginLimiter
