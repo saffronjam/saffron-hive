@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockClient } from "../helpers/mock-client";
+import { createWebhooksStore } from "$lib/stores/webhooks.svelte";
 
 const endpoint = {
   id: "hook-1",
@@ -13,9 +14,8 @@ const endpoint = {
   createdBy: null,
 };
 
-async function bootStore() {
-  vi.resetModules();
-  return await import("$lib/stores/webhooks.svelte");
+function bootStore() {
+  return { webhooksStore: createWebhooksStore() };
 }
 
 beforeEach(() => {
@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe("webhooksStore", () => {
   it("hydrates from the endpoint query and updates last request live", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { webhookEndpoints: [endpoint] } });
     await fresh.webhooksStore.start(mock.client);
@@ -46,7 +46,7 @@ describe("webhooksStore", () => {
   });
 
   it("applies create, update, rotate, and delete mutation results", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     mock.queueResult({ data: { webhookEndpoints: [] } });
     await fresh.webhooksStore.start(mock.client);
@@ -92,7 +92,7 @@ describe("webhooksStore", () => {
   });
 
   it("refreshes after batch deletion and returns the deleted count", async () => {
-    const fresh = await bootStore();
+    const fresh = bootStore();
     const mock = createMockClient();
     const second = { ...endpoint, id: "hook-2", name: "Deploy finished" };
     mock.queueResult({ data: { webhookEndpoints: [endpoint, second] } });
