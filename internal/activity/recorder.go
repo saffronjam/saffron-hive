@@ -59,7 +59,7 @@ func (r *Recorder) Run(ctx context.Context) {
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
-		eventbus.EventCommandRequested,
+		eventbus.EventCommandDispatched,
 		eventbus.EventSceneApplied,
 		eventbus.EventAutomationTriggered,
 		eventbus.EventAutomationNodeActivated,

@@ -55,7 +55,7 @@ func formatMessage(evt eventbus.Event, deviceName, sceneName, automationName str
 		}
 		return "Device removed"
 
-	case eventbus.EventCommandRequested:
+	case eventbus.EventCommandDispatched:
 		return fmt.Sprintf("Command sent to %s", source)
 
 	case eventbus.EventSceneApplied:

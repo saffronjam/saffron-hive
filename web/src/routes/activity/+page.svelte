@@ -137,7 +137,7 @@
 		{ value: "webhook.received", label: "Webhook received" },
 	];
 	const ADVANCED_TYPES = [
-		{ value: "command.requested", label: "Command sent" },
+		{ value: "command.dispatched", label: "Command sent" },
 		{ value: "automation.node_activated", label: "Node activated" },
 	];
 

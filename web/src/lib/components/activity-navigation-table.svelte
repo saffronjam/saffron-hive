@@ -74,7 +74,7 @@
 		"device.availability_changed": "Availability",
 		"device.added": "Added",
 		"device.removed": "Removed",
-		"command.requested": "Command",
+		"command.dispatched": "Command",
 		"scene.applied": "Scene",
 		"automation.triggered": "Automation",
 		"automation.node_activated": "Node",
@@ -97,7 +97,7 @@
 				return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
 			case "device.removed":
 				return "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20";
-			case "command.requested":
+			case "command.dispatched":
 				return "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20";
 			case "scene.applied":
 				return "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20";

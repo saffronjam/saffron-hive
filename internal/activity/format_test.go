@@ -103,7 +103,7 @@ func TestFormatMessage(t *testing.T) {
 		},
 		{
 			name:      "command requested",
-			evt:       eventbus.Event{Type: eventbus.EventCommandRequested, Timestamp: now},
+			evt:       eventbus.Event{Type: eventbus.EventCommandDispatched, Timestamp: now},
 			devName:   "Desk lamp",
 			wantExact: "Command sent to Desk lamp",
 		},
