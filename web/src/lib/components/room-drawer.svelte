@@ -20,6 +20,7 @@
 	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon, Square } from "@lucide/svelte";
 	import {
 		aggregateLightAppearance,
+		lightTintTransitionSeconds,
 		aggregateSensorReadings,
 		rememberedLightPalette,
 		scenePreviewColors,
@@ -196,6 +197,7 @@
 	const tintColors = $derived(roomAppearance.colors);
 	const inactiveTintColors = $derived(rememberedLightPalette(roomDevices));
 	const tintStrength = $derived(roomAppearance.tintStrength);
+	const tintTransitionSeconds = $derived(lightTintTransitionSeconds(roomDevices));
 
 	function noteRoomInteract() {
 		if (roomInteractingTimer) clearTimeout(roomInteractingTimer);
@@ -338,13 +340,13 @@
 		{#if room}
 			<EntityCard
 				pressFeedback
-				class="dashboard-card"
 				entity={room}
 				fallbackIcon={DoorOpen}
 				subtitle={deviceCollectionSummary(roomDevices)}
 				tintColors={tintColors.length > 0 ? tintColors : null}
 				inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 				{tintStrength}
+				{tintTransitionSeconds}
 				tintInactive={!roomBrightnessActive}
 				brightnessFill={roomBrightnessFill}
 				dragOpts={roomDragOpts}
@@ -455,7 +457,7 @@
 							variant="outline"
 							size="sm"
 							haptic="execute"
-							class="h-8 shrink-0 gap-1.5 px-3 text-sm transition-colors duration-300 {active
+							class="h-8 shrink-0 gap-1.5 rounded-4xl px-3 text-sm transition-colors duration-300 {active
 								? 'scene-active'
 								: ''}"
 							style="--scene-glow: {glow}"

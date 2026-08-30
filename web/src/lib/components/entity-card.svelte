@@ -50,6 +50,8 @@
 		 * as gradient opacity rather than as RGB darkening.
 		 */
 		tintStrength?: number;
+		/** Duration used when live light colours move to their next reported target. */
+		tintTransitionSeconds?: number;
 		/**
 		 * Scene-style active/inactive indicator. `null` → no active concept, the
 		 * full-card gradient is always visible (existing behaviour for non-scene
@@ -156,6 +158,7 @@
 		tintColors = null,
 		inactiveTintColors = null,
 		tintStrength = 1,
+		tintTransitionSeconds = 0.3,
 		tintInactive = null,
 		footer,
 		readOnly = false,
@@ -285,6 +288,7 @@
 		if (renderedTintColors![1]) parts.push(`--tint-color-2: ${renderedTintColors![1]}`);
 		if (renderedTintColors![2]) parts.push(`--tint-color-3: ${renderedTintColors![2]}`);
 		parts.push(`--tint-strength: ${tintStrength}`);
+		parts.push(`--tint-transition-duration: ${Math.max(0, Math.min(30, tintTransitionSeconds))}s`);
 		if (useFill) parts.push(`--brightness-fill: ${fillPct}%`);
 		return parts.join("; ");
 	});
@@ -307,7 +311,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	bind:this={cardElement}
-	class="entity-list-card relative flex flex-col overflow-hidden shadow-card bg-card {dragOpts
+	class="relative flex flex-col overflow-hidden shadow-card bg-card {dragOpts
 		? 'dashboard-drag-lift select-none touch-pan-y'
 		: 'transition-all'} {sizeClass} {useFill
 		? fillClass
@@ -330,10 +334,10 @@
 			{#if iconArea}
 				{@render iconArea({ tintColors: renderedTintColors, tintInactive, iconGradient, iconTextClass, hasTint })}
 			{:else if !canEditIcon}
-				<div class="relative flex {iconBlockClass} shrink-0 items-center justify-center rounded-md bg-muted/50">
+				<div class="relative flex {iconBlockClass} shrink-0 items-center justify-center rounded-icon bg-muted/50">
 					{#if hasTint}
 						<div
-							class="pointer-events-none absolute inset-0 rounded-md transition-opacity duration-300 ease-out"
+							class="pointer-events-none absolute inset-0 rounded-icon transition-opacity duration-300 ease-out"
 							style="background: {iconGradient}; opacity: {tintInactive === true ? 1 : 0}"
 							aria-hidden="true"
 						></div>

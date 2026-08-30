@@ -5,6 +5,7 @@
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
+		lightTintTransitionSeconds,
 		rememberedLightPalette,
 	} from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
@@ -62,6 +63,7 @@
 	const tintColors = $derived(appearance.colors);
 	const inactiveTintColors = $derived(rememberedLightPalette(devices));
 	const tintStrength = $derived(appearance.tintStrength);
+	const tintTransitionSeconds = $derived(lightTintTransitionSeconds(devices));
 
 	function noteInteract() {
 		if (interactingTimer) clearTimeout(interactingTimer);
@@ -101,13 +103,13 @@
 
 <EntityCard
 	pressFeedback
-	class="dashboard-card"
 	entity={apartmentEntity}
 	fallbackIcon={House}
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
+	{tintTransitionSeconds}
 	tintInactive={!brightnessActive}
 	{brightnessFill}
 	{dragOpts}

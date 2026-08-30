@@ -17,6 +17,7 @@
 	import {
 		aggregateSensorReadings,
 		aggregateLightAppearance,
+		lightTintTransitionSeconds,
 	} from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
@@ -170,6 +171,7 @@
 	const appearance = $derived(aggregateLightAppearance(effectiveDevices));
 	const tintColors = $derived(appearance.colors);
 	const tintStrength = $derived(appearance.tintStrength);
+	const tintTransitionSeconds = $derived(lightTintTransitionSeconds(effectiveDevices));
 
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
@@ -189,6 +191,7 @@
 	subtitle={resolvedSubtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	{tintStrength}
+	{tintTransitionSeconds}
 	{editHref}
 	{ondelete}
 	{onrename}

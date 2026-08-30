@@ -62,4 +62,23 @@ describe("EntityCard", () => {
     expect(iconTint?.style.background).toContain("rgb(120, 80, 40)");
     expect(iconTint?.style.opacity).toBe("1");
   });
+
+  it("uses the acknowledged output transition for live tint changes", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    instance = mount(EntityCard, {
+      target: host,
+      props: {
+        entity: { id: "kitchen", name: "Kitchen", icon: null },
+        fallbackIcon: Lightbulb,
+        tintColors: ["rgb(20, 80, 140)"],
+        tintTransitionSeconds: 1.8,
+        readOnly: true,
+      },
+    });
+    flushSync();
+
+    const card = host.firstElementChild as HTMLElement;
+    expect(card.style.getPropertyValue("--tint-transition-duration")).toBe("1.8s");
+  });
 });

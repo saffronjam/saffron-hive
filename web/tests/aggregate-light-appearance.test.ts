@@ -127,7 +127,7 @@ describe("aggregateLightAppearance", () => {
         { id: "online" },
       ),
     ]);
-    expect(appearance.colors).toEqual(["rgb(255, 0, 0)"]);
+    expect(appearance.colors).toEqual(["rgb(255, 67, 51)"]);
     expect(appearance.outputRatio).toBe(1);
   });
 
@@ -143,11 +143,11 @@ describe("aggregateLightAppearance", () => {
     const forward = aggregateLightAppearance([...warm, blue]);
     const reverse = aggregateLightAppearance([blue, ...warm.toReversed()]);
     expect(forward.colors).toEqual(reverse.colors);
-    expect(forward.colors).toContain("rgb(0, 0, 255)");
-    expect(forward.colors).toHaveLength(2);
+    expect(forward.colors).toContain("rgb(55, 138, 255)");
+    expect(forward.colors).toHaveLength(3);
   });
 
-  it("collapses perceptually similar colors", () => {
+  it("keeps a stable slot for each emitting light", () => {
     const appearance = aggregateLightAppearance([
       device(
         "light",
@@ -160,7 +160,7 @@ describe("aggregateLightAppearance", () => {
         { id: "warm-b" },
       ),
     ]);
-    expect(appearance.colors).toHaveLength(1);
+    expect(appearance.colors).toHaveLength(2);
   });
 
   it("omits a secondary hue below one percent of active output", () => {
@@ -176,7 +176,7 @@ describe("aggregateLightAppearance", () => {
         { id: "blue" },
       ),
     ]);
-    expect(appearance.colors).toEqual(["rgb(255, 138, 54)"]);
+    expect(appearance.colors).toEqual(["rgb(245, 129, 42)"]);
   });
 
   it("selects at most three deterministic colors", () => {

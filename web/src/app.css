@@ -47,6 +47,7 @@
   --color-automation-action: var(--automation-action);
   --radius-sm: calc(var(--radius) * 0.8);
   --radius-md: calc(var(--radius) * 1.1);
+  --radius-icon: min(var(--radius-md), 0.625rem);
   --radius-lg: calc(var(--radius) * 1.4);
   --radius-xl: calc(var(--radius) * 1.8);
   --radius-2xl: calc(var(--radius) * 2.2);
@@ -83,10 +84,9 @@
   --chart-5: oklch(0.269 0 0);
   --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
   --card-shadow-hover: 0 4px 12px 0 rgb(0 0 0 / 0.12), 0 2px 4px -1px rgb(0 0 0 / 0.08);
-  --inset-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), inset 0 -3px 6px rgb(0 0 0 / 0.12);
   --dashboard-drag-transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   --sidebar-shadow-opacity: 0.08;
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: oklch(0.21 0.006 285.885);
@@ -129,7 +129,6 @@
   --chart-5: oklch(0.269 0 0);
   --card-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.4), 0 2px 6px -1px rgb(0 0 0 / 0.3);
   --card-shadow-hover: 0 4px 16px 0 rgb(0 0 0 / 0.5), 0 2px 6px -1px rgb(0 0 0 / 0.35);
-  --inset-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -3px 7px rgb(0 0 0 / 0.3);
   --sidebar-shadow-opacity: 0.4;
   --sidebar: oklch(0.21 0.006 285.885);
   --sidebar-foreground: oklch(0.985 0 0);
@@ -215,6 +214,19 @@
   initial-value: 0%;
 }
 
+.list-view-fade {
+  animation: list-view-fade-in 220ms ease-out both;
+}
+
+@keyframes list-view-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Use background-image (not the `background` shorthand) so background-color
    stays at the surrounding bg-card var(--card) value. The shorthand resets
    background-color to transparent, and `transition-all` on the card then
@@ -273,31 +285,6 @@
   animation: press-flash 280ms ease-out;
 }
 
-.shadow-card.dashboard-card,
-.shadow-card.entity-list-card,
-.shadow-card.device-list-card {
-  border-radius: 1rem;
-  box-shadow: var(--inset-card-shadow), var(--card-shadow);
-}
-
-.shadow-card.device-list-card:hover {
-  box-shadow: var(--inset-card-shadow), var(--card-shadow-hover);
-}
-
-.shadow-card.device-list-card.ring-new {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--foreground) 45%, transparent),
-    var(--inset-card-shadow),
-    var(--card-shadow);
-}
-
-.shadow-card.device-list-card.ring-new:hover {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--foreground) 45%, transparent),
-    var(--inset-card-shadow),
-    var(--card-shadow-hover);
-}
-
 .dashboard-drag-lift {
   transform-origin: center;
   transition-property: transform;
@@ -326,8 +313,8 @@
     )
   );
   transition:
-    --tint-color 300ms ease,
-    --tint-strength 300ms ease,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 
@@ -338,9 +325,9 @@
     color-mix(in srgb, var(--tint-color-2) calc(50% * var(--tint-strength)), var(--card))
   );
   transition:
-    --tint-color 300ms ease,
-    --tint-color-2 300ms ease,
-    --tint-strength 300ms ease,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-color-2 var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 
@@ -352,10 +339,10 @@
     color-mix(in srgb, var(--tint-color-3) calc(50% * var(--tint-strength)), var(--card))
   );
   transition:
-    --tint-color 300ms ease,
-    --tint-color-2 300ms ease,
-    --tint-color-3 300ms ease,
-    --tint-strength 300ms ease,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-color-2 var(--tint-transition-duration, 300ms) linear,
+    --tint-color-3 var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 
@@ -379,9 +366,9 @@
     var(--card) 100%
   );
   transition:
-    --tint-color 300ms ease,
-    --tint-strength 300ms ease,
-    --brightness-fill 280ms ease-out,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
+    --brightness-fill var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 .tint-fill-horizontal-2 {
@@ -394,10 +381,10 @@
     var(--card) 100%
   );
   transition:
-    --tint-color 300ms ease,
-    --tint-color-2 300ms ease,
-    --tint-strength 300ms ease,
-    --brightness-fill 280ms ease-out,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-color-2 var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
+    --brightness-fill var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 .tint-fill-horizontal-3 {
@@ -412,21 +399,21 @@
     var(--card) 100%
   );
   transition:
-    --tint-color 300ms ease,
-    --tint-color-2 300ms ease,
-    --tint-color-3 300ms ease,
-    --tint-strength 300ms ease,
-    --brightness-fill 280ms ease-out,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-color-2 var(--tint-transition-duration, 300ms) linear,
+    --tint-color-3 var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
+    --brightness-fill var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 .tint-fill-horizontal-1[data-dragging="true"],
 .tint-fill-horizontal-2[data-dragging="true"],
 .tint-fill-horizontal-3[data-dragging="true"] {
   transition:
-    --tint-color 300ms ease,
-    --tint-color-2 300ms ease,
-    --tint-color-3 300ms ease,
-    --tint-strength 300ms ease,
+    --tint-color var(--tint-transition-duration, 300ms) linear,
+    --tint-color-2 var(--tint-transition-duration, 300ms) linear,
+    --tint-color-3 var(--tint-transition-duration, 300ms) linear,
+    --tint-strength var(--tint-transition-duration, 300ms) linear,
     var(--dashboard-drag-transition);
 }
 

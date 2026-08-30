@@ -37,6 +37,8 @@ const MIRED_MAX = 500;
 const BRIGHTNESS_MAX = 254;
 const LIVE_COLOR_CLUSTER_DISTANCE = 0.08;
 const MIN_SECONDARY_COLOR_SHARE = 0.01;
+const LIVE_TINT_LIGHTNESS = 0.72;
+const DEFAULT_TINT_TRANSITION_SECONDS = 0.3;
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
@@ -244,6 +246,31 @@ function rgbToOKLab(rgb: RGB): OKLab {
   };
 }
 
+function linearChannelToRgb(channel: number): number {
+  const value = channel <= 0.0031308 ? 12.92 * channel : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
+  return clamp255(value * 255);
+}
+
+function oklabToRgb(lab: OKLab): RGB {
+  let l = lab.l + 0.3963377774 * lab.a + 0.2158037573 * lab.b;
+  let m = lab.l - 0.1055613458 * lab.a - 0.0638541728 * lab.b;
+  let s = lab.l - 0.0894841775 * lab.a - 1.291485548 * lab.b;
+  l *= l * l;
+  m *= m * m;
+  s *= s * s;
+  return {
+    r: linearChannelToRgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    g: linearChannelToRgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    b: linearChannelToRgb(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+  };
+}
+
+function normalizeLiveTint(rgb: RGB): RGB {
+  const lab = rgbToOKLab(rgb);
+  if (lab.l <= 0.001) return WARM;
+  return oklabToRgb({ ...lab, l: LIVE_TINT_LIGHTNESS });
+}
+
 function labDistance(a: OKLab, b: OKLab): number {
   return Math.hypot(a.l - b.l, a.a - b.a, a.b - b.b);
 }
@@ -300,12 +327,10 @@ function representativeColor(cluster: ColorCluster): WeightedColor {
   })[0];
 }
 
-function clusterHue(cluster: ColorCluster): number {
-  const hue = Math.atan2(cluster.lab.b, cluster.lab.a);
-  return hue < 0 ? hue + Math.PI * 2 : hue;
-}
-
-function representativePalette(colors: WeightedColor[]): { colors: RGB[]; dominant: RGB | null } {
+function representativePalette(
+  colors: WeightedColor[],
+  preserveSlotCount = false,
+): { colors: RGB[]; dominant: RGB | null } {
   if (colors.length === 0) return { colors: [], dominant: null };
   const clusters = clusterColors(colors);
   const ranked = clusters.toSorted((a, b) => b.weight - a.weight || a.key.localeCompare(b.key));
@@ -324,15 +349,44 @@ function representativePalette(colors: WeightedColor[]): { colors: RGB[]; domina
     });
     selected.push(remaining.shift()!);
   }
-  selected.sort(
-    (a, b) => clusterHue(a) - clusterHue(b) || a.lab.l - b.lab.l || a.key.localeCompare(b.key),
-  );
-  return { colors: selected.map((cluster) => representativeColor(cluster).rgb), dominant };
+  const representatives = selected.map(representativeColor);
+  if (preserveSlotCount) {
+    const significantColors = colors.filter(
+      (color) => color.weight / totalWeight >= MIN_SECONDARY_COLOR_SHARE,
+    );
+    const desiredCount = Math.min(3, Math.max(1, significantColors.length));
+    const used = new Set(representatives.map((color) => color.key));
+    while (representatives.length < desiredCount) {
+      const remainingColors = significantColors.filter((color) => !used.has(color.key));
+      if (remainingColors.length === 0) break;
+      remainingColors.sort((a, b) => {
+        const aDistance = Math.min(
+          ...representatives.map((picked) => labDistance(a.lab, picked.lab)),
+        );
+        const bDistance = Math.min(
+          ...representatives.map((picked) => labDistance(b.lab, picked.lab)),
+        );
+        return bDistance - aDistance || b.weight - a.weight || a.key.localeCompare(b.key);
+      });
+      representatives.push(remainingColors[0]);
+      used.add(remainingColors[0].key);
+    }
+    representatives.sort((a, b) => a.key.localeCompare(b.key));
+  } else {
+    representatives.sort(
+      (a, b) =>
+        Math.atan2(a.lab.b, a.lab.a) - Math.atan2(b.lab.b, b.lab.a) ||
+        a.lab.l - b.lab.l ||
+        a.key.localeCompare(b.key),
+    );
+  }
+  return { colors: representatives.map((color) => color.rgb), dominant };
 }
 
 function visualRgb(device: Device): RGB {
   const state = device.state;
-  if (state?.color) return { r: state.color.r, g: state.color.g, b: state.color.b };
+  if (state?.color)
+    return normalizeLiveTint({ r: state.color.r, g: state.color.g, b: state.color.b });
   if (state?.colorTemp != null) return miredToRgb(state.colorTemp);
   if (device.displayColor) return hexToRgb(device.displayColor) ?? WARM;
   return WARM;
@@ -385,11 +439,12 @@ export function aggregateLightAppearance(
   const active = contributions.filter((contribution) => contribution.output > 0);
   const palette = representativePalette(
     active.map((contribution) => ({
-      key: `${toCss(contribution.rgb)}\u0000${contribution.device.id}`,
+      key: contribution.device.id,
       rgb: contribution.rgb,
       lab: rgbToOKLab(contribution.rgb),
       weight: contribution.output,
     })),
+    true,
   );
   const totalOutput = contributions.reduce((sum, contribution) => sum + contribution.output, 0);
   const totalCapacity = contributions.reduce((sum, contribution) => sum + contribution.capacity, 0);
@@ -402,6 +457,17 @@ export function aggregateLightAppearance(
     active: active.length > 0,
     hasDimmable: contributions.some((contribution) => contribution.dimmable),
   };
+}
+
+/** Fade duration attached to the newest output acknowledged by these lights. */
+export function lightTintTransitionSeconds(devices: Device[]): number {
+  const durations = devices
+    .filter((device) => isRuntimeEnabledDevice(device) && isLightControlDevice(device))
+    .map((device) => device.state?.transition)
+    .filter((duration): duration is number => duration != null && Number.isFinite(duration));
+  return durations.length === 0
+    ? DEFAULT_TINT_TRANSITION_SECONDS
+    : Math.max(0, Math.min(30, Math.max(...durations)));
 }
 
 /** Colors retained by a collection's lights, for controls that remain useful while off. */

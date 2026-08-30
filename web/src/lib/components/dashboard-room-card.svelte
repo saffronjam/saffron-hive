@@ -6,6 +6,7 @@
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
+		lightTintTransitionSeconds,
 		rememberedLightPalette,
 	} from "$lib/device-tint";
 	import { resolveTargetDevices, type GroupLite, type RoomLite } from "$lib/target-resolve";
@@ -75,6 +76,7 @@
 	const tintColors = $derived(appearance.colors);
 	const inactiveTintColors = $derived(rememberedLightPalette(roomDevices));
 	const tintStrength = $derived(appearance.tintStrength);
+	const tintTransitionSeconds = $derived(lightTintTransitionSeconds(roomDevices));
 
 	function noteInteract() {
 		if (interactingTimer) clearTimeout(interactingTimer);
@@ -120,13 +122,13 @@
 
 <EntityCard
 	pressFeedback
-	class="dashboard-card"
 	entity={room}
 	fallbackIcon={DoorOpen}
 	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
+	{tintTransitionSeconds}
 	tintInactive={!brightnessActive}
 	{brightnessFill}
 	{dragOpts}
