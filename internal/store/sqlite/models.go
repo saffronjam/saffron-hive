@@ -456,16 +456,18 @@ type WebhookEndpoint struct {
 }
 
 type Zigbee2mqttConfig struct {
-	ID                  int64
-	Broker              string
-	Username            string
-	Password            string
-	UseWss              bool
-	Enabled             bool
-	ScanScheduleEnabled bool
-	ScanHour            *int64
-	ScanMinute          *int64
-	FrontendUrl         *string
+	ID                           int64
+	Broker                       string
+	Username                     string
+	Password                     string
+	UseWss                       bool
+	Enabled                      bool
+	ScanScheduleEnabled          bool
+	ScanHour                     *int64
+	ScanMinute                   *int64
+	FrontendUrl                  *string
+	InteractiveCommandsPerSecond int64
+	ContinuousCommandsPerSecond  int64
 }
 
 type ZigbeeDeviceMetadatum struct {

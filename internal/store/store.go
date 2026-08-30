@@ -462,19 +462,21 @@ type StateHistoryPoint struct {
 
 // Zigbee2MQTTConfig represents the singleton Zigbee2MQTT integration
 // configuration: the MQTT broker the zigbee2mqtt bridge publishes to, and the
-// opt-in daily topology-scan schedule. ScanHour/ScanMinute stay set while the
-// schedule is disabled so re-enabling restores the chosen time; nil means
-// never set.
+// opt-in daily topology-scan schedule and provider output rates.
+// ScanHour/ScanMinute stay set while the schedule is disabled so re-enabling
+// restores the chosen time; nil means never set.
 type Zigbee2MQTTConfig struct {
-	Broker              string
-	FrontendURL         *string
-	Username            string
-	Password            string
-	UseWSS              bool
-	Enabled             bool
-	ScanScheduleEnabled bool
-	ScanHour            *int64
-	ScanMinute          *int64
+	Broker                       string
+	FrontendURL                  *string
+	Username                     string
+	Password                     string
+	UseWSS                       bool
+	Enabled                      bool
+	ScanScheduleEnabled          bool
+	ScanHour                     *int64
+	ScanMinute                   *int64
+	InteractiveCommandsPerSecond int64
+	ContinuousCommandsPerSecond  int64
 }
 
 // TuyaConfig represents the singleton Tuya cloud integration configuration.
@@ -647,7 +649,7 @@ type InsertActivityEventParams struct {
 }
 
 // ActivityQuery filters activity events. Zero values leave a filter unset.
-// When Advanced is false, internal event types (command.requested,
+// When Advanced is false, internal event types (command.dispatched,
 // automation.node_activated) are excluded. Before is an exclusive cursor
 // (id < Before) used for keyset pagination when scrolling into history.
 type ActivityQuery struct {

@@ -1,0 +1,2 @@
+ALTER TABLE zigbee2mqtt_config DROP COLUMN continuous_commands_per_second;
+ALTER TABLE zigbee2mqtt_config DROP COLUMN interactive_commands_per_second;
