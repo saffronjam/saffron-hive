@@ -29,7 +29,7 @@
 	{onclick}
 	aria-label={ariaLabel}
 	class={cn(
-		"relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted transition-colors",
+		"relative flex shrink-0 items-center justify-center overflow-hidden rounded-icon bg-muted transition-colors",
 		sizeClass,
 		disabled ? "opacity-70" : "hover:bg-muted/80",
 		className,

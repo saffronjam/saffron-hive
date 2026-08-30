@@ -351,6 +351,7 @@
 					</div>
 				{:else}
 					<HiveDataTable
+						class="list-view-fade"
 						{tableState}
 						columns={COLUMNS}
 						rows={displayRows}

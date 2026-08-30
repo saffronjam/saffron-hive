@@ -122,7 +122,7 @@
 	{/if}
 
 	{#if needsIntegration}
-		<div class="dashboard-card shadow-card bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<PlugZap class="size-6 text-muted-foreground" />
 			</div>
@@ -133,7 +133,7 @@
 			<Button class="mt-4" href="/integrations">Set up your first integration</Button>
 		</div>
 	{:else if $devicesHydrated && rooms.length === 0}
-		<div class="dashboard-card shadow-card bg-card p-12 text-center">
+		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<p class="text-muted-foreground">No rooms configured yet.</p>
 			<p class="mt-2 text-sm text-muted-foreground">
 				Create a room on the Rooms page and add devices or light groups to it.

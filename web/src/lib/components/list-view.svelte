@@ -20,18 +20,3 @@
 		{/if}
 	</div>
 {/key}
-
-<style>
-	.list-view-fade {
-		animation: list-view-fade-in 220ms ease-out both;
-	}
-
-	@keyframes list-view-fade-in {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-</style>
