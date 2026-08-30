@@ -3,6 +3,7 @@ package zigbee
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -102,46 +103,41 @@ func effectValueAllowed(c device.Capability, name string) bool {
 	return false
 }
 
-func (a *ZigbeeAdapter) handleNativeEffect(req device.NativeEffectRequest) {
+func (a *ZigbeeAdapter) handleNativeEffect(req device.NativeEffectRequest) error {
 	a.mu.RLock()
 	friendlyName, ok := a.idToName[req.DeviceID]
 	a.mu.RUnlock()
 
 	if !ok {
-		logger.Warn("native effect for unknown device", "device_id", req.DeviceID, "effect", req.Name)
-		return
+		return fmt.Errorf("native effect for unknown device %q", req.DeviceID)
 	}
 
 	dev, ok := a.stateReader.GetDevice(req.DeviceID)
 	if !ok {
-		logger.Warn("native effect for device missing from state reader", "device_id", req.DeviceID, "effect", req.Name)
-		return
+		return fmt.Errorf("native effect device %q is unavailable", req.DeviceID)
 	}
 
 	effectCap, ok := effectCapability(dev)
 	if !ok {
-		logger.Warn("native effect requested for device without effect capability", "device_id", req.DeviceID, "effect", req.Name)
-		return
+		return fmt.Errorf("device %q has no native effect capability", req.DeviceID)
 	}
 
 	if !effectValueAllowed(effectCap, req.Name) {
-		logger.Warn("native effect not in device effect values", "device_id", req.DeviceID, "effect", req.Name)
-		return
+		return fmt.Errorf("native effect %q is unavailable on device %q", req.Name, req.DeviceID)
 	}
 
 	data, err := json.Marshal(z2mEffectPayload{Effect: req.Name})
 	if err != nil {
-		logger.Error("failed to marshal native effect payload", "error", err)
-		return
+		return fmt.Errorf("marshal native effect: %w", err)
 	}
 
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
-	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
-		logger.Error("failed to publish native effect", "topic", topic, "error", err)
+	if err := a.mqtt.Publish(topic, 1, false, data); err != nil {
 		a.publishNativeEffectResult(req.DeviceID, req.Name, req.Origin.ID, device.NativeEffectRunUnconfirmed, "publish_failed")
-		return
+		return fmt.Errorf("publish native effect to %s: %w", topic, err)
 	}
 	a.trackNativeEffect(req.DeviceID, friendlyName, req.Name, req.Origin.ID)
+	return nil
 }
 
 func (a *ZigbeeAdapter) trackNativeEffect(deviceID device.DeviceID, friendlyName, name, runID string) {

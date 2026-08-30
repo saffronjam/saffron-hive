@@ -1,12 +1,12 @@
 package zigbee
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 func waitForPublish(mqtt *FakeMQTTClient, count int, timeout time.Duration) []FakePublish {
@@ -25,19 +25,16 @@ func waitForPublish(mqtt *FakeMQTTClient, count int, timeout time.Duration) []Fa
 }
 
 func TestCommandTranslation_LightOn(t *testing.T) {
-	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "living_room_light", "0xabc", device.Light)
+	adapter, mqtt, _, _ := setupAdapterWithDevice(t, "living_room_light", "0xabc", device.Light)
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xabc",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID:   device.DeviceID("0xabc"),
-			On:         device.Ptr(true),
-			Brightness: device.Ptr(200),
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID:   device.DeviceID("0xabc"),
+		On:         device.Ptr(true),
+		Brightness: device.Ptr(200),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -62,18 +59,15 @@ func TestCommandTranslation_LightOn(t *testing.T) {
 }
 
 func TestCommandTranslation_LightOff(t *testing.T) {
-	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "hall_light", "0xhall", device.Light)
+	adapter, mqtt, _, _ := setupAdapterWithDevice(t, "hall_light", "0xhall", device.Light)
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xhall",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: device.DeviceID("0xhall"),
-			On:       device.Ptr(false),
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID: device.DeviceID("0xhall"),
+		On:       device.Ptr(false),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -90,7 +84,7 @@ func TestCommandTranslation_LightOff(t *testing.T) {
 }
 
 func TestCommandTranslation_BrightnessZeroBecomesOff(t *testing.T) {
-	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+	adapter, mqtt, _, sw, sr := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -117,16 +111,13 @@ func TestCommandTranslation_BrightnessZeroBecomesOff(t *testing.T) {
 	adapter.ieeeToID["0xzero"] = id
 	adapter.mu.Unlock()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xzero",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID:   id,
-			On:         device.Ptr(true),
-			Brightness: device.Ptr(0),
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID:   id,
+		On:         device.Ptr(true),
+		Brightness: device.Ptr(0),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -146,7 +137,7 @@ func TestCommandTranslation_BrightnessZeroBecomesOff(t *testing.T) {
 }
 
 func TestCommandTranslation_BrightnessZeroPreservedWithoutOnOff(t *testing.T) {
-	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+	adapter, mqtt, _, sw, sr := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -172,15 +163,12 @@ func TestCommandTranslation_BrightnessZeroPreservedWithoutOnOff(t *testing.T) {
 	adapter.ieeeToID["0xdimonly"] = id
 	adapter.mu.Unlock()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xdimonly",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID:   id,
-			Brightness: device.Ptr(0),
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID:   id,
+		Brightness: device.Ptr(0),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -200,18 +188,15 @@ func TestCommandTranslation_BrightnessZeroPreservedWithoutOnOff(t *testing.T) {
 }
 
 func TestCommandTranslation_ColorTemp(t *testing.T) {
-	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "desk_lamp", "0xdef", device.Light)
+	adapter, mqtt, _, _ := setupAdapterWithDevice(t, "desk_lamp", "0xdef", device.Light)
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xdef",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID:  device.DeviceID("0xdef"),
-			ColorTemp: device.Ptr(400),
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID:  device.DeviceID("0xdef"),
+		ColorTemp: device.Ptr(400),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -228,18 +213,15 @@ func TestCommandTranslation_ColorTemp(t *testing.T) {
 }
 
 func TestCommandTranslation_Color(t *testing.T) {
-	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "rgb_light", "0xrgb", device.Light)
+	adapter, mqtt, _, _ := setupAdapterWithDevice(t, "rgb_light", "0xrgb", device.Light)
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xrgb",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: device.DeviceID("0xrgb"),
-			Color:    &device.Color{R: 255, G: 0, B: 128},
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID: device.DeviceID("0xrgb"),
+		Color:    &device.Color{R: 255, G: 0, B: 128},
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -273,18 +255,15 @@ func TestCommandTranslation_Color(t *testing.T) {
 }
 
 func TestCommandTranslation_ColorXY(t *testing.T) {
-	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "xy_light", "0xxy", device.Light)
+	adapter, mqtt, _, _ := setupAdapterWithDevice(t, "xy_light", "0xxy", device.Light)
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xxy",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: device.DeviceID("0xxy"),
-			Color:    &device.Color{R: 0, G: 0, B: 0, X: 0.4, Y: 0.5},
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID: device.DeviceID("0xxy"),
+		Color:    &device.Color{R: 0, G: 0, B: 0, X: 0.4, Y: 0.5},
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -324,23 +303,19 @@ func toInt(v any) int {
 }
 
 func TestCommandTranslation_UnknownDevice(t *testing.T) {
-	adapter, mqtt, bus, _ := newTestAdapter()
+	adapter, mqtt, _, _ := newTestAdapter()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xunknown",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: device.DeviceID("0xunknown"),
-			On:       device.Ptr(true),
-		},
+	err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID: device.DeviceID("0xunknown"),
+		On:       device.Ptr(true),
 	})
-
-	time.Sleep(50 * time.Millisecond)
+	if err == nil {
+		t.Fatal("expected unknown device error")
+	}
 
 	pubs := mqtt.GetPublished()
 	if len(pubs) != 0 {
@@ -349,20 +324,17 @@ func TestCommandTranslation_UnknownDevice(t *testing.T) {
 }
 
 func TestCommandTranslation_WithTransition(t *testing.T) {
-	adapter, mqtt, bus, _ := setupAdapterWithDevice(t, "bedroom_light", "0xbed", device.Light)
+	adapter, mqtt, _, _ := setupAdapterWithDevice(t, "bedroom_light", "0xbed", device.Light)
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "0xbed",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID:   device.DeviceID("0xbed"),
-			On:         device.Ptr(true),
-			Brightness: device.Ptr(150),
-			Transition: device.Ptr(2.5),
-		},
-	})
+	if err := adapter.DispatchState(context.Background(), device.Command{
+		DeviceID:   device.DeviceID("0xbed"),
+		On:         device.Ptr(true),
+		Brightness: device.Ptr(150),
+		Transition: device.Ptr(2.5),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {

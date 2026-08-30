@@ -1,41 +1,34 @@
 package zigbee
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
 func TestProviderGroupCommandPublishesOneMQTTMessage(t *testing.T) {
-	adapter, mqtt, bus, _ := newTestAdapter()
+	adapter, mqtt, _, _ := newTestAdapter()
 	if err := adapter.Start(); err != nil {
 		t.Fatalf("start adapter: %v", err)
 	}
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type: eventbus.EventProviderGroupCommandRequested,
-		Payload: device.ProviderGroupCommand{
-			Provider:        string(device.SourceZigbee2MQTT),
-			ProviderGroupID: "7",
-			FriendlyName:    "Hall lights",
-			MemberIDs:       []device.DeviceID{"a", "b"},
-			State:           device.Command{On: device.Ptr(true), Brightness: device.Ptr(180), Origin: device.OriginUser()},
-		},
-	})
-
-	deadline := time.Now().Add(time.Second)
-	for len(mqtt.GetPublished()) == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
+	if err := adapter.DispatchGroupState(context.Background(), device.ProviderGroupCommand{
+		Provider:        string(device.SourceZigbee2MQTT),
+		ProviderGroupID: "7",
+		FriendlyName:    "Hall lights",
+		MemberIDs:       []device.DeviceID{"a", "b"},
+		State:           device.Command{On: device.Ptr(true), Brightness: device.Ptr(180), Origin: device.OriginUser()},
+	}); err != nil {
+		t.Fatal(err)
 	}
 	published := mqtt.GetPublished()
 	if len(published) != 1 {
 		t.Fatalf("published %d messages, want 1", len(published))
 	}
-	if published[0].Topic != "zigbee2mqtt/Hall lights/set" || published[0].QoS != 0 || published[0].Retained {
+	if published[0].Topic != "zigbee2mqtt/Hall lights/set" || published[0].QoS != 1 || published[0].Retained {
 		t.Fatalf("publish = %+v", published[0])
 	}
 	var payload map[string]any
@@ -48,7 +41,7 @@ func TestProviderGroupCommandPublishesOneMQTTMessage(t *testing.T) {
 }
 
 func TestProviderGroupCommandUsesDeviceBrightnessZeroConversion(t *testing.T) {
-	adapter, mqtt, bus, _, reader := newTestAdapterWithReader()
+	adapter, mqtt, _, _, reader := newTestAdapterWithReader()
 	for _, id := range []device.DeviceID{"a", "b"} {
 		reader.Set(device.Device{ID: id, Capabilities: []device.Capability{{Name: device.CapOnOff}}})
 	}
@@ -57,20 +50,14 @@ func TestProviderGroupCommandUsesDeviceBrightnessZeroConversion(t *testing.T) {
 	}
 	defer adapter.Stop()
 
-	bus.Publish(eventbus.Event{
-		Type: eventbus.EventProviderGroupCommandRequested,
-		Payload: device.ProviderGroupCommand{
-			Provider:        string(device.SourceZigbee2MQTT),
-			ProviderGroupID: "7",
-			FriendlyName:    "Hall lights",
-			MemberIDs:       []device.DeviceID{"a", "b"},
-			State:           device.Command{On: device.Ptr(true), Brightness: device.Ptr(0)},
-		},
-	})
-
-	deadline := time.Now().Add(time.Second)
-	for len(mqtt.GetPublished()) == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
+	if err := adapter.DispatchGroupState(context.Background(), device.ProviderGroupCommand{
+		Provider:        string(device.SourceZigbee2MQTT),
+		ProviderGroupID: "7",
+		FriendlyName:    "Hall lights",
+		MemberIDs:       []device.DeviceID{"a", "b"},
+		State:           device.Command{On: device.Ptr(true), Brightness: device.Ptr(0)},
+	}); err != nil {
+		t.Fatal(err)
 	}
 	published := mqtt.GetPublished()
 	if len(published) != 1 {

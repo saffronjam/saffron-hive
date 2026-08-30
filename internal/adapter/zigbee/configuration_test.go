@@ -1,6 +1,7 @@
 package zigbee
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ func TestMapConfiguration_AqaraP100(t *testing.T) {
 }
 
 func TestConfigurationRequest_PublishesZigbeeSet(t *testing.T) {
-	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+	adapter, mqtt, _, sw, sr := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -78,16 +79,14 @@ func TestConfigurationRequest_PublishesZigbeeSet(t *testing.T) {
 	}
 	adapter.mu.Unlock()
 
-	bus.Publish(eventbus.Event{
-		Type:     eventbus.EventConfigurationRequested,
-		DeviceID: string(id),
-		Payload: device.ConfigurationRequest{
-			DeviceID: id,
-			Values: []device.ConfigurationValue{
-				{Capability: "movement_detection", BooleanValue: device.Ptr(true)},
-			},
+	if err := adapter.DispatchConfiguration(context.Background(), device.ConfigurationRequest{
+		DeviceID: id,
+		Values: []device.ConfigurationValue{
+			{Capability: "movement_detection", BooleanValue: device.Ptr(true)},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	published := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(published) != 1 {

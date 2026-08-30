@@ -1,7 +1,9 @@
 package zigbee
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -65,6 +67,12 @@ type StateReader interface {
 	ListDevices() []device.Device
 }
 
+// OutputObserver receives device reports before they are published.
+type OutputObserver interface {
+	ObserveState(device.DeviceID, device.DeviceState) device.OutputObservation
+	ObserveConfiguration(device.DeviceID, []device.ConfigurationValue) device.CommandOrigin
+}
+
 // ZigbeeAdapter connects to zigbee2mqtt via MQTT and translates messages
 // into domain events.
 type ZigbeeAdapter struct {
@@ -72,6 +80,7 @@ type ZigbeeAdapter struct {
 	bus         eventbus.EventBus
 	stateWriter StateWriter
 	stateReader StateReader
+	observer    OutputObserver
 
 	mu                    sync.RWMutex
 	ieeeToID              map[string]device.DeviceID
@@ -113,11 +122,7 @@ type ZigbeeAdapter struct {
 	// visibility from logs. Read-only once Stop has returned.
 	droppedIn atomic.Int64
 
-	stopCh          chan struct{}
-	cmdCh           <-chan eventbus.Event
-	configurationCh <-chan eventbus.Event
-	nativeEffectCh  <-chan eventbus.Event
-	groupCommandCh  <-chan eventbus.Event
+	stopCh chan struct{}
 }
 
 // NewZigbeeAdapter creates a new adapter with the given dependencies.
@@ -142,6 +147,14 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 		dispatchCh:                 make(chan incomingMsg, dispatchBufferSize),
 		dispatchDone:               make(chan struct{}),
 	}
+}
+
+// SetOutputObserver routes state and configuration acknowledgements through
+// Hive's output-delivery ledger.
+func (a *ZigbeeAdapter) SetOutputObserver(observer OutputObserver) {
+	a.mu.Lock()
+	a.observer = observer
+	a.mu.Unlock()
 }
 
 // Start registers zigbee2mqtt subscriptions and connects to MQTT.
@@ -213,16 +226,6 @@ func (a *ZigbeeAdapter) Start() error {
 	if err := a.mqtt.Connect(); err != nil {
 		return err
 	}
-
-	a.cmdCh = a.bus.Subscribe(eventbus.EventCommandRequested)
-	go a.commandLoop()
-	a.groupCommandCh = a.bus.Subscribe(eventbus.EventProviderGroupCommandRequested)
-	go a.groupCommandLoop()
-	a.configurationCh = a.bus.Subscribe(eventbus.EventConfigurationRequested)
-	go a.configurationLoop()
-
-	a.nativeEffectCh = a.bus.Subscribe(eventbus.EventNativeEffectRequested)
-	go a.nativeEffectLoop()
 
 	return nil
 }
@@ -303,18 +306,6 @@ func (a *ZigbeeAdapter) Stop() {
 		a.WaitForDispatchIdle()
 	}
 	close(a.stopCh)
-	if a.cmdCh != nil {
-		a.bus.Unsubscribe(a.cmdCh)
-	}
-	if a.nativeEffectCh != nil {
-		a.bus.Unsubscribe(a.nativeEffectCh)
-	}
-	if a.groupCommandCh != nil {
-		a.bus.Unsubscribe(a.groupCommandCh)
-	}
-	if a.configurationCh != nil {
-		a.bus.Unsubscribe(a.configurationCh)
-	}
 	a.mqtt.Disconnect(250)
 
 	close(a.dispatchCh)
@@ -335,63 +326,6 @@ func (a *ZigbeeAdapter) BridgeConnected() bool {
 	return a.networkOnline.Load()
 }
 
-func (a *ZigbeeAdapter) configurationLoop() {
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case evt, ok := <-a.configurationCh:
-			if !ok {
-				return
-			}
-			req, ok := evt.Payload.(device.ConfigurationRequest)
-			if !ok || !a.acceptsCommand(req.DeviceID) {
-				continue
-			}
-			a.handleConfigurationRequest(req)
-		}
-	}
-}
-
-func (a *ZigbeeAdapter) commandLoop() {
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case evt, ok := <-a.cmdCh:
-			if !ok {
-				return
-			}
-			cmd, ok := evt.Payload.(device.Command)
-			if !ok {
-				continue
-			}
-			if !a.acceptsCommand(cmd.DeviceID) {
-				continue
-			}
-			a.handleCommand(cmd)
-		}
-	}
-}
-
-func (a *ZigbeeAdapter) groupCommandLoop() {
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case evt, ok := <-a.groupCommandCh:
-			if !ok {
-				return
-			}
-			req, ok := evt.Payload.(device.ProviderGroupCommand)
-			if !ok || req.Provider != string(device.SourceZigbee2MQTT) {
-				continue
-			}
-			a.handleGroupCommand(req)
-		}
-	}
-}
-
 func (a *ZigbeeAdapter) acceptsCommand(deviceID device.DeviceID) bool {
 	dev, found := a.stateReader.GetDevice(deviceID)
 	if !found {
@@ -403,22 +337,36 @@ func (a *ZigbeeAdapter) acceptsCommand(deviceID device.DeviceID) bool {
 	return dev.Source == device.SourceZigbee2MQTT
 }
 
-func (a *ZigbeeAdapter) nativeEffectLoop() {
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case evt, ok := <-a.nativeEffectCh:
-			if !ok {
-				return
-			}
-			req, ok := evt.Payload.(device.NativeEffectRequest)
-			if !ok {
-				continue
-			}
-			a.handleNativeEffect(req)
-		}
+// DispatchState writes one state command through Zigbee2MQTT.
+func (a *ZigbeeAdapter) DispatchState(_ context.Context, command device.Command) error {
+	if !a.acceptsCommand(command.DeviceID) {
+		return fmt.Errorf("device %q is not writable through Zigbee2MQTT", command.DeviceID)
 	}
+	return a.handleCommand(command)
+}
+
+// DispatchGroupState writes one provider-group multicast through Zigbee2MQTT.
+func (a *ZigbeeAdapter) DispatchGroupState(_ context.Context, request device.ProviderGroupCommand) error {
+	if request.Provider != string(device.SourceZigbee2MQTT) {
+		return fmt.Errorf("provider %q is not Zigbee2MQTT", request.Provider)
+	}
+	return a.handleGroupCommand(request)
+}
+
+// DispatchConfiguration writes one device configuration batch through Zigbee2MQTT.
+func (a *ZigbeeAdapter) DispatchConfiguration(_ context.Context, request device.ConfigurationRequest) error {
+	if !a.acceptsCommand(request.DeviceID) {
+		return fmt.Errorf("device %q is not writable through Zigbee2MQTT", request.DeviceID)
+	}
+	return a.handleConfigurationRequest(request)
+}
+
+// DispatchNativeEffect starts one native effect through Zigbee2MQTT.
+func (a *ZigbeeAdapter) DispatchNativeEffect(_ context.Context, request device.NativeEffectRequest) error {
+	if !a.acceptsCommand(request.DeviceID) {
+		return fmt.Errorf("device %q is not writable through Zigbee2MQTT", request.DeviceID)
+	}
+	return a.handleNativeEffect(request)
 }
 
 func (a *ZigbeeAdapter) handleBridgeLog(payload []byte) {
@@ -622,7 +570,12 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 		if writer, ok := a.stateWriter.(device.ConfigurationWriter); ok {
 			writer.UpdateDeviceConfiguration(id, configuration)
 		}
-		origin := a.consumePendingConfigurationOrigin(id)
+		origin := device.CommandOrigin{}
+		if observer := a.outputObserver(); observer != nil {
+			origin = observer.ObserveConfiguration(id, configuration)
+		} else {
+			origin = a.consumePendingConfigurationOrigin(id)
+		}
 		a.bus.Publish(eventbus.Event{
 			Type:      eventbus.EventDeviceConfigurationChanged,
 			DeviceID:  string(id),
@@ -633,6 +586,12 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	if !hasAnyField(state) {
 		return
 	}
+	observation := device.OutputObservation{Transition: state.Transition}
+	if observer := a.outputObserver(); observer != nil {
+		observation = observer.ObserveState(id, state)
+	} else {
+		observation.Origin = a.consumePendingOrigin(id)
+	}
 	a.stateWriter.UpdateDeviceState(id, state)
 	switch colorMode {
 	case "xy":
@@ -640,13 +599,20 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	case "color_temp":
 		a.stateWriter.ClearDeviceStateFields(id, device.FieldColor)
 	}
-	origin := a.consumePendingOrigin(id)
+	reported := state
+	reported.Transition = observation.Transition
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceStateChanged,
 		DeviceID:  string(id),
 		Timestamp: now,
-		Payload:   device.DeviceStateChange{State: state, Origin: origin},
+		Payload:   device.DeviceStateChange{State: reported, Origin: observation.Origin},
 	})
+}
+
+func (a *ZigbeeAdapter) outputObserver() OutputObserver {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.observer
 }
 
 func (a *ZigbeeAdapter) recordPendingConfigurationOrigin(id device.DeviceID, origin device.CommandOrigin) {

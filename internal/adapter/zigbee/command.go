@@ -2,6 +2,7 @@ package zigbee
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
@@ -99,14 +100,13 @@ func hasCapability(dev device.Device, name string) bool {
 	return false
 }
 
-func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
+func (a *ZigbeeAdapter) handleCommand(cmd device.Command) error {
 	a.mu.RLock()
 	friendlyName, ok := a.idToName[cmd.DeviceID]
 	a.mu.RUnlock()
 
 	if !ok {
-		logger.Warn("command for unknown device", "device_id", cmd.DeviceID)
-		return
+		return fmt.Errorf("command for unknown device %q", cmd.DeviceID)
 	}
 
 	// brightness=0 on a device with on/off capability means "off". Sending
@@ -121,19 +121,21 @@ func (a *ZigbeeAdapter) handleCommand(cmd device.Command) {
 	payload := translateCommand(cmd)
 	data, err := json.Marshal(payload)
 	if err != nil {
-		logger.Error("failed to marshal command", "error", err)
-		return
+		return fmt.Errorf("marshal command: %w", err)
 	}
 
-	a.recordPendingOrigin(cmd.DeviceID, cmd.Origin)
+	if a.outputObserver() == nil {
+		a.recordPendingOrigin(cmd.DeviceID, cmd.Origin)
+	}
 
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
-	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
-		logger.Error("failed to publish command", "topic", topic, "error", err)
+	if err := a.mqtt.Publish(topic, 1, false, data); err != nil {
+		return fmt.Errorf("publish command to %s: %w", topic, err)
 	}
+	return nil
 }
 
-func (a *ZigbeeAdapter) handleGroupCommand(req device.ProviderGroupCommand) {
+func (a *ZigbeeAdapter) handleGroupCommand(req device.ProviderGroupCommand) error {
 	var (
 		data []byte
 		err  error
@@ -154,21 +156,21 @@ func (a *ZigbeeAdapter) handleGroupCommand(req device.ProviderGroupCommand) {
 		data, err = json.Marshal(translateCommand(cmd))
 	}
 	if err != nil {
-		logger.Error("failed to marshal group command", "provider_group_id", req.ProviderGroupID, "error", err)
-		return
+		return fmt.Errorf("marshal group command %s: %w", req.ProviderGroupID, err)
 	}
-	for _, id := range req.MemberIDs {
-		a.recordPendingOrigin(id, req.State.Origin)
+	if a.outputObserver() == nil {
+		for _, id := range req.MemberIDs {
+			a.recordPendingOrigin(id, req.State.Origin)
+		}
 	}
 	topic := "zigbee2mqtt/" + req.FriendlyName + "/set"
-	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
-		logger.Error("failed to publish group command", "topic", topic, "provider_group_id", req.ProviderGroupID, "error", err)
+	if err := a.mqtt.Publish(topic, 1, false, data); err != nil {
 		if req.NativeEffect != "" {
 			for _, id := range req.MemberIDs {
 				a.publishNativeEffectResult(id, req.NativeEffect, req.State.Origin.ID, device.NativeEffectRunUnconfirmed, "publish_failed")
 			}
 		}
-		return
+		return fmt.Errorf("publish group command to %s: %w", topic, err)
 	}
 	if req.NativeEffect != "" {
 		for _, id := range req.MemberIDs {
@@ -182,4 +184,5 @@ func (a *ZigbeeAdapter) handleGroupCommand(req device.ProviderGroupCommand) {
 			a.trackNativeEffect(id, friendlyName, req.NativeEffect, req.State.Origin.ID)
 		}
 	}
+	return nil
 }

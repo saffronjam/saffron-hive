@@ -84,15 +84,13 @@ func binaryValue(raw json.RawMessage, feature z2mFeature) (bool, error) {
 	return false, fmt.Errorf("value %s does not match binary exposure", raw)
 }
 
-func (a *ZigbeeAdapter) handleConfigurationRequest(req device.ConfigurationRequest) {
+func (a *ZigbeeAdapter) handleConfigurationRequest(req device.ConfigurationRequest) error {
 	dev, ok := a.stateReader.GetDevice(req.DeviceID)
 	if !ok {
-		logger.Warn("configuration for unknown device", "device_id", req.DeviceID)
-		return
+		return fmt.Errorf("configuration for unknown device %q", req.DeviceID)
 	}
 	if err := device.ValidateConfigurationValues(dev, req.Values); err != nil {
-		logger.Warn("invalid device configuration", "device_id", req.DeviceID, "error", err)
-		return
+		return err
 	}
 
 	a.mu.RLock()
@@ -100,33 +98,32 @@ func (a *ZigbeeAdapter) handleConfigurationRequest(req device.ConfigurationReque
 	features := a.configurationFeatures[req.DeviceID]
 	a.mu.RUnlock()
 	if !nameOK {
-		logger.Warn("configuration for unknown device", "device_id", req.DeviceID)
-		return
+		return fmt.Errorf("configuration name for device %q is unavailable", req.DeviceID)
 	}
 	payload := make(map[string]json.RawMessage, len(req.Values))
 	for _, value := range req.Values {
 		feature, ok := features[value.Capability]
 		if !ok {
-			logger.Warn("configuration exposure missing", "device_id", req.DeviceID, "capability", value.Capability)
-			return
+			return fmt.Errorf("configuration exposure %q is unavailable for device %q", value.Capability, req.DeviceID)
 		}
 		raw, err := configurationWireValue(value, feature)
 		if err != nil {
-			logger.Warn("failed to encode device configuration", "device_id", req.DeviceID, "capability", value.Capability, "error", err)
-			return
+			return fmt.Errorf("encode configuration %q: %w", value.Capability, err)
 		}
 		payload[feature.Property] = raw
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		logger.Error("failed to marshal device configuration", "device_id", req.DeviceID, "error", err)
-		return
+		return fmt.Errorf("marshal device configuration: %w", err)
 	}
-	a.recordPendingConfigurationOrigin(req.DeviceID, req.Origin)
+	if a.outputObserver() == nil {
+		a.recordPendingConfigurationOrigin(req.DeviceID, req.Origin)
+	}
 	topic := "zigbee2mqtt/" + friendlyName + "/set"
-	if err := a.mqtt.Publish(topic, 0, false, data); err != nil {
-		logger.Error("failed to publish device configuration", "topic", topic, "error", err)
+	if err := a.mqtt.Publish(topic, 1, false, data); err != nil {
+		return fmt.Errorf("publish device configuration to %s: %w", topic, err)
 	}
+	return nil
 }
 
 func configurationWireValue(value device.ConfigurationValue, feature z2mFeature) (json.RawMessage, error) {

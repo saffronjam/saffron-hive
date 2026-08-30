@@ -97,6 +97,7 @@ func registerEffectDevice(t *testing.T, adapter *ZigbeeAdapter, sw *mockStateWri
 	dev := device.Device{
 		ID:           id,
 		FriendlyName: friendlyName,
+		Source:       device.SourceZigbee2MQTT,
 		Type:         device.Light,
 		Available:    true,
 		Capabilities: caps,
@@ -114,7 +115,7 @@ func registerEffectDevice(t *testing.T, adapter *ZigbeeAdapter, sw *mockStateWri
 }
 
 func TestNativeEffect_PublishesMQTT(t *testing.T) {
-	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+	adapter, mqtt, _, sw, sr := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,9 @@ func TestNativeEffect_PublishesMQTT(t *testing.T) {
 
 	registerEffectDevice(t, adapter, sw, sr, "hue_bulb", "0xhue", []string{"blink", "candle", "stop_effect", "stop_hue_effect"})
 
-	device.RequestNativeEffect(bus, device.DeviceID("0xhue"), "candle", device.OriginEffect("run-1"))
+	if err := adapter.DispatchNativeEffect(context.Background(), device.NativeEffectRequest{DeviceID: device.DeviceID("0xhue"), Name: "candle", Origin: device.OriginEffect("run-1")}); err != nil {
+		t.Fatal(err)
+	}
 
 	pubs := waitForPublish(mqtt, 1, 500*time.Millisecond)
 	if len(pubs) == 0 {
@@ -141,10 +144,8 @@ func TestNativeEffect_PublishesMQTT(t *testing.T) {
 	}
 }
 
-func TestNativeEffect_NoEffectCap_DropsAndWarns(t *testing.T) {
-	logs := installCaptureLogger(t)
-
-	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+func TestNativeEffect_NoEffectCapReturnsError(t *testing.T) {
+	adapter, mqtt, _, sw, sr := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -152,9 +153,9 @@ func TestNativeEffect_NoEffectCap_DropsAndWarns(t *testing.T) {
 
 	registerEffectDevice(t, adapter, sw, sr, "plain_bulb", "0xplain", nil)
 
-	device.RequestNativeEffect(bus, device.DeviceID("0xplain"), "candle", device.OriginEffect("run-2"))
-
-	waitForWarn(t, logs, "without effect capability", 500*time.Millisecond)
+	if err := adapter.DispatchNativeEffect(context.Background(), device.NativeEffectRequest{DeviceID: device.DeviceID("0xplain"), Name: "candle", Origin: device.OriginEffect("run-2")}); err == nil {
+		t.Fatal("expected missing capability error")
+	}
 
 	pubs := mqtt.GetPublished()
 	if len(pubs) != 0 {
@@ -162,10 +163,8 @@ func TestNativeEffect_NoEffectCap_DropsAndWarns(t *testing.T) {
 	}
 }
 
-func TestNativeEffect_NameNotInValues_DropsAndWarns(t *testing.T) {
-	logs := installCaptureLogger(t)
-
-	adapter, mqtt, bus, sw, sr := newTestAdapterWithReader()
+func TestNativeEffect_NameNotInValuesReturnsError(t *testing.T) {
+	adapter, mqtt, _, sw, sr := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -173,9 +172,9 @@ func TestNativeEffect_NameNotInValues_DropsAndWarns(t *testing.T) {
 
 	registerEffectDevice(t, adapter, sw, sr, "ikea_bulb", "0xikea", []string{"blink", "stop_effect"})
 
-	device.RequestNativeEffect(bus, device.DeviceID("0xikea"), "candle", device.OriginEffect("run-3"))
-
-	waitForWarn(t, logs, "not in device effect values", 500*time.Millisecond)
+	if err := adapter.DispatchNativeEffect(context.Background(), device.NativeEffectRequest{DeviceID: device.DeviceID("0xikea"), Name: "candle", Origin: device.OriginEffect("run-3")}); err == nil {
+		t.Fatal("expected unsupported effect error")
+	}
 
 	pubs := mqtt.GetPublished()
 	if len(pubs) != 0 {
@@ -216,18 +215,16 @@ func TestTerminatorFor_NoEffectCap(t *testing.T) {
 	}
 }
 
-func TestNativeEffect_UnknownDevice_DropsAndWarns(t *testing.T) {
-	logs := installCaptureLogger(t)
-
-	adapter, mqtt, bus, _, _ := newTestAdapterWithReader()
+func TestNativeEffect_UnknownDeviceReturnsError(t *testing.T) {
+	adapter, mqtt, _, _, _ := newTestAdapterWithReader()
 	if err := adapter.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer adapter.Stop()
 
-	device.RequestNativeEffect(bus, device.DeviceID("0xunknown"), "candle", device.OriginEffect("run-4"))
-
-	waitForWarn(t, logs, "native effect for unknown device", 500*time.Millisecond)
+	if err := adapter.DispatchNativeEffect(context.Background(), device.NativeEffectRequest{DeviceID: device.DeviceID("0xunknown"), Name: "candle", Origin: device.OriginEffect("run-4")}); err == nil {
+		t.Fatal("expected unknown device error")
+	}
 
 	pubs := mqtt.GetPublished()
 	if len(pubs) != 0 {
