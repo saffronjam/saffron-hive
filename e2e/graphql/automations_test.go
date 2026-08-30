@@ -633,19 +633,26 @@ func TestAutomations_TriggerViaButtonAction(t *testing.T) {
 }
 
 // TestAutomations_TriggerCooldownSubSecond verifies that a per-trigger
-// cooldown_ms is enforced by the live engine: a 50 ms window blocks a refire
-// at ~20 ms but permits one well past it.
+// cooldown_ms is enforced by the live engine within a sub-second window.
 func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 	targetID, err := queryDeviceIDByName("Kitchen Light")
 	if err != nil {
 		t.Fatalf("find target: %v", err)
 	}
+	sensorID, err := queryDeviceIDByName("Living Room Sensor")
+	if err != nil {
+		t.Fatalf("find sensor: %v", err)
+	}
+	if err := publisher.PublishDeviceState("Kitchen Light", []byte(`{"state":"OFF"}`)); err != nil {
+		t.Fatalf("establish target state: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
 
 	triggerConfig, _ := json.Marshal(map[string]any{
 		"kind":        "event",
 		"event_type":  "device.state_changed",
-		"filter_expr": "true",
-		"cooldown_ms": 50,
+		"filter_expr": fmt.Sprintf(`trigger.device_id == %q`, sensorID),
+		"cooldown_ms": 750,
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -709,6 +716,11 @@ func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 		t.Fatal("expected first fire to succeed")
 	}
 
+	time.Sleep(100 * time.Millisecond)
+	if err := publisher.PublishDeviceState("Kitchen Light", []byte(`{"state":"OFF"}`)); err != nil {
+		t.Fatalf("reset target state: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
 	time.Sleep(20 * time.Millisecond)
 	if err := publisher.PublishDeviceState("Living Room Sensor", sensorState); err != nil {
 		t.Fatalf("publish: %v", err)
@@ -724,12 +736,12 @@ func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 		return false
 	})
 	if blocked {
-		t.Fatal("refire within 50 ms trigger cooldown must not reach MQTT")
+		t.Fatal("refire within trigger cooldown must not reach MQTT")
 	}
 
-	time.Sleep(120 * time.Millisecond)
+	time.Sleep(800 * time.Millisecond)
 	if !firstFire() {
-		t.Fatal("refire past 50 ms trigger cooldown should succeed")
+		t.Fatal("refire past trigger cooldown should succeed")
 	}
 }
 
