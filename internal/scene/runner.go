@@ -43,6 +43,11 @@ type EffectController interface {
 	Stop(effect.Target) bool
 }
 
+type continuousController interface {
+	RegisterContinuous(outputowner.Owner, []device.DeviceID, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error))
+	UnregisterContinuous(outputowner.Owner)
+}
+
 // RunEvent describes one Scene runtime lifecycle transition.
 type RunEvent struct {
 	SceneID     string
@@ -152,7 +157,7 @@ func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error)
 	}
 	r.publishActivated(active)
 	if dynamic := storedScene.Definition.Lighting.Dynamic; dynamic != nil && dynamic.Movement > 0 {
-		r.startTicker(active)
+		r.startContinuous(active)
 	}
 	storedScene.ActivatedAt = &startedAt
 	return storedScene, nil
@@ -183,6 +188,7 @@ func (r *Runner) Deactivate(ctx context.Context, sceneID string) error {
 	if done != nil {
 		<-done
 	}
+	r.unregisterContinuous(sceneOwner(active.run.RunID))
 	r.owners.Release(sceneOwner(active.run.RunID))
 	for _, target := range effectTargets {
 		if r.effects != nil {
@@ -236,7 +242,7 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 			continue
 		}
 		if dynamic := storedScene.Definition.Lighting.Dynamic; dynamic != nil && dynamic.Movement > 0 {
-			r.startTicker(active)
+			r.startContinuous(active)
 		}
 	}
 	return nil
@@ -435,6 +441,72 @@ func (r *Runner) startTicker(active *activeScene) {
 	}()
 }
 
+func (r *Runner) startContinuous(active *activeScene) {
+	controller, ok := r.commander.(continuousController)
+	if !ok {
+		r.startTicker(active)
+		return
+	}
+	active.mu.Lock()
+	ids := make([]device.DeviceID, 0, len(active.members))
+	for id, member := range active.members {
+		if member.Kind == store.SceneMemberField {
+			ids = append(ids, id)
+		}
+	}
+	active.mu.Unlock()
+	owner := sceneOwner(active.run.RunID)
+	controller.RegisterContinuous(owner, ids, func(ctx context.Context, id device.DeviceID, at time.Time, revisit, transition time.Duration) (device.Command, error) {
+		return r.sampleContinuous(ctx, active, id, at, revisit, transition)
+	})
+}
+
+func (r *Runner) unregisterContinuous(owner outputowner.Owner) {
+	if controller, ok := r.commander.(continuousController); ok {
+		controller.UnregisterContinuous(owner)
+	}
+}
+
+func (r *Runner) sampleContinuous(ctx context.Context, active *activeScene, id device.DeviceID, at time.Time, revisit, transition time.Duration) (device.Command, error) {
+	plan, err := buildApplyPlan(ctx, r.resolver, r.reader, r.positions, active.run.RunID, active.definition, at, revisit)
+	if err != nil {
+		return device.Command{}, err
+	}
+	active.mu.Lock()
+	defer active.mu.Unlock()
+	if active.closed {
+		return device.Command{}, context.Canceled
+	}
+	member, ok := active.members[id]
+	if !ok || member.Kind != store.SceneMemberField {
+		return device.Command{}, nil
+	}
+	for _, command := range plan.Commands {
+		if command.DeviceID != id {
+			continue
+		}
+		intent := intentFromCommand(command)
+		previous, exists := active.lastIntents[id]
+		if exists && !lightfield.SignificantDelta(previous, intent, lightfield.DefaultDeltaThresholds) {
+			return device.Command{}, nil
+		}
+		seconds := transition.Seconds()
+		command.Transition = &seconds
+		active.lastIntents[id] = intent
+		member = memberFromCommand(command, store.SceneMemberField)
+		active.members[id] = member
+		active.run.Members = sortedMemberList(active.members)
+		if err := r.store.UpdateActiveSceneMemberExpected(ctx, active.run.SceneID, id, member.Expected); err != nil {
+			return device.Command{}, err
+		}
+		if exists {
+			command = omitSteadyLightingFields(previous, command)
+		}
+		return command, nil
+	}
+	return device.Command{}, nil
+}
+
 func (r *Runner) renderFrame(ctx context.Context, active *activeScene, at time.Time) error {
 	plan, err := BuildApplyPlan(ctx, r.resolver, r.reader, r.positions, active.run.RunID, active.definition, at)
 	if err != nil {
@@ -452,7 +524,8 @@ func (r *Runner) renderFrame(ctx context.Context, active *activeScene, at time.T
 			continue
 		}
 		intent := intentFromCommand(command)
-		if previous, exists := active.lastIntents[command.DeviceID]; exists && !lightfield.SignificantDelta(previous, intent, lightfield.DefaultDeltaThresholds) {
+		previous, exists := active.lastIntents[command.DeviceID]
+		if exists && !lightfield.SignificantDelta(previous, intent, lightfield.DefaultDeltaThresholds) {
 			continue
 		}
 		command.Transition = &transition
@@ -462,12 +535,42 @@ func (r *Runner) renderFrame(ctx context.Context, active *activeScene, at time.T
 		if err := r.store.UpdateActiveSceneMemberExpected(ctx, active.run.SceneID, command.DeviceID, member.Expected); err != nil {
 			return err
 		}
+		if exists {
+			command = omitSteadyLightingFields(previous, command)
+		}
 		if err := dispatchPlan(ctx, r.commander, r.bus, active.definition, ApplyPlan{Commands: []device.Command{command}}); err != nil {
 			return err
 		}
 	}
 	active.run.Members = sortedMemberList(active.members)
 	return nil
+}
+
+func omitSteadyLightingFields(previous lightfield.LightIntent, command device.Command) device.Command {
+	if optionalEqual(previous.On, command.On) {
+		command.On = nil
+	}
+	if optionalEqual(previous.Brightness, command.Brightness) {
+		command.Brightness = nil
+	}
+	if optionalEqual(previous.ColorTemp, command.ColorTemp) {
+		command.ColorTemp = nil
+	}
+	if optionalColorEqual(previous.Color, command.Color) {
+		command.Color = nil
+	}
+	return command
+}
+
+func optionalEqual[T comparable](left, right *T) bool {
+	return left == nil && right == nil || left != nil && right != nil && *left == *right
+}
+
+func optionalColorEqual(left, right *device.Color) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
 }
 
 func (r *Runner) handleEvent(ctx context.Context, event eventbus.Event) {
@@ -600,6 +703,11 @@ func (r *Runner) refreshMembership(ctx context.Context, active *activeScene) err
 		return err
 	}
 	r.acquireDynamic(active)
+	if definition.Lighting.Dynamic != nil && definition.Lighting.Dynamic.Movement > 0 {
+		r.startContinuous(active)
+	} else {
+		r.unregisterContinuous(sceneOwner(active.run.RunID))
+	}
 
 	addedPlan := ApplyPlan{}
 	for _, command := range plan.Commands {
@@ -624,7 +732,7 @@ func (r *Runner) refreshMembership(ctx context.Context, active *activeScene) err
 	if err := r.startEffects(ctx, active, newEffects); err != nil {
 		return err
 	}
-	if definition.Lighting.Dynamic != nil {
+	if definition.Lighting.Dynamic != nil && definition.Lighting.Dynamic.Movement == 0 {
 		return r.renderFrame(ctx, active, at)
 	}
 	return nil
@@ -663,6 +771,7 @@ func (r *Runner) shutdown() {
 		if done != nil {
 			<-done
 		}
+		r.unregisterContinuous(sceneOwner(runID))
 		r.owners.Release(sceneOwner(runID))
 		for _, target := range targets {
 			if r.effects != nil {

@@ -510,6 +510,9 @@ func TestRunnerVibeSuppressesUnchangedFramesAndBoundsTransitions(t *testing.T) {
 	if transition == nil || *transition <= 0 || *transition > DynamicCadence.Seconds() {
 		t.Fatalf("transition = %v, cadence = %s", transition, DynamicCadence)
 	}
+	if commands[1].State.On != nil || commands[1].State.Brightness != nil {
+		t.Fatalf("moving frame resent steady power or brightness: %+v", commands[1].State)
+	}
 	if err := fixture.runner.renderFrame(context.Background(), active, fixture.now.Add(8*time.Second)); err != nil {
 		t.Fatal(err)
 	}

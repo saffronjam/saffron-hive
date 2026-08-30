@@ -92,6 +92,19 @@ func BuildApplyPlan(
 	definition store.SceneDefinition,
 	at time.Time,
 ) (ApplyPlan, error) {
+	return buildApplyPlan(ctx, targetResolver, stateReader, positionResolver, sceneID, definition, at, 0)
+}
+
+func buildApplyPlan(
+	ctx context.Context,
+	targetResolver device.TargetResolver,
+	stateReader device.StateReader,
+	positionResolver PositionResolver,
+	sceneID string,
+	definition store.SceneDefinition,
+	at time.Time,
+	cadence time.Duration,
+) (ApplyPlan, error) {
 	targetContext := resolveTargetContext(ctx, targetResolver, stateReader, definition.Targets)
 	targeted := make(map[device.DeviceID]bool, len(targetContext.DeviceIDs))
 	for _, id := range targetContext.DeviceIDs {
@@ -115,7 +128,7 @@ func BuildApplyPlan(
 			if !ok {
 				continue
 			}
-			sample, err := lightfield.SampleAt(dynamic.Field, positioned.Point, motion, at)
+			sample, err := lightfield.SampleAtCadence(dynamic.Field, positioned.Point, motion, at, cadence)
 			if err != nil {
 				return ApplyPlan{}, err
 			}
