@@ -10,6 +10,7 @@
 		movement?: number;
 		cycleSeconds?: number;
 		seed?: string;
+		maximumTemporalFrequency?: number;
 		rasterScale?: number;
 		class?: string;
 	}
@@ -20,6 +21,7 @@
 		movement = 0,
 		cycleSeconds = 720,
 		seed = "0",
+		maximumTemporalFrequency = 3,
 		rasterScale = 4,
 		class: className = "",
 	}: Props = $props();
@@ -83,6 +85,7 @@
 			movement={reducedMotion ? 0 : boundedMovement}
 			{cycleSeconds}
 			seed={outgoingSeed}
+			{maximumTemporalFrequency}
 			scale={rasterScale}
 			class="absolute inset-0"
 		/>
@@ -92,6 +95,7 @@
 		movement={reducedMotion ? 0 : boundedMovement}
 		{cycleSeconds}
 		seed={renderedSeed}
+		{maximumTemporalFrequency}
 		scale={rasterScale}
 		class="relative transition-opacity duration-500 ease-out {outgoingSeed && !incomingVisible ? 'opacity-0' : 'opacity-100'}"
 	/>

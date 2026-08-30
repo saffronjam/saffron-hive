@@ -60,6 +60,37 @@ func TestSampleAtTemporalContinuityPeriodicityAndSeed(t *testing.T) {
 	}
 }
 
+func TestSampleAtCadenceFiltersUnrepresentableMotion(t *testing.T) {
+	field := motionFixture()
+	point := Point{X: 0.42, Y: 0.61}
+	motion := Motion{Seed: 12, Movement: 1, Cycle: 5 * time.Second}
+	at := time.Unix(1_700_000_000, 0)
+
+	still, err := SampleAtCadence(field, point, motion, at, 1800*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	later, err := SampleAtCadence(field, point, motion, at.Add(2*time.Second), 1800*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(still, later) {
+		t.Fatalf("under-sampled motion changed: %#v %#v", still, later)
+	}
+
+	first, err := SampleAtCadence(field, point, motion, at, 900*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := SampleAtCadence(field, point, motion, at.Add(900*time.Millisecond), 900*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(first, next) {
+		t.Fatalf("representable fundamental motion stayed still: %#v", first)
+	}
+}
+
 func TestSampleAtAliveMotionKeepsChangingAcrossCycle(t *testing.T) {
 	field := NewFullColor(2, 2, []ColorSample{
 		{Lightness: 0.62, Chroma: 0.16, Hue: 155},

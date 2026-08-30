@@ -3,6 +3,13 @@ package lightfield
 import "math"
 
 func periodicNoise(seed int64, x, y, phase float64, channel uint64) float64 {
+	return periodicNoiseLimited(seed, x, y, phase, channel, 3)
+}
+
+func periodicNoiseLimited(seed int64, x, y, phase float64, channel uint64, maximumTemporalFrequency int) float64 {
+	if maximumTemporalFrequency < 1 {
+		return 0
+	}
 	value := 0.0
 	weight := 1.0
 	totalWeight := 0.0
@@ -11,7 +18,7 @@ func periodicNoise(seed int64, x, y, phase float64, channel uint64) float64 {
 		frequency := float64(uint64(1) << octave)
 		fx := float64(1 + h%3)
 		fy := float64(1 + (h>>8)%3)
-		ft := float64(1 + (h>>16)%3)
+		ft := float64(min(1+int((h>>16)%3), maximumTemporalFrequency))
 		offset := hashUnit(h>>24) * 2 * math.Pi
 		value += math.Sin(2*math.Pi*(frequency*(fx*x+fy*y)+ft*phase)+offset) * weight
 		totalWeight += weight

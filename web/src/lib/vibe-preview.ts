@@ -34,6 +34,7 @@ export function paintVibeFrame(
   seed: string,
   target?: ImageData | null,
   scale = 1,
+  maximumTemporalFrequency = 3,
 ): ImageData | null {
   if (
     preview.width < 1 ||
@@ -73,6 +74,7 @@ export function paintVibeFrame(
               nx * MOTION_SPATIAL_SCALE,
               ny * MOTION_SPATIAL_SCALE,
               boundedPhase,
+              maximumTemporalFrequency,
             ),
         0,
         1,
@@ -85,6 +87,7 @@ export function paintVibeFrame(
               nx * MOTION_SPATIAL_SCALE,
               ny * MOTION_SPATIAL_SCALE,
               boundedPhase,
+              maximumTemporalFrequency,
             ),
         0,
         1,
@@ -171,16 +174,24 @@ function mix(left: number, right: number, amount: number): number {
   return left + (right - left) * amount;
 }
 
-function periodicNoise(octaves: NoiseOctave[], x: number, y: number, phase: number): number {
+function periodicNoise(
+  octaves: NoiseOctave[],
+  x: number,
+  y: number,
+  phase: number,
+  maximumTemporalFrequency: number,
+): number {
   let value = 0;
   let totalWeight = 0;
+  if (maximumTemporalFrequency < 1) return 0;
   for (const octave of octaves) {
+    const timeFrequency = Math.min(octave.timeFrequency, maximumTemporalFrequency);
     value +=
       Math.sin(
         2 *
           Math.PI *
           (octave.frequency * (octave.xFrequency * x + octave.yFrequency * y) +
-            octave.timeFrequency * phase) +
+            timeFrequency * phase) +
           octave.offset,
       ) * octave.weight;
     totalWeight += octave.weight;

@@ -7,11 +7,12 @@
 		movement: number;
 		cycleSeconds: number;
 		seed: string;
+		maximumTemporalFrequency?: number;
 		scale?: number;
 		class?: string;
 	}
 
-	let { preview, movement, cycleSeconds, seed, scale = 4, class: className = "" }: Props =
+	let { preview, movement, cycleSeconds, seed, maximumTemporalFrequency = 3, scale = 4, class: className = "" }: Props =
 		$props();
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let rasterVisible = $state(false);
@@ -28,6 +29,7 @@
 		const currentMovement = movement;
 		const currentMotionSeconds = motionSeconds;
 		const currentSeed = seed;
+		const currentMaximumTemporalFrequency = maximumTemporalFrequency;
 		const currentScale = rasterScale;
 		const context = canvas.getContext("2d");
 		if (!context) return;
@@ -44,6 +46,7 @@
 				currentSeed,
 				raster,
 				currentScale,
+				currentMaximumTemporalFrequency,
 			);
 			const firstPaint = !hasPainted && raster !== null;
 			hasPainted = raster !== null;

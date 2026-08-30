@@ -94,6 +94,16 @@ describe("Vibe preview rendering", () => {
     expect(first.output()?.height).toBe(preview.height);
   });
 
+  it("holds motion still when the output cadence cannot represent a cycle", () => {
+    const first = context();
+    const later = context();
+
+    expect(paintVibeFrame(first.value, preview, 1, 0.1, "42", null, 1, 0)).not.toBeNull();
+    expect(paintVibeFrame(later.value, preview, 1, 0.7, "42", null, 1, 0)).not.toBeNull();
+
+    expect(Array.from(first.output()!.data)).toEqual(Array.from(later.output()!.data));
+  });
+
   it("supports a bounded high-resolution backing raster", () => {
     const target = context();
     expect(paintVibeFrame(target.value, preview, 1, 0.2, "42", null, 4)).not.toBeNull();

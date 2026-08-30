@@ -48,7 +48,7 @@ func Preview(field Field, motion Motion, at time.Time, width, height, swatchCoun
 	for y := range height {
 		for x := range width {
 			point := rasterPoint(x, y, width, height)
-			sample := sampleAtValidated(field, point, motion, at)
+			sample := sampleAtValidated(field, point, motion, at, 3)
 			result.Pixels[y*width+x] = pixelForSample(sample)
 		}
 	}
