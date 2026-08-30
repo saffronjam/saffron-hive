@@ -79,9 +79,8 @@ type activeRun struct {
 // effects to the adapter. It owns the in-memory registry of active runs keyed
 // by target; starting a new run on a target preempts any run already there.
 //
-// A drift goroutine subscribes to device and provider-group commands and stops
-// any run whose currently-resolved device set sees a command whose origin is
-// not the run's own.
+// Output ownership stops a run synchronously when another producer takes any
+// device in its currently resolved member set.
 type Runner struct {
 	bus       eventbus.EventBus
 	targets   device.TargetResolver
@@ -112,8 +111,7 @@ type defaultSampler struct{}
 
 func (defaultSampler) IntN(n int) int { return rand.IntN(n) }
 
-// NewRunner constructs a Runner and immediately subscribes its drift goroutine
-// to the bus.
+// NewRunner constructs a Runner.
 func NewRunner(bus eventbus.EventBus, targets device.TargetResolver, reader device.StateReader, st EffectStore, term NativeEffectStopper, owners *outputowner.Coordinator) *Runner {
 	return NewRunnerWithRand(bus, targets, reader, st, term, owners, defaultSampler{})
 }
@@ -354,7 +352,14 @@ func (r *Runner) preempt(run *activeRun) {
 		if terminator == "" {
 			continue
 		}
-		device.RequestNativeEffect(r.bus, did, terminator, device.OriginEffect(run.runID))
+		origin := device.OriginEffect(run.runID)
+		if r.commander != nil {
+			if err := r.commander.CommandTarget(context.Background(), device.TargetCommand{TargetType: device.TargetDevice, TargetID: string(did), State: device.Command{Origin: origin}, NativeEffect: terminator}); err != nil {
+				logger.Warn("native effect terminator dispatch failed", "run_id", run.runID, "device_id", did, "error", err)
+			}
+		} else {
+			device.RequestNativeEffect(r.bus, did, terminator, origin)
+		}
 	}
 }
 

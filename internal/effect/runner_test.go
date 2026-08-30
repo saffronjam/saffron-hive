@@ -336,17 +336,7 @@ func startDriftLoop(t *testing.T, r *Runner) (cancel context.CancelFunc, done <-
 	ctx, c := context.WithCancel(context.Background())
 	d := make(chan struct{})
 	go func() {
-		var workers sync.WaitGroup
-		workers.Add(2)
-		go func() {
-			defer workers.Done()
-			r.owners.Run(ctx, r.bus)
-		}()
-		go func() {
-			defer workers.Done()
-			r.Run(ctx)
-		}()
-		workers.Wait()
+		r.Run(ctx)
 		close(d)
 	}()
 	t.Cleanup(func() {
@@ -1029,16 +1019,7 @@ func TestRunnerDrift_ForeignCommandStopsDeviceRun(t *testing.T) {
 	}
 	waitFor(t, 1, func() int { return len(rec.commands()) }, "first self-command")
 
-	rec.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "dev-1",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: "dev-1",
-			On:       boolPtr(false),
-			Origin:   device.OriginUser(),
-		},
-	})
+	r.owners.ForeignCommand([]device.DeviceID{"dev-1"}, device.OriginUser())
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -1088,16 +1069,7 @@ func TestRunnerDrift_ForeignCommandStopsGroupRun(t *testing.T) {
 	}
 	waitFor(t, 2, func() int { return len(rec.commands()) }, "group fan-out commands")
 
-	rec.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "dev-b",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: "dev-b",
-			On:       boolPtr(false),
-			Origin:   device.OriginUser(),
-		},
-	})
+	r.owners.ForeignCommand([]device.DeviceID{"dev-b"}, device.OriginUser())
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -1146,17 +1118,7 @@ func TestRunnerDrift_ProviderGroupCommandStopsOverlappingRun(t *testing.T) {
 	}
 	waitFor(t, 2, func() int { return len(rec.commands()) }, "group fan-out commands")
 
-	rec.Publish(eventbus.Event{
-		Type:      eventbus.EventProviderGroupCommandRequested,
-		Timestamp: time.Now(),
-		Payload: device.ProviderGroupCommand{
-			MemberIDs: []device.DeviceID{"dev-b", "dev-c"},
-			State: device.Command{
-				On:     boolPtr(false),
-				Origin: device.OriginUser(),
-			},
-		},
-	})
+	r.owners.ForeignCommand([]device.DeviceID{"dev-b", "dev-c"}, device.OriginUser())
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -1195,16 +1157,7 @@ func TestRunnerDrift_ForeignCommandStopsNativeAndPublishesTerminator(t *testing.
 	}
 	waitFor(t, 1, func() int { return len(rec.nativeRequests()) }, "native start request")
 
-	rec.Publish(eventbus.Event{
-		Type:      eventbus.EventCommandRequested,
-		DeviceID:  "dev-1",
-		Timestamp: time.Now(),
-		Payload: device.Command{
-			DeviceID: "dev-1",
-			On:       boolPtr(false),
-			Origin:   device.OriginUser(),
-		},
-	})
+	r.owners.ForeignCommand([]device.DeviceID{"dev-1"}, device.OriginUser())
 
 	waitFor(t, 2, func() int { return len(rec.nativeRequests()) }, "terminator native request")
 
