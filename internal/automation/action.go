@@ -48,17 +48,18 @@ type SceneRunner interface {
 	Apply(context.Context, string) (store.Scene, error)
 }
 
-// ActionExecutor resolves automation actions into event bus commands (or, for
-// alarm actions, into alarm service calls).
+// ActionExecutor resolves automation actions into shared output requests or
+// service calls.
 type ActionExecutor struct {
-	bus       eventbus.Publisher
-	reader    device.StateReader
-	store     automationStore
-	resolver  device.TargetResolver
-	alarms    AlarmRaiser
-	runner    EffectRunner
-	scenes    SceneRunner
-	commander device.TargetCommander
+	bus        eventbus.Publisher
+	reader     device.StateReader
+	store      automationStore
+	resolver   device.TargetResolver
+	alarms     AlarmRaiser
+	runner     EffectRunner
+	scenes     SceneRunner
+	commander  device.TargetCommander
+	configurer device.ConfigurationCommander
 
 	// baseCtx scopes every side-effect initiated by an action. Set by
 	// SetBaseContext at engine startup so shutdown cancels in-flight
@@ -86,6 +87,9 @@ func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s auto
 	}
 	if commander, ok := resolver.(device.TargetCommander); ok {
 		executor.commander = commander
+	}
+	if configurer, ok := resolver.(device.ConfigurationCommander); ok {
+		executor.configurer = configurer
 	}
 	return executor
 }
@@ -164,12 +168,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 
 		cmd := buildCommand(deviceID, desired)
 		cmd.Origin = device.OriginAutomation(cfg.AutomationID)
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventCommandRequested,
-			DeviceID:  string(deviceID),
-			Timestamp: time.Now(),
-			Payload:   cmd,
-		})
+		a.dispatchCommand(cmd)
 	case ActionToggleDeviceState:
 		if cfg.TargetID == "" {
 			return
@@ -188,12 +187,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 		}
 		cmd := buildCommand(deviceID, desired)
 		cmd.Origin = device.OriginAutomation(cfg.AutomationID)
-		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventCommandRequested,
-			DeviceID:  string(deviceID),
-			Timestamp: time.Now(),
-			Payload:   cmd,
-		})
+		a.dispatchCommand(cmd)
 	case ActionChangeValue:
 		a.executeChangeValue(cfg)
 	case ActionConfigureDevice:
@@ -241,15 +235,22 @@ func (a *ActionExecutor) executeConfigureDevice(cfg ActionConfig) {
 	if len(settings) == 0 {
 		return
 	}
+	request := device.ConfigurationRequest{
+		DeviceID: id,
+		Values:   settings,
+		Origin:   device.OriginAutomation(cfg.AutomationID),
+	}
+	if a.configurer != nil {
+		if err := a.configurer.CommandConfiguration(a.baseCtx, request); err != nil {
+			logger.Warn("configure_device dispatch failed", "device_id", id, "automation_id", cfg.AutomationID, "error", err)
+		}
+		return
+	}
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventConfigurationRequested,
 		DeviceID:  string(id),
 		Timestamp: time.Now(),
-		Payload: device.ConfigurationRequest{
-			DeviceID: id,
-			Values:   settings,
-			Origin:   device.OriginAutomation(cfg.AutomationID),
-		},
+		Payload:   request,
 	})
 }
 
@@ -398,11 +399,27 @@ func (a *ActionExecutor) executeChangeValue(cfg ActionConfig) {
 
 	cmd := buildCommand(deviceID, desired)
 	cmd.Origin = device.OriginAutomation(cfg.AutomationID)
+	a.dispatchCommand(cmd)
+}
+
+func (a *ActionExecutor) dispatchCommand(command device.Command) {
+	if a.commander != nil {
+		id := command.DeviceID
+		command.DeviceID = ""
+		if err := a.commander.CommandTarget(a.baseCtx, device.TargetCommand{
+			TargetType: device.TargetDevice,
+			TargetID:   string(id),
+			State:      command,
+		}); err != nil {
+			logger.Warn("automation command dispatch failed", "device_id", id, "error", err)
+		}
+		return
+	}
 	a.bus.Publish(eventbus.Event{
 		Type:      eventbus.EventCommandRequested,
-		DeviceID:  string(deviceID),
+		DeviceID:  string(command.DeviceID),
 		Timestamp: time.Now(),
-		Payload:   cmd,
+		Payload:   command,
 	})
 }
 
