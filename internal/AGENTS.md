@@ -18,6 +18,7 @@ All Go application code lives here. The `internal/` directory is a Go convention
 - `history/` — persists device state samples into SQLite and exposes a retention loop that prunes them. The recorder decomposes each `EventDeviceStateChanged` into one row per non-nil scalar field so cross-device time series share a single shape.
 - `logging/` — custom slog `TeeHandler` that writes to stderr **and** captures entries into a ring buffer, which the frontend `/logs` page streams via a GraphQL subscription.
 - `lightfield/` — pure canonical field, source compilers, perceptual interpolation, continuous-time motion, capability projection, and preview sampling for Vibe lighting.
+- `output/` — sole physical-write authority: target resolution, ownership preemption, coalescing, provider rate lanes, continuous sampling, retries, confirmation, and delivery events. Protocol adapters implement its actuator boundary.
 - `outputowner/` — physical-device lease coordinator shared by dynamic Scene and Effect runs.
 - `pubsub/` — tiny in-process fan-out primitives. Used by services (activity, alarms, GraphQL subscription resolvers) to broadcast events to per-subscriber buffered channels.
 - `scene/` — coordinated Manual/Vibe Scene runtime: typed plan compilation, active-run persistence, output ownership, continuous rendering, drift/membership handling, hydration, apply, and explicit stop.
@@ -36,7 +37,7 @@ Consumers that need persistence declare a **narrow interface** locally listing o
 device/      ← domain types; depended on by nearly everything.
 eventbus/    ← Publisher/Subscriber interface; depended on by every component that emits or listens.
 
-adapter/<protocol>/  → device/, eventbus/
+adapter/<protocol>/  → device/, eventbus/; implements output.Actuator without importing output/
 activity/            → device/, eventbus/, automation/ (for payload types), narrow activityStore interface
 alarms/              → device/, pubsub/, narrow alarmStore interface
 auth/                → store/ types (param/result structs), narrow bootstrapStore interface
@@ -48,8 +49,9 @@ graph/               → device/, eventbus/, activity/, alarms/, auth/, automati
                        narrow controller interfaces in resolver.go, satisfied by cmd/serve's
                        adapterManager, so graph/ never imports an adapter package.
 history/             → device/, eventbus/, narrow historyStore interface
+output/              → device/, eventbus/, outputowner/, narrow Store and actuator interfaces
 pubsub/              → stdlib only
-scene/               → device/, eventbus/, effect/, lightfield/, outputowner/, spatial/, narrow sceneStore interface
+scene/               → device/, eventbus/, effect/, lightfield/, outputowner/, spatial/, narrow sceneStore and continuous-output interfaces
 spatial/             → device/, eventbus/, narrow spatialStore interface
 topology/            → device/, eventbus/, narrow Store interface
 store/               → device/, store/sqlite/ (generated)

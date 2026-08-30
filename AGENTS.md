@@ -36,7 +36,8 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
   refreshes those columns. Adapters compare `device.AdapterFingerprint` across
   syncs so an unchanged re-report publishes nothing
 - `device.updated` — a device's user-owned metadata (name override, icon, roles, disabled, deleted) changed; carries the updated device so caches (in-memory store) refresh those fields. Never published by an adapter — that is what `device.synced` is for
-- `command.requested` — user or automation wants to set a device state
+- `command.requested` — the output controller accepted desired device state
+- `command.dispatched` / `command.confirmed` / `command.failed` — physical-write delivery lifecycle
 - `configuration.requested` — user or automation wants to write device settings
 - `native_effect.requested` — a request to start a named external effect program on a device
 - `scene.applied` — a scene was applied (commands fanned out)
@@ -49,14 +50,16 @@ Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `topology.scanned` — an adapter finished a mesh network scan; carries the parsed `device.NetworkTopology`. The topology persister merges it with the stored snapshot (carrying stale parent links forward for nodes that slept through the scan) and persists it
 - `topology.updated` — the topology persister stored a merged snapshot; carries provider, scan time and counts. The GraphQL subscription rides this so clients re-query only after persistence
 
-Flow: MQTT message arrives -> adapter parses MQTT DTO -> maps to domain types -> publishes event on bus -> subscribers react (state store, automation engine, GraphQL subscription resolvers).
+Inbound flow: MQTT message arrives -> adapter parses MQTT DTO -> maps to domain types -> confirms matching output with the output controller -> publishes event on bus -> subscribers react (state store, automation engine, GraphQL subscription resolvers).
+
+Outbound flow: API, automation, Scene, or Effect submits desired output -> the output controller resolves and deduplicates physical devices, coordinates ownership, coalesces work, applies provider traffic policy, and records delivery -> the provider actuator translates and sends it. Adapters do not subscribe to command events; those events are observations of controller work.
 
 ### Protocol adapters
 Each protocol lives in its own adapter package. An adapter handles:
 - Device discovery (subscribing to protocol-specific topics)
 - Mapping protocol-specific device identifiers to generic devices
 - Translating incoming state into generic events
-- Translating outgoing commands into protocol-specific messages
+- Acting on scheduled output by translating generic commands into protocol-specific messages
 
 Zigbee adapter (via zigbee2mqtt) is the first and primary adapter.
 
@@ -108,10 +111,9 @@ scene/automation references. `disabled` is user-owned: the hardware still exists
 but should be left alone (seasonal equipment, something unplugged for a while).
 A disabled device keeps its row, detail page, live subscriptions and state
 history, and still renders as a member of the rooms, groups and scenes it
-belongs to — but it leaves every path that commands or watches it. The single
-chokepoint is `store.ResolveTargetDeviceIDs`, which every runtime fan-out
-resolves through; `Mutation.setTargetState` rejects it outright and both
-adapters' command loops drop it as a final gate.
+belongs to — but it leaves every path that commands or watches it. Structural
+resolution filters it, the output controller rejects it, and provider actuators
+check it again at the protocol boundary.
 
 `deleted` is user-owned and acts as Hive-local deletion. It also disables the
 device, hides it from Hive surfaces except the direct detail page and the
@@ -134,7 +136,7 @@ re-sync cannot re-flag a device.
 ### Scenes
 A Scene combines lighting targets, one typed lighting design, and explicit per-device behaviours. Manual lighting applies a capability-filtered desired state. Vibe lighting stores a canonical perceptual field with a domain (`full_color` or `white_ambience`), seed, movement, brightness, and pace; the Scene runner samples it across resolved device positions and continuous UTC time. Gallery, Photo, and Guided are source recipes that compile into the same persisted field.
 
-Scene targets can be devices, groups, rooms, or capability-aware Selectors. Target resolution deduplicates physical devices. Explicit state/effect/native-effect behaviours replace lighting output for their device and also make that device a Scene member. The persistent active-run snapshot supports drift detection and deterministic restart. Scene and Effect runtimes share physical-device output ownership so overlap preempts cleanly. Explicit stop releases ownership without restoring device state.
+Scene targets can be devices, groups, rooms, or capability-aware Selectors. Target resolution deduplicates physical devices. Explicit state/effect/native-effect behaviours replace lighting output for their device and also make that device a Scene member. The persistent active-run snapshot supports drift detection and deterministic restart. Scene and Effect runtimes share physical-device output ownership so overlap preempts cleanly. Moving Vibes register a continuous sampler with the output controller; the field is sampled at actual dispatch time and receives a transition sized to the provider's revisit interval. Explicit stop releases ownership without restoring device state.
 
 ### Automations
 Event-driven rules defined as trigger type + condition expression + action list.
