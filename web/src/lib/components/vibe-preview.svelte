@@ -2,7 +2,8 @@
 	import { onMount, tick } from "svelte";
 	import type { ScenePreview } from "$lib/scene-editable";
 	import VibeRaster from "$lib/components/vibe-raster.svelte";
-	import { previewDescription } from "$lib/vibe-preview";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		preview: ScenePreview;
@@ -36,6 +37,11 @@
 
 	const boundedBrightness = $derived(Math.max(0, Math.min(1, brightness)));
 	const boundedMovement = $derived(Math.max(0, Math.min(1, movement)));
+	const previewAriaLabel = $derived(
+		preview.swatches.length === 0
+			? m.vibe_preview_aria_empty({}, locale.messageOptions())
+			: m.vibe_preview_aria_swatches({ count: preview.swatches.length }, locale.messageOptions()),
+	);
 	onMount(() => {
 		if (typeof window.matchMedia !== "function") return;
 		const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -76,7 +82,7 @@
 <div
 	class="vibe-preview relative h-full w-full overflow-hidden {className}"
 	role="img"
-	aria-label={previewDescription(preview)}
+	aria-label={previewAriaLabel}
 	style:--vibe-brightness={boundedBrightness}
 >
 	{#if outgoingSeed}

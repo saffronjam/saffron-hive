@@ -13,6 +13,9 @@
 	import type { DynamicLighting, ScenePreview, VibeDomain } from "$lib/scene-editable";
 	import { vibeCatalog, type VibePreset } from "$lib/stores/vibe-catalog.svelte";
 	import { randomVibeSeed } from "$lib/vibe-seed";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { vibePresetLabel } from "$lib/i18n/vibe";
 
 	type SourceKind = "gallery" | "photo" | "guided";
 	type Source =
@@ -62,7 +65,6 @@
 			domain: preset.domain,
 			sourceKind: "preset",
 			presetId: preset.id,
-			presetTitle: preset.title,
 			guidedSelectedIds: [],
 			seed: preset.seed,
 			brightness: preset.brightness,
@@ -88,7 +90,8 @@
 		}, { requestPolicy: "network-only" }).toPromise();
 		loading = false;
 		if (result.error || !result.data) {
-			error = result.error?.message ?? "Could not build this vibe.";
+			console.error(result.error);
+			error = m.vibe_build_failed({}, locale.messageOptions());
 			return false;
 		}
 		const built = result.data.previewVibe;
@@ -98,7 +101,6 @@
 				domain: built.domain,
 				sourceKind: "photo" in source ? "photo" : "guided",
 				presetId: null,
-				presetTitle: null,
 				guidedSelectedIds: "guided" in source ? source.guided.selectedIds : [],
 				seed: built.seed,
 				brightness: built.brightness,
@@ -124,7 +126,8 @@
 			seed = randomVibeSeed();
 			await compile({ photo: { domain, seed, ...photo } });
 		} catch (caught) {
-			photoError = caught instanceof Error ? caught.message : "Could not process this image.";
+			console.error(caught);
+			photoError = m.vibe_photo_failed({}, locale.messageOptions());
 		}
 		input.value = "";
 	}
@@ -150,9 +153,9 @@
 
 <div class="space-y-5">
 	<div class="flex flex-wrap gap-2">
-		<Button variant={kind === "gallery" ? "default" : "outline"} size="sm" onclick={() => chooseKind("gallery")}>Gallery</Button>
-		<Button variant={kind === "photo" ? "default" : "outline"} size="sm" onclick={() => chooseKind("photo")}>Photo</Button>
-		<Button variant={kind === "guided" ? "default" : "outline"} size="sm" onclick={() => chooseKind("guided")}>Guided</Button>
+		<Button variant={kind === "gallery" ? "default" : "outline"} size="sm" onclick={() => chooseKind("gallery")}>{m.vibe_gallery({}, locale.messageOptions())}</Button>
+		<Button variant={kind === "photo" ? "default" : "outline"} size="sm" onclick={() => chooseKind("photo")}>{m.vibe_photo({}, locale.messageOptions())}</Button>
+		<Button variant={kind === "guided" ? "default" : "outline"} size="sm" onclick={() => chooseKind("guided")}>{m.vibe_guided({}, locale.messageOptions())}</Button>
 	</div>
 
 	{#if error}<ErrorBanner message={error} ondismiss={() => (error = null)} />{/if}
@@ -169,7 +172,7 @@
 						class="min-h-32"
 						previewClass="min-h-32"
 						preview={preset.preview}
-						label={preset.title}
+						label={vibePresetLabel(preset.id)}
 						overlayLabel
 						animateOnHover
 						frameless
@@ -186,12 +189,12 @@
 		<div class="grid gap-4 sm:grid-cols-2">
 			<div class="space-y-4">
 				<div class="flex gap-2">
-					<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; void rebuildPhoto(); }}>Colours</Button>
-					<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; void rebuildPhoto(); }}>Whites</Button>
+					<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; void rebuildPhoto(); }}>{m.vibe_colors({}, locale.messageOptions())}</Button>
+					<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; void rebuildPhoto(); }}>{m.vibe_whites({}, locale.messageOptions())}</Button>
 				</div>
 				<label class="flex min-h-40 flex-col items-center justify-center rounded-lg bg-muted p-5 text-center">
 					<Camera class="mb-3 size-6 text-muted-foreground" />
-					<span class="text-sm font-medium">{photo ? "Replace photo" : "Choose a photo"}</span>
+					<span class="text-sm font-medium">{photo ? m.vibe_replace_photo({}, locale.messageOptions()) : m.vibe_choose_photo({}, locale.messageOptions())}</span>
 					<input type="file" accept="image/*" class="sr-only" onchange={handlePhoto} />
 				</label>
 				<FieldError message={photoError} />
@@ -200,11 +203,11 @@
 				{#if candidate}<VibePreview preview={candidate.preview} brightness={candidate.dynamic.brightness} movement={candidate.dynamic.movement} cycleSeconds={candidate.dynamic.cycleSeconds} seed={candidate.dynamic.seed} />{/if}
 			</div>
 		</div>
-		<div class="flex justify-end"><Button disabled={!candidate || loading} onclick={() => candidate && onselect(candidate.dynamic, candidate.preview)}>{loading ? "Building..." : "Use this vibe"}</Button></div>
+		<div class="flex justify-end"><Button disabled={!candidate || loading} onclick={() => candidate && onselect(candidate.dynamic, candidate.preview)}>{loading ? m.vibe_building({}, locale.messageOptions()) : m.vibe_use({}, locale.messageOptions())}</Button></div>
 	{:else}
 		<div class="flex gap-2">
-			<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; guidedSelectedIds = []; }}>Colours</Button>
-			<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; guidedSelectedIds = []; }}>Whites</Button>
+			<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; guidedSelectedIds = []; }}>{m.vibe_colors({}, locale.messageOptions())}</Button>
+			<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; guidedSelectedIds = []; }}>{m.vibe_whites({}, locale.messageOptions())}</Button>
 		</div>
 		<VibeGuided {domain} {seed} selectedIds={guidedSelectedIds} onchange={(ids) => (guidedSelectedIds = ids)} onuse={useGuided} />
 	{/if}

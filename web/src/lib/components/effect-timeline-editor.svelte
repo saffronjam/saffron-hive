@@ -59,6 +59,10 @@
 		type EditableClip,
 		type EditableTrack,
 	} from "$lib/effect-editable";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatShortDuration } from "$lib/i18n/format";
+	import { effectCapabilityLabel } from "$lib/effect-display";
 
 	interface Props {
 		tracks: EditableTrack[];
@@ -198,12 +202,12 @@
 	let contextMenuOpen = $state(false);
 	let contextMenuState = $state<ContextMenuState | null>(null);
 
-	const clipTypes: { kind: ClipKind; label: string }[] = [
-		{ kind: "set_on_off", label: "On / off" },
-		{ kind: "set_brightness", label: "Brightness" },
-		{ kind: "set_color", label: "Color" },
-		{ kind: "native_effect", label: "Zigbee effect" },
-	];
+	const clipTypes = $derived.by<{ kind: ClipKind; label: string }[]>(() => [
+		{ kind: "set_on_off", label: m.effect_timeline_on_off({}, locale.messageOptions()) },
+		{ kind: "set_brightness", label: m.scene_editor_brightness({}, locale.messageOptions()) },
+		{ kind: "set_color", label: m.scene_editor_color({}, locale.messageOptions()) },
+		{ kind: "native_effect", label: m.effect_timeline_native({}, locale.messageOptions()) },
+	]);
 
 	const requiredCaps = $derived(computeRequiredCapabilities(tracks));
 
@@ -350,22 +354,22 @@
 	function clipKindLabel(kind: ClipKind): string {
 		switch (kind) {
 			case "set_on_off":
-				return "On / off";
+				return m.effect_timeline_on_off({}, locale.messageOptions());
 			case "set_brightness":
-				return "Brightness";
+				return m.scene_editor_brightness({}, locale.messageOptions());
 			case "set_color":
-				return "Color";
+				return m.scene_editor_color({}, locale.messageOptions());
 			case "native_effect":
-				return "Zigbee effect";
+				return m.effect_timeline_native({}, locale.messageOptions());
 		}
 	}
 
 	function clipSummaryLabel(c: EditableClip): string {
 		switch (c.config.kind) {
 			case "set_on_off":
-				return c.config.config.value ? "On" : "Off";
+				return c.config.config.value ? m.state_on({}, locale.messageOptions()) : m.state_off({}, locale.messageOptions());
 			case "set_brightness":
-				return `Bri ${c.config.config.value}`;
+				return m.effect_timeline_brightness_summary({ value: c.config.config.value }, locale.messageOptions());
 			case "set_color": {
 				const cfg = c.config.config;
 				if (cfg.mode === "rgb") {
@@ -375,24 +379,10 @@
 				return `${cfg.temp.mireds} mired`;
 			}
 			case "native_effect":
-				return c.config.config.name || "(Zigbee effect)";
+				return c.config.config.name || m.effect_timeline_native_fallback({}, locale.messageOptions());
 		}
 	}
 
-	function capLabel(cap: string): string {
-		switch (cap) {
-			case "on_off":
-				return "On/off";
-			case "color_temp":
-				return "Color temp";
-			case "brightness":
-				return "Brightness";
-			case "color":
-				return "Color";
-			default:
-				return cap;
-		}
-	}
 
 	function capChipType(cap: string): string {
 		switch (cap) {
@@ -464,9 +454,9 @@
 	});
 
 	function formatMs(ms: number): string {
-		if (ms < 1000) return `${ms}ms`;
+		if (ms < 1000) return formatShortDuration(ms, "millisecond", locale.currentLanguage);
 		const s = ms / 1000;
-		return `${Number.isInteger(s) ? s : s.toFixed(1)}s`;
+		return formatShortDuration(s, "second", locale.currentLanguage);
 	}
 
 	function addTrack() {
@@ -492,7 +482,7 @@
 		const snapped = Math.max(0, Math.round(desiredStartMs / interval) * interval);
 		const start = findFreeStartOnTrack(track, snapped, probe.transitionMaxMs);
 		if (start === null) {
-			toast.error("No free space on this track for the new clip");
+			toast.error(m.effect_timeline_no_space_new({}, locale.messageOptions()));
 			return;
 		}
 		probe.startMs = start;
@@ -871,7 +861,7 @@
 		const snapped = Math.max(0, Math.round(desiredStartMs / interval) * interval);
 		const start = findFreeStartOnTrack(track, snapped, entry.transitionMaxMs);
 		if (start === null) {
-			toast.error("No free space on this track for the pasted clip");
+			toast.error(m.effect_timeline_no_space_paste({}, locale.messageOptions()));
 			return;
 		}
 		const newClip: EditableClip = {
@@ -889,7 +879,7 @@
 	function pasteClipOnFirstTrack() {
 		if (!clipboardClip) return;
 		if (tracks.length === 0) {
-			toast.error("Add a track before pasting");
+			toast.error(m.effect_timeline_add_track_first({}, locale.messageOptions()));
 			return;
 		}
 		pasteClipOnTrack(tracks[0].uid, lastClipEndMs);
@@ -979,15 +969,15 @@
 
 <div bind:this={editorRootEl} class="flex flex-col gap-3 rounded-lg shadow-card bg-card p-3">
 	<div class="flex flex-wrap items-center justify-between gap-2">
-		<h2 class="text-sm font-medium text-foreground">Timeline</h2>
+		<h2 class="text-sm font-medium text-foreground">{m.effect_timeline_title({}, locale.messageOptions())}</h2>
 		<div class="flex items-center gap-3">
 			<div class="flex items-center gap-1">
 				<Button
 					variant="ghost"
 					size="icon-sm"
 					disabled={disabled || !history.canUndo}
-					aria-label="Undo"
-					title="Undo"
+					aria-label={m.map_undo({}, locale.messageOptions())}
+					title={m.map_undo({}, locale.messageOptions())}
 					onclick={undo}
 				>
 					<Undo2 class="size-3.5" />
@@ -996,8 +986,8 @@
 					variant="ghost"
 					size="icon-sm"
 					disabled={disabled || !history.canRedo}
-					aria-label="Redo"
-					title="Redo"
+					aria-label={m.map_redo({}, locale.messageOptions())}
+					title={m.map_redo({}, locale.messageOptions())}
 					onclick={redo}
 				>
 					<Redo2 class="size-3.5" />
@@ -1008,8 +998,8 @@
 					variant="ghost"
 					size="icon-sm"
 					disabled={disabled || !activeClip}
-					aria-label="Copy clip"
-					title="Copy clip"
+					aria-label={m.effect_timeline_copy_clip({}, locale.messageOptions())}
+					title={m.effect_timeline_copy_clip({}, locale.messageOptions())}
 					onclick={() => {
 						if (activeClip) copyClip(activeClip.clip);
 					}}
@@ -1020,8 +1010,8 @@
 					variant="ghost"
 					size="icon-sm"
 					disabled={disabled || !clipboardClip || tracks.length === 0}
-					aria-label="Paste clip"
-					title="Paste clip"
+					aria-label={m.effect_timeline_paste_clip({}, locale.messageOptions())}
+					title={m.effect_timeline_paste_clip({}, locale.messageOptions())}
 					onclick={pasteClipOnFirstTrack}
 				>
 					<ClipboardPaste class="size-3.5" />
@@ -1032,7 +1022,7 @@
 					variant="ghost"
 					size="icon-sm"
 					{disabled}
-					aria-label="Zoom out"
+					aria-label={m.effect_timeline_zoom_out({}, locale.messageOptions())}
 					onclick={() => zoomBy(0.8)}
 				>
 					<Minus class="size-3.5" />
@@ -1041,7 +1031,7 @@
 					variant="ghost"
 					size="icon-sm"
 					{disabled}
-					aria-label="Fit to viewport"
+					aria-label={m.effect_timeline_fit({}, locale.messageOptions())}
 					onclick={fitToViewport}
 				>
 					<Maximize2 class="size-3.5" />
@@ -1050,24 +1040,24 @@
 					variant="ghost"
 					size="icon-sm"
 					{disabled}
-					aria-label="Zoom in"
+					aria-label={m.effect_timeline_zoom_in({}, locale.messageOptions())}
 					onclick={() => zoomBy(1.25)}
 				>
 					<Plus class="size-3.5" />
 				</Button>
 			</div>
 			<label class="flex items-center gap-2 text-sm text-muted-foreground">
-				<span>Loop</span>
-				<Switch bind:checked={loop} aria-label="Loop effect" />
+				<span>{m.effects_loop({}, locale.messageOptions())}</span>
+				<Switch bind:checked={loop} aria-label={m.effect_timeline_loop_effect({}, locale.messageOptions())} />
 			</label>
 		</div>
 	</div>
 
 	{#if requiredCaps.length > 0}
 		<div class="flex flex-wrap items-center gap-1.5">
-			<span class="text-xs text-muted-foreground">Required:</span>
+			<span class="text-xs text-muted-foreground">{m.effect_timeline_required({}, locale.messageOptions())}</span>
 			{#each requiredCaps as cap (cap)}
-				<HiveChip type={capChipType(cap)} label={capLabel(cap)} iconOverride={capChipIcon(cap)} />
+				<HiveChip type={capChipType(cap)} label={effectCapabilityLabel(cap)} iconOverride={capChipIcon(cap)} />
 			{/each}
 		</div>
 	{/if}
@@ -1081,7 +1071,7 @@
 				class="flex items-end px-2 pb-1 text-[11px] font-medium text-muted-foreground"
 				style="height: {RULER_HEIGHT}px;"
 			>
-				Tracks
+				{m.effect_timeline_tracks({}, locale.messageOptions())}
 			</div>
 			{#each tracks as track, trackIndex (track.uid)}
 				<div
@@ -1090,7 +1080,9 @@
 				>
 					<InlineEditName
 						class="flex-1 text-sm"
-						name={track.name === "" ? `Track ${trackIndex + 1}` : track.name}
+						name={track.name === "" ? m.effect_timeline_track({ number: trackIndex + 1 }, locale.messageOptions()) : track.name}
+						entityType="effect_track"
+						entityId={track.uid}
 						onsave={(newName) => renameTrack(track.uid, newName)}
 					/>
 					<div class="flex items-center">
@@ -1100,7 +1092,7 @@
 									variant="ghost"
 									size="icon-sm"
 									{disabled}
-									aria-label="Add clip to {track.name === '' ? `Track ${trackIndex + 1}` : track.name}"
+									aria-label={m.effect_timeline_add_clip_to({ name: track.name === "" ? m.effect_timeline_track({ number: trackIndex + 1 }, locale.messageOptions()) : track.name }, locale.messageOptions())}
 								>
 									<Plus class="size-3" />
 								</Button>
@@ -1117,7 +1109,7 @@
 									<DropdownMenuSeparator />
 									<DropdownMenuItem onclick={() => pasteClipOnTrack(track.uid, 0)}>
 										<ClipboardPaste class="size-3.5" />
-										Paste clip
+										{m.effect_timeline_paste_clip({}, locale.messageOptions())}
 									</DropdownMenuItem>
 								{/if}
 							</DropdownMenuContent>
@@ -1127,7 +1119,7 @@
 							size="icon-sm"
 							{disabled}
 							onclick={() => removeTrack(track.uid)}
-							aria-label="Remove track"
+							aria-label={m.effect_timeline_remove_track({}, locale.messageOptions())}
 						>
 							<Trash2 class="size-3" />
 						</Button>
@@ -1149,7 +1141,7 @@
 			class="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
 			onwheel={handleWheel}
 			role="region"
-			aria-label="Effect timeline"
+			aria-label={m.effect_timeline_aria({}, locale.messageOptions())}
 		>
 			<div
 				class="relative"
@@ -1213,7 +1205,7 @@
 									e.stopPropagation();
 								}}
 								ondblclick={(e: MouseEvent) => e.stopPropagation()}
-								aria-label="Edit clip"
+								aria-label={m.effect_timeline_edit_clip({}, locale.messageOptions())}
 								title={clipSummaryLabel(clip)}
 							>
 								<Icon class="size-3 shrink-0" />
@@ -1224,7 +1216,7 @@
 								{/if}
 								<div
 									role="separator"
-									aria-label="Resize clip"
+									aria-label={m.effect_timeline_resize_clip({}, locale.messageOptions())}
 									class="absolute right-0 top-0 h-full w-1.5 bg-primary/30 hover:bg-primary/60 transition-colors duration-200"
 									onpointerdown={(e: PointerEvent) => {
 										e.stopPropagation();
@@ -1241,14 +1233,14 @@
 						class="flex items-center justify-center border-t border-border/50 bg-muted/30 text-sm text-muted-foreground"
 						style="height: {TRACK_HEIGHT}px;"
 					>
-						No tracks yet. Add a track to start.
+						{m.effect_timeline_empty({}, locale.messageOptions())}
 					</div>
 				{/if}
 
 				{#if loop}
 					<div
 						role="separator"
-						aria-label="Drag to set loop end"
+						aria-label={m.effect_timeline_drag_loop_end({}, locale.messageOptions())}
 						class="absolute top-0 z-20 w-1 -ml-0.5 bg-primary/70 hover:bg-primary transition-colors duration-200"
 						style="left: {durationMs * pxPerMs}px; height: {RULER_HEIGHT +
 							Math.max(tracks.length, 1) * TRACK_HEIGHT}px;"
@@ -1257,7 +1249,7 @@
 						<div
 							class="absolute left-2 top-1 rounded bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground whitespace-nowrap"
 						>
-							End {formatMs(durationMs)} (gap {formatMs(endLineGapMs)})
+							{m.effect_timeline_end_gap({ end: formatMs(durationMs), gap: formatMs(endLineGapMs) }, locale.messageOptions())}
 						</div>
 					</div>
 				{/if}
@@ -1296,7 +1288,7 @@
 					}}
 				>
 					<ClipboardPaste class="size-3.5" />
-					Paste clip
+					{m.effect_timeline_paste_clip({}, locale.messageOptions())}
 				</DropdownMenuItem>
 			{/if}
 		</DropdownMenuContent>
@@ -1305,14 +1297,14 @@
 	<div class="flex flex-wrap items-center justify-between gap-2">
 		<Button variant="outline" size="sm" {disabled} onclick={addTrack}>
 			<Plus class="size-4" />
-			Add track
+			{m.effect_timeline_add_track({}, locale.messageOptions())}
 		</Button>
 		<div class="flex items-center gap-2 text-xs text-muted-foreground">
-			<span>Duration {formatMs(effectiveDurationMs)}</span>
+			<span>{m.effect_timeline_duration({ duration: formatMs(effectiveDurationMs) }, locale.messageOptions())}</span>
 			<span>·</span>
-			<span>{tracks.length} track{tracks.length === 1 ? "" : "s"}</span>
+			<span>{m.effect_timeline_track_count({ count: tracks.length }, locale.messageOptions())}</span>
 			<span>·</span>
-			<span>{totalClips} clip{totalClips === 1 ? "" : "s"}</span>
+			<span>{m.effect_timeline_clip_count({ count: totalClips }, locale.messageOptions())}</span>
 		</div>
 	</div>
 </div>
@@ -1323,7 +1315,7 @@
 		class="fixed z-50 flex w-72 flex-col gap-3 rounded-md bg-popover p-3 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden"
 		style="left: {panelPos.x}px; top: {panelPos.y}px;"
 		role="dialog"
-		aria-label="Edit clip"
+		aria-label={m.effect_timeline_edit_clip({}, locale.messageOptions())}
 	>
 		{@render clipEditor(activeClip.trackUid, activeClip.clip)}
 	</div>
@@ -1344,8 +1336,8 @@
 					size="icon-sm"
 					{disabled}
 					onclick={() => copyClip(clip)}
-					aria-label="Copy clip"
-					title="Copy clip"
+					aria-label={m.effect_timeline_copy_clip({}, locale.messageOptions())}
+					title={m.effect_timeline_copy_clip({}, locale.messageOptions())}
 				>
 					<Copy class="size-3.5" />
 				</Button>
@@ -1357,7 +1349,7 @@
 						removeClip(trackUid, clip.uid);
 						activeClipUid = null;
 					}}
-					aria-label="Remove clip"
+					aria-label={m.effect_timeline_remove_clip({}, locale.messageOptions())}
 				>
 					<Trash2 class="size-3.5" />
 				</Button>
@@ -1365,19 +1357,19 @@
 		</div>
 
 		<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-			Start (ms)
+			{m.effect_timeline_start_ms({}, locale.messageOptions())}
 			<NumberInput
 				value={clip.startMs}
 				min={0}
 				{disabled}
-				ariaLabel="Start in milliseconds"
+				ariaLabel={m.effect_timeline_start_ms_aria({}, locale.messageOptions())}
 				onValueChange={(v) => setClipStart(trackUid, clip.uid, v)}
 			/>
 		</label>
 
 		{#if clip.kind === "set_on_off" && clip.config.kind === "set_on_off"}
 			<div class="flex items-center justify-between text-[11px]">
-				<span class="text-muted-foreground">State</span>
+				<span class="text-muted-foreground">{m.effect_timeline_state({}, locale.messageOptions())}</span>
 				<Switch
 					checked={clip.config.config.value}
 					{disabled}
@@ -1391,7 +1383,7 @@
 			</div>
 		{:else if clip.kind === "set_brightness" && clip.config.kind === "set_brightness"}
 			<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				Brightness ({clip.config.config.value})
+				{m.effect_timeline_brightness_value({ value: clip.config.config.value }, locale.messageOptions())}
 				<input
 					type="range"
 					min={0}
@@ -1452,15 +1444,15 @@
 					})}
 			/>
 			{#if colorCfg.mode === "temp"}
-				<div class="text-[11px] text-muted-foreground">Mireds: {colorCfg.temp.mireds}</div>
+				<div class="text-[11px] text-muted-foreground">{m.effect_timeline_mireds({ value: colorCfg.temp.mireds }, locale.messageOptions())}</div>
 			{/if}
 		{:else if clip.kind === "native_effect" && clip.config.kind === "native_effect"}
 			{@const nativeName = clip.config.config.name}
 			{@const selected = nativeOptions.find((o) => o.name === nativeName) ?? null}
 			<div class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-				<span>Zigbee effect</span>
+				<span>{m.effect_timeline_native({}, locale.messageOptions())}</span>
 				{#if nativeOptions.length === 0}
-					<span class="text-[11px]">No Zigbee effects available</span>
+					<span class="text-[11px]">{m.effect_timeline_no_native({}, locale.messageOptions())}</span>
 				{:else}
 					<Select
 						type="single"
@@ -1476,7 +1468,7 @@
 						{disabled}
 					>
 						<SelectTrigger class="w-full text-xs">
-							{selected ? selected.displayName : "Select an effect"}
+							{selected ? selected.displayName : m.effects_select_effect({}, locale.messageOptions())}
 						</SelectTrigger>
 						<SelectContent>
 							{#each nativeOptions as opt (opt.name)}
@@ -1497,7 +1489,7 @@
 
 		{#if clip.kind !== "set_on_off" && clip.kind !== "native_effect"}
 			<div class="flex items-center justify-between text-[11px]">
-				<span class="text-muted-foreground">Random transition</span>
+				<span class="text-muted-foreground">{m.effect_timeline_random_transition({}, locale.messageOptions())}</span>
 				<Switch
 					checked={isRandom}
 					{disabled}
@@ -1507,33 +1499,33 @@
 
 			{#if isRandom}
 				<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-					Transition min (ms)
+					{m.effect_timeline_transition_min({}, locale.messageOptions())}
 					<NumberInput
 						value={clip.transitionMinMs}
 						min={0}
 						{disabled}
-						ariaLabel="Transition min in milliseconds"
+						ariaLabel={m.effect_timeline_transition_min_aria({}, locale.messageOptions())}
 						onValueChange={(v) => setClipTransitionMin(trackUid, clip.uid, v)}
 					/>
 				</label>
 				<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-					Transition max (ms)
+					{m.effect_timeline_transition_max({}, locale.messageOptions())}
 					<NumberInput
 						value={clip.transitionMaxMs}
 						min={clip.transitionMinMs}
 						{disabled}
-						ariaLabel="Transition max in milliseconds"
+						ariaLabel={m.effect_timeline_transition_max_aria({}, locale.messageOptions())}
 						onValueChange={(v) => setClipTransitionMax(trackUid, clip.uid, v)}
 					/>
 				</label>
 			{:else}
 				<label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-					Transition (ms)
+					{m.effect_timeline_transition({}, locale.messageOptions())}
 					<NumberInput
 						value={clip.transitionMaxMs}
 						min={0}
 						{disabled}
-						ariaLabel="Transition in milliseconds"
+						ariaLabel={m.effect_timeline_transition_aria({}, locale.messageOptions())}
 						onValueChange={(v) => setClipTransition(trackUid, clip.uid, v)}
 					/>
 				</label>

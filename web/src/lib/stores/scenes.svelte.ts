@@ -16,6 +16,7 @@ graphql(`
       icon
     }
     targets {
+      id
       targetType
       targetId
       name
@@ -51,7 +52,6 @@ graphql(`
         domain
         sourceKind
         presetId
-        presetTitle
         seed
         brightness
         movement

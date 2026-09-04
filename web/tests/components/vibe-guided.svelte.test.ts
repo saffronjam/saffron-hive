@@ -22,27 +22,27 @@ function round(number: number, canFinish = number >= 3) {
         options: [
           {
             id: `round-${number}-dawn`,
-            title: "Soft dawn",
+            labelId: "ember",
             preview: preview(245, 193, 151),
           },
           {
             id: `round-${number}-forest`,
-            title: "Deep forest",
+            labelId: "leaf",
             preview: preview(41, 94, 70),
           },
           {
             id: `round-${number}-sky`,
-            title: "Open sky",
+            labelId: "sky",
             preview: preview(85, 147, 219),
           },
           {
             id: `round-${number}-meadow`,
-            title: "Meadow",
+            labelId: "meadow",
             preview: preview(125, 176, 72),
           },
           {
             id: `round-${number}-rose`,
-            title: "Rose",
+            labelId: "rose",
             preview: preview(211, 91, 145),
           },
         ],
@@ -86,7 +86,7 @@ describe("VibeGuided", () => {
       expect(host.querySelectorAll('[aria-label="Guided vibe choices 1"] button')).toHaveLength(5),
     );
     expect(host.querySelector(".guided-round-stack")).not.toBeNull();
-    const choice = host.querySelector('button[aria-label="Soft dawn"]') as HTMLButtonElement;
+    const choice = host.querySelector('button[aria-label="Ember"]') as HTMLButtonElement;
     expect(choice.classList).toContain("bg-transparent");
     expect(choice.classList).not.toContain("bg-card");
     expect(choice.classList).not.toContain("shadow-card");
@@ -113,7 +113,7 @@ describe("VibeGuided", () => {
     });
 
     await vi.waitFor(() =>
-      expect(host.querySelector('button[aria-label="Soft dawn"]')).not.toBeNull(),
+      expect(host.querySelector('button[aria-label="Ember"]')).not.toBeNull(),
     );
     const use = Array.from(host.querySelectorAll("button")).find((button) =>
       button.textContent?.includes("Use this vibe"),
@@ -143,7 +143,7 @@ describe("VibeGuided", () => {
     });
 
     await vi.waitFor(() =>
-      expect(host.querySelector('button[aria-label="Soft dawn"]')).not.toBeNull(),
+      expect(host.querySelector('button[aria-label="Ember"]')).not.toBeNull(),
     );
     const use = Array.from(host.querySelectorAll("button")).find((button) =>
       button.textContent?.includes("Use this vibe"),
@@ -171,9 +171,9 @@ describe("VibeGuided", () => {
     });
 
     await vi.waitFor(() =>
-      expect(host.querySelector('button[aria-label="Soft dawn"]')).not.toBeNull(),
+      expect(host.querySelector('button[aria-label="Ember"]')).not.toBeNull(),
     );
-    host.querySelector<HTMLButtonElement>('button[aria-label="Soft dawn"]')!.click();
+    host.querySelector<HTMLButtonElement>('button[aria-label="Ember"]')!.click();
     flushSync();
     const expected = [...selectedIds, "round-5-dawn"];
     expect(onchange).toHaveBeenCalledWith(expected);
@@ -201,7 +201,7 @@ describe("VibeGuided", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("guided service unavailable"));
+    await vi.waitFor(() => expect(host.textContent).toContain("Could not load the next choices."));
     expect(host.textContent).not.toContain("Choice 4 of 3–5");
     expect(host.textContent).toContain("Use this vibe");
   });

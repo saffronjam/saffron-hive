@@ -18,6 +18,7 @@ describe("typed scene editing", () => {
   it("builds direct and capability Selector targets", () => {
     expect(
       buildTargetInfo({
+        id: "target-device",
         targetType: "device",
         targetId: "light-1",
         target: {
@@ -27,10 +28,11 @@ describe("typed scene editing", () => {
           friendlyName: "light_1",
         },
       }),
-    ).toMatchObject({ uid: "uid", type: "device", id: "light-1", name: "Reading light" });
+    ).toMatchObject({ uid: "target-device", type: "device", id: "light-1", name: "Reading light" });
 
     expect(
       buildTargetInfo({
+        id: "target-expression",
         targetType: "expression",
         targetId: "",
         target: null,
@@ -43,6 +45,7 @@ describe("typed scene editing", () => {
   it("restores direct target kinds without a resolved target object", () => {
     expect(
       buildTargetInfo({
+        id: "target-room",
         targetType: "room",
         targetId: "gaming",
         name: "Gaming room",
@@ -51,6 +54,7 @@ describe("typed scene editing", () => {
 
     expect(
       buildTargetInfo({
+        id: "target-group",
         targetType: "group",
         targetId: "ceiling",
         name: "Ceiling lights",
@@ -61,6 +65,7 @@ describe("typed scene editing", () => {
   it("uses resolved room names when stored labels are empty", () => {
     expect(
       buildTargetInfo({
+        id: "target-hallway",
         targetType: "room",
         targetId: "ddb95775-a017-402e-bbc5-f2a569ce013a",
         name: "",
@@ -87,7 +92,6 @@ describe("typed scene editing", () => {
           domain: "full_color",
           sourceKind: "preset",
           presetId: "night-sky",
-          presetTitle: "Night sky",
           seed: "seed",
           brightness: 0.8,
           movement: 0.4,
@@ -134,6 +138,7 @@ describe("typed scene editing", () => {
     });
 
     expect(definition.targets[0]).toMatchObject({
+		id: "target",
       targetType: SceneTargetType.Room,
       targetId: "living",
     });

@@ -30,6 +30,10 @@
 		type EditableTrack,
 	} from "$lib/effect-editable";
 	import { EffectKind, type Effect, type EffectClip, type EffectTrack } from "$lib/gql/graphql";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { effectValidationMessage } from "$lib/i18n/effect-validation";
+	import { entityDisplayName } from "$lib/utils";
 
 	const effectId = $derived(page.params.id);
 
@@ -118,23 +122,22 @@
 	);
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Effects", href: "/effects" }, { label: "Effect" }];
 		void fetchEffect();
 	});
 
 	$effect(() => {
-		if (effectData) {
-			pageHeader.breadcrumbs = [
-				{ label: "Effects", href: "/effects" },
-				{ label: effectData.name },
-			];
-		}
+		void locale.currentLanguage;
+		pageHeader.breadcrumbs = [
+			{ label: m.effects_title({}, locale.messageOptions()), href: "/effects" },
+			{ label: effectData ? entityDisplayName("effect", effectData) : m.effect_fallback({}, locale.messageOptions()) },
+		];
 	});
 
 	$effect(() => {
+		void locale.currentLanguage;
 		pageHeader.actions = [
 			{
-				label: "Run",
+				label: m.effect_action_run({}, locale.messageOptions()),
 				icon: Play,
 				variant: "outline" as const,
 				onclick: handleRun,
@@ -142,14 +145,14 @@
 				hideLabelOnMobile: true,
 			},
 			{
-				label: "Cancel",
+				label: m.common_cancel({}, locale.messageOptions()),
 				icon: X,
 				variant: "outline" as const,
 				onclick: handleCancel,
 				hideLabelOnMobile: true,
 			},
 			{
-				label: "Delete",
+				label: m.common_delete({}, locale.messageOptions()),
 				icon: Trash2,
 				variant: "destructive" as const,
 				onclick: () => (deleteConfirmOpen = true),
@@ -157,7 +160,7 @@
 				hideLabelOnMobile: true,
 			},
 			{
-				label: "Save",
+				label: m.common_save({}, locale.messageOptions()),
 				icon: Save,
 				saving,
 				onclick: handleSave,
@@ -172,19 +175,20 @@
 		loading = false;
 
 		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+			console.error(result.error);
+			errors.setWithAutoDismiss(m.effect_load_failed({}, locale.messageOptions()));
 			return;
 		}
 
 		const data = result.data?.effect;
 		if (!data) {
-			toast.error("Effect not found");
+			toast.error(m.effect_not_found({}, locale.messageOptions()));
 			void goto("/effects");
 			return;
 		}
 
 		if (data.kind === EffectKind.Native) {
-			toast.error("Zigbee effects can't be edited");
+			toast.error(m.effect_native_read_only({}, locale.messageOptions()));
 			void goto("/effects");
 			return;
 		}
@@ -217,8 +221,8 @@
 		if (validation) {
 			// A clip error belongs to no single input, so it keeps the banner; the
 			// name error goes on the field it is about.
-			if (validation.field === "name") nameError = validation.message;
-			else errors.setWithAutoDismiss(validation.message);
+			if (validation.field === "name") nameError = effectValidationMessage(validation.code);
+			else errors.setWithAutoDismiss(effectValidationMessage(validation.code));
 			return;
 		}
 
@@ -238,7 +242,8 @@
 		saving = false;
 
 		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+			console.error(result.error);
+			errors.setWithAutoDismiss(m.effect_save_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -269,13 +274,13 @@
 			await effectsStore.delete(clientRef, effectData.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the effect."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_delete({}, locale.messageOptions())));
 			return;
 		}
 		deleteLoading = false;
 
 		deleteConfirmOpen = false;
-		toast.success("Effect deleted");
+		toast.success(m.effect_deleted({}, locale.messageOptions()));
 		void goto("/effects");
 	}
 
@@ -286,7 +291,7 @@
 	function handleRun() {
 		if (!effectData) return;
 		if (isDirty) {
-			toast.message("Running with last saved version. Save first to run current edits.");
+			toast.message(m.effect_running_saved({}, locale.messageOptions()));
 		}
 		runDrawerOpen = true;
 	}
@@ -308,11 +313,11 @@
 		<div class="flex flex-col gap-4" in:fly={{ y: -4, duration: 150 }}>
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="effect-name">
-					Effect Name
+					{m.effect_name_label({}, locale.messageOptions())}
 				</label>
 				<div class="flex items-center gap-3">
 					<IconPicker value={effectIcon} onselect={(icon) => (effectIcon = icon)}>
-						<IconPickerTrigger size="lg" ariaLabel="Change icon">
+						<IconPickerTrigger size="lg" ariaLabel={m.effect_change_icon({}, locale.messageOptions())}>
 							<AnimatedIcon icon={effectIcon} class="size-5 text-muted-foreground">
 								{#snippet fallback()}
 									<Sparkles class="size-5 text-muted-foreground" />
@@ -323,7 +328,7 @@
 					<Input
 						id="effect-name"
 						bind:value={effectName}
-						placeholder="Effect name"
+						placeholder={m.effects_name_placeholder({}, locale.messageOptions())}
 						aria-invalid={!!nameError}
 						aria-describedby={nameError ? "effect-name-error" : undefined}
 						oninput={() => (nameError = null)}
@@ -336,13 +341,13 @@
 		</div>
 	{:else}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-lg font-medium text-foreground">Effect not found</p>
+			<p class="text-lg font-medium text-foreground">{m.effect_not_found({}, locale.messageOptions())}</p>
 			<p class="mt-2 text-sm text-muted-foreground">
-				The effect you're looking for doesn't exist or has been removed.
+				{m.effect_not_found_help({}, locale.messageOptions())}
 			</p>
 			<Button variant="outline" class="mt-4" href="/effects">
 				<ArrowLeft class="size-4" />
-				Back to Effects
+				{m.effect_back({}, locale.messageOptions())}
 			</Button>
 		</div>
 	{/if}
@@ -359,9 +364,9 @@
 
 	<ConfirmDialog
 		bind:open={deleteConfirmOpen}
-		title="Delete Effect"
-		description='Delete "{effectData?.name ?? ""}"? This cannot be undone. Scenes and automations referencing this effect will need to be updated.'
-		confirmLabel="Delete"
+		title={m.effects_delete_title({}, locale.messageOptions())}
+		description={m.effects_delete_description({ name: effectData ? entityDisplayName("effect", effectData) : "" }, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={deleteLoading}
 		onconfirm={handleDelete}
 		oncancel={() => (deleteConfirmOpen = false)}

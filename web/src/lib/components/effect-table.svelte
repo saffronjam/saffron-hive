@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
@@ -17,6 +18,8 @@
 	import { EffectKind } from "$lib/gql/graphql";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Play, Sparkles, Zap } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface CreatedBy {
 		id: string;
@@ -79,7 +82,9 @@
 	]);
 
 	function rowName(row: EffectTableRow): string {
-		return row.kind === "timeline" ? row.effect.name : row.option.displayName;
+		return row.kind === "timeline"
+			? entityDisplayName("effect", row.effect)
+			: row.option.displayName;
 	}
 
 	function rowSource(row: EffectTableRow): string {
@@ -90,16 +95,18 @@
 		return effect.tracks.reduce((sum, track) => sum + track.clips.length, 0);
 	}
 
-	const COLUMNS: ColumnDef<EffectTableRow>[] = [
+	const COLUMNS: ColumnDef<EffectTableRow>[] = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
 		{ key: "select", label: "", hideable: false, headClass: "w-10", head: selectHead, cell: selectCell },
 		{ key: "icon", label: "", hideable: false, headClass: "w-12", cell: iconCell },
-		{ key: "name", label: "Name", sortValue: rowName, cell: nameCell },
-		{ key: "source", label: "Source", sortValue: rowSource, cell: sourceCell },
-		{ key: "details", label: "Details", sortValue: rowName, cell: detailsCell },
-		{ key: "capabilities", label: "Required", cell: capabilitiesCell },
+		{ key: "name", label: m.effects_column_name({}, options), sortValue: rowName, cell: nameCell },
+		{ key: "source", label: m.effects_column_source({}, options), sortValue: rowSource, cell: sourceCell },
+		{ key: "details", label: m.effects_column_details({}, options), sortValue: rowName, cell: detailsCell },
+		{ key: "capabilities", label: m.effects_column_required({}, options), cell: capabilitiesCell },
 		{
 			key: "createdBy",
-			label: "Created by",
+			label: m.effects_column_created_by({}, options),
 			sortValue: (row) => (row.kind === "timeline" ? row.effect.createdBy?.name ?? null : null),
 			cell: createdByCell,
 		},
@@ -111,9 +118,10 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+		] satisfies ColumnDef<EffectTableRow>[];
+	});
 
-	const tableState = createTableState({ storageKey: "effects", columns: COLUMNS });
+	const tableState = createTableState({ storageKey: "effects", columns: () => COLUMNS });
 	const displayRows = $derived(tableState.applySort(rows));
 	const displayIds = $derived<readonly string[]>(displayRows.map((row) => row.id));
 </script>
@@ -127,8 +135,8 @@
 		id={row.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {rowName(row)}"
-		tooltip={row.kind === "native" ? "Managed by Zigbee2MQTT" : undefined}
+		ariaLabel={m.effects_select({ name: rowName(row) }, locale.messageOptions())}
+		tooltip={row.kind === "native" ? m.effects_managed_zigbee({}, locale.messageOptions()) : undefined}
 	/>
 {/snippet}
 
@@ -148,7 +156,7 @@
 
 {#snippet nameCell(row: EffectTableRow)}
 	{#if row.kind === "timeline"}
-		<InlineEditName name={row.effect.name} onsave={(name) => onrename(row.effect, name)} />
+		<InlineEditName name={entityDisplayName("effect", row.effect)} entityType="effect" entityId={row.effect.id} onsave={(name) => onrename(row.effect, name)} />
 	{:else}
 		<span class="text-sm font-medium text-foreground">{row.option.displayName}</span>
 	{/if}
@@ -166,7 +174,7 @@
 		{#if row.kind === "timeline"}
 			{@const tracks = row.effect.tracks.length}
 			{@const clips = clipCount(row.effect)}
-			{row.effect.loop ? "Loop" : "Once"} · {tracks} track{tracks === 1 ? "" : "s"} · {clips} clip{clips === 1 ? "" : "s"}
+			{m.effects_summary({ mode: row.effect.loop ? m.effects_loop({}, locale.messageOptions()) : m.effects_once({}, locale.messageOptions()), tracks, clips }, locale.messageOptions())}
 		{:else}
 			{nativeEffectSupportSummary(row.option)}
 		{/if}
@@ -195,15 +203,15 @@
 	<RowActionsCell
 		editHref={row.kind === "timeline" ? `/effects/${row.effect.id}` : undefined}
 		ondelete={row.kind === "timeline" ? () => ondelete(row.effect) : undefined}
-		editLabel="Edit effect"
-		deleteLabel="Delete effect"
+		editLabel={m.effects_edit({}, locale.messageOptions())}
+		deleteLabel={m.effects_delete_title({}, locale.messageOptions())}
 	>
 		{#snippet leading()}
 			<Button
 				variant="ghost"
 				size="icon-sm"
 				onclick={() => row.kind === "timeline" ? onrun(row.effect) : onrunnative(row.option)}
-				aria-label="Run effect"
+				aria-label={m.effects_run({}, locale.messageOptions())}
 			>
 				<Play class="size-4" />
 			</Button>

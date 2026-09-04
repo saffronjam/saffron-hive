@@ -6,13 +6,17 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { toast } from "svelte-sonner";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
-	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { deviceSupportsCaps } from "$lib/effect-editable";
 	import { resolveTargetDevices, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
 	import { deviceStore, deviceSupportsNativeEffect, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { NativeEffectRunStatus, NativeEffectSupportStatus } from "$lib/gql/graphql";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatList } from "$lib/i18n/format";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 	interface BaseProps {
 		open: boolean;
@@ -131,7 +135,7 @@
 	const roomsLite = $derived<RoomLite[]>(
 		rooms.map((r) => ({
 			id: r.id,
-			name: r.name,
+			name: entityDisplayName("room", r),
 			icon: r.icon,
 			members: r.members.map((m) => ({ memberType: m.memberType, memberId: m.memberId })),
 		})),
@@ -159,11 +163,11 @@
 	function supportBadge(device: Device): string {
 		switch (deviceSupportStatus(device)) {
 			case NativeEffectSupportStatus.Confirmed:
-				return "Confirmed";
+				return m.effects_support_confirmed({}, locale.messageOptions());
 			case NativeEffectSupportStatus.Unsupported:
-				return "Unsupported";
+				return m.effects_support_unsupported({}, locale.messageOptions());
 			default:
-				return "Untested";
+				return m.effects_support_untested({}, locale.messageOptions());
 		}
 	}
 
@@ -177,17 +181,18 @@
 	const eligibleRooms = $derived(rooms.filter((r) => targetEligibleDevices("room", r.id).length > 0));
 
 	const drawerGroups = $derived.by((): DrawerGroup<TargetKind>[] => {
+		void locale.currentLanguage;
 		const out: DrawerGroup<TargetKind>[] = [];
 		if (eligibleDevices.length > 0) {
 			out.push({
-				heading: "Devices",
+				heading: m.scene_editor_devices({}, locale.messageOptions()),
 				items: eligibleDevices.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
-					searchValue: `${d.name} ${d.type}`,
+					searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 					badge: mode === "native" ? supportBadge(d) : undefined,
 					disabled: mode === "native" && deviceSupportStatus(d) === NativeEffectSupportStatus.Unsupported,
 				})),
@@ -195,30 +200,32 @@
 		}
 		if (eligibleGroups.length > 0) {
 			out.push({
-				heading: "Groups",
+				heading: m.scene_editor_groups({}, locale.messageOptions()),
 				items: eligibleGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
 					name: groupDisplayName(g),
 					icon: GroupIcon,
+					searchValue: localizedNamesStore.searchValues("group", g.id, g.name, g.friendlyName).join(" "),
 					badge: mode === "native"
-						? `${commandableTargetCount("group", g.id)} target${commandableTargetCount("group", g.id) === 1 ? "" : "s"}`
-						: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+						? m.scenes_target_count({ count: commandableTargetCount("group", g.id) }, locale.messageOptions())
+						: m.scenes_member_count({ count: g.members.length }, locale.messageOptions()),
 					disabled: mode === "native" && commandableTargetCount("group", g.id) === 0,
 				})),
 			});
 		}
 		if (eligibleRooms.length > 0) {
 			out.push({
-				heading: "Rooms",
+				heading: m.scene_editor_rooms({}, locale.messageOptions()),
 				items: eligibleRooms.map((r) => ({
 					type: "room" as const,
 					id: r.id,
-					name: r.name,
+					name: entityDisplayName("room", r),
 					icon: DoorOpen,
+					searchValue: localizedNamesStore.searchValues("room", r.id, r.name).join(" "),
 					badge: mode === "native"
-						? `${commandableTargetCount("room", r.id)} target${commandableTargetCount("room", r.id) === 1 ? "" : "s"}`
-						: `${r.members.length} member${r.members.length === 1 ? "" : "s"}`,
+						? m.scenes_target_count({ count: commandableTargetCount("room", r.id) }, locale.messageOptions())
+						: m.scenes_member_count({ count: r.members.length }, locale.messageOptions()),
 					disabled: mode === "native" && commandableTargetCount("room", r.id) === 0,
 				})),
 			});
@@ -240,7 +247,8 @@
 					})
 					.toPromise();
 				if (result.error) {
-					toast.error(`Could not start effect: ${result.error.message}`);
+					console.error(result.error);
+					toast.error(m.effects_start_failed({}, locale.messageOptions()));
 					return;
 				}
 				const devices = result.data?.runNativeEffect.devices ?? [];
@@ -248,18 +256,18 @@
 				const unsupported = devices.filter((device) => device.status === NativeEffectRunStatus.Unsupported).length;
 				const unconfirmed = devices.filter((device) => device.status === NativeEffectRunStatus.Unconfirmed).length;
 				if (confirmed === devices.length && devices.length > 0) {
-					toast.success(`Effect started on ${confirmed} device${confirmed === 1 ? "" : "s"}`);
+					toast.success(m.effects_started_devices({ count: confirmed }, locale.messageOptions()));
 				} else if (confirmed > 0) {
 					const details = [
-						unsupported > 0 ? `${unsupported} unsupported` : "",
-						unconfirmed > 0 ? `${unconfirmed} unconfirmed` : "",
-					].filter(Boolean).join(" · ");
-					toast.warning(`Effect started on ${confirmed} of ${devices.length} devices`, { description: details });
+						unsupported > 0 ? m.effects_unsupported_count({ count: unsupported }, locale.messageOptions()) : "",
+						unconfirmed > 0 ? m.effects_unconfirmed_count({ count: unconfirmed }, locale.messageOptions()) : "",
+					].filter(Boolean);
+					toast.warning(m.effects_started_partial({ confirmed, total: devices.length }, locale.messageOptions()), { description: formatList(details) });
 				} else if (unsupported === devices.length && devices.length > 0) {
-					toast.error("Effect is unsupported on the selected target");
+					toast.error(m.effects_target_unsupported({}, locale.messageOptions()));
 				} else {
-					toast.warning("Effect requested, but no device confirmed it", {
-						description: unsupported > 0 ? `${unsupported} unsupported` : undefined,
+					toast.warning(m.effects_no_confirmation({}, locale.messageOptions()), {
+						description: unsupported > 0 ? m.effects_unsupported_count({ count: unsupported }, locale.messageOptions()) : undefined,
 					});
 				}
 				void loadNativeSupport();
@@ -272,10 +280,11 @@
 					})
 					.toPromise();
 				if (result.error) {
-					toast.error(`Could not start effect: ${result.error.message}`);
+					console.error(result.error);
+					toast.error(m.effects_start_failed({}, locale.messageOptions()));
 					return;
 				}
-				toast.success("Effect started");
+				toast.success(m.effects_started({}, locale.messageOptions()));
 			}
 			drawerOpen = false;
 			onstarted?.();
@@ -288,8 +297,8 @@
 
 <HiveDrawer
 	bind:open={drawerOpen}
-	title="Run effect"
-	description="Pick a device, group, or room to run this effect on."
+	title={m.effects_run({}, locale.messageOptions())}
+	description={m.effects_run_description({}, locale.messageOptions())}
 	groups={drawerGroups}
 	disabled={starting}
 	pendingItem={pendingTarget}

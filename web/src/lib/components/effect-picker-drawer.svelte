@@ -4,6 +4,10 @@
 	import { Sparkles } from "@lucide/svelte";
 	import { EffectKind } from "$lib/gql/graphql";
 	import type { EffectSummary } from "$lib/effect-editable";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { entityDisplayName } from "$lib/utils";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 	export type EffectPickerSelection =
 		| { kind: "timeline"; effectId: string }
@@ -45,19 +49,19 @@
 		const out: DrawerGroup<"effect">[] = [];
 		if (timeline.length > 0) {
 			out.push({
-				heading: "Hive effects",
+				heading: m.effects_hive_group({}, locale.messageOptions()),
 				items: timeline.map((e) => ({
 					type: "effect" as const,
 					id: e.id,
-					name: e.name,
+					name: entityDisplayName("effect", e),
 					icon: Sparkles,
-					searchValue: `${e.name} ${e.requiredCapabilities.join(" ")}`,
+					searchValue: `${localizedNamesStore.searchValues("effect", e.id, e.name).join(" ")} ${e.requiredCapabilities.join(" ")}`,
 				})),
 			});
 		}
 		if (native.length > 0) {
 			out.push({
-				heading: "Zigbee effects",
+				heading: m.effects_zigbee_group({}, locale.messageOptions()),
 				items: native.map((e) => ({
 					type: "effect" as const,
 					id: e.id,
@@ -85,8 +89,8 @@
 
 <HiveDrawer
 	bind:open={drawerOpen}
-	title="Pick effect"
-	description="Choose an effect to run on this device."
+	title={m.effects_picker_title({}, locale.messageOptions())}
+	description={m.effects_picker_description({}, locale.messageOptions())}
 	{groups}
 	onselect={handleSelect}
 />

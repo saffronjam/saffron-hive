@@ -211,7 +211,7 @@ type EffectInputData = {
 export function effectToEditable(effect: EffectInputData): EditableTrack[] {
   const sortedTracks = effect.tracks.slice().sort((a, b) => a.index - b.index);
   return sortedTracks.map((t) => ({
-    uid: crypto.randomUUID(),
+    uid: t.id,
     name: t.name,
     clips: t.clips
       .slice()
@@ -219,7 +219,7 @@ export function effectToEditable(effect: EffectInputData): EditableTrack[] {
       .map((c) => {
         const k = gqlKindToString(c.kind);
         return {
-          uid: crypto.randomUUID(),
+          uid: c.id,
           startMs: Math.max(0, c.startMs),
           transitionMinMs: Math.max(0, c.transitionMinMs),
           transitionMaxMs: Math.max(c.transitionMinMs, c.transitionMaxMs),
@@ -239,12 +239,14 @@ export interface ClipInputDto {
 }
 
 export interface TrackInputDto {
+  id: string;
   name: string;
   clips: ClipInputDto[];
 }
 
 export function editableToInputTracks(tracks: readonly EditableTrack[]): TrackInputDto[] {
   return tracks.map((t) => ({
+    id: t.uid,
     name: t.name,
     clips: t.clips
       .slice()
@@ -306,8 +308,18 @@ export interface EffectValidationError {
   field: "name" | "duration" | "tracks" | "clip" | "nativeName";
   trackIndex?: number;
   clipIndex?: number;
-  message: string;
+  code: EffectValidationCode;
 }
+
+export type EffectValidationCode =
+  | "name_required"
+  | "duration_negative"
+  | "clip_start_negative"
+  | "clip_transition_invalid"
+  | "clip_config_invalid"
+  | "clip_past_loop_end"
+  | "clips_overlap"
+  | "native_effect_required";
 
 function clipEnd(c: EditableClip): number {
   return c.startMs + Math.max(c.transitionMaxMs, 0);
@@ -342,9 +354,9 @@ export function validateTimelineEffect(
   loop: boolean,
   tracks: readonly EditableTrack[],
 ): EffectValidationError | null {
-  if (name.trim() === "") return { field: "name", message: "Pick a name" };
+  if (name.trim() === "") return { field: "name", code: "name_required" };
   if (!Number.isFinite(durationMs) || durationMs < 0) {
-    return { field: "duration", message: "Duration must be zero or positive" };
+    return { field: "duration", code: "duration_negative" };
   }
   for (let ti = 0; ti < tracks.length; ti++) {
     const track = tracks[ti];
@@ -356,7 +368,7 @@ export function validateTimelineEffect(
           field: "clip",
           trackIndex: ti,
           clipIndex: ci,
-          message: "Clip start must be zero or positive",
+          code: "clip_start_negative",
         };
       }
       if (clip.transitionMinMs < 0 || clip.transitionMaxMs < clip.transitionMinMs) {
@@ -364,7 +376,7 @@ export function validateTimelineEffect(
           field: "clip",
           trackIndex: ti,
           clipIndex: ci,
-          message: "Clip transition bounds are invalid",
+          code: "clip_transition_invalid",
         };
       }
       if (!isValidClipConfig(clip)) {
@@ -372,7 +384,7 @@ export function validateTimelineEffect(
           field: "clip",
           trackIndex: ti,
           clipIndex: ci,
-          message: "Clip configuration is invalid",
+          code: "clip_config_invalid",
         };
       }
       if (loop && clipEnd(clip) > durationMs) {
@@ -380,7 +392,7 @@ export function validateTimelineEffect(
           field: "clip",
           trackIndex: ti,
           clipIndex: ci,
-          message: "Clip extends past the loop end",
+          code: "clip_past_loop_end",
         };
       }
       if (ci > 0) {
@@ -390,7 +402,7 @@ export function validateTimelineEffect(
             field: "clip",
             trackIndex: ti,
             clipIndex: ci,
-            message: "Clips on a track cannot overlap",
+            code: "clips_overlap",
           };
         }
       }
@@ -403,9 +415,9 @@ export function validateNativeEffect(
   name: string,
   nativeName: string | null,
 ): EffectValidationError | null {
-  if (name.trim() === "") return { field: "name", message: "Pick a name" };
+  if (name.trim() === "") return { field: "name", code: "name_required" };
   if (!nativeName || nativeName.trim() === "") {
-    return { field: "nativeName", message: "Pick a Zigbee effect" };
+    return { field: "nativeName", code: "native_effect_required" };
   }
   return null;
 }

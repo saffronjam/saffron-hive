@@ -1,13 +1,17 @@
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
+
 export function effectCapabilityLabel(capability: string): string {
+  const options = locale.messageOptions();
   switch (capability) {
     case "on_off":
-      return "On/Off";
+      return m.effect_cap_on_off({}, options);
     case "color_temp":
-      return "Color temp";
+      return m.effect_cap_color_temp({}, options);
     case "brightness":
-      return "Brightness";
+      return m.effect_cap_brightness({}, options);
     case "color":
-      return "Color";
+      return m.effect_cap_color({}, options);
     default:
       return capability;
   }

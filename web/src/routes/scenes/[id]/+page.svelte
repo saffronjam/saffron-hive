@@ -29,6 +29,9 @@
 	import type { GroupLite, RoomLite } from "$lib/target-resolve";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { ArrowLeft, Clapperboard, Play, Plus, Square, X } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { entityDisplayName } from "$lib/utils";
 
 	const EFFECTS = graphql(`
 		query SceneEditorEffects {
@@ -93,7 +96,6 @@
 		preview = value.preview;
 		savedSignature = currentSignature(editorState, name, icon);
 		dirty = false;
-		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: value.name }];
 	}
 
 	function handleEditorChange(next: EditorState) {
@@ -128,9 +130,8 @@
 			}
 			savedSignature = currentSignature(editorState, name, icon);
 			dirty = false;
-			pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: updated.name }];
 		} catch (caught) {
-			error = graphqlErrorMessage(caught, "Could not save the scene.");
+			error = graphqlErrorMessage(caught, m.scene_error_save({}, locale.messageOptions()));
 		} finally {
 			saving = false;
 		}
@@ -144,14 +145,13 @@
 			if (active) await scenesStore.deactivate(client, sceneId);
 			else await scenesStore.apply(client, sceneId);
 		} catch (caught) {
-			error = graphqlErrorMessage(caught, active ? "Could not stop the scene." : "Could not apply the scene.");
+			error = graphqlErrorMessage(caught, active ? m.scenes_error_stop({}, locale.messageOptions()) : m.scenes_error_apply({}, locale.messageOptions()));
 		} finally {
 			applying = false;
 		}
 	}
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Scenes", href: "/scenes" }, { label: "Scene" }];
 		pageHeader.viewToggle = null;
 		void client.query(EFFECTS, {}).toPromise().then((result) => {
 			if (result.data) effects = result.data.effects.map(effectSummary);
@@ -172,10 +172,15 @@
 	});
 
 	$effect(() => {
+		void locale.currentLanguage;
+		pageHeader.breadcrumbs = [
+			{ label: m.scenes_title({}, locale.messageOptions()), href: "/scenes" },
+			{ label: name ? entityDisplayName("scene", { id: sceneId, name }) : m.scene_fallback({}, locale.messageOptions()) },
+		];
 		pageHeader.actions = [
-			{ label: active ? "Stop" : "Apply", icon: active ? Square : Play, variant: "outline", onclick: applyOrStop, disabled: applying || dirty || !editorState || (!active && controllableDeviceCount === 0), hideLabelOnMobile: true },
-			{ label: "Cancel", icon: X, variant: "outline", onclick: () => goto("/scenes"), hideLabelOnMobile: true },
-			{ label: "Save", saving, onclick: save, disabled: saving || !dirty || !name.trim(), hideLabelOnMobile: true },
+			{ label: active ? m.scene_action_stop({}, locale.messageOptions()) : m.scene_action_apply({}, locale.messageOptions()), icon: active ? Square : Play, variant: "outline", onclick: applyOrStop, disabled: applying || dirty || !editorState || (!active && controllableDeviceCount === 0), hideLabelOnMobile: true },
+			{ label: m.common_cancel({}, locale.messageOptions()), icon: X, variant: "outline", onclick: () => goto("/scenes"), hideLabelOnMobile: true },
+			{ label: m.common_save({}, locale.messageOptions()), saving, onclick: save, disabled: saving || !dirty || !name.trim(), hideLabelOnMobile: true },
 		];
 	});
 
@@ -186,23 +191,23 @@
 {#if error}<ErrorBanner class="mb-4" message={error} ondismiss={() => (error = null)} />{/if}
 
 {#if loading}
-	<div class="rounded-lg shadow-card bg-card p-12 text-center text-muted-foreground">Loading scene…</div>
+	<div class="rounded-lg shadow-card bg-card p-12 text-center text-muted-foreground">{m.scene_loading({}, locale.messageOptions())}</div>
 {:else if !editorState || !preview}
 	<div class="rounded-lg shadow-card bg-card p-12 text-center">
-		<p class="text-muted-foreground">This scene could not be found.</p>
-		<Button class="mt-4" variant="outline" onclick={() => goto("/scenes")}><ArrowLeft class="size-4" /> Back to scenes</Button>
+		<p class="text-muted-foreground">{m.scene_not_found({}, locale.messageOptions())}</p>
+		<Button class="mt-4" variant="outline" onclick={() => goto("/scenes")}><ArrowLeft class="size-4" /> {m.scene_back({}, locale.messageOptions())}</Button>
 	</div>
 {:else}
-	<div class="mx-auto max-w-6xl space-y-6">
+	<div class="mx-auto max-w-[90rem] space-y-6">
 		<div class="flex items-center gap-3 rounded-lg shadow-card bg-card p-4">
 			<IconPicker value={icon} onselect={(value) => { icon = value; refreshDirty(); }}>
-				<IconPickerTrigger ariaLabel="Choose scene icon">
+				<IconPickerTrigger ariaLabel={m.scene_choose_icon({}, locale.messageOptions())}>
 					<AnimatedIcon {icon} class="size-5">{#snippet fallback()}<Clapperboard class="size-5" />{/snippet}</AnimatedIcon>
 				</IconPickerTrigger>
 			</IconPicker>
-			<Input value={name} oninput={(event) => { name = event.currentTarget.value; refreshDirty(); }} aria-label="Scene name" class="max-w-md text-lg font-medium" />
+			<Input value={name} oninput={(event) => { name = event.currentTarget.value; refreshDirty(); }} aria-label={m.scene_name_aria({}, locale.messageOptions())} class="max-w-md text-lg font-medium" />
 			{#if !editorState.dynamicSource}
-				<Button class="ml-auto sm:w-auto sm:gap-1 sm:px-2.5" variant="outline" size="icon-sm" onclick={() => (vibePickerOpen = true)} aria-label="Add source"><Plus class="size-4" /><span class="hidden sm:inline">Add source</span></Button>
+				<Button class="ml-auto sm:w-auto sm:gap-1 sm:px-2.5" variant="outline" size="icon-sm" onclick={() => (vibePickerOpen = true)} aria-label={m.scene_add_source({}, locale.messageOptions())}><Plus class="size-4" /><span class="hidden sm:inline">{m.scene_add_source({}, locale.messageOptions())}</span></Button>
 			{/if}
 		</div>
 		<SceneEditor

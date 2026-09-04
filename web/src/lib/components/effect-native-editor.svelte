@@ -11,6 +11,8 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Zap } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		nativeName: string | null;
@@ -60,23 +62,23 @@
 <div class="rounded-lg shadow-card bg-card p-4 flex flex-col gap-3">
 	<div class="flex items-center gap-2 text-sm text-muted-foreground">
 		<Zap class="size-4" />
-		<span>Zigbee effect</span>
+		<span>{m.effects_zigbee_effect({}, locale.messageOptions())}</span>
 	</div>
 
 	{#if $optionsStore.fetching && options.length === 0}
-		<p class="text-sm text-muted-foreground">Loading available effects…</p>
+		<p class="text-sm text-muted-foreground">{m.effects_native_loading({}, locale.messageOptions())}</p>
 	{:else if $optionsStore.error}
 		<p class="text-sm text-destructive">
-			Could not load Zigbee effects: {$optionsStore.error.message}
+			{m.effects_native_load_error({}, locale.messageOptions())}
 		</p>
 	{:else if options.length === 0}
 		<p class="text-sm text-muted-foreground">
-			No devices report any Zigbee effects yet.
+			{m.effects_native_empty({}, locale.messageOptions())}
 		</p>
 	{:else}
 		<div class="flex flex-col gap-2">
 			<label class="text-sm text-muted-foreground" for="native-effect">
-				Effect
+				{m.scene_editor_effect({}, locale.messageOptions())}
 			</label>
 			<Select
 				type="single"
@@ -87,7 +89,7 @@
 				{disabled}
 			>
 				<SelectTrigger id="native-effect" class="w-full">
-					{selected ? selected.displayName : "Select an effect"}
+					{selected ? selected.displayName : m.effects_select_effect({}, locale.messageOptions())}
 				</SelectTrigger>
 				<SelectContent>
 					{#each options as opt (opt.name)}

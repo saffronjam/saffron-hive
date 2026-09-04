@@ -21,7 +21,6 @@ const editor: EditorState = {
     domain: "full_color",
     sourceKind: "preset",
     presetId: "night-sky",
-    presetTitle: "Night sky",
     guidedSelectedIds: [],
     seed: "19",
     brightness: 0.8,
@@ -73,7 +72,7 @@ describe("SceneEditor", () => {
 
     flushSync();
     await tick();
-    expect(host.textContent).toContain("Night sky");
+    expect(host.textContent).toContain("Night Sky");
     expect(onchange).not.toHaveBeenCalled();
     expect(host.textContent).not.toContain("Fallback");
     expect(host.textContent).not.toContain("Used by lights without an override");
@@ -116,7 +115,7 @@ describe("SceneEditor", () => {
     });
 
     flushSync();
-    expect(host.textContent).toContain("Night sky");
+    expect(host.textContent).toContain("Night Sky");
     expect(host.querySelector('[role="tab"][data-value="targets"]')).not.toBeNull();
     expect(host.querySelector('[role="tab"][data-value="supporting"]')).not.toBeNull();
   });

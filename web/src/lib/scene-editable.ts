@@ -4,7 +4,7 @@ import {
   isRuntimeEnabledDevice,
   type Device,
 } from "$lib/stores/devices";
-import { deviceDisplayName, groupDisplayName } from "$lib/utils";
+import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 import {
   evaluateExpression,
   resolveTargetDevices,
@@ -56,7 +56,6 @@ export interface DynamicLighting {
   domain: VibeDomain;
   sourceKind: VibeSourceKind;
   presetId?: string | null;
-  presetTitle?: string | null;
   guidedSelectedIds: string[];
   seed: string;
   brightness: number;
@@ -111,6 +110,7 @@ export interface SceneTargetData {
 }
 
 export interface SceneTargetEntry {
+  id: string;
   targetType: TargetKind;
   targetId: string;
   target?: SceneTargetData | null;
@@ -164,17 +164,17 @@ export function newTargetUid(): string {
 export function buildTargetInfo(target: SceneTargetEntry): EditableTarget {
   if (target.targetType === "expression") {
     return {
-      uid: newTargetUid(),
+      uid: target.id,
       type: "expression",
       id: "",
-      name: target.name || "Selector",
+      name: entityDisplayName("scene_target", { id: target.id, name: target.name }, "Selector"),
       expression: target.expression ?? [],
     };
   }
   const resolved = target.target;
   if (target.targetType === "group") {
     return {
-      uid: newTargetUid(),
+      uid: target.id,
       type: "group",
       id: target.targetId,
       name:
@@ -191,18 +191,18 @@ export function buildTargetInfo(target: SceneTargetEntry): EditableTarget {
   }
   if (target.targetType === "room") {
     return {
-      uid: newTargetUid(),
+      uid: target.id,
       type: "room",
       id: target.targetId,
       name:
         resolved?.__typename === "Room"
-          ? (resolved.name ?? resolved.id)
+          ? entityDisplayName("room", { id: resolved.id, name: resolved.name })
           : target.name || target.targetId,
       icon: resolved?.__typename === "Room" ? (resolved.icon ?? null) : null,
     };
   }
   return {
-    uid: newTargetUid(),
+    uid: target.id,
     type: "device",
     id: target.targetId,
     name:
@@ -381,6 +381,7 @@ export function sceneStateInput(state: DesiredSceneState): DesiredSceneStateInpu
 
 export function editorDefinitionInput(state: EditorState): SceneDefinitionInput {
   const targets = state.targets.map((target) => ({
+    id: target.uid,
     targetType: target.type as SceneTargetType,
     targetId: target.type === "expression" ? undefined : target.id,
     expression: target.type === "expression" ? (target.expression ?? []) : undefined,

@@ -1,10 +1,11 @@
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import type { ScenePreview, VibeDomain } from "$lib/scene-editable";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
 
 export interface VibePreset {
   id: string;
-  title: string;
   category: string;
   domain: VibeDomain;
   seed: string;
@@ -18,7 +19,6 @@ const VIBE_CATALOG = graphql(`
   query VibeCatalog {
     vibePresets {
       id
-      title
       category
       domain
       seed
@@ -63,7 +63,8 @@ async function load(client: Client): Promise<void> {
     .toPromise()
     .then((result) => {
       if (result.error || !result.data) {
-        error = result.error?.message ?? "Could not load the Vibe gallery.";
+        console.error(result.error);
+        error = m.vibe_load_failed({}, locale.messageOptions());
         return;
       }
       items = result.data.vibePresets as VibePreset[];

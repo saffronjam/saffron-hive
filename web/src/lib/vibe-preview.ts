@@ -1,4 +1,6 @@
 import type { ScenePreview } from "$lib/scene-editable";
+import type { Language } from "$lib/i18n/messages";
+import { formatShortDuration } from "$lib/i18n/format";
 
 const MAXIMUM_WARP = 0.6;
 const MOTION_SPATIAL_SCALE = 0.22;
@@ -16,11 +18,6 @@ interface NoiseOctave {
 }
 
 const motionCache = new Map<string, [NoiseOctave[], NoiseOctave[]]>();
-
-export function previewDescription(preview: ScenePreview): string {
-  if (preview.swatches.length === 0) return "Lighting vibe preview";
-  return `Lighting vibe with ${preview.swatches.length} representative ${preview.swatches.length === 1 ? "colour" : "colours"}`;
-}
 
 export function paintVibeRaster(context: CanvasRenderingContext2D, preview: ScenePreview): boolean {
   return paintVibeFrame(context, preview, 0, 0, "0") !== null;
@@ -131,10 +128,10 @@ export function pacePositionToCycleSeconds(position: number): number {
   return clamp(Math.round(raw / step) * step, MINIMUM_CYCLE_SECONDS, MAXIMUM_CYCLE_SECONDS);
 }
 
-export function formatVibeCycle(cycleSeconds: number): string {
-  if (cycleSeconds < 60) return `${Math.round(cycleSeconds)} sec cycle`;
+export function formatVibeCycle(cycleSeconds: number, language: Language): string {
+  if (cycleSeconds < 60) return formatShortDuration(Math.round(cycleSeconds), "second", language);
   const minutes = cycleSeconds / 60;
-  return `${Number.isInteger(minutes) ? minutes : minutes.toFixed(1)} min cycle`;
+  return formatShortDuration(minutes, "minute", language);
 }
 
 function samplePixel(preview: ScenePreview, x: number, y: number) {

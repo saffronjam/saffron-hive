@@ -6,7 +6,6 @@ import {
   pacePositionToCycleSeconds,
   paintVibeFrame,
   paintVibeRaster,
-  previewDescription,
   previewMotionSeconds,
 } from "$lib/vibe-preview";
 import type { ScenePreview } from "$lib/scene-editable";
@@ -41,11 +40,6 @@ const preview: ScenePreview = {
 };
 
 describe("Vibe preview rendering", () => {
-  it("describes representative colours accessibly", () => {
-    expect(previewDescription(preview)).toBe("Lighting vibe with 2 representative colours");
-    expect(previewDescription({ ...preview, swatches: [] })).toBe("Lighting vibe preview");
-  });
-
   it("paints only the native raster without display-sized resampling", () => {
     const target = context();
     expect(paintVibeRaster(target.value, preview)).toBe(true);
@@ -72,8 +66,12 @@ describe("Vibe preview rendering", () => {
     expect(pacePositionToCycleSeconds(0)).toBe(5);
     expect(pacePositionToCycleSeconds(100)).toBe(30 * 60);
     expect(pacePositionToCycleSeconds(cycleSecondsToPacePosition(60))).toBe(60);
-    expect(formatVibeCycle(15)).toBe("15 sec cycle");
-    expect(formatVibeCycle(90)).toBe("1.5 min cycle");
+    expect(formatVibeCycle(15, "en")).toBe("15 sec");
+    expect(formatVibeCycle(90, "en")).toBe("1.5 min");
+    expect(formatVibeCycle(15, "sv")).toBe("15 s");
+    expect(formatVibeCycle(90, "sv")).toBe("1,5 min");
+    expect(formatVibeCycle(15, "ru")).toBe("15 с");
+    expect(formatVibeCycle(90, "ru")).toBe("1,5 мин");
   });
 
   it("morphs deterministically by phase and seed at native resolution", () => {

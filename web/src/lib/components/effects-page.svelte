@@ -41,6 +41,10 @@
 	import { effectCapabilityLabel } from "$lib/effect-display";
 	import { EffectKind, type Effect, type NativeEffectOption } from "$lib/gql/graphql";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
+	import { entityDisplayName } from "$lib/utils";
 
 	interface Props {
 		/**
@@ -131,9 +135,10 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Effects" }];
+		void locale.currentLanguage;
+		pageHeader.breadcrumbs = [{ label: m.effects_title({}, locale.messageOptions()) }];
 		pageHeader.actions = [
-			{ label: "Create Effect", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) },
+			{ label: m.effects_create({}, locale.messageOptions()), mobileLabel: m.effects_create_short({}, locale.messageOptions()), icon: Plus, onclick: () => (createDialogOpen = true) },
 		];
 		pageHeader.viewToggle = {
 			value: view,
@@ -150,7 +155,7 @@
 		try {
 			await effectsStore.update(clientRef, { id: effect.id, name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not rename the effect."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_rename({}, locale.messageOptions())));
 		}
 	}
 
@@ -160,7 +165,7 @@
 		try {
 			await effectsStore.update(clientRef, { id: effect.id, icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not change the icon."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_icon({}, locale.messageOptions())));
 		}
 	}
 
@@ -172,7 +177,7 @@
 			await effectsStore.delete(clientRef, deleteConfirm.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the effect."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_delete({}, locale.messageOptions())));
 			return;
 		}
 		deleteLoading = false;
@@ -192,7 +197,7 @@
 			await effectsStore.deleteMany(clientRef, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the effects."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_delete_many({}, locale.messageOptions())));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -216,7 +221,7 @@
 			});
 		} catch (e) {
 			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not create the effect."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_create({}, locale.messageOptions())));
 			return;
 		}
 
@@ -252,26 +257,26 @@
 		active: () => visible && page.url.pathname === "/effects",
 	});
 
-	const sourceOptions = [
+	const sourceOptions = $derived([
 		{ value: "hive", label: "Hive" },
 		{ value: "zigbee2mqtt", label: "Zigbee" },
-	];
-	const kindOptions = [
-		{ value: "timeline", label: "Timeline" },
-		{ value: "native", label: "Zigbee effect" },
-	];
+	]);
+	const kindOptions = $derived.by(() => [
+		{ value: "timeline", label: m.effects_timeline({}, locale.messageOptions()) },
+		{ value: "native", label: m.effects_zigbee_effect({}, locale.messageOptions()) },
+	]);
 
-	const searchChipConfigs: ChipConfig[] = $derived([
+	const searchChipConfigs: ChipConfig[] = $derived.by(() => [
 		{
 			keyword: "kind",
-			label: "Kind",
+			label: m.effects_kind({}, locale.messageOptions()),
 			variant: "secondary",
 			options: () => kindOptions,
 			resolveLabel: (value: string) => kindOptions.find((option) => option.value === value)?.label ?? null,
 		},
 		{
 			keyword: "source",
-			label: "Source",
+			label: m.effects_source({}, locale.messageOptions()),
 			variant: "secondary",
 			options: () => sourceOptions,
 			resolveLabel: (value: string) => sourceOptions.find((option) => option.value === value)?.label ?? null,
@@ -287,7 +292,14 @@
 			.filter((c) => c.keyword === "source")
 			.map((c) => c.value);
 		const query = searchController.value.freeText;
-		return effects.filter((e) => matchesEffectFilter(e.source, [e.name], sourceValues, query));
+		return effects.filter((e) =>
+			matchesEffectFilter(
+				e.source,
+				localizedNamesStore.searchValues("effect", e.id, e.name),
+				sourceValues,
+				query,
+			),
+		);
 	});
 
 	const filteredNativeOptions = $derived.by(() => {
@@ -341,13 +353,13 @@
 					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 						<Sparkles class="size-6 text-muted-foreground" />
 					</div>
-					<p class="text-muted-foreground">No effects yet.</p>
+					<p class="text-muted-foreground">{m.effects_empty({}, locale.messageOptions())}</p>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Create a Hive effect, or pair a device that exposes Zigbee effects.
+						{m.effects_empty_help({}, locale.messageOptions())}
 					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
-						<span>Create your first effect</span>
+						<span>{m.effects_create_first({}, locale.messageOptions())}</span>
 					</Button>
 				</div>
 			{:else}
@@ -356,7 +368,7 @@
 						<HiveSearchbar
 							controller={searchController}
 							chips={searchChipConfigs}
-							placeholder="Search effects..."
+							placeholder={m.effects_search({}, locale.messageOptions())}
 						/>
 					</div>
 					<div
@@ -372,7 +384,7 @@
 									size="sm"
 									onclick={() => (batchDeleteConfirm = true)}
 								>
-									Delete
+									{m.common_delete({}, locale.messageOptions())}
 								</Button>
 							{/snippet}
 						</TableSelectionToolbar>
@@ -381,7 +393,7 @@
 
 				{#if !hasAnyMatch}
 					<div class="rounded-lg shadow-card bg-card p-12 text-center">
-						<p class="text-muted-foreground">No effects match your filters.</p>
+						<p class="text-muted-foreground">{m.effects_no_match({}, locale.messageOptions())}</p>
 					</div>
 				{:else}
 					<ListView mode={view}>
@@ -392,9 +404,10 @@
 									{@const clipCount = effect.tracks.reduce((s, t) => s + t.clips.length, 0)}
 									<EntityCard
 										entity={effect}
+										entityType="effect"
 										onpointerenter={(e) => prefetchDetail(clientRef, "effect", e.id)}
 										fallbackIcon={Sparkles}
-										subtitle={`${effect.loop ? "Loop" : "Once"} · ${trackCount} track${trackCount === 1 ? "" : "s"} · ${clipCount} clip${clipCount === 1 ? "" : "s"}`}
+									subtitle={m.effects_summary({ mode: effect.loop ? m.effects_loop({}, locale.messageOptions()) : m.effects_once({}, locale.messageOptions()), tracks: trackCount, clips: clipCount }, locale.messageOptions())}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										editHref={`/effects/${effect.id}`}
@@ -405,7 +418,7 @@
 												variant="ghost"
 												size="icon-sm"
 												onclick={() => openTimelineRun(effect)}
-												aria-label="Run effect"
+										aria-label={m.effects_run({}, locale.messageOptions())}
 											>
 												<Play class="size-4" />
 											</Button>
@@ -413,7 +426,7 @@
 												variant="ghost"
 												size="icon-sm"
 												href={`/effects/${effect.id}`}
-												aria-label="Edit effect"
+										aria-label={m.effects_edit({}, locale.messageOptions())}
 											>
 												<Pencil class="size-4" />
 											</Button>
@@ -427,7 +440,7 @@
 													</Badge>
 												{/each}
 												{#if effect.requiredCapabilities.length === 0}
-													<span class="text-[11px] text-muted-foreground">No required caps</span>
+											<span class="text-[11px] text-muted-foreground">{m.effects_no_required_capabilities({}, locale.messageOptions())}</span>
 												{/if}
 											</div>
 										{/snippet}
@@ -446,7 +459,7 @@
 												variant="ghost"
 												size="icon-sm"
 												onclick={() => openNativeRun(opt)}
-												aria-label="Run Zigbee effect"
+										aria-label={m.effects_run_zigbee({}, locale.messageOptions())}
 											>
 												<Play class="size-4" />
 											</Button>
@@ -481,9 +494,9 @@
 	<Dialog bind:open={createDialogOpen}>
 		<DialogContent>
 			<DialogHeader>
-				<DialogTitle>Create Effect</DialogTitle>
+				<DialogTitle>{m.effects_create({}, locale.messageOptions())}</DialogTitle>
 				<DialogDescription>
-					Give your new effect a name. You can add steps in the editor.
+					{m.effects_create_description({}, locale.messageOptions())}
 				</DialogDescription>
 			</DialogHeader>
 			<form
@@ -495,7 +508,7 @@
 				<Input
 					bind:ref={newEffectNameInput}
 					bind:value={newEffectName}
-					placeholder="Effect name"
+					placeholder={m.effects_name_placeholder({}, locale.messageOptions())}
 					autofocus
 				/>
 				<DialogFooter class="mt-4">
@@ -507,7 +520,7 @@
 							newEffectName = "";
 						}}
 					>
-						Cancel
+						{m.common_cancel({}, locale.messageOptions())}
 					</Button>
 					<Button
 						variant="secondary"
@@ -515,10 +528,10 @@
 						disabled={!newEffectName.trim() || createLoading}
 						onclick={() => handleCreate({ keepOpen: true })}
 					>
-						Create more
+						{m.effects_create_more({}, locale.messageOptions())}
 					</Button>
 					<Button type="submit" disabled={!newEffectName.trim() || createLoading}>
-						{createLoading ? "Creating..." : "Create"}
+						{createLoading ? m.effects_creating({}, locale.messageOptions()) : m.effects_create_short({}, locale.messageOptions())}
 					</Button>
 				</DialogFooter>
 			</form>
@@ -548,9 +561,9 @@
 
 	<ConfirmDialog
 		bind:open={() => deleteConfirm !== null, (v) => { if (!v) deleteConfirm = null; }}
-		title="Delete Effect"
-		description='Delete "{deleteConfirm?.name ?? ""}"? This cannot be undone. Scenes and automations referencing this effect will need to be updated.'
-		confirmLabel="Delete"
+		title={m.effects_delete_title({}, locale.messageOptions())}
+		description={m.effects_delete_description({ name: deleteConfirm ? entityDisplayName("effect", deleteConfirm) : "" }, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={deleteLoading}
 		onconfirm={handleDelete}
 		oncancel={() => (deleteConfirm = null)}
@@ -558,9 +571,9 @@
 
 	<ConfirmDialog
 		open={batchDeleteConfirm}
-		title="Delete {selection.count} effect{selection.count === 1 ? '' : 's'}?"
-		description="This permanently deletes the selected effects. Scenes and automations referencing them will need to be updated."
-		confirmLabel="Delete"
+		title={m.effects_delete_many_title({ count: selection.count }, locale.messageOptions())}
+		description={m.effects_delete_many_description({}, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={batchDeleteLoading}
 		onconfirm={handleBatchDelete}
 		oncancel={() => (batchDeleteConfirm = false)}

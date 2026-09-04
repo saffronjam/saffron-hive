@@ -13,7 +13,6 @@ const FIXTURE_DATA = graphql(`
     }
     vibePresets {
       id
-      title
     }
   }
 `);
@@ -70,7 +69,7 @@ let browserContext: BrowserContext;
 let page: Page;
 let roomId = "";
 let groupId = "";
-let presetTitle = "";
+let presetLabel = "";
 const sceneIds: string[] = [];
 
 async function openCreation(): Promise<void> {
@@ -211,8 +210,9 @@ beforeAll(async () => {
     (device) => device.friendlyName === "Living Room Light",
   );
   if (!bedroom || !living) throw new Error("Scene browser lights unavailable");
-  presetTitle = fixtures.data.vibePresets[0]?.title ?? "";
-  if (!presetTitle) throw new Error("Vibe catalogue is empty");
+  const presetId = fixtures.data.vibePresets[0]?.id ?? "";
+  presetLabel = presetId === "sunset-glow" ? "Sunset Glow" : presetId;
+  if (!presetLabel) throw new Error("Vibe catalogue is empty");
 
   const structure = await graphqlClient
     .mutation(CREATE_STRUCTURE, { room: { name: ROOM_NAME }, group: { name: GROUP_NAME } })
@@ -279,7 +279,7 @@ describe("advanced Scene browser journeys", () => {
   it("creates, adjusts, reloads, applies, and stops a Gallery Vibe with a capability Selector", async () => {
     await openCreation();
     await page.getByRole("button", { name: /Gallery/ }).click();
-    const preset = page.getByRole("button", { name: new RegExp(presetTitle) });
+    const preset = page.getByRole("button", { name: new RegExp(presetLabel) });
     await preset.waitFor();
     let previewRequests = 0;
     const countPreviewRequest = (request: import("playwright-core").Request) => {
@@ -367,7 +367,7 @@ describe("advanced Scene browser journeys", () => {
     await page.getByRole("button", { name: "Apply", exact: true }).waitFor();
 
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
-    const sceneActions = page.getByRole("button", { name: "Browser Gallery Vibe actions" });
+    const sceneActions = page.getByRole("button", { name: "Actions for Browser Gallery Vibe" });
     await sceneActions.waitFor();
     await sceneActions.click();
     await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
@@ -407,7 +407,7 @@ describe("advanced Scene browser journeys", () => {
       mimeType: "image/png",
       buffer: Buffer.from("broken"),
     });
-    await page.getByText("Hive could not decode this image.").waitFor();
+    await page.getByText("Could not process this image.").waitFor();
     await file.setInputFiles({
       name: "private-colours.png",
       mimeType: "image/png",
@@ -425,7 +425,7 @@ describe("advanced Scene browser journeys", () => {
     await addDrawerTarget(GROUP_NAME);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await finishCreation("Browser Photo Whites");
-    await expect.poll(() => page.getByText("White", { exact: true }).count()).toBeGreaterThan(0);
+    await expect.poll(() => page.getByText("Whites", { exact: true }).count()).toBeGreaterThan(0);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
   }, 90_000);
@@ -449,7 +449,7 @@ describe("advanced Scene browser journeys", () => {
     await addDrawerTarget("Living Room Light");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await finishCreation("Browser Guided Five");
-    await expect.poll(() => page.getByText("White", { exact: true }).count()).toBeGreaterThan(0);
+    await expect.poll(() => page.getByText("Whites", { exact: true }).count()).toBeGreaterThan(0);
   }, 90_000);
 
   it("creates Individual lights with captured state and an explicit supporting appliance plug", async () => {

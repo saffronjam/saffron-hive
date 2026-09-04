@@ -129,6 +129,7 @@ describe("effectToEditable / editableToInputTracks", () => {
 
     const dto = editableToInputTracks(editable);
     expect(dto).toHaveLength(1);
+	expect(dto[0].id).toBe("t1");
     expect(dto[0].clips).toHaveLength(2);
     expect(dto[0].clips[0].kind).toBe(EffectClipKind.SetOnOff);
     expect(dto[0].clips[0].startMs).toBe(0);
@@ -231,7 +232,7 @@ describe("validateTimelineEffect", () => {
   it("rejects an empty name", () => {
     expect(validateTimelineEffect("", 100, false, [track([validClip])])).toEqual({
       field: "name",
-      message: "Pick a name",
+      code: "name_required",
     });
   });
 
@@ -283,7 +284,7 @@ describe("validateTimelineEffect", () => {
     });
     expect(validateTimelineEffect("OK", 1000, true, [track([c])])).toMatchObject({
       field: "clip",
-      message: expect.stringMatching(/loop end/i),
+      code: "clip_past_loop_end",
     });
   });
 

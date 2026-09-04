@@ -60,7 +60,7 @@
 	} from "$lib/target-resolve";
 	import { buildTargetTree, type TargetTreeNode } from "$lib/target-tree";
 	import type { EffectSummary } from "$lib/effect-editable";
-	import { deviceDisplayName, deviceIcon, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, deviceIcon, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { rgbToXy } from "$lib/color";
 	import { miredToRgb } from "$lib/device-tint";
 	import { randomVibeSeed } from "$lib/vibe-seed";
@@ -70,6 +70,10 @@
 		pacePositionToCycleSeconds,
 	} from "$lib/vibe-preview";
 	import { vibeCatalog } from "$lib/stores/vibe-catalog.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatShortDuration } from "$lib/i18n/format";
+	import { vibePresetLabel } from "$lib/i18n/vibe";
 	import {
 		ChevronDown,
 		ChevronRight,
@@ -215,14 +219,15 @@
 	);
 
 	function formatRevisit(seconds: number): string {
-		if (seconds < 1) return `${Math.round(seconds * 10) / 10}s`;
-		return `${Math.round(seconds)}s`;
+		const value = seconds < 1 ? Math.round(seconds * 10) / 10 : Math.round(seconds);
+		return formatShortDuration(value, "second", locale.currentLanguage);
 	}
 	const targetDrawerGroups = $derived.by((): DrawerGroup<DirectTargetKind>[] => {
+		void locale.currentLanguage;
 		const existing = new Set(editor.targets.filter((target) => target.type !== "expression").map((target) => `${target.type}:${target.id}`));
 		return [
 			{
-				heading: "Devices",
+				heading: m.scene_editor_devices({}, locale.messageOptions()),
 				items: devices.filter((device) => isLightControlDevice(device) && !existing.has(`device:${device.id}`)).map((device) => ({
 					type: "device" as const,
 					id: device.id,
@@ -232,7 +237,7 @@
 				})),
 			},
 			{
-				heading: "Groups",
+				heading: m.scene_editor_groups({}, locale.messageOptions()),
 				items: groups.filter((group) => !group.removed && !existing.has(`group:${group.id}`)).map((group) => ({
 					type: "group" as const,
 					id: group.id,
@@ -242,11 +247,11 @@
 				})),
 			},
 			{
-				heading: "Rooms",
+				heading: m.scene_editor_rooms({}, locale.messageOptions()),
 				items: rooms.filter((room) => !existing.has(`room:${room.id}`)).map((room) => ({
 					type: "room" as const,
 					id: room.id,
-					name: room.name ?? room.id,
+					name: entityDisplayName("room", room, room.id),
 					icon: DoorOpen,
 					iconRef: room.icon,
 				})),
@@ -255,7 +260,7 @@
 	});
 
 	const supportingGroups = $derived.by((): DrawerGroup<"device">[] => [{
-		heading: "Devices",
+		heading: m.scene_editor_devices({}, locale.messageOptions()),
 		items: devices.filter((device) => !isLightControlDevice(device) && initialSupportingState(device) !== null && !editor.supportingStates.has(device.id)).map((device) => ({
 			type: "device" as const,
 			id: device.id,
@@ -308,12 +313,26 @@
 		selectorEditor = { uid: null, name: "", expression: [] };
 	}
 
+	function targetDisplayName(target: EditorState["targets"][number]): string {
+		if (target.type === "device") {
+			const device = devices.find((candidate) => candidate.id === target.id);
+			if (device) return deviceDisplayName(device);
+		} else if (target.type === "group") {
+			const group = groups.find((candidate) => candidate.id === target.id);
+			if (group) return groupDisplayName(group);
+		} else if (target.type === "room") {
+			const room = rooms.find((candidate) => candidate.id === target.id);
+			if (room) return entityDisplayName("room", room, room.id);
+		}
+		return target.name || m.scene_editor_selector({}, locale.messageOptions());
+	}
+
 	function editSelector(uid: string) {
 		const target = editor.targets.find((candidate) => candidate.uid === uid);
 		if (!target || target.type !== "expression") return;
 		selectorEditor = {
 			uid,
-			name: target.name === "Selector" ? "" : target.name,
+			name: target.name,
 			expression: target.expression ?? [],
 		};
 	}
@@ -321,7 +340,7 @@
 	function saveSelector() {
 		const selection = selectorEditor;
 		if (!selection) return;
-		const name = selection.name.trim() || "Selector";
+		const name = selection.name.trim();
 		if (selection.uid === null) {
 			update({
 				targets: [
@@ -501,8 +520,8 @@
 	}
 
 	function overrideLabel(override: SceneLightOverride): string {
-		if (override.kind === "state") return "State";
-		if (override.kind === "effect") return effects.find((effect) => effect.id === override.effectId)?.name ?? "Effect";
+		if (override.kind === "state") return m.scene_editor_state({}, locale.messageOptions());
+		if (override.kind === "effect") return effects.find((effect) => effect.id === override.effectId)?.name ?? m.scene_editor_effect({}, locale.messageOptions());
 		return override.nativeEffectName;
 	}
 
@@ -544,7 +563,7 @@
 				size="icon-sm"
 				class="rounded-r-none border-0"
 				onclick={() => useStateOverride(device)}
-				aria-label={`Adjust ${deviceDisplayName(device)}`}
+				aria-label={m.scene_editor_adjust_device({ name: deviceDisplayName(device) }, locale.messageOptions())}
 			>
 				<Palette class="size-3.5" />
 			</Button>
@@ -568,14 +587,14 @@
 						variant={state.on != null ? "secondary" : "outline"}
 						size="xs"
 						onclick={() => state.on != null ? clearStateField(device.id, "on") : setPower(device.id, true)}
-					>Power</Button>
+					>{m.scene_editor_power({}, locale.messageOptions())}</Button>
 				{/if}
 				{#if capabilities.hasBrightness}
 					<Button
 						variant={state.brightness != null ? "secondary" : "outline"}
 						size="xs"
 						onclick={() => state.brightness != null ? clearStateField(device.id, "brightness") : updateStateOverride(device.id, { brightness: defaultDesiredState(device).brightness ?? 200 })}
-					>Brightness</Button>
+					>{m.scene_editor_brightness({}, locale.messageOptions())}</Button>
 				{/if}
 				{#if capabilities.hasColor || capabilities.hasColorTemp}
 					<Button
@@ -590,10 +609,10 @@
 								setColor(device.id, { r: 255, g: 255, b: 255 });
 							}
 						}}
-					>Color</Button>
+					>{m.scene_editor_color({}, locale.messageOptions())}</Button>
 				{/if}
 				{#if !stateEmpty(state)}
-					<Button variant="ghost" size="xs" class="ml-auto" onclick={() => clearOverride(device.id)}>Clear</Button>
+					<Button variant="ghost" size="xs" class="ml-auto" onclick={() => clearOverride(device.id)}>{m.scene_editor_clear({}, locale.messageOptions())}</Button>
 				{/if}
 			</div>
 		</PopoverContent>
@@ -608,7 +627,7 @@
 	<div class="flex items-center gap-2" onclick={(event) => event.stopPropagation()} role="presentation">
 		{#if targetLiveMode}
 			{#if color}<span class="size-4 rounded-full border border-border" style:background-color={color}></span>{/if}
-			{#if capabilities.hasOnOff}<Switch checked={state.on ?? false} disabled aria-label={`${deviceDisplayName(device)} live power`} />{/if}
+			{#if capabilities.hasOnOff}<Switch checked={state.on ?? false} disabled aria-label={m.scene_editor_live_power({ name: deviceDisplayName(device) }, locale.messageOptions())} />{/if}
 		{:else}
 			<div class="flex items-center rounded-md border border-border dark:border-input">
 				{@render statePicker(device)}
@@ -617,7 +636,7 @@
 					size="icon-sm"
 					class="rounded-l-none border-0"
 					onclick={() => openEffect(device)}
-					aria-label={`Choose effect for ${deviceDisplayName(device)}`}
+					aria-label={m.scene_editor_choose_effect({ name: deviceDisplayName(device) }, locale.messageOptions())}
 				><Sparkles class="size-3.5" /></Button>
 			</div>
 			{#if override?.kind === "effect" || override?.kind === "native_effect"}
@@ -633,12 +652,12 @@
 						checked={state.on ?? false}
 						class={state.on == null ? "opacity-40" : ""}
 						onCheckedChange={(on) => setPower(device.id, on)}
-						aria-label={`Set ${deviceDisplayName(device)} power`}
+						aria-label={m.scene_editor_set_power({ name: deviceDisplayName(device) }, locale.messageOptions())}
 					/>
 				{/if}
 			{/if}
 			{#if override}
-				<Button variant="ghost" size="icon-xs" onclick={() => clearOverride(device.id)} aria-label={`Clear override for ${deviceDisplayName(device)}`}><X class="size-3.5" /></Button>
+				<Button variant="ghost" size="icon-xs" onclick={() => clearOverride(device.id)} aria-label={m.scene_editor_clear_override({ name: deviceDisplayName(device) }, locale.messageOptions())}><X class="size-3.5" /></Button>
 			{/if}
 		{/if}
 	</div>
@@ -650,7 +669,7 @@
 		<span class="min-w-0 flex-1 truncate text-sm">{deviceDisplayName(device)}</span>
 		{@render rowControls(device)}
 		{#if targetUid}
-			<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(targetUid)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button>
+			<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(targetUid)} aria-label={m.scene_editor_remove_item({ name: deviceDisplayName(device) }, locale.messageOptions())}><Trash2 class="size-4" /></Button>
 		{/if}
 	</div>
 {/snippet}
@@ -665,7 +684,7 @@
 			{/if}
 		{/each}
 		{#if node.children.length === 0}
-			<p class="px-2 py-1 text-xs text-muted-foreground">{node.truncated ? "Nesting limit reached." : "Empty."}</p>
+			<p class="px-2 py-1 text-xs text-muted-foreground">{node.truncated ? m.scene_editor_nesting_limit({}, locale.messageOptions()) : m.scene_editor_empty({}, locale.messageOptions())}</p>
 		{/if}
 	{/if}
 {/snippet}
@@ -698,14 +717,15 @@
 		{@const expressionDevices = target.type === "expression" ? targetExpressionDevices(target) : []}
 		{@const tree = target.type === "expression" ? null : targetTree(target)}
 		{@const count = target.type === "expression" ? expressionDevices.length : tree?.kind === "device" ? 1 : (tree?.reachableCount ?? 0)}
+		{@const targetName = targetDisplayName(target)}
 		<div class="flex flex-col">
 			<div class="flex min-h-10 items-center gap-2 rounded-md px-2 py-1.5 transition-colors duration-200 outline-none hover:bg-muted/60" role="button" tabindex={-1} onclick={() => toggleFolder(target.uid)} onkeydown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleFolder(target.uid); } }}>
 				{#if expanded.has(target.uid)}<ChevronDown class="size-4 shrink-0 text-muted-foreground" />{:else}<ChevronRight class="size-4 shrink-0 text-muted-foreground" />{/if}
 				{#if target.type === "expression"}<Filter class="size-4 shrink-0 text-muted-foreground" />{:else}<HiveIcon type={target.type} iconOverride={target.icon} class="size-4 shrink-0 text-muted-foreground" />{/if}
-				<span class="truncate text-sm font-medium">{target.name}</span><span class="text-xs text-muted-foreground">{count}</span><span class="flex-1"></span>
+				<span class="truncate text-sm font-medium">{targetName}</span><span class="text-xs text-muted-foreground">{count}</span><span class="flex-1"></span>
 				<div class="flex items-center gap-1" onclick={(event) => event.stopPropagation()} role="presentation">
-					{#if target.type === "expression"}<Button variant="ghost" size="icon-sm" onclick={() => editSelector(target.uid)} aria-label={`Edit ${target.name}`}><Pencil class="size-4" /></Button>{/if}
-					<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(target.uid)} aria-label={`Remove ${target.name}`}><Trash2 class="size-4" /></Button>
+					{#if target.type === "expression"}<Button variant="ghost" size="icon-sm" onclick={() => editSelector(target.uid)} aria-label={m.scene_editor_edit_item({ name: targetName }, locale.messageOptions())}><Pencil class="size-4" /></Button>{/if}
+					<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(target.uid)} aria-label={m.scene_editor_remove_item({ name: targetName }, locale.messageOptions())}><Trash2 class="size-4" /></Button>
 				</div>
 			</div>
 			<div
@@ -729,11 +749,11 @@
 {#snippet targetToolbar()}
 	<div class="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
 		<div class="flex items-center rounded-md border border-border dark:border-input">
-			<Button variant={!targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-r-none border-0" onclick={() => setTargetMode(false)} aria-pressed={!targetLiveMode}><Pencil class="size-3.5" /><span class="hidden sm:inline">Edit</span></Button>
-			<Button variant={targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-l-none border-0" onclick={() => setTargetMode(true)} aria-pressed={targetLiveMode}><Eye class="size-3.5" /><span class="hidden sm:inline">Live</span></Button>
+			<Button variant={!targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-r-none border-0" onclick={() => setTargetMode(false)} aria-pressed={!targetLiveMode}><Pencil class="size-3.5" /><span class="hidden sm:inline">{m.scene_editor_edit({}, locale.messageOptions())}</span></Button>
+			<Button variant={targetLiveMode ? "secondary" : "ghost"} size="sm" class="rounded-l-none border-0" onclick={() => setTargetMode(true)} aria-pressed={targetLiveMode}><Eye class="size-3.5" /><span class="hidden sm:inline">{m.scene_editor_live({}, locale.messageOptions())}</span></Button>
 		</div>
 		<div class="ml-auto flex items-center gap-2">
-			{#if showAddVibeInTargets && !editor.dynamicSource}<Button variant="outline" size="sm" onclick={chooseVibe}><Plus class="size-4" /> Add source</Button>{/if}
+			{#if showAddVibeInTargets && !editor.dynamicSource}<Button variant="outline" size="sm" onclick={chooseVibe}><Plus class="size-4" /> {m.scene_add_source({}, locale.messageOptions())}</Button>{/if}
 			{#if targetActionsVisible}
 				<div
 					class="flex items-center gap-2"
@@ -742,17 +762,17 @@
 					out:fly={{ x: reducedMotion ? 0 : -6, duration: reducedMotion ? 0 : 130, easing: cubicIn }}
 				>
 					{#if targetActionMode === "live"}
-						<Button variant="outline" size="sm" onclick={captureAllTargets}>Capture all</Button>
+						<Button variant="outline" size="sm" onclick={captureAllTargets}>{m.scene_editor_capture_all({}, locale.messageOptions())}</Button>
 					{:else}
 						<DropdownMenu>
 							<DropdownMenuTrigger>
 								{#snippet child({ props })}
-									<Button {...props} variant="outline" size="sm"><Plus class="size-4" /> Add</Button>
+									<Button {...props} variant="outline" size="sm"><Plus class="size-4" /> {m.scene_editor_add({}, locale.messageOptions())}</Button>
 								{/snippet}
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
-								<DropdownMenuItem onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> Simple</DropdownMenuItem>
-								<DropdownMenuItem onclick={addSelector}><SlidersHorizontal class="size-4" /> Selector</DropdownMenuItem>
+								<DropdownMenuItem onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> {m.scene_editor_simple({}, locale.messageOptions())}</DropdownMenuItem>
+								<DropdownMenuItem onclick={addSelector}><SlidersHorizontal class="size-4" /> {m.scene_editor_selector({}, locale.messageOptions())}</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 					{/if}
@@ -764,8 +784,8 @@
 
 {#snippet supportingToolbar()}
 	<div class="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
-		<Button variant={supportingLiveMode ? "default" : "outline"} size="sm" onclick={() => (supportingLiveMode = !supportingLiveMode)}><Eye class="size-4" /> Live</Button>
-		<Button variant="outline" size="sm" class="ml-auto" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> Add</Button>
+		<Button variant={supportingLiveMode ? "default" : "outline"} size="sm" onclick={() => (supportingLiveMode = !supportingLiveMode)}><Eye class="size-4" /> {m.scene_editor_live({}, locale.messageOptions())}</Button>
+		<Button variant="outline" size="sm" class="ml-auto" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> {m.scene_editor_add({}, locale.messageOptions())}</Button>
 	</div>
 {/snippet}
 
@@ -783,7 +803,7 @@
 			{@const device = devices.find((candidate) => candidate.id === supporting.deviceId) ?? $deviceStore[supporting.deviceId]}
 			{#if device}
 				<div class="rounded-lg bg-muted px-3 py-2" in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }}>
-					<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? "Off" : "Live"}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)}>Capture</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button></div></div>
+					<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? m.scene_editor_off({}, locale.messageOptions()) : m.scene_editor_live({}, locale.messageOptions())}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)}>{m.scene_editor_capture({}, locale.messageOptions())}</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={m.scene_editor_remove_item({ name: deviceDisplayName(device) }, locale.messageOptions())}><Trash2 class="size-4" /></Button></div></div>
 					{#if !supportingLiveMode}<div class="mt-2"><DeviceStateEditor target={null} capabilities={device.capabilities} value={JSON.stringify(supporting.state)} onchange={(payload) => updateSupportingPayload(device.id, payload)} {devices} {groups} {rooms} compact /></div>{/if}
 				</div>
 			{/if}
@@ -792,42 +812,42 @@
 {/snippet}
 
 {#if editor.dynamicSource}
-	<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+	<div class="grid items-start gap-6 xl:grid-cols-[minmax(42rem,1fr)_minmax(30rem,32rem)]">
 		<section class="space-y-5 rounded-lg bg-card p-5 shadow-card">
 			<div class="flex items-start justify-between gap-3">
 				<div class="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-					<h2 class="text-lg font-medium">Lighting</h2>
-					<div class="flex flex-wrap items-center gap-2"><HiveChip type="color" label={editor.dynamicSource.domain === "white_ambience" ? "White" : "Color"} /><HiveChip type="scene" label={editor.dynamicSource.presetTitle ?? (editor.dynamicSource.sourceKind === "photo" ? "Photo" : "Guided")} /></div>
+					<h2 class="text-lg font-medium">{m.scene_editor_lighting({}, locale.messageOptions())}</h2>
+					<div class="flex flex-wrap items-center gap-2 sm:flex-nowrap"><HiveChip type="color" label={editor.dynamicSource.domain === "white_ambience" ? m.vibe_whites({}, locale.messageOptions()) : m.vibe_colors({}, locale.messageOptions())} /><HiveChip type="scene" label={editor.dynamicSource.presetId ? vibePresetLabel(editor.dynamicSource.presetId) : editor.dynamicSource.sourceKind === "photo" ? m.vibe_photo({}, locale.messageOptions()) : m.vibe_guided({}, locale.messageOptions())} /></div>
 				</div>
 				<div class="flex shrink-0 gap-1 sm:gap-2">
-					<Button variant="outline" size="icon-sm" class="sm:w-auto sm:gap-1 sm:px-2.5" onclick={chooseVibe} aria-label="Change source"><Pencil class="size-4" /><span class="hidden sm:inline">Change</span></Button>
-					<Button variant="ghost" size="icon-sm" class="text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto sm:gap-1 sm:px-2.5" onclick={() => update({ dynamicSource: null })} aria-label="Remove source"><X class="size-4" /><span class="hidden sm:inline">Remove</span></Button>
+					<Button variant="outline" size="icon-sm" class="sm:w-auto sm:gap-1 sm:px-2.5" onclick={chooseVibe} aria-label={m.scene_editor_change_source({}, locale.messageOptions())}><Pencil class="size-4" /><span class="hidden sm:inline">{m.scene_editor_change({}, locale.messageOptions())}</span></Button>
+					<Button variant="ghost" size="icon-sm" class="text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto sm:gap-1 sm:px-2.5" onclick={() => update({ dynamicSource: null })} aria-label={m.scene_editor_remove_source({}, locale.messageOptions())}><X class="size-4" /><span class="hidden sm:inline">{m.scene_editor_remove({}, locale.messageOptions())}</span></Button>
 				</div>
 			</div>
 			<div class="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
 				<div class="min-h-80 overflow-hidden rounded-lg"><VibePreview {preview} brightness={previewBrightness} movement={previewMovement} cycleSeconds={previewCycleSeconds} seed={previewSeed} maximumTemporalFrequency={zigbeeMotionBands} /></div>
 				<div class="space-y-5">
-					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-brightness">Brightness</label><span class="tabular-nums text-muted-foreground">{Math.round(previewBrightness * 100)}%</span></div><Slider id="scene-vibe-brightness" type="single" min={0.05} max={1} step={0.01} bind:value={previewBrightness} onValueCommit={(value) => updateDynamic({ brightness: value })} /></div>
-					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-movement">Movement</label><span class="text-muted-foreground">{previewMovement === 0 ? "Still" : previewMovement < 0.4 ? "Gentle" : previewMovement < 0.75 ? "Flowing" : "Alive"}</span></div><Slider id="scene-vibe-movement" type="single" min={0} max={1} step={0.01} bind:value={previewMovement} onValueCommit={(value) => updateDynamic({ movement: value })} /></div>
+					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-brightness">{m.scene_editor_brightness({}, locale.messageOptions())}</label><span class="tabular-nums text-muted-foreground">{Math.round(previewBrightness * 100)}%</span></div><Slider id="scene-vibe-brightness" type="single" min={0.05} max={1} step={0.01} bind:value={previewBrightness} onValueCommit={(value) => updateDynamic({ brightness: value })} /></div>
+					<div class="space-y-2"><div class="flex justify-between text-sm"><label for="scene-vibe-movement">{m.scene_editor_movement({}, locale.messageOptions())}</label><span class="text-muted-foreground">{previewMovement === 0 ? m.scene_editor_movement_still({}, locale.messageOptions()) : previewMovement < 0.4 ? m.scene_editor_movement_gentle({}, locale.messageOptions()) : previewMovement < 0.75 ? m.scene_editor_movement_flowing({}, locale.messageOptions()) : m.scene_editor_movement_alive({}, locale.messageOptions())}</span></div><Slider id="scene-vibe-movement" type="single" min={0} max={1} step={0.01} bind:value={previewMovement} onValueCommit={(value) => updateDynamic({ movement: value })} /></div>
 					<div class="space-y-2">
-						<div class="flex justify-between text-sm"><label for="scene-vibe-pace">Pace</label><span class="tabular-nums text-muted-foreground">{formatVibeCycle(previewCycleSeconds)}</span></div>
+						<div class="flex justify-between text-sm"><label for="scene-vibe-pace">{m.scene_editor_pace({}, locale.messageOptions())}</label><span class="tabular-nums text-muted-foreground">{formatVibeCycle(previewCycleSeconds, locale.currentLanguage)}</span></div>
 						<Slider id="scene-vibe-pace" type="single" min={0} max={100} step={1} bind:value={previewPacePosition} onValueChange={(value) => (previewCycleSeconds = pacePositionToCycleSeconds(value))} onValueCommit={(value) => { previewCycleSeconds = pacePositionToCycleSeconds(value); updateDynamic({ cycleSeconds: previewCycleSeconds }); }} disabled={previewMovement === 0} />
 						{#if previewMovement > 0 && dynamicZigbeeLightCount > 0}
 							<p class="text-xs text-muted-foreground">
-								{dynamicZigbeeLightCount} {dynamicZigbeeLightCount === 1 ? "scene light" : "scene lights"} · {projectedContinuousZigbeeLightCount} Zigbee {projectedContinuousZigbeeLightCount === 1 ? "light" : "lights"} sharing continuous output · about {formatRevisit(zigbeeRevisitSeconds)} between updates per light.
+								{m.scene_editor_output_summary({ sceneLights: dynamicZigbeeLightCount, zigbeeLights: projectedContinuousZigbeeLightCount, interval: formatRevisit(zigbeeRevisitSeconds) }, locale.messageOptions())}
 							</p>
 							{#if zigbeeMotionBands === 0}
 								<p class="text-xs text-destructive">
-									This cycle is too fast for the available continuous output. Hive will hold the motion still to avoid abrupt colour jumps. Choose a longer cycle or increase the continuous command rate.
+									{m.scene_editor_output_too_fast({}, locale.messageOptions())}
 								</p>
 							{:else if zigbeeMotionBands < 3}
 								<p class="text-xs text-muted-foreground">
-									Hive will simplify the motion to keep transitions smooth. Choose a longer cycle or increase the continuous command rate for full motion detail.
+									{m.scene_editor_output_simplified({}, locale.messageOptions())}
 								</p>
 							{/if}
 						{/if}
 					</div>
-					<Button variant="outline" size="sm" onclick={shuffleVibe}><Shuffle class="size-4" /> Shuffle</Button>
+					<Button variant="outline" size="sm" onclick={shuffleVibe}><Shuffle class="size-4" /> {m.scene_editor_shuffle({}, locale.messageOptions())}</Button>
 				</div>
 			</div>
 		</section>
@@ -835,9 +855,9 @@
 		<section class="min-w-0 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
 			<Tabs bind:value={sidePanel} class="gap-4">
 				<div class="space-y-3">
-					<TabsList class="grid w-full grid-cols-2">
-						<TabsTrigger value="targets">Targets</TabsTrigger>
-						<TabsTrigger value="supporting">Supporting devices</TabsTrigger>
+					<TabsList class="grid w-full grid-cols-[minmax(0,3fr)_minmax(0,5fr)]">
+						<TabsTrigger value="targets">{m.scene_editor_targets({}, locale.messageOptions())}</TabsTrigger>
+						<TabsTrigger value="supporting">{m.scene_editor_supporting_devices({}, locale.messageOptions())}</TabsTrigger>
 					</TabsList>
 					{#if sidePanel === "targets"}
 						{@render targetToolbar()}
@@ -859,40 +879,40 @@
 {:else}
 	<div class="grid items-start gap-6 lg:grid-cols-2">
 		<section class="min-w-0 space-y-4 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
-			<h2 class="text-lg font-medium">Targets</h2>
+			<h2 class="text-lg font-medium">{m.scene_editor_targets({}, locale.messageOptions())}</h2>
 			{@render targetToolbar()}
 			{@render targetList()}
 		</section>
 
 		<section class="min-w-0 space-y-4 overflow-hidden rounded-lg bg-card p-5 shadow-card select-none">
-			<h2 class="text-lg font-medium">Supporting devices</h2>
+			<h2 class="text-lg font-medium">{m.scene_editor_supporting_devices({}, locale.messageOptions())}</h2>
 			{@render supportingToolbar()}
 			{@render supportingList()}
 		</section>
 	</div>
 {/if}
 
-<HiveDrawer bind:open={targetDrawerOpen} title="Add lighting targets" description="Choose devices, groups, or rooms." multiple groups={targetDrawerGroups} onselect={addTarget} />
-<HiveDrawer bind:open={supportingDrawerOpen} title="Add supporting devices" description="Add controllable non-light devices." multiple groups={supportingGroups} onselect={addSupporting} />
+<HiveDrawer bind:open={targetDrawerOpen} title={m.scene_editor_add_lighting_targets({}, locale.messageOptions())} description={m.scene_editor_choose_targets({}, locale.messageOptions())} multiple groups={targetDrawerGroups} onselect={addTarget} />
+<HiveDrawer bind:open={supportingDrawerOpen} title={m.scene_editor_add_supporting({}, locale.messageOptions())} description={m.scene_editor_add_supporting_description({}, locale.messageOptions())} multiple groups={supportingGroups} onselect={addSupporting} />
 <EffectPickerDrawer open={effectPicker !== null} {effects} caps={effectPicker?.caps ?? []} onselect={pickEffect} onclose={() => (effectPicker = null)} />
 
 <Dialog bind:open={vibePickerOpen}>
 	<DialogContent class="sm:max-w-4xl">
-		<DialogHeader><DialogTitle>{editor.dynamicSource ? "Change source" : "Add source"}</DialogTitle></DialogHeader>
+		<DialogHeader><DialogTitle>{editor.dynamicSource ? m.scene_editor_change_source({}, locale.messageOptions()) : m.scene_add_source({}, locale.messageOptions())}</DialogTitle></DialogHeader>
 		<VibeSourcePicker onselect={setDynamicSource} />
 	</DialogContent>
 </Dialog>
 
 <Dialog open={selectorEditor !== null} onOpenChange={(open) => { if (!open) selectorEditor = null; }}>
 	<DialogContent class="sm:max-w-lg">
-		<DialogHeader><DialogTitle>{selectorEditor?.uid ? "Edit selector" : "Add selector"}</DialogTitle></DialogHeader>
+		<DialogHeader><DialogTitle>{selectorEditor?.uid ? m.scene_editor_edit_selector({}, locale.messageOptions()) : m.scene_editor_add_selector({}, locale.messageOptions())}</DialogTitle></DialogHeader>
 		{#if selectorEditor}
 			<div class="space-y-4">
 				<Input
 					value={selectorEditor.name}
 					oninput={(event) => (selectorEditor = { ...selectorEditor!, name: event.currentTarget.value })}
-					placeholder="Selector name"
-					aria-label="Selector name"
+					placeholder={m.scene_editor_selector_name({}, locale.messageOptions())}
+					aria-label={m.scene_editor_selector_name({}, locale.messageOptions())}
 				/>
 				<TargetSelectorField
 					value={selectorEditor.expression}
@@ -904,8 +924,8 @@
 			</div>
 		{/if}
 		<DialogFooter>
-			<Button variant="ghost" size="sm" onclick={() => (selectorEditor = null)}>Cancel</Button>
-			<Button size="sm" onclick={saveSelector}>Done</Button>
+			<Button variant="ghost" size="sm" onclick={() => (selectorEditor = null)}>{m.common_cancel({}, locale.messageOptions())}</Button>
+			<Button size="sm" onclick={saveSelector}>{m.scene_editor_done({}, locale.messageOptions())}</Button>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>

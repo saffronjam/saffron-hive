@@ -28,7 +28,8 @@
 	import { vibeCatalog } from "$lib/stores/vibe-catalog.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { groupsStore } from "$lib/stores/groups.svelte";
-	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 	import { Plus, Clapperboard, Play, Square, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
@@ -39,6 +40,8 @@
 		type DesiredSceneStateInput,
 		type SceneDefinitionInput,
 	} from "$lib/gql/graphql";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		/**
@@ -72,6 +75,7 @@
 	let quickAddFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const quickAddDrawerGroups = $derived.by((): DrawerGroup<SceneTargetKind>[] => {
+		void locale.currentLanguage;
 		if (!quickAddScene) return [];
 		const existing = new Set(quickAddScene.targets.map((a) => `${a.targetType}:${a.targetId}`));
 		const result: DrawerGroup<SceneTargetKind>[] = [];
@@ -81,14 +85,14 @@
 		);
 		if (devs.length > 0) {
 			result.push({
-				heading: "Devices",
+				heading: m.scenes_devices({}, locale.messageOptions()),
 				items: devs.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
-					searchValue: `${deviceDisplayName(d)} ${d.type}`,
+					searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 				})),
 			});
 		}
@@ -96,13 +100,14 @@
 		const grps = groupsRef.filter((g) => !existing.has(`group:${g.id}`));
 		if (grps.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.scenes_groups({}, locale.messageOptions()),
 				items: grps.map((g) => ({
 					type: "group" as const,
 					id: g.id,
 					name: groupDisplayName(g),
 					icon: GroupIcon,
-					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+					searchValue: localizedNamesStore.searchValues("group", g.id, g.name, g.friendlyName).join(" "),
+					badge: m.scenes_member_count({ count: g.members.length }, locale.messageOptions()),
 				})),
 			});
 		}
@@ -110,13 +115,14 @@
 		const rms = roomsRef.filter((r) => !existing.has(`room:${r.id}`));
 		if (rms.length > 0) {
 			result.push({
-				heading: "Rooms",
+				heading: m.scenes_rooms({}, locale.messageOptions()),
 				items: rms.map((r) => ({
 					type: "room" as const,
 					id: r.id,
-					name: r.name,
+					name: entityDisplayName("room", r),
 					icon: DoorOpen,
-					badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
+					searchValue: localizedNamesStore.searchValues("room", r.id, r.name).join(" "),
+					badge: m.scenes_device_count({ count: r.resolvedDevices.length }, locale.messageOptions()),
 				})),
 			});
 		}
@@ -175,7 +181,7 @@
 			};
 			await scenesStore.update(clientRef, scene.id, { definition });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not update the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_update({}, locale.messageOptions())));
 		}
 	}
 
@@ -183,9 +189,10 @@
 
 	$effect(() => {
 		if (!visible) return;
+		void locale.currentLanguage;
 		void vibeCatalog.load(clientRef);
-		pageHeader.breadcrumbs = [{ label: "Scenes" }];
-		pageHeader.actions = [{ label: "Create Scene", mobileLabel: "Create", icon: Plus, onclick: () => goto("/scenes/new") }];
+		pageHeader.breadcrumbs = [{ label: m.scenes_title({}, locale.messageOptions()) }];
+		pageHeader.actions = [{ label: m.scenes_create({}, locale.messageOptions()), mobileLabel: m.scenes_create_short({}, locale.messageOptions()), icon: Plus, onclick: () => goto("/scenes/new") }];
 		pageHeader.viewToggle = {
 			value: view,
 			onchange: (v) => {
@@ -208,7 +215,7 @@
 		try {
 			await scenesStore.update(clientRef, scene.id, { name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not rename the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_rename({}, locale.messageOptions())));
 		}
 	}
 
@@ -218,7 +225,7 @@
 		try {
 			await scenesStore.update(clientRef, scene.id, { icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not change the icon."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_icon({}, locale.messageOptions())));
 		}
 	}
 
@@ -229,7 +236,7 @@
 		try {
 			await scenesStore.apply(clientRef, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not apply the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_apply({}, locale.messageOptions())));
 		} finally {
 			applyingId = null;
 		}
@@ -242,7 +249,7 @@
 		try {
 			await scenesStore.deactivate(clientRef, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not stop the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_stop({}, locale.messageOptions())));
 		} finally {
 			applyingId = null;
 		}
@@ -257,7 +264,7 @@
 			await scenesStore.delete(clientRef, deleteConfirmScene.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_delete({}, locale.messageOptions())));
 			return;
 		}
 
@@ -269,21 +276,29 @@
 		active: () => visible && page.url.pathname === "/scenes",
 	});
 
-	const targetOptions = [
-		{ value: "device", label: "Device" },
-		{ value: "group", label: "Group" },
-		{ value: "room", label: "Room" },
-	];
+	const targetOptions = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
+			{ value: "device", label: m.scenes_filter_device({}, options) },
+			{ value: "group", label: m.scenes_filter_group({}, options) },
+			{ value: "room", label: m.scenes_filter_room({}, options) },
+		];
+	});
 
-	const emptyOptions = [
-		{ value: "yes", label: "Yes" },
-		{ value: "no", label: "No" },
-	];
+	const emptyOptions = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
+			{ value: "yes", label: m.common_yes({}, options) },
+			{ value: "no", label: m.common_no({}, options) },
+		];
+	});
 
-	const searchChipConfigs: ChipConfig[] = $derived([
+	const searchChipConfigs: ChipConfig[] = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
 		{
 			keyword: "target",
-			label: "Target",
+			label: m.scenes_filter_target({}, options),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
@@ -294,57 +309,62 @@
 		},
 		{
 			keyword: "device",
-			label: "Device",
+			label: m.scenes_filter_device({}, options),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devicesRef
-					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
-					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
+					.filter(
+						(d) =>
+							!q ||
+							localizedNamesStore.matches("device", d.id, q, d.name, d.friendlyName),
+					)
+					.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
+			},
+			resolveLabel: (id: string) => {
+				const device = devicesRef.find((item) => item.id === id);
+				return device ? deviceDisplayName(device) : null;
 			},
 		},
 		{
 			keyword: "room",
-			label: "Room",
+			label: m.scenes_filter_room({}, options),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return roomsRef
-					.filter((r) => !q || r.name.toLowerCase().includes(q))
-					.map((r) => ({ value: r.id, label: r.name }));
+					.filter((r) => localizedNamesStore.matches("room", r.id, q, r.name))
+					.map((r) => ({ value: r.id, label: entityDisplayName("room", r) }));
 			},
-			resolveLabel: (value: string) => roomsRef.find((r) => r.id === value)?.name ?? null,
+			resolveLabel: (value: string) => {
+				const room = roomsRef.find((item) => item.id === value);
+				return room ? entityDisplayName("room", room) : null;
+			},
 		},
 		{
 			keyword: "empty",
-			label: "Empty",
+			label: m.scenes_filter_empty({}, options),
 			variant: "secondary",
 			options: () => emptyOptions,
 		},
-	]);
+		];
+	});
 
 	const filteredScenes = $derived.by(() => {
 		const targetValues = searchController.value.chips.filter((c) => c.keyword === "target").map((c) => c.value);
 		const deviceValues = searchController.value.chips
 			.filter((c) => c.keyword === "device")
-			.map((c) => c.value.toLowerCase());
+			.map((c) => c.value);
 		const emptyValues = searchController.value.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
 		const roomValues = searchController.value.chips.filter((c) => c.keyword === "room").map((c) => c.value);
 		const query = searchController.value.freeText.toLowerCase();
-
-		const deviceIdByNameLower = new Map<string, string>();
-		for (const d of devicesRef) deviceIdByNameLower.set(deviceDisplayName(d).toLowerCase(), d.id);
 
 		return scenes.filter((s) => {
 			if (targetValues.length > 0 && !s.targets.some((a) => targetValues.includes(a.targetType)))
 				return false;
 			if (deviceValues.length > 0) {
-				const matches = deviceValues.some((v) =>
-					s.targets.some((a) => {
-						if (a.targetType !== "device") return false;
-						const device = devicesRef.find((d) => d.id === a.targetId);
-						return device ? deviceDisplayName(device).toLowerCase().includes(v) : false;
-					}),
+				const matches = deviceValues.some((id) =>
+					s.targets.some((target) => target.targetType === "device" && target.targetId === id),
 				);
 				if (!matches) return false;
 			}
@@ -355,7 +375,7 @@
 			}
 			if (roomValues.length > 0 && !s.rooms.some((r) => roomValues.includes(r.id)))
 				return false;
-			if (query && !s.name.toLowerCase().includes(query)) return false;
+			if (query && !localizedNamesStore.matches("scene", s.id, query, s.name)) return false;
 			return true;
 		});
 	});
@@ -378,7 +398,7 @@
 			await scenesStore.deleteMany(clientRef, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the scenes."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_delete_many({}, locale.messageOptions())));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -402,7 +422,7 @@
 
 	{#if !scenesStore.hydrated}
 		{#if loader.visible}
-			<p class="text-sm text-muted-foreground">Loading scenes…</p>
+			<p class="text-sm text-muted-foreground">{m.scenes_loading({}, locale.messageOptions())}</p>
 		{/if}
 	{:else}
 		<div in:fly={{ y: -4, duration: 150 }}>
@@ -411,13 +431,13 @@
 					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 						<Clapperboard class="size-6 text-muted-foreground" />
 					</div>
-					<p class="text-muted-foreground">No scenes yet.</p>
+					<p class="text-muted-foreground">{m.scenes_empty({}, locale.messageOptions())}</p>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Create a scene to save device state presets and apply them with a single action.
+						{m.scenes_empty_help({}, locale.messageOptions())}
 					</p>
 					<Button class="mt-4" onclick={() => goto("/scenes/new")}>
 						<Plus class="size-4" />
-						<span>Create your first scene</span>
+						<span>{m.scenes_create_first({}, locale.messageOptions())}</span>
 					</Button>
 				</div>
 			{:else}
@@ -426,7 +446,7 @@
 						<HiveSearchbar
 							controller={searchController}
 							chips={searchChipConfigs}
-							placeholder="Search scenes..."
+							placeholder={m.scenes_search({}, locale.messageOptions())}
 						/>
 					</div>
 					<div
@@ -442,7 +462,7 @@
 									size="sm"
 									onclick={() => (batchDeleteConfirm = true)}
 								>
-									Delete
+									{m.common_delete({}, locale.messageOptions())}
 								</Button>
 							{/snippet}
 						</TableSelectionToolbar>
@@ -451,7 +471,7 @@
 
 				{#if filteredScenes.length === 0}
 					<div class="rounded-lg shadow-card bg-card p-12 text-center">
-						<p class="text-muted-foreground">No scenes match your filters.</p>
+						<p class="text-muted-foreground">{m.scenes_no_match({}, locale.messageOptions())}</p>
 					</div>
 				{:else}
 					<ListView mode={view}>
@@ -464,10 +484,9 @@
 									{@const tintColors = scenePreviewColors(scene.preview)}
 									<EntityCard
 										entity={scene}
+										entityType="scene"
 										fallbackIcon={Clapperboard}
-										subtitle="{scene.targets.length + scene.supportingStates.length} target{scene.targets.length + scene.supportingStates.length === 1
-											? ''
-											: 's'}"
+									subtitle={m.scenes_target_count({ count: scene.targets.length + scene.supportingStates.length }, locale.messageOptions())}
 										tintColors={tintColors.length > 0 ? tintColors : null}
 										tintInactive={tintColors.length > 0 ? !active : null}
 										onrename={handleRename}
@@ -475,7 +494,7 @@
 										editHref={`/scenes/${scene.id}`}
 										ondelete={(s) => (deleteConfirmScene = s)}
 										onAddTo={handleAddToScene}
-										addLabel="Add target"
+									addLabel={m.scenes_add_target({}, locale.messageOptions())}
 									>
 										{#snippet subtitleTrailing()}
 											{@const roomLabel = sceneRoomLabel(scene.rooms)}
@@ -492,7 +511,7 @@
 													onclick={() => handleStop(scene)}
 													disabled={applying}
 													class="transition-opacity duration-200"
-													aria-label="Stop scene"
+											aria-label={m.scenes_stop({}, locale.messageOptions())}
 												>
 													<Square class="size-4" />
 												</Button>
@@ -504,7 +523,7 @@
 													onclick={() => handleApply(scene)}
 													disabled={applying || noTargets}
 													class="transition-opacity duration-200"
-													aria-label="Apply scene"
+											aria-label={m.scenes_apply({}, locale.messageOptions())}
 												>
 													<Play class="size-4" />
 												</Button>
@@ -535,9 +554,9 @@
 
 	<ConfirmDialog
 		bind:open={() => deleteConfirmScene !== null, (v) => { if (!v) deleteConfirmScene = null; }}
-		title="Delete Scene"
-		description='Are you sure you want to delete "{deleteConfirmScene?.name ?? ""}"? This action cannot be undone.'
-		confirmLabel="Delete"
+		title={m.scenes_delete_title({}, locale.messageOptions())}
+		description={m.scenes_delete_description({ name: deleteConfirmScene ? entityDisplayName("scene", deleteConfirmScene) : "" }, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={deleteLoading}
 		onconfirm={handleDelete}
 		oncancel={() => (deleteConfirmScene = null)}
@@ -545,9 +564,9 @@
 
 	<ConfirmDialog
 		open={batchDeleteConfirm}
-		title="Delete {selection.count} scene{selection.count === 1 ? '' : 's'}?"
-		description="This permanently deletes the selected scenes and their compositions. This cannot be undone."
-		confirmLabel="Delete"
+		title={m.scenes_delete_many_title({ count: selection.count }, locale.messageOptions())}
+		description={m.scenes_delete_many_description({}, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={batchDeleteLoading}
 		onconfirm={handleBatchDelete}
 		oncancel={() => (batchDeleteConfirm = false)}
@@ -555,8 +574,8 @@
 
 	<HiveDrawer
 		bind:open={quickAddOpen}
-		title={quickAddScene ? `Add targets to ${quickAddScene.name}` : "Add targets"}
-		description="Pick devices, groups, or rooms to include in this scene."
+		title={quickAddScene ? m.scenes_add_targets_to({ name: quickAddScene.name }, locale.messageOptions()) : m.scenes_add_targets({}, locale.messageOptions())}
+		description={m.scenes_add_targets_description({}, locale.messageOptions())}
 		multiple
 		groups={quickAddDrawerGroups}
 		onselect={handleQuickAddSelect}

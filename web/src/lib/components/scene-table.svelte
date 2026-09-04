@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
@@ -21,6 +22,8 @@
 	import { Clapperboard, Play, Plus, Square } from "@lucide/svelte";
 	import { scenePreviewGradient } from "$lib/device-tint";
 	import type { Scene as SceneData } from "$lib/stores/scenes.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		scenes: SceneData[];
@@ -46,7 +49,9 @@
 		onAddTo,
 	}: Props = $props();
 
-	const COLUMNS: ColumnDef<SceneData>[] = [
+	const COLUMNS: ColumnDef<SceneData>[] = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
 		{
 			key: "select",
 			label: "",
@@ -72,30 +77,30 @@
 		},
 		{
 			key: "name",
-			label: "Name",
-			sortValue: (s) => s.name,
+			label: m.scenes_column_name({}, options),
+			sortValue: (s) => entityDisplayName("scene", s),
 			cell: nameCell,
 		},
 		{
 			key: "targets",
-			label: "Targets",
+			label: m.scenes_column_targets({}, options),
 			sortValue: (s) => s.targets.length + s.supportingStates.length,
 			cell: targetsCell,
 		},
 		{
 			key: "breakdown",
-			label: "Breakdown",
+			label: m.scenes_column_breakdown({}, options),
 			cell: breakdownCell,
 		},
 		{
 			key: "rooms",
-			label: "Rooms",
-			sortValue: (s) => s.rooms.map((r) => r.name).join(", "),
+			label: m.scenes_column_rooms({}, options),
+			sortValue: (s) => s.rooms.map((r) => entityDisplayName("room", r)).join(", "),
 			cell: roomsCell,
 		},
 		{
 			key: "createdBy",
-			label: "Created by",
+			label: m.scenes_column_created_by({}, options),
 			sortValue: (s) => s.createdBy?.name ?? null,
 			cell: createdByCell,
 		},
@@ -107,9 +112,10 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+		] satisfies ColumnDef<SceneData>[];
+	});
 
-	const tableState = createTableState({ storageKey: "scenes", columns: COLUMNS });
+	const tableState = createTableState({ storageKey: "scenes", columns: () => COLUMNS });
 
 	const displayRows = $derived(tableState.applySort(scenes));
 	const displayIds = $derived<readonly string[]>(displayRows.map((s) => s.id));
@@ -125,7 +131,7 @@
 		id={s.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {s.name}"
+		ariaLabel={m.scenes_select({ name: entityDisplayName("scene", s) }, locale.messageOptions())}
 	/>
 {/snippet}
 
@@ -141,16 +147,16 @@
 {/snippet}
 
 {#snippet nameCell(s: SceneData)}
-	<InlineEditName name={s.name} onsave={(newName) => onrename(s, newName)} />
+	<InlineEditName name={entityDisplayName("scene", s)} entityType="scene" entityId={s.id} onsave={(newName) => onrename(s, newName)} />
 {/snippet}
 
 {#snippet targetsCell(s: SceneData)}
 	{@const count = s.targets.length + s.supportingStates.length}
 	<span class="text-sm text-muted-foreground whitespace-nowrap">
 		{#if count === 0}
-			No targets
+			{m.scenes_no_targets({}, locale.messageOptions())}
 		{:else}
-			{count} target{count === 1 ? "" : "s"}
+			{m.scenes_target_count({ count }, locale.messageOptions())}
 		{/if}
 	</span>
 {/snippet}
@@ -167,7 +173,7 @@
 	{:else}
 		<div class="flex flex-wrap items-center gap-1">
 			{#each s.rooms as r (r.id)}
-				<HiveChip type="room" label={r.name} iconOverride={r.icon} href={`/rooms?edit=${r.id}`} />
+				<HiveChip type="room" label={entityDisplayName("room", r)} iconOverride={r.icon} href={`/rooms?edit=${r.id}`} />
 			{/each}
 		</div>
 	{/if}
@@ -186,21 +192,21 @@
 	<RowActionsCell
 		editHref={`/scenes/${s.id}`}
 		ondelete={() => ondelete(s)}
-		editLabel="Edit scene"
-		deleteLabel="Delete scene"
+		editLabel={m.scenes_edit({}, locale.messageOptions())}
+		deleteLabel={m.scenes_delete_title({}, locale.messageOptions())}
 	>
 		{#snippet leading()}
 			{#if noTargets}
 				<Tooltip>
 					<TooltipTrigger>
-						<Button variant="ghost" size="icon-sm" disabled class="transition-opacity duration-200" aria-label="Apply scene">
+						<Button variant="ghost" size="icon-sm" disabled class="transition-opacity duration-200" aria-label={m.scenes_apply({}, locale.messageOptions())}>
 							<Play class="size-4" />
 						</Button>
 					</TooltipTrigger>
-					<TooltipContent>No targets</TooltipContent>
+					<TooltipContent>{m.scenes_no_targets({}, locale.messageOptions())}</TooltipContent>
 				</Tooltip>
 			{:else if active}
-				<Button variant="ghost" size="icon-sm" haptic="execute" onclick={() => onstop?.(s)} disabled={applying} aria-label="Stop scene">
+				<Button variant="ghost" size="icon-sm" haptic="execute" onclick={() => onstop?.(s)} disabled={applying} aria-label={m.scenes_stop({}, locale.messageOptions())}>
 					<Square class="size-4" />
 				</Button>
 			{:else}
@@ -211,7 +217,7 @@
 					onclick={() => onapply(s)}
 					disabled={applying}
 					class="transition-opacity duration-200"
-					aria-label="Apply scene"
+					aria-label={m.scenes_apply({}, locale.messageOptions())}
 				>
 					<Play class="size-4" />
 				</Button>
@@ -221,7 +227,7 @@
 					variant="ghost"
 					size="icon-sm"
 					onclick={() => onAddTo?.(s)}
-					aria-label="Add target"
+					aria-label={m.scenes_add_target({}, locale.messageOptions())}
 				>
 					<Plus class="size-4" />
 				</Button>

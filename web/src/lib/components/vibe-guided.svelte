@@ -8,10 +8,13 @@
 	import { fade } from "svelte/transition";
 	import type { ScenePreview, VibeDomain } from "$lib/scene-editable";
 	import { VibeFieldDomain } from "$lib/gql/graphql";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { guidedVibeLabel } from "$lib/i18n/vibe";
 
 	interface Option {
 		id: string;
-		title: string;
+		labelId: string;
 		preview: ScenePreview;
 	}
 
@@ -47,7 +50,7 @@
 				complete
 				options {
 					id
-					title
+					labelId
 					preview {
 						width height
 						pixels { r g b }
@@ -72,7 +75,8 @@
 		if (current !== request) return;
 		loading = false;
 		if (result.error || !result.data) {
-			error = result.error?.message ?? "Could not load the next choices.";
+			console.error(result.error);
+			error = m.vibe_choices_failed({}, locale.messageOptions());
 			selectedOptionId = null;
 			return;
 		}
@@ -97,7 +101,7 @@
 </script>
 
 <div class="space-y-4">
-	<p class="font-medium">Choose what feels closest</p>
+	<p class="font-medium">{m.vibe_choose_closest({}, locale.messageOptions())}</p>
 
 	{#if error}
 		<ErrorBanner message={error} ondismiss={() => (error = null)} />
@@ -105,18 +109,18 @@
 
 	{#if loading && !round}
 		<div class="flex h-40 items-center justify-center rounded-lg bg-muted">
-			<Loader2 class="size-5 animate-spin text-muted-foreground" aria-label="Loading choices" />
+			<Loader2 class="size-5 animate-spin text-muted-foreground" aria-label={m.vibe_loading_choices({}, locale.messageOptions())} />
 		</div>
 	{:else if round}
 		<div class="guided-round-stack grid">
 			{#key round.round}
-				<div class="col-start-1 row-start-1 grid gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label={`Guided vibe choices ${round.round}`} in:fade={{ duration: 180 }} out:fade={{ duration: 240 }}>
+				<div class="col-start-1 row-start-1 grid gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label={m.vibe_choices_round({ round: round.round }, locale.messageOptions())} in:fade={{ duration: 180 }} out:fade={{ duration: 240 }}>
 					{#each round.options as option (option.id)}
 						<VibeChoiceCard
 							class="min-h-36"
 							previewClass="min-h-36"
 							preview={option.preview}
-							label={option.title}
+							label={guidedVibeLabel(option.labelId)}
 							overlayLabel
 							animateOnHover
 							frameless
@@ -132,6 +136,6 @@
 	{/if}
 
 	<div class="flex justify-end">
-		<Button onclick={() => onuse(selectedIds)} disabled={loading || selectedIds.length < 3}>Use this vibe</Button>
+		<Button onclick={() => onuse(selectedIds)} disabled={loading || selectedIds.length < 3}>{m.vibe_use({}, locale.messageOptions())}</Button>
 	</div>
 </div>

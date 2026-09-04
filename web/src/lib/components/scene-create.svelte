@@ -45,6 +45,9 @@
 	import { effectsStore } from "$lib/stores/effects.svelte";
 	import { effectSummary } from "$lib/effect-editable";
 	import { vibeCatalog, type VibePreset } from "$lib/stores/vibe-catalog.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { vibeCategoryLabel, vibePresetLabel } from "$lib/i18n/vibe";
 	import {
 		deviceSceneCapabilities,
 		deviceStore,
@@ -55,7 +58,7 @@
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import type { Clause, GroupLite, RoomLite } from "$lib/target-resolve";
-	import { deviceDisplayName, deviceIcon, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, deviceIcon, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { randomVibeSeed } from "$lib/vibe-seed";
 	import {
@@ -223,10 +226,11 @@
 	}
 
 	const targetDrawerGroups = $derived.by((): DrawerGroup<DirectTargetKind>[] => {
+		void locale.currentLanguage;
 		const existing = new Set(targets.filter((target) => target.type !== "expression").map((target) => `${target.type}:${target.id}`));
 		return [
 			{
-				heading: "Devices",
+				heading: m.scene_editor_devices({}, locale.messageOptions()),
 				items: devices
 					.filter((device) => isLightControlDevice(device) && !existing.has(`device:${device.id}`))
 					.map((device) => ({
@@ -238,32 +242,32 @@
 					})),
 			},
 			{
-				heading: "Groups",
+				heading: m.scene_editor_groups({}, locale.messageOptions()),
 				items: groups.filter((group) => !group.removed && !existing.has(`group:${group.id}`)).map((group) => ({
 					type: "group" as const,
 					id: group.id,
 					name: groupDisplayName(group),
 					icon: GroupIcon,
 					iconRef: group.icon,
-					badge: `${group.resolvedDevices.length} devices`,
+					badge: m.scenes_device_count({ count: group.resolvedDevices.length }, locale.messageOptions()),
 				})),
 			},
 			{
-				heading: "Rooms",
+				heading: m.scene_editor_rooms({}, locale.messageOptions()),
 				items: rooms.filter((room) => !existing.has(`room:${room.id}`)).map((room) => ({
 					type: "room" as const,
 					id: room.id,
-					name: room.name,
+					name: entityDisplayName("room", room),
 					icon: DoorOpen,
 					iconRef: room.icon,
-					badge: `${room.resolvedDevices.length} devices`,
+					badge: m.scenes_device_count({ count: room.resolvedDevices.length }, locale.messageOptions()),
 				})),
 			},
 		];
 	});
 
 	const supportingDrawerGroups = $derived.by((): DrawerGroup<"device">[] => [{
-		heading: "Supporting devices",
+		heading: m.scene_editor_supporting_devices({}, locale.messageOptions()),
 		items: devices
 			.filter((device) => !isLightControlDevice(device) && initialSupportingState(device) !== null && !supportingStates.has(device.id))
 			.map((device) => ({
@@ -279,7 +283,7 @@
 	const presetGroups = $derived.by(() => {
 		const grouped = new Map<string, VibePreset[]>();
 		for (const preset of presets) {
-			const label = `${preset.domain === "white_ambience" ? "White ambience" : "Full colour"} · ${preset.category}`;
+			const label = `${preset.domain === "white_ambience" ? m.vibe_domain_white_ambience({}, locale.messageOptions()) : m.vibe_domain_full_color({}, locale.messageOptions())} · ${vibeCategoryLabel(preset.category)}`;
 			grouped.set(label, [...(grouped.get(label) ?? []), preset]);
 		}
 		return Array.from(grouped.entries());
@@ -312,7 +316,6 @@
 			domain,
 			sourceKind,
 			presetId: "preset" in current ? current.preset.presetId : null,
-			presetTitle: preset?.title ?? null,
 			guidedSelectedIds: "guided" in current ? current.guided.selectedIds : [],
 			seed,
 			brightness,
@@ -361,7 +364,8 @@
 		}, { requestPolicy: "network-only" }).toPromise();
 		loadingPreview = false;
 		if (result.error || !result.data) {
-			error = result.error?.message ?? "Could not build this Vibe.";
+			if (result.error) console.error(result.error);
+			error = m.vibe_build_failed({}, locale.messageOptions());
 			return false;
 		}
 		const resultPreview = result.data.previewVibe;
@@ -396,7 +400,8 @@
 			seed = randomVibeSeed();
 			await previewPhoto();
 		} catch (caught) {
-			photoError = caught instanceof Error ? caught.message : "Could not process this image.";
+			console.error(caught);
+			photoError = m.vibe_photo_failed({}, locale.messageOptions());
 		}
 		input.value = "";
 	}
@@ -442,7 +447,21 @@
 	}
 
 	function addSelector() {
-		targets = [...targets, { uid: newTargetUid(), type: "expression", id: "", name: "Selector", expression: [] }];
+		targets = [...targets, { uid: newTargetUid(), type: "expression", id: "", name: "", expression: [] }];
+	}
+
+	function targetDisplayName(target: EditableTarget): string {
+		if (target.type === "device") {
+			const device = devices.find((candidate) => candidate.id === target.id);
+			if (device) return deviceDisplayName(device);
+		} else if (target.type === "group") {
+			const group = groups.find((candidate) => candidate.id === target.id);
+			if (group) return groupDisplayName(group);
+		} else if (target.type === "room") {
+			const room = rooms.find((candidate) => candidate.id === target.id);
+			if (room) return entityDisplayName("room", room);
+		}
+		return target.name || m.scene_editor_selector({}, locale.messageOptions());
 	}
 
 	function setSelector(uid: string, expression: Clause[]) {
@@ -485,7 +504,7 @@
 
 	function continueFromLook() {
 		if (!source || !preview) {
-			error = "Choose a Vibe before continuing.";
+			error = m.scene_create_error_choose_vibe({}, locale.messageOptions());
 			return;
 		}
 		moveTo("targets");
@@ -510,7 +529,7 @@
 			await tick();
 			await goto(`/scenes/${created.id}`);
 		} catch (caught) {
-			error = graphqlErrorMessage(caught, "Could not create the scene.");
+			error = graphqlErrorMessage(caught, m.scene_create_error_create({}, locale.messageOptions()));
 			saving = false;
 		}
 	}
@@ -519,10 +538,10 @@
 
 <UnsavedGuard {dirty} />
 
-<div class="mx-auto max-w-5xl space-y-6" in:fly={{ y: -4, duration: reducedMotion ? 0 : 150 }}>
+<div class="mx-auto {stage === 'adjust' ? 'max-w-[90rem]' : 'max-w-5xl'} space-y-6" in:fly={{ y: -4, duration: reducedMotion ? 0 : 150 }}>
 	{#if stage !== "start"}
 		<Button variant="ghost" size="sm" onclick={goBack}>
-			<ArrowLeft class="size-4" /> Back
+			<ArrowLeft class="size-4" /> {m.scene_create_back({}, locale.messageOptions())}
 		</Button>
 	{/if}
 
@@ -547,14 +566,14 @@
 	>
 	{#if stage === "start"}
 		<div>
-			<h1 class="text-2xl font-semibold">Create a scene</h1>
+			<h1 class="text-2xl font-semibold">{m.scene_create_title({}, locale.messageOptions())}</h1>
 		</div>
 		<div class="grid gap-4 sm:grid-cols-2">
 			{#each [
-				{ id: "gallery", title: "Gallery", detail: "Start from a curated lighting vibe.", icon: Image },
-				{ id: "photo", title: "Photo", detail: "Turn the colour atmosphere of an image into light.", icon: Camera },
-				{ id: "guided", title: "Guided", detail: "Build a vibe through three to five visual choices.", icon: Sparkles },
-				{ id: "individual", title: "Individual lights", detail: "Choose exact states for lights and devices.", icon: Lightbulb },
+				{ id: "gallery", title: m.vibe_gallery({}, locale.messageOptions()), detail: m.vibe_source_gallery_detail({}, locale.messageOptions()), icon: Image },
+				{ id: "photo", title: m.vibe_photo({}, locale.messageOptions()), detail: m.vibe_source_photo_detail({}, locale.messageOptions()), icon: Camera },
+				{ id: "guided", title: m.vibe_guided({}, locale.messageOptions()), detail: m.vibe_source_guided_detail({}, locale.messageOptions()), icon: Sparkles },
+				{ id: "individual", title: m.vibe_source_individual({}, locale.messageOptions()), detail: m.vibe_source_individual_detail({}, locale.messageOptions()), icon: Lightbulb },
 			] as option (option.id)}
 				<button type="button" class="rounded-lg shadow-card bg-card p-6 text-left transition-colors duration-200 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" onclick={() => begin(option.id as CreationKind)}>
 					<option.icon class="mb-5 size-7 text-muted-foreground" />
@@ -565,12 +584,12 @@
 		</div>
 	{:else if stage === "look"}
 		<div>
-			<h1 class="text-2xl font-semibold">Choose the look</h1>
+			<h1 class="text-2xl font-semibold">{m.scene_create_choose_look({}, locale.messageOptions())}</h1>
 		</div>
 
 		{#if kind === "gallery"}
 			{#if vibeCatalog.loading && presets.length === 0}
-				<div class="flex gap-3 overflow-hidden" aria-label="Loading gallery">
+				<div class="flex gap-3 overflow-hidden" aria-label={m.scene_create_loading_gallery({}, locale.messageOptions())}>
 					{#each [0, 1, 2] as placeholder}
 						<div class="h-44 w-52 shrink-0 animate-pulse rounded-lg shadow-card bg-card" aria-hidden="true"></div>
 					{/each}
@@ -578,7 +597,7 @@
 			{:else if vibeCatalog.error}
 				<ErrorBanner message={vibeCatalog.error} />
 			{:else if presets.length === 0}
-				<div class="rounded-lg shadow-card bg-card p-8 text-center text-muted-foreground">No gallery scenes are available.</div>
+				<div class="rounded-lg shadow-card bg-card p-8 text-center text-muted-foreground">{m.scene_create_no_gallery({}, locale.messageOptions())}</div>
 			{:else}
 				<div class="space-y-6">
 					{#each presetGroups as [label, entries] (label)}
@@ -590,7 +609,7 @@
 										class="min-h-36"
 										previewClass="min-h-36"
 										preview={preset.preview}
-										label={preset.title}
+										label={vibePresetLabel(preset.id)}
 										selected={selectedPresetId === preset.id}
 										overlayLabel
 										frameless
@@ -609,49 +628,50 @@
 			<div class="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
 				<div class="rounded-lg shadow-card bg-card p-5 space-y-4">
 					<div>
-						<h2 class="font-medium">Photo atmosphere</h2>
-						<p class="mt-1 text-sm text-muted-foreground">Hive uses a small colour sample; your photo stays in this browser.</p>
+						<h2 class="font-medium">{m.scene_create_photo_atmosphere({}, locale.messageOptions())}</h2>
+						<p class="mt-1 text-sm text-muted-foreground">{m.scene_create_photo_privacy({}, locale.messageOptions())}</p>
 					</div>
 					<div class="flex gap-2">
-						<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; if (photo) void previewPhoto(); }}>Full colour</Button>
-						<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; if (photo) void previewPhoto(); }}>Whites only</Button>
+						<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; if (photo) void previewPhoto(); }}>{m.scene_create_full_color({}, locale.messageOptions())}</Button>
+						<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; if (photo) void previewPhoto(); }}>{m.scene_create_whites_only({}, locale.messageOptions())}</Button>
 					</div>
 					<label class="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg bg-muted p-5 text-center">
 						<Camera class="mb-3 size-6 text-muted-foreground" />
-						<span class="text-sm font-medium">{photo ? "Replace photo" : "Choose a photo"}</span>
-						<span class="mt-1 text-xs text-muted-foreground">JPEG, PNG, WebP, or another browser-supported image</span>
+						<span class="text-sm font-medium">{photo ? m.vibe_replace_photo({}, locale.messageOptions()) : m.vibe_choose_photo({}, locale.messageOptions())}</span>
+						<span class="mt-1 text-xs text-muted-foreground">{m.scene_create_photo_formats({}, locale.messageOptions())}</span>
 						<input type="file" accept="image/*" class="sr-only" onchange={handlePhoto} />
 					</label>
 					<FieldError message={photoError} />
 				</div>
 				<div class="min-h-72 overflow-hidden rounded-lg shadow-card bg-card">
-					{#if preview}<VibePreview {preview} {brightness} {movement} {cycleSeconds} {seed} />{:else}<div class="flex h-full min-h-72 items-center justify-center text-sm text-muted-foreground">Your Vibe will appear here.</div>{/if}
+					{#if preview}<VibePreview {preview} {brightness} {movement} {cycleSeconds} {seed} />{:else}<div class="flex h-full min-h-72 items-center justify-center text-sm text-muted-foreground">{m.scene_create_vibe_preview_empty({}, locale.messageOptions())}</div>{/if}
 				</div>
 			</div>
 		{:else if kind === "guided"}
 			<div class="space-y-5">
 				<div class="flex flex-wrap gap-2">
-					<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; guidedSelectedIds = []; }}>Colours</Button>
-					<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; guidedSelectedIds = []; }}>Whites</Button>
+					<Button variant={domain === "full_color" ? "default" : "outline"} size="sm" onclick={() => { domain = "full_color"; guidedSelectedIds = []; }}>{m.vibe_colors({}, locale.messageOptions())}</Button>
+					<Button variant={domain === "white_ambience" ? "default" : "outline"} size="sm" onclick={() => { domain = "white_ambience"; guidedSelectedIds = []; }}>{m.vibe_whites({}, locale.messageOptions())}</Button>
 				</div>
 				<VibeGuided {domain} {seed} selectedIds={guidedSelectedIds} onchange={(ids) => (guidedSelectedIds = ids)} onuse={useGuided} />
 			</div>
 		{/if}
 
 		{#if kind !== "guided"}
-			<div class="flex justify-end"><Button onclick={continueFromLook} disabled={loadingPreview || !source}>{loadingPreview ? "Building..." : "Continue"}</Button></div>
+			<div class="flex justify-end"><Button onclick={continueFromLook} disabled={loadingPreview || !source}>{loadingPreview ? m.scene_create_building({}, locale.messageOptions()) : m.common_continue({}, locale.messageOptions())}</Button></div>
 		{/if}
 	{:else if stage === "targets"}
 		<div>
-			<h1 class="text-2xl font-semibold">Choose where it lives</h1>
+			<h1 class="text-2xl font-semibold">{m.scene_create_choose_location({}, locale.messageOptions())}</h1>
 		</div>
 		<div class="overflow-hidden rounded-lg shadow-card bg-card p-5 space-y-4">
 			<div class="flex flex-wrap gap-2">
-				<Button variant="outline" size="sm" onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> Add target</Button>
-				<Button variant="outline" size="sm" onclick={addSelector}><SlidersHorizontal class="size-4" /> Add Selector</Button>
+				<Button variant="outline" size="sm" onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> {m.scenes_add_target({}, locale.messageOptions())}</Button>
+				<Button variant="outline" size="sm" onclick={addSelector}><SlidersHorizontal class="size-4" /> {m.scene_create_add_selector({}, locale.messageOptions())}</Button>
 			</div>
 			<div class="space-y-3">
 					{#each targets as target (target.uid)}
+						{@const targetName = targetDisplayName(target)}
 						<div
 							class="overflow-hidden rounded-lg bg-muted p-3"
 							in:slide={{ duration: reducedMotion ? 0 : 180, easing: cubicOut }}
@@ -659,8 +679,8 @@
 							animate:flip={{ duration: reducedMotion ? 0 : 160 }}
 						>
 							<div class="flex items-center justify-between gap-3">
-								<div class="flex items-center gap-2"><HiveChip type={target.type} label={target.name} iconOverride={target.icon} /></div>
-								<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(target.uid)} aria-label={`Remove ${target.name}`}><Trash2 class="size-4" /></Button>
+								<div class="flex items-center gap-2"><HiveChip type={target.type} label={targetName} iconOverride={target.icon} /></div>
+								<Button variant="ghost" size="icon-sm" onclick={() => removeTarget(target.uid)} aria-label={m.scene_editor_remove_item({ name: targetName }, locale.messageOptions())}><Trash2 class="size-4" /></Button>
 							</div>
 							{#if target.type === "expression"}
 								<div class="mt-3"><TargetSelectorField value={target.expression ?? []} onchange={(expression) => setSelector(target.uid, expression)} devices={devices} groups={groupsLite} rooms={roomsLite} /></div>
@@ -671,7 +691,7 @@
 		</div>
 
 		<div class="rounded-lg shadow-card bg-card p-5 space-y-3">
-			<div class="flex items-center justify-between gap-3"><h2 class="font-medium">Supporting devices</h2><Button variant="outline" size="sm" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> Add</Button></div>
+			<div class="flex items-center justify-between gap-3"><h2 class="font-medium">{m.scene_editor_supporting_devices({}, locale.messageOptions())}</h2><Button variant="outline" size="sm" onclick={() => (supportingDrawerOpen = true)}><Plus class="size-4" /> {m.scene_editor_add({}, locale.messageOptions())}</Button></div>
 			{#each Array.from(supportingStates.values()) as behavior (behavior.deviceId)}
 				{@const device = devices.find((candidate) => candidate.id === behavior.deviceId)}
 				{#if device && (!targets.some((target) => target.type === "device" && target.id === device.id) || !isLightControlDevice(device))}
@@ -682,17 +702,17 @@
 					>
 						<p class="text-sm font-medium">{deviceDisplayName(device)}</p>
 						<div class="flex items-center gap-2">
-							{#if behavior.state.on != null}<Switch checked={behavior.state.on} onclick={() => setBehaviorOn(device.id, !behavior.state.on)} aria-label={`Turn ${deviceDisplayName(device)} on`} />{/if}
-							<Button variant="ghost" size="icon-sm" onclick={() => removeBehavior(device.id)} aria-label={`Remove ${deviceDisplayName(device)}`}><Trash2 class="size-4" /></Button>
+							{#if behavior.state.on != null}<Switch checked={behavior.state.on} onclick={() => setBehaviorOn(device.id, !behavior.state.on)} aria-label={m.scene_create_turn_on({ name: deviceDisplayName(device) }, locale.messageOptions())} />{/if}
+							<Button variant="ghost" size="icon-sm" onclick={() => removeBehavior(device.id)} aria-label={m.scene_editor_remove_item({ name: deviceDisplayName(device) }, locale.messageOptions())}><Trash2 class="size-4" /></Button>
 						</div>
 					</div>
 				{/if}
 			{/each}
 		</div>
-		<div class="flex justify-end"><Button onclick={continueFromTargets} disabled={!canContinueTargets}>Continue</Button></div>
+		<div class="flex justify-end"><Button onclick={continueFromTargets} disabled={!canContinueTargets}>{m.common_continue({}, locale.messageOptions())}</Button></div>
 	{:else if stage === "adjust"}
 		<div>
-			<h1 class="text-2xl font-semibold">Adjust the lighting</h1>
+			<h1 class="text-2xl font-semibold">{m.scene_create_adjust_lighting({}, locale.messageOptions())}</h1>
 		</div>
 		<SceneEditor
 			editor={creationEditor}
@@ -704,19 +724,19 @@
 			onchange={updateCreationEditor}
 			onpreviewchange={(value) => (preview = value)}
 		/>
-		<div class="flex justify-end"><Button onclick={() => moveTo("name")}>Continue</Button></div>
+		<div class="flex justify-end"><Button onclick={() => moveTo("name")}>{m.common_continue({}, locale.messageOptions())}</Button></div>
 	{:else if stage === "name"}
 		<div>
-			<h1 class="text-2xl font-semibold">Name the scene</h1>
+			<h1 class="text-2xl font-semibold">{m.scene_create_name_title({}, locale.messageOptions())}</h1>
 		</div>
 		<div class="space-y-4">
-			<Input id="scene-name" bind:value={name} placeholder="Evening glow" aria-label="Scene name" autofocus />
-			<div class="flex justify-end"><Button onclick={save} disabled={saving || !name.trim()}>{#if saving}<Loader2 class="size-4 animate-spin" />{/if}{saving ? "Creating..." : "Create scene"}</Button></div>
+			<Input id="scene-name" bind:value={name} placeholder={m.scene_create_name_placeholder({}, locale.messageOptions())} aria-label={m.scene_name_aria({}, locale.messageOptions())} autofocus />
+			<div class="flex justify-end"><Button onclick={save} disabled={saving || !name.trim()}>{#if saving}<Loader2 class="size-4 animate-spin" />{/if}{saving ? m.scene_create_creating({}, locale.messageOptions()) : m.scenes_create({}, locale.messageOptions())}</Button></div>
 		</div>
 	{/if}
 	</div>
 	{/if}
 </div>
 
-<HiveDrawer bind:open={targetDrawerOpen} title="Add lighting targets" description="Choose devices, groups, or rooms." multiple groups={targetDrawerGroups} onselect={addTarget} />
-<HiveDrawer bind:open={supportingDrawerOpen} title="Add supporting devices" description="Add controllable devices." multiple groups={supportingDrawerGroups} onselect={addSupporting} />
+<HiveDrawer bind:open={targetDrawerOpen} title={m.scene_editor_add_lighting_targets({}, locale.messageOptions())} description={m.scene_editor_choose_targets({}, locale.messageOptions())} multiple groups={targetDrawerGroups} onselect={addTarget} />
+<HiveDrawer bind:open={supportingDrawerOpen} title={m.scene_editor_add_supporting({}, locale.messageOptions())} description={m.scene_create_supporting_description({}, locale.messageOptions())} multiple groups={supportingDrawerGroups} onselect={addSupporting} />
