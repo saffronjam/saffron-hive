@@ -16,6 +16,8 @@
 		today,
 		type DateValue,
 	} from "@internationalized/date";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		from: Date;
@@ -26,8 +28,8 @@
 
 	let { from = $bindable(), to = $bindable(), presets = true, compact = false }: Props = $props();
 
-	const df = new DateFormatter("en", { dateStyle: "medium" });
-	const tf = new DateFormatter("en", { timeStyle: "short" });
+	const df = $derived(new DateFormatter(locale.intlLocale, { dateStyle: "medium" }));
+	const tf = $derived(new DateFormatter(locale.intlLocale, { timeStyle: "short" }));
 	const tz = getLocalTimeZone();
 
 	function toDateValue(d: Date): DateValue {
@@ -75,7 +77,7 @@
 	}
 
 	const label = $derived.by(() => {
-		if (!from || !to) return "Pick a range";
+		if (!from || !to) return m.shared_date_pick_range({}, locale.messageOptions());
 		const sameDay = from.toDateString() === to.toDateString();
 		if (sameDay) {
 			return `${df.format(from)}, ${tf.format(from)} – ${tf.format(to)}`;
@@ -102,29 +104,44 @@
 		<div class="flex">
 			{#if presets}
 				<div class="flex flex-col gap-1 border-r p-2 text-sm">
-					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(1)}>Last 1h</Button>
-					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24)}>Last 24h</Button>
-					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24 * 7)}>Last 7d</Button>
-					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24 * 30)}>Last 30d</Button>
-					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24 * 365)}>Last 365d</Button>
+					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(1)}>
+						{m.shared_date_last_hour({}, locale.messageOptions())}
+					</Button>
+					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24)}>
+						{m.shared_date_last_hours({ count: 24 }, locale.messageOptions())}
+					</Button>
+					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24 * 7)}>
+						{m.shared_date_last_days({ count: 7 }, locale.messageOptions())}
+					</Button>
+					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24 * 30)}>
+						{m.shared_date_last_days({ count: 30 }, locale.messageOptions())}
+					</Button>
+					<Button variant="ghost" size="sm" class="justify-start" onclick={() => setRangeHours(24 * 365)}>
+						{m.shared_date_last_year({}, locale.messageOptions())}
+					</Button>
 				</div>
 			{/if}
 			<div class="flex flex-col gap-2 p-2">
 				<RangeCalendar
 					bind:value
+					locale={locale.intlLocale}
 					onValueChange={pushOutput}
 					numberOfMonths={2}
 					maxValue={today(tz)}
 				/>
 				<div class="flex items-center gap-2 border-t pt-2">
-					<span class="text-xs text-muted-foreground">Start</span>
+					<span class="text-xs text-muted-foreground">
+						{m.shared_date_start({}, locale.messageOptions())}
+					</span>
 					<Input
 						type="time"
 						bind:value={startTime}
 						oninput={pushOutput}
 						class="h-8 w-[6.5rem] appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
 					/>
-					<span class="ml-2 text-xs text-muted-foreground">End</span>
+					<span class="ml-2 text-xs text-muted-foreground">
+						{m.shared_date_end({}, locale.messageOptions())}
+					</span>
 					<Input
 						type="time"
 						bind:value={endTime}

@@ -5,6 +5,7 @@
 	import type { ButtonVariant } from "$lib/components/ui/button/index.js";
 	import type { Snippet } from "svelte";
 	import { isEqualMonth, type DateValue } from "@internationalized/date";
+	import { locale as activeLocale } from "$lib/i18n/locale.svelte";
 
 	let {
 		ref = $bindable(null),
@@ -14,7 +15,7 @@
 		class: className,
 		buttonVariant = "ghost",
 		captionLayout = "label",
-		locale = "en-US",
+		locale: localeProp,
 		months: monthsProp,
 		years,
 		monthFormat: monthFormatProp,
@@ -31,6 +32,8 @@
 		yearFormat?: RangeCalendarPrimitive.YearSelectProps["yearFormat"];
 		day?: Snippet<[{ day: DateValue; outsideMonth: boolean }]>;
 	} = $props();
+
+	const locale = $derived(localeProp ?? activeLocale.intlLocale);
 
 	const monthFormat = $derived.by(() => {
 		if (monthFormatProp) return monthFormatProp;

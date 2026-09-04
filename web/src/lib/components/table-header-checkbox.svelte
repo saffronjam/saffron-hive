@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Checkbox } from "$lib/components/ui/checkbox/index.js";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		selection: TableSelection;
@@ -32,7 +34,7 @@
 	role="checkbox"
 	tabindex="0"
 	aria-checked={indeterminate ? "mixed" : checked}
-	aria-label="Select all rows"
+	aria-label={m.shared_select_all_rows({}, locale.messageOptions())}
 	onclick={toggleAll}
 	{onkeydown}
 	class="inline-flex select-none align-middle"

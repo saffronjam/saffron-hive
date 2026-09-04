@@ -9,6 +9,9 @@ import {
 } from "$lib/gql/graphql";
 import { isHiveVisibleDevice, isRuntimeEnabledDevice } from "$lib/stores/devices";
 import { sentenceCase } from "$lib/utils";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
+import { compareLocalized } from "$lib/i18n/format";
 
 export interface GroupLite {
   id: string;
@@ -44,25 +47,37 @@ function selectable(devices: Device[]): Device[] {
 }
 
 /** A subject a target-expression clause matches against. */
-export const CLAUSE_SUBJECTS = [
-  { value: TargetClauseSubject.Room, label: "Room" },
-  { value: TargetClauseSubject.Group, label: "Group" },
-  { value: TargetClauseSubject.Device, label: "Device" },
-  { value: TargetClauseSubject.DeviceType, label: "Device type" },
-  { value: TargetClauseSubject.DeviceRole, label: "Device role" },
-  { value: TargetClauseSubject.WritableCapability, label: "Can set" },
-  { value: TargetClauseSubject.ReportedCapability, label: "Reports" },
-] as const;
-export type ClauseSubject = (typeof CLAUSE_SUBJECTS)[number]["value"];
+export function clauseSubjects(): readonly { value: TargetClauseSubject; label: string }[] {
+  const options = locale.messageOptions();
+  return [
+    { value: TargetClauseSubject.Room, label: m.target_subject_room({}, options) },
+    { value: TargetClauseSubject.Group, label: m.target_subject_group({}, options) },
+    { value: TargetClauseSubject.Device, label: m.target_subject_device({}, options) },
+    { value: TargetClauseSubject.DeviceType, label: m.target_subject_device_type({}, options) },
+    { value: TargetClauseSubject.DeviceRole, label: m.target_subject_device_role({}, options) },
+    {
+      value: TargetClauseSubject.WritableCapability,
+      label: m.target_subject_writable({}, options),
+    },
+    {
+      value: TargetClauseSubject.ReportedCapability,
+      label: m.target_subject_reported({}, options),
+    },
+  ];
+}
+export type ClauseSubject = TargetClauseSubject;
 
 /** How a clause's values are matched. */
-export const CLAUSE_OPS = [
-  { value: TargetClauseOperator.Is, label: "is" },
-  { value: TargetClauseOperator.IsOneOf, label: "is one of" },
-  { value: TargetClauseOperator.IsNot, label: "is not" },
-  { value: TargetClauseOperator.IsNotOneOf, label: "is not one of" },
-] as const;
-export type ClauseOp = (typeof CLAUSE_OPS)[number]["value"];
+export function clauseOps(): readonly { value: TargetClauseOperator; label: string }[] {
+  const options = locale.messageOptions();
+  return [
+    { value: TargetClauseOperator.Is, label: m.target_op_is({}, options) },
+    { value: TargetClauseOperator.IsOneOf, label: m.target_op_is_one_of({}, options) },
+    { value: TargetClauseOperator.IsNot, label: m.target_op_is_not({}, options) },
+    { value: TargetClauseOperator.IsNotOneOf, label: m.target_op_is_not_one_of({}, options) },
+  ];
+}
+export type ClauseOp = TargetClauseOperator;
 
 /** Physical classifications selectable for device_type clauses. */
 export const CLAUSE_DEVICE_TYPES = [
@@ -85,19 +100,22 @@ export interface Clause {
   values: string[];
 }
 
-const CAPABILITY_LABELS: Record<string, string> = {
-  color: "Full colour",
-  color_temp: "Tunable white",
-  brightness: "Dimming",
-  on_off: "Switchable",
-};
-
 export function capabilityLabel(name: string, capabilities: Capability[] = []): string {
-  return (
-    CAPABILITY_LABELS[name] ??
-    capabilities.find((capability) => capability.name === name)?.label ??
-    sentenceCase(name)
-  );
+  const options = locale.messageOptions();
+  switch (name) {
+    case "color":
+      return m.target_cap_full_color({}, options);
+    case "color_temp":
+      return m.target_cap_tunable_white({}, options);
+    case "brightness":
+      return m.target_cap_dimming({}, options);
+    case "on_off":
+      return m.target_cap_switchable({}, options);
+    default:
+      return (
+        capabilities.find((capability) => capability.name === name)?.label ?? sentenceCase(name)
+      );
+  }
 }
 
 export function capabilityOptions(
@@ -119,7 +137,7 @@ export function capabilityOptions(
       value: capability.name,
       label: capabilityLabel(capability.name, [capability]),
     }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => compareLocalized(a.label, b.label));
 }
 
 function deviceRoles(d: Pick<Device, "type" | "roles">): string[] {

@@ -1,4 +1,5 @@
 import type { Device } from "$lib/gql/graphql";
+import { compareLocalized } from "$lib/i18n/format";
 import { deviceDisplayName } from "$lib/utils";
 import type { GroupLite, RoomLite, TargetKind } from "$lib/target-resolve";
 
@@ -59,7 +60,7 @@ export function buildTargetTree(
   const nodeName = (n: TargetTreeNode) =>
     n.kind === "device" ? deviceDisplayName(n.device) : n.name;
   const byName = (a: TargetTreeNode, b: TargetTreeNode) =>
-    nodeName(a).localeCompare(nodeName(b), undefined, { numeric: true });
+    compareLocalized(nodeName(a), nodeName(b));
 
   function reachableDeviceIds(type: TargetKind, id: string): Set<string> {
     const out = new Set<string>();

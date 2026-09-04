@@ -7,6 +7,7 @@
  */
 
 import type { Snippet } from "svelte";
+import { collator as localeCollator } from "$lib/i18n/format";
 
 export type SortDir = "asc" | "desc";
 
@@ -65,7 +66,7 @@ export interface TableState<Row> {
 
 interface Options<Row> {
   storageKey: string;
-  columns: ColumnDef<Row>[];
+  columns: ColumnDef<Row>[] | (() => ColumnDef<Row>[]);
 }
 
 interface Persisted {
@@ -77,17 +78,20 @@ interface Persisted {
 const STORAGE_PREFIX = "hive:table:";
 
 export function createTableState<Row>({ storageKey, columns }: Options<Row>): TableState<Row> {
-  const metaByKey = new Map(columns.map((c) => [c.key, c]));
-  const defaultOrder = columns.map((c) => c.key);
-  const defaultHidden = columns
+  const getColumns = typeof columns === "function" ? columns : () => columns;
+  const initialColumns = getColumns();
+  const currentMeta = () => new Map(getColumns().map((column) => [column.key, column]));
+  const initialMeta = currentMeta();
+  const defaultOrder = initialColumns.map((c) => c.key);
+  const defaultHidden = initialColumns
     .filter((c) => c.defaultHidden && c.hideable !== false)
     .map((c) => c.key);
 
   const stored = loadPersisted(storageKey);
 
   let order = $state(reconcileOrder(stored?.order ?? defaultOrder, defaultOrder));
-  let hidden = $state(reconcileHidden(stored?.hidden ?? defaultHidden, metaByKey));
-  let sort = $state(reconcileSort(stored?.sort ?? null, metaByKey));
+  let hidden = $state(reconcileHidden(stored?.hidden ?? defaultHidden, initialMeta));
+  let sort = $state(reconcileSort(stored?.sort ?? null, initialMeta));
 
   function save() {
     savePersisted(storageKey, {
@@ -98,16 +102,16 @@ export function createTableState<Row>({ storageKey, columns }: Options<Row>): Ta
   }
 
   function isVisible(key: string) {
-    return metaByKey.has(key) && !hidden.has(key);
+    return currentMeta().has(key) && !hidden.has(key);
   }
   function isHidden(key: string) {
     return hidden.has(key);
   }
   function isHideable(key: string) {
-    return metaByKey.get(key)?.hideable !== false;
+    return currentMeta().get(key)?.hideable !== false;
   }
   function isSortable(key: string) {
-    return typeof metaByKey.get(key)?.sortValue === "function";
+    return typeof currentMeta().get(key)?.sortValue === "function";
   }
   function sortDir(key: string): SortDir | null {
     return sort?.key === key ? sort.dir : null;
@@ -179,7 +183,7 @@ export function createTableState<Row>({ storageKey, columns }: Options<Row>): Ta
 
   function applySort(rows: Row[]): Row[] {
     if (!sort) return rows;
-    const col = metaByKey.get(sort.key);
+    const col = currentMeta().get(sort.key);
     const getVal = col?.sortValue;
     if (!getVal) return rows;
     const sign = sort.dir === "asc" ? 1 : -1;
@@ -228,11 +232,8 @@ function compare(
   if (typeof a === "boolean" && typeof b === "boolean") {
     return a === b ? 0 : a ? -1 : 1;
   }
-  return collator.compare(String(a), String(b));
+  return localeCollator({ sensitivity: "base" }).compare(String(a), String(b));
 }
-
-/** Hoisted: constructing a collator per comparison is far slower than reusing one. */
-const collator = new Intl.Collator(undefined, { sensitivity: "base" });
 
 function reconcileOrder(stored: string[], defaultOrder: string[]): string[] {
   const valid = new Set(defaultOrder);

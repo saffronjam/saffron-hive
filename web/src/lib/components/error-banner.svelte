@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { X } from "@lucide/svelte";
 	import { cn } from "$lib/utils";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		message: string;
@@ -19,7 +21,12 @@
 >
 	<span>{message}</span>
 	{#if ondismiss}
-		<button type="button" onclick={ondismiss} class="ml-2 shrink-0" aria-label="Dismiss">
+		<button
+			type="button"
+			onclick={ondismiss}
+			class="ml-2 shrink-0"
+			aria-label={m.common_dismiss({}, locale.messageOptions())}
+		>
 			<X class="size-4" />
 		</button>
 	{/if}

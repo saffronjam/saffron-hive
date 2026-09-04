@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Check } from "@lucide/svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		id: string;
@@ -10,7 +12,10 @@
 		ariaLabel?: string;
 	}
 
-	let { id, selection, orderedIds, tooltip, ariaLabel = "Select row" }: Props = $props();
+	let { id, selection, orderedIds, tooltip, ariaLabel }: Props = $props();
+	const resolvedAriaLabel = $derived(
+		ariaLabel ?? m.shared_select_row({}, locale.messageOptions()),
+	);
 
 	function onclick(event: MouseEvent) {
 		event.stopPropagation();
@@ -29,7 +34,7 @@
 	role="checkbox"
 	tabindex="0"
 	aria-checked={selection.isSelected(id)}
-	aria-label={ariaLabel}
+	aria-label={resolvedAriaLabel}
 	aria-disabled={selection.isDisabled(id) ? true : undefined}
 	title={tooltip ?? undefined}
 	{onclick}

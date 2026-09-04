@@ -9,6 +9,8 @@
 		TableState,
 	} from "$lib/utils/table-state.svelte";
 	import { cn } from "$lib/utils.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		tableState: TableState<Row>;
@@ -231,11 +233,11 @@
 		</div>
 		{#if loadingMore}
 			<div class="py-3 text-center text-xs text-muted-foreground">
-				Loading more…
+				{m.history_loading_more({}, locale.messageOptions())}
 			</div>
 		{:else if !hasMore && rows.length > 0}
 			<div class="py-3 text-center text-xs text-muted-foreground">
-				End of history
+				{m.history_end({}, locale.messageOptions())}
 			</div>
 		{/if}
 	</div>

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import DynamicIcon from "$lib/components/icons/dynamic-icon.svelte";
-	import { semanticIcon, sentenceCase } from "$lib/utils.js";
+	import { semanticIcon } from "$lib/utils.js";
 	import { ContactRole } from "$lib/gql/graphql";
+	import { chipLabel } from "$lib/i18n/vocabulary";
 
 	interface Props {
 		type: string;
@@ -91,7 +92,7 @@
 	}
 
 	const FallbackIcon = $derived(semanticIcon(type, contactRole));
-	const displayLabel = $derived(label ?? sentenceCase(type));
+	const displayLabel = $derived(label ?? chipLabel(type));
 
 	const baseClasses = $derived(
 		active === false

@@ -1,11 +1,18 @@
 <script lang="ts">
+	import { getContextClient } from "@urql/svelte";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
+
 	interface Props {
 		name: string;
 		class?: string;
 		onsave: (newName: string) => void;
+		entityType?: string;
+		entityId?: string;
 	}
 
-	let { name, class: className = "", onsave }: Props = $props();
+	let { name, class: className = "", onsave, entityType, entityId }: Props = $props();
+	const client = getContextClient();
 
 	let editing = $state(false);
 	let editValue = $state("");
@@ -29,9 +36,22 @@
 		});
 	}
 
-	function commit() {
+	async function commit() {
 		editing = false;
 		const trimmed = editValue.trim();
+		const names = entityType && entityId ? localizedNamesStore.get(entityType, entityId) : undefined;
+		if (names && locale.currentLanguage !== names.sourceLanguage) {
+			const current = names.translations[locale.currentLanguage]?.trim() ?? "";
+			if (trimmed === current || (!trimmed && !current)) return;
+			const translations = { ...names.translations };
+			if (trimmed) translations[locale.currentLanguage] = trimmed;
+			else delete translations[locale.currentLanguage];
+			optimisticName = trimmed || null;
+			if (!(await localizedNamesStore.update(client, { ...names, translations }))) {
+				optimisticName = null;
+			}
+			return;
+		}
 		if (trimmed && trimmed !== name) {
 			optimisticName = trimmed;
 			onsave(trimmed);
@@ -45,7 +65,7 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === "Enter") {
 			e.preventDefault();
-			commit();
+			void commit();
 		} else if (e.key === "Escape") {
 			e.preventDefault();
 			cancel();
@@ -64,7 +84,7 @@
 			spellcheck="false"
 			autocorrect="off"
 			autocapitalize="off"
-			onblur={commit}
+			onblur={() => void commit()}
 			onkeydown={handleKeydown}
 		/>
 	{/if}

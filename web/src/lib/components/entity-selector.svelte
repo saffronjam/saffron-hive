@@ -13,6 +13,8 @@
 		CommandInput,
 		CommandList,
 	} from "$lib/components/ui/command/index.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		open: boolean;
@@ -27,10 +29,17 @@
 		open = $bindable(false),
 		title,
 		description,
-		placeholder = "Search...",
-		emptyMessage = "No results found.",
+		placeholder,
+		emptyMessage,
 		children,
 	}: Props = $props();
+
+	const resolvedPlaceholder = $derived(
+		placeholder ?? m.common_search({}, locale.messageOptions()),
+	);
+	const resolvedEmptyMessage = $derived(
+		emptyMessage ?? m.shared_no_results_found({}, locale.messageOptions()),
+	);
 
 	let activeItem = $state("");
 </script>
@@ -43,9 +52,9 @@
 		</SheetHeader>
 		<div class="mt-4 flex min-h-0 flex-1 flex-col">
 			<Command bind:value={activeItem} class="flex min-h-0 flex-1 flex-col">
-				<CommandInput {placeholder} />
+				<CommandInput placeholder={resolvedPlaceholder} />
 				<CommandList class="max-h-none flex-1" onpointerleave={() => (activeItem = "")}>
-					<CommandEmpty>{emptyMessage}</CommandEmpty>
+					<CommandEmpty>{resolvedEmptyMessage}</CommandEmpty>
 					{@render children()}
 				</CommandList>
 			</Command>

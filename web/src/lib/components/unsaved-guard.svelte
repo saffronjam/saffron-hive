@@ -9,6 +9,8 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		dirty: boolean;
@@ -66,14 +68,18 @@
 <Dialog bind:open={showDialog}>
 	<DialogContent showCloseButton={false}>
 		<DialogHeader>
-			<DialogTitle>Unsaved changes</DialogTitle>
+			<DialogTitle>{m.shared_unsaved_title({}, locale.messageOptions())}</DialogTitle>
 			<DialogDescription>
-				You have unsaved changes that will be lost if you leave this page.
+				{m.shared_unsaved_description({}, locale.messageOptions())}
 			</DialogDescription>
 		</DialogHeader>
 		<DialogFooter>
-			<Button variant="outline" onclick={handleStay}>Stay</Button>
-			<Button variant="destructive" onclick={handleLeave}>Discard and leave</Button>
+			<Button variant="outline" onclick={handleStay}>
+				{m.shared_unsaved_stay({}, locale.messageOptions())}
+			</Button>
+			<Button variant="destructive" onclick={handleLeave}>
+				{m.shared_unsaved_leave({}, locale.messageOptions())}
+			</Button>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>

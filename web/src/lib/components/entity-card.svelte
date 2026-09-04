@@ -16,10 +16,13 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { tintIconGradient } from "$lib/device-tint";
 	import { DoorOpen, EllipsisVertical, Pencil, Plus, Trash2 } from "@lucide/svelte";
-	import { groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		entity: T;
+		entityType?: string;
 		fallbackIcon: Component;
 		subtitle?: string;
 		subtitleTrailing?: Snippet;
@@ -140,6 +143,7 @@
 
 	let {
 		entity,
+		entityType,
 		fallbackIcon: Fallback,
 		subtitle,
 		subtitleTrailing,
@@ -150,10 +154,10 @@
 		ondelete,
 		onAddTo,
 		onTagRooms,
-		editLabel = "Edit",
-		deleteLabel = "Delete",
-		addLabel = "Add…",
-		tagRoomsLabel = "Tag rooms",
+		editLabel,
+		deleteLabel,
+		addLabel,
+		tagRoomsLabel,
 		leadingActions,
 		tintColors = null,
 		inactiveTintColors = null,
@@ -177,7 +181,19 @@
 	const iconBlockClass = $derived(iconAreaSize === "sm" ? "size-7" : "size-10");
 	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
 	const canEditIcon = $derived(iconEditable && !!oniconchange && !readOnly);
-	const displayName = $derived(groupDisplayName(entity));
+	const displayName = $derived(
+		entityType === "device"
+			? deviceDisplayName(entity)
+			: entityType === "group"
+				? groupDisplayName(entity)
+				: entityType
+					? entityDisplayName(entityType, entity)
+					: groupDisplayName(entity),
+	);
+	const resolvedEditLabel = $derived(editLabel ?? m.common_edit({}, locale.messageOptions()));
+	const resolvedDeleteLabel = $derived(deleteLabel ?? m.common_delete({}, locale.messageOptions()));
+	const resolvedAddLabel = $derived(addLabel ?? m.common_add_to({}, locale.messageOptions()));
+	const resolvedTagRoomsLabel = $derived(tagRoomsLabel ?? m.entity_tag_rooms({}, locale.messageOptions()));
 	let cardElement = $state<HTMLDivElement>();
 	let retainedTintColors = $state<string[] | null>(null);
 	let tintReleaseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -366,7 +382,12 @@
 				{#if readOnly}
 					<h3 class="truncate font-medium text-card-foreground">{displayName}</h3>
 				{:else}
-					<InlineEditName name={displayName} onsave={(newName) => onrename?.(entity, newName)} />
+					<InlineEditName
+						name={displayName}
+						{entityType}
+						entityId={entity.id}
+						onsave={(newName) => onrename?.(entity, newName)}
+					/>
 				{/if}
 				{#if subtitle || subtitleTrailing}
 					<p class="text-xs {bodyTextClass}">
@@ -383,35 +404,35 @@
 				<DropdownMenu bind:open={actionMenuOpen}>
 					<DropdownMenuTrigger>
 						{#snippet child({ props })}
-							<Button {...props} variant="ghost" size="icon-sm" aria-label="{displayName} actions">
+							<Button {...props} variant="ghost" size="icon-sm" aria-label={m.entity_actions({ name: displayName }, locale.messageOptions())}>
 								<EllipsisVertical class="size-4" />
 							</Button>
 						{/snippet}
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" class="w-44">
+					<DropdownMenuContent align="end" class="w-max min-w-44">
 						{#if editHref}
 							<DropdownMenuItem onclick={openEditor}>
 								<Pencil class="size-4" />
-								{editLabel}
+								{resolvedEditLabel}
 							</DropdownMenuItem>
 						{/if}
 						{#if onAddTo}
 							<DropdownMenuItem onclick={() => onAddTo?.(entity)}>
 								<Plus class="size-4" />
-								{addLabel}
+								{resolvedAddLabel}
 							</DropdownMenuItem>
 						{/if}
 						{#if onTagRooms}
 							<DropdownMenuItem onclick={() => onTagRooms?.(entity)}>
 								<DoorOpen class="size-4" />
-								{tagRoomsLabel}
+								{resolvedTagRoomsLabel}
 							</DropdownMenuItem>
 						{/if}
 						{#if ondelete}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem variant="destructive" onclick={() => ondelete?.(entity)}>
 								<Trash2 class="size-4" />
-								{deleteLabel}
+								{resolvedDeleteLabel}
 							</DropdownMenuItem>
 						{/if}
 					</DropdownMenuContent>

@@ -12,6 +12,8 @@
 	import { createHoldDrag } from "$lib/actions/hold-drag";
 	import { haptics, type HapticIntent, type HapticPointerType } from "$lib/stores/haptics.svelte";
 	import { Loader2 } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	type Selection = { type: T; id: string };
 
@@ -36,8 +38,8 @@
 
 	let {
 		open = $bindable(false),
-		title = "Select",
-		description = "Pick an item.",
+		title,
+		description,
 		multiple = false,
 		groups,
 		onselect,
@@ -46,6 +48,11 @@
 		ondragout,
 		hapticOnSelect,
 	}: Props = $props();
+
+	const resolvedTitle = $derived(title ?? m.common_select({}, locale.messageOptions()));
+	const resolvedDescription = $derived(
+		description ?? m.shared_pick_item({}, locale.messageOptions()),
+	);
 
 	let selected = $state<Selection[]>([]);
 	let selectionPointerType: HapticPointerType | null = null;
@@ -121,9 +128,9 @@
 
 <EntitySelector
 	bind:open
-	{title}
-	{description}
-	placeholder="Search..."
+	title={resolvedTitle}
+	description={resolvedDescription}
+	placeholder={m.common_search({}, locale.messageOptions())}
 >
 	<div class:pl-5={pendingItem !== undefined}>
 		{#each groups as group (group.heading)}
@@ -177,7 +184,7 @@
 	{#if multiple && selected.length > 0}
 		<div class="sticky bottom-0 border-t bg-popover p-2">
 			<Button class="w-full" onclick={handleConfirm} {disabled}>
-				Add {selected.length} {selected.length === 1 ? "item" : "items"}
+				{m.shared_add_items({ count: selected.length }, locale.messageOptions())}
 			</Button>
 		</div>
 	{/if}

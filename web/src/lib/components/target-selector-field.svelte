@@ -2,15 +2,15 @@
 	import { tick } from "svelte";
 	import { flip } from "svelte/animate";
 	import { fly } from "svelte/transition";
-	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
 	import { X } from "@lucide/svelte";
 	import DeviceOptionRow from "$lib/components/graph/device-option-row.svelte";
 	import { roomLabelsByDevice } from "$lib/memberships";
 	import {
-		CLAUSE_SUBJECTS,
-		CLAUSE_OPS,
+		clauseSubjects,
+		clauseOps,
 		CLAUSE_DEVICE_ROLES,
 		CLAUSE_DEVICE_TYPES,
 		capabilityLabel,
@@ -21,6 +21,9 @@
 		type RoomLite,
 	} from "$lib/target-resolve";
 	import { TargetClauseConnector, TargetClauseOperator, TargetClauseSubject, type Device } from "$lib/gql/graphql";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { chipLabel } from "$lib/i18n/vocabulary";
 
 	interface Props {
 		value: Clause[];
@@ -32,6 +35,9 @@
 	}
 
 	let { value, onchange, devices, groups, rooms, disabled = false }: Props = $props();
+	const messageOptions = $derived(locale.messageOptions());
+	const subjects = $derived.by(() => clauseSubjects());
+	const operators = $derived.by(() => clauseOps());
 
 	interface Option {
 		value: string;
@@ -69,31 +75,31 @@
 		const m = new Map<string, string>();
 		for (const d of devices) m.set(d.id, deviceDisplayName(d));
 		for (const g of groups) m.set(g.id, groupDisplayName(g));
-		for (const r of rooms) m.set(r.id, r.name ?? r.id);
+		for (const r of rooms) m.set(r.id, entityDisplayName("room", r, r.id));
 		return m;
 	});
 	const removedGroupIDs = $derived(new Set(groups.filter((g) => g.removed).map((g) => g.id)));
 	const deviceRoomLabels = $derived(roomLabelsByDevice(rooms));
 
-	const subjectLabel = (v: string) => CLAUSE_SUBJECTS.find((s) => s.value === v)?.label ?? v;
+	const subjectLabel = (v: string) => subjects.find((s) => s.value === v)?.label ?? v;
 	const isCapabilitySubject = (subject?: string) =>
 		subject === TargetClauseSubject.WritableCapability || subject === TargetClauseSubject.ReportedCapability;
 	const opLabel = (subject: string | undefined, v: string) => {
-		if (!isCapabilitySubject(subject)) return CLAUSE_OPS.find((o) => o.value === v)?.label ?? v;
+		if (!isCapabilitySubject(subject)) return operators.find((o) => o.value === v)?.label ?? v;
 		return {
-			[TargetClauseOperator.Is]: "includes",
-			[TargetClauseOperator.IsOneOf]: "includes any of",
-			[TargetClauseOperator.IsNot]: "does not include",
-			[TargetClauseOperator.IsNotOneOf]: "includes none of",
+			[TargetClauseOperator.Is]: m.target_op_includes({}, messageOptions),
+			[TargetClauseOperator.IsOneOf]: m.target_op_includes_any({}, messageOptions),
+			[TargetClauseOperator.IsNot]: m.target_op_excludes({}, messageOptions),
+			[TargetClauseOperator.IsNotOneOf]: m.target_op_includes_none({}, messageOptions),
 		}[v] ?? v;
 	};
 	const valueLabel = (subject: string, v: string) => {
 		const label = isCapabilitySubject(subject)
 			? capabilityLabel(v, devices.flatMap((device) => device.capabilities ?? []))
 			: subject === "device_type" || subject === "device_role"
-			? v.charAt(0).toUpperCase() + v.slice(1)
+			? chipLabel(v)
 			: (nameById.get(v) ?? v);
-		return subject === "group" && removedGroupIDs.has(v) ? `${label} (Removed)` : label;
+		return subject === "group" && removedGroupIDs.has(v) ? m.target_removed({ name: label }, messageOptions) : label;
 	};
 
 	const isPlural = (op?: string) => op === "is_one_of" || op === "is_not_one_of";
@@ -117,10 +123,11 @@
 			const kinds = subject === "device_type" ? CLAUSE_DEVICE_TYPES : CLAUSE_DEVICE_ROLES;
 			return kinds.map((kind) => ({
 				value: kind,
-				label: kind.charAt(0).toUpperCase() + kind.slice(1),
+				label: chipLabel(kind),
 			}));
 		}
-		if (subject === "room") return rooms.map((r) => ({ value: r.id, label: r.name ?? r.id }));
+		if (subject === "room")
+			return rooms.map((r) => ({ value: r.id, label: entityDisplayName("room", r, r.id) }));
 		if (subject === "group") return groups.filter((g) => !g.removed).map((g) => ({ value: g.id, label: groupDisplayName(g) }));
 		return devices.map((d) => ({
 			value: d.id,
@@ -137,9 +144,9 @@
 			o.label.toLowerCase().includes(q) ||
 			o.value.toLowerCase().includes(q) ||
 			o.roomLabel?.toLowerCase().includes(q);
-		if (phase === "connector") return [{ value: TargetClauseConnector.And, label: "and" }, { value: TargetClauseConnector.Or, label: "or" }].filter(match);
-		if (phase === "subject") return CLAUSE_SUBJECTS.map((s) => ({ value: s.value, label: s.label })).filter(match);
-		if (phase === "op") return CLAUSE_OPS.map((o) => ({ value: o.value, label: opLabel(draft.subject, o.value) })).filter(match);
+		if (phase === "connector") return [{ value: TargetClauseConnector.And, label: m.target_connector_and({}, messageOptions) }, { value: TargetClauseConnector.Or, label: m.target_connector_or({}, messageOptions) }].filter(match);
+		if (phase === "subject") return subjects.map((s) => ({ value: s.value, label: s.label })).filter(match);
+		if (phase === "op") return operators.map((o) => ({ value: o.value, label: opLabel(draft.subject, o.value) })).filter(match);
 		return valueOptions(draft.subject ?? "").filter((o) => !draft.values.includes(o.value)).filter(match);
 	});
 
@@ -256,14 +263,14 @@
 
 	const placeholder = $derived(
 		phase === "connector"
-			? "and / or…"
+			? m.target_placeholder_connector({}, messageOptions)
 			: phase === "subject"
 				? value.length === 0 && draft.values.length === 0
-					? "Add a rule…"
-					: "field…"
+					? m.target_placeholder_add_rule({}, messageOptions)
+					: m.target_placeholder_field({}, messageOptions)
 				: phase === "op"
-					? isCapabilitySubject(draft.subject) ? "includes…" : "is / is not…"
-					: "value…",
+					? isCapabilitySubject(draft.subject) ? m.target_placeholder_includes({}, messageOptions) : m.target_placeholder_operator({}, messageOptions)
+					: m.target_placeholder_value({}, messageOptions),
 	);
 </script>
 
@@ -286,7 +293,7 @@
 					animate:flip={{ duration: motionDuration(150) }}
 				>
 					{#if i > 0}
-						<span class="text-[11px] font-medium uppercase text-muted-foreground">{clause.connector ?? "and"}</span>
+						<span class="text-[11px] font-medium uppercase text-muted-foreground">{clause.connector === TargetClauseConnector.Or ? m.target_connector_or({}, messageOptions) : m.target_connector_and({}, messageOptions)}</span>
 					{/if}
 					<span class={cn(badgeVariants({ variant: "secondary" }), "gap-1")}>
 						{subjectLabel(clause.subject)} {opLabel(clause.subject, clause.op)}
@@ -299,7 +306,7 @@
 								e.stopPropagation();
 								removeClause(i);
 							}}
-							aria-label="Remove rule"
+							aria-label={m.target_remove_rule({}, messageOptions)}
 						>
 							<X class="size-3" />
 						</button>
@@ -340,7 +347,7 @@
 			>
 				{#if suggestions.length === 0}
 					<li class="px-2.5 py-1 text-xs text-muted-foreground">
-						{phase === "value" ? "No matches" : "Type to filter…"}
+						{phase === "value" ? m.target_no_matches({}, messageOptions) : m.target_type_filter({}, messageOptions)}
 					</li>
 				{:else}
 					{#each suggestions as opt, i (opt.value)}
@@ -380,12 +387,12 @@
 							commitDraft();
 						}}
 					>
-						Done — add this rule (Enter)
+						{m.target_done_rule({}, messageOptions)}
 					</button>
 				{/if}
 			</ul>
 		{/if}
 	</div>
 
-	<span class="text-xs text-muted-foreground">{resolvedCount} device{resolvedCount === 1 ? "" : "s"}</span>
+	<span class="text-xs text-muted-foreground">{m.target_device_count({ count: resolvedCount }, messageOptions)}</span>
 </div>

@@ -12,6 +12,8 @@
 		type SearchState,
 		type Token,
 	} from "./hive-searchbar";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		controller: UrlSearchState;
@@ -27,11 +29,15 @@
 	let {
 		controller,
 		chips = [],
-		placeholder = "Search...",
+		placeholder,
 		class: className,
 		debounceMs = 0,
 		commitOnBlur = false,
 	}: Props = $props();
+
+	const resolvedPlaceholder = $derived(
+		placeholder ?? m.common_search({}, locale.messageOptions()),
+	);
 
 	const chipKeywords = $derived(chips.map((c) => c.keyword));
 
@@ -152,7 +158,7 @@
 			bind:tokens
 			bind:inputRef={liveInput}
 			chipConfigs={chips}
-			placeholder={committed.length === 0 ? placeholder : ""}
+			placeholder={committed.length === 0 ? resolvedPlaceholder : ""}
 			class="flex-1"
 			onchipcommit={handleChipCommit}
 			onfreetextcommit={handleFreeTextCommit}
@@ -166,7 +172,7 @@
 				size="icon"
 				class="ml-auto h-6 w-6 shrink-0"
 				onclick={clearAll}
-				aria-label="Clear search"
+				aria-label={m.common_search_clear({}, locale.messageOptions())}
 			>
 				<X class="size-4" />
 			</Button>

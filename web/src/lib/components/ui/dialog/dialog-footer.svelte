@@ -3,6 +3,8 @@
 	import type { HTMLAttributes } from "svelte/elements";
 	import { Dialog as DialogPrimitive } from "bits-ui";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	let {
 		ref = $bindable(null),
@@ -25,7 +27,9 @@
 	{#if showCloseButton}
 		<DialogPrimitive.Close>
 			{#snippet child({ props })}
-				<Button variant="outline" {...props}>Close</Button>
+				<Button variant="outline" {...props}>
+					{m.common_close({}, locale.messageOptions())}
+				</Button>
 			{/snippet}
 		</DialogPrimitive.Close>
 	{/if}

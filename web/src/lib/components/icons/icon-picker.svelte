@@ -9,6 +9,8 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Search, X } from "@lucide/svelte";
 	import DynamicIcon from "./dynamic-icon.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface IconEntry {
 		n: string;
@@ -115,7 +117,7 @@
 				<Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 				<Input
 					bind:value={query}
-					placeholder="Search icons..."
+					placeholder={m.icon_search({}, locale.messageOptions())}
 					class="pl-9 h-8 text-sm"
 				/>
 			</div>
@@ -123,12 +125,12 @@
 			{#if value}
 				<Button variant="ghost" size="sm" class="h-7 w-full text-xs text-muted-foreground" onclick={handleClear}>
 					<X class="size-3" />
-					Clear icon
+					{m.icon_clear({}, locale.messageOptions())}
 				</Button>
 			{/if}
 
 			{#if debouncedQuery && results.length === 0}
-				<p class="py-4 text-center text-xs text-muted-foreground">No icons found.</p>
+				<p class="py-4 text-center text-xs text-muted-foreground">{m.icon_none({}, locale.messageOptions())}</p>
 			{:else if results.length > 0}
 				<div class="max-h-72 overflow-y-auto">
 					<div class="grid grid-cols-6 gap-1.5">
@@ -144,7 +146,7 @@
 					</div>
 				</div>
 			{:else if !debouncedQuery}
-				<p class="py-4 text-center text-xs text-muted-foreground">Type to search icons.</p>
+				<p class="py-4 text-center text-xs text-muted-foreground">{m.icon_search_prompt({}, locale.messageOptions())}</p>
 			{/if}
 		</div>
 	</PopoverContent>

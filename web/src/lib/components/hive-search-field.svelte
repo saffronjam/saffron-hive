@@ -7,6 +7,8 @@
 	} from "$lib/components/ui/popover/index.js";
 	import { badgeVariants } from "$lib/components/ui/badge/index.js";
 	import { cn } from "$lib/utils.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 	import {
 		matchChipKeyword,
 		type ChipConfig,
@@ -418,7 +420,7 @@
 			<ul role="listbox" class="py-1">
 				{#if suggestionMode === "keyword"}
 					<li class="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-						Filters
+						{m.shared_filters({}, locale.messageOptions())}
 					</li>
 					{#each keywordSuggestions as opt, i (opt.value)}
 						<li

@@ -2,6 +2,8 @@
 	import { LayoutGrid, LayoutList } from "@lucide/svelte";
 	import type { ListView } from "$lib/stores/profile.svelte";
 	import SegmentedControl from "$lib/components/segmented-control.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		value: ListView;
@@ -15,7 +17,19 @@
 	{value}
 	{onchange}
 	options={[
-		{ value: "card", label: "Cards", icon: LayoutGrid, hideLabelOnMobile: true, ariaLabel: "Card view" },
-		{ value: "table", label: "Table", icon: LayoutList, hideLabelOnMobile: true, ariaLabel: "Table view" },
+		{
+			value: "card",
+			label: m.shared_view_cards({}, locale.messageOptions()),
+			icon: LayoutGrid,
+			hideLabelOnMobile: true,
+			ariaLabel: m.shared_view_cards_aria({}, locale.messageOptions()),
+		},
+		{
+			value: "table",
+			label: m.shared_view_table({}, locale.messageOptions()),
+			icon: LayoutList,
+			hideLabelOnMobile: true,
+			ariaLabel: m.shared_view_table_aria({}, locale.messageOptions()),
+		},
 	]}
 />

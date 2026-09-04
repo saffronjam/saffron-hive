@@ -9,6 +9,8 @@
 		DialogHeader,
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		open: boolean;
@@ -28,13 +30,20 @@
 		title,
 		description,
 		children,
-		confirmLabel = "Confirm",
-		cancelLabel = "Cancel",
+		confirmLabel,
+		cancelLabel,
 		variant = "destructive",
 		loading = false,
 		onconfirm,
 		oncancel,
 	}: Props = $props();
+
+	const resolvedConfirmLabel = $derived(
+		confirmLabel ?? m.common_confirm({}, locale.messageOptions()),
+	);
+	const resolvedCancelLabel = $derived(
+		cancelLabel ?? m.common_cancel({}, locale.messageOptions()),
+	);
 </script>
 
 <Dialog bind:open>
@@ -47,9 +56,9 @@
 		</DialogHeader>
 		{@render children?.()}
 		<DialogFooter>
-			<Button variant="outline" onclick={oncancel}>{cancelLabel}</Button>
+			<Button variant="outline" onclick={oncancel}>{resolvedCancelLabel}</Button>
 			<Button {variant} onclick={onconfirm} disabled={loading}>
-				{loading ? "..." : confirmLabel}
+				{loading ? m.common_loading({}, locale.messageOptions()) : resolvedConfirmLabel}
 			</Button>
 		</DialogFooter>
 	</DialogContent>

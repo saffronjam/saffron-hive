@@ -4,6 +4,8 @@
 	import { cn } from "$lib/utils.js";
 	import type { ComponentProps } from "svelte";
 	import { useSidebar } from "./context.svelte.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	let {
 		ref = $bindable(null),
@@ -32,5 +34,5 @@
 	{...restProps}
 >
 	<PanelLeftIcon  />
-	<span class="sr-only">Toggle Sidebar</span>
+	<span class="sr-only">{m.shared_sidebar_toggle({}, locale.messageOptions())}</span>
 </Button>

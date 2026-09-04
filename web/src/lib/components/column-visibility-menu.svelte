@@ -11,6 +11,8 @@
 		ColumnDef,
 		TableState,
 	} from "$lib/utils/table-state.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		tableState: TableState<Row>;
@@ -44,7 +46,7 @@
 				{...props}
 				variant="ghost"
 				size="icon-sm"
-				aria-label="Edit columns"
+				aria-label={m.shared_columns_show({}, locale.messageOptions())}
 			>
 				<Settings2 class="size-4" />
 			</Button>
@@ -54,7 +56,7 @@
 		<div
 			class="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
 		>
-			Columns
+			{m.shared_columns({}, locale.messageOptions())}
 		</div>
 		{#each toggleable as col (col.key)}
 			<label
@@ -74,7 +76,7 @@
 				class="w-full justify-start font-normal text-muted-foreground hover:text-foreground"
 				onclick={onRestore}
 			>
-				Restore defaults
+				{m.shared_columns_restore({}, locale.messageOptions())}
 			</Button>
 		</div>
 	</PopoverContent>

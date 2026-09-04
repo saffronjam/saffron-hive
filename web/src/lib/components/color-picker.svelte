@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { createConfirmationHold } from "$lib/utils/confirmation-hold";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		r: number;
@@ -236,7 +238,7 @@
 			onmousedown={handleDown}
 			ontouchstart={handleDown}
 			role="slider"
-			aria-label="Hue and saturation"
+			aria-label={m.color_picker_aria({}, locale.messageOptions())}
 			aria-valuemin={0}
 			aria-valuemax={360}
 			aria-valuenow={Math.round(hue)}

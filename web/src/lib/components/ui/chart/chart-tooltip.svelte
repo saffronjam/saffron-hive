@@ -4,6 +4,7 @@
 	import { getPayloadConfigFromPayload, useChart, type TooltipPayload } from "./chart-utils.js";
 	import { getChartContext, Tooltip as TooltipPrimitive } from "layerchart";
 	import type { Snippet } from "svelte";
+	import { formatNumber } from "$lib/i18n/format";
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	function defaultFormatter(value: any, _payload: TooltipPayload[]) {
@@ -172,7 +173,7 @@
 							</div>
 							{#if item.value !== undefined}
 								<span class="text-foreground font-mono font-medium tabular-nums">
-									{item.value.toLocaleString()}
+									{typeof item.value === "number" ? formatNumber(item.value) : item.value}
 								</span>
 							{/if}
 						</div>

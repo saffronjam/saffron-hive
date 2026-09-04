@@ -2,6 +2,8 @@
 	import type { Snippet } from "svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { X } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		count: number;
@@ -15,16 +17,18 @@
 <div
 	class="flex h-9 items-center gap-3 whitespace-nowrap rounded-md shadow-card bg-card pl-3 pr-1"
 	role="toolbar"
-	aria-label="Batch actions"
+	aria-label={m.shared_batch_actions({}, locale.messageOptions())}
 >
-	<span class="text-sm font-medium">{count} selected</span>
+	<span class="text-sm font-medium">
+		{m.shared_selected_count({ count }, locale.messageOptions())}
+	</span>
 	<div class="flex items-center gap-1">
 		{@render actions()}
 		<Button
 			variant="ghost"
 			size="icon-sm"
 			onclick={onclear}
-			aria-label="Clear selection"
+			aria-label={m.shared_clear_selection({}, locale.messageOptions())}
 		>
 			<X class="size-4" />
 		</Button>
