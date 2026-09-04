@@ -33,7 +33,7 @@ func TestBatchDeleteUsersSkipsSelf(t *testing.T) {
 		env.store.users[id] = store.User{ID: id, Username: id, Name: id}
 	}
 
-	ctx = auth.WithUser(ctx, auth.CtxUser{ID: "me", Username: "me", Name: "me"})
+	ctx = auth.WithPrincipal(ctx, auth.Principal{ID: "me", Username: "me", Name: "me"})
 
 	res := batchResolver(env)
 	n, err := res.BatchDeleteUsers(ctx, []string{"me", "alice", "bob"})
@@ -65,7 +65,7 @@ func TestBatchDeleteUsersRequiresAuth(t *testing.T) {
 func TestBatchDeleteUsersOnlySelf(t *testing.T) {
 	env := newTestEnv(t)
 	env.store.users["me"] = store.User{ID: "me", Username: "me", Name: "me"}
-	ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "me"})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "me"})
 
 	res := batchResolver(env)
 	n, err := res.BatchDeleteUsers(ctx, []string{"me"})

@@ -5,6 +5,7 @@ const base: GateState = {
   pathname: "/",
   hasInitialUser: true,
   isAuthenticated: true,
+  isGuest: false,
   mustChangePassword: false,
 };
 
@@ -43,6 +44,12 @@ describe("nextRoute", () => {
     it("stays on /login", () => {
       expect(at({ ...anon, pathname: "/login" })).toBeNull();
     });
+
+    it("sends an expired guest to guest login with a reason", () => {
+      expect(at({ ...anon, isGuest: true, pathname: "/" })).toBe(
+        "/login?mode=guest&reason=unavailable",
+      );
+    });
   });
 
   describe("forced password change", () => {
@@ -59,6 +66,19 @@ describe("nextRoute", () => {
 
     it("outranks the onboarding bounce", () => {
       expect(at({ ...forced, pathname: "/login" })).toBe("/change-password-required");
+    });
+  });
+
+  describe("guest session", () => {
+    const guest = { isGuest: true };
+
+    it("stays on the dashboard", () => {
+      expect(at({ ...guest, pathname: "/" })).toBeNull();
+    });
+
+    it("redirects every other route to the dashboard", () => {
+      expect(at({ ...guest, pathname: "/settings" })).toBe("/");
+      expect(at({ ...guest, pathname: "/login" })).toBe("/");
     });
   });
 

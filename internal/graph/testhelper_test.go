@@ -23,7 +23,7 @@ import (
 // default test env. Mirrors what auth.Middleware does in production after a
 // successful token check, so existing resolver tests can call @auth-marked
 // fields (devices, scenes, etc.) without each test having to mint a token.
-var testUser = auth.CtxUser{ID: "test-user", Username: "test", Name: "Test"}
+var testUser = auth.Principal{ID: "test-user", Username: "test", Name: "Test"}
 
 type testEnv struct {
 	server       *httptest.Server
@@ -82,7 +82,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	// satisfied. Tests that need to exercise the unauthenticated path call
 	// query through a different env (rebuildWithAuth) which omits this layer.
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(auth.WithUser(r.Context(), testUser))
+		r = r.WithContext(auth.WithPrincipal(r.Context(), testUser))
 		srv.ServeHTTP(w, r)
 	})
 

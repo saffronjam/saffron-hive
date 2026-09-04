@@ -286,6 +286,60 @@ async function delayOperation(
 }
 
 describe("URL-backed search restoration", () => {
+  it("restores the Users header after browser back navigation", async () => {
+    const { appUrl } = getContext();
+    await browserPage.goto(`${appUrl}/users`, { waitUntil: "domcontentloaded" });
+    await expect.poll(() => browserPage.getByRole("button", { name: "Add guest" }).count()).toBe(1);
+
+    await browserPage.getByRole("link", { name: "Dashboard" }).first().click();
+    await browserPage.waitForURL((url) => url.pathname === "/");
+    await browserPage.goBack({ waitUntil: "domcontentloaded" });
+
+    await expect.poll(() => new URL(browserPage.url()).pathname).toBe("/users");
+    await expect.poll(() => browserPage.getByRole("button", { name: "Add guest" }).count()).toBe(1);
+    await expect
+      .poll(() => browserPage.getByRole("button", { name: "Create user" }).count())
+      .toBe(1);
+  });
+
+  it("keeps the protected shell hidden when history returns after logout", async () => {
+    const { appUrl, token } = getContext();
+    const logoutContext = await browser.newContext({ serviceWorkers: "block" });
+    await logoutContext.addInitScript((authToken) => {
+      localStorage.setItem("hive.token", authToken);
+    }, token);
+    const logoutPage = await logoutContext.newPage();
+    try {
+      await logoutPage.goto(appUrl, { waitUntil: "domcontentloaded" });
+      await logoutPage.getByRole("button", { name: "System" }).click();
+      await logoutPage.getByRole("link", { name: "Users" }).click();
+      await logoutPage.waitForURL("**/users");
+      await logoutPage.getByRole("button", { name: /Log out/ }).click();
+      await logoutPage.waitForURL("**/login");
+
+      await logoutPage.evaluate(() => {
+        document.documentElement.dataset.sawProtectedShell = "false";
+        const inspect = () => {
+          if (document.querySelector('[data-slot="sidebar"]')) {
+            document.documentElement.dataset.sawProtectedShell = "true";
+          }
+        };
+        new MutationObserver(inspect).observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
+      });
+
+      await logoutPage.goBack();
+      await logoutPage.waitForURL("**/login");
+      expect(await logoutPage.locator("html").getAttribute("data-saw-protected-shell")).toBe(
+        "false",
+      );
+    } finally {
+      await logoutContext.close();
+    }
+  });
+
   it("keeps editor header actions after cancelling navigation", async () => {
     const { appUrl } = getContext();
     await browserPage.goto(`${appUrl}/rooms?edit=${fixtureIds!.roomId}`, {
@@ -475,7 +529,7 @@ describe("URL-backed search restoration", () => {
         pathname: "/users",
         query: "e2e",
         visibleText: "e2e",
-        operation: "UsersList",
+        operation: "AccountsList",
       },
       {
         pathname: "/integrations",

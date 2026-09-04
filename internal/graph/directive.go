@@ -25,15 +25,21 @@ var forcedChangeAllowlist = map[string]bool{
 // enforced uniformly across queries, mutations, and subscriptions. Public
 // fields (login, createInitialUser, setupStatus) omit @auth and run without
 // a user attached.
-func AuthDirective(ctx context.Context, _ any, next graphql.Resolver) (any, error) {
-	user, ok := auth.UserFromContext(ctx)
+func AuthDirective(ctx context.Context, _ any, next graphql.Resolver, allowGuest bool) (any, error) {
+	principal, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return nil, &gqlerror.Error{
 			Message:    "authentication required",
 			Extensions: map[string]any{"code": "UNAUTHENTICATED"},
 		}
 	}
-	if user.MustChangePassword {
+	if principal.Guest && !allowGuest {
+		return nil, &gqlerror.Error{
+			Message:    "guest access is limited to the dashboard",
+			Extensions: map[string]any{"code": "FORBIDDEN"},
+		}
+	}
+	if principal.MustChangePassword {
 		field := graphql.GetFieldContext(ctx).Field.Name
 		if !forcedChangeAllowlist[field] {
 			return nil, &gqlerror.Error{

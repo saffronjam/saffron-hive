@@ -20,9 +20,10 @@ var ErrInvalidToken = errors.New("invalid token")
 // force-logout) invalidates every token previously issued for that user, since
 // their embedded version no longer matches.
 type Claims struct {
-	UserID       string `json:"sub"`
+	PrincipalID  string `json:"sub"`
 	Username     string `json:"username"`
 	Name         string `json:"name"`
+	Guest        bool   `json:"guest,omitempty"`
 	TokenVersion int64  `json:"tv"`
 	jwt.RegisteredClaims
 }
@@ -41,13 +42,13 @@ func NewService(secret []byte, ttl time.Duration) *Service {
 // TTL returns the token lifetime currently configured on the service.
 func (s *Service) TTL() time.Duration { return s.ttl }
 
-// Sign produces a signed JWT for the given user. tokenVersion must match the
+// SignUser produces a signed JWT for the given user. tokenVersion must match the
 // user row's current token_version, so middleware can reject tokens whose
 // version has been bumped (password change, force-logout).
-func (s *Service) Sign(userID, username, name string, tokenVersion int64) (string, error) {
+func (s *Service) SignUser(userID, username, name string, tokenVersion int64) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID:       userID,
+		PrincipalID:  userID,
 		Username:     username,
 		Name:         name,
 		TokenVersion: tokenVersion,
@@ -57,6 +58,26 @@ func (s *Service) Sign(userID, username, name string, tokenVersion int64) (strin
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.ttl)),
 		},
 	}
+	return s.sign(claims)
+}
+
+// SignGuest produces a guest JWT bounded by the guest's hard lifetime.
+func (s *Service) SignGuest(guestID, name string, hardExpiresAt time.Time) (string, error) {
+	now := time.Now()
+	claims := Claims{
+		PrincipalID: guestID,
+		Name:        name,
+		Guest:       true,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   guestID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(hardExpiresAt),
+		},
+	}
+	return s.sign(claims)
+}
+
+func (s *Service) sign(claims Claims) (string, error) {
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := tok.SignedString(s.secret)
 	if err != nil {

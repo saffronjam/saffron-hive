@@ -29,6 +29,24 @@ const QUERY = graphql(`
   }
 `);
 
+const DASHBOARD_QUERY = graphql(`
+  query DashboardLocalizedNamesBootstrap {
+    dashboardLocalization {
+      localizedNameSets {
+        entityType
+        entityId
+        sourceLanguage
+        translations {
+          language
+          value
+        }
+      }
+      defaultContentLanguage
+      translateStandardRoomNames
+    }
+  }
+`);
+
 const UPDATE = graphql(`
   mutation UpdateLocalizedNameSet($input: LocalizedNameSetInput!) {
     updateLocalizedNameSet(input: $input) {
@@ -80,6 +98,19 @@ function graphQLLanguage(language: Language): GraphQLLanguage {
 let sets = $state(new Map<string, LocalizedNameSet>());
 let defaultContentLanguage = $state<Language>("en");
 let translateStandardRoomNames = $state(false);
+
+function applyBootstrap(values: WireNameSet[], language: string, translateRooms: boolean): void {
+  sets = new Map(
+    values.map((item) => {
+      const names = fromWire(item);
+      return [key(names.entityType, names.entityId), names];
+    }),
+  );
+  defaultContentLanguage = ["en", "sv", "ru"].includes(language)
+    ? (language.toLowerCase() as Language)
+    : "en";
+  translateStandardRoomNames = translateRooms;
+}
 
 function sourceLanguage(names: LocalizedNameSet | undefined): Language {
   return names?.sourceLanguage ?? defaultContentLanguage;
@@ -164,24 +195,31 @@ export const localizedNamesStore = {
   async refresh(client: Client): Promise<void> {
     const result = await client.query(QUERY, {}, { requestPolicy: "network-only" }).toPromise();
     if (!result.data) return;
-    sets = new Map(
-      (result.data.localizedNameSets as WireNameSet[]).map((item) => {
-        const names = fromWire(item);
-        return [key(names.entityType, names.entityId), names];
-      }),
-    );
-    defaultContentLanguage = "en";
-    translateStandardRoomNames = false;
+    let language = "en";
+    let translateRooms = false;
     for (const setting of result.data.settings) {
       if (
         setting.key === "i18n.default_content_language" &&
         ["en", "sv", "ru"].includes(setting.value)
       ) {
-        defaultContentLanguage = setting.value as Language;
+        language = setting.value;
       } else if (setting.key === "i18n.translate_standard_room_names") {
-        translateStandardRoomNames = setting.value === "true";
+        translateRooms = setting.value === "true";
       }
     }
+    applyBootstrap(result.data.localizedNameSets as WireNameSet[], language, translateRooms);
+  },
+  async refreshDashboard(client: Client): Promise<void> {
+    const result = await client
+      .query(DASHBOARD_QUERY, {}, { requestPolicy: "network-only" })
+      .toPromise();
+    if (!result.data) return;
+    const data = result.data.dashboardLocalization;
+    applyBootstrap(
+      data.localizedNameSets as WireNameSet[],
+      data.defaultContentLanguage,
+      data.translateStandardRoomNames,
+    );
   },
   setDefaultContentLanguage(language: Language): void {
     defaultContentLanguage = language;

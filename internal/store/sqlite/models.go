@@ -271,6 +271,14 @@ type GroupTag struct {
 	Tag     device.GroupTag
 }
 
+type Guest struct {
+	ID             string
+	Name           string
+	NormalizedName string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
+}
+
 type LocalizedName struct {
 	EntityType string
 	EntityID   string

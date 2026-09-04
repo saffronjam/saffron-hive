@@ -25,6 +25,7 @@
 	import { resolveTargetDevices } from "$lib/target-resolve";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
+	import { untrack } from "svelte";
 
 	interface Props {
 		/**
@@ -33,9 +34,10 @@
 		 * shared surfaces (the page header) and timers gate on this.
 		 */
 		visible: boolean;
+		guest?: boolean;
 	}
 
-	let { visible }: Props = $props();
+	let { visible, guest = false }: Props = $props();
 
 	$effect(() => {
 		if (!visible) return;
@@ -53,7 +55,11 @@
 
 	const client = getContextClient();
 
-	const integrationsQuery = queryStore({ client, query: INTEGRATIONS_QUERY });
+	const integrationsQuery = queryStore({
+		client,
+		query: INTEGRATIONS_QUERY,
+		pause: untrack(() => guest),
+	});
 
 	const rooms = $derived(roomsStore.items);
 	const groups = $derived(groupsStore.items);
@@ -79,7 +85,7 @@
 	});
 
 	const needsIntegration = $derived(
-		!!$integrationsQuery.data && !$integrationsQuery.data.integrations.some((i) => i.configured),
+		!guest && !!$integrationsQuery.data && !$integrationsQuery.data.integrations.some((i) => i.configured),
 	);
 
 	const scenes = $derived(scenesStore.items);

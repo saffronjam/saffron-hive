@@ -28,9 +28,10 @@
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { prefetchIconPacks } from "$lib/components/icons/icon-utils.js";
 	import { onMount, onDestroy } from "svelte";
-	import { goto } from "$app/navigation";
+	import { afterNavigate, goto, onNavigate } from "$app/navigation";
 	import DevicesPage from "$lib/components/devices-page.svelte";
 	import DashboardPage from "$lib/components/dashboard-page.svelte";
+	import GuestSessionGuard from "$lib/components/guest-session-guard.svelte";
 	import RoomsPage from "$lib/components/rooms-page.svelte";
 	import GroupsPage from "$lib/components/groups-page.svelte";
 	import ScenesPage from "$lib/components/scenes-page.svelte";
@@ -43,6 +44,17 @@
 	import { page } from "$app/stores";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
+	import { graphql } from "$lib/gql";
+	import { sessionTeardown } from "$lib/session";
+	import { LogOut } from "@lucide/svelte";
+
+	const CURRENT_GUEST = graphql(`
+		query LayoutCurrentGuest {
+			currentGuest {
+				id
+			}
+		}
+	`);
 
 	let reconciliationRunning = false;
 	let reconciliationQueued = false;
@@ -58,19 +70,28 @@
 		try {
 			do {
 				reconciliationQueued = false;
-				await Promise.allSettled([
+				const dashboardRefreshes = [
 					deviceStore.refresh(client),
 					roomsStore.refresh(client),
 					groupsStore.refresh(client),
 					scenesStore.refresh(client),
-					automationsStore.refresh(client),
-					effectsStore.refresh(client),
-					webhooksStore.refresh(client),
-					floorplanStore.refresh(client),
-					localizedNamesStore.refresh(client),
-					alarmsStore.refresh(client),
-					maintenanceStore.refresh(),
-				]);
+					auth.isGuest()
+						? localizedNamesStore.refreshDashboard(client)
+						: localizedNamesStore.refresh(client),
+				];
+				await Promise.allSettled(
+					auth.isGuest()
+						? dashboardRefreshes
+						: [
+								...dashboardRefreshes,
+								automationsStore.refresh(client),
+								effectsStore.refresh(client),
+								webhooksStore.refresh(client),
+								floorplanStore.refresh(client),
+								alarmsStore.refresh(client),
+								maintenanceStore.refresh(),
+							],
+				);
 			} while (reconciliationQueued && auth.isAuthenticated());
 		} finally {
 			reconciliationRunning = false;
@@ -126,19 +147,8 @@
 		}
 	});
 
-	// The layout clears the shared header before a route's components update it.
-	// Components only write their own header, so destruction order cannot clear
-	// a destination header that is already visible.
-	let headerPath = $state("");
-	$effect.pre(() => {
-		const nextPath = activePath;
-		if (!headerPath) {
-			headerPath = nextPath;
-			return;
-		}
-		if (nextPath === headerPath) return;
-		pageHeader.reset();
-		headerPath = nextPath;
+	onNavigate(({ from, to }) => {
+		if (from?.url.pathname !== to?.url.pathname) pageHeader.reset();
 	});
 
 	async function gate() {
@@ -153,12 +163,25 @@
 
 			// Load `me` before deciding so a forced password change redirects before
 			// children render — the post-ready $effect only catches up later.
-			if (isAuthenticated && !me.user) await me.refresh(client);
+			if (isAuthenticated && auth.isGuest()) {
+				const result = await client
+					.query(CURRENT_GUEST, {}, { requestPolicy: "network-only" })
+					.toPromise();
+				if (!result.data?.currentGuest) {
+					sessionTeardown();
+					await goto("/login?mode=guest&reason=unavailable", { replaceState: true });
+					ready = true;
+					return;
+				}
+			} else if (isAuthenticated && !me.user) {
+				await me.refresh(client);
+			}
 
 			const target = nextRoute({
 				pathname: $page.url.pathname,
 				hasInitialUser,
 				isAuthenticated,
+				isGuest: auth.isGuest(),
 				mustChangePassword: me.user?.mustChangePassword ?? false,
 			});
 			if (target) await goto(target, { replaceState: true });
@@ -184,25 +207,45 @@
 		prefetchIconPacks();
 	});
 
-	// Start the alarms store once we know there's an authenticated session.
-	// The store handles its own hydration + subscription and is safe to
-	// call multiple times — it no-ops when already started.
 	$effect(() => {
 		if (ready && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) && auth.isAuthenticated()) {
-			alarmsStore.start(client);
-			maintenanceStore.start(client);
 			void deviceStore.start(client);
 			void roomsStore.start(client);
 			void groupsStore.start(client);
 			void scenesStore.start(client);
-			void automationsStore.start(client);
-			void webhooksStore.start(client);
-			void effectsStore.start(client);
-			void floorplanStore.start(client);
-			void localizedNamesStore.refresh(client);
-			if (!me.user) void me.refresh(client);
+			if (auth.isGuest()) {
+				void localizedNamesStore.refreshDashboard(client);
+			} else {
+				alarmsStore.start(client);
+				maintenanceStore.start(client);
+				void automationsStore.start(client);
+				void webhooksStore.start(client);
+				void effectsStore.start(client);
+				void floorplanStore.start(client);
+				void localizedNamesStore.refresh(client);
+				if (!me.user) void me.refresh(client);
+			}
 		}
 	});
+
+	afterNavigate(() => {
+		const pathname = $page.url.pathname;
+		if (
+			!ready ||
+			PUBLIC_ROUTES.some((route) => pathname.startsWith(route)) ||
+			auth.isAuthenticated()
+		) {
+			return;
+		}
+		void goto(auth.isGuest() ? "/login?mode=guest&reason=unavailable" : "/login", {
+			replaceState: true,
+		});
+	});
+
+	async function guestLogout() {
+		sessionTeardown();
+		await goto("/login?mode=guest", { replaceState: true });
+	}
 
 	onDestroy(() => {
 		gateAbortController.abort();
@@ -244,6 +287,24 @@
 	{/if}
 {:else if PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))}
 	{@render children()}
+{:else if !auth.isAuthenticated()}
+	<div class="min-h-screen bg-background"></div>
+{:else if auth.isGuest()}
+	<GuestSessionGuard />
+	<div class="flex min-h-screen flex-col bg-background">
+		<main class="min-w-0 flex-1 p-6">
+			<DashboardPage visible={true} guest={true} />
+			<div class="mx-auto mt-6 flex max-w-3xl justify-center">
+				<SmoothButton
+					label={m.guest_logout({}, locale.messageOptions())}
+					icon={LogOut}
+					variant="ghost"
+					size="sm"
+					onclick={guestLogout}
+				/>
+			</div>
+		</main>
+	</div>
 {:else}
 	<SidebarProvider>
 		<AppSidebar />

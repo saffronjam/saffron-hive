@@ -115,6 +115,7 @@ type mockStore struct {
 	zigbeeMetadata      map[device.DeviceID]zigbeemetadata.Metadata
 	zigbeeMetadataReads int
 	users               map[string]store.User // keyed by id
+	guests              map[string]store.Guest
 	zigbee2mqttCfg      *store.Zigbee2MQTTConfig
 	tuyaConfig          *store.TuyaConfig
 	topologies          []device.NetworkTopology
@@ -239,6 +240,7 @@ func newMockStore() *mockStore {
 		devices:         make(map[device.DeviceID]device.Device),
 		zigbeeMetadata:  make(map[device.DeviceID]zigbeemetadata.Metadata),
 		users:           make(map[string]store.User),
+		guests:          make(map[string]store.Guest),
 		effects:         make(map[string]store.Effect),
 		activeEffects:   make(map[string]effect.ActiveEffectRecord),
 		localizedNames:  make(map[string]localization.NameSet),
@@ -1337,6 +1339,106 @@ func (m *mockStore) BatchDeleteUsers(_ context.Context, ids []string) (int64, er
 		}
 	}
 	return n, nil
+}
+
+func (m *mockStore) CreateGuest(_ context.Context, params store.CreateGuestParams) (store.Guest, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, guest := range m.guests {
+		if guest.NormalizedName != params.NormalizedName {
+			continue
+		}
+		if !guest.ExpiresAt.After(params.CreatedAt) {
+			delete(m.guests, id)
+			continue
+		}
+		return store.Guest{}, fmt.Errorf("unique guest name")
+	}
+	guest := store.Guest{
+		ID:             params.ID,
+		Name:           params.Name,
+		NormalizedName: params.NormalizedName,
+		ExpiresAt:      params.ExpiresAt,
+		CreatedAt:      params.CreatedAt,
+	}
+	m.guests[guest.ID] = guest
+	return guest, nil
+}
+
+func (m *mockStore) GetGuestByID(_ context.Context, id string) (store.Guest, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	guest, ok := m.guests[id]
+	if !ok {
+		return store.Guest{}, sql.ErrNoRows
+	}
+	return guest, nil
+}
+
+func (m *mockStore) GetActiveGuestByID(_ context.Context, id string, now time.Time) (store.Guest, error) {
+	guest, err := m.GetGuestByID(context.Background(), id)
+	if err != nil || !guest.ExpiresAt.After(now) {
+		return store.Guest{}, sql.ErrNoRows
+	}
+	return guest, nil
+}
+
+func (m *mockStore) GetActiveGuestByNormalizedName(_ context.Context, name string, now time.Time) (store.Guest, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, guest := range m.guests {
+		if guest.NormalizedName == name && guest.ExpiresAt.After(now) {
+			return guest, nil
+		}
+	}
+	return store.Guest{}, sql.ErrNoRows
+}
+
+func (m *mockStore) ListActiveGuests(_ context.Context, now time.Time) ([]store.Guest, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	guests := make([]store.Guest, 0, len(m.guests))
+	for _, guest := range m.guests {
+		if guest.ExpiresAt.After(now) {
+			guests = append(guests, guest)
+		}
+	}
+	return guests, nil
+}
+
+func (m *mockStore) UpdateGuestExpiresAt(_ context.Context, id string, expiresAt time.Time) (store.Guest, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	guest, ok := m.guests[id]
+	if !ok {
+		return store.Guest{}, sql.ErrNoRows
+	}
+	guest.ExpiresAt = expiresAt
+	m.guests[id] = guest
+	return guest, nil
+}
+
+func (m *mockStore) DeleteGuest(_ context.Context, id string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.guests[id]; !ok {
+		return false, nil
+	}
+	delete(m.guests, id)
+	return true, nil
+}
+
+func (m *mockStore) BatchDeleteGuests(_ context.Context, ids []string) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	deleted := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := m.guests[id]; ok {
+			delete(m.guests, id)
+			deleted = append(deleted, id)
+		}
+	}
+	return deleted, nil
 }
 
 func (m *mockStore) GetUserAvatarPath(_ context.Context, id string) (*string, error) {

@@ -1,13 +1,10 @@
 scalar DateTime
 
 """
-Marks a field as requiring an authenticated caller. The directive resolver
-rejects the request with code UNAUTHENTICATED when no user is attached to the
-request context. Default-deny: every Query / Mutation / Subscription field
-should carry @auth unless it is intentionally public (login, createInitialUser,
-setupStatus, me).
+Marks a field as requiring an authenticated caller. Guest principals are
+accepted only when allowGuest is true.
 """
-directive @auth on FIELD_DEFINITION
+directive @auth(allowGuest: Boolean! = false) on FIELD_DEFINITION
 
 enum CapabilityCategory {
   STATE
@@ -990,6 +987,12 @@ type LocalizedNameSet {
   translations: [LocalizedName!]!
 }
 
+type DashboardLocalization {
+  localizedNameSets: [LocalizedNameSet!]!
+  defaultContentLanguage: Language!
+  translateStandardRoomNames: Boolean!
+}
+
 input LocalizedNameInput {
   language: Language!
   value: String!
@@ -1058,6 +1061,31 @@ type AuthPayload {
   user: User!
 }
 
+type Guest {
+  id: ID!
+  name: String!
+  expiresAt: DateTime!
+  createdAt: DateTime!
+}
+
+type GuestAuthPayload {
+  token: String!
+  guest: Guest!
+}
+
+enum GuestChangeKind {
+  CREATED
+  EXTENDED
+  REVOKED
+  EXPIRED
+}
+
+type GuestChangeEvent {
+  guestId: ID!
+  kind: GuestChangeKind!
+  guest: Guest
+}
+
 type SetupStatus {
   hasInitialUser: Boolean!
 }
@@ -1084,6 +1112,11 @@ input CreateUserInput {
   username: String!
   name: String!
   password: String!
+}
+
+input CreateGuestInput {
+  name: String!
+  durationMinutes: Int!
 }
 
 input UpdateCurrentUserInput {
@@ -1665,9 +1698,9 @@ input UpdateAutomationInput {
 
 type Query {
   localizedNameSets: [LocalizedNameSet!]! @auth
-  devices: [Device!]! @auth
+  devices: [Device!]! @auth(allowGuest: true)
   device(id: ID!): Device @auth
-  scenes: [Scene!]! @auth
+  scenes: [Scene!]! @auth(allowGuest: true)
   scene(id: ID!): Scene @auth
   vibePresets: [VibePreset!]! @auth
   guidedVibeRound(input: GuidedVibeRoundInput!): GuidedVibeRound! @auth
@@ -1677,9 +1710,9 @@ type Query {
   webhookEndpoints: [WebhookEndpoint!]! @auth
   webhookEndpoint(id: ID!): WebhookEndpoint @auth
   webhookDeliveries(endpointId: ID!, before: DateTime, limit: Int): [WebhookDelivery!]! @auth
-  groups: [Group!]! @auth
+  groups: [Group!]! @auth(allowGuest: true)
   group(id: ID!): Group @auth
-  rooms: [Room!]! @auth
+  rooms: [Room!]! @auth(allowGuest: true)
   room(id: ID!): Room @auth
   "The floor plan. Null until the first save."
   floorplan: Floorplan @auth
@@ -1699,6 +1732,9 @@ type Query {
   setupStatus: SetupStatus!
   me: User
   users: [User!]! @auth
+  guests: [Guest!]! @auth
+  currentGuest: Guest @auth(allowGuest: true)
+  dashboardLocalization: DashboardLocalization! @auth(allowGuest: true)
   effects: [Effect!]! @auth
   effect(id: ID!): Effect @auth
   activeEffects: [ActiveEffect!]! @auth
@@ -1713,7 +1749,7 @@ type Mutation {
   restoreDevice(id: ID!): Device! @auth
   batchDeleteDevices(ids: [ID!]!): Int! @auth
   batchRestoreDevices(ids: [ID!]!): Int! @auth
-  setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth
+  setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth(allowGuest: true)
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
@@ -1722,8 +1758,8 @@ type Mutation {
   sent to the device itself. Useful for testing automations from the UI.
   """
   simulateDeviceAction(deviceId: ID!, action: String!): Boolean! @auth
-  applyScene(sceneId: ID!): Scene! @auth
-  deactivateScene(sceneId: ID!): Scene! @auth
+  applyScene(sceneId: ID!): Scene! @auth(allowGuest: true)
+  deactivateScene(sceneId: ID!): Scene! @auth(allowGuest: true)
   createScene(input: CreateSceneInput!): Scene! @auth
   updateScene(id: ID!, input: UpdateSceneInput!): Scene! @auth
   deleteScene(id: ID!): Boolean! @auth
@@ -1783,6 +1819,11 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User! @auth
+  guestLogin(name: String!): GuestAuthPayload!
+  createGuest(input: CreateGuestInput!): Guest! @auth
+  extendGuest(id: ID!, durationMinutes: Int!): Guest! @auth
+  deleteGuest(id: ID!): Boolean! @auth
+  batchDeleteGuests(ids: [ID!]!): Int! @auth
   updateCurrentUser(input: UpdateCurrentUserInput!): User! @auth
   changePassword(input: ChangePasswordInput!): Boolean! @auth
   """
@@ -1849,21 +1890,22 @@ type Mutation {
 }
 
 type Subscription {
-  deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth
-  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth
+  deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth(allowGuest: true)
+  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth(allowGuest: true)
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
-  deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
-  deviceAdded: Device! @auth
+  deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth(allowGuest: true)
+  deviceAdded: Device! @auth(allowGuest: true)
   """
   Fires when a device's user-owned metadata changes — name override, icon,
   roles, display colour, disabled, deleted — carrying the full updated device. This is
   what keeps a second open tab's rename in step without a reload.
   """
-  deviceUpdated: Device! @auth
-  deviceRemoved: ID! @auth
-  groupsChanged: [ID!]! @auth
+  deviceUpdated: Device! @auth(allowGuest: true)
+  deviceRemoved: ID! @auth(allowGuest: true)
+  groupsChanged: [ID!]! @auth(allowGuest: true)
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
-  sceneActiveChanged: SceneActiveEvent! @auth
+  sceneActiveChanged: SceneActiveEvent! @auth(allowGuest: true)
+  guestChanged: GuestChangeEvent! @auth(allowGuest: true)
   logStream: LogEntry! @auth
   activityStream(advanced: Boolean): ActivityEvent! @auth
   alarmEvent: AlarmEvent! @auth

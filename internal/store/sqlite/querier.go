@@ -20,6 +20,7 @@ type Querier interface {
 	BatchDeleteAutomations(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteEffects(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteGroups(ctx context.Context, idsJson string) (int64, error)
+	BatchDeleteGuests(ctx context.Context, idsJson string) ([]string, error)
 	BatchDeleteRooms(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
@@ -68,6 +69,7 @@ type Querier interface {
 	CreateFloorplanWall(ctx context.Context, arg CreateFloorplanWallParams) error
 	// Same join shape as rooms; member table is group_members with typed member_type.
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
+	CreateGuest(ctx context.Context, arg CreateGuestParams) error
 	// Rooms share the same read-shape with scenes/groups/automations: the row is
 	// joined against users to attach optional creator attribution, so each :one /
 	// :many SELECT returns the room columns plus three nullable creator columns.
@@ -90,6 +92,8 @@ type Querier interface {
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectClipsByTrack(ctx context.Context, trackID string) error
 	DeleteEffectTracksExcept(ctx context.Context, arg DeleteEffectTracksExceptParams) error
+	DeleteExpiredGuestByNormalizedName(ctx context.Context, arg DeleteExpiredGuestByNormalizedNameParams) error
+	DeleteExpiredGuests(ctx context.Context, expiresAt time.Time) ([]string, error)
 	DeleteFloorplanDoorBindingsByDevice(ctx context.Context, deviceID string) error
 	DeleteFloorplanDoorBindingsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanFurnitureByFloorplan(ctx context.Context, floorplanID string) error
@@ -105,6 +109,7 @@ type Querier interface {
 	DeleteFloorplanWallsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteGroupTags(ctx context.Context, groupID string) error
+	DeleteGuest(ctx context.Context, id string) (int64, error)
 	DeleteLocalizedNamesForSubject(ctx context.Context, arg DeleteLocalizedNamesForSubjectParams) error
 	DeleteMaintenanceAcknowledgementsByFingerprints(ctx context.Context, arg DeleteMaintenanceAcknowledgementsByFingerprintsParams) (int64, error)
 	DeleteMaintenanceAcknowledgementsByTaskKey(ctx context.Context, taskKey string) (int64, error)
@@ -124,6 +129,8 @@ type Querier interface {
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	DeleteZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) error
+	GetActiveGuestByID(ctx context.Context, arg GetActiveGuestByIDParams) (Guest, error)
+	GetActiveGuestByNormalizedName(ctx context.Context, arg GetActiveGuestByNormalizedNameParams) (Guest, error)
 	GetActiveSceneRun(ctx context.Context, sceneID string) (ActiveSceneRun, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
@@ -141,6 +148,7 @@ type Querier interface {
 	GetFloorplanDoorBindingByDevice(ctx context.Context, deviceID string) (FloorplanDoorBinding, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
+	GetGuestByID(ctx context.Context, id string) (Guest, error)
 	GetLocalizedNameSubject(ctx context.Context, arg GetLocalizedNameSubjectParams) (LocalizedNameSubject, error)
 	GetNativeEffectObservation(ctx context.Context, arg GetNativeEffectObservationParams) (NativeEffectObservation, error)
 	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
@@ -190,6 +198,7 @@ type Querier interface {
 	InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) error
 	LatestStateSample(ctx context.Context, arg LatestStateSampleParams) (LatestStateSampleRow, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
+	ListActiveGuests(ctx context.Context, expiresAt time.Time) ([]Guest, error)
 	ListActiveSceneMembers(ctx context.Context) ([]ActiveSceneMember, error)
 	ListActiveSceneRuns(ctx context.Context) ([]ActiveSceneRun, error)
 	ListAlarms(ctx context.Context) ([]Alarm, error)
@@ -311,6 +320,7 @@ type Querier interface {
 	UpdateFloorplanRoom(ctx context.Context, arg UpdateFloorplanRoomParams) (int64, error)
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error
+	UpdateGuestExpiresAt(ctx context.Context, arg UpdateGuestExpiresAtParams) (int64, error)
 	UpdateRoomIcon(ctx context.Context, arg UpdateRoomIconParams) error
 	UpdateRoomName(ctx context.Context, arg UpdateRoomNameParams) error
 	UpdateSceneIcon(ctx context.Context, arg UpdateSceneIconParams) error

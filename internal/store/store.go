@@ -561,6 +561,24 @@ type CreateUserParams struct {
 	MustChangePassword bool
 }
 
+// CreateGuestParams holds the values persisted for temporary guest access.
+type CreateGuestParams struct {
+	ID             string
+	Name           string
+	NormalizedName string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
+}
+
+// Guest represents one temporary, dashboard-only principal.
+type Guest struct {
+	ID             string
+	Name           string
+	NormalizedName string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
+}
+
 // User represents a user row. TokenVersion is bumped on password change,
 // password reset, or explicit force-logout — the auth middleware compares it
 // against the value embedded in the JWT and refuses mismatched tokens.

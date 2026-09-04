@@ -172,6 +172,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	}()
 
 	go history.RunRecorder(appCtx, bus, sqlStore)
+	go auth.RunGuestCleanup(appCtx, sqlStore, bus)
 
 	secret, err := auth.LoadOrInitSecret(appCtx, sqlStore)
 	if err != nil {
@@ -201,7 +202,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("create e2e user: %w", err)
 	}
-	token, err := authSvc.Sign(seedUserID, "e2e", "E2E", 0)
+	token, err := authSvc.SignUser(seedUserID, "e2e", "E2E", 0)
 	if err != nil {
 		adapter.Stop()
 		cancel()
@@ -244,15 +245,14 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 			if !ok || tok == "" {
 				return ctx, nil, errors.New("missing authToken")
 			}
-			claims, err := authSvc.Parse(tok)
+			principal, err := auth.AuthenticateToken(ctx, authSvc, sqlStore, tok, time.Now())
 			if err != nil {
 				return ctx, nil, errors.New("invalid token")
 			}
-			return auth.WithUser(ctx, auth.CtxUser{
-				ID:       claims.UserID,
-				Username: claims.Username,
-				Name:     claims.Name,
-			}), nil, nil
+			if principal.Guest {
+				ctx = auth.WithGuestLifecycle(ctx, principal, bus)
+			}
+			return auth.WithPrincipal(ctx, principal), nil, nil
 		},
 	})
 

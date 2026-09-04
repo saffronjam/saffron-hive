@@ -184,6 +184,7 @@ func Run(ctx context.Context) error {
 	})
 	spawn("topology.persister", func() { topology.RunPersister(ctx, bus, sqlStore) })
 	spawn("auth.login_limiter", func() { loginLimiter.Run(ctx) })
+	spawn("auth.guest_cleanup", func() { auth.RunGuestCleanup(ctx, sqlStore, bus) })
 	spawn("oui.refresh", func() { addressVendors.Run(ctx) })
 
 	activityBuffer := activity.NewBuffer()
@@ -319,7 +320,7 @@ func Run(ctx context.Context) error {
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{
-		InitFunc:  wsInitFunc(authSvc, sqlStore),
+		InitFunc:  wsInitFunc(authSvc, sqlStore, bus),
 		ErrorFunc: wsTransportErrorFunc,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: originChecker(cfg.AllowedOrigins),
@@ -340,8 +341,8 @@ func Run(ctx context.Context) error {
 			),
 		),
 	))
-	mux.Handle("/api/avatars", auth.RequireAuth(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
-	mux.Handle("/api/device-images/", auth.RequireAuth(authSvc, sqlStore)(deviceimage.NewHandler(deviceImageCache, sqlStore)))
+	mux.Handle("/api/avatars", auth.RequireUser(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
+	mux.Handle("/api/device-images/", auth.RequireUser(authSvc, sqlStore)(deviceimage.NewHandler(deviceImageCache, sqlStore)))
 	mux.Handle(webhook.PathPrefix, auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(webhookService))
 	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -414,11 +415,8 @@ func Run(ctx context.Context) error {
 }
 
 // wsInitFunc validates the authToken sent via graphql-ws connectionParams and
-// attaches the user to the subscription context. Whitelisted subscriptions do
-// not exist — every subscription requires authentication. The user row is
-// reloaded fresh on connect so the must_change_password flag reflects current
-// DB state, mirroring the HTTP middleware path.
-func wsInitFunc(svc *auth.Service, lookup auth.UserLookup) transport.WebsocketInitFunc {
+// attaches the current principal to the subscription context.
+func wsInitFunc(svc *auth.Service, lookup auth.PrincipalLookup, bus eventbus.EventBus) transport.WebsocketInitFunc {
 	return func(ctx context.Context, init transport.InitPayload) (context.Context, *transport.InitPayload, error) {
 		tokenAny, ok := init["authToken"]
 		if !ok {
@@ -428,28 +426,18 @@ func wsInitFunc(svc *auth.Service, lookup auth.UserLookup) transport.WebsocketIn
 		if !ok || token == "" {
 			return ctx, nil, errors.New("invalid authToken")
 		}
-		claims, err := svc.Parse(token)
+		principal, err := auth.AuthenticateToken(ctx, svc, lookup, token, time.Now())
 		if err != nil {
-			return ctx, nil, errors.New("invalid or expired token")
+			return ctx, nil, err
 		}
-		u, err := lookup.GetUserByID(ctx, claims.UserID)
-		if err != nil {
-			return ctx, nil, errors.New("user not found")
+		if principal.Guest {
+			ctx = auth.WithGuestLifecycle(ctx, principal, bus)
 		}
-		if claims.TokenVersion != u.TokenVersion {
-			return ctx, nil, errors.New("session revoked")
-		}
-		authedCtx := auth.WithUser(ctx, auth.CtxUser{
-			ID:                 u.ID,
-			Username:           u.Username,
-			Name:               u.Name,
-			MustChangePassword: u.MustChangePassword,
-			TokenVersion:       u.TokenVersion,
-		})
+		authedCtx := auth.WithPrincipal(ctx, principal)
 		if diagnostic, ok := wsRecoveryDiagnosticFromInit(init); ok {
 			attrs := []slog.Attr{
 				slog.String("reason", diagnostic.reason),
-				slog.String("user_id", u.ID),
+				slog.String("principal_id", principal.ID),
 			}
 			if diagnostic.previousCloseCode != nil {
 				attrs = append(attrs, slog.Int("previous_close_code", *diagnostic.previousCloseCode))
@@ -510,7 +498,7 @@ func wsTransportErrorFunc(ctx context.Context, err error) {
 	if closeCode != 0 {
 		attrs = append(attrs, slog.Int("close_code", closeCode))
 	}
-	if user, ok := auth.UserFromContext(ctx); ok {
+	if user, ok := auth.PrincipalFromContext(ctx); ok {
 		attrs = append(attrs, slog.String("user_id", user.ID))
 	}
 	if clientIP := auth.ClientIPFromContext(ctx); clientIP != "" {

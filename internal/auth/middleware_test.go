@@ -16,7 +16,8 @@ import (
 // fakeLookup returns a single user keyed by ID; unknown IDs produce an error,
 // matching the "deleted user" path the middleware guards against.
 type fakeLookup struct {
-	users map[string]store.User
+	users  map[string]store.User
+	guests map[string]store.Guest
 }
 
 func (f fakeLookup) GetUserByID(_ context.Context, id string) (store.User, error) {
@@ -27,23 +28,33 @@ func (f fakeLookup) GetUserByID(_ context.Context, id string) (store.User, error
 	return u, nil
 }
 
-func lookupWith(u store.User) fakeLookup {
-	return fakeLookup{users: map[string]store.User{u.ID: u}}
+func (f fakeLookup) GetActiveGuestByID(_ context.Context, id string, now time.Time) (store.Guest, error) {
+	guest, ok := f.guests[id]
+	if !ok || !guest.ExpiresAt.After(now) {
+		return store.Guest{}, fmt.Errorf("not found")
+	}
+	return guest, nil
 }
 
-func emptyLookup() fakeLookup { return fakeLookup{users: map[string]store.User{}} }
+func lookupWith(u store.User) fakeLookup {
+	return fakeLookup{users: map[string]store.User{u.ID: u}, guests: map[string]store.Guest{}}
+}
+
+func emptyLookup() fakeLookup {
+	return fakeLookup{users: map[string]store.User{}, guests: map[string]store.Guest{}}
+}
 
 // testHandler records whether it was invoked and exposes the user carried on
 // the incoming request's context.
 type testHandler struct {
 	called  bool
-	user    CtxUser
+	user    Principal
 	hasUser bool
 }
 
 func (t *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.called = true
-	t.user, t.hasUser = UserFromContext(r.Context())
+	t.user, t.hasUser = PrincipalFromContext(r.Context())
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -129,7 +140,7 @@ func TestMiddlewarePassesThroughInvalidToken(t *testing.T) {
 
 func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
-	tok, err := svc.Sign("u-1", "alice", "Alice", 0)
+	tok, err := svc.SignUser("u-1", "alice", "Alice", 0)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -164,8 +175,74 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 	if err != nil {
 		t.Errorf("refreshed token does not parse: %v", err)
 	}
-	if claims.UserID != "u-1" {
-		t.Errorf("refreshed token claims.UserID = %q, want u-1", claims.UserID)
+	if claims.PrincipalID != "u-1" {
+		t.Errorf("refreshed token claims.PrincipalID = %q, want u-1", claims.PrincipalID)
+	}
+}
+
+func TestMiddlewareInjectsActiveGuest(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	now := time.Now()
+	guest := store.Guest{
+		ID: "guest-1", Name: "Linnea", NormalizedName: "linnea",
+		CreatedAt: now, ExpiresAt: now.Add(time.Hour),
+	}
+	tok, err := svc.SignGuest(guest.ID, guest.Name, guest.CreatedAt.Add(MaxGuestLifetime))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookup := fakeLookup{users: map[string]store.User{}, guests: map[string]store.Guest{guest.ID: guest}}
+	h := &testHandler{}
+	req := gqlRequest(t, "devices")
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	Middleware(svc, lookup)(h).ServeHTTP(rec, req)
+
+	if !h.hasUser || !h.user.Guest || h.user.ID != guest.ID || h.user.AccessExpiresAt != guest.ExpiresAt {
+		t.Fatalf("guest principal = %+v, attached = %v", h.user, h.hasUser)
+	}
+	fresh := rec.Header().Get(RefreshedTokenHeader)
+	claims, err := svc.Parse(fresh)
+	if err != nil || !claims.Guest {
+		t.Fatalf("refreshed guest token claims = %+v, %v", claims, err)
+	}
+}
+
+func TestMiddlewareRejectsExpiredGuestRecord(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	now := time.Now()
+	guest := store.Guest{ID: "guest-1", Name: "Linnea", CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(-time.Minute)}
+	tok, err := svc.SignGuest(guest.ID, guest.Name, now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookup := fakeLookup{users: map[string]store.User{}, guests: map[string]store.Guest{guest.ID: guest}}
+	h := &testHandler{}
+	req := gqlRequest(t, "devices")
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	Middleware(svc, lookup)(h).ServeHTTP(rec, req)
+	if h.hasUser || rec.Header().Get(RefreshedTokenHeader) != "" {
+		t.Fatalf("expired guest was authenticated: %+v", h.user)
+	}
+}
+
+func TestRequireUserRejectsGuest(t *testing.T) {
+	svc := NewService([]byte("s"), time.Hour)
+	now := time.Now()
+	guest := store.Guest{ID: "guest-1", Name: "Linnea", CreatedAt: now, ExpiresAt: now.Add(time.Hour)}
+	tok, err := svc.SignGuest(guest.ID, guest.Name, now.Add(MaxGuestLifetime))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookup := fakeLookup{users: map[string]store.User{}, guests: map[string]store.Guest{guest.ID: guest}}
+	h := &testHandler{}
+	req := httptest.NewRequest(http.MethodGet, "/api/avatars", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	RequireUser(svc, lookup)(h).ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized || h.called {
+		t.Fatalf("status = %d, downstream called = %v", rec.Code, h.called)
 	}
 }
 
@@ -177,7 +254,7 @@ func TestMiddlewareInjectsUserAndRefreshesToken(t *testing.T) {
 func TestMiddlewareRejectsStaleTokenVersion(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
 	// Token claims version 0; user row is on version 1.
-	tok, err := svc.Sign("u-1", "alice", "Alice", 0)
+	tok, err := svc.SignUser("u-1", "alice", "Alice", 0)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
@@ -210,7 +287,7 @@ func TestMiddlewareRejectsStaleTokenVersion(t *testing.T) {
 // asked for.
 func TestMiddlewareDeletedUserPassesThroughWithoutUser(t *testing.T) {
 	svc := NewService([]byte("s"), time.Hour)
-	tok, err := svc.Sign("u-gone", "alice", "Alice", 0)
+	tok, err := svc.SignUser("u-gone", "alice", "Alice", 0)
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}

@@ -238,6 +238,11 @@ type CreateGroupInput struct {
 	Tags graphql.Omittable[[]GroupTag] `json:"tags,omitempty"`
 }
 
+type CreateGuestInput struct {
+	Name            string `json:"name"`
+	DurationMinutes int    `json:"durationMinutes"`
+}
+
 type CreateInitialUserInput struct {
 	Username string `json:"username"`
 	Name     string `json:"name"`
@@ -269,6 +274,12 @@ type CreateWebhookEndpointInput struct {
 	Enabled           graphql.Omittable[*bool] `json:"enabled,omitempty"`
 	RateLimitCount    graphql.Omittable[*int]  `json:"rateLimitCount,omitempty"`
 	RateLimitWindowMs graphql.Omittable[*int]  `json:"rateLimitWindowMs,omitempty"`
+}
+
+type DashboardLocalization struct {
+	LocalizedNameSets          []*LocalizedNameSet `json:"localizedNameSets"`
+	DefaultContentLanguage     Language            `json:"defaultContentLanguage"`
+	TranslateStandardRoomNames bool                `json:"translateStandardRoomNames"`
 }
 
 type DesiredSceneState struct {
@@ -695,6 +706,24 @@ type GroupMember struct {
 	Device     *Device `json:"device,omitempty"`
 	Group      *Group  `json:"group,omitempty"`
 	Room       *Room   `json:"room,omitempty"`
+}
+
+type Guest struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type GuestAuthPayload struct {
+	Token string `json:"token"`
+	Guest *Guest `json:"guest"`
+}
+
+type GuestChangeEvent struct {
+	GuestID string          `json:"guestId"`
+	Kind    GuestChangeKind `json:"kind"`
+	Guest   *Guest          `json:"guest,omitempty"`
 }
 
 type GuidedVibeOption struct {
@@ -2261,6 +2290,65 @@ func (e *GroupTag) UnmarshalJSON(b []byte) error {
 }
 
 func (e GroupTag) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type GuestChangeKind string
+
+const (
+	GuestChangeKindCreated  GuestChangeKind = "CREATED"
+	GuestChangeKindExtended GuestChangeKind = "EXTENDED"
+	GuestChangeKindRevoked  GuestChangeKind = "REVOKED"
+	GuestChangeKindExpired  GuestChangeKind = "EXPIRED"
+)
+
+var AllGuestChangeKind = []GuestChangeKind{
+	GuestChangeKindCreated,
+	GuestChangeKindExtended,
+	GuestChangeKindRevoked,
+	GuestChangeKindExpired,
+}
+
+func (e GuestChangeKind) IsValid() bool {
+	switch e {
+	case GuestChangeKindCreated, GuestChangeKindExtended, GuestChangeKindRevoked, GuestChangeKindExpired:
+		return true
+	}
+	return false
+}
+
+func (e GuestChangeKind) String() string {
+	return string(e)
+}
+
+func (e *GuestChangeKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = GuestChangeKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid GuestChangeKind", str)
+	}
+	return nil
+}
+
+func (e GuestChangeKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *GuestChangeKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e GuestChangeKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

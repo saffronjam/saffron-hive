@@ -44,7 +44,7 @@ type ProfileWriter interface {
 }
 
 // NewUploadHandler returns the /api/avatars handler. It expects to be wrapped
-// in auth.RequireAuth so the current user can be read from the request
+// in auth.RequireUser so the current user can be read from the request
 // context. POST uploads a new avatar; DELETE clears the current user's avatar
 // (removes the file from disk and nulls the column).
 func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
@@ -57,7 +57,7 @@ func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cu, ok := auth.UserFromContext(r.Context())
+		cu, ok := auth.PrincipalFromContext(r.Context())
 		if !ok {
 			http.Error(w, "authentication required", http.StatusUnauthorized)
 			return
@@ -154,7 +154,7 @@ func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request, dir string, writer ProfileWriter) {
-	cu, ok := auth.UserFromContext(r.Context())
+	cu, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
 		http.Error(w, "authentication required", http.StatusUnauthorized)
 		return

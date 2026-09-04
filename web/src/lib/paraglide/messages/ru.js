@@ -119,7 +119,6 @@
 /** @typedef {{}} Auth_Sign_InInputs */
 /** @typedef {{}} Auth_Sign_In_TitleInputs */
 /** @typedef {{}} Auth_UsernameInputs */
-/** @typedef {{}} Auth_Welcome_BackInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Auth_Welcome_Choose_PasswordInputs */
 /** @typedef {{}} Automation_Action_Activate_SceneInputs */
 /** @typedef {{}} Automation_Action_Activate_Scene_DescriptionInputs */
@@ -778,6 +777,37 @@
 /** @typedef {{}} Group_TagsInputs */
 /** @typedef {{}} Group_Tags_AboutInputs */
 /** @typedef {{}} Group_Tags_HelpInputs */
+/** @typedef {{}} Guest_Login_FailedInputs */
+/** @typedef {{}} Guest_LogoutInputs */
+/** @typedef {{}} Guest_Mode_GuestInputs */
+/** @typedef {{}} Guest_Mode_UserInputs */
+/** @typedef {{}} Guest_NameInputs */
+/** @typedef {{}} Guest_Sign_In_TitleInputs */
+/** @typedef {{}} Guest_UnavailableInputs */
+/** @typedef {{}} Guests_AddInputs */
+/** @typedef {{}} Guests_Add_ShortInputs */
+/** @typedef {{}} Guests_Create_DescriptionInputs */
+/** @typedef {{}} Guests_Create_FailedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_CreatedInputs */
+/** @typedef {{}} Guests_CustomInputs */
+/** @typedef {{}} Guests_Custom_DurationInputs */
+/** @typedef {{}} Guests_DaysInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_Delete_DescriptionInputs */
+/** @typedef {{}} Guests_Delete_FailedInputs */
+/** @typedef {{}} Guests_Delete_TitleInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_DeletedInputs */
+/** @typedef {{}} Guests_DurationInputs */
+/** @typedef {{ time: NonNullable<unknown> }} Guests_ExpiresInputs */
+/** @typedef {{}} Guests_ExtendInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_Extend_DescriptionInputs */
+/** @typedef {{}} Guests_Extend_FailedInputs */
+/** @typedef {{}} Guests_Extend_MaximumInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_ExtendedInputs */
+/** @typedef {{}} Guests_Four_HoursInputs */
+/** @typedef {{}} Guests_HoursInputs */
+/** @typedef {{}} Guests_One_DayInputs */
+/** @typedef {{}} Guests_One_HourInputs */
+/** @typedef {{}} Guests_TypeInputs */
 /** @typedef {{}} History_All_HiddenInputs */
 /** @typedef {{}} History_Dismiss_ReadingInputs */
 /** @typedef {{}} History_EndInputs */
@@ -1464,7 +1494,9 @@
 /** @typedef {{}} Tuya_Sync_FailedInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Tuya_SyncedInputs */
 /** @typedef {{}} Users_Cannot_Delete_SelfInputs */
+/** @typedef {{}} Users_Column_ExpiresInputs */
 /** @typedef {{}} Users_Column_NameInputs */
+/** @typedef {{}} Users_Column_TypeInputs */
 /** @typedef {{}} Users_Column_UsernameInputs */
 /** @typedef {{}} Users_CreateInputs */
 /** @typedef {{}} Users_Create_DescriptionInputs */
@@ -1482,15 +1514,16 @@
 /** @typedef {{ count: NonNullable<unknown> }} Users_Deleted_CountInputs */
 /** @typedef {{}} Users_DeletingInputs */
 /** @typedef {{}} Users_Display_NameInputs */
-/** @typedef {{}} Users_LoadingInputs */
+/** @typedef {{}} Users_Loading_AccountsInputs */
 /** @typedef {{}} Users_New_PasswordInputs */
-/** @typedef {{}} Users_No_MatchInputs */
+/** @typedef {{}} Users_No_Account_MatchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Password_ResetInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Reset_DescriptionInputs */
 /** @typedef {{}} Users_Reset_FailedInputs */
 /** @typedef {{}} Users_Reset_PasswordInputs */
 /** @typedef {{}} Users_SavingInputs */
-/** @typedef {{}} Users_SearchInputs */
+/** @typedef {{}} Users_Search_AccountsInputs */
+/** @typedef {{}} Users_TypeInputs */
 /** @typedef {{}} Value_AbnormalInputs */
 /** @typedef {{}} Value_AutoInputs */
 /** @typedef {{}} Value_BackInputs */
@@ -2259,10 +2292,6 @@ export const auth_sign_in_title = /** @type {(inputs: Auth_Sign_In_TitleInputs) 
 
 export const auth_username = /** @type {(inputs: Auth_UsernameInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Имя пользователя`)
-};
-
-export const auth_welcome_back = /** @type {(inputs: Auth_Welcome_BackInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Добро пожаловать.`)
 };
 
 export const auth_welcome_choose_password = /** @type {(inputs: Auth_Welcome_Choose_PasswordInputs) => LocalizedString} */ (i) => {
@@ -5062,6 +5091,130 @@ export const group_tags_about = /** @type {(inputs: Group_Tags_AboutInputs) => L
 
 export const group_tags_help = /** @type {(inputs: Group_Tags_HelpInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Теги определяют, как эта группа будет отображаться на информационной панели.`)
+};
+
+export const guest_login_failed = /** @type {(inputs: Guest_Login_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Активный гость с таким именем не найден.`)
+};
+
+export const guest_logout = /** @type {(inputs: Guest_LogoutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выйти`)
+};
+
+export const guest_mode_guest = /** @type {(inputs: Guest_Mode_GuestInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Гость`)
+};
+
+export const guest_mode_user = /** @type {(inputs: Guest_Mode_UserInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Пользователь`)
+};
+
+export const guest_name = /** @type {(inputs: Guest_NameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Имя`)
+};
+
+export const guest_sign_in_title = /** @type {(inputs: Guest_Sign_In_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Гостевой вход`)
+};
+
+export const guest_unavailable = /** @type {(inputs: Guest_UnavailableInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Срок гостевого доступа истёк или доступ был удалён.`)
+};
+
+export const guests_add = /** @type {(inputs: Guests_AddInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Добавить гостя`)
+};
+
+export const guests_add_short = /** @type {(inputs: Guests_Add_ShortInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Гость`)
+};
+
+export const guests_create_description = /** @type {(inputs: Guests_Create_DescriptionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Гости входят по имени и могут пользоваться только панелью управления.`)
+};
+
+export const guests_create_failed = /** @type {(inputs: Guests_Create_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось добавить гостя.`)
+};
+
+export const guests_created = /** @type {(inputs: Guests_CreatedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Гость ${i?.name} добавлен`)
+};
+
+export const guests_custom = /** @type {(inputs: Guests_CustomInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Другой`)
+};
+
+export const guests_custom_duration = /** @type {(inputs: Guests_Custom_DurationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Продолжительность`)
+};
+
+export const guests_days = /** @type {(inputs: Guests_DaysInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Дни`)
+};
+
+export const guests_delete_description = /** @type {(inputs: Guests_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Немедленно прекратить гостевой доступ для ${i?.name}?`)
+};
+
+export const guests_delete_failed = /** @type {(inputs: Guests_Delete_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось удалить гостя.`)
+};
+
+export const guests_delete_title = /** @type {(inputs: Guests_Delete_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Удалить гостя`)
+};
+
+export const guests_deleted = /** @type {(inputs: Guests_DeletedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Гость ${i?.name} удалён`)
+};
+
+export const guests_duration = /** @type {(inputs: Guests_DurationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Срок доступа`)
+};
+
+export const guests_expires = /** @type {(inputs: Guests_ExpiresInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Доступ закончится ${i?.time}`)
+};
+
+export const guests_extend = /** @type {(inputs: Guests_ExtendInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Продлить доступ`)
+};
+
+export const guests_extend_description = /** @type {(inputs: Guests_Extend_DescriptionInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Добавить время к текущему сроку доступа гостя ${i?.name}.`)
+};
+
+export const guests_extend_failed = /** @type {(inputs: Guests_Extend_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось продлить гостевой доступ.`)
+};
+
+export const guests_extend_maximum = /** @type {(inputs: Guests_Extend_MaximumInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Срок доступа не может превышать 7 дней с момента создания гостя.`)
+};
+
+export const guests_extended = /** @type {(inputs: Guests_ExtendedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Доступ гостя ${i?.name} продлён`)
+};
+
+export const guests_four_hours = /** @type {(inputs: Guests_Four_HoursInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`4 часа`)
+};
+
+export const guests_hours = /** @type {(inputs: Guests_HoursInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Часы`)
+};
+
+export const guests_one_day = /** @type {(inputs: Guests_One_DayInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1 день`)
+};
+
+export const guests_one_hour = /** @type {(inputs: Guests_One_HourInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1 час`)
+};
+
+export const guests_type = /** @type {(inputs: Guests_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Гость`)
 };
 
 export const history_all_hidden = /** @type {(inputs: History_All_HiddenInputs) => LocalizedString} */ () => {
@@ -7929,8 +8082,16 @@ export const users_cannot_delete_self = /** @type {(inputs: Users_Cannot_Delete_
 	return /** @type {LocalizedString} */ (`Вы не можете удалить себя`)
 };
 
+export const users_column_expires = /** @type {(inputs: Users_Column_ExpiresInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Срок доступа`)
+};
+
 export const users_column_name = /** @type {(inputs: Users_Column_NameInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Имя`)
+};
+
+export const users_column_type = /** @type {(inputs: Users_Column_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Тип`)
 };
 
 export const users_column_username = /** @type {(inputs: Users_Column_UsernameInputs) => LocalizedString} */ () => {
@@ -7970,18 +8131,18 @@ export const users_delete_failed = /** @type {(inputs: Users_Delete_FailedInputs
 };
 
 export const users_delete_many_description = /** @type {(inputs: Users_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Выбранные пользователи будут удалены без возможности восстановления. Созданные ими ресурсы сохранятся без указания автора.`)
+	return /** @type {LocalizedString} */ (`Выбранные учётные записи будут удалены. Ресурсы, созданные пользователями, сохранятся без указания автора.`)
 };
 
 export const users_delete_many_failed = /** @type {(inputs: Users_Delete_Many_FailedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Не удалось удалить пользователей.`)
+	return /** @type {LocalizedString} */ (`Не удалось удалить учётные записи.`)
 };
 
 export const users_delete_many_title = /** @type {(inputs: Users_Delete_Many_TitleInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("ru", i?.count, {});
-	if (countPlural === "one") return /** @type {LocalizedString} */ (`Удалить ${i?.count} пользователя?`);
-	if (countPlural === "few") return /** @type {LocalizedString} */ (`Удалить ${i?.count} пользователей?`);
-	if (countPlural === "many") return /** @type {LocalizedString} */ (`Удалить ${i?.count} пользователей?`);
-	return /** @type {LocalizedString} */ (`Удалить ${i?.count} пользователя?`)
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`Удалить ${i?.count} учётную запись?`);
+	if (countPlural === "few") return /** @type {LocalizedString} */ (`Удалить ${i?.count} учётные записи?`);
+	if (countPlural === "many") return /** @type {LocalizedString} */ (`Удалить ${i?.count} учётных записей?`);
+	return /** @type {LocalizedString} */ (`Удалить ${i?.count} учётной записи?`)
 	
 };
 
@@ -7994,10 +8155,10 @@ export const users_deleted = /** @type {(inputs: Users_DeletedInputs) => Localiz
 };
 
 export const users_deleted_count = /** @type {(inputs: Users_Deleted_CountInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("ru", i?.count, {});
-	if (countPlural === "one") return /** @type {LocalizedString} */ (`Удалён ${i?.count} пользователь`);
-	if (countPlural === "few") return /** @type {LocalizedString} */ (`Удалено ${i?.count} пользователя`);
-	if (countPlural === "many") return /** @type {LocalizedString} */ (`Удалено ${i?.count} пользователей`);
-	return /** @type {LocalizedString} */ (`Удалено ${i?.count} пользователя`)
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`Удалена ${i?.count} учётная запись`);
+	if (countPlural === "few") return /** @type {LocalizedString} */ (`Удалены ${i?.count} учётные записи`);
+	if (countPlural === "many") return /** @type {LocalizedString} */ (`Удалено ${i?.count} учётных записей`);
+	return /** @type {LocalizedString} */ (`Удалено ${i?.count} учётной записи`)
 	
 };
 
@@ -8009,16 +8170,16 @@ export const users_display_name = /** @type {(inputs: Users_Display_NameInputs) 
 	return /** @type {LocalizedString} */ (`Отображаемое имя`)
 };
 
-export const users_loading = /** @type {(inputs: Users_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Загрузка пользователей...`)
+export const users_loading_accounts = /** @type {(inputs: Users_Loading_AccountsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Загрузка пользователей и гостей...`)
 };
 
 export const users_new_password = /** @type {(inputs: Users_New_PasswordInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Новый пароль`)
 };
 
-export const users_no_match = /** @type {(inputs: Users_No_MatchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Нет пользователей, соответствующих поиску.`)
+export const users_no_account_match = /** @type {(inputs: Users_No_Account_MatchInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Подходящие пользователи или гости не найдены.`)
 };
 
 export const users_password_reset = /** @type {(inputs: Users_Password_ResetInputs) => LocalizedString} */ (i) => {
@@ -8041,8 +8202,12 @@ export const users_saving = /** @type {(inputs: Users_SavingInputs) => Localized
 	return /** @type {LocalizedString} */ (`Сохранение…`)
 };
 
-export const users_search = /** @type {(inputs: Users_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Поиск пользователей...`)
+export const users_search_accounts = /** @type {(inputs: Users_Search_AccountsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Поиск среди пользователей и гостей...`)
+};
+
+export const users_type = /** @type {(inputs: Users_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Пользователь`)
 };
 
 export const value_abnormal = /** @type {(inputs: Value_AbnormalInputs) => LocalizedString} */ () => {

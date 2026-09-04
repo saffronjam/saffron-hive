@@ -6,14 +6,16 @@ interface JWTPayload {
   sub: string;
   username: string;
   name: string;
+  guest?: boolean;
   exp: number;
   iat: number;
 }
 
-export interface CurrentUser {
+export interface CurrentPrincipal {
   id: string;
   username: string;
   name: string;
+  guest: boolean;
 }
 
 function readStoredToken(): string | null {
@@ -48,9 +50,17 @@ function createAuth() {
     get token() {
       return token;
     },
-    get user(): CurrentUser | null {
+    get user(): CurrentPrincipal | null {
       if (!payload) return null;
-      return { id: payload.sub, username: payload.username, name: payload.name };
+      return {
+        id: payload.sub,
+        username: payload.username ?? "",
+        name: payload.name,
+        guest: payload.guest === true,
+      };
+    },
+    isGuest(): boolean {
+      return payload?.guest === true;
     },
     /** Synchronous auth check — token exists and is not expired. */
     isAuthenticated(): boolean {

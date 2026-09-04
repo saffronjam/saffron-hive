@@ -1289,7 +1289,7 @@ func (r *mutationResolver) CreateInitialUser(ctx context.Context, input model.Cr
 // their initial password on first login (the admin-supplied password is
 // treated as temporary).
 func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error) {
-	if _, ok := auth.UserFromContext(ctx); !ok {
+	if _, ok := auth.PrincipalFromContext(ctx); !ok {
 		return nil, fmt.Errorf("authentication required")
 	}
 	u, err := createUserRow(ctx, r.Store, input.Username, input.Name, input.Password, true)
@@ -1299,11 +1299,132 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	return mapUser(u), nil
 }
 
+// GuestLogin is the resolver for the guestLogin field.
+func (r *mutationResolver) GuestLogin(ctx context.Context, name string) (*model.GuestAuthPayload, error) {
+	ip := auth.ClientIPFromContext(ctx)
+	normalized := normalizeGuestName(name)
+	now := time.Now().UTC()
+	limiterKey := "guest:" + normalized
+	if r.LoginLimiter != nil {
+		if ok, retry := r.LoginLimiter.Allow(ip, limiterKey, now); !ok {
+			return nil, fmt.Errorf("too many login attempts; try again in %s", retry.Round(time.Second))
+		}
+	}
+	guest, err := r.Store.GetActiveGuestByNormalizedName(ctx, normalized, now)
+	if err != nil || normalized == "" {
+		if r.LoginLimiter != nil {
+			r.LoginLimiter.RecordFailure(ip, limiterKey, now)
+		}
+		return nil, fmt.Errorf("guest access is unavailable")
+	}
+	token, err := r.Auth.SignGuest(guest.ID, guest.Name, guest.CreatedAt.Add(auth.MaxGuestLifetime))
+	if err != nil {
+		if r.LoginLimiter != nil {
+			r.LoginLimiter.RecordFailure(ip, limiterKey, now)
+		}
+		return nil, fmt.Errorf("sign guest token: %w", err)
+	}
+	if r.LoginLimiter != nil {
+		r.LoginLimiter.RecordSuccess(ip, limiterKey)
+	}
+	return &model.GuestAuthPayload{Token: token, Guest: mapGuest(guest)}, nil
+}
+
+// CreateGuest is the resolver for the createGuest field.
+func (r *mutationResolver) CreateGuest(ctx context.Context, input model.CreateGuestInput) (*model.Guest, error) {
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return nil, fmt.Errorf("guest name is required")
+	}
+	duration, err := guestDuration(input.DurationMinutes)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	guest, err := r.Store.CreateGuest(ctx, store.CreateGuestParams{
+		ID:             uuid.New().String(),
+		Name:           name,
+		NormalizedName: normalizeGuestName(name),
+		ExpiresAt:      now.Add(duration),
+		CreatedAt:      now,
+	})
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			return nil, fmt.Errorf("an active guest already uses that name")
+		}
+		return nil, err
+	}
+	r.publishGuestChange(eventbus.GuestCreated, guest)
+	return mapGuest(guest), nil
+}
+
+// ExtendGuest is the resolver for the extendGuest field.
+func (r *mutationResolver) ExtendGuest(ctx context.Context, id string, durationMinutes int) (*model.Guest, error) {
+	duration, err := guestDuration(durationMinutes)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	guest, err := r.Store.GetActiveGuestByID(ctx, id, now)
+	if err != nil {
+		return nil, fmt.Errorf("active guest not found")
+	}
+	expiresAt := guest.ExpiresAt.Add(duration)
+	if expiresAt.After(guest.CreatedAt.Add(auth.MaxGuestLifetime)) {
+		return nil, fmt.Errorf("guest access cannot extend beyond seven days from creation")
+	}
+	guest, err = r.Store.UpdateGuestExpiresAt(ctx, id, expiresAt)
+	if err != nil {
+		return nil, err
+	}
+	r.publishGuestChange(eventbus.GuestExtended, guest)
+	return mapGuest(guest), nil
+}
+
+// DeleteGuest is the resolver for the deleteGuest field.
+func (r *mutationResolver) DeleteGuest(ctx context.Context, id string) (bool, error) {
+	guest, err := r.Store.GetGuestByID(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	deleted, err := r.Store.DeleteGuest(ctx, id)
+	if err != nil || !deleted {
+		return deleted, err
+	}
+	r.publishGuestChange(eventbus.GuestRevoked, guest)
+	return true, nil
+}
+
+// BatchDeleteGuests is the resolver for the batchDeleteGuests field.
+func (r *mutationResolver) BatchDeleteGuests(ctx context.Context, ids []string) (int, error) {
+	active, err := r.Store.ListActiveGuests(ctx, time.Now().UTC())
+	if err != nil {
+		return 0, err
+	}
+	byID := make(map[string]store.Guest, len(active))
+	for _, guest := range active {
+		byID[guest.ID] = guest
+	}
+	deleted, err := r.Store.BatchDeleteGuests(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	for _, id := range deleted {
+		guest := byID[id]
+		guest.ID = id
+		r.publishGuestChange(eventbus.GuestRevoked, guest)
+	}
+	return len(deleted), nil
+}
+
 // UpdateCurrentUser applies a partial update to the authenticated user's
 // profile. Currently covers display name and theme; avatar changes go through
 // the POST /api/avatars upload endpoint.
 func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.UpdateCurrentUserInput) (*model.User, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("authentication required")
 	}
@@ -1345,7 +1466,7 @@ func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.Up
 // their existing one. The current JWT continues to work until it expires;
 // server-side revocation of live tokens is out of scope.
 func (r *mutationResolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return false, fmt.Errorf("authentication required")
 	}
@@ -1376,7 +1497,7 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 // must_change_password flag for the authenticated user. Returns false if the
 // caller was not in the forced-change state (no row updated).
 func (r *mutationResolver) CompleteFirstPasswordChange(ctx context.Context, newPassword string) (bool, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return false, fmt.Errorf("authentication required")
 	}
@@ -1406,7 +1527,7 @@ func (r *mutationResolver) CompleteFirstPasswordChange(ctx context.Context, newP
 // forced-change flow on their next login: an admin-set password is always a
 // temporary password.
 func (r *mutationResolver) ResetUserPassword(ctx context.Context, id string, newPassword string) (bool, error) {
-	if _, ok := auth.UserFromContext(ctx); !ok {
+	if _, ok := auth.PrincipalFromContext(ctx); !ok {
 		return false, fmt.Errorf("authentication required")
 	}
 	if err := validatePassword(newPassword); err != nil {
@@ -1437,7 +1558,7 @@ func (r *mutationResolver) ResetUserPassword(ctx context.Context, id string, new
 // authenticated caller can force-logout any user — matching the project's
 // "all auth = admin" posture; revisit when role gating lands.
 func (r *mutationResolver) ForceLogoutAllSessions(ctx context.Context, userID *string) (bool, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return false, fmt.Errorf("authentication required")
 	}
@@ -1459,7 +1580,7 @@ func (r *mutationResolver) ForceLogoutAllSessions(ctx context.Context, userID *s
 // Creator attribution on scenes/automations/groups/rooms becomes NULL via the
 // FK ON DELETE SET NULL configured on those tables.
 func (r *mutationResolver) DeleteUser(ctx context.Context, id string) (bool, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return false, fmt.Errorf("authentication required")
 	}
@@ -1616,7 +1737,7 @@ func (r *mutationResolver) BatchDeleteAlarms(ctx context.Context, alarmIds []str
 
 // CompleteMaintenanceTasks is the resolver for the completeMaintenanceTasks field.
 func (r *mutationResolver) CompleteMaintenanceTasks(ctx context.Context, ids []string) ([]string, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("authentication required")
 	}
@@ -1627,7 +1748,7 @@ func (r *mutationResolver) CompleteMaintenanceTasks(ctx context.Context, ids []s
 // currently authenticated user is silently filtered out before the store call,
 // mirroring the single deleteUser self-protection rule.
 func (r *mutationResolver) BatchDeleteUsers(ctx context.Context, ids []string) (int, error) {
-	cu, ok := auth.UserFromContext(ctx)
+	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return 0, fmt.Errorf("authentication required")
 	}
@@ -2719,8 +2840,8 @@ func (r *queryResolver) SetupStatus(ctx context.Context) (*model.SetupStatus, er
 // full row is loaded from the DB so avatar / theme / name updates take effect
 // without requiring the client to re-authenticate.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	cu, ok := auth.UserFromContext(ctx)
-	if !ok {
+	cu, ok := auth.PrincipalFromContext(ctx)
+	if !ok || cu.Guest {
 		return nil, nil
 	}
 	u, err := r.Store.GetUserByID(ctx, cu.ID)
@@ -2741,6 +2862,66 @@ func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 		result[i] = mapUser(u)
 	}
 	return result, nil
+}
+
+// Guests is the resolver for the guests field.
+func (r *queryResolver) Guests(ctx context.Context) ([]*model.Guest, error) {
+	guests, err := r.Store.ListActiveGuests(ctx, time.Now().UTC())
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.Guest, len(guests))
+	for i, guest := range guests {
+		result[i] = mapGuest(guest)
+	}
+	return result, nil
+}
+
+// CurrentGuest is the resolver for the currentGuest field.
+func (r *queryResolver) CurrentGuest(ctx context.Context) (*model.Guest, error) {
+	principal, ok := auth.PrincipalFromContext(ctx)
+	if !ok || !principal.Guest {
+		return nil, nil
+	}
+	guest, err := r.Store.GetActiveGuestByID(ctx, principal.ID, time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("guest access expired or revoked")
+	}
+	return mapGuest(guest), nil
+}
+
+// DashboardLocalization is the resolver for the dashboardLocalization field.
+func (r *queryResolver) DashboardLocalization(ctx context.Context) (*model.DashboardLocalization, error) {
+	sets, err := r.Store.ListLocalizedNameSets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	allowedTypes := map[string]bool{"device": true, "group": true, "room": true, "scene": true}
+	mapped := make([]*model.LocalizedNameSet, 0, len(sets))
+	for _, names := range sets {
+		if allowedTypes[names.EntityType] {
+			mapped = append(mapped, mapLocalizedNameSet(names))
+		}
+	}
+	settings, err := r.Store.ListSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	language := model.LanguageEn
+	translateRooms := false
+	for _, setting := range settings {
+		switch setting.Key {
+		case "i18n.default_content_language":
+			language = languageFromStore(setting.Value)
+		case "i18n.translate_standard_room_names":
+			translateRooms = setting.Value == "true"
+		}
+	}
+	return &model.DashboardLocalization{
+		LocalizedNameSets:          mapped,
+		DefaultContentLanguage:     language,
+		TranslateStandardRoomNames: translateRooms,
+	}, nil
 }
 
 // Effects is the resolver for the effects field. Native rows are filtered
@@ -3263,6 +3444,49 @@ func (r *subscriptionResolver) SceneActiveChanged(ctx context.Context) (<-chan *
 		}
 	}()
 
+	return out, nil
+}
+
+// GuestChanged is the resolver for the guestChanged field.
+func (r *subscriptionResolver) GuestChanged(ctx context.Context) (<-chan *model.GuestChangeEvent, error) {
+	principal, _ := auth.PrincipalFromContext(ctx)
+	changes := r.EventBus.Subscribe(eventbus.EventGuestChanged)
+	out := make(chan *model.GuestChangeEvent, 1)
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(changes)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-changes:
+				if !ok {
+					return
+				}
+				change, ok := event.Payload.(eventbus.GuestChangedEvent)
+				if !ok || principal.Guest && change.GuestID != principal.ID {
+					continue
+				}
+				mapped := &model.GuestChangeEvent{
+					GuestID: change.GuestID,
+					Kind:    mapGuestChangeKind(change.Kind),
+				}
+				if change.Kind == eventbus.GuestCreated || change.Kind == eventbus.GuestExtended {
+					mapped.Guest = mapGuest(store.Guest{
+						ID:        change.GuestID,
+						Name:      change.Name,
+						ExpiresAt: change.ExpiresAt,
+						CreatedAt: change.CreatedAt,
+					})
+				}
+				select {
+				case out <- mapped:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
 	return out, nil
 }
 

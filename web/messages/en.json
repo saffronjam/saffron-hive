@@ -56,10 +56,16 @@
   "nav_log_out": "Log out ({name})",
   "auth_sign_in": "Sign in",
   "auth_sign_in_title": "Sign in",
-  "auth_welcome_back": "Welcome back.",
   "auth_username": "Username",
   "auth_password": "Password",
   "auth_login_failed": "Sign-in failed. Check your username and password.",
+  "guest_mode_user": "User",
+  "guest_mode_guest": "Guest",
+  "guest_sign_in_title": "Guest access",
+  "guest_name": "Name",
+  "guest_login_failed": "No active guest was found with that name.",
+  "guest_unavailable": "This guest access has expired or was removed.",
+  "guest_logout": "Log out",
   "auth_setup": "Setup",
   "auth_setup_welcome": "Welcome to Hive!",
   "auth_setup_description": "Create the first user. This will be your admin account.",
@@ -1442,18 +1448,15 @@
   ,"logs_paused": "Paused"
   ,"users_create": "Create user"
   ,"users_create_short": "Create"
-  ,"users_deleted_count": "{count, plural, one {{count} user deleted} other {{count} users deleted}}"
+  ,"users_deleted_count": "{count, plural, one {{count} account deleted} other {{count} accounts deleted}}"
   ,"users_delete_failed": "Could not delete the user."
-  ,"users_delete_many_failed": "Could not delete the users."
+  ,"users_delete_many_failed": "Could not delete the accounts."
   ,"users_create_failed": "Could not create the user."
   ,"users_created": "User created"
   ,"users_reset_failed": "Could not reset the password."
   ,"users_password_reset": "Password reset for {name}"
   ,"users_deleted": "{name} deleted"
   ,"users_cannot_delete_self": "You can't delete yourself"
-  ,"users_search": "Search users…"
-  ,"users_loading": "Loading users…"
-  ,"users_no_match": "No users match."
   ,"users_reset_password": "Reset password"
   ,"users_column_name": "Name"
   ,"users_column_username": "Username"
@@ -1466,8 +1469,38 @@
   ,"users_delete_title": "Delete user"
   ,"users_delete_description": "This permanently removes {name}. Resources they created (scenes, automations, groups, and rooms) stay, with their attribution cleared."
   ,"users_deleting": "Deleting…"
-  ,"users_delete_many_title": "Delete {count, plural, one {{count} user} other {{count} users}}?"
-  ,"users_delete_many_description": "This permanently removes the selected users. Resources they created stay, with their attribution cleared."
+  ,"users_delete_many_title": "Delete {count, plural, one {{count} account} other {{count} accounts}}?"
+  ,"users_delete_many_description": "This removes the selected accounts. Resources created by users stay, with their attribution cleared."
+  ,"users_search_accounts": "Search users and guests…"
+  ,"users_loading_accounts": "Loading users and guests…"
+  ,"users_no_account_match": "No users or guests match."
+  ,"users_column_type": "Type"
+  ,"users_column_expires": "Expires"
+  ,"users_type": "User"
+  ,"guests_type": "Guest"
+  ,"guests_add": "Add guest"
+  ,"guests_add_short": "Guest"
+  ,"guests_create_description": "Guests sign in with their name and can use only the dashboard."
+  ,"guests_duration": "Access for"
+  ,"guests_one_hour": "1 hour"
+  ,"guests_four_hours": "4 hours"
+  ,"guests_one_day": "1 day"
+  ,"guests_custom": "Custom"
+  ,"guests_custom_duration": "Duration"
+  ,"guests_hours": "Hours"
+  ,"guests_days": "Days"
+  ,"guests_create_failed": "Could not add the guest."
+  ,"guests_created": "Guest {name} added"
+  ,"guests_expires": "Expires {time}"
+  ,"guests_extend": "Extend access"
+  ,"guests_extend_description": "Add time to {name}'s current expiry."
+  ,"guests_extend_maximum": "The expiry cannot be later than 7 days after the guest was created."
+  ,"guests_extend_failed": "Could not extend the guest access."
+  ,"guests_extended": "Access extended for {name}"
+  ,"guests_delete_title": "Remove guest"
+  ,"guests_delete_description": "Remove {name}'s guest access immediately?"
+  ,"guests_delete_failed": "Could not remove the guest."
+  ,"guests_deleted": "Guest {name} removed"
   ,"webhooks_title": "Webhooks"
   ,"webhooks_create": "Create webhook"
   ,"webhooks_create_short": "Create"

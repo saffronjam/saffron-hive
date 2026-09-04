@@ -21,6 +21,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
+	"golang.org/x/text/unicode/norm"
 )
 
 var graphLogger = logging.Named("graph")
@@ -242,7 +243,7 @@ func createUserRow(ctx context.Context, s GraphStore, username, name, password s
 }
 
 func signAuthPayload(svc *auth.Service, u store.User) (*model.AuthPayload, error) {
-	token, err := svc.Sign(u.ID, u.Username, u.Name, u.TokenVersion)
+	token, err := svc.SignUser(u.ID, u.Username, u.Name, u.TokenVersion)
 	if err != nil {
 		return nil, fmt.Errorf("sign token: %w", err)
 	}
@@ -313,8 +314,8 @@ func (r *Resolver) loadGroup(ctx context.Context, id string) (*model.Group, erro
 }
 
 func currentUserID(ctx context.Context) *string {
-	u, ok := auth.UserFromContext(ctx)
-	if !ok {
+	u, ok := auth.PrincipalFromContext(ctx)
+	if !ok || u.Guest {
 		return nil
 	}
 	id := u.ID
@@ -905,6 +906,60 @@ func mapUser(u store.User) *model.User {
 		CreatedAt:          &createdAt,
 		MustChangePassword: &mustChange,
 	}
+}
+
+func mapGuest(guest store.Guest) *model.Guest {
+	return &model.Guest{
+		ID:        guest.ID,
+		Name:      guest.Name,
+		ExpiresAt: guest.ExpiresAt,
+		CreatedAt: guest.CreatedAt,
+	}
+}
+
+func normalizeGuestName(name string) string {
+	return norm.NFKC.String(strings.ToLower(strings.TrimSpace(name)))
+}
+
+func guestDuration(minutes int) (time.Duration, error) {
+	if minutes <= 0 {
+		return 0, fmt.Errorf("guest duration must be positive")
+	}
+	if minutes > int(auth.MaxGuestLifetime/time.Minute) {
+		return 0, fmt.Errorf("guest duration cannot exceed seven days")
+	}
+	duration := time.Duration(minutes) * time.Minute
+	return duration, nil
+}
+
+func mapGuestChangeKind(kind eventbus.GuestChangeKind) model.GuestChangeKind {
+	switch kind {
+	case eventbus.GuestCreated:
+		return model.GuestChangeKindCreated
+	case eventbus.GuestExtended:
+		return model.GuestChangeKindExtended
+	case eventbus.GuestExpired:
+		return model.GuestChangeKindExpired
+	default:
+		return model.GuestChangeKindRevoked
+	}
+}
+
+func (r *Resolver) publishGuestChange(kind eventbus.GuestChangeKind, guest store.Guest) {
+	if r.EventBus == nil {
+		return
+	}
+	r.EventBus.Publish(eventbus.Event{
+		Type:      eventbus.EventGuestChanged,
+		Timestamp: time.Now(),
+		Payload: eventbus.GuestChangedEvent{
+			GuestID:   guest.ID,
+			Name:      guest.Name,
+			Kind:      kind,
+			ExpiresAt: guest.ExpiresAt,
+			CreatedAt: guest.CreatedAt,
+		},
+	})
 }
 
 func languageFromStore(s string) model.Language {

@@ -5,21 +5,23 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
+
+// MaxGuestLifetime is the longest a guest may exist from creation.
+const MaxGuestLifetime = 7 * 24 * time.Hour
 
 // RefreshedTokenHeader carries a freshly signed JWT on every authenticated
 // response. The frontend swaps it into localStorage so the session slides
 // forward on activity — users stay logged in for as long as they're active.
 const RefreshedTokenHeader = "X-Refreshed-Token"
 
-// UserLookup loads the current user row. The Middleware calls it after parsing
-// the JWT so deleted accounts reject on their next authenticated request. Keep
-// the interface narrow so tests can provide a fake without pulling in the
-// whole store package.
-type UserLookup interface {
+// PrincipalLookup loads current user and guest rows after JWT verification.
+type PrincipalLookup interface {
 	GetUserByID(ctx context.Context, id string) (store.User, error)
+	GetActiveGuestByID(ctx context.Context, id string, now time.Time) (store.Guest, error)
 }
 
 // Middleware attempts to authenticate the request and attaches the user to the
@@ -35,7 +37,7 @@ type UserLookup interface {
 // WebSocket upgrade requests pass through untouched: the graphql-ws transport
 // authenticates via the connection_init payload, handled by the gqlgen
 // transport's InitFunc.
-func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
+func Middleware(svc *Service, lookup PrincipalLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if IsWebSocketUpgrade(r) {
@@ -43,18 +45,19 @@ func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler
 				return
 			}
 
-			user, err := authenticate(r, svc, lookup)
+			principal, err := authenticate(r, svc, lookup)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			if fresh, signErr := svc.Sign(user.ID, user.Username, user.Name, user.TokenVersion); signErr == nil {
+			fresh, signErr := refreshToken(svc, principal)
+			if signErr == nil {
 				w.Header().Set(RefreshedTokenHeader, fresh)
 				w.Header().Add("Access-Control-Expose-Headers", RefreshedTokenHeader)
 			}
 
-			next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), user)))
+			next.ServeHTTP(w, r.WithContext(WithPrincipal(r.Context(), principal)))
 		})
 	}
 }
@@ -63,42 +66,81 @@ func Middleware(svc *Service, lookup UserLookup) func(http.Handler) http.Handler
 // authentication. Used by the avatar upload endpoint, where there is no
 // per-field directive to fall back on, so the middleware itself must reject
 // unauthenticated callers.
-func RequireAuth(svc *Service, lookup UserLookup) func(http.Handler) http.Handler {
+func RequireAuth(svc *Service, lookup PrincipalLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, err := authenticate(r, svc, lookup)
+			principal, err := authenticate(r, svc, lookup)
 			if err != nil {
 				writeAuthError(w, err.Error())
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), user)))
+			next.ServeHTTP(w, r.WithContext(WithPrincipal(r.Context(), principal)))
 		})
 	}
 }
 
-func authenticate(r *http.Request, svc *Service, lookup UserLookup) (CtxUser, error) {
+// RequireUser protects an HTTP handler from unauthenticated and guest callers.
+func RequireUser(svc *Service, lookup PrincipalLookup) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			principal, err := authenticate(r, svc, lookup)
+			if err != nil || principal.Guest {
+				writeAuthError(w, "user authentication required")
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(WithPrincipal(r.Context(), principal)))
+		})
+	}
+}
+
+func authenticate(r *http.Request, svc *Service, lookup PrincipalLookup) (Principal, error) {
 	token := extractBearer(r)
 	if token == "" {
-		return CtxUser{}, errStr("missing authorization token")
+		return Principal{}, errStr("missing authorization token")
 	}
+	return AuthenticateToken(r.Context(), svc, lookup, token, time.Now())
+}
+
+// AuthenticateToken verifies a token and reloads its current principal row.
+func AuthenticateToken(ctx context.Context, svc *Service, lookup PrincipalLookup, token string, now time.Time) (Principal, error) {
 	claims, err := svc.Parse(token)
 	if err != nil {
-		return CtxUser{}, errStr("invalid or expired token")
+		return Principal{}, errStr("invalid or expired token")
 	}
-	u, err := lookup.GetUserByID(r.Context(), claims.UserID)
+	if claims.Guest {
+		guest, err := lookup.GetActiveGuestByID(ctx, claims.PrincipalID, now)
+		if err != nil {
+			return Principal{}, errStr("guest access expired or revoked")
+		}
+		return Principal{
+			ID:              guest.ID,
+			Name:            guest.Name,
+			Guest:           true,
+			HardExpiresAt:   guest.CreatedAt.Add(MaxGuestLifetime),
+			AccessExpiresAt: guest.ExpiresAt,
+		}, nil
+	}
+	u, err := lookup.GetUserByID(ctx, claims.PrincipalID)
 	if err != nil {
-		return CtxUser{}, errStr("user not found")
+		return Principal{}, errStr("user not found")
 	}
 	if claims.TokenVersion != u.TokenVersion {
-		return CtxUser{}, errStr("session revoked")
+		return Principal{}, errStr("session revoked")
 	}
-	return CtxUser{
+	return Principal{
 		ID:                 u.ID,
 		Username:           u.Username,
 		Name:               u.Name,
 		MustChangePassword: u.MustChangePassword,
 		TokenVersion:       u.TokenVersion,
 	}, nil
+}
+
+func refreshToken(svc *Service, principal Principal) (string, error) {
+	if principal.Guest {
+		return svc.SignGuest(principal.ID, principal.Name, principal.HardExpiresAt)
+	}
+	return svc.SignUser(principal.ID, principal.Username, principal.Name, principal.TokenVersion)
 }
 
 type errStr string

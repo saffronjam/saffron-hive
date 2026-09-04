@@ -3,6 +3,7 @@ export interface GateState {
   pathname: string;
   hasInitialUser: boolean;
   isAuthenticated: boolean;
+  isGuest: boolean;
   mustChangePassword: boolean;
 }
 
@@ -17,7 +18,11 @@ export function nextRoute(state: GateState): string | null {
     return state.pathname === "/setup" ? null : "/setup";
   }
   if (!state.isAuthenticated) {
-    return state.pathname === "/login" ? null : "/login";
+    if (state.pathname === "/login") return null;
+    return state.isGuest ? "/login?mode=guest&reason=unavailable" : "/login";
+  }
+  if (state.isGuest) {
+    return state.pathname === "/" ? null : "/";
   }
   if (state.mustChangePassword) {
     return state.pathname === "/change-password-required" ? null : "/change-password-required";

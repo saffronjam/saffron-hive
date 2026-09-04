@@ -68,7 +68,7 @@ func newAlarmTestEnv(t *testing.T) (*testEnv, *alarms.Service) {
 	// Mirror the user-injecting wrapper from newTestEnv so the @auth directive
 	// is satisfied for the protected alarm queries/mutations exercised here.
 	authed := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(auth.WithUser(r.Context(), testUser))
+		r = r.WithContext(auth.WithPrincipal(r.Context(), testUser))
 		srv.ServeHTTP(w, r)
 	})
 	ts := httptest.NewServer(authed)

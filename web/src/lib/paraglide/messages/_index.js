@@ -121,7 +121,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Auth_Sign_InInputs */
 /** @typedef {{}} Auth_Sign_In_TitleInputs */
 /** @typedef {{}} Auth_UsernameInputs */
-/** @typedef {{}} Auth_Welcome_BackInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Auth_Welcome_Choose_PasswordInputs */
 /** @typedef {{}} Automation_Action_Activate_SceneInputs */
 /** @typedef {{}} Automation_Action_Activate_Scene_DescriptionInputs */
@@ -780,6 +779,37 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Group_TagsInputs */
 /** @typedef {{}} Group_Tags_AboutInputs */
 /** @typedef {{}} Group_Tags_HelpInputs */
+/** @typedef {{}} Guest_Login_FailedInputs */
+/** @typedef {{}} Guest_LogoutInputs */
+/** @typedef {{}} Guest_Mode_GuestInputs */
+/** @typedef {{}} Guest_Mode_UserInputs */
+/** @typedef {{}} Guest_NameInputs */
+/** @typedef {{}} Guest_Sign_In_TitleInputs */
+/** @typedef {{}} Guest_UnavailableInputs */
+/** @typedef {{}} Guests_AddInputs */
+/** @typedef {{}} Guests_Add_ShortInputs */
+/** @typedef {{}} Guests_Create_DescriptionInputs */
+/** @typedef {{}} Guests_Create_FailedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_CreatedInputs */
+/** @typedef {{}} Guests_CustomInputs */
+/** @typedef {{}} Guests_Custom_DurationInputs */
+/** @typedef {{}} Guests_DaysInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_Delete_DescriptionInputs */
+/** @typedef {{}} Guests_Delete_FailedInputs */
+/** @typedef {{}} Guests_Delete_TitleInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_DeletedInputs */
+/** @typedef {{}} Guests_DurationInputs */
+/** @typedef {{ time: NonNullable<unknown> }} Guests_ExpiresInputs */
+/** @typedef {{}} Guests_ExtendInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_Extend_DescriptionInputs */
+/** @typedef {{}} Guests_Extend_FailedInputs */
+/** @typedef {{}} Guests_Extend_MaximumInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_ExtendedInputs */
+/** @typedef {{}} Guests_Four_HoursInputs */
+/** @typedef {{}} Guests_HoursInputs */
+/** @typedef {{}} Guests_One_DayInputs */
+/** @typedef {{}} Guests_One_HourInputs */
+/** @typedef {{}} Guests_TypeInputs */
 /** @typedef {{}} History_All_HiddenInputs */
 /** @typedef {{}} History_Dismiss_ReadingInputs */
 /** @typedef {{}} History_EndInputs */
@@ -1466,7 +1496,9 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Tuya_Sync_FailedInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Tuya_SyncedInputs */
 /** @typedef {{}} Users_Cannot_Delete_SelfInputs */
+/** @typedef {{}} Users_Column_ExpiresInputs */
 /** @typedef {{}} Users_Column_NameInputs */
+/** @typedef {{}} Users_Column_TypeInputs */
 /** @typedef {{}} Users_Column_UsernameInputs */
 /** @typedef {{}} Users_CreateInputs */
 /** @typedef {{}} Users_Create_DescriptionInputs */
@@ -1484,15 +1516,16 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ count: NonNullable<unknown> }} Users_Deleted_CountInputs */
 /** @typedef {{}} Users_DeletingInputs */
 /** @typedef {{}} Users_Display_NameInputs */
-/** @typedef {{}} Users_LoadingInputs */
+/** @typedef {{}} Users_Loading_AccountsInputs */
 /** @typedef {{}} Users_New_PasswordInputs */
-/** @typedef {{}} Users_No_MatchInputs */
+/** @typedef {{}} Users_No_Account_MatchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Password_ResetInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Reset_DescriptionInputs */
 /** @typedef {{}} Users_Reset_FailedInputs */
 /** @typedef {{}} Users_Reset_PasswordInputs */
 /** @typedef {{}} Users_SavingInputs */
-/** @typedef {{}} Users_SearchInputs */
+/** @typedef {{}} Users_Search_AccountsInputs */
+/** @typedef {{}} Users_TypeInputs */
 /** @typedef {{}} Value_AbnormalInputs */
 /** @typedef {{}} Value_AutoInputs */
 /** @typedef {{}} Value_BackInputs */
@@ -3549,21 +3582,6 @@ export const auth_username = /** @type {((inputs?: Auth_UsernameInputs, options?
 	if (locale === "sv") return __sv.auth_username(inputs)
 	if (locale === "ru") return __ru.auth_username(inputs)
 	return __en.auth_username(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Welcome back." |
-*
-* @param {Auth_Welcome_BackInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const auth_welcome_back = /** @type {((inputs?: Auth_Welcome_BackInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Auth_Welcome_BackInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.auth_welcome_back(inputs)
-	if (locale === "ru") return __ru.auth_welcome_back(inputs)
-	return __en.auth_welcome_back(inputs)
 });
 /**
 * | output |
@@ -13478,6 +13496,471 @@ export const group_tags_help = /** @type {((inputs?: Group_Tags_HelpInputs, opti
 	if (locale === "sv") return __sv.group_tags_help(inputs)
 	if (locale === "ru") return __ru.group_tags_help(inputs)
 	return __en.group_tags_help(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "No active guest was found with that name." |
+*
+* @param {Guest_Login_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_login_failed = /** @type {((inputs?: Guest_Login_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_Login_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_login_failed(inputs)
+	if (locale === "ru") return __ru.guest_login_failed(inputs)
+	return __en.guest_login_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Log out" |
+*
+* @param {Guest_LogoutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_logout = /** @type {((inputs?: Guest_LogoutInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_LogoutInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_logout(inputs)
+	if (locale === "ru") return __ru.guest_logout(inputs)
+	return __en.guest_logout(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guest" |
+*
+* @param {Guest_Mode_GuestInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_mode_guest = /** @type {((inputs?: Guest_Mode_GuestInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_Mode_GuestInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_mode_guest(inputs)
+	if (locale === "ru") return __ru.guest_mode_guest(inputs)
+	return __en.guest_mode_guest(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "User" |
+*
+* @param {Guest_Mode_UserInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_mode_user = /** @type {((inputs?: Guest_Mode_UserInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_Mode_UserInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_mode_user(inputs)
+	if (locale === "ru") return __ru.guest_mode_user(inputs)
+	return __en.guest_mode_user(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Name" |
+*
+* @param {Guest_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_name = /** @type {((inputs?: Guest_NameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_NameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_name(inputs)
+	if (locale === "ru") return __ru.guest_name(inputs)
+	return __en.guest_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guest access" |
+*
+* @param {Guest_Sign_In_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_sign_in_title = /** @type {((inputs?: Guest_Sign_In_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_Sign_In_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_sign_in_title(inputs)
+	if (locale === "ru") return __ru.guest_sign_in_title(inputs)
+	return __en.guest_sign_in_title(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "This guest access has expired or was removed." |
+*
+* @param {Guest_UnavailableInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guest_unavailable = /** @type {((inputs?: Guest_UnavailableInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guest_UnavailableInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guest_unavailable(inputs)
+	if (locale === "ru") return __ru.guest_unavailable(inputs)
+	return __en.guest_unavailable(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Add guest" |
+*
+* @param {Guests_AddInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_add = /** @type {((inputs?: Guests_AddInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_AddInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_add(inputs)
+	if (locale === "ru") return __ru.guests_add(inputs)
+	return __en.guests_add(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guest" |
+*
+* @param {Guests_Add_ShortInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_add_short = /** @type {((inputs?: Guests_Add_ShortInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Add_ShortInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_add_short(inputs)
+	if (locale === "ru") return __ru.guests_add_short(inputs)
+	return __en.guests_add_short(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guests sign in with their name and can use only the dashboard." |
+*
+* @param {Guests_Create_DescriptionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_create_description = /** @type {((inputs?: Guests_Create_DescriptionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Create_DescriptionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_create_description(inputs)
+	if (locale === "ru") return __ru.guests_create_description(inputs)
+	return __en.guests_create_description(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Could not add the guest." |
+*
+* @param {Guests_Create_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_create_failed = /** @type {((inputs?: Guests_Create_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Create_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_create_failed(inputs)
+	if (locale === "ru") return __ru.guests_create_failed(inputs)
+	return __en.guests_create_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guest {name} added" |
+*
+* @param {Guests_CreatedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_created = /** @type {((inputs: Guests_CreatedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_CreatedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_created(inputs)
+	if (locale === "ru") return __ru.guests_created(inputs)
+	return __en.guests_created(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Custom" |
+*
+* @param {Guests_CustomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_custom = /** @type {((inputs?: Guests_CustomInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_CustomInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_custom(inputs)
+	if (locale === "ru") return __ru.guests_custom(inputs)
+	return __en.guests_custom(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Duration" |
+*
+* @param {Guests_Custom_DurationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_custom_duration = /** @type {((inputs?: Guests_Custom_DurationInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Custom_DurationInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_custom_duration(inputs)
+	if (locale === "ru") return __ru.guests_custom_duration(inputs)
+	return __en.guests_custom_duration(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Days" |
+*
+* @param {Guests_DaysInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_days = /** @type {((inputs?: Guests_DaysInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_DaysInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_days(inputs)
+	if (locale === "ru") return __ru.guests_days(inputs)
+	return __en.guests_days(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Remove {name}'s guest access immediately?" |
+*
+* @param {Guests_Delete_DescriptionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_delete_description = /** @type {((inputs: Guests_Delete_DescriptionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Delete_DescriptionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_delete_description(inputs)
+	if (locale === "ru") return __ru.guests_delete_description(inputs)
+	return __en.guests_delete_description(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Could not remove the guest." |
+*
+* @param {Guests_Delete_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_delete_failed = /** @type {((inputs?: Guests_Delete_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Delete_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_delete_failed(inputs)
+	if (locale === "ru") return __ru.guests_delete_failed(inputs)
+	return __en.guests_delete_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Remove guest" |
+*
+* @param {Guests_Delete_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_delete_title = /** @type {((inputs?: Guests_Delete_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Delete_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_delete_title(inputs)
+	if (locale === "ru") return __ru.guests_delete_title(inputs)
+	return __en.guests_delete_title(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guest {name} removed" |
+*
+* @param {Guests_DeletedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_deleted = /** @type {((inputs: Guests_DeletedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_DeletedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_deleted(inputs)
+	if (locale === "ru") return __ru.guests_deleted(inputs)
+	return __en.guests_deleted(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Access for" |
+*
+* @param {Guests_DurationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_duration = /** @type {((inputs?: Guests_DurationInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_DurationInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_duration(inputs)
+	if (locale === "ru") return __ru.guests_duration(inputs)
+	return __en.guests_duration(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Expires {time}" |
+*
+* @param {Guests_ExpiresInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_expires = /** @type {((inputs: Guests_ExpiresInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_ExpiresInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_expires(inputs)
+	if (locale === "ru") return __ru.guests_expires(inputs)
+	return __en.guests_expires(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Extend access" |
+*
+* @param {Guests_ExtendInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_extend = /** @type {((inputs?: Guests_ExtendInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_ExtendInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_extend(inputs)
+	if (locale === "ru") return __ru.guests_extend(inputs)
+	return __en.guests_extend(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Add time to {name}'s current expiry." |
+*
+* @param {Guests_Extend_DescriptionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_extend_description = /** @type {((inputs: Guests_Extend_DescriptionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Extend_DescriptionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_extend_description(inputs)
+	if (locale === "ru") return __ru.guests_extend_description(inputs)
+	return __en.guests_extend_description(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Could not extend the guest access." |
+*
+* @param {Guests_Extend_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_extend_failed = /** @type {((inputs?: Guests_Extend_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Extend_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_extend_failed(inputs)
+	if (locale === "ru") return __ru.guests_extend_failed(inputs)
+	return __en.guests_extend_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "The expiry cannot be later than 7 days after the guest was created." |
+*
+* @param {Guests_Extend_MaximumInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_extend_maximum = /** @type {((inputs?: Guests_Extend_MaximumInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Extend_MaximumInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_extend_maximum(inputs)
+	if (locale === "ru") return __ru.guests_extend_maximum(inputs)
+	return __en.guests_extend_maximum(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Access extended for {name}" |
+*
+* @param {Guests_ExtendedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_extended = /** @type {((inputs: Guests_ExtendedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_ExtendedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_extended(inputs)
+	if (locale === "ru") return __ru.guests_extended(inputs)
+	return __en.guests_extended(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "4 hours" |
+*
+* @param {Guests_Four_HoursInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_four_hours = /** @type {((inputs?: Guests_Four_HoursInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Four_HoursInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_four_hours(inputs)
+	if (locale === "ru") return __ru.guests_four_hours(inputs)
+	return __en.guests_four_hours(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Hours" |
+*
+* @param {Guests_HoursInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_hours = /** @type {((inputs?: Guests_HoursInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_HoursInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_hours(inputs)
+	if (locale === "ru") return __ru.guests_hours(inputs)
+	return __en.guests_hours(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "1 day" |
+*
+* @param {Guests_One_DayInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_one_day = /** @type {((inputs?: Guests_One_DayInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_One_DayInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_one_day(inputs)
+	if (locale === "ru") return __ru.guests_one_day(inputs)
+	return __en.guests_one_day(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "1 hour" |
+*
+* @param {Guests_One_HourInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_one_hour = /** @type {((inputs?: Guests_One_HourInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_One_HourInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_one_hour(inputs)
+	if (locale === "ru") return __ru.guests_one_hour(inputs)
+	return __en.guests_one_hour(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Guest" |
+*
+* @param {Guests_TypeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_type = /** @type {((inputs?: Guests_TypeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_TypeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_type(inputs)
+	if (locale === "ru") return __ru.guests_type(inputs)
+	return __en.guests_type(inputs)
 });
 /**
 * | output |
@@ -23798,6 +24281,21 @@ export const users_cannot_delete_self = /** @type {((inputs?: Users_Cannot_Delet
 /**
 * | output |
 * | --- |
+* | "Expires" |
+*
+* @param {Users_Column_ExpiresInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const users_column_expires = /** @type {((inputs?: Users_Column_ExpiresInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_Column_ExpiresInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.users_column_expires(inputs)
+	if (locale === "ru") return __ru.users_column_expires(inputs)
+	return __en.users_column_expires(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Name" |
 *
 * @param {Users_Column_NameInputs} inputs
@@ -23809,6 +24307,21 @@ export const users_column_name = /** @type {((inputs?: Users_Column_NameInputs, 
 	if (locale === "sv") return __sv.users_column_name(inputs)
 	if (locale === "ru") return __ru.users_column_name(inputs)
 	return __en.users_column_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Type" |
+*
+* @param {Users_Column_TypeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const users_column_type = /** @type {((inputs?: Users_Column_TypeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_Column_TypeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.users_column_type(inputs)
+	if (locale === "ru") return __ru.users_column_type(inputs)
+	return __en.users_column_type(inputs)
 });
 /**
 * | output |
@@ -23948,7 +24461,7 @@ export const users_delete_failed = /** @type {((inputs?: Users_Delete_FailedInpu
 /**
 * | output |
 * | --- |
-* | "This permanently removes the selected users. Resources they created stay, with their attribution cleared." |
+* | "This removes the selected accounts. Resources created by users stay, with their attribution cleared." |
 *
 * @param {Users_Delete_Many_DescriptionInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -23963,7 +24476,7 @@ export const users_delete_many_description = /** @type {((inputs?: Users_Delete_
 /**
 * | output |
 * | --- |
-* | "Could not delete the users." |
+* | "Could not delete the accounts." |
 *
 * @param {Users_Delete_Many_FailedInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -23978,8 +24491,8 @@ export const users_delete_many_failed = /** @type {((inputs?: Users_Delete_Many_
 /**
 * | countPlural | output |
 * | --- | --- |
-* | "one" | "Delete {count} user?" |
-* | * | "Delete {count} users?" |
+* | "one" | "Delete {count} account?" |
+* | * | "Delete {count} accounts?" |
 *
 * @param {Users_Delete_Many_TitleInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -24024,8 +24537,8 @@ export const users_deleted = /** @type {((inputs: Users_DeletedInputs, options?:
 /**
 * | countPlural | output |
 * | --- | --- |
-* | "one" | "{count} user deleted" |
-* | * | "{count} users deleted" |
+* | "one" | "{count} account deleted" |
+* | * | "{count} accounts deleted" |
 *
 * @param {Users_Deleted_CountInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -24070,17 +24583,17 @@ export const users_display_name = /** @type {((inputs?: Users_Display_NameInputs
 /**
 * | output |
 * | --- |
-* | "Loading users…" |
+* | "Loading users and guests…" |
 *
-* @param {Users_LoadingInputs} inputs
+* @param {Users_Loading_AccountsInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
 * @returns {LocalizedString}
 */
-export const users_loading = /** @type {((inputs?: Users_LoadingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_LoadingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+export const users_loading_accounts = /** @type {((inputs?: Users_Loading_AccountsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_Loading_AccountsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
 	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.users_loading(inputs)
-	if (locale === "ru") return __ru.users_loading(inputs)
-	return __en.users_loading(inputs)
+	if (locale === "sv") return __sv.users_loading_accounts(inputs)
+	if (locale === "ru") return __ru.users_loading_accounts(inputs)
+	return __en.users_loading_accounts(inputs)
 });
 /**
 * | output |
@@ -24100,17 +24613,17 @@ export const users_new_password = /** @type {((inputs?: Users_New_PasswordInputs
 /**
 * | output |
 * | --- |
-* | "No users match." |
+* | "No users or guests match." |
 *
-* @param {Users_No_MatchInputs} inputs
+* @param {Users_No_Account_MatchInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
 * @returns {LocalizedString}
 */
-export const users_no_match = /** @type {((inputs?: Users_No_MatchInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_No_MatchInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+export const users_no_account_match = /** @type {((inputs?: Users_No_Account_MatchInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_No_Account_MatchInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
 	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.users_no_match(inputs)
-	if (locale === "ru") return __ru.users_no_match(inputs)
-	return __en.users_no_match(inputs)
+	if (locale === "sv") return __sv.users_no_account_match(inputs)
+	if (locale === "ru") return __ru.users_no_account_match(inputs)
+	return __en.users_no_account_match(inputs)
 });
 /**
 * | output |
@@ -24190,17 +24703,32 @@ export const users_saving = /** @type {((inputs?: Users_SavingInputs, options?: 
 /**
 * | output |
 * | --- |
-* | "Search users…" |
+* | "Search users and guests…" |
 *
-* @param {Users_SearchInputs} inputs
+* @param {Users_Search_AccountsInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
 * @returns {LocalizedString}
 */
-export const users_search = /** @type {((inputs?: Users_SearchInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_SearchInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+export const users_search_accounts = /** @type {((inputs?: Users_Search_AccountsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_Search_AccountsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
 	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.users_search(inputs)
-	if (locale === "ru") return __ru.users_search(inputs)
-	return __en.users_search(inputs)
+	if (locale === "sv") return __sv.users_search_accounts(inputs)
+	if (locale === "ru") return __ru.users_search_accounts(inputs)
+	return __en.users_search_accounts(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "User" |
+*
+* @param {Users_TypeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const users_type = /** @type {((inputs?: Users_TypeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_TypeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.users_type(inputs)
+	if (locale === "ru") return __ru.users_type(inputs)
+	return __en.users_type(inputs)
 });
 /**
 * | output |

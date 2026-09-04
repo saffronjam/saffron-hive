@@ -219,6 +219,14 @@ type GraphStore interface {
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
 	GetUserAvatarPathsByIDs(ctx context.Context, ids []string) (map[string]string, error)
 	BumpUserTokenVersion(ctx context.Context, id string) error
+	CreateGuest(ctx context.Context, params store.CreateGuestParams) (store.Guest, error)
+	GetGuestByID(ctx context.Context, id string) (store.Guest, error)
+	GetActiveGuestByID(ctx context.Context, id string, now time.Time) (store.Guest, error)
+	GetActiveGuestByNormalizedName(ctx context.Context, name string, now time.Time) (store.Guest, error)
+	ListActiveGuests(ctx context.Context, now time.Time) ([]store.Guest, error)
+	UpdateGuestExpiresAt(ctx context.Context, id string, expiresAt time.Time) (store.Guest, error)
+	DeleteGuest(ctx context.Context, id string) (bool, error)
+	BatchDeleteGuests(ctx context.Context, ids []string) ([]string, error)
 }
 
 // AddressVendorResolver resolves an IEEE address to its registered vendor.

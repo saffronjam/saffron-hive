@@ -1,32 +1,33 @@
 package auth
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
-// CtxUser is the user identity attached to authenticated request contexts.
-// It intentionally carries only the denormalized fields — enough to render
-// attribution and populate createdBy — so resolvers never need to fetch the
-// user record on every request. MustChangePassword is loaded fresh from the
-// store on every request so the AuthDirective can gate the forced-change
-// flow without an additional DB lookup per resolver.
-type CtxUser struct {
+// Principal is the authenticated user or guest attached to a request context.
+type Principal struct {
 	ID                 string
 	Username           string
 	Name               string
+	Guest              bool
 	MustChangePassword bool
 	TokenVersion       int64
+	HardExpiresAt      time.Time
+	AccessExpiresAt    time.Time
 }
 
 type ctxKey struct{}
 
-// WithUser returns a copy of ctx carrying the given user identity.
-func WithUser(ctx context.Context, u CtxUser) context.Context {
-	return context.WithValue(ctx, ctxKey{}, u)
+// WithPrincipal returns a copy of ctx carrying the given identity.
+func WithPrincipal(ctx context.Context, principal Principal) context.Context {
+	return context.WithValue(ctx, ctxKey{}, principal)
 }
 
-// UserFromContext returns the user attached to ctx, if any.
+// PrincipalFromContext returns the identity attached to ctx, if any.
 // ok is false when the request is unauthenticated (e.g. whitelisted operations
 // like login, setupStatus, createInitialUser).
-func UserFromContext(ctx context.Context) (CtxUser, bool) {
-	u, ok := ctx.Value(ctxKey{}).(CtxUser)
-	return u, ok
+func PrincipalFromContext(ctx context.Context) (Principal, bool) {
+	principal, ok := ctx.Value(ctxKey{}).(Principal)
+	return principal, ok
 }

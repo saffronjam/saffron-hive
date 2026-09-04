@@ -63,9 +63,10 @@ async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit):
     auth.setToken(refreshed);
   }
   if (response.status === 401) {
+    const guest = auth.isGuest();
     sessionTeardown();
     if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-      void goto("/login");
+      void goto(guest ? "/login?mode=guest&reason=unavailable" : "/login");
     }
   }
   return response;
@@ -180,9 +181,10 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
             error.response?.status === 401 ||
             error.graphQLErrors.some((e) => e.extensions?.code === "UNAUTHENTICATED");
           if (unauth) {
+            const guest = auth.isGuest();
             sessionTeardown();
             if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-              void goto("/login");
+              void goto(guest ? "/login?mode=guest&reason=unavailable" : "/login");
             }
           }
         },

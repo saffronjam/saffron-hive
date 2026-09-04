@@ -119,7 +119,6 @@
 /** @typedef {{}} Auth_Sign_InInputs */
 /** @typedef {{}} Auth_Sign_In_TitleInputs */
 /** @typedef {{}} Auth_UsernameInputs */
-/** @typedef {{}} Auth_Welcome_BackInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Auth_Welcome_Choose_PasswordInputs */
 /** @typedef {{}} Automation_Action_Activate_SceneInputs */
 /** @typedef {{}} Automation_Action_Activate_Scene_DescriptionInputs */
@@ -778,6 +777,37 @@
 /** @typedef {{}} Group_TagsInputs */
 /** @typedef {{}} Group_Tags_AboutInputs */
 /** @typedef {{}} Group_Tags_HelpInputs */
+/** @typedef {{}} Guest_Login_FailedInputs */
+/** @typedef {{}} Guest_LogoutInputs */
+/** @typedef {{}} Guest_Mode_GuestInputs */
+/** @typedef {{}} Guest_Mode_UserInputs */
+/** @typedef {{}} Guest_NameInputs */
+/** @typedef {{}} Guest_Sign_In_TitleInputs */
+/** @typedef {{}} Guest_UnavailableInputs */
+/** @typedef {{}} Guests_AddInputs */
+/** @typedef {{}} Guests_Add_ShortInputs */
+/** @typedef {{}} Guests_Create_DescriptionInputs */
+/** @typedef {{}} Guests_Create_FailedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_CreatedInputs */
+/** @typedef {{}} Guests_CustomInputs */
+/** @typedef {{}} Guests_Custom_DurationInputs */
+/** @typedef {{}} Guests_DaysInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_Delete_DescriptionInputs */
+/** @typedef {{}} Guests_Delete_FailedInputs */
+/** @typedef {{}} Guests_Delete_TitleInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_DeletedInputs */
+/** @typedef {{}} Guests_DurationInputs */
+/** @typedef {{ time: NonNullable<unknown> }} Guests_ExpiresInputs */
+/** @typedef {{}} Guests_ExtendInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_Extend_DescriptionInputs */
+/** @typedef {{}} Guests_Extend_FailedInputs */
+/** @typedef {{}} Guests_Extend_MaximumInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Guests_ExtendedInputs */
+/** @typedef {{}} Guests_Four_HoursInputs */
+/** @typedef {{}} Guests_HoursInputs */
+/** @typedef {{}} Guests_One_DayInputs */
+/** @typedef {{}} Guests_One_HourInputs */
+/** @typedef {{}} Guests_TypeInputs */
 /** @typedef {{}} History_All_HiddenInputs */
 /** @typedef {{}} History_Dismiss_ReadingInputs */
 /** @typedef {{}} History_EndInputs */
@@ -1464,7 +1494,9 @@
 /** @typedef {{}} Tuya_Sync_FailedInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Tuya_SyncedInputs */
 /** @typedef {{}} Users_Cannot_Delete_SelfInputs */
+/** @typedef {{}} Users_Column_ExpiresInputs */
 /** @typedef {{}} Users_Column_NameInputs */
+/** @typedef {{}} Users_Column_TypeInputs */
 /** @typedef {{}} Users_Column_UsernameInputs */
 /** @typedef {{}} Users_CreateInputs */
 /** @typedef {{}} Users_Create_DescriptionInputs */
@@ -1482,15 +1514,16 @@
 /** @typedef {{ count: NonNullable<unknown> }} Users_Deleted_CountInputs */
 /** @typedef {{}} Users_DeletingInputs */
 /** @typedef {{}} Users_Display_NameInputs */
-/** @typedef {{}} Users_LoadingInputs */
+/** @typedef {{}} Users_Loading_AccountsInputs */
 /** @typedef {{}} Users_New_PasswordInputs */
-/** @typedef {{}} Users_No_MatchInputs */
+/** @typedef {{}} Users_No_Account_MatchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Password_ResetInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Reset_DescriptionInputs */
 /** @typedef {{}} Users_Reset_FailedInputs */
 /** @typedef {{}} Users_Reset_PasswordInputs */
 /** @typedef {{}} Users_SavingInputs */
-/** @typedef {{}} Users_SearchInputs */
+/** @typedef {{}} Users_Search_AccountsInputs */
+/** @typedef {{}} Users_TypeInputs */
 /** @typedef {{}} Value_AbnormalInputs */
 /** @typedef {{}} Value_AutoInputs */
 /** @typedef {{}} Value_BackInputs */
@@ -2239,10 +2272,6 @@ export const auth_sign_in_title = /** @type {(inputs: Auth_Sign_In_TitleInputs) 
 
 export const auth_username = /** @type {(inputs: Auth_UsernameInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Användarnamn`)
-};
-
-export const auth_welcome_back = /** @type {(inputs: Auth_Welcome_BackInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Välkommen tillbaka.`)
 };
 
 export const auth_welcome_choose_password = /** @type {(inputs: Auth_Welcome_Choose_PasswordInputs) => LocalizedString} */ (i) => {
@@ -3378,7 +3407,7 @@ export const common_brand_name = /** @type {(inputs: Common_Brand_NameInputs) =>
 };
 
 export const common_cancel = /** @type {(inputs: Common_CancelInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Avboka`)
+	return /** @type {LocalizedString} */ (`Avbryt`)
 };
 
 export const common_clear = /** @type {(inputs: Common_ClearInputs) => LocalizedString} */ () => {
@@ -3454,7 +3483,7 @@ export const common_in_progress = /** @type {(inputs: Common_In_ProgressInputs) 
 };
 
 export const common_loading = /** @type {(inputs: Common_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Belastning…`)
+	return /** @type {LocalizedString} */ (`Laddar…`)
 };
 
 export const common_no = /** @type {(inputs: Common_NoInputs) => LocalizedString} */ () => {
@@ -4941,6 +4970,130 @@ export const group_tags_about = /** @type {(inputs: Group_Tags_AboutInputs) => L
 
 export const group_tags_help = /** @type {(inputs: Group_Tags_HelpInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Taggar avgör hur den här gruppen visas på instrumentpanelen.`)
+};
+
+export const guest_login_failed = /** @type {(inputs: Guest_Login_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Det finns ingen aktiv gäst med det namnet.`)
+};
+
+export const guest_logout = /** @type {(inputs: Guest_LogoutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Logga ut`)
+};
+
+export const guest_mode_guest = /** @type {(inputs: Guest_Mode_GuestInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Gäst`)
+};
+
+export const guest_mode_user = /** @type {(inputs: Guest_Mode_UserInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Användare`)
+};
+
+export const guest_name = /** @type {(inputs: Guest_NameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Namn`)
+};
+
+export const guest_sign_in_title = /** @type {(inputs: Guest_Sign_In_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Logga in som gäst`)
+};
+
+export const guest_unavailable = /** @type {(inputs: Guest_UnavailableInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Gäståtkomsten har gått ut eller tagits bort.`)
+};
+
+export const guests_add = /** @type {(inputs: Guests_AddInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Lägg till gäst`)
+};
+
+export const guests_add_short = /** @type {(inputs: Guests_Add_ShortInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Gäst`)
+};
+
+export const guests_create_description = /** @type {(inputs: Guests_Create_DescriptionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Gäster loggar in med sitt namn och kan bara använda översikten.`)
+};
+
+export const guests_create_failed = /** @type {(inputs: Guests_Create_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Kunde inte lägga till gästen.`)
+};
+
+export const guests_created = /** @type {(inputs: Guests_CreatedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Gästen ${i?.name} har lagts till`)
+};
+
+export const guests_custom = /** @type {(inputs: Guests_CustomInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Anpassad`)
+};
+
+export const guests_custom_duration = /** @type {(inputs: Guests_Custom_DurationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Tidslängd`)
+};
+
+export const guests_days = /** @type {(inputs: Guests_DaysInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Dagar`)
+};
+
+export const guests_delete_description = /** @type {(inputs: Guests_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Ta bort gäståtkomsten för ${i?.name} direkt?`)
+};
+
+export const guests_delete_failed = /** @type {(inputs: Guests_Delete_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Kunde inte ta bort gästen.`)
+};
+
+export const guests_delete_title = /** @type {(inputs: Guests_Delete_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ta bort gäst`)
+};
+
+export const guests_deleted = /** @type {(inputs: Guests_DeletedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Gästen ${i?.name} har tagits bort`)
+};
+
+export const guests_duration = /** @type {(inputs: Guests_DurationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Åtkomsttid`)
+};
+
+export const guests_expires = /** @type {(inputs: Guests_ExpiresInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Går ut ${i?.time}`)
+};
+
+export const guests_extend = /** @type {(inputs: Guests_ExtendInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Förläng åtkomst`)
+};
+
+export const guests_extend_description = /** @type {(inputs: Guests_Extend_DescriptionInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Lägg till tid på den nuvarande sluttiden för ${i?.name}.`)
+};
+
+export const guests_extend_failed = /** @type {(inputs: Guests_Extend_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Kunde inte förlänga gäståtkomsten.`)
+};
+
+export const guests_extend_maximum = /** @type {(inputs: Guests_Extend_MaximumInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Sluttiden kan inte vara senare än 7 dagar efter att gästen skapades.`)
+};
+
+export const guests_extended = /** @type {(inputs: Guests_ExtendedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Åtkomsten för ${i?.name} har förlängts`)
+};
+
+export const guests_four_hours = /** @type {(inputs: Guests_Four_HoursInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`4 timmar`)
+};
+
+export const guests_hours = /** @type {(inputs: Guests_HoursInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Timmar`)
+};
+
+export const guests_one_day = /** @type {(inputs: Guests_One_DayInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1 dag`)
+};
+
+export const guests_one_hour = /** @type {(inputs: Guests_One_HourInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1 timme`)
+};
+
+export const guests_type = /** @type {(inputs: Guests_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Gäst`)
 };
 
 export const history_all_hidden = /** @type {(inputs: History_All_HiddenInputs) => LocalizedString} */ () => {
@@ -7738,8 +7891,16 @@ export const users_cannot_delete_self = /** @type {(inputs: Users_Cannot_Delete_
 	return /** @type {LocalizedString} */ (`Du kan inte ta bort dig själv`)
 };
 
+export const users_column_expires = /** @type {(inputs: Users_Column_ExpiresInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Går ut`)
+};
+
 export const users_column_name = /** @type {(inputs: Users_Column_NameInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Namn`)
+};
+
+export const users_column_type = /** @type {(inputs: Users_Column_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Typ`)
 };
 
 export const users_column_username = /** @type {(inputs: Users_Column_UsernameInputs) => LocalizedString} */ () => {
@@ -7779,16 +7940,16 @@ export const users_delete_failed = /** @type {(inputs: Users_Delete_FailedInputs
 };
 
 export const users_delete_many_description = /** @type {(inputs: Users_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Detta tar bort de valda användarna permanent. Resurser som de skapade stannar, med deras tillskrivning rensad.`)
+	return /** @type {LocalizedString} */ (`Detta tar bort de valda kontona. Resurser som användare har skapat finns kvar utan attribution.`)
 };
 
 export const users_delete_many_failed = /** @type {(inputs: Users_Delete_Many_FailedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kunde inte ta bort användarna.`)
+	return /** @type {LocalizedString} */ (`Kunde inte ta bort kontona.`)
 };
 
 export const users_delete_many_title = /** @type {(inputs: Users_Delete_Many_TitleInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
-	if (countPlural === "one") return /** @type {LocalizedString} */ (`Radera ${i?.count} användare?`);
-	return /** @type {LocalizedString} */ (`Radera ${i?.count} användare?`)
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`Ta bort ${i?.count} konto?`);
+	return /** @type {LocalizedString} */ (`Ta bort ${i?.count} konton?`)
 	
 };
 
@@ -7801,8 +7962,8 @@ export const users_deleted = /** @type {(inputs: Users_DeletedInputs) => Localiz
 };
 
 export const users_deleted_count = /** @type {(inputs: Users_Deleted_CountInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
-	if (countPlural === "one") return /** @type {LocalizedString} */ (`${i?.count} användare raderad`);
-	return /** @type {LocalizedString} */ (`${i?.count} användare raderade`)
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`${i?.count} konto borttaget`);
+	return /** @type {LocalizedString} */ (`${i?.count} konton borttagna`)
 	
 };
 
@@ -7814,16 +7975,16 @@ export const users_display_name = /** @type {(inputs: Users_Display_NameInputs) 
 	return /** @type {LocalizedString} */ (`Visningsnamn`)
 };
 
-export const users_loading = /** @type {(inputs: Users_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Läser in användare...`)
+export const users_loading_accounts = /** @type {(inputs: Users_Loading_AccountsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Läser in användare och gäster...`)
 };
 
 export const users_new_password = /** @type {(inputs: Users_New_PasswordInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Nytt lösenord`)
 };
 
-export const users_no_match = /** @type {(inputs: Users_No_MatchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Inga användare matchar.`)
+export const users_no_account_match = /** @type {(inputs: Users_No_Account_MatchInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Inga användare eller gäster matchar.`)
 };
 
 export const users_password_reset = /** @type {(inputs: Users_Password_ResetInputs) => LocalizedString} */ (i) => {
@@ -7846,8 +8007,12 @@ export const users_saving = /** @type {(inputs: Users_SavingInputs) => Localized
 	return /** @type {LocalizedString} */ (`Sparande…`)
 };
 
-export const users_search = /** @type {(inputs: Users_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland användare...`)
+export const users_search_accounts = /** @type {(inputs: Users_Search_AccountsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Sök bland användare och gäster...`)
+};
+
+export const users_type = /** @type {(inputs: Users_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Användare`)
 };
 
 export const value_abnormal = /** @type {(inputs: Value_AbnormalInputs) => LocalizedString} */ () => {

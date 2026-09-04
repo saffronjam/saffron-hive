@@ -36,7 +36,7 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
-	Auth func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
+	Auth func(ctx context.Context, obj any, next graphql.Resolver, allowGuest bool) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -155,6 +155,12 @@ type ComplexityRoot struct {
 		Code       func(childComplexity int) int
 		Diagnostic func(childComplexity int) int
 		Success    func(childComplexity int) int
+	}
+
+	DashboardLocalization struct {
+		DefaultContentLanguage     func(childComplexity int) int
+		LocalizedNameSets          func(childComplexity int) int
+		TranslateStandardRoomNames func(childComplexity int) int
 	}
 
 	DesiredSceneState struct {
@@ -391,6 +397,24 @@ type ComplexityRoot struct {
 		Room       func(childComplexity int) int
 	}
 
+	Guest struct {
+		CreatedAt func(childComplexity int) int
+		ExpiresAt func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Name      func(childComplexity int) int
+	}
+
+	GuestAuthPayload struct {
+		Guest func(childComplexity int) int
+		Token func(childComplexity int) int
+	}
+
+	GuestChangeEvent struct {
+		Guest   func(childComplexity int) int
+		GuestID func(childComplexity int) int
+		Kind    func(childComplexity int) int
+	}
+
 	GuidedVibeOption struct {
 		ID      func(childComplexity int) int
 		LabelID func(childComplexity int) int
@@ -455,6 +479,7 @@ type ComplexityRoot struct {
 		BatchDeleteDevices          func(childComplexity int, ids []string) int
 		BatchDeleteEffects          func(childComplexity int, ids []string) int
 		BatchDeleteGroups           func(childComplexity int, ids []string) int
+		BatchDeleteGuests           func(childComplexity int, ids []string) int
 		BatchDeleteRooms            func(childComplexity int, ids []string) int
 		BatchDeleteScenes           func(childComplexity int, ids []string) int
 		BatchDeleteUsers            func(childComplexity int, ids []string) int
@@ -466,6 +491,7 @@ type ComplexityRoot struct {
 		CreateAutomation            func(childComplexity int, input model.CreateAutomationInput) int
 		CreateEffect                func(childComplexity int, input model.CreateEffectInput) int
 		CreateGroup                 func(childComplexity int, input model.CreateGroupInput) int
+		CreateGuest                 func(childComplexity int, input model.CreateGuestInput) int
 		CreateInitialUser           func(childComplexity int, input model.CreateInitialUserInput) int
 		CreateRoom                  func(childComplexity int, input model.CreateRoomInput) int
 		CreateScene                 func(childComplexity int, input model.CreateSceneInput) int
@@ -477,13 +503,16 @@ type ComplexityRoot struct {
 		DeleteDevice                func(childComplexity int, id string) int
 		DeleteEffect                func(childComplexity int, id string) int
 		DeleteGroup                 func(childComplexity int, id string) int
+		DeleteGuest                 func(childComplexity int, id string) int
 		DeleteIntegration           func(childComplexity int, provider string) int
 		DeleteRoom                  func(childComplexity int, id string) int
 		DeleteScene                 func(childComplexity int, id string) int
 		DeleteUser                  func(childComplexity int, id string) int
 		DeleteWebhookEndpoint       func(childComplexity int, id string) int
+		ExtendGuest                 func(childComplexity int, id string, durationMinutes int) int
 		FireAutomationTrigger       func(childComplexity int, automationID string, nodeID string) int
 		ForceLogoutAllSessions      func(childComplexity int, userID *string) int
+		GuestLogin                  func(childComplexity int, name string) int
 		Login                       func(childComplexity int, input model.LoginInput) int
 		MarkDevicesSeen             func(childComplexity int, ids []string) int
 		RaiseAlarm                  func(childComplexity int, input model.RaiseAlarmInput) int
@@ -580,6 +609,8 @@ type ComplexityRoot struct {
 		Alarms                 func(childComplexity int, filter *model.AlarmFilter) int
 		Automation             func(childComplexity int, id string) int
 		Automations            func(childComplexity int) int
+		CurrentGuest           func(childComplexity int) int
+		DashboardLocalization  func(childComplexity int) int
 		Device                 func(childComplexity int, id string) int
 		Devices                func(childComplexity int) int
 		Effect                 func(childComplexity int, id string) int
@@ -587,6 +618,7 @@ type ComplexityRoot struct {
 		Floorplan              func(childComplexity int) int
 		Group                  func(childComplexity int, id string) int
 		Groups                 func(childComplexity int) int
+		Guests                 func(childComplexity int) int
 		GuidedVibeRound        func(childComplexity int, input model.GuidedVibeRoundInput) int
 		Integrations           func(childComplexity int) int
 		LocalizedNameSets      func(childComplexity int) int
@@ -719,6 +751,7 @@ type ComplexityRoot struct {
 		DeviceUpdated              func(childComplexity int) int
 		EffectStepActivated        func(childComplexity int, runID *string) int
 		GroupsChanged              func(childComplexity int) int
+		GuestChanged               func(childComplexity int) int
 		LogStream                  func(childComplexity int) int
 		MaintenanceChanged         func(childComplexity int) int
 		NativeEffectSupportChanged func(childComplexity int) int
@@ -999,6 +1032,11 @@ type MutationResolver interface {
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error)
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
+	GuestLogin(ctx context.Context, name string) (*model.GuestAuthPayload, error)
+	CreateGuest(ctx context.Context, input model.CreateGuestInput) (*model.Guest, error)
+	ExtendGuest(ctx context.Context, id string, durationMinutes int) (*model.Guest, error)
+	DeleteGuest(ctx context.Context, id string) (bool, error)
+	BatchDeleteGuests(ctx context.Context, ids []string) (int, error)
 	UpdateCurrentUser(ctx context.Context, input model.UpdateCurrentUserInput) (*model.User, error)
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (bool, error)
 	CompleteFirstPasswordChange(ctx context.Context, newPassword string) (bool, error)
@@ -1059,6 +1097,9 @@ type QueryResolver interface {
 	SetupStatus(ctx context.Context) (*model.SetupStatus, error)
 	Me(ctx context.Context) (*model.User, error)
 	Users(ctx context.Context) ([]*model.User, error)
+	Guests(ctx context.Context) ([]*model.Guest, error)
+	CurrentGuest(ctx context.Context) (*model.Guest, error)
+	DashboardLocalization(ctx context.Context) (*model.DashboardLocalization, error)
 	Effects(ctx context.Context) ([]*model.Effect, error)
 	Effect(ctx context.Context, id string) (*model.Effect, error)
 	ActiveEffects(ctx context.Context) ([]*model.ActiveEffect, error)
@@ -1076,6 +1117,7 @@ type SubscriptionResolver interface {
 	GroupsChanged(ctx context.Context) (<-chan []string, error)
 	AutomationNodeActivated(ctx context.Context, automationID *string) (<-chan *model.AutomationNodeActivationEvent, error)
 	SceneActiveChanged(ctx context.Context) (<-chan *model.SceneActiveEvent, error)
+	GuestChanged(ctx context.Context) (<-chan *model.GuestChangeEvent, error)
 	LogStream(ctx context.Context) (<-chan *model.LogEntry, error)
 	ActivityStream(ctx context.Context, advanced *bool) (<-chan *model.ActivityEvent, error)
 	AlarmEvent(ctx context.Context) (<-chan *model.AlarmEvent, error)
@@ -1566,6 +1608,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ConnectionTestResult.Success(childComplexity), true
+
+	case "DashboardLocalization.defaultContentLanguage":
+		if e.ComplexityRoot.DashboardLocalization.DefaultContentLanguage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DashboardLocalization.DefaultContentLanguage(childComplexity), true
+	case "DashboardLocalization.localizedNameSets":
+		if e.ComplexityRoot.DashboardLocalization.LocalizedNameSets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DashboardLocalization.LocalizedNameSets(childComplexity), true
+	case "DashboardLocalization.translateStandardRoomNames":
+		if e.ComplexityRoot.DashboardLocalization.TranslateStandardRoomNames == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DashboardLocalization.TranslateStandardRoomNames(childComplexity), true
 
 	case "DesiredSceneState.brightness":
 		if e.ComplexityRoot.DesiredSceneState.Brightness == nil {
@@ -2563,6 +2624,63 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.GroupMember.Room(childComplexity), true
 
+	case "Guest.createdAt":
+		if e.ComplexityRoot.Guest.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Guest.CreatedAt(childComplexity), true
+	case "Guest.expiresAt":
+		if e.ComplexityRoot.Guest.ExpiresAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Guest.ExpiresAt(childComplexity), true
+	case "Guest.id":
+		if e.ComplexityRoot.Guest.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Guest.ID(childComplexity), true
+	case "Guest.name":
+		if e.ComplexityRoot.Guest.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Guest.Name(childComplexity), true
+
+	case "GuestAuthPayload.guest":
+		if e.ComplexityRoot.GuestAuthPayload.Guest == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuestAuthPayload.Guest(childComplexity), true
+	case "GuestAuthPayload.token":
+		if e.ComplexityRoot.GuestAuthPayload.Token == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuestAuthPayload.Token(childComplexity), true
+
+	case "GuestChangeEvent.guest":
+		if e.ComplexityRoot.GuestChangeEvent.Guest == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuestChangeEvent.Guest(childComplexity), true
+	case "GuestChangeEvent.guestId":
+		if e.ComplexityRoot.GuestChangeEvent.GuestID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuestChangeEvent.GuestID(childComplexity), true
+	case "GuestChangeEvent.kind":
+		if e.ComplexityRoot.GuestChangeEvent.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuestChangeEvent.Kind(childComplexity), true
+
 	case "GuidedVibeOption.id":
 		if e.ComplexityRoot.GuidedVibeOption.ID == nil {
 			break
@@ -2872,6 +2990,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BatchDeleteGroups(childComplexity, args["ids"].([]string)), true
+	case "Mutation.batchDeleteGuests":
+		if e.ComplexityRoot.Mutation.BatchDeleteGuests == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_batchDeleteGuests_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BatchDeleteGuests(childComplexity, args["ids"].([]string)), true
 	case "Mutation.batchDeleteRooms":
 		if e.ComplexityRoot.Mutation.BatchDeleteRooms == nil {
 			break
@@ -2993,6 +3122,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateGroup(childComplexity, args["input"].(model.CreateGroupInput)), true
+	case "Mutation.createGuest":
+		if e.ComplexityRoot.Mutation.CreateGuest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createGuest_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateGuest(childComplexity, args["input"].(model.CreateGuestInput)), true
 	case "Mutation.createInitialUser":
 		if e.ComplexityRoot.Mutation.CreateInitialUser == nil {
 			break
@@ -3114,6 +3254,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteGroup(childComplexity, args["id"].(string)), true
+	case "Mutation.deleteGuest":
+		if e.ComplexityRoot.Mutation.DeleteGuest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteGuest_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteGuest(childComplexity, args["id"].(string)), true
 	case "Mutation.deleteIntegration":
 		if e.ComplexityRoot.Mutation.DeleteIntegration == nil {
 			break
@@ -3169,6 +3320,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteWebhookEndpoint(childComplexity, args["id"].(string)), true
+	case "Mutation.extendGuest":
+		if e.ComplexityRoot.Mutation.ExtendGuest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_extendGuest_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ExtendGuest(childComplexity, args["id"].(string), args["durationMinutes"].(int)), true
 	case "Mutation.fireAutomationTrigger":
 		if e.ComplexityRoot.Mutation.FireAutomationTrigger == nil {
 			break
@@ -3191,6 +3353,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ForceLogoutAllSessions(childComplexity, args["userId"].(*string)), true
+	case "Mutation.guestLogin":
+		if e.ComplexityRoot.Mutation.GuestLogin == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_guestLogin_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.GuestLogin(childComplexity, args["name"].(string)), true
 	case "Mutation.login":
 		if e.ComplexityRoot.Mutation.Login == nil {
 			break
@@ -3767,6 +3940,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Automations(childComplexity), true
+	case "Query.currentGuest":
+		if e.ComplexityRoot.Query.CurrentGuest == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.CurrentGuest(childComplexity), true
+	case "Query.dashboardLocalization":
+		if e.ComplexityRoot.Query.DashboardLocalization == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.DashboardLocalization(childComplexity), true
 	case "Query.device":
 		if e.ComplexityRoot.Query.Device == nil {
 			break
@@ -3824,6 +4009,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Groups(childComplexity), true
+	case "Query.guests":
+		if e.ComplexityRoot.Query.Guests == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Guests(childComplexity), true
 	case "Query.guidedVibeRound":
 		if e.ComplexityRoot.Query.GuidedVibeRound == nil {
 			break
@@ -4454,6 +4645,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.GroupsChanged(childComplexity), true
+	case "Subscription.guestChanged":
+		if e.ComplexityRoot.Subscription.GuestChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Subscription.GuestChanged(childComplexity), true
 	case "Subscription.logStream":
 		if e.ComplexityRoot.Subscription.LogStream == nil {
 			break
@@ -5492,6 +5689,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateAutomationInput,
 		ec.unmarshalInputCreateEffectInput,
 		ec.unmarshalInputCreateGroupInput,
+		ec.unmarshalInputCreateGuestInput,
 		ec.unmarshalInputCreateInitialUserInput,
 		ec.unmarshalInputCreateRoomInput,
 		ec.unmarshalInputCreateSceneInput,
@@ -5635,13 +5833,10 @@ var sources = []*ast.Source{
 	{Name: "../../api/schema.graphql", Input: `scalar DateTime
 
 """
-Marks a field as requiring an authenticated caller. The directive resolver
-rejects the request with code UNAUTHENTICATED when no user is attached to the
-request context. Default-deny: every Query / Mutation / Subscription field
-should carry @auth unless it is intentionally public (login, createInitialUser,
-setupStatus, me).
+Marks a field as requiring an authenticated caller. Guest principals are
+accepted only when allowGuest is true.
 """
-directive @auth on FIELD_DEFINITION
+directive @auth(allowGuest: Boolean! = false) on FIELD_DEFINITION
 
 enum CapabilityCategory {
   STATE
@@ -6624,6 +6819,12 @@ type LocalizedNameSet {
   translations: [LocalizedName!]!
 }
 
+type DashboardLocalization {
+  localizedNameSets: [LocalizedNameSet!]!
+  defaultContentLanguage: Language!
+  translateStandardRoomNames: Boolean!
+}
+
 input LocalizedNameInput {
   language: Language!
   value: String!
@@ -6692,6 +6893,31 @@ type AuthPayload {
   user: User!
 }
 
+type Guest {
+  id: ID!
+  name: String!
+  expiresAt: DateTime!
+  createdAt: DateTime!
+}
+
+type GuestAuthPayload {
+  token: String!
+  guest: Guest!
+}
+
+enum GuestChangeKind {
+  CREATED
+  EXTENDED
+  REVOKED
+  EXPIRED
+}
+
+type GuestChangeEvent {
+  guestId: ID!
+  kind: GuestChangeKind!
+  guest: Guest
+}
+
 type SetupStatus {
   hasInitialUser: Boolean!
 }
@@ -6718,6 +6944,11 @@ input CreateUserInput {
   username: String!
   name: String!
   password: String!
+}
+
+input CreateGuestInput {
+  name: String!
+  durationMinutes: Int!
 }
 
 input UpdateCurrentUserInput {
@@ -7299,9 +7530,9 @@ input UpdateAutomationInput {
 
 type Query {
   localizedNameSets: [LocalizedNameSet!]! @auth
-  devices: [Device!]! @auth
+  devices: [Device!]! @auth(allowGuest: true)
   device(id: ID!): Device @auth
-  scenes: [Scene!]! @auth
+  scenes: [Scene!]! @auth(allowGuest: true)
   scene(id: ID!): Scene @auth
   vibePresets: [VibePreset!]! @auth
   guidedVibeRound(input: GuidedVibeRoundInput!): GuidedVibeRound! @auth
@@ -7311,9 +7542,9 @@ type Query {
   webhookEndpoints: [WebhookEndpoint!]! @auth
   webhookEndpoint(id: ID!): WebhookEndpoint @auth
   webhookDeliveries(endpointId: ID!, before: DateTime, limit: Int): [WebhookDelivery!]! @auth
-  groups: [Group!]! @auth
+  groups: [Group!]! @auth(allowGuest: true)
   group(id: ID!): Group @auth
-  rooms: [Room!]! @auth
+  rooms: [Room!]! @auth(allowGuest: true)
   room(id: ID!): Room @auth
   "The floor plan. Null until the first save."
   floorplan: Floorplan @auth
@@ -7333,6 +7564,9 @@ type Query {
   setupStatus: SetupStatus!
   me: User
   users: [User!]! @auth
+  guests: [Guest!]! @auth
+  currentGuest: Guest @auth(allowGuest: true)
+  dashboardLocalization: DashboardLocalization! @auth(allowGuest: true)
   effects: [Effect!]! @auth
   effect(id: ID!): Effect @auth
   activeEffects: [ActiveEffect!]! @auth
@@ -7347,7 +7581,7 @@ type Mutation {
   restoreDevice(id: ID!): Device! @auth
   batchDeleteDevices(ids: [ID!]!): Int! @auth
   batchRestoreDevices(ids: [ID!]!): Int! @auth
-  setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth
+  setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth(allowGuest: true)
   setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
@@ -7356,8 +7590,8 @@ type Mutation {
   sent to the device itself. Useful for testing automations from the UI.
   """
   simulateDeviceAction(deviceId: ID!, action: String!): Boolean! @auth
-  applyScene(sceneId: ID!): Scene! @auth
-  deactivateScene(sceneId: ID!): Scene! @auth
+  applyScene(sceneId: ID!): Scene! @auth(allowGuest: true)
+  deactivateScene(sceneId: ID!): Scene! @auth(allowGuest: true)
   createScene(input: CreateSceneInput!): Scene! @auth
   updateScene(id: ID!, input: UpdateSceneInput!): Scene! @auth
   deleteScene(id: ID!): Boolean! @auth
@@ -7417,6 +7651,11 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User! @auth
+  guestLogin(name: String!): GuestAuthPayload!
+  createGuest(input: CreateGuestInput!): Guest! @auth
+  extendGuest(id: ID!, durationMinutes: Int!): Guest! @auth
+  deleteGuest(id: ID!): Boolean! @auth
+  batchDeleteGuests(ids: [ID!]!): Int! @auth
   updateCurrentUser(input: UpdateCurrentUserInput!): User! @auth
   changePassword(input: ChangePasswordInput!): Boolean! @auth
   """
@@ -7483,21 +7722,22 @@ type Mutation {
 }
 
 type Subscription {
-  deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth
-  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth
+  deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth(allowGuest: true)
+  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth(allowGuest: true)
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
-  deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth
-  deviceAdded: Device! @auth
+  deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth(allowGuest: true)
+  deviceAdded: Device! @auth(allowGuest: true)
   """
   Fires when a device's user-owned metadata changes — name override, icon,
   roles, display colour, disabled, deleted — carrying the full updated device. This is
   what keeps a second open tab's rename in step without a reload.
   """
-  deviceUpdated: Device! @auth
-  deviceRemoved: ID! @auth
-  groupsChanged: [ID!]! @auth
+  deviceUpdated: Device! @auth(allowGuest: true)
+  deviceRemoved: ID! @auth(allowGuest: true)
+  groupsChanged: [ID!]! @auth(allowGuest: true)
   automationNodeActivated(automationId: ID): AutomationNodeActivationEvent! @auth
-  sceneActiveChanged: SceneActiveEvent! @auth
+  sceneActiveChanged: SceneActiveEvent! @auth(allowGuest: true)
+  guestChanged: GuestChangeEvent! @auth(allowGuest: true)
   logStream: LogEntry! @auth
   activityStream(advanced: Boolean): ActivityEvent! @auth
   alarmEvent: AlarmEvent! @auth
@@ -7524,6 +7764,17 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) dir_auth_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "allowGuest", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["allowGuest"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_addGroupMember_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -7635,6 +7886,17 @@ func (ec *executionContext) field_Mutation_batchDeleteEffects_args(ctx context.C
 }
 
 func (ec *executionContext) field_Mutation_batchDeleteGroups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["ids"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_batchDeleteGuests_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "ids", ec.unmarshalNID2ᚕstringᚄ)
@@ -7766,6 +8028,17 @@ func (ec *executionContext) field_Mutation_createGroup_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createGuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateGuestInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateGuestInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createInitialUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7887,6 +8160,17 @@ func (ec *executionContext) field_Mutation_deleteGroup_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteGuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteIntegration_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7942,6 +8226,22 @@ func (ec *executionContext) field_Mutation_deleteWebhookEndpoint_args(ctx contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_extendGuest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "durationMinutes", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["durationMinutes"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_fireAutomationTrigger_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7966,6 +8266,17 @@ func (ec *executionContext) field_Mutation_forceLogoutAllSessions_args(ctx conte
 		return nil, err
 	}
 	args["userId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_guestLogin_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
 	return args, nil
 }
 
@@ -11036,6 +11347,103 @@ func (ec *executionContext) fieldContext_ConnectionTestResult_diagnostic(_ conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardLocalization_localizedNameSets(ctx context.Context, field graphql.CollectedField, obj *model.DashboardLocalization) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardLocalization_localizedNameSets,
+		func(ctx context.Context) (any, error) {
+			return obj.LocalizedNameSets, nil
+		},
+		nil,
+		ec.marshalNLocalizedNameSet2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSetᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardLocalization_localizedNameSets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardLocalization",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "entityType":
+				return ec.fieldContext_LocalizedNameSet_entityType(ctx, field)
+			case "entityId":
+				return ec.fieldContext_LocalizedNameSet_entityId(ctx, field)
+			case "sourceLanguage":
+				return ec.fieldContext_LocalizedNameSet_sourceLanguage(ctx, field)
+			case "translations":
+				return ec.fieldContext_LocalizedNameSet_translations(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LocalizedNameSet", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardLocalization_defaultContentLanguage(ctx context.Context, field graphql.CollectedField, obj *model.DashboardLocalization) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardLocalization_defaultContentLanguage,
+		func(ctx context.Context) (any, error) {
+			return obj.DefaultContentLanguage, nil
+		},
+		nil,
+		ec.marshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardLocalization_defaultContentLanguage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardLocalization",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Language does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DashboardLocalization_translateStandardRoomNames(ctx context.Context, field graphql.CollectedField, obj *model.DashboardLocalization) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DashboardLocalization_translateStandardRoomNames,
+		func(ctx context.Context) (any, error) {
+			return obj.TranslateStandardRoomNames, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DashboardLocalization_translateStandardRoomNames(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DashboardLocalization",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16251,6 +16659,287 @@ func (ec *executionContext) fieldContext_GroupMember_room(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Guest_id(ctx context.Context, field graphql.CollectedField, obj *model.Guest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Guest_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Guest_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Guest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Guest_name(ctx context.Context, field graphql.CollectedField, obj *model.Guest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Guest_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Guest_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Guest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Guest_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.Guest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Guest_expiresAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ExpiresAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Guest_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Guest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Guest_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Guest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Guest_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Guest_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Guest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuestAuthPayload_token(ctx context.Context, field graphql.CollectedField, obj *model.GuestAuthPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuestAuthPayload_token,
+		func(ctx context.Context) (any, error) {
+			return obj.Token, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuestAuthPayload_token(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuestAuthPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuestAuthPayload_guest(ctx context.Context, field graphql.CollectedField, obj *model.GuestAuthPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuestAuthPayload_guest,
+		func(ctx context.Context) (any, error) {
+			return obj.Guest, nil
+		},
+		nil,
+		ec.marshalNGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuestAuthPayload_guest(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuestAuthPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuestChangeEvent_guestId(ctx context.Context, field graphql.CollectedField, obj *model.GuestChangeEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuestChangeEvent_guestId,
+		func(ctx context.Context) (any, error) {
+			return obj.GuestID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuestChangeEvent_guestId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuestChangeEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuestChangeEvent_kind(ctx context.Context, field graphql.CollectedField, obj *model.GuestChangeEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuestChangeEvent_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNGuestChangeKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestChangeKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuestChangeEvent_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuestChangeEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GuestChangeKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GuestChangeEvent_guest(ctx context.Context, field graphql.CollectedField, obj *model.GuestChangeEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GuestChangeEvent_guest,
+		func(ctx context.Context) (any, error) {
+			return obj.Guest, nil
+		},
+		nil,
+		ec.marshalOGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_GuestChangeEvent_guest(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GuestChangeEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GuidedVibeOption_id(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeOption) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -17255,11 +17944,16 @@ func (ec *executionContext) _Mutation_updateLocalizedNameSet(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.LocalizedNameSet
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.LocalizedNameSet
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17319,11 +18013,16 @@ func (ec *executionContext) _Mutation_updateDevice(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17411,11 +18110,16 @@ func (ec *executionContext) _Mutation_deleteDevice(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17503,11 +18207,16 @@ func (ec *executionContext) _Mutation_restoreDevice(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17595,11 +18304,16 @@ func (ec *executionContext) _Mutation_batchDeleteDevices(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17649,11 +18363,16 @@ func (ec *executionContext) _Mutation_batchRestoreDevices(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17703,11 +18422,16 @@ func (ec *executionContext) _Mutation_setTargetState(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17757,11 +18481,16 @@ func (ec *executionContext) _Mutation_setDeviceConfiguration(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17811,11 +18540,16 @@ func (ec *executionContext) _Mutation_simulateDeviceAction(ctx context.Context, 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17865,11 +18599,16 @@ func (ec *executionContext) _Mutation_applyScene(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.Scene
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Scene
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -17941,11 +18680,16 @@ func (ec *executionContext) _Mutation_deactivateScene(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.Scene
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Scene
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18017,11 +18761,16 @@ func (ec *executionContext) _Mutation_createScene(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Scene
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Scene
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18093,11 +18842,16 @@ func (ec *executionContext) _Mutation_updateScene(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Scene
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Scene
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18169,11 +18923,16 @@ func (ec *executionContext) _Mutation_deleteScene(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18223,11 +18982,16 @@ func (ec *executionContext) _Mutation_createAutomation(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.AutomationGraph
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18297,11 +19061,16 @@ func (ec *executionContext) _Mutation_updateAutomation(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.AutomationGraph
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18371,11 +19140,16 @@ func (ec *executionContext) _Mutation_deleteAutomation(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18425,11 +19199,16 @@ func (ec *executionContext) _Mutation_toggleAutomation(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.AutomationGraph
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18499,11 +19278,16 @@ func (ec *executionContext) _Mutation_fireAutomationTrigger(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18553,11 +19337,16 @@ func (ec *executionContext) _Mutation_createWebhookEndpoint(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.WebhookSecretResult
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.WebhookSecretResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18613,11 +19402,16 @@ func (ec *executionContext) _Mutation_updateWebhookEndpoint(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.WebhookEndpoint
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.WebhookEndpoint
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18687,11 +19481,16 @@ func (ec *executionContext) _Mutation_rotateWebhookEndpointSecret(ctx context.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.WebhookSecretResult
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.WebhookSecretResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18747,11 +19546,16 @@ func (ec *executionContext) _Mutation_deleteWebhookEndpoint(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18801,11 +19605,16 @@ func (ec *executionContext) _Mutation_batchDeleteWebhookEndpoints(ctx context.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18855,11 +19664,16 @@ func (ec *executionContext) _Mutation_createGroup(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -18931,11 +19745,16 @@ func (ec *executionContext) _Mutation_updateGroup(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19007,11 +19826,16 @@ func (ec *executionContext) _Mutation_deleteGroup(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19061,11 +19885,16 @@ func (ec *executionContext) _Mutation_addGroupMember(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19137,11 +19966,16 @@ func (ec *executionContext) _Mutation_removeGroupMember(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19213,11 +20047,16 @@ func (ec *executionContext) _Mutation_createRoom(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19281,11 +20120,16 @@ func (ec *executionContext) _Mutation_updateRoom(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19349,11 +20193,16 @@ func (ec *executionContext) _Mutation_deleteRoom(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19403,11 +20252,16 @@ func (ec *executionContext) _Mutation_addRoomMember(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19471,11 +20325,16 @@ func (ec *executionContext) _Mutation_removeRoomMember(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19539,11 +20398,16 @@ func (ec *executionContext) _Mutation_updateFloorplan(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Floorplan
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Floorplan
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19613,11 +20477,16 @@ func (ec *executionContext) _Mutation_updateZigbee2MqttConfig(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Zigbee2MqttConfig
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Zigbee2MqttConfig
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19695,11 +20564,16 @@ func (ec *executionContext) _Mutation_testZigbee2MqttConnection(ctx context.Cont
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.ConnectionTestResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19756,11 +20630,16 @@ func (ec *executionContext) _Mutation_scanZigbee2MqttNetwork(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19799,11 +20678,16 @@ func (ec *executionContext) _Mutation_updateTuyaConfig(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.TuyaConfig
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.TuyaConfig
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19863,11 +20747,16 @@ func (ec *executionContext) _Mutation_testTuyaConnection(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.ConnectionTestResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -19924,11 +20813,16 @@ func (ec *executionContext) _Mutation_syncTuyaDevices(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20005,11 +20899,16 @@ func (ec *executionContext) _Mutation_deleteIntegration(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20059,11 +20958,16 @@ func (ec *executionContext) _Mutation_updateSetting(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Setting
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Setting
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20213,11 +21117,16 @@ func (ec *executionContext) _Mutation_createUser(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.User
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.User
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20277,6 +21186,309 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_guestLogin(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_guestLogin,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().GuestLogin(ctx, fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalNGuestAuthPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestAuthPayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_guestLogin(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "token":
+				return ec.fieldContext_GuestAuthPayload_token(ctx, field)
+			case "guest":
+				return ec.fieldContext_GuestAuthPayload_guest(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GuestAuthPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_guestLogin_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createGuest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createGuest,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateGuest(ctx, fc.Args["input"].(model.CreateGuestInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Guest
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Guest
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createGuest(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createGuest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_extendGuest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_extendGuest,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ExtendGuest(ctx, fc.Args["id"].(string), fc.Args["durationMinutes"].(int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Guest
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Guest
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_extendGuest(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_extendGuest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteGuest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteGuest,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteGuest(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteGuest(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteGuest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_batchDeleteGuests(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_batchDeleteGuests,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BatchDeleteGuests(ctx, fc.Args["ids"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_batchDeleteGuests(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_batchDeleteGuests_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updateCurrentUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -20291,11 +21503,16 @@ func (ec *executionContext) _Mutation_updateCurrentUser(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.User
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.User
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20369,11 +21586,16 @@ func (ec *executionContext) _Mutation_changePassword(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20423,11 +21645,16 @@ func (ec *executionContext) _Mutation_completeFirstPasswordChange(ctx context.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20477,11 +21704,16 @@ func (ec *executionContext) _Mutation_resetUserPassword(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20531,11 +21763,16 @@ func (ec *executionContext) _Mutation_forceLogoutAllSessions(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20585,11 +21822,16 @@ func (ec *executionContext) _Mutation_deleteUser(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20639,11 +21881,16 @@ func (ec *executionContext) _Mutation_raiseAlarm(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Alarm
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Alarm
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20717,11 +21964,16 @@ func (ec *executionContext) _Mutation_deleteAlarm(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20771,11 +22023,16 @@ func (ec *executionContext) _Mutation_batchDeleteScenes(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20825,11 +22082,16 @@ func (ec *executionContext) _Mutation_batchDeleteAutomations(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20879,11 +22141,16 @@ func (ec *executionContext) _Mutation_batchDeleteGroups(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20933,11 +22200,16 @@ func (ec *executionContext) _Mutation_batchDeleteRooms(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -20987,11 +22259,16 @@ func (ec *executionContext) _Mutation_batchDeleteEffects(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21041,11 +22318,16 @@ func (ec *executionContext) _Mutation_markDevicesSeen(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21095,11 +22377,16 @@ func (ec *executionContext) _Mutation_batchDeleteAlarms(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21149,11 +22436,16 @@ func (ec *executionContext) _Mutation_completeMaintenanceTasks(ctx context.Conte
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []string
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []string
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21203,11 +22495,16 @@ func (ec *executionContext) _Mutation_batchDeleteUsers(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal int
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21257,11 +22554,16 @@ func (ec *executionContext) _Mutation_batchAddRoomMembers(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21325,11 +22627,16 @@ func (ec *executionContext) _Mutation_batchAddGroupDevices(ctx context.Context, 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21401,11 +22708,16 @@ func (ec *executionContext) _Mutation_createEffect(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Effect
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Effect
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21483,11 +22795,16 @@ func (ec *executionContext) _Mutation_updateEffect(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Effect
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Effect
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21565,11 +22882,16 @@ func (ec *executionContext) _Mutation_deleteEffect(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21619,11 +22941,16 @@ func (ec *executionContext) _Mutation_runEffect(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ActiveEffect
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.ActiveEffect
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21687,11 +23014,16 @@ func (ec *executionContext) _Mutation_runNativeEffect(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.NativeEffectRunResult
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.NativeEffectRunResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -21747,11 +23079,16 @@ func (ec *executionContext) _Mutation_stopEffect(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal bool
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -22650,11 +23987,16 @@ func (ec *executionContext) _Query_localizedNameSets(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.LocalizedNameSet
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.LocalizedNameSet
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -22702,11 +24044,16 @@ func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal []*model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -22783,11 +24130,16 @@ func (ec *executionContext) _Query_device(ctx context.Context, field graphql.Col
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -22874,11 +24226,16 @@ func (ec *executionContext) _Query_scenes(ctx context.Context, field graphql.Col
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal []*model.Scene
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Scene
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -22939,11 +24296,16 @@ func (ec *executionContext) _Query_scene(ctx context.Context, field graphql.Coll
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Scene
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Scene
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23014,11 +24376,16 @@ func (ec *executionContext) _Query_vibePresets(ctx context.Context, field graphq
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.VibePreset
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.VibePreset
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23075,11 +24442,16 @@ func (ec *executionContext) _Query_guidedVibeRound(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.GuidedVibeRound
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.GuidedVibeRound
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23139,11 +24511,16 @@ func (ec *executionContext) _Query_previewVibe(ctx context.Context, field graphq
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.VibePreviewResult
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.VibePreviewResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23210,11 +24587,16 @@ func (ec *executionContext) _Query_automations(ctx context.Context, field graphq
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.AutomationGraph
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.AutomationGraph
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23273,11 +24655,16 @@ func (ec *executionContext) _Query_automation(ctx context.Context, field graphql
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AutomationGraph
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.AutomationGraph
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23346,11 +24733,16 @@ func (ec *executionContext) _Query_webhookEndpoints(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.WebhookEndpoint
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.WebhookEndpoint
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23409,11 +24801,16 @@ func (ec *executionContext) _Query_webhookEndpoint(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.WebhookEndpoint
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.WebhookEndpoint
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23483,11 +24880,16 @@ func (ec *executionContext) _Query_webhookDeliveries(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.WebhookDelivery
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.WebhookDelivery
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23566,11 +24968,16 @@ func (ec *executionContext) _Query_groups(ctx context.Context, field graphql.Col
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal []*model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23631,11 +25038,16 @@ func (ec *executionContext) _Query_group(ctx context.Context, field graphql.Coll
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Group
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Group
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23706,11 +25118,16 @@ func (ec *executionContext) _Query_rooms(ctx context.Context, field graphql.Coll
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal []*model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23763,11 +25180,16 @@ func (ec *executionContext) _Query_room(ctx context.Context, field graphql.Colle
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Room
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Room
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23830,11 +25252,16 @@ func (ec *executionContext) _Query_floorplan(ctx context.Context, field graphql.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Floorplan
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Floorplan
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23893,11 +25320,16 @@ func (ec *executionContext) _Query_stateHistory(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.StateSeries
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.StateSeries
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -23957,11 +25389,16 @@ func (ec *executionContext) _Query_aggregatedStateHistory(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.AggregatedSeries
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.AggregatedSeries
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24016,11 +25453,16 @@ func (ec *executionContext) _Query_stateHistoryFields(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []string
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []string
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24058,11 +25500,16 @@ func (ec *executionContext) _Query_integrations(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.Integration
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Integration
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24116,11 +25563,16 @@ func (ec *executionContext) _Query_zigbee2MqttConfig(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Zigbee2MqttConfig
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Zigbee2MqttConfig
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24186,11 +25638,16 @@ func (ec *executionContext) _Query_tuyaConfig(ctx context.Context, field graphql
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.TuyaConfig
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.TuyaConfig
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24238,11 +25695,16 @@ func (ec *executionContext) _Query_networkTopologies(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.NetworkTopology
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.NetworkTopology
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24290,11 +25752,16 @@ func (ec *executionContext) _Query_settings(ctx context.Context, field graphql.C
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.Setting
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Setting
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24339,11 +25806,16 @@ func (ec *executionContext) _Query_logs(ctx context.Context, field graphql.Colle
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.LogEntry
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.LogEntry
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24403,11 +25875,16 @@ func (ec *executionContext) _Query_activity(ctx context.Context, field graphql.C
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.ActivityEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.ActivityEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24469,11 +25946,16 @@ func (ec *executionContext) _Query_alarms(ctx context.Context, field graphql.Col
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.Alarm
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Alarm
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24546,11 +26028,16 @@ func (ec *executionContext) _Query_maintenanceTasks(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.MaintenanceTask
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.MaintenanceTask
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24692,11 +26179,16 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.User
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.User
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24745,6 +26237,175 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_guests(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_guests,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Guests(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.Guest
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.Guest
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGuest2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_guests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_currentGuest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_currentGuest,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().CurrentGuest(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.Guest
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Guest
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_currentGuest(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_dashboardLocalization(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_dashboardLocalization,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().DashboardLocalization(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.DashboardLocalization
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DashboardLocalization
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDashboardLocalization2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDashboardLocalization,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_dashboardLocalization(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "localizedNameSets":
+				return ec.fieldContext_DashboardLocalization_localizedNameSets(ctx, field)
+			case "defaultContentLanguage":
+				return ec.fieldContext_DashboardLocalization_defaultContentLanguage(ctx, field)
+			case "translateStandardRoomNames":
+				return ec.fieldContext_DashboardLocalization_translateStandardRoomNames(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DashboardLocalization", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_effects(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -24758,11 +26419,16 @@ func (ec *executionContext) _Query_effects(ctx context.Context, field graphql.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.Effect
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.Effect
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24829,11 +26495,16 @@ func (ec *executionContext) _Query_effect(ctx context.Context, field graphql.Col
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.Effect
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Effect
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24910,11 +26581,16 @@ func (ec *executionContext) _Query_activeEffects(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.ActiveEffect
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.ActiveEffect
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -24966,11 +26642,16 @@ func (ec *executionContext) _Query_nativeEffectOptions(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.NativeEffectOption
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.NativeEffectOption
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -25023,11 +26704,16 @@ func (ec *executionContext) _Query_nativeEffectSupport(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.NativeEffectDeviceSupport
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []*model.NativeEffectDeviceSupport
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27048,11 +28734,16 @@ func (ec *executionContext) _Subscription_deviceStateChanged(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.DeviceStateEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.DeviceStateEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27108,11 +28799,16 @@ func (ec *executionContext) _Subscription_deviceConfigurationChanged(ctx context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.DeviceConfigurationEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.DeviceConfigurationEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27168,11 +28864,16 @@ func (ec *executionContext) _Subscription_deviceActionFired(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.DeviceActionEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.DeviceActionEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27229,11 +28930,16 @@ func (ec *executionContext) _Subscription_deviceAvailabilityChanged(ctx context.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.DeviceAvailabilityEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.DeviceAvailabilityEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27277,11 +28983,16 @@ func (ec *executionContext) _Subscription_deviceAdded(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27357,11 +29068,16 @@ func (ec *executionContext) _Subscription_deviceUpdated(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.Device
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.Device
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27437,11 +29153,16 @@ func (ec *executionContext) _Subscription_deviceRemoved(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal string
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27479,11 +29200,16 @@ func (ec *executionContext) _Subscription_groupsChanged(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal []string
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal []string
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27522,11 +29248,16 @@ func (ec *executionContext) _Subscription_automationNodeActivated(ctx context.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AutomationNodeActivationEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.AutomationNodeActivationEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27583,11 +29314,16 @@ func (ec *executionContext) _Subscription_sceneActiveChanged(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.SceneActiveEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.SceneActiveEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27618,6 +29354,61 @@ func (ec *executionContext) fieldContext_Subscription_sceneActiveChanged(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_guestChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_guestChanged,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Subscription().GuestChanged(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.GuestChangeEvent
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.GuestChangeEvent
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGuestChangeEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestChangeEvent,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_guestChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "guestId":
+				return ec.fieldContext_GuestChangeEvent_guestId(ctx, field)
+			case "kind":
+				return ec.fieldContext_GuestChangeEvent_kind(ctx, field)
+			case "guest":
+				return ec.fieldContext_GuestChangeEvent_guest(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GuestChangeEvent", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Subscription_logStream(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -27631,11 +29422,16 @@ func (ec *executionContext) _Subscription_logStream(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.LogEntry
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.LogEntry
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27684,11 +29480,16 @@ func (ec *executionContext) _Subscription_activityStream(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ActivityEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.ActivityEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27749,11 +29550,16 @@ func (ec *executionContext) _Subscription_alarmEvent(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AlarmEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.AlarmEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27799,11 +29605,16 @@ func (ec *executionContext) _Subscription_maintenanceChanged(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *time.Time
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *time.Time
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27842,11 +29653,16 @@ func (ec *executionContext) _Subscription_webhookDeliveryRecorded(ctx context.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.WebhookDelivery
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.WebhookDelivery
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27926,11 +29742,16 @@ func (ec *executionContext) _Subscription_effectStepActivated(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.EffectStepEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.EffectStepEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -27989,11 +29810,16 @@ func (ec *executionContext) _Subscription_nativeEffectSupportChanged(ctx context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *time.Time
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *time.Time
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -28032,11 +29858,16 @@ func (ec *executionContext) _Subscription_networkTopologyUpdated(ctx context.Con
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.NetworkTopologyEvent
+					return zeroVal, err
+				}
 				if ec.Directives.Auth == nil {
 					var zeroVal *model.NetworkTopologyEvent
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
-				return ec.Directives.Auth(ctx, nil, directive0)
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
 			}
 
 			next = directive1
@@ -34991,6 +36822,43 @@ func (ec *executionContext) unmarshalInputCreateGroupInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateGuestInput(ctx context.Context, obj any) (model.CreateGuestInput, error) {
+	var it model.CreateGuestInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "durationMinutes"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "durationMinutes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMinutes"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DurationMinutes = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateInitialUserInput(ctx context.Context, obj any) (model.CreateInitialUserInput, error) {
 	var it model.CreateInitialUserInput
 	if obj == nil {
@@ -38390,6 +40258,55 @@ func (ec *executionContext) _ConnectionTestResult(ctx context.Context, sel ast.S
 	return out
 }
 
+var dashboardLocalizationImplementors = []string{"DashboardLocalization"}
+
+func (ec *executionContext) _DashboardLocalization(ctx context.Context, sel ast.SelectionSet, obj *model.DashboardLocalization) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dashboardLocalizationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DashboardLocalization")
+		case "localizedNameSets":
+			out.Values[i] = ec._DashboardLocalization_localizedNameSets(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "defaultContentLanguage":
+			out.Values[i] = ec._DashboardLocalization_defaultContentLanguage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "translateStandardRoomNames":
+			out.Values[i] = ec._DashboardLocalization_translateStandardRoomNames(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var desiredSceneStateImplementors = []string{"DesiredSceneState"}
 
 func (ec *executionContext) _DesiredSceneState(ctx context.Context, sel ast.SelectionSet, obj *model.DesiredSceneState) graphql.Marshaler {
@@ -39873,6 +41790,150 @@ func (ec *executionContext) _GroupMember(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var guestImplementors = []string{"Guest"}
+
+func (ec *executionContext) _Guest(ctx context.Context, sel ast.SelectionSet, obj *model.Guest) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, guestImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Guest")
+		case "id":
+			out.Values[i] = ec._Guest_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Guest_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expiresAt":
+			out.Values[i] = ec._Guest_expiresAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._Guest_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var guestAuthPayloadImplementors = []string{"GuestAuthPayload"}
+
+func (ec *executionContext) _GuestAuthPayload(ctx context.Context, sel ast.SelectionSet, obj *model.GuestAuthPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, guestAuthPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GuestAuthPayload")
+		case "token":
+			out.Values[i] = ec._GuestAuthPayload_token(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "guest":
+			out.Values[i] = ec._GuestAuthPayload_guest(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var guestChangeEventImplementors = []string{"GuestChangeEvent"}
+
+func (ec *executionContext) _GuestChangeEvent(ctx context.Context, sel ast.SelectionSet, obj *model.GuestChangeEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, guestChangeEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GuestChangeEvent")
+		case "guestId":
+			out.Values[i] = ec._GuestChangeEvent_guestId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._GuestChangeEvent_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "guest":
+			out.Values[i] = ec._GuestChangeEvent_guest(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var guidedVibeOptionImplementors = []string{"GuidedVibeOption"}
 
 func (ec *executionContext) _GuidedVibeOption(ctx context.Context, sel ast.SelectionSet, obj *model.GuidedVibeOption) graphql.Marshaler {
@@ -40587,6 +42648,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createUser":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createUser(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "guestLogin":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_guestLogin(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createGuest":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createGuest(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "extendGuest":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_extendGuest(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteGuest":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteGuest(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "batchDeleteGuests":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_batchDeleteGuests(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -41950,6 +44046,69 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "guests":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_guests(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "currentGuest":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_currentGuest(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "dashboardLocalization":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_dashboardLocalization(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "effects":
 			field := field
 
@@ -42780,6 +44939,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_automationNodeActivated(ctx, fields[0])
 	case "sceneActiveChanged":
 		return ec._Subscription_sceneActiveChanged(ctx, fields[0])
+	case "guestChanged":
+		return ec._Subscription_guestChanged(ctx, fields[0])
 	case "logStream":
 		return ec._Subscription_logStream(ctx, fields[0])
 	case "activityStream":
@@ -44913,6 +47074,11 @@ func (ec *executionContext) unmarshalNCreateGroupInput2githubᚗcomᚋsaffronjam
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreateGuestInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateGuestInput(ctx context.Context, v any) (model.CreateGuestInput, error) {
+	res, err := ec.unmarshalInputCreateGuestInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCreateInitialUserInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateInitialUserInput(ctx context.Context, v any) (model.CreateInitialUserInput, error) {
 	res, err := ec.unmarshalInputCreateInitialUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -44936,6 +47102,20 @@ func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋsaffronjam�
 func (ec *executionContext) unmarshalNCreateWebhookEndpointInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateWebhookEndpointInput(ctx context.Context, v any) (model.CreateWebhookEndpointInput, error) {
 	res, err := ec.unmarshalInputCreateWebhookEndpointInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDashboardLocalization2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDashboardLocalization(ctx context.Context, sel ast.SelectionSet, v model.DashboardLocalization) graphql.Marshaler {
+	return ec._DashboardLocalization(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDashboardLocalization2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDashboardLocalization(ctx context.Context, sel ast.SelectionSet, v *model.DashboardLocalization) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DashboardLocalization(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNDateTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
@@ -45781,6 +47961,74 @@ func (ec *executionContext) marshalNGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaff
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalNGuest2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest(ctx context.Context, sel ast.SelectionSet, v model.Guest) graphql.Marshaler {
+	return ec._Guest(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGuest2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Guest) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest(ctx context.Context, sel ast.SelectionSet, v *model.Guest) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Guest(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGuestAuthPayload2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestAuthPayload(ctx context.Context, sel ast.SelectionSet, v model.GuestAuthPayload) graphql.Marshaler {
+	return ec._GuestAuthPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGuestAuthPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestAuthPayload(ctx context.Context, sel ast.SelectionSet, v *model.GuestAuthPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GuestAuthPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGuestChangeEvent2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestChangeEvent(ctx context.Context, sel ast.SelectionSet, v model.GuestChangeEvent) graphql.Marshaler {
+	return ec._GuestChangeEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGuestChangeEvent2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestChangeEvent(ctx context.Context, sel ast.SelectionSet, v *model.GuestChangeEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GuestChangeEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNGuestChangeKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestChangeKind(ctx context.Context, v any) (model.GuestChangeKind, error) {
+	var res model.GuestChangeKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNGuestChangeKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuestChangeKind(ctx context.Context, sel ast.SelectionSet, v model.GuestChangeKind) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNGuidedVibeOption2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeOptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GuidedVibeOption) graphql.Marshaler {
@@ -47789,6 +50037,13 @@ func (ec *executionContext) marshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaff
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalOGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest(ctx context.Context, sel ast.SelectionSet, v *model.Guest) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Guest(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOGuidedVibeRecipeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuidedVibeRecipeInput(ctx context.Context, v any) (*model.GuidedVibeRecipeInput, error) {

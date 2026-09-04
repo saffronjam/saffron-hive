@@ -26,7 +26,7 @@ func TestUpdateCurrentUserLanguage(t *testing.T) {
 	st := newMockStore()
 	st.users["u-1"] = store.User{ID: "u-1", Username: "alice", Name: "Alice", Language: "en"}
 	resolver := &mutationResolver{&Resolver{Store: st}}
-	ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "u-1"})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "u-1"})
 	language := model.LanguageSv
 
 	updated, err := resolver.UpdateCurrentUser(ctx, model.UpdateCurrentUserInput{
@@ -516,7 +516,7 @@ func TestPasswordWritingMutationsStoreArgon2id(t *testing.T) {
 	t.Run("create user", func(t *testing.T) {
 		st := newMockStore()
 		resolver := &mutationResolver{&Resolver{Store: st}}
-		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "admin"})
+		ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "admin"})
 		created, err := resolver.CreateUser(ctx, model.CreateUserInput{
 			Username: "created",
 			Name:     "Created User",
@@ -536,7 +536,7 @@ func TestPasswordWritingMutationsStoreArgon2id(t *testing.T) {
 		}
 		st.users["u-1"] = store.User{ID: "u-1", Username: "change", Name: "Change", PasswordHash: oldHash}
 		resolver := &mutationResolver{&Resolver{Store: st}}
-		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "u-1"})
+		ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "u-1"})
 		ok, err := resolver.ChangePassword(ctx, model.ChangePasswordInput{
 			OldPassword: "OriginalPassword123",
 			NewPassword: "ChangedPassword123",
@@ -551,7 +551,7 @@ func TestPasswordWritingMutationsStoreArgon2id(t *testing.T) {
 		st := newMockStore()
 		st.users["u-1"] = store.User{ID: "u-1", Username: "first", Name: "First", MustChangePassword: true}
 		resolver := &mutationResolver{&Resolver{Store: st}}
-		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "u-1"})
+		ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "u-1"})
 		ok, err := resolver.CompleteFirstPasswordChange(ctx, "CompletedPassword123")
 		if err != nil || !ok {
 			t.Fatalf("CompleteFirstPasswordChange = %v, %v", ok, err)
@@ -563,7 +563,7 @@ func TestPasswordWritingMutationsStoreArgon2id(t *testing.T) {
 		st := newMockStore()
 		st.users["u-1"] = store.User{ID: "u-1", Username: "reset", Name: "Reset"}
 		resolver := &mutationResolver{&Resolver{Store: st}}
-		ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "admin"})
+		ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "admin"})
 		ok, err := resolver.ResetUserPassword(ctx, "u-1", "ResetPassword123")
 		if err != nil || !ok {
 			t.Fatalf("ResetUserPassword = %v, %v", ok, err)

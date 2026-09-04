@@ -87,7 +87,27 @@ const (
 	// what the GraphQL subscription rides, so consumers can re-query and see
 	// the persisted snapshot.
 	EventNetworkTopologyUpdated EventType = "topology.updated"
+	EventGuestChanged           EventType = "guest.changed"
 )
+
+// GuestChangeKind classifies a guest lifecycle update.
+type GuestChangeKind string
+
+const (
+	GuestCreated  GuestChangeKind = "created"
+	GuestExtended GuestChangeKind = "extended"
+	GuestRevoked  GuestChangeKind = "revoked"
+	GuestExpired  GuestChangeKind = "expired"
+)
+
+// GuestChangedEvent is the payload for EventGuestChanged.
+type GuestChangedEvent struct {
+	GuestID   string
+	Name      string
+	Kind      GuestChangeKind
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
 
 // EffectStepActivatedEvent is the payload for EventEffectStepActivated.
 // It marks the entry (Active=true) and exit (Active=false) of a single step
