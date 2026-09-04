@@ -359,8 +359,19 @@
 .tint-fill-horizontal-1 {
   background-image: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)) 0%,
+    color-mix(
+        in srgb,
+        color-mix(in srgb, var(--tint-color) 70%, white) calc(50% * var(--tint-strength)),
+        var(--card)
+      )
+      0%,
     color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card))
+      calc(var(--brightness-fill) * 0.5),
+    color-mix(
+        in srgb,
+        color-mix(in srgb, var(--tint-color) 65%, black) calc(50% * var(--tint-strength)),
+        var(--card)
+      )
       var(--brightness-fill),
     var(--card) var(--brightness-fill),
     var(--card) 100%
@@ -374,8 +385,21 @@
 .tint-fill-horizontal-2 {
   background-image: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)) 0%,
+    color-mix(
+        in srgb,
+        color-mix(in srgb, var(--tint-color) 70%, white) calc(50% * var(--tint-strength)),
+        var(--card)
+      )
+      0%,
+    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card))
+      calc(var(--brightness-fill) * 0.35),
     color-mix(in srgb, var(--tint-color-2) calc(50% * var(--tint-strength)), var(--card))
+      calc(var(--brightness-fill) * 0.7),
+    color-mix(
+        in srgb,
+        color-mix(in srgb, var(--tint-color-2) 65%, black) calc(50% * var(--tint-strength)),
+        var(--card)
+      )
       var(--brightness-fill),
     var(--card) var(--brightness-fill),
     var(--card) 100%
@@ -390,10 +414,19 @@
 .tint-fill-horizontal-3 {
   background-image: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--tint-color) calc(50% * var(--tint-strength)), var(--card)) 0%,
+    color-mix(
+        in srgb,
+        color-mix(in srgb, var(--tint-color) 70%, white) calc(50% * var(--tint-strength)),
+        var(--card)
+      )
+      0%,
     color-mix(in srgb, var(--tint-color-2) calc(50% * var(--tint-strength)), var(--card))
       calc(var(--brightness-fill) * 0.5),
-    color-mix(in srgb, var(--tint-color-3) calc(50% * var(--tint-strength)), var(--card))
+    color-mix(
+        in srgb,
+        color-mix(in srgb, var(--tint-color-3) 65%, black) calc(50% * var(--tint-strength)),
+        var(--card)
+      )
       var(--brightness-fill),
     var(--card) var(--brightness-fill),
     var(--card) 100%
