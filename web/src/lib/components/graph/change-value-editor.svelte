@@ -14,9 +14,11 @@
 		type RoomLite,
 		type TargetKind,
 	} from "$lib/target-resolve";
-	import { sentenceCase } from "$lib/utils.js";
 	import type { Capability, Device } from "$lib/gql/graphql";
 	import CapabilityOptionRow from "./capability-option-row.svelte";
+	import { historyFieldLabel } from "$lib/i18n/vocabulary";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		target: { type: TargetKind; id: string } | null;
@@ -70,7 +72,7 @@
 	);
 
 	function fieldLabel(name: string): string {
-		return sentenceCase(name);
+		return historyFieldLabel(name);
 	}
 
 	const selectedCap = $derived(settableCaps.find((c) => c.name === parsed.field) ?? null);
@@ -97,18 +99,18 @@
 		emit({ ...parsed, mode: m });
 	}
 
-	const fieldSelectedLabel = $derived(parsed.field ? fieldLabel(parsed.field) : "Select field");
+	const fieldSelectedLabel = $derived(parsed.field ? fieldLabel(parsed.field) : m.automation_change_select_field({}, locale.messageOptions()));
 
 	const rangeHint = $derived.by(() => {
 		if (parsed.mode !== "absolute") return "";
 		if (!selectedCap || selectedCap.valueMin == null || selectedCap.valueMax == null) return "";
-		return `Range: ${selectedCap.valueMin} – ${selectedCap.valueMax}`;
+		return m.automation_change_range({ minimum: selectedCap.valueMin, maximum: selectedCap.valueMax }, locale.messageOptions());
 	});
 </script>
 
 {#if settableCaps.length === 0}
 	{#if target || capabilities !== undefined}
-		<p class="text-[11px] text-muted-foreground">Target has no adjustable numeric fields.</p>
+		<p class="text-[11px] text-muted-foreground">{m.automation_change_no_fields({}, locale.messageOptions())}</p>
 	{/if}
 {:else}
 	<div class="space-y-2">
@@ -133,7 +135,7 @@
 				value={parsed.delta}
 				allowDecimal
 				allowNegative
-				ariaLabel="Delta"
+				ariaLabel={m.automation_change_delta({}, locale.messageOptions())}
 				class="flex-1 text-xs"
 				{disabled}
 				onValueChange={setDelta}
@@ -159,7 +161,7 @@
 					onclick={() => setMode("absolute")}
 					aria-pressed={parsed.mode === "absolute"}
 				>
-					Value
+					{m.automation_change_value({}, locale.messageOptions())}
 				</Button>
 			</div>
 		</div>

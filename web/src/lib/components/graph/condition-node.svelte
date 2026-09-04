@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
-	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -15,10 +15,13 @@
 	import NodeTypeSelect from "./node-type-select.svelte";
 	import DeviceOptionRow from "./device-option-row.svelte";
 	import CapabilityOptionRow from "./capability-option-row.svelte";
-	import { CONDITION_OPTIONS } from "./automation-node-options";
+	import { conditionOptions } from "./automation-node-options";
+	import { automationValidationMessage } from "$lib/i18n/automation-validation";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { chipLabel, historyFieldLabel, identifierLabel } from "$lib/i18n/vocabulary";
 	import { roomLabelsByDevice } from "$lib/memberships";
 	import { ShieldCheck } from "@lucide/svelte";
-	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
 	import {
@@ -27,7 +30,7 @@
 		type ConditionTargetType,
 		validateConditionConfig,
 	} from "./condition-expr";
-	import { capabilityToExprProperty } from "./trigger-expr";
+	import { capabilityToExprProperty, weekdayLabel } from "./trigger-expr";
 	import type { GroupLite, RoomLite } from "$lib/target-resolve";
 	import { CapabilityCategory } from "$lib/gql/graphql";
 
@@ -76,7 +79,8 @@
 
 	let { data, id }: Props = $props();
 
-	const modes = CONDITION_OPTIONS;
+	const modes = $derived.by(() => conditionOptions());
+	const messageOptions = $derived(locale.messageOptions());
 
 	const comparators = [
 		{ value: "==", label: "=" },
@@ -96,18 +100,17 @@
 		"Saturday",
 		"Sunday",
 	];
-	const weekdayShort = ["M", "T", "W", "T", "F", "S", "S"];
+	const weekdayCodes = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+	const weekdayShort = $derived(weekdayCodes.map((code) => weekdayLabel(code, "narrow")));
 
-	const deviceTypeOptions = [
-		{ value: "light", label: "Light" },
-		{ value: "sensor", label: "Sensor" },
-		{ value: "switch", label: "Switch" },
-	];
+	const deviceTypeOptions = $derived.by(() =>
+		["light", "sensor", "switch"].map((value) => ({ value, label: chipLabel(value) })),
+	);
 
-	const deviceChipConfigs: ChipConfig[] = [
+	const deviceChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "type",
-			label: "Type",
+			label: m.automation_node_filter_type({}, messageOptions),
 			variant: "secondary",
 			options: (q: string) => {
 				const lower = q.toLowerCase();
@@ -116,7 +119,7 @@
 				);
 			},
 		},
-	];
+	]);
 
 	const deviceChipMatchers: Record<string, (d: Device, v: string) => boolean> = {
 		type: (d, v) => d.type === v,
@@ -187,7 +190,7 @@
 			items.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
 		}
 		for (const r of data.rooms ?? []) {
-			items.push({ kind: "room", id: r.id, name: r.name });
+			items.push({ kind: "room", id: r.id, name: entityDisplayName("room", r) });
 		}
 		return items;
 	});
@@ -244,13 +247,13 @@
 
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-condition/15 px-3 py-2">
 		<ShieldCheck class="size-4 text-automation-condition" />
-		<span class="text-sm font-medium text-automation-condition">Condition</span>
+		<span class="text-sm font-medium text-automation-condition">{m.automation_node_condition({}, messageOptions)}</span>
 	</div>
 
 	<fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-3 nodrag">
 			<NodeTypeSelect
 				value={data.config.mode}
-				placeholder="Select condition"
+				placeholder={m.automation_node_select_condition({}, messageOptions)}
 				options={modes}
 				disabled={data.readOnly}
 				invalid={validationError?.field === "mode"}
@@ -259,16 +262,16 @@
 
 			{#if data.config.mode === "time_window"}
 				<div class="grid gap-1.5">
-					<span class="text-[10px] text-muted-foreground">After</span>
+					<span class="text-[10px] text-muted-foreground">{m.automation_node_after({}, messageOptions)}</span>
 					<div class="flex gap-1">
 						<NumberInput
 							value={data.config.afterHour ?? null}
 							onValueChange={(v) => update({ afterHour: v ?? undefined })}
 							min={0}
 							max={23}
-							placeholder="HH"
+							placeholder={m.common_time_hour_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="After hour"
+							ariaLabel={m.automation_node_after_hour({}, messageOptions)}
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
 						<NumberInput
@@ -276,23 +279,23 @@
 							onValueChange={(v) => update({ afterMinute: v ?? undefined })}
 							min={0}
 							max={59}
-							placeholder="MM"
+							placeholder={m.common_time_minute_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="After minute"
+							ariaLabel={m.automation_node_after_minute({}, messageOptions)}
 						/>
 					</div>
 				</div>
 				<div class="grid gap-1.5">
-					<span class="text-[10px] text-muted-foreground">Before</span>
+					<span class="text-[10px] text-muted-foreground">{m.automation_node_before({}, messageOptions)}</span>
 					<div class="flex gap-1">
 						<NumberInput
 							value={data.config.beforeHour ?? null}
 							onValueChange={(v) => update({ beforeHour: v ?? undefined })}
 							min={0}
 							max={23}
-							placeholder="HH"
+							placeholder={m.common_time_hour_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="Before hour"
+							ariaLabel={m.automation_node_before_hour({}, messageOptions)}
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
 						<NumberInput
@@ -300,9 +303,9 @@
 							onValueChange={(v) => update({ beforeMinute: v ?? undefined })}
 							min={0}
 							max={59}
-							placeholder="MM"
+							placeholder={m.common_time_minute_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="Before minute"
+							ariaLabel={m.automation_node_before_minute({}, messageOptions)}
 						/>
 					</div>
 				</div>
@@ -327,7 +330,7 @@
 					selectedFallback={selectedTargetFallback}
 					getValue={targetKey}
 					getLabel={(t) => t.name}
-					placeholder="Select target"
+					placeholder={m.automation_node_select_target({}, messageOptions)}
 					size="sm"
 					separatedItems
 					disabled={data.readOnly}
@@ -337,11 +340,11 @@
 					{#snippet renderSelected(t: TargetItem)}
 						<span class="truncate {t.removed ? 'text-muted-foreground' : ''}">{t.name}</span>
 						{#if t.removed}
-							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">Removed</Badge>
+							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">{m.automation_node_removed({}, messageOptions)}</Badge>
 						{:else if t.kind === "device" && t.deviceType}
 							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
 						{:else}
-							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">{t.kind}</Badge>
+							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">{chipLabel(t.kind)}</Badge>
 						{/if}
 					{/snippet}
 					{#snippet item(t: TargetItem)}
@@ -350,7 +353,7 @@
 						{:else}
 							<span class="flex w-full items-center gap-1.5 overflow-hidden">
 								<span class="truncate">{t.name}</span>
-								<Badge variant="secondary" class="ml-auto shrink-0 py-0 text-[10px]">{t.kind}</Badge>
+								<Badge variant="secondary" class="ml-auto shrink-0 py-0 text-[10px]">{chipLabel(t.kind)}</Badge>
 							</span>
 						{/if}
 					{/snippet}
@@ -361,8 +364,8 @@
 						items={availableCapabilities}
 						value={data.config.property ?? ""}
 						getValue={(c) => capabilityToExprProperty(c.name)}
-						getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
-						placeholder="Select property"
+						getLabel={(c) => historyFieldLabel(capabilityToExprProperty(c.name))}
+						placeholder={m.automation_node_select_property({}, messageOptions)}
 						size="sm"
 						separatedItems
 						disabled={data.readOnly}
@@ -372,7 +375,7 @@
 						{#snippet item(c: Capability)}
 							<CapabilityOptionRow
 								type={capabilityToExprProperty(c.name)}
-								label={sentenceCase(capabilityToExprProperty(c.name))}
+								label={historyFieldLabel(capabilityToExprProperty(c.name))}
 								unit={c.unit}
 							/>
 						{/snippet}
@@ -388,11 +391,11 @@
 							onValueChange={(v) => v && update({ comparator: "==", value: v })}
 						>
 							<SelectTrigger size="sm" class="w-full text-xs">
-								{data.config.value === "false" ? "Off" : "On"}
+								{data.config.value === "false" ? m.state_off({}, messageOptions) : m.state_on({}, messageOptions)}
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="true">On</SelectItem>
-								<SelectItem value="false">Off</SelectItem>
+								<SelectItem value="true">{m.state_on({}, messageOptions)}</SelectItem>
+								<SelectItem value="false">{m.state_off({}, messageOptions)}</SelectItem>
 							</SelectContent>
 						</Select>
 					{:else if selectedCapability.type === "numeric"}
@@ -418,7 +421,7 @@
 								nullable
 								value={data.config.value !== undefined && data.config.value !== "" ? Number(data.config.value) : null}
 								onValueChange={(v) => update({ value: v === null ? "" : String(v) })}
-								placeholder="value"
+								placeholder={m.automation_node_value_placeholder({}, messageOptions)}
 								class="text-xs"
 								ariaInvalid={validationError?.field === "value" ? "true" : undefined}
 							/>
@@ -428,8 +431,8 @@
 							items={selectedCapability.values}
 							value={data.config.value ?? ""}
 							getValue={(v) => v}
-							getLabel={(v) => sentenceCase(v)}
-							placeholder="Select value"
+							getLabel={(v) => identifierLabel(v)}
+							placeholder={m.automation_node_select_value({}, messageOptions)}
 							size="sm"
 							disabled={data.readOnly}
 							class={validationError?.field === "value" ? `text-xs ${INVALID_CLS}` : "text-xs"}
@@ -458,7 +461,7 @@
 									const t = e.target as HTMLInputElement;
 									update({ value: t.value });
 								}}
-								placeholder="value"
+								placeholder={m.automation_node_value_placeholder({}, messageOptions)}
 								class="text-xs"
 								aria-invalid={validationError?.field === "value" ? "true" : undefined}
 							/>
@@ -472,14 +475,14 @@
 						const t = e.target as HTMLInputElement;
 						update({ customExpr: t.value });
 					}}
-					placeholder="Expression, e.g. time.hour >= 21"
+					placeholder={m.automation_node_custom_expression_placeholder({}, messageOptions)}
 					class="text-xs font-mono"
 					aria-invalid={validationError?.field === "customExpr" ? "true" : undefined}
 				/>
 			{/if}
 
 		{#if validationError && !data.readOnly}
-			<p class="text-[10px] text-destructive">{validationError.message}</p>
+			<p class="text-[10px] text-destructive">{automationValidationMessage(validationError.code)}</p>
 		{/if}
 	</fieldset>
 

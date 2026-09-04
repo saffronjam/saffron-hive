@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, deviceSourceName, groupDisplayName, groupSourceName } from "$lib/utils";
 	import { goto } from "$app/navigation";
 	import { onMount, onDestroy, tick, untrack } from "svelte";
 	import { fly } from "svelte/transition";
@@ -61,12 +61,15 @@
 	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
 	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { scenesStore } from "$lib/stores/scenes.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { holdDrag } from "$lib/actions/hold-drag";
@@ -257,18 +260,16 @@
 	const isMobile = new IsMobile();
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 
 	let automationName = $state("");
 	let automationIcon = $state<string | null>(null);
 
-	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Automations", href: "/automations" }, { label: "Automation" }];
-	});
-
 	$effect(() => {
-		if (automationName) {
-			pageHeader.breadcrumbs = [{ label: "Automations", href: "/automations" }, { label: automationName }];
-		}
+		pageHeader.breadcrumbs = [
+			{ label: m.nav_automations({}, messageOptions), href: "/automations" },
+			{ label: automationName ? localizedNamesStore.display("automation", automationId, automationName) : m.automation_editor_fallback({}, messageOptions) },
+		];
 	});
 
 	function handleCancel() {
@@ -277,15 +278,15 @@
 
 	$effect(() => {
 		pageHeader.actions = [
-			{ label: "Cancel", icon: X, variant: "outline" as const, onclick: handleCancel, hideLabelOnMobile: true },
+			{ label: m.common_cancel({}, messageOptions), icon: X, variant: "outline" as const, onclick: handleCancel, hideLabelOnMobile: true },
 			{
-				label: "Save",
+				label: m.common_save({}, messageOptions),
 				saving,
 				onclick: handleSave,
 				disabled: !editMode || saving || !isDirty,
 				hideLabelOnMobile: true,
 			},
-			{ label: "Delete", icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode, hideLabelOnMobile: true },
+			{ label: m.common_delete({}, messageOptions), icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode, hideLabelOnMobile: true },
 		];
 	});
 	let automationEnabled = $state(false);
@@ -442,7 +443,7 @@
 		for (const n of flowNodes) {
 			const nodeType = n.type ?? "";
 			const config = (n.data as Record<string, unknown>).config;
-			let err: { field: string; message: string } | null = null;
+			let err: { field: string; code: string } | null = null;
 			if (nodeType === "trigger") err = validateTriggerConfig(config as TriggerConfig);
 			else if (nodeType === "condition") err = validateConditionConfig(config as ConditionConfig);
 			else if (nodeType === "action") err = validateActionConfig(config as ActionConfig);
@@ -625,10 +626,10 @@
 		if (!devices.length) return cfg;
 		if (cfg.deviceId && !cfg.deviceName) {
 			const d = devices.find((x) => x.id === cfg.deviceId);
-			if (d) return { ...cfg, deviceName: deviceDisplayName(d) };
+			if (d) return { ...cfg, deviceName: deviceSourceName(d) };
 		}
 		if (cfg.deviceName && !cfg.deviceId) {
-			const d = devices.find((x) => x.name === cfg.deviceName);
+			const d = devices.find((x) => deviceSourceName(x) === cfg.deviceName);
 			if (d) return { ...cfg, deviceId: d.id };
 		}
 		return cfg;
@@ -643,13 +644,13 @@
 		if (!cfg.targetName) {
 			if (cfg.targetId && cfg.targetType === "device") {
 				const d = devices.find((x) => x.id === cfg.targetId);
-				if (d) return { ...cfg, targetName: deviceDisplayName(d) };
+				if (d) return { ...cfg, targetName: deviceSourceName(d) };
 			}
 			return cfg;
 		}
-		const dev = devices.find((x) => x.name === cfg.targetName);
+		const dev = devices.find((x) => deviceSourceName(x) === cfg.targetName);
 		if (dev) return { ...cfg, targetType: "device", targetId: dev.id };
-		const grp = groups.find((g) => groupDisplayName(g) === cfg.targetName);
+		const grp = groups.find((g) => groupSourceName(g) === cfg.targetName);
 		if (grp) return { ...cfg, targetType: "group", targetId: grp.id };
 		const room = rooms.find((r) => r.name === cfg.targetName);
 		if (room) return { ...cfg, targetType: "room", targetId: room.id };
@@ -1124,7 +1125,8 @@
 			flowEdges = automationEdgesToFlowEdges(result.edges);
 			takeSnapshot();
 		} else {
-			jsonError = result.error;
+			console.error("Invalid automation JSON", result.error);
+			jsonError = m.automation_validation_json_invalid({}, messageOptions);
 		}
 		syncSource = null;
 	}
@@ -1177,7 +1179,12 @@
 	}
 
 	function toolbarNodeLabel(nodeType: AutomationNodeType): string {
-		return nodeType[0].toUpperCase() + nodeType.slice(1);
+		switch (nodeType) {
+			case "trigger": return m.automation_node_trigger({}, messageOptions);
+			case "condition": return m.automation_node_condition({}, messageOptions);
+			case "operator": return m.automation_operator_title({}, messageOptions);
+			case "action": return m.automation_node_action({}, messageOptions);
+		}
 	}
 
 	function startToolbarNodeDrag(nodeType: AutomationNodeType, event: PointerEvent) {
@@ -1430,10 +1437,10 @@
 		if (!targetId) return "";
 		switch (targetType) {
 			case "device":
-				return deviceList.find((d) => d.id === targetId)?.name ?? "";
+				return deviceSourceName(deviceList.find((d) => d.id === targetId) ?? { id: targetId });
 			case "group": {
 				const group = groupList.find((candidate) => candidate.id === targetId);
-				return group ? groupDisplayName(group) : "";
+				return group ? groupSourceName(group) : "";
 			}
 			case "room":
 				return roomList.find((r) => r.id === targetId)?.name ?? "";
@@ -1595,7 +1602,8 @@
 			.mutation(FIRE_AUTOMATION_TRIGGER, { automationId, nodeId })
 			.toPromise();
 		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+			console.error(result.error);
+			errors.setWithAutoDismiss(m.automation_editor_fire_failed({}, messageOptions));
 		}
 	}
 
@@ -1649,7 +1657,8 @@
 		saving = false;
 
 		if (result.error) {
-			errors.setWithAutoDismiss(result.error.message);
+			console.error(result.error);
+			errors.setWithAutoDismiss(m.automation_editor_save_failed({}, messageOptions));
 			return;
 		}
 
@@ -1694,7 +1703,8 @@
 			await automationsStore.delete(client, automationId);
 		} catch (error) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not delete the automation."));
+			console.error(graphqlErrorMessage(error, m.automation_editor_delete_failed({}, messageOptions)));
+			errors.setWithAutoDismiss(m.automation_editor_delete_failed({}, messageOptions));
 			return;
 		}
 
@@ -1838,7 +1848,7 @@
 					takeSnapshot();
 				}}
 			>
-				<IconPickerTrigger size="sm" ariaLabel="Change icon" disabled={!editMode}>
+				<IconPickerTrigger size="sm" ariaLabel={m.automation_editor_change_icon({}, messageOptions)} disabled={!editMode}>
 					<AnimatedIcon icon={automationIcon} class="size-4 text-muted-foreground">
 						{#snippet fallback()}<Workflow class="size-4 text-muted-foreground" />{/snippet}
 					</AnimatedIcon>
@@ -1850,7 +1860,7 @@
 					if (editMode) queueMicrotask(takeSnapshot);
 				}}
 				class="h-8 w-48 text-sm font-medium"
-				placeholder="Automation name"
+				placeholder={m.automation_editor_name_placeholder({}, messageOptions)}
 				disabled={!editMode}
 			/>
 
@@ -1874,7 +1884,7 @@
 						disabled={!editMode || (viewMode === "code" && !!jsonError)}
 					>
 						<LayoutGrid class="size-3.5" />
-						<span class="hidden sm:inline">Visual</span>
+						<span class="hidden sm:inline">{m.automation_editor_visual({}, messageOptions)}</span>
 					</Button>
 					<Button
 						variant={viewMode === "code" ? "secondary" : "ghost"}
@@ -1889,7 +1899,7 @@
 						disabled={!editMode}
 					>
 						<Code class="size-3.5" />
-						<span class="hidden sm:inline">Code</span>
+						<span class="hidden sm:inline">{m.automation_editor_code({}, messageOptions)}</span>
 					</Button>
 				</div>
 
@@ -1908,7 +1918,7 @@
 					class="h-full w-full {initialAutoLayoutPending ? 'opacity-0' : ''}"
 					bind:this={flowSurface}
 					role="application"
-					aria-label="Automation graph"
+					aria-label={m.automation_editor_graph_aria({}, messageOptions)}
 					oncontextmenu={handleFlowSurfaceContextMenu}
 					in:fly={{ y: -4, duration: 150 }}
 				>
@@ -1943,7 +1953,7 @@
 						disabled={!editMode}
 						onclick={() => setPlacementMode("free")}
 					>
-						Free
+						{m.automation_editor_free({}, messageOptions)}
 					</Button>
 					<Button
 						variant={placementMode === "auto" ? "secondary" : "ghost"}
@@ -1952,7 +1962,7 @@
 						disabled={!editMode}
 						onclick={() => setPlacementMode("auto")}
 					>
-						Auto
+						{m.automation_editor_auto({}, messageOptions)}
 					</Button>
 				</div>
 				<Button
@@ -1962,14 +1972,14 @@
 					disabled={!editMode || placementMode === "auto"}
 				>
 					<Rows3 class="size-3.5" />
-					<span class="hidden sm:inline">Sort</span>
+					<span class="hidden sm:inline">{m.automation_editor_sort({}, messageOptions)}</span>
 				</Button>
 				<Button
 					variant="ghost"
 					size="icon-sm"
 					onclick={handleCopy}
 					disabled={!editMode || !anyNodeSelected}
-					aria-label="Copy selected nodes"
+					aria-label={m.automation_editor_copy_nodes({}, messageOptions)}
 				>
 					<Copy class="size-3.5" />
 				</Button>
@@ -1978,7 +1988,7 @@
 					size="icon-sm"
 					onclick={handlePaste}
 					disabled={!editMode || !copyBuffer}
-					aria-label="Paste copied nodes"
+					aria-label={m.automation_editor_paste_nodes({}, messageOptions)}
 				>
 					<ClipboardPaste class="size-3.5" />
 				</Button>
@@ -1986,26 +1996,26 @@
 				{#if isMobile.current}
 					<DropdownMenu>
 						<DropdownMenuTrigger>
-							<Button variant="ghost" size="icon-sm" disabled={!editMode} aria-label="Add node">
+							<Button variant="ghost" size="icon-sm" disabled={!editMode} aria-label={m.automation_editor_add_node({}, messageOptions)}>
 								<Plus class="size-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="center" class="min-w-[10rem]">
 							<DropdownMenuItem onclick={() => addNode("trigger")}>
 								<Zap class="size-3.5 text-automation-trigger" />
-								Trigger
+								{m.automation_node_trigger({}, messageOptions)}
 							</DropdownMenuItem>
 							<DropdownMenuItem onclick={() => addNode("condition")}>
 								<ShieldCheck class="size-3.5 text-automation-condition" />
-								Condition
+								{m.automation_node_condition({}, messageOptions)}
 							</DropdownMenuItem>
 							<DropdownMenuItem onclick={() => addNode("operator")}>
 								<GitMerge class="size-3.5 text-automation-operator" />
-								Operator
+								{m.automation_operator_title({}, messageOptions)}
 							</DropdownMenuItem>
 							<DropdownMenuItem onclick={() => addNode("action")}>
 								<Play class="size-3.5 text-automation-action" />
-								Action
+								{m.automation_node_action({}, messageOptions)}
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -2023,7 +2033,7 @@
 					>
 						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("trigger")} disabled={!editMode}>
 							<Zap class="size-3.5 text-automation-trigger" />
-							<span class="hidden sm:inline">Trigger</span>
+							<span class="hidden sm:inline">{m.automation_node_trigger({}, messageOptions)}</span>
 						</Button>
 					</div>
 					<div
@@ -2039,7 +2049,7 @@
 					>
 						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("condition")} disabled={!editMode}>
 							<ShieldCheck class="size-3.5 text-automation-condition" />
-							<span class="hidden sm:inline">Condition</span>
+							<span class="hidden sm:inline">{m.automation_node_condition({}, messageOptions)}</span>
 						</Button>
 					</div>
 					<div
@@ -2055,7 +2065,7 @@
 					>
 						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("operator")} disabled={!editMode}>
 							<GitMerge class="size-3.5 text-automation-operator" />
-							<span class="hidden sm:inline">Operator</span>
+							<span class="hidden sm:inline">{m.automation_operator_title({}, messageOptions)}</span>
 						</Button>
 					</div>
 					<div
@@ -2071,7 +2081,7 @@
 					>
 						<Button variant="ghost" size="sm" onclick={() => addNodeFromToolbar("action")} disabled={!editMode}>
 							<Play class="size-3.5 text-automation-action" />
-							<span class="hidden sm:inline">Action</span>
+							<span class="hidden sm:inline">{m.automation_node_action({}, messageOptions)}</span>
 						</Button>
 					</div>
 				{/if}
@@ -2084,7 +2094,7 @@
 						onclick={() => { if (!editMode) toggleMode(); }}
 					>
 						<Pencil class="size-3.5" />
-						<span class="hidden sm:inline">Edit</span>
+						<span class="hidden sm:inline">{m.automation_editor_edit({}, messageOptions)}</span>
 					</Button>
 					<Button
 						variant={!editMode ? "secondary" : "ghost"}
@@ -2094,7 +2104,7 @@
 						onclick={handleGoLive}
 					>
 						<Eye class="size-3.5" />
-						<span class="hidden sm:inline">Live</span>
+						<span class="hidden sm:inline">{m.automation_editor_live({}, messageOptions)}</span>
 					</Button>
 				</div>
 				</div>
@@ -2112,73 +2122,73 @@
 					{#if graphContextMenuState?.kind === "canvas"}
 						<DropdownMenuItem onclick={() => addNodeFromCanvas("trigger")}>
 							<Zap class="size-3.5 text-automation-trigger" />
-							Trigger
+							{m.automation_node_trigger({}, messageOptions)}
 						</DropdownMenuItem>
 						<DropdownMenuItem onclick={() => addNodeFromCanvas("condition")}>
 							<ShieldCheck class="size-3.5 text-automation-condition" />
-							Condition
+							{m.automation_node_condition({}, messageOptions)}
 						</DropdownMenuItem>
 						<DropdownMenuItem onclick={() => addNodeFromCanvas("operator")}>
 							<GitMerge class="size-3.5 text-automation-operator" />
-							Operator
+							{m.automation_operator_title({}, messageOptions)}
 						</DropdownMenuItem>
 						<DropdownMenuItem onclick={() => addNodeFromCanvas("action")}>
 							<Play class="size-3.5 text-automation-action" />
-							Action
+							{m.automation_node_action({}, messageOptions)}
 						</DropdownMenuItem>
 						{#if copyBuffer}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem onclick={pasteFromCanvas}>
 								<ClipboardPaste class="size-3.5" />
-								Paste nodes
+								{m.automation_editor_paste({}, messageOptions)}
 							</DropdownMenuItem>
 						{/if}
 					{:else if graphContextMenuState?.kind === "node"}
 						{#if !editMode && graphContextMenuNode?.type === "trigger"}
 							<DropdownMenuItem disabled={!savedAutomationEnabled} onclick={fireTriggerFromContextMenu}>
 								<Zap class="size-3.5 text-automation-trigger" />
-								Trigger
+								{m.automation_node_trigger({}, messageOptions)}
 							</DropdownMenuItem>
 						{:else if editMode}
 							{#if graphContextMenuNode?.type === "trigger"}
 								<DropdownMenuItem onclick={copyTriggerConditionFromContextMenu}>
 									<Code class="size-3.5" />
-									Copy trigger condition
+									{m.automation_editor_copy_trigger_condition({}, messageOptions)}
 								</DropdownMenuItem>
 							{/if}
 							<DropdownMenuItem onclick={toggleNodeLock}>
 								{#if lockedNodeIds.has(graphContextMenuState.nodeId)}
 									<LockOpen class="size-3.5" />
-									Unlock
+									{m.automation_editor_unlock({}, messageOptions)}
 								{:else}
 									<Lock class="size-3.5" />
-									Lock
+									{m.automation_editor_lock({}, messageOptions)}
 								{/if}
 							</DropdownMenuItem>
 							<DropdownMenuItem onclick={copyNodeFromContextMenu}>
 								<Copy class="size-3.5" />
-								Copy
+								{m.common_copy({}, messageOptions)}
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem variant="destructive" onclick={deleteNodeFromContextMenu}>
 								<Trash2 class="size-3.5" />
-								Delete
+								{m.common_delete({}, messageOptions)}
 							</DropdownMenuItem>
 						{/if}
 					{:else if graphContextMenuState?.kind === "selection" && editMode}
 						<DropdownMenuItem onclick={toggleSelectionLock}>
 							{#if graphContextMenuSelectionAllLocked}
 								<LockOpen class="size-3.5" />
-								Unlock
+								{m.automation_editor_unlock({}, messageOptions)}
 							{:else}
 								<Lock class="size-3.5" />
-								Lock
+								{m.automation_editor_lock({}, messageOptions)}
 							{/if}
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem variant="destructive" onclick={deleteSelectionFromContextMenu}>
 							<Trash2 class="size-3.5" />
-							Delete
+							{m.common_delete({}, messageOptions)}
 						</DropdownMenuItem>
 					{/if}
 				</DropdownMenuContent>
@@ -2195,7 +2205,7 @@
 				<div
 					class="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive backdrop-blur-sm"
 				>
-					<span class="font-medium">Invalid config:</span>
+					<span class="font-medium">{m.automation_editor_invalid_config({}, messageOptions)}</span>
 					<span class="font-mono">{jsonError}</span>
 				</div>
 			{/if}
@@ -2230,9 +2240,9 @@
 
 	<ConfirmDialog
 		bind:open={deleteConfirmOpen}
-		title="Delete Automation"
-		description='Are you sure you want to delete "{automationName}"? This action cannot be undone.'
-		confirmLabel="Delete"
+		title={m.automation_editor_delete_title({}, messageOptions)}
+		description={m.automation_editor_delete_description({ name: localizedNamesStore.display("automation", automationId, automationName) }, messageOptions)}
+		confirmLabel={m.common_delete({}, messageOptions)}
 		loading={deleteLoading}
 		onconfirm={handleDelete}
 		oncancel={() => (deleteConfirmOpen = false)}

@@ -21,6 +21,9 @@
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { Workflow } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { entityDisplayName } from "$lib/utils";
 
 	interface Props {
 		automations: Automation[];
@@ -33,7 +36,9 @@
 
 	let { automations, selection, ontoggle, ondelete, onrename, oniconchange }: Props = $props();
 
-	const COLUMNS: ColumnDef<Automation>[] = [
+	const COLUMNS: ColumnDef<Automation>[] = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
 		{
 			key: "select",
 			label: "",
@@ -51,30 +56,30 @@
 		},
 		{
 			key: "name",
-			label: "Name",
-			sortValue: (a) => a.name,
+			label: m.automations_column_name({}, options),
+			sortValue: (a) => entityDisplayName("automation", a),
 			cell: nameCell,
 		},
 		{
 			key: "meta",
-			label: "Meta",
+			label: m.automations_column_meta({}, options),
 			sortValue: (a) => a.nodes.length,
 			cell: metaCell,
 		},
 		{
 			key: "composition",
-			label: "Composition",
+			label: m.automations_column_composition({}, options),
 			cell: compositionCell,
 		},
 		{
 			key: "lastTriggered",
-			label: "Last triggered",
+			label: m.automations_column_last_triggered({}, options),
 			sortValue: (a) => a.lastFiredAt ?? null,
 			cell: lastTriggeredCell,
 		},
 		{
 			key: "createdBy",
-			label: "Created by",
+			label: m.automations_column_created_by({}, options),
 			sortValue: (a) => a.createdBy?.name ?? null,
 			cell: createdByCell,
 		},
@@ -86,11 +91,12 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+		] satisfies ColumnDef<Automation>[];
+	});
 
 	const tableState = createTableState({
 		storageKey: "automations",
-		columns: COLUMNS,
+		columns: () => COLUMNS,
 	});
 
 	const displayRows = $derived(tableState.applySort(automations));
@@ -109,7 +115,7 @@
 		id={a.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {a.name}"
+		ariaLabel={m.automations_select({ name: entityDisplayName("automation", a) }, locale.messageOptions())}
 	/>
 {/snippet}
 
@@ -119,14 +125,16 @@
 
 {#snippet nameCell(a: Automation)}
 	<InlineEditName
-		name={a.name}
+		name={entityDisplayName("automation", a)}
+		entityType="automation"
+		entityId={a.id}
 		onsave={(newName) => onrename(a, newName)}
 	/>
 {/snippet}
 
 {#snippet metaCell(a: Automation)}
 	<span class="text-xs text-muted-foreground whitespace-nowrap">
-		{a.nodes.length} node{a.nodes.length === 1 ? "" : "s"}
+		{m.automations_node_count({ count: a.nodes.length }, locale.messageOptions())}
 	</span>
 {/snippet}
 
@@ -165,14 +173,14 @@
 	<RowActionsCell
 		editHref={`/automations/${a.id}`}
 		ondelete={() => ondelete(a)}
-		editLabel="Edit automation"
-		deleteLabel="Delete automation"
+		editLabel={m.automations_edit({}, locale.messageOptions())}
+		deleteLabel={m.automations_delete_title({}, locale.messageOptions())}
 	>
 		{#snippet leading()}
 			<Switch
 				checked={a.enabled}
 				onCheckedChange={(checked) => ontoggle(a, checked)}
-				aria-label={a.enabled ? `Disable ${a.name}` : `Enable ${a.name}`}
+				aria-label={a.enabled ? m.automations_disable({ name: entityDisplayName("automation", a) }, locale.messageOptions()) : m.automations_enable({ name: entityDisplayName("automation", a) }, locale.messageOptions())}
 			/>
 		{/snippet}
 	</RowActionsCell>

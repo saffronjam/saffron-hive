@@ -1,4 +1,7 @@
 import type { Clause } from "$lib/target-resolve";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
+import { formatList, formatShortDuration } from "$lib/i18n/format";
 
 export type TriggerMode =
   | ""
@@ -65,15 +68,17 @@ export interface TriggerConfig {
 
 // TIMING_PRESETS feeds the Grace/Cooldown selects in the trigger node. Values
 // are in milliseconds so the runtime and the UI agree without unit conversion.
-export const TIMING_PRESETS: { value: number; label: string }[] = [
-  { value: 0, label: "Immediate" },
-  { value: 500, label: "500 ms" },
-  { value: 1000, label: "1 s" },
-  { value: 5000, label: "5 s" },
-  { value: 10000, label: "10 s" },
-  { value: 30000, label: "30 s" },
-  { value: 60000, label: "1 min" },
-];
+export function timingPresets(): { value: number; label: string }[] {
+  return [
+    { value: 0, label: m.automation_timing_immediate({}, locale.messageOptions()) },
+    { value: 500, label: formatShortDuration(500, "millisecond") },
+    { value: 1000, label: formatShortDuration(1, "second") },
+    { value: 5000, label: formatShortDuration(5, "second") },
+    { value: 10000, label: formatShortDuration(10, "second") },
+    { value: 30000, label: formatShortDuration(30, "second") },
+    { value: 60000, label: formatShortDuration(1, "minute") },
+  ];
+}
 
 const capToExprProperty: Record<string, string> = {
   on_off: "on",
@@ -184,23 +189,45 @@ export function generateCronExpr(config: TriggerConfig): string {
 }
 
 export function humanizeCron(cronExpr: string): string {
+  const options = locale.messageOptions();
   const atMatch = cronExpr.match(/^(\d+) (\d+) (\d+) \* \* (\S+)$/);
   if (atMatch) {
-    const [, s, m, h, dow] = atMatch;
-    const time = `${h.padStart(2, "0")}:${m.padStart(2, "0")}:${s.padStart(2, "0")}`;
-    if (dow === "*") return `Every day at ${time}`;
-    return `At ${time} on ${dow.replace(/,/g, ", ")}`;
+    const [, s, minute, h, dow] = atMatch;
+    const time = `${h.padStart(2, "0")}:${minute.padStart(2, "0")}:${s.padStart(2, "0")}`;
+    if (dow === "*") return m.automation_schedule_every_day_at({ time }, options);
+    return m.automation_schedule_at_days(
+      { time, days: formatList(dow.split(",").map((code) => weekdayLabel(code))) },
+      options,
+    );
   }
   const everySec = cronExpr.match(/^\*\/(\d+) \* \* \* \* \*$/);
-  if (everySec) return `Every ${everySec[1]} seconds`;
-  if (cronExpr === "* * * * * *") return "Every second";
+  if (everySec) return m.automation_schedule_every_seconds({ count: Number(everySec[1]) }, options);
+  if (cronExpr === "* * * * * *") return m.automation_schedule_every_seconds({ count: 1 }, options);
   const everyMin = cronExpr.match(/^0 \*\/(\d+) \* \* \* \*$/);
-  if (everyMin) return `Every ${everyMin[1]} minutes`;
-  if (cronExpr === "0 * * * * *") return "Every minute";
+  if (everyMin) return m.automation_schedule_every_minutes({ count: Number(everyMin[1]) }, options);
+  if (cronExpr === "0 * * * * *") return m.automation_schedule_every_minutes({ count: 1 }, options);
   const everyHr = cronExpr.match(/^0 0 \*\/(\d+) \* \* \*$/);
-  if (everyHr) return `Every ${everyHr[1]} hours`;
-  if (cronExpr === "0 0 * * * *") return "Every hour";
-  return cronExpr || "(not set)";
+  if (everyHr) return m.automation_schedule_every_hours({ count: Number(everyHr[1]) }, options);
+  if (cronExpr === "0 0 * * * *") return m.automation_schedule_every_hours({ count: 1 }, options);
+  return cronExpr || m.automation_schedule_not_set({}, options);
+}
+
+export function weekdayLabel(code: string, style: "long" | "short" | "narrow" = "long"): string {
+  const offsets: Record<string, number> = {
+    MON: 0,
+    TUE: 1,
+    WED: 2,
+    THU: 3,
+    FRI: 4,
+    SAT: 5,
+    SUN: 6,
+  };
+  const offset = offsets[code];
+  if (offset === undefined) return code;
+  const date = new Date(Date.UTC(2024, 0, 1 + offset));
+  return new Intl.DateTimeFormat(locale.intlLocale, { weekday: style, timeZone: "UTC" }).format(
+    date,
+  );
 }
 
 // parseAtModeFromCron returns {hour, minute, second, weekdays} if cron matches
@@ -517,40 +544,70 @@ export type TriggerField =
 
 export interface ValidationError<F extends string> {
   field: F;
-  message: string;
+  code: AutomationValidationCode;
 }
 
+export type AutomationValidationCode =
+  | "trigger_required"
+  | "condition_required"
+  | "device_required"
+  | "property_required"
+  | "value_required"
+  | "event_required"
+  | "webhook_required"
+  | "filter_path_required"
+  | "filter_value_type_required"
+  | "filter_text_operator_type"
+  | "filter_number_operator_type"
+  | "filter_value_required"
+  | "interval_positive"
+  | "cron_required"
+  | "expression_required"
+  | "rules_required"
+  | "target_required"
+  | "action_required"
+  | "alarm_id_required"
+  | "json_invalid"
+  | "effect_required"
+  | "scenes_minimum"
+  | "scene_reference_invalid"
+  | "field_required"
+  | "delta_non_zero"
+  | "change_mode_invalid"
+  | "settings_required"
+  | "setting_invalid"
+  | "setting_value_invalid";
+
 export function validateTriggerConfig(config: TriggerConfig): ValidationError<TriggerField> | null {
-  if (!config.mode) return { field: "mode", message: "Pick a trigger" };
+  if (!config.mode) return { field: "mode", code: "trigger_required" };
   switch (config.mode) {
     case "device_state":
-      if (!config.deviceId) return { field: "device", message: "Pick a device" };
-      if (!config.property) return { field: "property", message: "Pick a property" };
+      if (!config.deviceId) return { field: "device", code: "device_required" };
+      if (!config.property) return { field: "property", code: "property_required" };
       if (config.value === undefined || config.value === "") {
-        return { field: "value", message: "Set a value" };
+        return { field: "value", code: "value_required" };
       }
       return null;
     case "device_event":
-      if (!config.deviceId) return { field: "device", message: "Pick a device" };
-      if (!config.eventValue) return { field: "eventValue", message: "Pick an event" };
+      if (!config.deviceId) return { field: "device", code: "device_required" };
+      if (!config.eventValue) return { field: "eventValue", code: "event_required" };
       return null;
     case "availability":
-      if (!config.deviceId) return { field: "device", message: "Pick a device" };
+      if (!config.deviceId) return { field: "device", code: "device_required" };
       return null;
     case "webhook": {
-      if (!config.endpointId) return { field: "endpoint", message: "Pick a webhook" };
+      if (!config.endpointId) return { field: "endpoint", code: "webhook_required" };
       for (const rule of config.webhookFilters ?? []) {
-        if (!rule.path.trim()) return { field: "webhookFilter", message: "Set every filter path" };
+        if (!rule.path.trim()) return { field: "webhookFilter", code: "filter_path_required" };
         if (rule.operator === "exists" || rule.operator === "not_exists") continue;
-        if (!rule.value_type)
-          return { field: "webhookFilter", message: "Set every filter value type" };
+        if (!rule.value_type) return { field: "webhookFilter", code: "filter_value_type_required" };
         if (
           (rule.operator === "contains" ||
             rule.operator === "starts_with" ||
             rule.operator === "ends_with") &&
           rule.value_type !== "string"
         ) {
-          return { field: "webhookFilter", message: "Use text with text comparisons" };
+          return { field: "webhookFilter", code: "filter_text_operator_type" };
         }
         if (
           (rule.operator === "greater_than" ||
@@ -559,10 +616,10 @@ export function validateTriggerConfig(config: TriggerConfig): ValidationError<Tr
             rule.operator === "less_than_or_equal") &&
           rule.value_type !== "number"
         ) {
-          return { field: "webhookFilter", message: "Use numbers with numeric comparisons" };
+          return { field: "webhookFilter", code: "filter_number_operator_type" };
         }
         if (rule.value_type !== "null" && (rule.value === undefined || rule.value === "")) {
-          return { field: "webhookFilter", message: "Set every filter value" };
+          return { field: "webhookFilter", code: "filter_value_required" };
         }
       }
       return null;
@@ -571,18 +628,18 @@ export function validateTriggerConfig(config: TriggerConfig): ValidationError<Tr
       const submode = config.scheduleSubmode ?? "at";
       if (submode === "every") {
         if (!config.scheduleIntervalValue || config.scheduleIntervalValue <= 0) {
-          return { field: "interval", message: "Set a positive interval" };
+          return { field: "interval", code: "interval_positive" };
         }
       } else if (submode === "custom") {
         if (!config.cronExpr || config.cronExpr.trim() === "") {
-          return { field: "cronExpr", message: "Enter a cron expression" };
+          return { field: "cronExpr", code: "cron_required" };
         }
       }
       return null;
     }
     case "custom":
       if (!config.customExpr || config.customExpr.trim() === "") {
-        return { field: "customExpr", message: "Enter an expression" };
+        return { field: "customExpr", code: "expression_required" };
       }
       return null;
     default:
@@ -602,7 +659,7 @@ function targetSelected(config: ActionConfigShape): boolean {
 function targetError(config: ActionConfigShape): ValidationError<ActionField> {
   return {
     field: "target",
-    message: config.targetType === "expression" ? "Add at least one rule" : "Pick a target",
+    code: config.targetType === "expression" ? "rules_required" : "target_required",
   };
 }
 
@@ -611,7 +668,7 @@ export type ActionField = "actionType" | "target" | "payload";
 export function validateActionConfig(
   config: ActionConfigShape,
 ): ValidationError<ActionField> | null {
-  if (!config.actionType) return { field: "actionType", message: "Pick an action" };
+  if (!config.actionType) return { field: "actionType", code: "action_required" };
   if (config.actionType === "raise_alarm" || config.actionType === "clear_alarm") {
     try {
       const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;
@@ -620,10 +677,10 @@ export function validateActionConfig(
         typeof parsed.alarm_id !== "string" ||
         parsed.alarm_id.trim() === ""
       ) {
-        return { field: "payload", message: "Set an alarm id" };
+        return { field: "payload", code: "alarm_id_required" };
       }
     } catch {
-      return { field: "payload", message: "Payload must be valid JSON" };
+      return { field: "payload", code: "json_invalid" };
     }
     return null;
   }
@@ -633,10 +690,10 @@ export function validateActionConfig(
       const hasEffect = typeof parsed.effect_id === "string" && parsed.effect_id.trim() !== "";
       const hasNative = typeof parsed.native_name === "string" && parsed.native_name.trim() !== "";
       if (hasEffect === hasNative) {
-        return { field: "payload", message: "Pick an effect" };
+        return { field: "payload", code: "effect_required" };
       }
     } catch {
-      return { field: "payload", message: "Payload must be valid JSON" };
+      return { field: "payload", code: "json_invalid" };
     }
     if (!targetSelected(config)) return targetError(config);
     return null;
@@ -646,14 +703,14 @@ export function validateActionConfig(
     try {
       parsed = JSON.parse(config.payload || "{}") as { scenes?: unknown };
     } catch {
-      return { field: "payload", message: "Payload must be valid JSON" };
+      return { field: "payload", code: "json_invalid" };
     }
     const scenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
     if (scenes.length < 2) {
-      return { field: "payload", message: "Add at least two scenes" };
+      return { field: "payload", code: "scenes_minimum" };
     }
     if (scenes.some((s) => typeof s !== "string" || !s)) {
-      return { field: "payload", message: "Invalid scene reference" };
+      return { field: "payload", code: "scene_reference_invalid" };
     }
     return null;
   }
@@ -671,39 +728,39 @@ export function validateActionConfig(
         mode?: unknown;
       };
     } catch {
-      return { field: "payload", message: "Payload must be valid JSON" };
+      return { field: "payload", code: "json_invalid" };
     }
     if (typeof parsed.field !== "string" || parsed.field.trim() === "") {
-      return { field: "payload", message: "Pick a field" };
+      return { field: "payload", code: "field_required" };
     }
     if (typeof parsed.delta !== "number" || !Number.isFinite(parsed.delta) || parsed.delta === 0) {
-      return { field: "payload", message: "Set a non-zero delta" };
+      return { field: "payload", code: "delta_non_zero" };
     }
     if (parsed.mode !== undefined && parsed.mode !== "absolute" && parsed.mode !== "percent") {
-      return { field: "payload", message: "Mode must be absolute or percent" };
+      return { field: "payload", code: "change_mode_invalid" };
     }
     return null;
   }
   if (config.actionType === "configure_device") {
     if (config.targetType !== "device" || !config.targetId) {
-      return { field: "target", message: "Pick a device" };
+      return { field: "target", code: "device_required" };
     }
     let parsed: { settings?: unknown };
     try {
       parsed = JSON.parse(config.payload || "{}") as { settings?: unknown };
     } catch {
-      return { field: "payload", message: "Payload must be valid JSON" };
+      return { field: "payload", code: "json_invalid" };
     }
     if (!Array.isArray(parsed.settings) || parsed.settings.length === 0) {
-      return { field: "payload", message: "Add at least one setting" };
+      return { field: "payload", code: "settings_required" };
     }
     for (const setting of parsed.settings) {
       if (typeof setting !== "object" || setting === null) {
-        return { field: "payload", message: "Invalid setting" };
+        return { field: "payload", code: "setting_invalid" };
       }
       const value = setting as Record<string, unknown>;
       if (typeof value.capability !== "string" || value.capability === "") {
-        return { field: "payload", message: "Invalid setting" };
+        return { field: "payload", code: "setting_invalid" };
       }
       const typedValues = [value.booleanValue, value.numberValue, value.stringValue].filter(
         (candidate) => candidate !== null && candidate !== undefined,
@@ -714,7 +771,7 @@ export function validateActionConfig(
           typeof typedValues[0] !== "number" &&
           typeof typedValues[0] !== "string")
       ) {
-        return { field: "payload", message: "Invalid setting value" };
+        return { field: "payload", code: "setting_value_invalid" };
       }
     }
     return null;

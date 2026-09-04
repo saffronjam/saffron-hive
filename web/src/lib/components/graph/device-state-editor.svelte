@@ -13,8 +13,11 @@
 	import TempWheel from "$lib/components/temp-wheel.svelte";
 	import { capabilityUnionForTarget, hasCapability, type GroupLite, type RoomLite, type TargetKind } from "$lib/target-resolve";
 	import type { Capability, Device } from "$lib/gql/graphql";
-	import { sentenceCase } from "$lib/utils";
+	import { identifierLabel } from "$lib/i18n/vocabulary";
 	import { X } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatShortDuration } from "$lib/i18n/format";
 
 	interface Props {
 		target: { type: TargetKind; id: string } | null;
@@ -194,7 +197,7 @@
 
 {#if !anyFieldAvailable}
 	{#if target || capabilities !== undefined}
-		<p class="text-[11px] text-muted-foreground">Target has no settable state capabilities.</p>
+		<p class="text-[11px] text-muted-foreground">{m.automation_state_no_capabilities({}, locale.messageOptions())}</p>
 	{/if}
 {:else}
 	<div
@@ -204,7 +207,7 @@
 	>
 		{#if showOn}
 			<div class={fieldBox}>
-				<span class={fieldLabel}>Power</span>
+				<span class={fieldLabel}>{m.automation_state_power({}, locale.messageOptions())}</span>
 				<div class="flex items-center gap-2">
 					{#if onSet}
 						<Switch
@@ -212,11 +215,11 @@
 							onCheckedChange={setOnValue}
 							{disabled}
 						/>
-						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleOnActive} {disabled} aria-label="Clear power">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleOnActive} {disabled} aria-label={m.automation_state_clear_power({}, locale.messageOptions())}>
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleOnActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleOnActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 			</div>
@@ -225,16 +228,16 @@
 		{#if showBrightness}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Brightness</span>
+					<span class={fieldLabel}>{m.scene_editor_brightness({}, locale.messageOptions())}</span>
 					{#if brightnessSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.brightness}</span>
-							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleBrightnessActive} {disabled} aria-label="Clear brightness">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleBrightnessActive} {disabled} aria-label={m.automation_state_clear_brightness({}, locale.messageOptions())}>
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleBrightnessActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleBrightnessActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if brightnessSet}
@@ -254,16 +257,16 @@
 		{#if showColorTemp}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Color temp</span>
+					<span class={fieldLabel}>{m.automation_state_color_temperature({}, locale.messageOptions())}</span>
 					{#if colorTempSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.colorTemp}</span>
-							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleColorTempActive} {disabled} aria-label="Clear color temp">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleColorTempActive} {disabled} aria-label={m.automation_state_clear_color_temperature({}, locale.messageOptions())}>
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleColorTempActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleColorTempActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if colorTempSet}
@@ -281,13 +284,13 @@
 		{#if showColor}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Color</span>
+					<span class={fieldLabel}>{m.scene_editor_color({}, locale.messageOptions())}</span>
 					{#if colorSet}
-						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleColorActive} {disabled} aria-label="Clear color">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleColorActive} {disabled} aria-label={m.automation_state_clear_color({}, locale.messageOptions())}>
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleColorActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleColorActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if colorSet && parsed.color}
@@ -305,16 +308,16 @@
 		{#if showTargetTemperature}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Target temp</span>
+					<span class={fieldLabel}>{m.automation_state_target_temperature({}, locale.messageOptions())}</span>
 					{#if targetTemperatureSet}
 						<div class="flex items-center gap-1">
 							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.targetTemperature}</span>
-							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleTargetTemperatureActive} {disabled} aria-label="Clear target temp">
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleTargetTemperatureActive} {disabled} aria-label={m.automation_state_clear_target_temperature({}, locale.messageOptions())}>
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleTargetTemperatureActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleTargetTemperatureActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if targetTemperatureSet}
@@ -323,7 +326,7 @@
 						min={targetTemperatureMin}
 						max={targetTemperatureMax}
 						allowDecimal
-						ariaLabel="Target temperature"
+						ariaLabel={m.automation_state_target_temperature({}, locale.messageOptions())}
 						{disabled}
 						onValueChange={setTargetTemperatureValue}
 					/>
@@ -334,21 +337,21 @@
 		{#if showHvacMode && hvacModeCap && hvacModeValues.length > 0}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Mode</span>
+					<span class={fieldLabel}>{m.automation_state_mode({}, locale.messageOptions())}</span>
 					{#if hvacModeSet}
-						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleHvacModeActive} {disabled} aria-label="Clear mode">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleHvacModeActive} {disabled} aria-label={m.automation_state_clear_mode({}, locale.messageOptions())}>
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleHvacModeActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleHvacModeActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if hvacModeSet}
 					<Select type="single" value={parsed.hvacMode ?? ""} onValueChange={setHvacModeValue} {disabled}>
-						<SelectTrigger class="w-full text-xs">{parsed.hvacMode ? sentenceCase(parsed.hvacMode) : "Select mode"}</SelectTrigger>
+						<SelectTrigger class="w-full text-xs">{parsed.hvacMode ? identifierLabel(parsed.hvacMode) : m.automation_state_select_mode({}, locale.messageOptions())}</SelectTrigger>
 						<SelectContent>
 							{#each hvacModeValues as v (v)}
-								<SelectItem value={v}>{sentenceCase(v)}</SelectItem>
+								<SelectItem value={v}>{identifierLabel(v)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -359,21 +362,21 @@
 		{#if showFanMode && fanModeCap && fanModeValues.length > 0}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Fan</span>
+					<span class={fieldLabel}>{m.automation_state_fan({}, locale.messageOptions())}</span>
 					{#if fanModeSet}
-						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleFanModeActive} {disabled} aria-label="Clear fan">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleFanModeActive} {disabled} aria-label={m.automation_state_clear_fan({}, locale.messageOptions())}>
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleFanModeActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleFanModeActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if fanModeSet}
 					<Select type="single" value={parsed.fanMode ?? ""} onValueChange={setFanModeValue} {disabled}>
-						<SelectTrigger class="w-full text-xs">{parsed.fanMode ? sentenceCase(parsed.fanMode) : "Select fan"}</SelectTrigger>
+						<SelectTrigger class="w-full text-xs">{parsed.fanMode ? identifierLabel(parsed.fanMode) : m.automation_state_select_fan({}, locale.messageOptions())}</SelectTrigger>
 						<SelectContent>
 							{#each fanModeValues as v (v)}
-								<SelectItem value={v}>{sentenceCase(v)}</SelectItem>
+								<SelectItem value={v}>{identifierLabel(v)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -384,21 +387,21 @@
 		{#if showSwing && swingCap}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Swing</span>
+					<span class={fieldLabel}>{m.automation_state_swing({}, locale.messageOptions())}</span>
 					{#if swingSet}
-						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleSwingActive} {disabled} aria-label="Clear swing">
+						<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleSwingActive} {disabled} aria-label={m.automation_state_clear_swing({}, locale.messageOptions())}>
 							<X class="size-3" />
 						</Button>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleSwingActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleSwingActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if swingSet}
 					<Select type="single" value={parsed.swing ?? ""} onValueChange={setSwingValue} {disabled}>
-						<SelectTrigger class="w-full text-xs">{parsed.swing ? sentenceCase(parsed.swing) : "Select swing"}</SelectTrigger>
+						<SelectTrigger class="w-full text-xs">{parsed.swing ? identifierLabel(parsed.swing) : m.automation_state_select_swing({}, locale.messageOptions())}</SelectTrigger>
 						<SelectContent>
 							{#each swingValues as v (v)}
-								<SelectItem value={v}>{sentenceCase(v)}</SelectItem>
+								<SelectItem value={v}>{identifierLabel(v)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -409,16 +412,16 @@
 		{#if showTransition}
 			<div class={expandedFieldBox}>
 				<div class="flex items-center justify-between">
-					<span class={fieldLabel}>Transition</span>
+					<span class={fieldLabel}>{m.automation_state_transition({}, locale.messageOptions())}</span>
 					{#if transitionSet}
 						<div class="flex items-center gap-1">
-							<span class="text-[10px] tabular-nums text-muted-foreground">{parsed.transition}s</span>
-							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleTransitionActive} {disabled} aria-label="Clear transition">
+							<span class="text-[10px] tabular-nums text-muted-foreground">{formatShortDuration(parsed.transition ?? 0, "second", locale.currentLanguage)}</span>
+							<Button variant="ghost" size={compact ? "icon-xs" : "icon-sm"} onclick={toggleTransitionActive} {disabled} aria-label={m.automation_state_clear_transition({}, locale.messageOptions())}>
 								<X class="size-3" />
 							</Button>
 						</div>
 					{:else}
-						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleTransitionActive} {disabled}>Set</Button>
+						<Button variant="outline" size={compact ? "xs" : "sm"} onclick={toggleTransitionActive} {disabled}>{m.automation_state_set({}, locale.messageOptions())}</Button>
 					{/if}
 				</div>
 				{#if transitionSet}
@@ -426,7 +429,7 @@
 						value={parsed.transition ?? null}
 						min={0}
 						allowDecimal
-						ariaLabel="Transition seconds"
+						ariaLabel={m.automation_state_transition_seconds({}, locale.messageOptions())}
 						{disabled}
 						onValueChange={setTransitionValue}
 					/>

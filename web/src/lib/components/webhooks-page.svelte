@@ -39,6 +39,9 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { Check, Copy, Pencil, Plus, Trash2, Webhook } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 	interface Props {
 		visible: boolean;
@@ -46,6 +49,7 @@
 
 	let { visible }: Props = $props();
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	const endpoints = $derived(webhooksStore.items);
 	const automations = $derived(automationsStore.items);
 	const usageByEndpoint = $derived(automationsByWebhookEndpoint(automations));
@@ -54,30 +58,30 @@
 		active: () => visible && page.url.pathname === "/webhooks",
 	});
 
-	const enabledOptions = [
-		{ value: "yes", label: "Enabled" },
-		{ value: "no", label: "Disabled" },
-	];
-	const usageOptions = [
-		{ value: "used", label: "Used" },
-		{ value: "unused", label: "Unused" },
-	];
-	const searchChipConfigs: ChipConfig[] = [
+	const enabledOptions = $derived.by(() => [
+		{ value: "yes", label: m.webhooks_enabled({}, messageOptions) },
+		{ value: "no", label: m.webhooks_disabled({}, messageOptions) },
+	]);
+	const usageOptions = $derived.by(() => [
+		{ value: "used", label: m.webhooks_used({}, messageOptions) },
+		{ value: "unused", label: m.webhooks_unused({}, messageOptions) },
+	]);
+	const searchChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "status",
-			label: "Status",
+			label: m.webhooks_filter_status({}, messageOptions),
 			variant: "secondary",
 			options: () => enabledOptions,
 			resolveLabel: (value) => enabledOptions.find((option) => option.value === value)?.label ?? null,
 		},
 		{
 			keyword: "usage",
-			label: "Usage",
+			label: m.webhooks_filter_usage({}, messageOptions),
 			variant: "secondary",
 			options: () => usageOptions,
 			resolveLabel: (value) => usageOptions.find((option) => option.value === value)?.label ?? null,
 		},
-	];
+	]);
 
 	const filteredEndpoints = $derived.by(() => {
 		const query = searchController.value.freeText.toLowerCase();
@@ -88,7 +92,7 @@
 			.filter((chip) => chip.keyword === "usage")
 			.map((chip) => chip.value);
 		return endpoints.filter((endpoint) => {
-			if (query && !endpoint.name.toLowerCase().includes(query)) return false;
+			if (query && !localizedNamesStore.matches("webhook", endpoint.id, query, endpoint.name)) return false;
 			if (statuses.length > 0 && !statuses.includes(endpoint.enabled ? "yes" : "no")) return false;
 			if (usages.length > 0 && !usages.includes((usageByEndpoint.get(endpoint.id)?.length ?? 0) > 0 ? "used" : "unused")) return false;
 			return true;
@@ -112,10 +116,10 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Webhooks" }];
+		pageHeader.breadcrumbs = [{ label: m.webhooks_title({}, messageOptions) }];
 		pageHeader.viewToggle = null;
 		pageHeader.actions = [
-			{ label: "Create Webhook", mobileLabel: "Create", icon: Plus, onclick: () => (createOpen = true) },
+			{ label: m.webhooks_create({}, messageOptions), mobileLabel: m.webhooks_create_short({}, messageOptions), icon: Plus, onclick: () => (createOpen = true) },
 		];
 	});
 
@@ -134,7 +138,7 @@
 			createName = "";
 			createOpen = false;
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not create the webhook."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_create_failed({}, messageOptions)));
 		} finally {
 			createLoading = false;
 		}
@@ -150,7 +154,7 @@
 				rateLimitWindowMs: endpoint.rateLimitWindowMs,
 			});
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not update the webhook."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_update_failed({}, messageOptions)));
 		}
 	}
 
@@ -164,7 +168,7 @@
 				rateLimitWindowMs: endpoint.rateLimitWindowMs,
 			});
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not rename the webhook."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_rename_failed({}, messageOptions)));
 		}
 	}
 
@@ -181,10 +185,10 @@
 			selection.clear();
 			batchDeleteConfirm = false;
 			if (deleted < ids.length) {
-				errors.setWithAutoDismiss("Some webhooks are used by automations and were kept.");
+				errors.setWithAutoDismiss(m.webhooks_delete_used_kept({}, messageOptions));
 			}
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not delete the webhooks."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_delete_many_failed({}, messageOptions)));
 		} finally {
 			batchDeleteLoading = false;
 		}
@@ -198,7 +202,7 @@
 			await webhooksStore.delete(client, deleteEndpoint.id);
 			deleteEndpoint = null;
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not delete the webhook."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_delete_failed({}, messageOptions)));
 		} finally {
 			deleteLoading = false;
 		}
@@ -211,15 +215,15 @@
 		setTimeout(() => (copied = false), 1500);
 	}
 
-	const COLUMNS: ColumnDef<WebhookEndpoint>[] = [
+	const COLUMNS: ColumnDef<WebhookEndpoint>[] = $derived.by(() => [
 		{ key: "select", label: "", hideable: false, headClass: "w-10", head: selectHead, cell: selectCell },
-		{ key: "name", label: "Name", sortValue: (endpoint) => endpoint.name, cell: nameCell },
-		{ key: "automations", label: "Automations", sortValue: (endpoint) => usageByEndpoint.get(endpoint.id)?.length ?? 0, cell: automationsCell },
-		{ key: "lastDelivery", label: "Last request", sortValue: (endpoint) => endpoint.lastDeliveryAt ?? null, cell: lastDeliveryCell },
-		{ key: "createdBy", label: "Created by", sortValue: (endpoint) => endpoint.createdBy?.name ?? null, cell: createdByCell },
+		{ key: "name", label: m.webhooks_column_name({}, messageOptions), sortValue: (endpoint) => localizedNamesStore.display("webhook", endpoint.id, endpoint.name), cell: nameCell },
+		{ key: "automations", label: m.webhooks_column_automations({}, messageOptions), sortValue: (endpoint) => usageByEndpoint.get(endpoint.id)?.length ?? 0, cell: automationsCell },
+		{ key: "lastDelivery", label: m.webhooks_column_last_request({}, messageOptions), sortValue: (endpoint) => endpoint.lastDeliveryAt ?? null, cell: lastDeliveryCell },
+		{ key: "createdBy", label: m.webhooks_column_created_by({}, messageOptions), sortValue: (endpoint) => endpoint.createdBy?.name ?? null, cell: createdByCell },
 		{ key: "actions", label: "", hideable: false, headClass: "w-28 text-right", head: actionsHead, cell: actionsCell },
-	];
-	const tableState = createTableState({ storageKey: "webhooks", columns: COLUMNS });
+	] satisfies ColumnDef<WebhookEndpoint>[]);
+	const tableState = createTableState({ storageKey: "webhooks", columns: () => COLUMNS });
 	const displayRows = $derived(tableState.applySort(filteredEndpoints));
 	const displayIds = $derived(displayRows.map((endpoint) => endpoint.id));
 
@@ -237,8 +241,8 @@
 		id={endpoint.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel={`Select ${endpoint.name}`}
-		tooltip={selection.isDisabled(endpoint.id) ? "Used by an automation" : undefined}
+		ariaLabel={m.shared_select_item({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
+		tooltip={selection.isDisabled(endpoint.id) ? m.webhooks_used_by_automation({}, messageOptions) : undefined}
 	/>
 {/snippet}
 
@@ -246,7 +250,9 @@
 	<div class="flex items-center gap-2">
 		<Webhook class="size-4 text-muted-foreground" />
 		<InlineEditName
-			name={endpoint.name}
+			name={localizedNamesStore.display("webhook", endpoint.id, endpoint.name)}
+			entityType="webhook"
+			entityId={endpoint.id}
 			onsave={(name) => renameEndpoint(endpoint, name)}
 		/>
 	</div>
@@ -255,7 +261,7 @@
 {#snippet automationsCell(endpoint: WebhookEndpoint)}
 	{@const count = usageByEndpoint.get(endpoint.id)?.length ?? 0}
 	<span class="text-sm text-muted-foreground">
-		{count === 0 ? "—" : `${count} automation${count === 1 ? "" : "s"}`}
+		{count === 0 ? "—" : m.webhooks_automation_count({ count }, messageOptions)}
 	</span>
 {/snippet}
 
@@ -285,19 +291,19 @@
 		<Switch
 			checked={endpoint.enabled}
 			onCheckedChange={(enabled) => toggleEndpoint(endpoint, enabled)}
-			aria-label={endpoint.enabled ? `Disable ${endpoint.name}` : `Enable ${endpoint.name}`}
+			aria-label={endpoint.enabled ? m.webhooks_disable_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions) : m.webhooks_enable_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
 		/>
-		<Button variant="ghost" size="icon-sm" href={`/webhooks/${endpoint.id}`} aria-label={`Edit ${endpoint.name}`}>
+		<Button variant="ghost" size="icon-sm" href={`/webhooks/${endpoint.id}`} aria-label={m.webhooks_edit_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}>
 			<Pencil class="size-4" />
 		</Button>
 		{#if (usageByEndpoint.get(endpoint.id)?.length ?? 0) > 0}
 			<Tooltip>
 				<TooltipTrigger>
-					<Button variant="ghost" size="icon-sm" disabled aria-label={`Delete ${endpoint.name}`}>
+					<Button variant="ghost" size="icon-sm" disabled aria-label={m.webhooks_delete_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}>
 						<Trash2 class="size-4" />
 					</Button>
 				</TooltipTrigger>
-				<TooltipContent>Used by an automation</TooltipContent>
+				<TooltipContent>{m.webhooks_used_by_automation({}, messageOptions)}</TooltipContent>
 			</Tooltip>
 		{:else}
 			<Button
@@ -305,7 +311,7 @@
 				size="icon-sm"
 				class="text-destructive hover:text-destructive"
 				onclick={() => (deleteEndpoint = endpoint)}
-				aria-label={`Delete ${endpoint.name}`}
+				aria-label={m.webhooks_delete_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
 			>
 				<Trash2 class="size-4" />
 			</Button>
@@ -325,29 +331,29 @@
 					<div class="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
 						<Webhook class="size-6 text-muted-foreground" />
 					</div>
-					<p class="text-muted-foreground">No incoming webhooks yet.</p>
-					<p class="mt-2 text-sm text-muted-foreground">Create an endpoint for another system to trigger Hive.</p>
+					<p class="text-muted-foreground">{m.webhooks_empty({}, messageOptions)}</p>
+					<p class="mt-2 text-sm text-muted-foreground">{m.webhooks_empty_help({}, messageOptions)}</p>
 					<Button class="mt-4" onclick={() => (createOpen = true)}>
 						<Plus class="size-4" />
-						Create your first webhook
+						{m.webhooks_create_first({}, messageOptions)}
 					</Button>
 				</div>
 			{:else}
 				<div class="mb-6 flex items-stretch gap-2">
 					<div class="min-w-0 flex-1">
-						<HiveSearchbar controller={searchController} chips={searchChipConfigs} placeholder="Search webhooks..." />
+						<HiveSearchbar controller={searchController} chips={searchChipConfigs} placeholder={m.webhooks_search({}, messageOptions)} />
 					</div>
 					{#if selection.count > 0}
 						<TableSelectionToolbar count={selection.count} onclear={() => selection.clear()}>
 							{#snippet actions()}
-								<Button variant="destructive" size="sm" onclick={() => (batchDeleteConfirm = true)}>Delete</Button>
+								<Button variant="destructive" size="sm" onclick={() => (batchDeleteConfirm = true)}>{m.common_delete({}, messageOptions)}</Button>
 							{/snippet}
 						</TableSelectionToolbar>
 					{/if}
 				</div>
 				{#if filteredEndpoints.length === 0}
 					<div class="rounded-lg bg-card p-12 text-center shadow-card">
-						<p class="text-muted-foreground">No webhooks match your filters.</p>
+						<p class="text-muted-foreground">{m.webhooks_no_match({}, messageOptions)}</p>
 					</div>
 				{:else}
 					<HiveDataTable
@@ -366,20 +372,20 @@
 	<Dialog bind:open={createOpen}>
 		<DialogContent>
 			<DialogHeader>
-				<DialogTitle>Create webhook</DialogTitle>
-				<DialogDescription>Create an endpoint for one logical external event.</DialogDescription>
+				<DialogTitle>{m.webhooks_create({}, messageOptions)}</DialogTitle>
+				<DialogDescription>{m.webhooks_create_description({}, messageOptions)}</DialogDescription>
 			</DialogHeader>
 			<form onsubmit={(event) => { event.preventDefault(); void createEndpoint(); }}>
 				<div class="space-y-4">
 					<div class="space-y-2">
-						<label for="webhook-name" class="text-sm font-medium">Name</label>
-						<Input id="webhook-name" bind:value={createName} placeholder="Pipeline failed" autofocus />
+						<label for="webhook-name" class="text-sm font-medium">{m.field_name({}, messageOptions)}</label>
+						<Input id="webhook-name" bind:value={createName} placeholder={m.webhooks_name_placeholder({}, messageOptions)} autofocus />
 					</div>
 				</div>
 				<DialogFooter class="mt-4">
-					<Button variant="outline" type="button" onclick={() => (createOpen = false)}>Cancel</Button>
+					<Button variant="outline" type="button" onclick={() => (createOpen = false)}>{m.common_cancel({}, messageOptions)}</Button>
 					<Button type="submit" disabled={!createName.trim() || createLoading}>
-						{createLoading ? "Creating..." : "Create"}
+						{createLoading ? m.webhooks_creating({}, messageOptions) : m.webhooks_create_short({}, messageOptions)}
 					</Button>
 				</DialogFooter>
 			</form>
@@ -397,26 +403,26 @@
 	>
 		<DialogContent>
 			<DialogHeader>
-				<DialogTitle>Webhook URL</DialogTitle>
-				<DialogDescription>This URL is shown once. Store it in the calling system before closing.</DialogDescription>
+				<DialogTitle>{m.webhooks_url_title({}, messageOptions)}</DialogTitle>
+				<DialogDescription>{m.webhooks_url_once({}, messageOptions)}</DialogDescription>
 			</DialogHeader>
 			<div class="flex items-center gap-2">
 				<Input value={secretUrl ?? ""} readonly class="font-mono text-xs" />
-				<Button variant="outline" size="icon" onclick={copySecret} aria-label="Copy webhook URL">
+				<Button variant="outline" size="icon" onclick={copySecret} aria-label={m.webhooks_copy_url({}, messageOptions)}>
 					{#if copied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
 				</Button>
 			</div>
 			<DialogFooter>
-				<Button onclick={() => { secretUrl = null; copied = false; }}>Done</Button>
+				<Button onclick={() => { secretUrl = null; copied = false; }}>{m.webhooks_done({}, messageOptions)}</Button>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>
 
 	<ConfirmDialog
 		bind:open={() => deleteEndpoint !== null, (open) => { if (!open) deleteEndpoint = null; }}
-		title="Delete webhook"
-		description={`Delete “${deleteEndpoint?.name ?? ""}” and its delivery history? This cannot be undone.`}
-		confirmLabel="Delete"
+		title={m.webhooks_delete_title({}, messageOptions)}
+		description={m.webhooks_delete_with_history({ name: deleteEndpoint ? localizedNamesStore.display("webhook", deleteEndpoint.id, deleteEndpoint.name) : "" }, messageOptions)}
+		confirmLabel={m.common_delete({}, messageOptions)}
 		loading={deleteLoading}
 		onconfirm={confirmDelete}
 		oncancel={() => (deleteEndpoint = null)}
@@ -424,9 +430,9 @@
 
 	<ConfirmDialog
 		open={batchDeleteConfirm}
-		title="Delete webhooks"
-		description={`Delete ${selection.count} webhook${selection.count === 1 ? "" : "s"} and their delivery history? This cannot be undone.`}
-		confirmLabel="Delete"
+		title={m.webhooks_delete_many_title({}, messageOptions)}
+		description={m.webhooks_delete_many_with_history({ count: selection.count }, messageOptions)}
+		confirmLabel={m.common_delete({}, messageOptions)}
 		loading={batchDeleteLoading}
 		onconfirm={confirmBatchDelete}
 		oncancel={() => (batchDeleteConfirm = false)}

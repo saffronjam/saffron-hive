@@ -25,7 +25,8 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import { automationNodeCounts } from "$lib/list-helpers";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName } from "$lib/utils";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 	import { formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { me } from "$lib/stores/me.svelte";
@@ -49,6 +50,8 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		/**
@@ -73,33 +76,30 @@
 		active: () => visible && page.url.pathname === "/automations",
 	});
 
-	const enabledOptions = [
-		{ value: "yes", label: "Yes" },
-		{ value: "no", label: "No" },
-	];
+	const enabledOptions = $derived.by(() => [
+		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
+		{ value: "no", label: m.common_no({}, locale.messageOptions()) },
+	]);
 
-	const triggerOptions = [
-		{ value: "event", label: "Event" },
-		{ value: "schedule", label: "Schedule" },
-	];
+	const triggerOptions = $derived.by(() => [
+		{ value: "event", label: m.automations_trigger_event({}, locale.messageOptions()) },
+		{ value: "schedule", label: m.automations_trigger_schedule({}, locale.messageOptions()) },
+	]);
 
-	const actionOptions = [
-		{ value: "set_device_state", label: "Set device state" },
-		{ value: "configure_device", label: "Configure device" },
-		{ value: "activate_scene", label: "Activate scene" },
-		{ value: "raise_alarm", label: "Raise alarm" },
-		{ value: "clear_alarm", label: "Clear alarm" },
-	];
+	const actionOptions = $derived.by(() => [
+		{ value: "set_device_state", label: m.automation_action_set_state({}, locale.messageOptions()) },
+		{ value: "configure_device", label: m.automation_action_configure_device({}, locale.messageOptions()) },
+		{ value: "activate_scene", label: m.automation_action_activate_scene({}, locale.messageOptions()) },
+		{ value: "raise_alarm", label: m.automation_action_raise_alarm({}, locale.messageOptions()) },
+		{ value: "clear_alarm", label: m.automation_action_clear_alarm({}, locale.messageOptions()) },
+	]);
 
-	const emptyOptions = [
-		{ value: "yes", label: "Yes" },
-		{ value: "no", label: "No" },
-	];
+	const emptyOptions = $derived(enabledOptions);
 
-	const searchChipConfigs: ChipConfig[] = $derived([
+	const searchChipConfigs: ChipConfig[] = $derived.by(() => [
 		{
 			keyword: "enabled",
-			label: "Enabled",
+			label: m.automations_filter_enabled({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
@@ -110,7 +110,7 @@
 		},
 		{
 			keyword: "trigger",
-			label: "Trigger",
+			label: m.automations_filter_trigger({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
@@ -121,7 +121,7 @@
 		},
 		{
 			keyword: "action",
-			label: "Action",
+			label: m.automations_filter_action({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
@@ -132,29 +132,29 @@
 		},
 		{
 			keyword: "device",
-			label: "Device",
+			label: m.automations_filter_device({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devicesRef
-					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
-					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
+					.filter((d) => !q || localizedNamesStore.matches("device", d.id, q, d.name, d.friendlyName))
+					.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
 			},
 		},
 		{
 			keyword: "scene",
-			label: "Scene",
+			label: m.automations_filter_scene({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return scenesRef
-					.filter((s) => !q || s.name.toLowerCase().includes(q))
-					.map((s) => ({ value: s.name, label: s.name }));
+					.filter((s) => localizedNamesStore.matches("scene", s.id, q, s.name))
+					.map((s) => ({ value: s.id, label: entityDisplayName("scene", s) }));
 			},
 		},
 		{
 			keyword: "empty",
-			label: "Empty",
+			label: m.automations_filter_empty({}, locale.messageOptions()),
 			variant: "secondary",
 			options: () => emptyOptions,
 		},
@@ -170,10 +170,10 @@
 		const actionValues = searchController.value.chips.filter((c) => c.keyword === "action").map((c) => c.value);
 		const deviceValues = searchController.value.chips
 			.filter((c) => c.keyword === "device")
-			.map((c) => c.value.toLowerCase());
+			.map((c) => c.value);
 		const sceneValues = searchController.value.chips
 			.filter((c) => c.keyword === "scene")
-			.map((c) => c.value.toLowerCase());
+			.map((c) => c.value);
 		const emptyValues = searchController.value.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
 		const query = searchController.value.freeText.toLowerCase();
 
@@ -194,27 +194,18 @@
 			}
 			if (deviceValues.length > 0) {
 				const ids = new Set(a.nodes.flatMap((n) => referencedDeviceIds(n)));
-				const names = [...ids]
-					.map((id) => {
-						const d = devicesRef.find((x) => x.id === id);
-						return d ? deviceDisplayName(d).toLowerCase() : "";
-					})
-					.filter((n) => n !== "");
-				if (!deviceValues.some((v) => names.some((n) => n.includes(v)))) return false;
+				if (!deviceValues.some((value) => ids.has(value))) return false;
 			}
 			if (sceneValues.length > 0) {
 				const ids = new Set(a.nodes.flatMap((n) => referencedSceneIds(n)));
-				const names = [...ids]
-					.map((id) => scenesRef.find((s) => s.id === id)?.name.toLowerCase() ?? "")
-					.filter((n) => n !== "");
-				if (!sceneValues.some((v) => names.some((n) => n.includes(v)))) return false;
+				if (!sceneValues.some((value) => ids.has(value))) return false;
 			}
 			if (emptyValues.length > 0) {
 				const isEmpty = a.nodes.length === 0;
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
-			if (query && !a.name.toLowerCase().includes(query)) return false;
+			if (query && !localizedNamesStore.matches("automation", a.id, query, a.name)) return false;
 			return true;
 		});
 	});
@@ -231,8 +222,9 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Automations" }];
-		pageHeader.actions = [{ label: "Create Automation", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
+		void locale.currentLanguage;
+		pageHeader.breadcrumbs = [{ label: m.automations_title({}, locale.messageOptions()) }];
+		pageHeader.actions = [{ label: m.automations_create({}, locale.messageOptions()), mobileLabel: m.automations_create_short({}, locale.messageOptions()), icon: Plus, onclick: () => (createDialogOpen = true) }];
 	});
 
 	// Poll the list so lastFiredAt updates reflect recent firings without
@@ -275,7 +267,7 @@
 			created = await automationsStore.create(client, newAutomationName.trim());
 		} catch (e) {
 			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not create the automation."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_create({}, locale.messageOptions())));
 			return;
 		}
 
@@ -296,13 +288,13 @@
 		try {
 			await automationsStore.toggle(client, a.id, enabled);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not toggle the automation."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_toggle({}, locale.messageOptions())));
 		}
 	}
 
 	function requestDelete(a: Automation) {
 		deleteConfirmId = a.id;
-		deleteConfirmName = a.name;
+		deleteConfirmName = entityDisplayName("automation", a);
 	}
 
 	async function handleConfirmDelete() {
@@ -314,7 +306,7 @@
 			await automationsStore.delete(client, deleteConfirmId);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the automation."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_delete({}, locale.messageOptions())));
 			return;
 		}
 
@@ -334,7 +326,7 @@
 			await automationsStore.deleteMany(client, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the automations."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_delete_many({}, locale.messageOptions())));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -347,7 +339,7 @@
 		try {
 			await automationsStore.update(client, a.id, { name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not rename the automation."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_rename({}, locale.messageOptions())));
 		}
 	}
 
@@ -356,7 +348,7 @@
 		try {
 			await automationsStore.update(client, a.id, { icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not change the icon."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_icon({}, locale.messageOptions())));
 		}
 	}
 
@@ -377,13 +369,13 @@
 					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 						<Workflow class="size-6 text-muted-foreground" />
 					</div>
-					<p class="text-muted-foreground">No automations yet.</p>
+					<p class="text-muted-foreground">{m.automations_empty({}, locale.messageOptions())}</p>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Create event-driven rules with triggers, conditions, and actions.
+						{m.automations_empty_help({}, locale.messageOptions())}
 					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
-						<span>Create your first automation</span>
+						<span>{m.automations_create_first({}, locale.messageOptions())}</span>
 					</Button>
 				</div>
 			{:else}
@@ -392,7 +384,7 @@
 						<HiveSearchbar
 							controller={searchController}
 							chips={searchChipConfigs}
-							placeholder="Search automations..."
+							placeholder={m.automations_search({}, locale.messageOptions())}
 						/>
 					</div>
 					<div
@@ -408,7 +400,7 @@
 									size="sm"
 									onclick={() => (batchDeleteConfirm = true)}
 								>
-									Delete
+									{m.common_delete({}, locale.messageOptions())}
 								</Button>
 							{/snippet}
 						</TableSelectionToolbar>
@@ -417,7 +409,7 @@
 
 				{#if filteredAutomations.length === 0}
 					<div class="rounded-lg shadow-card bg-card p-12 text-center">
-						<p class="text-muted-foreground">No automations match your filters.</p>
+						<p class="text-muted-foreground">{m.automations_no_match({}, locale.messageOptions())}</p>
 					</div>
 				{:else}
 					<ListView mode={view}>
@@ -427,9 +419,10 @@
 									{@const counts = automationNodeCounts(automation.nodes)}
 									<EntityCard
 										entity={automation}
+										entityType="automation"
 										onpointerenter={(a) => prefetchDetail(client, "automation", a.id)}
 										fallbackIcon={Workflow}
-										subtitle="{automation.nodes.length} node{automation.nodes.length === 1 ? '' : 's'}"
+									subtitle={m.automations_node_count({ count: automation.nodes.length }, locale.messageOptions())}
 										onrename={handleRename}
 										oniconchange={handleIconChange}
 										editHref={`/automations/${automation.id}`}
@@ -441,11 +434,7 @@
 												<Tooltip>
 													<TooltipTrigger>
 														<span
-														>fired {formatRelative(
-															new Date(automation.lastFiredAt),
-															nowStore.current,
-															me.user?.timeFormat ?? "24h",
-														)}</span
+												>{m.automations_fired({ time: formatRelative(new Date(automation.lastFiredAt), nowStore.current, me.user?.timeFormat ?? "24h") }, locale.messageOptions())}</span
 													>
 													</TooltipTrigger>
 													<TooltipContent>{formatFull(new Date(automation.lastFiredAt))}</TooltipContent>
@@ -461,24 +450,24 @@
 										{#snippet footer()}
 											<div class="mt-3 flex gap-2">
 												{#if counts.trigger === 0 && counts.operator === 0 && counts.action === 0}
-													<Badge variant="secondary" class="text-xs text-muted-foreground">Empty</Badge>
+											<Badge variant="secondary" class="text-xs text-muted-foreground">{m.automations_filter_empty({}, locale.messageOptions())}</Badge>
 												{:else}
 													{#if counts.trigger > 0}
 														<Badge variant="secondary" class="gap-1 text-xs">
 															<Zap class="size-3 text-automation-trigger" />
-															{counts.trigger} trigger{counts.trigger === 1 ? "" : "s"}
+													{m.automations_trigger_count({ count: counts.trigger }, locale.messageOptions())}
 														</Badge>
 													{/if}
 													{#if counts.operator > 0}
 														<Badge variant="secondary" class="gap-1 text-xs">
 															<GitMerge class="size-3 text-automation-operator" />
-															{counts.operator} operator{counts.operator === 1 ? "" : "s"}
+													{m.automations_operator_count({ count: counts.operator }, locale.messageOptions())}
 														</Badge>
 													{/if}
 													{#if counts.action > 0}
 														<Badge variant="secondary" class="gap-1 text-xs">
 															<Play class="size-3 text-automation-action" />
-															{counts.action} action{counts.action === 1 ? "" : "s"}
+													{m.automations_action_count({ count: counts.action }, locale.messageOptions())}
 														</Badge>
 													{/if}
 												{/if}
@@ -507,9 +496,9 @@
 	<Dialog bind:open={createDialogOpen}>
 		<DialogContent>
 			<DialogHeader>
-				<DialogTitle>Create Automation</DialogTitle>
+				<DialogTitle>{m.automations_create({}, locale.messageOptions())}</DialogTitle>
 				<DialogDescription>
-					Give your new automation a name. You can add triggers and actions in the graph editor.
+					{m.automations_create_description({}, locale.messageOptions())}
 				</DialogDescription>
 			</DialogHeader>
 			<form
@@ -518,7 +507,7 @@
 					handleCreateAutomation();
 				}}
 			>
-				<Input bind:ref={newAutomationNameInput} bind:value={newAutomationName} placeholder="Automation name" autofocus />
+				<Input bind:ref={newAutomationNameInput} bind:value={newAutomationName} placeholder={m.automations_name_placeholder({}, locale.messageOptions())} autofocus />
 				<DialogFooter class="mt-4">
 					<Button
 						variant="outline"
@@ -528,7 +517,7 @@
 							newAutomationName = "";
 						}}
 					>
-						Cancel
+						{m.common_cancel({}, locale.messageOptions())}
 					</Button>
 					<Button
 						variant="secondary"
@@ -536,10 +525,10 @@
 						disabled={!newAutomationName.trim() || createLoading}
 						onclick={() => handleCreateAutomation({ keepOpen: true })}
 					>
-						Create more
+						{m.automations_create_more({}, locale.messageOptions())}
 					</Button>
 					<Button type="submit" disabled={!newAutomationName.trim() || createLoading}>
-						{createLoading ? "Creating..." : "Create"}
+						{createLoading ? m.automations_creating({}, locale.messageOptions()) : m.automations_create_short({}, locale.messageOptions())}
 					</Button>
 				</DialogFooter>
 			</form>
@@ -548,9 +537,9 @@
 
 	<ConfirmDialog
 		bind:open={() => deleteConfirmId !== null, (v) => { if (!v) deleteConfirmId = null; }}
-		title="Delete Automation"
-		description='Are you sure you want to delete "{deleteConfirmName}"? This action cannot be undone.'
-		confirmLabel="Delete"
+		title={m.automations_delete_title({}, locale.messageOptions())}
+		description={m.automations_delete_description({ name: deleteConfirmName }, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={deleteLoading}
 		onconfirm={handleConfirmDelete}
 		oncancel={() => (deleteConfirmId = null)}
@@ -558,9 +547,9 @@
 
 	<ConfirmDialog
 		open={batchDeleteConfirm}
-		title="Delete {selection.count} automation{selection.count === 1 ? '' : 's'}?"
-		description="This permanently deletes the selected automations and their nodes. This cannot be undone."
-		confirmLabel="Delete"
+		title={m.automations_delete_many_title({ count: selection.count }, locale.messageOptions())}
+		description={m.automations_delete_many_description({}, locale.messageOptions())}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={batchDeleteLoading}
 		onconfirm={handleBatchDelete}
 		oncancel={() => (batchDeleteConfirm = false)}

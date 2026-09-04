@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -15,7 +15,12 @@
 	import DeviceOptionRow from "./device-option-row.svelte";
 	import CapabilityOptionRow from "./capability-option-row.svelte";
 	import WebhookFilterEditor from "./webhook-filter-editor.svelte";
-	import { TRIGGER_OPTIONS } from "./automation-node-options";
+	import { triggerOptions } from "./automation-node-options";
+	import { automationValidationMessage } from "$lib/i18n/automation-validation";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatShortDuration } from "$lib/i18n/format";
+	import { chipLabel, historyFieldLabel, identifierLabel } from "$lib/i18n/vocabulary";
 	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import { roomLabelsByDevice } from "$lib/memberships";
 	import {
@@ -24,7 +29,6 @@
 		TooltipTrigger,
 	} from "$lib/components/ui/tooltip/index.js";
 	import { ChevronDown, ChevronRight, Info, Zap } from "@lucide/svelte";
-	import { sentenceCase } from "$lib/utils.js";
 	import type { Device, Capability } from "$lib/stores/devices";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
 	import type { RoomLite } from "$lib/target-resolve";
@@ -38,7 +42,8 @@
 		capabilityToExprProperty,
 		supportsDeviceEvents,
 		validateTriggerConfig,
-		TIMING_PRESETS,
+		timingPresets,
+		weekdayLabel,
 	} from "./trigger-expr";
 
 	interface TriggerNodeData extends Record<string, unknown> {
@@ -57,23 +62,26 @@
 
 	let { data, id }: Props = $props();
 
-	const modes = TRIGGER_OPTIONS;
+	const modes = $derived.by(() => triggerOptions());
+	const messageOptions = $derived(locale.messageOptions());
 	const webhookEndpoints = $derived(webhooksStore.items);
 
-	const scheduleSubmodes: { value: ScheduleSubmode; label: string }[] = [
-		{ value: "at", label: "At time" },
-		{ value: "every", label: "Every" },
-		{ value: "custom", label: "Custom cron" },
-	];
+	const scheduleSubmodes = $derived.by<{ value: ScheduleSubmode; label: string }[]>(() => [
+		{ value: "at", label: m.automation_node_schedule_at({}, messageOptions) },
+		{ value: "every", label: m.automation_node_schedule_every({}, messageOptions) },
+		{ value: "custom", label: m.automation_node_schedule_custom({}, messageOptions) },
+	]);
 
 	const scheduleWeekdayCodes = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-	const scheduleWeekdayShort = ["M", "T", "W", "T", "F", "S", "S"];
+	const scheduleWeekdayShort = $derived(
+		scheduleWeekdayCodes.map((code) => weekdayLabel(code, "narrow")),
+	);
 
-	const intervalUnits = [
-		{ value: "seconds", label: "seconds" },
-		{ value: "minutes", label: "minutes" },
-		{ value: "hours", label: "hours" },
-	];
+	const intervalUnits = $derived.by(() => [
+		{ value: "seconds", label: m.automation_node_seconds({}, messageOptions) },
+		{ value: "minutes", label: m.automation_node_minutes({}, messageOptions) },
+		{ value: "hours", label: m.automation_node_hours({}, messageOptions) },
+	]);
 
 	const comparators = [
 		{ value: "==", label: "=" },
@@ -84,23 +92,21 @@
 		{ value: "<=", label: "\u2264" },
 	];
 
-	const eventTypes = [
-		{ value: "device.state_changed", label: "State changed" },
-		{ value: "device.availability_changed", label: "Availability" },
-		{ value: "device.added", label: "Device added" },
-		{ value: "device.removed", label: "Device removed" },
-	];
+	const eventTypes = $derived.by(() => [
+		{ value: "device.state_changed", label: m.automation_node_event_state_changed({}, messageOptions) },
+		{ value: "device.availability_changed", label: m.automation_node_event_availability({}, messageOptions) },
+		{ value: "device.added", label: m.automation_node_event_device_added({}, messageOptions) },
+		{ value: "device.removed", label: m.automation_node_event_device_removed({}, messageOptions) },
+	]);
 
-	const deviceTypeOptions = [
-		{ value: "light", label: "Light" },
-		{ value: "sensor", label: "Sensor" },
-		{ value: "switch", label: "Switch" },
-	];
+	const deviceTypeOptions = $derived.by(() =>
+		["light", "sensor", "switch"].map((value) => ({ value, label: chipLabel(value) })),
+	);
 
-	const deviceChipConfigs: ChipConfig[] = [
+	const deviceChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "type",
-			label: "Type",
+			label: m.automation_node_filter_type({}, messageOptions),
 			variant: "secondary",
 			options: (q: string) => {
 				const lower = q.toLowerCase();
@@ -109,7 +115,7 @@
 				);
 			},
 		},
-	];
+	]);
 
 	const deviceChipMatchers: Record<string, (d: Device, v: string) => boolean> = {
 		type: (d, v) => d.type === v,
@@ -195,6 +201,7 @@
 	const generatedCron = $derived(generateCronExpr(data.config));
 	const humanSchedule = $derived(humanizeCron(generatedCron));
 	const validationError = $derived(validateTriggerConfig(data.config));
+	const timingOptions = $derived.by(() => timingPresets());
 	const INVALID_CLS = "border-destructive ring-2 ring-destructive/40";
 
 	function updateScheduleSubmode(value: ScheduleSubmode) {
@@ -224,11 +231,13 @@
 	const cooldownMs = $derived(data.config.cooldownMs ?? 0);
 
 	function formatTimingValue(ms: number): string {
-		const preset = TIMING_PRESETS.find((p) => p.value === ms);
+		const preset = timingOptions.find((p) => p.value === ms);
 		if (preset) return preset.label;
-		if (ms <= 0) return "Immediate";
-		if (ms < 1000) return `${ms} ms`;
-		return `${+(ms / 1000).toFixed(3)} s`;
+		if (ms <= 0) return m.automation_timing_immediate({}, messageOptions);
+		if (ms < 1000) return formatShortDuration(ms, "millisecond", locale.currentLanguage);
+		return formatShortDuration(ms / 1000, "second", locale.currentLanguage, {
+			maximumFractionDigits: 3,
+		});
 	}
 
 	function setGraceMs(next: number) {
@@ -249,14 +258,14 @@
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-trigger/15 px-3 py-2">
 		<Zap class="size-4 text-automation-trigger" />
-		<span class="text-sm font-medium text-automation-trigger">Trigger</span>
+		<span class="text-sm font-medium text-automation-trigger">{m.automation_node_trigger({}, messageOptions)}</span>
 	</div>
 
 	<div class="min-w-0 p-3 nodrag">
 		<fieldset disabled={data.readOnly} inert={data.readOnly} class="space-y-2 border-0 p-0">
 			<NodeTypeSelect
 				value={data.config.mode}
-				placeholder="Select trigger"
+				placeholder={m.automation_node_select_trigger({}, messageOptions)}
 				options={modes}
 				disabled={data.readOnly}
 				invalid={validationError?.field === "mode"}
@@ -271,7 +280,7 @@
 					getLabel={(d) => deviceDisplayName(d)}
 					chipConfigs={deviceChipConfigs}
 					chipMatchers={deviceChipMatchers}
-					placeholder="Select device"
+					placeholder={m.automation_node_select_device({}, messageOptions)}
 					size="sm"
 					separatedItems
 					disabled={data.readOnly}
@@ -297,8 +306,8 @@
 					items={webhookEndpoints}
 					value={data.config.endpointId ?? ""}
 					getValue={(endpoint) => endpoint.id}
-					getLabel={(endpoint) => endpoint.name}
-					placeholder="Select webhook"
+					getLabel={(endpoint) => entityDisplayName("webhook", endpoint)}
+					placeholder={m.automation_node_select_webhook({}, messageOptions)}
 					size="sm"
 					separatedItems
 					disabled={data.readOnly}
@@ -307,9 +316,9 @@
 				>
 					{#snippet item(endpoint)}
 						<div class="min-w-0 py-0.5">
-							<div class="truncate text-xs">{endpoint.name}</div>
+							<div class="truncate text-xs">{entityDisplayName("webhook", endpoint)}</div>
 							<div class="truncate text-[10px] text-muted-foreground">
-								{endpoint.enabled ? "Enabled" : "Disabled"}
+								{endpoint.enabled ? m.automation_node_webhook_enabled({}, messageOptions) : m.automation_node_webhook_disabled({}, messageOptions)}
 							</div>
 						</div>
 					{/snippet}
@@ -329,8 +338,8 @@
 					items={selectedDeviceCapabilities}
 					value={data.config.property ?? ""}
 					getValue={(c) => capabilityToExprProperty(c.name)}
-					getLabel={(c) => sentenceCase(capabilityToExprProperty(c.name))}
-					placeholder="Select property"
+					getLabel={(c) => historyFieldLabel(capabilityToExprProperty(c.name))}
+					placeholder={m.automation_node_select_property({}, messageOptions)}
 					size="sm"
 					separatedItems
 					disabled={data.readOnly}
@@ -340,7 +349,7 @@
 					{#snippet item(c: Capability)}
 						<CapabilityOptionRow
 							type={capabilityToExprProperty(c.name)}
-							label={sentenceCase(capabilityToExprProperty(c.name))}
+							label={historyFieldLabel(capabilityToExprProperty(c.name))}
 							unit={c.unit}
 						/>
 					{/snippet}
@@ -355,11 +364,11 @@
 							onValueChange={(v) => v && update({ comparator: "==", value: v })}
 						>
 							<SelectTrigger size="sm" class="w-full text-xs">
-								{data.config.value === "false" ? "Off" : "On"}
+								{data.config.value === "false" ? m.state_off({}, messageOptions) : m.state_on({}, messageOptions)}
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="true">On</SelectItem>
-								<SelectItem value="false">Off</SelectItem>
+								<SelectItem value="true">{m.state_on({}, messageOptions)}</SelectItem>
+								<SelectItem value="false">{m.state_off({}, messageOptions)}</SelectItem>
 							</SelectContent>
 						</Select>
 					{:else if selectedCapability.type === "numeric"}
@@ -387,7 +396,7 @@
 								onValueChange={(v) => update({ value: v === null ? "" : String(v) })}
 								min={selectedCapability.valueMin ?? undefined}
 								max={selectedCapability.valueMax ?? undefined}
-								placeholder={selectedCapability.unit ?? "value"}
+								placeholder={selectedCapability.unit ?? m.automation_node_value_placeholder({}, messageOptions)}
 								class="text-xs"
 								ariaInvalid={validationError?.field === "value" ? "true" : undefined}
 							/>
@@ -397,8 +406,8 @@
 							items={selectedCapability.values}
 							value={data.config.value ?? ""}
 							getValue={(v) => v}
-							getLabel={(v) => sentenceCase(v)}
-							placeholder="Select value"
+							getLabel={(v) => identifierLabel(v)}
+							placeholder={m.automation_node_select_value({}, messageOptions)}
 							size="sm"
 							disabled={data.readOnly}
 							class={validationError?.field === "value" ? `text-xs ${INVALID_CLS}` : "text-xs"}
@@ -427,7 +436,7 @@
 									const target = e.target as HTMLInputElement;
 									update({ value: target.value });
 								}}
-								placeholder="value"
+								placeholder={m.automation_node_value_placeholder({}, messageOptions)}
 								class="text-xs"
 								aria-invalid={validationError?.field === "value" ? "true" : undefined}
 							/>
@@ -442,8 +451,8 @@
 						items={eventCapability.values}
 						value={data.config.eventValue ?? ""}
 						getValue={(v) => v}
-						getLabel={(v) => sentenceCase(v)}
-						placeholder="Select event"
+						getLabel={(v) => identifierLabel(v)}
+						placeholder={m.automation_node_select_event({}, messageOptions)}
 						size="sm"
 						disabled={data.readOnly}
 						class={validationError?.field === "eventValue"
@@ -458,7 +467,7 @@
 							const target = e.target as HTMLInputElement;
 							update({ eventValue: target.value });
 						}}
-						placeholder="Event value (e.g. single)"
+						placeholder={m.automation_node_event_value_placeholder({}, messageOptions)}
 						class="text-xs"
 						aria-invalid={validationError?.field === "eventValue" ? "true" : undefined}
 					/>
@@ -489,9 +498,9 @@
 							onValueChange={(v) => update({ scheduleHour: v ?? undefined })}
 							min={0}
 							max={23}
-							placeholder="HH"
+							placeholder={m.common_time_hour_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="Schedule hour"
+							ariaLabel={m.automation_node_schedule_hour({}, messageOptions)}
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
 						<NumberInput
@@ -499,9 +508,9 @@
 							onValueChange={(v) => update({ scheduleMinute: v ?? undefined })}
 							min={0}
 							max={59}
-							placeholder="MM"
+							placeholder={m.common_time_minute_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="Schedule minute"
+							ariaLabel={m.automation_node_schedule_minute({}, messageOptions)}
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
 						<NumberInput
@@ -509,9 +518,9 @@
 							onValueChange={(v) => update({ scheduleSecond: v ?? undefined })}
 							min={0}
 							max={59}
-							placeholder="SS"
+							placeholder={m.common_time_second_placeholder({}, messageOptions)}
 							class="text-xs"
-							ariaLabel="Schedule second"
+							ariaLabel={m.automation_node_schedule_second({}, messageOptions)}
 						/>
 					</div>
 					<div class="flex gap-0.5">
@@ -536,7 +545,7 @@
 							placeholder="N"
 							class="text-xs w-16"
 							ariaInvalid={validationError?.field === "interval" ? "true" : undefined}
-							ariaLabel="Schedule interval"
+							ariaLabel={m.automation_node_schedule_interval({}, messageOptions)}
 						/>
 						<Select
 							type="single"
@@ -561,7 +570,7 @@
 							const t = e.target as HTMLInputElement;
 							update({ cronExpr: t.value });
 						}}
-						placeholder="* * * * * *  (sec min hr dom mon dow)"
+						placeholder={m.automation_node_cron_placeholder({}, messageOptions)}
 						class="text-xs font-mono"
 						aria-invalid={validationError?.field === "cronExpr" ? "true" : undefined}
 					/>
@@ -578,7 +587,7 @@
 					onValueChange={(v) => v && update({ eventType: v })}
 				>
 					<SelectTrigger size="sm" class="w-full text-xs">
-						{eventTypes.find((t) => t.value === data.config.eventType)?.label ?? "Select event"}
+						{eventTypes.find((t) => t.value === data.config.eventType)?.label ?? m.automation_node_select_event({}, messageOptions)}
 					</SelectTrigger>
 					<SelectContent>
 						{#each eventTypes as et (et.value)}
@@ -592,14 +601,14 @@
 						const target = e.target as HTMLInputElement;
 						update({ customExpr: target.value });
 					}}
-					placeholder="Condition expression"
+					placeholder={m.automation_node_condition_expression({}, messageOptions)}
 					class="text-xs font-mono"
 					aria-invalid={validationError?.field === "customExpr" ? "true" : undefined}
 				/>
 			{/if}
 
 		{#if validationError && !data.readOnly}
-			<p class="text-[10px] text-destructive">{validationError.message}</p>
+			<p class="text-[10px] text-destructive">{automationValidationMessage(validationError.code)}</p>
 		{/if}
 		</fieldset>
 
@@ -614,10 +623,10 @@
 					{:else}
 						<ChevronRight class="size-3" />
 					{/if}
-					Advanced
+					{m.automation_node_advanced({}, messageOptions)}
 					{#if !advancedOpen && (graceMs > 0 || cooldownMs > 0)}
 						<span class="ml-auto text-[10px] text-muted-foreground">
-							{#if graceMs > 0}G:{formatTimingValue(graceMs)}{/if}{#if graceMs > 0 && cooldownMs > 0}&nbsp;·&nbsp;{/if}{#if cooldownMs > 0}C:{formatTimingValue(cooldownMs)}{/if}
+							{#if graceMs > 0}{m.automation_node_grace_short({ duration: formatTimingValue(graceMs) }, messageOptions)}{/if}{#if graceMs > 0 && cooldownMs > 0}&nbsp;·&nbsp;{/if}{#if cooldownMs > 0}{m.automation_node_cooldown_short({ duration: formatTimingValue(cooldownMs) }, messageOptions)}{/if}
 						</span>
 					{/if}
 				</button>
@@ -625,12 +634,12 @@
 					<fieldset disabled={data.readOnly} class="space-y-2 border-0 px-3 pb-3 pt-1">
 						<div class="grid grid-cols-[auto_1fr] items-center gap-2">
 							<div class="flex items-center gap-1">
-								<label for="trigger-{id}-grace" class="text-[10px] text-muted-foreground">Grace</label>
+								<label for="trigger-{id}-grace" class="text-[10px] text-muted-foreground">{m.automation_node_grace({}, messageOptions)}</label>
 								<Tooltip>
-									<TooltipTrigger class="text-muted-foreground" aria-label="About trigger grace">
+									<TooltipTrigger class="text-muted-foreground" aria-label={m.automation_node_grace_about({}, messageOptions)}>
 										<Info class="size-3" />
 									</TooltipTrigger>
-									<TooltipContent>Keep this trigger active so AND/OR can combine it with later events.</TooltipContent>
+									<TooltipContent>{m.automation_node_grace_help({}, messageOptions)}</TooltipContent>
 								</Tooltip>
 							</div>
 							<Select
@@ -643,18 +652,18 @@
 									{formatTimingValue(graceMs)}
 								</SelectTrigger>
 								<SelectContent>
-									{#each TIMING_PRESETS as p (p.value)}
+									{#each timingOptions as p (p.value)}
 										<SelectItem value={String(p.value)}>{p.label}</SelectItem>
 									{/each}
 								</SelectContent>
 							</Select>
 							<div class="flex items-center gap-1">
-								<label for="trigger-{id}-cooldown" class="text-[10px] text-muted-foreground">Cooldown</label>
+								<label for="trigger-{id}-cooldown" class="text-[10px] text-muted-foreground">{m.automation_node_cooldown({}, messageOptions)}</label>
 								<Tooltip>
-									<TooltipTrigger class="text-muted-foreground" aria-label="About trigger cooldown">
+									<TooltipTrigger class="text-muted-foreground" aria-label={m.automation_node_cooldown_about({}, messageOptions)}>
 										<Info class="size-3" />
 									</TooltipTrigger>
-									<TooltipContent>Suppress matching events inside this window.</TooltipContent>
+									<TooltipContent>{m.automation_node_cooldown_help({}, messageOptions)}</TooltipContent>
 								</Tooltip>
 							</div>
 							<Select
@@ -667,7 +676,7 @@
 									{formatTimingValue(cooldownMs)}
 								</SelectTrigger>
 								<SelectContent>
-									{#each TIMING_PRESETS as p (p.value)}
+									{#each timingOptions as p (p.value)}
 										<SelectItem value={String(p.value)}>{p.label}</SelectItem>
 									{/each}
 								</SelectContent>

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  ACTION_OPTIONS,
-  CONDITION_OPTIONS,
-  TRIGGER_OPTIONS,
+  actionOptions,
+  conditionOptions,
+  triggerOptions,
 } from "$lib/components/graph/automation-node-options";
 import {
   defaultConditionConfig,
@@ -13,10 +13,13 @@ import {
 
 describe("automation node options", () => {
   it("uses sentence-case labels and brief descriptions without terminal punctuation", () => {
-    const options = [...TRIGGER_OPTIONS, ...CONDITION_OPTIONS, ...ACTION_OPTIONS];
+    const triggers = triggerOptions();
+    const conditions = conditionOptions();
+    const actions = actionOptions();
+    const options = [...triggers, ...conditions, ...actions];
     expect(options.every((option) => !/[.!?]$/.test(option.description))).toBe(true);
-    expect(ACTION_OPTIONS.map((option) => option.label)).toContain("Set state");
-    expect(TRIGGER_OPTIONS.map((option) => option.label)).toContain("Device event");
+    expect(actions.map((option) => option.label)).toContain("Set state");
+    expect(triggers.map((option) => option.label)).toContain("Device event");
   });
 });
 
@@ -29,7 +32,7 @@ describe("empty condition configuration", () => {
     expect(normalizeConditionConfig(JSON.parse(serialized))).toEqual({ mode: "" });
     expect(validateConditionConfig(config)).toEqual({
       field: "mode",
-      message: "Pick a condition",
+	  code: "condition_required",
     });
   });
 });

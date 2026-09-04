@@ -99,7 +99,7 @@ describe("normalizeTriggerConfig mode recovery", () => {
     const config = defaultTriggerConfig();
     expect(config).toEqual({ mode: "" });
     expect(roundTrip(config)).toEqual({ mode: "" });
-    expect(validateTriggerConfig(config)).toEqual({ field: "mode", message: "Pick a trigger" });
+    expect(validateTriggerConfig(config)).toEqual({ field: "mode", code: "trigger_required" });
   });
 
   it("availability: recovers deviceId", () => {
@@ -351,7 +351,7 @@ describe("action type validation", () => {
   it("requires an action selection", () => {
     expect(
       validateActionConfig({ actionType: "", targetType: "", targetId: "", payload: "" }),
-    ).toEqual({ field: "actionType", message: "Pick an action" });
+    ).toEqual({ field: "actionType", code: "action_required" });
   });
 
   it("stores toggle actions without a payload", () => {

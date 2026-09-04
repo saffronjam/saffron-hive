@@ -90,25 +90,25 @@ export type ConditionField = "mode" | "target" | "property" | "value" | "customE
 
 export interface ConditionValidationError {
   field: ConditionField;
-  message: string;
+  code: import("./trigger-expr").AutomationValidationCode;
 }
 
 export function validateConditionConfig(config: ConditionConfig): ConditionValidationError | null {
-  if (!config.mode) return { field: "mode", message: "Pick a condition" };
+  if (!config.mode) return { field: "mode", code: "condition_required" };
   switch (config.mode) {
     case "time_window":
     case "weekday":
       return null;
     case "device_state":
-      if (!config.targetId) return { field: "target", message: "Pick a target" };
-      if (!config.property) return { field: "property", message: "Pick a property" };
+      if (!config.targetId) return { field: "target", code: "target_required" };
+      if (!config.property) return { field: "property", code: "property_required" };
       if (config.value === undefined || config.value === "") {
-        return { field: "value", message: "Set a value" };
+        return { field: "value", code: "value_required" };
       }
       return null;
     case "custom":
       if (!config.customExpr || config.customExpr.trim() === "") {
-        return { field: "customExpr", message: "Enter an expression" };
+        return { field: "customExpr", code: "expression_required" };
       }
       return null;
     default:

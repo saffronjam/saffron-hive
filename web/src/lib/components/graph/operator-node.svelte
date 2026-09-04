@@ -7,6 +7,8 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { GitMerge } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface OperatorConfig {
 		operator: string;
@@ -26,11 +28,16 @@
 
 	let { data, id }: Props = $props();
 
-	const operators = [
-		{ value: "AND", label: "AND" },
-		{ value: "OR", label: "OR" },
-		{ value: "NOT", label: "NOT" },
-	];
+	const messageOptions = $derived(locale.messageOptions());
+	const operators = $derived.by(() => [
+		{ value: "AND", label: m.automation_operator_and({}, messageOptions) },
+		{ value: "OR", label: m.automation_operator_or({}, messageOptions) },
+		{ value: "NOT", label: m.automation_operator_not({}, messageOptions) },
+	]);
+	const selectedOperatorLabel = $derived(
+		operators.find((operator) => operator.value === data.config.operator)?.label ??
+			m.common_select({}, messageOptions),
+	);
 
 	function handleOperatorChange(value: string | undefined) {
 		if (!value || !data.onConfigChange) return;
@@ -46,7 +53,7 @@
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-operator/15 px-3 py-2">
 		<GitMerge class="size-4 text-automation-operator" />
-		<span class="text-sm font-medium text-automation-operator">Operator</span>
+		<span class="text-sm font-medium text-automation-operator">{m.automation_operator_title({}, messageOptions)}</span>
 	</div>
 
 	<fieldset disabled={data.readOnly} class="min-w-0 border-0 p-3 nodrag">
@@ -57,7 +64,7 @@
 				onValueChange={handleOperatorChange}
 			>
 				<SelectTrigger size="sm" class="w-full text-xs">
-					{data.config.operator || "Select"}
+					{selectedOperatorLabel}
 				</SelectTrigger>
 				<SelectContent>
 					{#each operators as op (op.value)}

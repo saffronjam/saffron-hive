@@ -9,6 +9,8 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { Plus, X } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 	import type {
 		WebhookFilterOperator,
 		WebhookFilterRule,
@@ -25,30 +27,31 @@
 
 	let { rules, disabled = false, invalid = false, onchange }: Props = $props();
 
-	const sources: { value: WebhookFilterSource; label: string }[] = [
-		{ value: "body", label: "Body" },
-		{ value: "query", label: "Query" },
-		{ value: "header", label: "Header" },
-	];
-	const operators: { value: WebhookFilterOperator; label: string }[] = [
-		{ value: "exists", label: "Exists" },
-		{ value: "not_exists", label: "Does not exist" },
-		{ value: "equals", label: "Equals" },
-		{ value: "not_equals", label: "Does not equal" },
-		{ value: "contains", label: "Contains" },
-		{ value: "starts_with", label: "Starts with" },
-		{ value: "ends_with", label: "Ends with" },
-		{ value: "greater_than", label: "Greater than" },
-		{ value: "greater_than_or_equal", label: "At least" },
-		{ value: "less_than", label: "Less than" },
-		{ value: "less_than_or_equal", label: "At most" },
-	];
-	const valueTypes: { value: WebhookFilterValueType; label: string }[] = [
-		{ value: "string", label: "Text" },
-		{ value: "number", label: "Number" },
-		{ value: "boolean", label: "Boolean" },
-		{ value: "null", label: "Null" },
-	];
+	const messageOptions = $derived(locale.messageOptions());
+	const sources = $derived.by<{ value: WebhookFilterSource; label: string }[]>(() => [
+		{ value: "body", label: m.automation_webhook_source_body({}, messageOptions) },
+		{ value: "query", label: m.automation_webhook_source_query({}, messageOptions) },
+		{ value: "header", label: m.automation_webhook_source_header({}, messageOptions) },
+	]);
+	const operators = $derived.by<{ value: WebhookFilterOperator; label: string }[]>(() => [
+		{ value: "exists", label: m.automation_webhook_operator_exists({}, messageOptions) },
+		{ value: "not_exists", label: m.automation_webhook_operator_not_exists({}, messageOptions) },
+		{ value: "equals", label: m.automation_webhook_operator_equals({}, messageOptions) },
+		{ value: "not_equals", label: m.automation_webhook_operator_not_equals({}, messageOptions) },
+		{ value: "contains", label: m.automation_webhook_operator_contains({}, messageOptions) },
+		{ value: "starts_with", label: m.automation_webhook_operator_starts_with({}, messageOptions) },
+		{ value: "ends_with", label: m.automation_webhook_operator_ends_with({}, messageOptions) },
+		{ value: "greater_than", label: m.automation_webhook_operator_greater_than({}, messageOptions) },
+		{ value: "greater_than_or_equal", label: m.automation_webhook_operator_at_least({}, messageOptions) },
+		{ value: "less_than", label: m.automation_webhook_operator_less_than({}, messageOptions) },
+		{ value: "less_than_or_equal", label: m.automation_webhook_operator_at_most({}, messageOptions) },
+	]);
+	const valueTypes = $derived.by<{ value: WebhookFilterValueType; label: string }[]>(() => [
+		{ value: "string", label: m.automation_webhook_type_text({}, messageOptions) },
+		{ value: "number", label: m.automation_webhook_type_number({}, messageOptions) },
+		{ value: "boolean", label: m.automation_webhook_type_boolean({}, messageOptions) },
+		{ value: "null", label: m.automation_webhook_type_null({}, messageOptions) },
+	]);
 
 	function addRule() {
 		onchange([
@@ -118,14 +121,14 @@
 					placeholder={pathPlaceholder(rule.source)}
 					{disabled}
 					class="h-8 text-[11px]"
-					aria-label="Webhook filter path"
+					aria-label={m.automation_webhook_filter_path_aria({}, messageOptions)}
 				/>
 				<Button
 					variant="ghost"
 					size="icon-sm"
 					{disabled}
 					onclick={() => onchange(rules.filter((_, ruleIndex) => ruleIndex !== index))}
-					aria-label="Remove webhook filter"
+					aria-label={m.automation_webhook_remove_filter({}, messageOptions)}
 				>
 					<X class="size-3.5" />
 				</Button>
@@ -170,7 +173,7 @@
 							onValueChange={(value) => updateRule(index, { value })}
 							{disabled}
 							class="h-8 text-[11px]"
-							ariaLabel="Webhook filter value"
+							ariaLabel={m.automation_webhook_filter_value_aria({}, messageOptions)}
 						/>
 					{:else if rule.value_type === "boolean"}
 						<Select
@@ -179,21 +182,21 @@
 							{disabled}
 							onValueChange={(value) => value && updateRule(index, { value: value === "true" })}
 						>
-							<SelectTrigger size="sm" class="w-full text-[11px]">{rule.value === false ? "False" : "True"}</SelectTrigger>
+							<SelectTrigger size="sm" class="w-full text-[11px]">{rule.value === false ? m.value_false({}, messageOptions) : m.value_true({}, messageOptions)}</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="true">True</SelectItem>
-								<SelectItem value="false">False</SelectItem>
+								<SelectItem value="true">{m.value_true({}, messageOptions)}</SelectItem>
+								<SelectItem value="false">{m.value_false({}, messageOptions)}</SelectItem>
 							</SelectContent>
 						</Select>
 					{:else if rule.value_type === "null"}
-						<div class="flex h-8 items-center rounded-md border border-input px-2 text-[11px] text-muted-foreground">Null</div>
+						<div class="flex h-8 items-center rounded-md border border-input px-2 text-[11px] text-muted-foreground">{m.automation_webhook_type_null({}, messageOptions)}</div>
 					{:else}
 						<Input
 							value={typeof rule.value === "string" ? rule.value : ""}
 							oninput={(event) => updateRule(index, { value: (event.currentTarget as HTMLInputElement).value })}
 							{disabled}
 							class="h-8 text-[11px]"
-							aria-label="Webhook filter value"
+							aria-label={m.automation_webhook_filter_value_aria({}, messageOptions)}
 						/>
 					{/if}
 				</div>
@@ -202,6 +205,6 @@
 	{/each}
 	<Button variant="outline" size="sm" class="w-full text-xs" {disabled} onclick={addRule}>
 		<Plus class="size-3.5" />
-		Add filter
+		{m.automation_webhook_add_filter({}, messageOptions)}
 	</Button>
 </div>

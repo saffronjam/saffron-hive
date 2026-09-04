@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position } from "@xyflow/svelte";
-	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import {
 		Select,
 		SelectContent,
@@ -31,7 +31,11 @@
 	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
 	import NodeTypeSelect from "./node-type-select.svelte";
 	import DeviceOptionRow from "./device-option-row.svelte";
-	import { ACTION_OPTIONS } from "./automation-node-options";
+	import { actionOptions } from "./automation-node-options";
+	import { automationValidationMessage } from "$lib/i18n/automation-validation";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { chipLabel } from "$lib/i18n/vocabulary";
 	import { roomLabelsByDevice } from "$lib/memberships";
 	import type { Device, DeviceConfigurationEntry } from "$lib/gql/graphql";
 	import { writableConfigurationCapabilities } from "$lib/device-configuration";
@@ -56,6 +60,18 @@
 	type EffectRef =
 		| { kind: "timeline"; id: string; name: string }
 		| { kind: "native"; nativeName: string; name: string };
+
+	function sceneName(scene: SceneRef): string {
+		return entityDisplayName("scene", scene);
+	}
+
+	function roomName(room: { id: string; name: string }): string {
+		return entityDisplayName("room", room);
+	}
+
+	function effectName(effect: EffectRef): string {
+		return effect.kind === "timeline" ? entityDisplayName("effect", effect) : effect.name;
+	}
 
 	interface ActionNodeData extends Record<string, unknown> {
 		config: ActionConfig;
@@ -88,13 +104,6 @@
 		return `${t.kind}:${t.id}`;
 	}
 
-	const targetKindLabel: Record<TargetItem["kind"], string> = {
-		device: "Device",
-		group: "Group",
-		room: "Room",
-		scene: "Scene",
-	};
-
 	interface Props {
 		data: ActionNodeData;
 		id: string;
@@ -102,18 +111,23 @@
 
 	let { data, id }: Props = $props();
 
-	const actionTypes = ACTION_OPTIONS;
+	const actionTypes = $derived.by(() => actionOptions());
+	const messageOptions = $derived(locale.messageOptions());
 
-	const SEVERITIES = [
-		{ value: "high", label: "High" },
-		{ value: "medium", label: "Medium" },
-		{ value: "low", label: "Low" },
-	];
+	const severities = $derived.by(() => [
+		{ value: "high", label: m.automation_node_severity_high({}, messageOptions) },
+		{ value: "medium", label: m.automation_node_severity_medium({}, messageOptions) },
+		{ value: "low", label: m.automation_node_severity_low({}, messageOptions) },
+	]);
 
-	const ALARM_KINDS = [
-		{ value: "auto", label: "Auto" },
-		{ value: "one_shot", label: "One-shot" },
-	];
+	const alarmKinds = $derived.by(() => [
+		{ value: "auto", label: m.automation_node_alarm_auto({}, messageOptions) },
+		{ value: "one_shot", label: m.automation_node_alarm_one_shot({}, messageOptions) },
+	]);
+
+	function targetKindLabel(kind: TargetItem["kind"]): string {
+		return kind === "scene" ? m.scene_generic({}, messageOptions) : chipLabel(kind);
+	}
 
 	function handleActionTypeChange(value: string | undefined) {
 		if (!value || !data.onConfigChange) return;
@@ -191,8 +205,8 @@
 
 	function sceneFilter(s: SceneRef, query: string): boolean {
 		const q = query.toLowerCase();
-		if (s.name.toLowerCase().includes(q)) return true;
-		return (s.rooms ?? []).some((r) => r.name.toLowerCase().includes(q));
+		if (sceneName(s).toLowerCase().includes(q)) return true;
+		return (s.rooms ?? []).some((r) => roomName(r).toLowerCase().includes(q));
 	}
 
 	function cycleScenesList(): string[] {
@@ -294,7 +308,12 @@
 	// otherwise yield an editor with no available fields.
 	const targetItemsList = $derived.by<TargetItem[]>(() => {
 		if (data.config.actionType === "activate_scene") {
-			return (data.scenes ?? []).map((s) => ({ kind: "scene", id: s.id, name: s.name, rooms: s.rooms ?? [] }));
+			return (data.scenes ?? []).map((s) => ({
+				kind: "scene",
+				id: s.id,
+				name: sceneName(s),
+				rooms: s.rooms ?? [],
+			}));
 		}
 		const allDevices = data.devices ?? [];
 		const allGroups = data.groups ?? [];
@@ -328,7 +347,7 @@
 		}
 		for (const r of allRooms) {
 			if (isChangeValue && !supportsChangeValue("room", r.id)) continue;
-			items.push({ kind: "room", id: r.id, name: r.name });
+			items.push({ kind: "room", id: r.id, name: roomName(r) });
 		}
 		return items;
 	});
@@ -343,7 +362,7 @@
 	});
 	const selectedEffectName = $derived.by(() => {
 		const ref = effectsList.find((e) => effectRefKey(e) === selectedEffectKey);
-		return ref?.name ?? "";
+		return ref ? effectName(ref) : "";
 	});
 
 	const selectedTargetKey = $derived(
@@ -418,10 +437,10 @@
 	}
 
 	const severityLabel = $derived(
-		SEVERITIES.find((s) => s.value === parsedPayload.severity)?.label ?? "Severity",
+		severities.find((s) => s.value === parsedPayload.severity)?.label ?? m.automation_node_severity({}, messageOptions),
 	);
 	const kindLabel = $derived(
-		ALARM_KINDS.find((k) => k.value === parsedPayload.kind)?.label ?? "Kind",
+		alarmKinds.find((k) => k.value === parsedPayload.kind)?.label ?? m.automation_node_kind({}, messageOptions),
 	);
 	const validationError = $derived(validateActionConfig(data.config));
 	const INVALID_CLS = "border-destructive ring-2 ring-destructive/40";
@@ -469,16 +488,16 @@
 >
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-action/15 px-3 py-2">
 		<Play class="size-4 text-automation-action" />
-		<span class="text-sm font-medium text-automation-action">Action</span>
+		<span class="text-sm font-medium text-automation-action">{m.automation_node_action({}, messageOptions)}</span>
 	</div>
 
 	<fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-3 nodrag">
 		{#if hasMissingCycleScene}
-			<Badge variant="destructive" class="text-[10px]">Missing scenes</Badge>
+			<Badge variant="destructive" class="text-[10px]">{m.automation_node_missing_scenes({}, messageOptions)}</Badge>
 		{/if}
 			<NodeTypeSelect
 				value={data.config.actionType}
-				placeholder="Select action"
+				placeholder={m.automation_node_select_action({}, messageOptions)}
 				options={actionTypes}
 				disabled={data.readOnly}
 				invalid={validationError?.field === "actionType"}
@@ -489,7 +508,7 @@
 				<Input
 					value={(parsedPayload.alarm_id as string) ?? ""}
 					oninput={(e) => updateRaiseField("alarm_id", (e.currentTarget as HTMLInputElement).value)}
-					placeholder="Alarm ID (e.g. humidity.high)"
+					placeholder={m.automation_node_alarm_id_placeholder({}, messageOptions)}
 					class="text-xs"
 					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
 				/>
@@ -501,7 +520,7 @@
 				>
 					<SelectTrigger size="sm" class="w-full text-xs">{severityLabel}</SelectTrigger>
 					<SelectContent>
-						{#each SEVERITIES as s (s.value)}
+						{#each severities as s (s.value)}
 							<SelectItem value={s.value}>{s.label}</SelectItem>
 						{/each}
 					</SelectContent>
@@ -514,7 +533,7 @@
 				>
 					<SelectTrigger size="sm" class="w-full text-xs">{kindLabel}</SelectTrigger>
 					<SelectContent>
-						{#each ALARM_KINDS as k (k.value)}
+						{#each alarmKinds as k (k.value)}
 							<SelectItem value={k.value}>{k.label}</SelectItem>
 						{/each}
 					</SelectContent>
@@ -522,7 +541,7 @@
 				<Textarea
 					value={(parsedPayload.message as string) ?? ""}
 					oninput={(e) => updateRaiseField("message", (e.currentTarget as HTMLTextAreaElement).value)}
-					placeholder="Message displayed in the alarms page"
+					placeholder={m.automation_node_alarm_message_placeholder({}, messageOptions)}
 					class="min-h-[50px] text-xs"
 					rows={2}
 				/>
@@ -530,7 +549,7 @@
 				<Input
 					value={(parsedPayload.alarm_id as string) ?? ""}
 					oninput={(e) => updateClearField((e.currentTarget as HTMLInputElement).value)}
-					placeholder="Alarm ID to clear"
+					placeholder={m.automation_node_alarm_id_clear_placeholder({}, messageOptions)}
 					class="text-xs"
 					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
 				/>
@@ -546,10 +565,10 @@
 							aria-current={i === activeCycleIndex ? "true" : undefined}
 						>
 							<span class="flex-1 truncate {scene ? '' : 'text-destructive line-through'}">
-								{scene?.name ?? `Deleted scene (${sid})`}
+								{scene ? sceneName(scene) : m.automation_node_deleted_scene({ id: sid }, messageOptions)}
 							</span>
 							{#each scene?.rooms ?? [] as room (room.id)}
-								<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
+								<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0 shrink-0" />
 							{/each}
 							<Button
 								type="button"
@@ -558,7 +577,7 @@
 								class="size-6"
 								disabled={i === 0}
 								onclick={() => moveCycleScene(i, -1)}
-								aria-label="Move up"
+								aria-label={m.automation_node_move_up({}, messageOptions)}
 							>
 								<ArrowUp class="size-3" />
 							</Button>
@@ -569,7 +588,7 @@
 								class="size-6"
 								disabled={i === cycleSceneIds.length - 1}
 								onclick={() => moveCycleScene(i, +1)}
-								aria-label="Move down"
+								aria-label={m.automation_node_move_down({}, messageOptions)}
 							>
 								<ArrowDown class="size-3" />
 							</Button>
@@ -579,7 +598,7 @@
 								size="icon-sm"
 								class="size-6"
 								onclick={() => removeCycleScene(i)}
-								aria-label="Remove"
+								aria-label={m.common_remove({}, messageOptions)}
 							>
 								<X class="size-3" />
 							</Button>
@@ -590,9 +609,9 @@
 							items={availableCycleScenes}
 							value=""
 							getValue={(s: SceneRef) => s.id}
-							getLabel={(s: SceneRef) => s.name}
+							getLabel={(s: SceneRef) => sceneName(s)}
 							filter={sceneFilter}
-							placeholder="Add scene"
+							placeholder={m.automation_node_add_scene({}, messageOptions)}
 							size="sm"
 							disabled={data.readOnly}
 							class={validationError?.field === "payload" ? `text-xs ${INVALID_CLS}` : "text-xs"}
@@ -601,11 +620,11 @@
 							{#snippet item(s: SceneRef)}
 								<span class="flex w-full items-center gap-1.5 overflow-hidden">
 									<Clapperboard class="size-3.5 shrink-0 text-muted-foreground" />
-									<span class="truncate">{s.name}</span>
+									<span class="truncate">{sceneName(s)}</span>
 									{#if (s.rooms ?? []).length > 0}
 										<span class="ml-auto flex shrink-0 items-center gap-1">
 											{#each s.rooms ?? [] as room (room.id)}
-												<HiveChip type="room" label={room.name} class="text-[10px] py-0" />
+											<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0" />
 											{/each}
 										</span>
 									{/if}
@@ -613,7 +632,7 @@
 							{/snippet}
 						</HiveSelectAutocomplete>
 					{:else if cycleSceneIds.length === 0}
-						<p class="text-[11px] text-muted-foreground">No scenes available — create scenes first.</p>
+						<p class="text-[11px] text-muted-foreground">{m.automation_node_no_scenes({}, messageOptions)}</p>
 					{/if}
 				</div>
 			{:else if data.config.actionType}
@@ -627,7 +646,7 @@
 							onclick={() => setTargetMode("simple")}
 							aria-pressed={!advanced}
 						>
-							Simple
+							{m.automation_node_simple({}, messageOptions)}
 						</Button>
 						<Button
 							variant={advanced ? "secondary" : "ghost"}
@@ -637,7 +656,7 @@
 							onclick={() => setTargetMode("advanced")}
 							aria-pressed={advanced}
 						>
-							Advanced
+							{m.automation_node_advanced({}, messageOptions)}
 						</Button>
 					</div>
 				{/if}
@@ -657,7 +676,7 @@
 					selectedFallback={selectedTargetFallback}
 					getValue={targetKey}
 					getLabel={(t) => t.name}
-					placeholder={data.config.actionType === "activate_scene" ? "Select scene" : "Select target"}
+					placeholder={data.config.actionType === "activate_scene" ? m.automation_node_select_scene({}, messageOptions) : m.automation_node_select_target({}, messageOptions)}
 					size="sm"
 					separatedItems
 					disabled={data.readOnly}
@@ -667,16 +686,16 @@
 					{#snippet renderSelected(t: TargetItem)}
 						<span class="truncate {t.removed ? 'text-muted-foreground' : ''}">{t.name}</span>
 						{#if t.removed}
-							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">Removed</Badge>
+							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">{m.automation_node_removed({}, messageOptions)}</Badge>
 						{:else if t.kind === "device" && t.deviceType}
 							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
 						{:else if t.kind === "scene"}
 							{#each t.rooms ?? [] as room (room.id)}
-								<HiveChip type="room" label={room.name} class="text-[10px] py-0 shrink-0" />
+								<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0 shrink-0" />
 							{/each}
 						{:else}
 							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">
-								{targetKindLabel[t.kind]}
+								{targetKindLabel(t.kind)}
 							</Badge>
 						{/if}
 					{/snippet}
@@ -690,13 +709,13 @@
 								{#if (t.rooms ?? []).length > 0}
 									<span class="ml-auto flex shrink-0 items-center gap-1">
 										{#each t.rooms ?? [] as room (room.id)}
-											<HiveChip type="room" label={room.name} class="text-[10px] py-0" />
+											<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0" />
 										{/each}
 									</span>
 								{/if}
 								{:else}
 								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">
-									{targetKindLabel[t.kind]}
+									{targetKindLabel(t.kind)}
 								</Badge>
 								{/if}
 							</span>
@@ -717,7 +736,7 @@
 							disabled={data.readOnly}
 						/>
 					{:else}
-						<p class="text-[11px] text-muted-foreground">Pick a device to configure.</p>
+						<p class="text-[11px] text-muted-foreground">{m.automation_node_pick_device_configure({}, messageOptions)}</p>
 					{/if}
 				{:else if data.config.actionType === "set_device_state"}
 					{#if advanced}
@@ -779,11 +798,11 @@
 						onValueChange={(v) => v && updateEffectSelection(v)}
 					>
 						<SelectTrigger size="sm" class="w-full text-xs">
-							{selectedEffectName || "Select effect"}
+							{selectedEffectName || m.automation_node_select_effect({}, messageOptions)}
 						</SelectTrigger>
 						<SelectContent>
 							{#each effectsList as eff (effectRefKey(eff))}
-								<SelectItem value={effectRefKey(eff)}>{eff.name}</SelectItem>
+								<SelectItem value={effectRefKey(eff)}>{effectName(eff)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -798,7 +817,7 @@
 				{/if}
 			{/if}
 		{#if validationError && !data.readOnly}
-			<p class="text-[10px] text-destructive">{validationError.message}</p>
+			<p class="text-[10px] text-destructive">{automationValidationMessage(validationError.code)}</p>
 		{/if}
 	</fieldset>
 

@@ -4,94 +4,117 @@ export interface AutomationNodeOption<T extends string = string> {
   description: string;
 }
 
-export const TRIGGER_OPTIONS = [
-  {
-    value: "device_state",
-    label: "Device state changed",
-    description: "Runs when a reported device value changes",
-  },
-  {
-    value: "device_event",
-    label: "Device event",
-    description: "Runs for presses, holds, taps, and other momentary events",
-  },
-  {
-    value: "availability",
-    label: "Availability",
-    description: "Runs when a device goes online or offline",
-  },
-  {
-    value: "webhook",
-    label: "Incoming webhook",
-    description: "Runs when an external system calls a webhook",
-  },
-  {
-    value: "schedule",
-    label: "Schedule",
-    description: "Runs at a time or repeating interval",
-  },
-  {
-    value: "custom",
-    label: "Custom",
-    description: "Runs when a custom event expression matches",
-  },
-] as const satisfies readonly AutomationNodeOption[];
+export function triggerOptions(): readonly AutomationNodeOption[] {
+  const options = locale.messageOptions();
+  return [
+    {
+      value: "device_state",
+      label: m.automation_trigger_device_state({}, options),
+      description: m.automation_trigger_device_state_description({}, options),
+    },
+    {
+      value: "device_event",
+      label: m.automation_trigger_device_event({}, options),
+      description: m.automation_trigger_device_event_description({}, options),
+    },
+    {
+      value: "availability",
+      label: m.automation_trigger_availability({}, options),
+      description: m.automation_trigger_availability_description({}, options),
+    },
+    {
+      value: "webhook",
+      label: m.automation_trigger_webhook({}, options),
+      description: m.automation_trigger_webhook_description({}, options),
+    },
+    {
+      value: "schedule",
+      label: m.automation_trigger_schedule({}, options),
+      description: m.automation_trigger_schedule_description({}, options),
+    },
+    {
+      value: "custom",
+      label: m.automation_trigger_custom({}, options),
+      description: m.automation_trigger_custom_description({}, options),
+    },
+  ] as const satisfies readonly AutomationNodeOption[];
+}
 
-export const CONDITION_OPTIONS = [
-  {
-    value: "time_window",
-    label: "Time window",
-    description: "Passes during a configured time range",
-  },
-  { value: "weekday", label: "Weekday", description: "Passes on selected days" },
-  {
-    value: "device_state",
-    label: "Device state",
-    description: "Checks the current state of a device, group, or room",
-  },
-  { value: "custom", label: "Custom", description: "Checks a custom boolean expression" },
-] as const satisfies readonly AutomationNodeOption[];
+export function conditionOptions(): readonly AutomationNodeOption[] {
+  const options = locale.messageOptions();
+  return [
+    {
+      value: "time_window",
+      label: m.automation_condition_time_window({}, options),
+      description: m.automation_condition_time_window_description({}, options),
+    },
+    {
+      value: "weekday",
+      label: m.automation_condition_weekday({}, options),
+      description: m.automation_condition_weekday_description({}, options),
+    },
+    {
+      value: "device_state",
+      label: m.automation_condition_device_state({}, options),
+      description: m.automation_condition_device_state_description({}, options),
+    },
+    {
+      value: "custom",
+      label: m.automation_condition_custom({}, options),
+      description: m.automation_condition_custom_description({}, options),
+    },
+  ] as const satisfies readonly AutomationNodeOption[];
+}
 
-export const ACTION_OPTIONS = [
-  {
-    value: "set_device_state",
-    label: "Set state",
-    description: "Sets one or more device state values",
-  },
-  {
-    value: "configure_device",
-    label: "Configure device",
-    description: "Changes persistent device settings",
-  },
-  {
-    value: "toggle_device_state",
-    label: "Toggle state",
-    description: "Toggles power for a device, group, or room",
-  },
-  {
-    value: "change_value",
-    label: "Change value",
-    description: "Adjusts a numeric value by an amount",
-  },
-  { value: "activate_scene", label: "Activate scene", description: "Activates a scene" },
-  {
-    value: "cycle_scenes",
-    label: "Scene cycle",
-    description: "Advances through an ordered scene list",
-  },
-  {
-    value: "run_effect",
-    label: "Run effect",
-    description: "Starts an effect on matching devices",
-  },
-  {
-    value: "raise_alarm",
-    label: "Raise alarm",
-    description: "Creates or updates an alarm",
-  },
-  {
-    value: "clear_alarm",
-    label: "Clear alarm",
-    description: "Clears a matching alarm",
-  },
-] as const satisfies readonly AutomationNodeOption[];
+export function actionOptions(): readonly AutomationNodeOption[] {
+  const options = locale.messageOptions();
+  return [
+    {
+      value: "set_device_state",
+      label: m.automation_action_set_state({}, options),
+      description: m.automation_action_set_state_description({}, options),
+    },
+    {
+      value: "configure_device",
+      label: m.automation_action_configure_device({}, options),
+      description: m.automation_action_configure_device_description({}, options),
+    },
+    {
+      value: "toggle_device_state",
+      label: m.automation_action_toggle_state({}, options),
+      description: m.automation_action_toggle_state_description({}, options),
+    },
+    {
+      value: "change_value",
+      label: m.automation_action_change_value({}, options),
+      description: m.automation_action_change_value_description({}, options),
+    },
+    {
+      value: "activate_scene",
+      label: m.automation_action_activate_scene({}, options),
+      description: m.automation_action_activate_scene_description({}, options),
+    },
+    {
+      value: "cycle_scenes",
+      label: m.automation_action_cycle_scenes({}, options),
+      description: m.automation_action_cycle_scenes_description({}, options),
+    },
+    {
+      value: "run_effect",
+      label: m.automation_action_run_effect({}, options),
+      description: m.automation_action_run_effect_description({}, options),
+    },
+    {
+      value: "raise_alarm",
+      label: m.automation_action_raise_alarm({}, options),
+      description: m.automation_action_raise_alarm_description({}, options),
+    },
+    {
+      value: "clear_alarm",
+      label: m.automation_action_clear_alarm({}, options),
+      description: m.automation_action_clear_alarm_description({}, options),
+    },
+  ] as const satisfies readonly AutomationNodeOption[];
+}
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";

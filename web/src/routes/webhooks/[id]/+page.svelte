@@ -41,6 +41,11 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { formatTooltip } from "$lib/time-format";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { compareLocalized, formatMeasurement, formatShortDuration } from "$lib/i18n/format";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
+	import { entityDisplayName } from "$lib/utils";
 	import {
 		Braces,
 		Check,
@@ -97,6 +102,7 @@
 
 	const endpointID = $derived(page.params.id ?? "");
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	const endpoint = $derived(webhooksStore.byId.get(endpointID));
 	const usageByEndpoint = $derived(automationsByWebhookEndpoint(automationsStore.items));
 	const usedBy = $derived(usageByEndpoint.get(endpointID) ?? []);
@@ -172,28 +178,37 @@
 	});
 
 	const draftReady = $derived(endpoint !== undefined && loadedID === endpoint.id);
-	const nameError = $derived(draftReady && name.trim() === "" ? "Enter a name" : null);
-	const rateCountError = $derived(draftReady && (rateLimitCount === null || rateLimitCount < 1) ? "Use at least 1 request" : null);
-	const rateWindowError = $derived(draftReady && (rateLimitWindowMs === null || rateLimitWindowMs < 1) ? "Use at least 1 millisecond" : null);
+	const nameError = $derived(draftReady && name.trim() === "" ? m.webhooks_validation_name({}, messageOptions) : null);
+	const rateCountError = $derived(draftReady && (rateLimitCount === null || rateLimitCount < 1) ? m.webhooks_validation_request_count({}, messageOptions) : null);
+	const rateWindowError = $derived(draftReady && (rateLimitWindowMs === null || rateLimitWindowMs < 1) ? m.webhooks_validation_window({}, messageOptions) : null);
 	const isValid = $derived(!nameError && !rateCountError && !rateWindowError);
 	const isDirty = $derived(draftReady && snapshot() !== original);
 	const filteredUsedBy = $derived.by(() => {
 		const query = automationSearch.trim().toLowerCase();
 		return [...usedBy]
-			.filter((automation) => !query || automation.name.toLowerCase().includes(query))
-			.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+			.filter(
+				(automation) =>
+					!query ||
+					localizedNamesStore.matches("automation", automation.id, query, automation.name),
+			)
+			.sort((a, b) =>
+				compareLocalized(
+					entityDisplayName("automation", a),
+					entityDisplayName("automation", b),
+				),
+			);
 	});
 
 	$effect(() => {
 		pageHeader.breadcrumbs = [
-			{ label: "Webhooks", href: "/webhooks" },
-			{ label: endpoint?.name ?? "Webhook" },
+			{ label: m.webhooks_title({}, messageOptions), href: "/webhooks" },
+			{ label: endpoint ? localizedNamesStore.display("webhook", endpoint.id, endpoint.name) : m.webhooks_detail_fallback({}, messageOptions) },
 		];
 		pageHeader.viewToggle = null;
 		pageHeader.actions = [
-			{ label: "Rotate URL", mobileLabel: "Rotate", icon: RotateCw, variant: "outline", disabled: !draftReady, onclick: () => (rotateConfirm = true) },
-			{ label: "Save", icon: Save, saving, disabled: !isDirty || !isValid, onclick: save },
-			{ label: "Delete", icon: Trash2, variant: "destructive", disabled: !draftReady || usedBy.length > 0, onclick: () => (deleteConfirm = true) },
+			{ label: m.webhooks_rotate_url({}, messageOptions), mobileLabel: m.webhooks_rotate_short({}, messageOptions), icon: RotateCw, variant: "outline", disabled: !draftReady, onclick: () => (rotateConfirm = true) },
+			{ label: m.common_save({}, messageOptions), icon: Save, saving, disabled: !isDirty || !isValid, onclick: save },
+			{ label: m.common_delete({}, messageOptions), icon: Trash2, variant: "destructive", disabled: !draftReady || usedBy.length > 0, onclick: () => (deleteConfirm = true) },
 		];
 	});
 
@@ -210,7 +225,7 @@
 			});
 			original = snapshot();
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not save the webhook."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_save_failed({}, messageOptions)));
 		} finally {
 			saving = false;
 		}
@@ -225,7 +240,7 @@
 			secretUrl = new URL(result.secretPath, window.location.origin).toString();
 			rotateConfirm = false;
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not rotate the webhook URL."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_rotate_failed({}, messageOptions)));
 		} finally {
 			rotating = false;
 		}
@@ -239,7 +254,7 @@
 			await webhooksStore.delete(client, endpoint.id);
 			await goto("/webhooks");
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, "Could not delete the webhook."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_delete_failed({}, messageOptions)));
 		} finally {
 			deleting = false;
 		}
@@ -266,12 +281,25 @@
 	}
 
 	function outcomeLabel(outcome: string): string {
-		return outcome.replaceAll("_", " ");
+		switch (outcome) {
+			case "accepted":
+				return m.webhooks_outcome_accepted({}, messageOptions);
+			case "disabled":
+				return m.webhooks_outcome_disabled({}, messageOptions);
+			case "invalid_json":
+				return m.webhooks_outcome_invalid_json({}, messageOptions);
+			case "rate_limited":
+				return m.webhooks_outcome_rate_limited({}, messageOptions);
+			case "too_large":
+				return m.webhooks_outcome_too_large({}, messageOptions);
+			default:
+				return m.webhooks_outcome_unknown({ outcome }, messageOptions);
+		}
 	}
 
 	function formatBytes(bytes: number): string {
-		if (bytes < 1024) return `${bytes} B`;
-		return `${(bytes / 1024).toFixed(1)} KiB`;
+		if (bytes < 1024) return formatMeasurement(bytes, "B", { maximumFractionDigits: 0 });
+		return formatMeasurement(bytes / 1024, "KiB", { maximumFractionDigits: 1 });
 	}
 
 	function formatBody(body: string): string {
@@ -293,7 +321,7 @@
 	<div class="flex flex-col gap-6 lg:h-[calc(100dvh-7rem)] lg:min-h-[32rem]">
 		<section class="shrink-0 rounded-lg bg-card p-6 shadow-card">
 			<div class="space-y-2">
-				<label for="webhook-name" class="text-sm font-medium">Webhook name</label>
+				<label for="webhook-name" class="text-sm font-medium">{m.webhooks_name({}, messageOptions)}</label>
 				<div class="flex items-start gap-3">
 					<div class="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
 						<Webhook class="size-5 text-muted-foreground" />
@@ -306,16 +334,16 @@
 			</div>
 			<div class="mt-5 flex flex-wrap items-start gap-x-8 gap-y-4">
 				<div class="flex h-9 items-center gap-3">
-					<div class="text-sm font-medium">Enabled</div>
-					<Switch bind:checked={enabled} aria-label="Accept incoming requests" />
+					<div class="text-sm font-medium">{m.webhooks_enabled({}, messageOptions)}</div>
+					<Switch bind:checked={enabled} aria-label={m.webhooks_accept_requests({}, messageOptions)} />
 				</div>
 				<div class="space-y-2">
-					<label for="webhook-rate-count" class="text-sm font-medium">Requests</label>
+					<label for="webhook-rate-count" class="text-sm font-medium">{m.webhooks_requests({}, messageOptions)}</label>
 					<NumberInput id="webhook-rate-count" class="w-28" min={1} bind:value={rateLimitCount} ariaInvalid={rateCountError ? "true" : undefined} />
 					<FieldError id="webhook-rate-count-error" message={rateCountError} />
 				</div>
 				<div class="space-y-2">
-					<label for="webhook-rate-window" class="text-sm font-medium">Window (ms)</label>
+					<label for="webhook-rate-window" class="text-sm font-medium">{m.webhooks_window_ms({}, messageOptions)}</label>
 					<NumberInput id="webhook-rate-window" class="w-32" min={1} bind:value={rateLimitWindowMs} ariaInvalid={rateWindowError ? "true" : undefined} />
 					<FieldError id="webhook-rate-window-error" message={rateWindowError} />
 				</div>
@@ -325,26 +353,26 @@
 		<div class="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
 			<section class="flex min-h-0 flex-col overflow-hidden rounded-lg bg-card p-6 shadow-card">
 				<div class="mb-4 flex shrink-0 items-center justify-between gap-4">
-					<h2 class="text-base font-semibold">Recent requests</h2>
-					<span class="text-xs text-muted-foreground">Latest 100</span>
+					<h2 class="text-base font-semibold">{m.webhooks_recent_requests({}, messageOptions)}</h2>
+					<span class="text-xs text-muted-foreground">{m.webhooks_latest_count({ count: 100 }, messageOptions)}</span>
 				</div>
 				{#if liveDeliveries.length === 0}
-					<p class="text-sm text-muted-foreground">No requests received yet.</p>
+					<p class="text-sm text-muted-foreground">{m.webhooks_no_requests({}, messageOptions)}</p>
 				{:else}
 					<div class="min-h-0 flex-1 overflow-auto">
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead>Received</TableHead>
-									<TableHead>Result</TableHead>
-									<TableHead>Source IP</TableHead>
-									<TableHead>User agent</TableHead>
-									<TableHead>Content</TableHead>
-									<TableHead>Size</TableHead>
-									<TableHead>Duration</TableHead>
-									<TableHead>Request ID</TableHead>
-									<TableHead>Query keys</TableHead>
-									<TableHead>Headers</TableHead>
+									<TableHead>{m.webhooks_received({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_result({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_source_ip({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_user_agent({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_content({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_size({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_duration({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_request_id({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_query_keys({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_headers({}, messageOptions)}</TableHead>
 									<ActionsHead />
 								</TableRow>
 							</TableHeader>
@@ -353,14 +381,14 @@
 									<TableRow>
 										<TableCell class="whitespace-nowrap">{formatTooltip(new Date(delivery.receivedAt), me.user?.timeFormat ?? "24h")}</TableCell>
 										<TableCell class="whitespace-nowrap">
-											<Badge variant={outcomeVariant(delivery.outcome)} class="capitalize">{outcomeLabel(delivery.outcome)}</Badge>
+											<Badge variant={outcomeVariant(delivery.outcome)}>{outcomeLabel(delivery.outcome)}</Badge>
 											<span class="ml-2 text-xs text-muted-foreground">{delivery.httpStatus}</span>
 										</TableCell>
 										<TableCell class="whitespace-nowrap font-mono text-xs">{delivery.clientIp || "—"}</TableCell>
 										<TableCell class="max-w-72 truncate text-xs text-muted-foreground">{delivery.userAgent || "—"}</TableCell>
 										<TableCell class="whitespace-nowrap text-xs">{delivery.contentType || "—"}</TableCell>
 										<TableCell class="whitespace-nowrap text-xs">{formatBytes(delivery.bodySize)}</TableCell>
-										<TableCell class="whitespace-nowrap text-xs">{delivery.durationMs} ms</TableCell>
+									<TableCell class="whitespace-nowrap text-xs">{formatShortDuration(delivery.durationMs, "millisecond")}</TableCell>
 										<TableCell class="whitespace-nowrap font-mono text-xs">{delivery.requestId || "—"}</TableCell>
 										<TableCell class="whitespace-nowrap text-xs text-muted-foreground">{delivery.queryKeys.join(", ") || "—"}</TableCell>
 										<TableCell class="max-w-96 truncate text-xs text-muted-foreground">{delivery.headerNames.join(", ") || "—"}</TableCell>
@@ -370,8 +398,8 @@
 													variant="ghost"
 													size="icon-sm"
 													onclick={() => (selectedDelivery = delivery)}
-													aria-label="View request body"
-													title="View body"
+											aria-label={m.webhooks_view_body({}, messageOptions)}
+											title={m.webhooks_view_body({}, messageOptions)}
 												>
 													<Braces class="size-4" />
 												</Button>
@@ -386,33 +414,33 @@
 			</section>
 
 			<section class="flex min-h-0 flex-col overflow-hidden rounded-lg bg-card p-6 shadow-card">
-				<h2 class="mb-4 shrink-0 text-base font-semibold">Used by</h2>
+				<h2 class="mb-4 shrink-0 text-base font-semibold">{m.webhooks_used_by({}, messageOptions)}</h2>
 				<div class="relative mb-3 shrink-0">
 					<Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-					<Input bind:value={automationSearch} placeholder="Search automations..." class="pl-9" />
+					<Input bind:value={automationSearch} placeholder={m.webhooks_search_automations({}, messageOptions)} class="pl-9" />
 				</div>
 				{#if usedBy.length === 0}
-					<p class="py-6 text-center text-sm text-muted-foreground">No automations use this webhook.</p>
+					<p class="py-6 text-center text-sm text-muted-foreground">{m.webhooks_no_automations({}, messageOptions)}</p>
 				{:else if filteredUsedBy.length === 0}
-					<p class="py-6 text-center text-sm text-muted-foreground">No matches.</p>
+					<p class="py-6 text-center text-sm text-muted-foreground">{m.shared_no_matches({}, messageOptions)}</p>
 				{:else}
 					<div class="min-h-0 flex-1 overflow-y-auto">
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead>Name</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Composition</TableHead>
+									<TableHead>{m.webhooks_column_name({}, messageOptions)}</TableHead>
+									<TableHead>{m.webhooks_filter_status({}, messageOptions)}</TableHead>
+									<TableHead>{m.automations_column_composition({}, messageOptions)}</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{#each filteredUsedBy as automation (automation.id)}
 									<TableRow>
 										<TableCell>
-											<a href={`/automations/${automation.id}`} class="font-medium hover:underline">{automation.name}</a>
+											<a href={`/automations/${automation.id}`} class="font-medium hover:underline">{entityDisplayName("automation", automation)}</a>
 										</TableCell>
 										<TableCell>
-											<Badge variant={automation.enabled ? "secondary" : "outline"}>{automation.enabled ? "Enabled" : "Disabled"}</Badge>
+											<Badge variant={automation.enabled ? "secondary" : "outline"}>{automation.enabled ? m.webhooks_enabled({}, messageOptions) : m.webhooks_disabled({}, messageOptions)}</Badge>
 										</TableCell>
 										<TableCell><AutomationComposition nodes={automation.nodes} /></TableCell>
 									</TableRow>
@@ -425,14 +453,14 @@
 		</div>
 	</div>
 {:else if webhooksStore.hydrated}
-	<div class="rounded-lg bg-card p-12 text-center text-muted-foreground shadow-card">Webhook not found.</div>
+	<div class="rounded-lg bg-card p-12 text-center text-muted-foreground shadow-card">{m.webhooks_not_found({}, messageOptions)}</div>
 {/if}
 
 <ConfirmDialog
 	open={rotateConfirm}
-	title="Rotate webhook URL"
-	description="The current URL stops working immediately. The replacement is shown once."
-	confirmLabel="Rotate"
+	title={m.webhooks_rotate_title({}, messageOptions)}
+	description={m.webhooks_rotate_description({}, messageOptions)}
+	confirmLabel={m.webhooks_rotate_short({}, messageOptions)}
 	loading={rotating}
 	onconfirm={rotateSecret}
 	oncancel={() => (rotateConfirm = false)}
@@ -440,9 +468,9 @@
 
 <ConfirmDialog
 	open={deleteConfirm}
-	title="Delete webhook"
-	description={`Delete “${endpoint?.name ?? ""}” and its delivery history? This cannot be undone.`}
-	confirmLabel="Delete"
+	title={m.webhooks_delete_title({}, messageOptions)}
+	description={m.webhooks_delete_with_history({ name: endpoint ? localizedNamesStore.display("webhook", endpoint.id, endpoint.name) : "" }, messageOptions)}
+	confirmLabel={m.common_delete({}, messageOptions)}
 	loading={deleting}
 	onconfirm={deleteEndpoint}
 	oncancel={() => (deleteConfirm = false)}
@@ -459,18 +487,18 @@
 >
 	<DialogContent>
 		<DialogHeader>
-			<DialogTitle>Webhook URL</DialogTitle>
-			<DialogDescription>This URL is shown once. Store it in the calling system before closing.</DialogDescription>
+			<DialogTitle>{m.webhooks_url_title({}, messageOptions)}</DialogTitle>
+			<DialogDescription>{m.webhooks_url_once({}, messageOptions)}</DialogDescription>
 		</DialogHeader>
 		<div class="flex items-center gap-2">
 			<KeyRound class="size-4 shrink-0 text-muted-foreground" />
 			<Input value={secretUrl ?? ""} readonly class="font-mono text-xs" />
-			<Button variant="outline" size="icon" onclick={copySecret} aria-label="Copy webhook URL">
+			<Button variant="outline" size="icon" onclick={copySecret} aria-label={m.webhooks_copy_url({}, messageOptions)}>
 				{#if copied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
 			</Button>
 		</div>
 		<DialogFooter>
-			<Button onclick={() => { secretUrl = null; copied = false; }}>Done</Button>
+			<Button onclick={() => { secretUrl = null; copied = false; }}>{m.webhooks_done({}, messageOptions)}</Button>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>
@@ -486,11 +514,11 @@
 >
 	<DialogContent class="h-[min(44rem,calc(100dvh-2rem))] grid-rows-[auto_minmax(0,1fr)] sm:max-w-3xl">
 		<DialogHeader>
-			<DialogTitle>Request body</DialogTitle>
+			<DialogTitle>{m.webhooks_request_body({}, messageOptions)}</DialogTitle>
 			{#if selectedDelivery}
 				<DialogDescription>
 					{formatTooltip(new Date(selectedDelivery.receivedAt), me.user?.timeFormat ?? "24h")} ·
-					{selectedDelivery.contentType || "No content type"} ·
+					{selectedDelivery.contentType || m.webhooks_no_content_type({}, messageOptions)} ·
 					{formatBytes(selectedDelivery.bodySize)}
 				</DialogDescription>
 			{/if}
@@ -505,13 +533,13 @@
 					size="icon-sm"
 					class="absolute right-2 top-2 z-10 bg-background"
 					onclick={copyBody}
-					aria-label={bodyCopied ? "Request body copied" : "Copy request body"}
-					title={bodyCopied ? "Copied" : "Copy body"}
+					aria-label={bodyCopied ? m.webhooks_body_copied({}, messageOptions) : m.webhooks_copy_body({}, messageOptions)}
+					title={bodyCopied ? m.webhooks_copied({}, messageOptions) : m.webhooks_copy_body({}, messageOptions)}
 				>
 					{#if bodyCopied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
 				</Button>
 			{:else}
-				<p class="p-4 text-sm text-muted-foreground">Body unavailable for this request.</p>
+				<p class="p-4 text-sm text-muted-foreground">{m.webhooks_body_unavailable({}, messageOptions)}</p>
 			{/if}
 		</div>
 	</DialogContent>
