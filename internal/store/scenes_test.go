@@ -15,8 +15,8 @@ import (
 func manualDefinition() SceneDefinition {
 	return SceneDefinition{
 		Targets: []SceneTarget{
-			{Type: device.TargetRoom, ID: "living"},
-			{Type: device.TargetExpression, Name: "Colour lights", Expression: device.Expression{{Subject: device.SubjectWritableCapability, Op: device.OpIs, Values: []string{device.CapColor}}}},
+			{EntryID: "target-room", Type: device.TargetRoom, ID: "living"},
+			{EntryID: "target-expression", Type: device.TargetExpression, Name: "Colour lights", Expression: device.Expression{{Subject: device.SubjectWritableCapability, Op: device.OpIs, Values: []string{device.CapColor}}}},
 		},
 	}
 }
@@ -65,7 +65,7 @@ func TestSceneDynamicSourceRoundTripAndAtomicReplacement(t *testing.T) {
 		{Brightness: 0.7, Mireds: 360}, {Brightness: 0.8, Mireds: 440},
 	})
 	definition := SceneDefinition{
-		Targets: []SceneTarget{{Type: device.TargetDevice, ID: "d1"}},
+		Targets: []SceneTarget{{EntryID: "target-device", Type: device.TargetDevice, ID: "d1"}},
 		Lighting: SceneLighting{
 			Dynamic: &DynamicLighting{
 				Field: field, Seed: -42, Brightness: 0.76, Movement: 0.3, Cycle: 12 * time.Minute,

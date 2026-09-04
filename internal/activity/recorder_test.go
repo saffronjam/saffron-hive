@@ -80,9 +80,6 @@ func TestRecorderEnrichesAndPersists(t *testing.T) {
 		if row.Type != "device.state_changed" {
 			t.Errorf("type: %s", row.Type)
 		}
-		if row.Message != "Kitchen light turned on" {
-			t.Errorf("message: %q", row.Message)
-		}
 		if row.DeviceName == nil || *row.DeviceName != "Kitchen light" {
 			t.Errorf("device name not enriched: %v", row.DeviceName)
 		}
@@ -143,9 +140,6 @@ func TestRecorderPersistsSanitizedWebhookActivity(t *testing.T) {
 	case row := <-activityRows:
 		if row.WebhookID == nil || *row.WebhookID != "hook-1" || row.WebhookName == nil || *row.WebhookName != "Pipeline failed" {
 			t.Fatalf("webhook source missing: %+v", row)
-		}
-		if row.Message != "Webhook received: Pipeline failed" {
-			t.Fatalf("message = %q", row.Message)
 		}
 		if strings.Contains(row.PayloadJSON, "must-not-persist") || strings.Contains(row.PayloadJSON, "secret") {
 			t.Fatalf("activity contains request content: %s", row.PayloadJSON)

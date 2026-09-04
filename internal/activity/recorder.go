@@ -88,12 +88,10 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 
 	// Enrich device-scoped events with name/type/room from the in-memory state
 	// store (no DB round-trip on the hot path) with a DB fallback for rooms.
-	var deviceName string
 	if evt.DeviceID != "" {
 		params.DeviceID = device.Ptr(evt.DeviceID)
 		if d, ok := r.stateReader.GetDevice(device.DeviceID(evt.DeviceID)); ok {
-			deviceName = d.DisplayName()
-			params.DeviceName = device.Ptr(deviceName)
+			params.DeviceName = device.Ptr(d.DisplayName())
 			dt := string(d.Type)
 			params.DeviceType = device.Ptr(dt)
 		}
@@ -109,7 +107,6 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 	if evt.Type == eventbus.EventDeviceAdded {
 		if d, ok := evt.Payload.(device.Device); ok {
 			if n := d.DisplayName(); n != "" {
-				deviceName = n
 				params.DeviceName = device.Ptr(n)
 			}
 			if d.Type != "" {
@@ -123,24 +120,20 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 		}
 	}
 
-	var sceneName string
 	if evt.Type == eventbus.EventSceneApplied {
 		if applied, ok := evt.Payload.(scene.RunEvent); ok && applied.SceneID != "" {
 			id := applied.SceneID
 			params.SceneID = device.Ptr(id)
 			if sc, err := r.store.GetScene(ctx, id); err == nil {
-				sceneName = sc.Name
 				params.SceneName = device.Ptr(sc.Name)
 			}
 		}
 	}
 
-	var automationName string
 	if evt.Type == eventbus.EventAutomationNodeActivated {
 		if na, ok := evt.Payload.(automation.NodeActivation); ok && na.AutomationID != "" {
 			params.AutomationID = device.Ptr(na.AutomationID)
 			if a, err := r.store.GetAutomation(ctx, na.AutomationID); err == nil {
-				automationName = a.Name
 				params.AutomationName = device.Ptr(a.Name)
 			}
 		}
@@ -153,7 +146,6 @@ func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
 		}
 	}
 
-	params.Message = formatMessage(evt, deviceName, sceneName, automationName)
 	if incoming, ok := evt.Payload.(webhook.Event); ok {
 		params.PayloadJSON = marshalPayload(incoming.SafeActivityPayload())
 	} else {

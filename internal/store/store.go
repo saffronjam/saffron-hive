@@ -93,6 +93,7 @@ type Scene struct {
 
 // SceneTarget is one ordered structural or Selector lighting target.
 type SceneTarget struct {
+	EntryID    string
 	Type       device.TargetType
 	ID         string
 	Expression device.Expression
@@ -573,6 +574,7 @@ type User struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	HapticsEnabled     bool
+	Language           string
 	MustChangePassword bool
 	TokenVersion       int64
 	CreatedAt          time.Time
@@ -589,6 +591,7 @@ type UpdateUserProfileParams struct {
 	TimeFormat      *string
 	TemperatureUnit *string
 	HapticsEnabled  *bool
+	Language        *string
 }
 
 // UserRef is the lightweight creator reference embedded into other rows via
@@ -606,7 +609,6 @@ type ActivityEvent struct {
 	ID          int64
 	Type        string
 	Timestamp   time.Time
-	Message     string
 	PayloadJSON string
 
 	DeviceID   *string
@@ -629,7 +631,6 @@ type ActivityEvent struct {
 type InsertActivityEventParams struct {
 	Type        string
 	Timestamp   time.Time
-	Message     string
 	PayloadJSON string
 
 	DeviceID   *string
@@ -685,23 +686,27 @@ const (
 // AlarmRow is a single persisted alarm raise. Multiple rows may share the same
 // AlarmID; grouping happens above the store.
 type AlarmRow struct {
-	ID       int64
-	AlarmID  string
-	Severity AlarmSeverity
-	Kind     AlarmKind
-	Message  string
-	Source   string
-	RaisedAt time.Time
+	ID               int64
+	AlarmID          string
+	Severity         AlarmSeverity
+	Kind             AlarmKind
+	Message          *string
+	MessageCode      *string
+	MessageArguments string
+	Source           string
+	RaisedAt         time.Time
 }
 
 // InsertAlarmParams holds the fields for inserting a new alarm raise.
 type InsertAlarmParams struct {
-	AlarmID  string
-	Severity AlarmSeverity
-	Kind     AlarmKind
-	Message  string
-	Source   string
-	RaisedAt time.Time
+	AlarmID          string
+	Severity         AlarmSeverity
+	Kind             AlarmKind
+	Message          *string
+	MessageCode      *string
+	MessageArguments string
+	Source           string
+	RaisedAt         time.Time
 }
 
 // CreateEffectParams holds the parameters for creating a new effect. Tracks is

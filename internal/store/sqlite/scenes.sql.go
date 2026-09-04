@@ -94,12 +94,19 @@ func (q *Queries) DeleteSceneSupportingStates(ctx context.Context, sceneID strin
 	return err
 }
 
-const deleteSceneTargets = `-- name: DeleteSceneTargets :exec
-DELETE FROM scene_targets WHERE scene_id = ?
+const deleteSceneTargetsExcept = `-- name: DeleteSceneTargetsExcept :exec
+DELETE FROM scene_targets
+WHERE scene_id = ?1
+  AND id NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
 `
 
-func (q *Queries) DeleteSceneTargets(ctx context.Context, sceneID string) error {
-	_, err := q.db.ExecContext(ctx, deleteSceneTargets, sceneID)
+type DeleteSceneTargetsExceptParams struct {
+	SceneID string
+	IdsJson string
+}
+
+func (q *Queries) DeleteSceneTargetsExcept(ctx context.Context, arg DeleteSceneTargetsExceptParams) error {
+	_, err := q.db.ExecContext(ctx, deleteSceneTargetsExcept, arg.SceneID, arg.IdsJson)
 	return err
 }
 
@@ -142,7 +149,7 @@ func (q *Queries) GetScene(ctx context.Context, id string) (GetSceneRow, error) 
 }
 
 const getSceneDynamicSource = `-- name: GetSceneDynamicSource :one
-SELECT scene_id, domain, source_kind, preset_id, preset_title, guided_selected_ids, seed, brightness, movement, cycle_nanos, grid_width, grid_height FROM scene_dynamic_sources WHERE scene_id = ?
+SELECT scene_id, domain, source_kind, preset_id, guided_selected_ids, seed, brightness, movement, cycle_nanos, grid_width, grid_height FROM scene_dynamic_sources WHERE scene_id = ?
 `
 
 func (q *Queries) GetSceneDynamicSource(ctx context.Context, sceneID string) (SceneDynamicSource, error) {
@@ -153,7 +160,6 @@ func (q *Queries) GetSceneDynamicSource(ctx context.Context, sceneID string) (Sc
 		&i.Domain,
 		&i.SourceKind,
 		&i.PresetID,
-		&i.PresetTitle,
 		&i.GuidedSelectedIds,
 		&i.Seed,
 		&i.Brightness,
@@ -298,11 +304,12 @@ func (q *Queries) InsertSceneSupportingState(ctx context.Context, arg InsertScen
 }
 
 const insertSceneTarget = `-- name: InsertSceneTarget :exec
-INSERT INTO scene_targets (scene_id, position, target_type, target_id, expression, name)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO scene_targets (id, scene_id, position, target_type, target_id, expression, name)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertSceneTargetParams struct {
+	ID         string
 	SceneID    string
 	Position   int64
 	TargetType device.TargetType
@@ -313,6 +320,7 @@ type InsertSceneTargetParams struct {
 
 func (q *Queries) InsertSceneTarget(ctx context.Context, arg InsertSceneTargetParams) error {
 	_, err := q.db.ExecContext(ctx, insertSceneTarget,
+		arg.ID,
 		arg.SceneID,
 		arg.Position,
 		arg.TargetType,
@@ -448,7 +456,7 @@ func (q *Queries) ListSceneSupportingStates(ctx context.Context, sceneID string)
 }
 
 const listSceneTargets = `-- name: ListSceneTargets :many
-SELECT scene_id, position, target_type, target_id, expression, name
+SELECT id, scene_id, position, target_type, target_id, expression, name
 FROM scene_targets
 WHERE scene_id = ?
 ORDER BY position
@@ -464,6 +472,7 @@ func (q *Queries) ListSceneTargets(ctx context.Context, sceneID string) ([]Scene
 	for rows.Next() {
 		var i SceneTarget
 		if err := rows.Scan(
+			&i.ID,
 			&i.SceneID,
 			&i.Position,
 			&i.TargetType,
@@ -538,6 +547,15 @@ func (q *Queries) ListScenes(ctx context.Context) ([]ListScenesRow, error) {
 	return items, nil
 }
 
+const parkSceneTargetPositions = `-- name: ParkSceneTargetPositions :exec
+UPDATE scene_targets SET position = position + 1000000000 WHERE scene_id = ?
+`
+
+func (q *Queries) ParkSceneTargetPositions(ctx context.Context, sceneID string) error {
+	_, err := q.db.ExecContext(ctx, parkSceneTargetPositions, sceneID)
+	return err
+}
+
 const updateSceneIcon = `-- name: UpdateSceneIcon :exec
 UPDATE scenes SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -566,17 +584,52 @@ func (q *Queries) UpdateSceneName(ctx context.Context, arg UpdateSceneNameParams
 	return err
 }
 
+const updateSceneTarget = `-- name: UpdateSceneTarget :execrows
+UPDATE scene_targets SET
+    position = ?1,
+    target_type = ?2,
+    target_id = ?3,
+    expression = ?4,
+    name = ?5
+WHERE id = ?6 AND scene_id = ?7
+`
+
+type UpdateSceneTargetParams struct {
+	Position   int64
+	TargetType device.TargetType
+	TargetID   *string
+	Expression *string
+	Name       *string
+	ID         string
+	SceneID    string
+}
+
+func (q *Queries) UpdateSceneTarget(ctx context.Context, arg UpdateSceneTargetParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateSceneTarget,
+		arg.Position,
+		arg.TargetType,
+		arg.TargetID,
+		arg.Expression,
+		arg.Name,
+		arg.ID,
+		arg.SceneID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const upsertSceneDynamicSource = `-- name: UpsertSceneDynamicSource :exec
 INSERT INTO scene_dynamic_sources (
-    scene_id, domain, source_kind, preset_id, preset_title, guided_selected_ids,
+    scene_id, domain, source_kind, preset_id, guided_selected_ids,
     seed, brightness, movement, cycle_nanos, grid_width, grid_height
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(scene_id) DO UPDATE SET
     domain = excluded.domain,
     source_kind = excluded.source_kind,
     preset_id = excluded.preset_id,
-    preset_title = excluded.preset_title,
     guided_selected_ids = excluded.guided_selected_ids,
     seed = excluded.seed,
     brightness = excluded.brightness,
@@ -591,7 +644,6 @@ type UpsertSceneDynamicSourceParams struct {
 	Domain            string
 	SourceKind        string
 	PresetID          *string
-	PresetTitle       *string
 	GuidedSelectedIds *string
 	Seed              int64
 	Brightness        float64
@@ -607,7 +659,6 @@ func (q *Queries) UpsertSceneDynamicSource(ctx context.Context, arg UpsertSceneD
 		arg.Domain,
 		arg.SourceKind,
 		arg.PresetID,
-		arg.PresetTitle,
 		arg.GuidedSelectedIds,
 		arg.Seed,
 		arg.Brightness,

@@ -147,8 +147,16 @@ func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams
 		if err := q.DeleteFloorplanPlacementsByFloorplan(ctx, params.ID); err != nil {
 			return fmt.Errorf("delete floorplan placements: %w", err)
 		}
-		if err := q.DeleteFloorplanRoomsByFloorplan(ctx, params.ID); err != nil {
-			return fmt.Errorf("delete floorplan rooms: %w", err)
+		roomIDs := make([]string, len(params.Rooms))
+		for i, room := range params.Rooms {
+			roomIDs[i] = room.ID
+		}
+		roomIDsJSON, err := marshalStringArray(roomIDs)
+		if err != nil {
+			return fmt.Errorf("marshal floorplan room IDs: %w", err)
+		}
+		if err := q.DeleteFloorplanRoomsExcept(ctx, sqlite.DeleteFloorplanRoomsExceptParams{FloorplanID: params.ID, IdsJson: roomIDsJSON}); err != nil {
+			return fmt.Errorf("delete removed floorplan rooms: %w", err)
 		}
 		if err := q.DeleteFloorplanDoorBindingsByFloorplan(ctx, params.ID); err != nil {
 			return fmt.Errorf("delete floorplan door bindings: %w", err)
@@ -213,14 +221,23 @@ func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams
 			if err != nil {
 				return fmt.Errorf("marshal floorplan room vertex ids: %w", err)
 			}
-			if err := q.CreateFloorplanRoom(ctx, sqlite.CreateFloorplanRoomParams{
-				ID:          r.ID,
-				FloorplanID: params.ID,
-				Name:        r.Name,
-				RoomID:      r.RoomID,
-				VertexIds:   vertexIDs,
-			}); err != nil {
-				return fmt.Errorf("create floorplan room: %w", err)
+			name := r.Name
+			if r.RoomID != nil {
+				name = nil
+			}
+			updateParams := sqlite.UpdateFloorplanRoomParams{
+				Name: name, RoomID: r.RoomID, VertexIds: vertexIDs, ID: r.ID, FloorplanID: params.ID,
+			}
+			updated, err := q.UpdateFloorplanRoom(ctx, updateParams)
+			if err != nil {
+				return fmt.Errorf("update floorplan room: %w", err)
+			}
+			if updated == 0 {
+				if err := q.CreateFloorplanRoom(ctx, sqlite.CreateFloorplanRoomParams{
+					ID: r.ID, FloorplanID: params.ID, Name: name, RoomID: r.RoomID, VertexIds: vertexIDs,
+				}); err != nil {
+					return fmt.Errorf("create floorplan room: %w", err)
+				}
 			}
 		}
 		for _, p := range params.Placements {

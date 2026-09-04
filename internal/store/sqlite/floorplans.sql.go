@@ -255,12 +255,19 @@ func (q *Queries) DeleteFloorplanPlacementsByMember(ctx context.Context, arg Del
 	return err
 }
 
-const deleteFloorplanRoomsByFloorplan = `-- name: DeleteFloorplanRoomsByFloorplan :exec
-DELETE FROM floorplan_rooms WHERE floorplan_id = ?1
+const deleteFloorplanRoomsExcept = `-- name: DeleteFloorplanRoomsExcept :exec
+DELETE FROM floorplan_rooms
+WHERE floorplan_id = ?1
+  AND id NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
 `
 
-func (q *Queries) DeleteFloorplanRoomsByFloorplan(ctx context.Context, floorplanID string) error {
-	_, err := q.db.ExecContext(ctx, deleteFloorplanRoomsByFloorplan, floorplanID)
+type DeleteFloorplanRoomsExceptParams struct {
+	FloorplanID string
+	IdsJson     string
+}
+
+func (q *Queries) DeleteFloorplanRoomsExcept(ctx context.Context, arg DeleteFloorplanRoomsExceptParams) error {
+	_, err := q.db.ExecContext(ctx, deleteFloorplanRoomsExcept, arg.FloorplanID, arg.IdsJson)
 	return err
 }
 
@@ -590,6 +597,36 @@ WHERE room_id = ?1
 func (q *Queries) UnlinkFloorplanRoomsByRoom(ctx context.Context, roomID string) error {
 	_, err := q.db.ExecContext(ctx, unlinkFloorplanRoomsByRoom, roomID)
 	return err
+}
+
+const updateFloorplanRoom = `-- name: UpdateFloorplanRoom :execrows
+UPDATE floorplan_rooms SET
+    name = ?1,
+    room_id = ?2,
+    vertex_ids = ?3
+WHERE id = ?4 AND floorplan_id = ?5
+`
+
+type UpdateFloorplanRoomParams struct {
+	Name        *string
+	RoomID      *string
+	VertexIds   string
+	ID          string
+	FloorplanID string
+}
+
+func (q *Queries) UpdateFloorplanRoom(ctx context.Context, arg UpdateFloorplanRoomParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateFloorplanRoom,
+		arg.Name,
+		arg.RoomID,
+		arg.VertexIds,
+		arg.ID,
+		arg.FloorplanID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const upsertFloorplan = `-- name: UpsertFloorplan :exec

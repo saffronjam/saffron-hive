@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/effect"
+	"github.com/saffronjam/saffron-hive/internal/localization"
 )
 
 var _ effect.EffectStore = (*DB)(nil)
@@ -227,6 +228,38 @@ func TestSaveEffectTracksReplaces(t *testing.T) {
 	if got.Tracks[0].Clips[0].ID != "c-a" || got.Tracks[1].Clips[0].ID != "c-b" {
 		t.Fatalf("clip ids = %q,%q want c-a,c-b", got.Tracks[0].Clips[0].ID, got.Tracks[1].Clips[0].ID)
 	}
+}
+
+func TestSaveEffectTracksPreservesLocalizedTrackIdentity(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	if _, err := s.CreateEffect(ctx, CreateEffectParams{
+		ID: "eff-localized", Name: "Sunrise", Kind: effect.KindTimeline,
+		Tracks: []EffectTrackInput{
+			{ID: "track-a", Index: 0, Name: "Sky"},
+			{ID: "track-b", Index: 1, Name: "Lamps"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+		EntityType: "effect_track", EntityID: "track-a", SourceLanguage: localization.English,
+		Translations: map[localization.Language]string{localization.Russian: "Небо"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveEffectTracks(ctx, "eff-localized", []EffectTrackInput{
+		{ID: "track-b", Index: 0, Name: "Lamps"},
+		{ID: "track-a", Index: 1, Name: "Sky"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	assertLocalizedTranslation(t, s, "effect_track", "track-a", localization.Russian, "Небо")
+
+	if err := s.SaveEffectTracks(ctx, "eff-localized", []EffectTrackInput{{ID: "track-b", Index: 0, Name: "Lamps"}}); err != nil {
+		t.Fatal(err)
+	}
+	assertLocalizedSubjectMissing(t, s, "effect_track", "track-a")
 }
 
 func TestSaveEffectTracksAtomicOnConflict(t *testing.T) {

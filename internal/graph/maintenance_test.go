@@ -17,7 +17,7 @@ func TestMaintenanceQueryAndCompletion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response := env.query(t, `{ maintenanceTasks { id kind title action device { id friendlyName } } }`, nil)
+	response := env.query(t, `{ maintenanceTasks { id kind value actionUrl device { id friendlyName } } }`, nil)
 	if len(response.Errors) != 0 {
 		t.Fatalf("query errors: %+v", response.Errors)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
+	"github.com/saffronjam/saffron-hive/internal/localization"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/maintenance"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -201,6 +202,8 @@ type GraphStore interface {
 	DeleteTuyaConfig(ctx context.Context) error
 	ListSettings(ctx context.Context) ([]store.Setting, error)
 	UpsertSetting(ctx context.Context, key, value string) error
+	ListLocalizedNameSets(ctx context.Context) ([]localization.NameSet, error)
+	ReplaceLocalizedNameSet(ctx context.Context, names localization.NameSet) (localization.NameSet, error)
 	CreateUser(ctx context.Context, params store.CreateUserParams) (store.User, error)
 	GetUserByID(ctx context.Context, id string) (store.User, error)
 	GetUserByUsername(ctx context.Context, username string) (store.User, error)

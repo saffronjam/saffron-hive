@@ -48,18 +48,20 @@ func (q *Queries) DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (in
 
 const insertAlarm = `-- name: InsertAlarm :one
 
-INSERT INTO alarms (alarm_id, severity, kind, message, source, raised_at)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, alarm_id, severity, kind, message, source, raised_at
+INSERT INTO alarms (alarm_id, severity, kind, message, message_code, message_arguments, source, raised_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, alarm_id, severity, kind, message, message_code, message_arguments, source, raised_at
 `
 
 type InsertAlarmParams struct {
-	AlarmID  string
-	Severity string
-	Kind     string
-	Message  string
-	Source   string
-	RaisedAt time.Time
+	AlarmID          string
+	Severity         string
+	Kind             string
+	Message          *string
+	MessageCode      *string
+	MessageArguments string
+	Source           string
+	RaisedAt         time.Time
 }
 
 // Alarms persistence. One row per raise; grouping by alarm_id happens in Go.
@@ -71,6 +73,8 @@ func (q *Queries) InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm
 		arg.Severity,
 		arg.Kind,
 		arg.Message,
+		arg.MessageCode,
+		arg.MessageArguments,
 		arg.Source,
 		arg.RaisedAt,
 	)
@@ -81,6 +85,8 @@ func (q *Queries) InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm
 		&i.Severity,
 		&i.Kind,
 		&i.Message,
+		&i.MessageCode,
+		&i.MessageArguments,
 		&i.Source,
 		&i.RaisedAt,
 	)
@@ -88,7 +94,7 @@ func (q *Queries) InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm
 }
 
 const listAlarms = `-- name: ListAlarms :many
-SELECT id, alarm_id, severity, kind, message, source, raised_at
+SELECT id, alarm_id, severity, kind, message, message_code, message_arguments, source, raised_at
 FROM alarms
 ORDER BY raised_at DESC, id DESC
 `
@@ -108,6 +114,8 @@ func (q *Queries) ListAlarms(ctx context.Context) ([]Alarm, error) {
 			&i.Severity,
 			&i.Kind,
 			&i.Message,
+			&i.MessageCode,
+			&i.MessageArguments,
 			&i.Source,
 			&i.RaisedAt,
 		); err != nil {

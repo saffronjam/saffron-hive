@@ -2,10 +2,8 @@ package graph
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
@@ -32,14 +30,7 @@ func TestInvalidSceneIdReturnsError(t *testing.T) {
 	}
 }
 
-// TestErrorPresenterScrubsValidationOnly pins the H2 fix: gqlgen
-// validation / parse errors raised on a no-user context collapse to a
-// generic "request rejected" so the response cannot be used to enumerate
-// schema field or type names. Resolver-side errors (login failures, bootstrap
-// rejection, rate-limit messages) pass through unchanged — those are
-// composed by our own code and are the only signal a legitimate operator has
-// to diagnose a failed request.
-func TestErrorPresenterScrubsValidationOnly(t *testing.T) {
+func TestErrorPresenterUsesStableCodes(t *testing.T) {
 	ctx := context.Background()
 
 	for _, code := range []string{"GRAPHQL_VALIDATION_FAILED", "GRAPHQL_PARSE_FAILED"} {
@@ -48,7 +39,7 @@ func TestErrorPresenterScrubsValidationOnly(t *testing.T) {
 			Extensions: map[string]any{"code": code},
 		}
 		out := ErrorPresenter(ctx, leaky)
-		if out.Message != "request rejected" {
+		if out.Message != "request failed" {
 			t.Errorf("code %s: message = %q, want generic", code, out.Message)
 		}
 		if out.Extensions["code"] != code {
@@ -58,8 +49,12 @@ func TestErrorPresenterScrubsValidationOnly(t *testing.T) {
 
 	resolverErr := &gqlerror.Error{Message: "too many login attempts; try again in 60s"}
 	out := ErrorPresenter(ctx, resolverErr)
-	if out.Message != resolverErr.Message {
-		t.Errorf("resolver error message rewritten to %q", out.Message)
+	if out.Message != "request failed" || out.Extensions["code"] != "RATE_LIMITED" {
+		t.Fatalf("rate-limit error = %+v", out)
+	}
+	arguments, ok := out.Extensions["arguments"].(map[string]any)
+	if !ok || arguments["seconds"] != 60 {
+		t.Fatalf("rate-limit arguments = %#v", out.Extensions["arguments"])
 	}
 
 	for _, code := range []string{"UNAUTHENTICATED", "PASSWORD_CHANGE_REQUIRED", "BAD_REQUEST"} {
@@ -68,14 +63,8 @@ func TestErrorPresenterScrubsValidationOnly(t *testing.T) {
 			Extensions: map[string]any{"code": code},
 		}
 		out := ErrorPresenter(ctx, preserved)
-		if out.Message != preserved.Message {
-			t.Errorf("code %s: message rewritten to %q", code, out.Message)
+		if out.Message != "request failed" || out.Extensions["code"] != code {
+			t.Errorf("code %s: presented error = %+v", code, out)
 		}
-	}
-
-	authCtx := auth.WithUser(ctx, auth.CtxUser{ID: "u-1", Username: "alice"})
-	out = ErrorPresenter(authCtx, errors.New("specific validator detail"))
-	if out.Message != "specific validator detail" {
-		t.Errorf("auth context: message scrubbed = %q", out.Message)
 	}
 }

@@ -184,22 +184,50 @@ func (s *DB) BatchDeleteEffects(ctx context.Context, ids []string) (int64, error
 }
 
 // SaveEffectTracks atomically replaces the timeline of an effect with the
-// given track + clip set. Existing tracks are deleted in the same transaction
-// (cascading their clips) so concurrent readers never observe a half-written
-// timeline.
+// given track and clip set while retaining matching track identities.
 func (s *DB) SaveEffectTracks(ctx context.Context, effectID string, tracks []EffectTrackInput) error {
+	ids := make([]string, len(tracks))
+	seenIDs := make(map[string]struct{}, len(tracks))
+	for i, track := range tracks {
+		if _, exists := seenIDs[track.ID]; exists {
+			return fmt.Errorf("save effect tracks: duplicate track ID %q", track.ID)
+		}
+		seenIDs[track.ID] = struct{}{}
+		ids[i] = track.ID
+	}
+	idsJSON, err := marshalStringArray(ids)
+	if err != nil {
+		return fmt.Errorf("save effect tracks: %w", err)
+	}
 	return s.execTx(ctx, func(q *sqlite.Queries) error {
-		if err := q.DeleteEffectTracksByEffect(ctx, effectID); err != nil {
-			return fmt.Errorf("delete effect tracks: %w", err)
+		if err := q.ParkEffectTrackIndexes(ctx, effectID); err != nil {
+			return fmt.Errorf("park effect track indexes: %w", err)
+		}
+		if err := q.DeleteEffectTracksExcept(ctx, sqlite.DeleteEffectTracksExceptParams{
+			EffectID: effectID,
+			IdsJson:  idsJSON,
+		}); err != nil {
+			return fmt.Errorf("delete removed effect tracks: %w", err)
 		}
 		for _, tr := range tracks {
-			if err := q.CreateEffectTrack(ctx, sqlite.CreateEffectTrackParams{
+			params := sqlite.UpdateEffectTrackParams{
 				ID:         tr.ID,
 				EffectID:   effectID,
 				TrackIndex: int64(tr.Index),
 				Name:       tr.Name,
-			}); err != nil {
-				return fmt.Errorf("create effect track: %w", err)
+			}
+			updated, err := q.UpdateEffectTrack(ctx, params)
+			if err != nil {
+				return fmt.Errorf("update effect track: %w", err)
+			}
+			if updated == 0 {
+				if err := q.CreateEffectTrack(ctx, sqlite.CreateEffectTrackParams{
+					ID: tr.ID, EffectID: effectID, TrackIndex: int64(tr.Index), Name: tr.Name,
+				}); err != nil {
+					return fmt.Errorf("create effect track: %w", err)
+				}
+			} else if err := q.DeleteEffectClipsByTrack(ctx, tr.ID); err != nil {
+				return fmt.Errorf("delete effect track clips: %w", err)
 			}
 			for _, cl := range tr.Clips {
 				if err := q.CreateEffectClip(ctx, sqlite.CreateEffectClipParams{

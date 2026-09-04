@@ -51,7 +51,6 @@ type ComplexityRoot struct {
 
 	ActivityEvent struct {
 		ID        func(childComplexity int) int
-		Message   func(childComplexity int) int
 		Payload   func(childComplexity int) int
 		Source    func(childComplexity int) int
 		Timestamp func(childComplexity int) int
@@ -73,15 +72,17 @@ type ComplexityRoot struct {
 	}
 
 	Alarm struct {
-		Count         func(childComplexity int) int
-		FirstRaisedAt func(childComplexity int) int
-		ID            func(childComplexity int) int
-		Kind          func(childComplexity int) int
-		LastRaisedAt  func(childComplexity int) int
-		LatestRowID   func(childComplexity int) int
-		Message       func(childComplexity int) int
-		Severity      func(childComplexity int) int
-		Source        func(childComplexity int) int
+		Count            func(childComplexity int) int
+		FirstRaisedAt    func(childComplexity int) int
+		ID               func(childComplexity int) int
+		Kind             func(childComplexity int) int
+		LastRaisedAt     func(childComplexity int) int
+		LatestRowID      func(childComplexity int) int
+		Message          func(childComplexity int) int
+		MessageArguments func(childComplexity int) int
+		MessageCode      func(childComplexity int) int
+		Severity         func(childComplexity int) int
+		Source           func(childComplexity int) int
 	}
 
 	AlarmEvent struct {
@@ -151,8 +152,9 @@ type ComplexityRoot struct {
 	}
 
 	ConnectionTestResult struct {
-		Message func(childComplexity int) int
-		Success func(childComplexity int) int
+		Code       func(childComplexity int) int
+		Diagnostic func(childComplexity int) int
+		Success    func(childComplexity int) int
 	}
 
 	DesiredSceneState struct {
@@ -256,7 +258,6 @@ type ComplexityRoot struct {
 		GuidedSelectedIds func(childComplexity int) int
 		Movement          func(childComplexity int) int
 		PresetID          func(childComplexity int) int
-		PresetTitle       func(childComplexity int) int
 		Samples           func(childComplexity int) int
 		Seed              func(childComplexity int) int
 		SourceKind        func(childComplexity int) int
@@ -392,8 +393,8 @@ type ComplexityRoot struct {
 
 	GuidedVibeOption struct {
 		ID      func(childComplexity int) int
+		LabelID func(childComplexity int) int
 		Preview func(childComplexity int) int
-		Title   func(childComplexity int) int
 	}
 
 	GuidedVibeRound struct {
@@ -413,6 +414,18 @@ type ComplexityRoot struct {
 		Provider    func(childComplexity int) int
 	}
 
+	LocalizedName struct {
+		Language func(childComplexity int) int
+		Value    func(childComplexity int) int
+	}
+
+	LocalizedNameSet struct {
+		EntityID       func(childComplexity int) int
+		EntityType     func(childComplexity int) int
+		SourceLanguage func(childComplexity int) int
+		Translations   func(childComplexity int) int
+	}
+
 	LogEntry struct {
 		Attrs     func(childComplexity int) int
 		Level     func(childComplexity int) int
@@ -421,15 +434,14 @@ type ComplexityRoot struct {
 	}
 
 	MaintenanceTask struct {
-		Action       func(childComplexity int) int
 		ActionURL    func(childComplexity int) int
+		Context      func(childComplexity int) int
 		CurrentValue func(childComplexity int) int
-		Detail       func(childComplexity int) int
 		Device       func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Kind         func(childComplexity int) int
 		TargetValue  func(childComplexity int) int
-		Title        func(childComplexity int) int
+		Value        func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -497,6 +509,7 @@ type ComplexityRoot struct {
 		UpdateEffect                func(childComplexity int, input model.UpdateEffectInput) int
 		UpdateFloorplan             func(childComplexity int, input model.UpdateFloorplanInput) int
 		UpdateGroup                 func(childComplexity int, id string, input model.UpdateGroupInput) int
+		UpdateLocalizedNameSet      func(childComplexity int, input model.LocalizedNameSetInput) int
 		UpdateRoom                  func(childComplexity int, id string, input model.UpdateRoomInput) int
 		UpdateScene                 func(childComplexity int, id string, input model.UpdateSceneInput) int
 		UpdateSetting               func(childComplexity int, key string, value string) int
@@ -576,6 +589,7 @@ type ComplexityRoot struct {
 		Groups                 func(childComplexity int) int
 		GuidedVibeRound        func(childComplexity int, input model.GuidedVibeRoundInput) int
 		Integrations           func(childComplexity int) int
+		LocalizedNameSets      func(childComplexity int) int
 		Logs                   func(childComplexity int, search *string, limit *int) int
 		MaintenanceTasks       func(childComplexity int) int
 		Me                     func(childComplexity int) int
@@ -662,6 +676,7 @@ type ComplexityRoot struct {
 
 	SceneTargetEntry struct {
 		Expression func(childComplexity int) int
+		ID         func(childComplexity int) int
 		Name       func(childComplexity int) int
 		Target     func(childComplexity int) int
 		TargetID   func(childComplexity int) int
@@ -747,6 +762,7 @@ type ComplexityRoot struct {
 		CreatedAt          func(childComplexity int) int
 		HapticsEnabled     func(childComplexity int) int
 		ID                 func(childComplexity int) int
+		Language           func(childComplexity int) int
 		MustChangePassword func(childComplexity int) int
 		Name               func(childComplexity int) int
 		TemperatureUnit    func(childComplexity int) int
@@ -772,7 +788,6 @@ type ComplexityRoot struct {
 		Movement     func(childComplexity int) int
 		Preview      func(childComplexity int) int
 		Seed         func(childComplexity int) int
-		Title        func(childComplexity int) int
 	}
 
 	VibePreviewResult struct {
@@ -938,6 +953,7 @@ type DeviceResolver interface {
 	Zigbee2Mqtt(ctx context.Context, obj *model.Device) (*model.Zigbee2MqttDeviceMetadata, error)
 }
 type MutationResolver interface {
+	UpdateLocalizedNameSet(ctx context.Context, input model.LocalizedNameSetInput) (*model.LocalizedNameSet, error)
 	UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error)
 	DeleteDevice(ctx context.Context, id string) (*model.Device, error)
 	RestoreDevice(ctx context.Context, id string) (*model.Device, error)
@@ -1010,6 +1026,7 @@ type MutationResolver interface {
 	StopEffect(ctx context.Context, targetType string, targetID string) (bool, error)
 }
 type QueryResolver interface {
+	LocalizedNameSets(ctx context.Context) ([]*model.LocalizedNameSet, error)
 	Devices(ctx context.Context) ([]*model.Device, error)
 	Device(ctx context.Context, id string) (*model.Device, error)
 	Scenes(ctx context.Context) ([]*model.Scene, error)
@@ -1129,12 +1146,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ActivityEvent.ID(childComplexity), true
-	case "ActivityEvent.message":
-		if e.ComplexityRoot.ActivityEvent.Message == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ActivityEvent.Message(childComplexity), true
 	case "ActivityEvent.payload":
 		if e.ComplexityRoot.ActivityEvent.Payload == nil {
 			break
@@ -1252,6 +1263,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Alarm.Message(childComplexity), true
+	case "Alarm.messageArguments":
+		if e.ComplexityRoot.Alarm.MessageArguments == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Alarm.MessageArguments(childComplexity), true
+	case "Alarm.messageCode":
+		if e.ComplexityRoot.Alarm.MessageCode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Alarm.MessageCode(childComplexity), true
 	case "Alarm.severity":
 		if e.ComplexityRoot.Alarm.Severity == nil {
 			break
@@ -1525,12 +1548,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Color.Y(childComplexity), true
 
-	case "ConnectionTestResult.message":
-		if e.ComplexityRoot.ConnectionTestResult.Message == nil {
+	case "ConnectionTestResult.code":
+		if e.ComplexityRoot.ConnectionTestResult.Code == nil {
 			break
 		}
 
-		return e.ComplexityRoot.ConnectionTestResult.Message(childComplexity), true
+		return e.ComplexityRoot.ConnectionTestResult.Code(childComplexity), true
+	case "ConnectionTestResult.diagnostic":
+		if e.ComplexityRoot.ConnectionTestResult.Diagnostic == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConnectionTestResult.Diagnostic(childComplexity), true
 	case "ConnectionTestResult.success":
 		if e.ComplexityRoot.ConnectionTestResult.Success == nil {
 			break
@@ -1985,12 +2014,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DynamicSceneSource.PresetID(childComplexity), true
-	case "DynamicSceneSource.presetTitle":
-		if e.ComplexityRoot.DynamicSceneSource.PresetTitle == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DynamicSceneSource.PresetTitle(childComplexity), true
 	case "DynamicSceneSource.samples":
 		if e.ComplexityRoot.DynamicSceneSource.Samples == nil {
 			break
@@ -2546,18 +2569,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.GuidedVibeOption.ID(childComplexity), true
+	case "GuidedVibeOption.labelId":
+		if e.ComplexityRoot.GuidedVibeOption.LabelID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GuidedVibeOption.LabelID(childComplexity), true
 	case "GuidedVibeOption.preview":
 		if e.ComplexityRoot.GuidedVibeOption.Preview == nil {
 			break
 		}
 
 		return e.ComplexityRoot.GuidedVibeOption.Preview(childComplexity), true
-	case "GuidedVibeOption.title":
-		if e.ComplexityRoot.GuidedVibeOption.Title == nil {
-			break
-		}
-
-		return e.ComplexityRoot.GuidedVibeOption.Title(childComplexity), true
 
 	case "GuidedVibeRound.canFinish":
 		if e.ComplexityRoot.GuidedVibeRound.CanFinish == nil {
@@ -2627,6 +2650,44 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Integration.Provider(childComplexity), true
 
+	case "LocalizedName.language":
+		if e.ComplexityRoot.LocalizedName.Language == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedName.Language(childComplexity), true
+	case "LocalizedName.value":
+		if e.ComplexityRoot.LocalizedName.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedName.Value(childComplexity), true
+
+	case "LocalizedNameSet.entityId":
+		if e.ComplexityRoot.LocalizedNameSet.EntityID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedNameSet.EntityID(childComplexity), true
+	case "LocalizedNameSet.entityType":
+		if e.ComplexityRoot.LocalizedNameSet.EntityType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedNameSet.EntityType(childComplexity), true
+	case "LocalizedNameSet.sourceLanguage":
+		if e.ComplexityRoot.LocalizedNameSet.SourceLanguage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedNameSet.SourceLanguage(childComplexity), true
+	case "LocalizedNameSet.translations":
+		if e.ComplexityRoot.LocalizedNameSet.Translations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedNameSet.Translations(childComplexity), true
+
 	case "LogEntry.attrs":
 		if e.ComplexityRoot.LogEntry.Attrs == nil {
 			break
@@ -2652,30 +2713,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.LogEntry.Timestamp(childComplexity), true
 
-	case "MaintenanceTask.action":
-		if e.ComplexityRoot.MaintenanceTask.Action == nil {
-			break
-		}
-
-		return e.ComplexityRoot.MaintenanceTask.Action(childComplexity), true
 	case "MaintenanceTask.actionUrl":
 		if e.ComplexityRoot.MaintenanceTask.ActionURL == nil {
 			break
 		}
 
 		return e.ComplexityRoot.MaintenanceTask.ActionURL(childComplexity), true
+	case "MaintenanceTask.context":
+		if e.ComplexityRoot.MaintenanceTask.Context == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MaintenanceTask.Context(childComplexity), true
 	case "MaintenanceTask.currentValue":
 		if e.ComplexityRoot.MaintenanceTask.CurrentValue == nil {
 			break
 		}
 
 		return e.ComplexityRoot.MaintenanceTask.CurrentValue(childComplexity), true
-	case "MaintenanceTask.detail":
-		if e.ComplexityRoot.MaintenanceTask.Detail == nil {
-			break
-		}
-
-		return e.ComplexityRoot.MaintenanceTask.Detail(childComplexity), true
 	case "MaintenanceTask.device":
 		if e.ComplexityRoot.MaintenanceTask.Device == nil {
 			break
@@ -2700,12 +2755,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MaintenanceTask.TargetValue(childComplexity), true
-	case "MaintenanceTask.title":
-		if e.ComplexityRoot.MaintenanceTask.Title == nil {
+	case "MaintenanceTask.value":
+		if e.ComplexityRoot.MaintenanceTask.Value == nil {
 			break
 		}
 
-		return e.ComplexityRoot.MaintenanceTask.Title(childComplexity), true
+		return e.ComplexityRoot.MaintenanceTask.Value(childComplexity), true
 
 	case "Mutation.addGroupMember":
 		if e.ComplexityRoot.Mutation.AddGroupMember == nil {
@@ -3401,6 +3456,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateGroup(childComplexity, args["id"].(string), args["input"].(model.UpdateGroupInput)), true
+	case "Mutation.updateLocalizedNameSet":
+		if e.ComplexityRoot.Mutation.UpdateLocalizedNameSet == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateLocalizedNameSet_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateLocalizedNameSet(childComplexity, args["input"].(model.LocalizedNameSetInput)), true
 	case "Mutation.updateRoom":
 		if e.ComplexityRoot.Mutation.UpdateRoom == nil {
 			break
@@ -3776,6 +3842,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Query.Integrations(childComplexity), true
 
+	case "Query.localizedNameSets":
+		if e.ComplexityRoot.Query.LocalizedNameSets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.LocalizedNameSets(childComplexity), true
 	case "Query.logs":
 		if e.ComplexityRoot.Query.Logs == nil {
 			break
@@ -4179,6 +4251,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SceneTargetEntry.Expression(childComplexity), true
+	case "SceneTargetEntry.id":
+		if e.ComplexityRoot.SceneTargetEntry.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneTargetEntry.ID(childComplexity), true
 	case "SceneTargetEntry.name":
 		if e.ComplexityRoot.SceneTargetEntry.Name == nil {
 			break
@@ -4559,6 +4637,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.ID(childComplexity), true
+	case "User.language":
+		if e.ComplexityRoot.User.Language == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.Language(childComplexity), true
 	case "User.mustChangePassword":
 		if e.ComplexityRoot.User.MustChangePassword == nil {
 			break
@@ -4675,12 +4759,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.VibePreset.Seed(childComplexity), true
-	case "VibePreset.title":
-		if e.ComplexityRoot.VibePreset.Title == nil {
-			break
-		}
-
-		return e.ComplexityRoot.VibePreset.Title(childComplexity), true
 
 	case "VibePreviewResult.brightness":
 		if e.ComplexityRoot.VibePreviewResult.Brightness == nil {
@@ -5434,6 +5512,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputFloorplanWallInput,
 		ec.unmarshalInputGuidedVibeRecipeInput,
 		ec.unmarshalInputGuidedVibeRoundInput,
+		ec.unmarshalInputLocalizedNameInput,
+		ec.unmarshalInputLocalizedNameSetInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputPhotoSampleInput,
 		ec.unmarshalInputPresetVibeRecipeInput,
@@ -5872,6 +5952,7 @@ type TargetClause {
 }
 
 type SceneTargetEntry {
+  id: ID!
   targetType: SceneTargetType!
   targetId: ID!
   target: SceneTarget
@@ -5908,7 +5989,6 @@ type DynamicSceneSource {
   domain: VibeFieldDomain!
   sourceKind: VibeSourceKind!
   presetId: ID
-  presetTitle: String
   guidedSelectedIds: [ID!]!
   seed: String!
   brightness: Float!
@@ -5953,7 +6033,6 @@ type ScenePreview {
 
 type VibePreset {
   id: ID!
-  title: String!
   category: String!
   domain: VibeFieldDomain!
   seed: String!
@@ -5965,7 +6044,7 @@ type VibePreset {
 
 type GuidedVibeOption {
   id: ID!
-  title: String!
+  labelId: String!
   preview: ScenePreview!
 }
 
@@ -6128,6 +6207,7 @@ type EffectClip {
 }
 
 input EffectTrackInput {
+  id: ID
   name: String!
   clips: [EffectClipInput!]!
 }
@@ -6526,6 +6606,36 @@ enum TemperatureUnit {
   FAHRENHEIT
 }
 
+enum Language {
+  EN
+  SV
+  RU
+}
+
+type LocalizedName {
+  language: Language!
+  value: String!
+}
+
+type LocalizedNameSet {
+  entityType: String!
+  entityId: ID!
+  sourceLanguage: Language!
+  translations: [LocalizedName!]!
+}
+
+input LocalizedNameInput {
+  language: Language!
+  value: String!
+}
+
+input LocalizedNameSetInput {
+  entityType: String!
+  entityId: ID!
+  sourceLanguage: Language!
+  translations: [LocalizedNameInput!]!
+}
+
 type User {
   id: ID!
   username: String!
@@ -6560,6 +6670,8 @@ type User {
   interactions. Present on full user loads, null on attribution references.
   """
   hapticsEnabled: Boolean
+  """UI language preference. Present on full user loads."""
+  language: Language
   """
   Timestamp the user was created; used on the profile page as "member since".
   Present on full user loads, null on attribution references.
@@ -6614,6 +6726,7 @@ input UpdateCurrentUserInput {
   timeFormat: TimeFormat
   temperatureUnit: TemperatureUnit
   hapticsEnabled: Boolean
+  language: Language
 }
 
 input ChangePasswordInput {
@@ -6667,9 +6780,21 @@ type TuyaConfig {
   enabled: Boolean!
 }
 
+enum ConnectionTestCode {
+  CONNECTED
+  UNAVAILABLE
+  UNCONFIGURED
+  AUTHENTICATION_FAILED
+  TIMEOUT
+  TLS_FAILED
+  UNREACHABLE
+  FAILED
+}
+
 type ConnectionTestResult {
   success: Boolean!
-  message: String!
+  code: ConnectionTestCode!
+  diagnostic: String
 }
 
 """
@@ -6746,7 +6871,6 @@ type ActivityEvent {
   id: ID!
   type: String!
   timestamp: DateTime!
-  message: String!
   payload: String!
   source: ActivitySource!
 }
@@ -6783,7 +6907,9 @@ type Alarm {
   latestRowId: ID!
   severity: AlarmSeverity!
   kind: AlarmKind!
-  message: String!
+  message: String
+  messageCode: String
+  messageArguments: String!
   source: String!
   count: Int!
   firstRaisedAt: DateTime!
@@ -6811,12 +6937,11 @@ enum MaintenanceKind {
 type MaintenanceTask {
   id: ID!
   kind: MaintenanceKind!
-  title: String!
-  detail: String!
-  action: String!
   device: Device
   currentValue: String
   targetValue: String
+  value: Float
+  context: String
   actionUrl: String
 }
 
@@ -6940,6 +7065,7 @@ input TargetClauseInput {
 }
 
 input SceneTargetInput {
+  id: ID
   targetType: SceneTargetType!
   targetId: ID
   expression: [TargetClauseInput!]
@@ -7172,6 +7298,7 @@ input UpdateAutomationInput {
 }
 
 type Query {
+  localizedNameSets: [LocalizedNameSet!]! @auth
   devices: [Device!]! @auth
   device(id: ID!): Device @auth
   scenes: [Scene!]! @auth
@@ -7214,6 +7341,7 @@ type Query {
 }
 
 type Mutation {
+  updateLocalizedNameSet(input: LocalizedNameSetInput!): LocalizedNameSet! @auth
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
   deleteDevice(id: ID!): Device! @auth
   restoreDevice(id: ID!): Device! @auth
@@ -8159,6 +8287,17 @@ func (ec *executionContext) field_Mutation_updateGroup_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateLocalizedNameSet_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNLocalizedNameSetInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSetInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateRoom_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8876,35 +9015,6 @@ func (ec *executionContext) fieldContext_ActivityEvent_timestamp(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _ActivityEvent_message(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_ActivityEvent_message,
-		func(ctx context.Context) (any, error) {
-			return obj.Message, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_ActivityEvent_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ActivityEvent",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _ActivityEvent_payload(ctx context.Context, field graphql.CollectedField, obj *model.ActivityEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9341,13 +9451,71 @@ func (ec *executionContext) _Alarm_message(ctx context.Context, field graphql.Co
 			return obj.Message, nil
 		},
 		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Alarm_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Alarm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Alarm_messageCode(ctx context.Context, field graphql.CollectedField, obj *model.Alarm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Alarm_messageCode,
+		func(ctx context.Context) (any, error) {
+			return obj.MessageCode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Alarm_messageCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Alarm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Alarm_messageArguments(ctx context.Context, field graphql.CollectedField, obj *model.Alarm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Alarm_messageArguments,
+		func(ctx context.Context) (any, error) {
+			return obj.MessageArguments, nil
+		},
+		nil,
 		ec.marshalNString2string,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Alarm_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Alarm_messageArguments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Alarm",
 		Field:      field,
@@ -9539,6 +9707,10 @@ func (ec *executionContext) fieldContext_AlarmEvent_alarm(_ context.Context, fie
 				return ec.fieldContext_Alarm_kind(ctx, field)
 			case "message":
 				return ec.fieldContext_Alarm_message(ctx, field)
+			case "messageCode":
+				return ec.fieldContext_Alarm_messageCode(ctx, field)
+			case "messageArguments":
+				return ec.fieldContext_Alarm_messageArguments(ctx, field)
 			case "source":
 				return ec.fieldContext_Alarm_source(ctx, field)
 			case "count":
@@ -9652,6 +9824,8 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -10013,6 +10187,8 @@ func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Con
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -10807,23 +10983,52 @@ func (ec *executionContext) fieldContext_ConnectionTestResult_success(_ context.
 	return fc, nil
 }
 
-func (ec *executionContext) _ConnectionTestResult_message(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionTestResult) (ret graphql.Marshaler) {
+func (ec *executionContext) _ConnectionTestResult_code(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionTestResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_ConnectionTestResult_message,
+		ec.fieldContext_ConnectionTestResult_code,
 		func(ctx context.Context) (any, error) {
-			return obj.Message, nil
+			return obj.Code, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNConnectionTestCode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestCode,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_ConnectionTestResult_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ConnectionTestResult_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConnectionTestResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ConnectionTestCode does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConnectionTestResult_diagnostic(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionTestResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConnectionTestResult_diagnostic,
+		func(ctx context.Context) (any, error) {
+			return obj.Diagnostic, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConnectionTestResult_diagnostic(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ConnectionTestResult",
 		Field:      field,
@@ -13028,35 +13233,6 @@ func (ec *executionContext) fieldContext_DynamicSceneSource_presetId(_ context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _DynamicSceneSource_presetTitle(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_DynamicSceneSource_presetTitle,
-		func(ctx context.Context) (any, error) {
-			return obj.PresetTitle, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_DynamicSceneSource_presetTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "DynamicSceneSource",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _DynamicSceneSource_guidedSelectedIds(ctx context.Context, field graphql.CollectedField, obj *model.DynamicSceneSource) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13641,6 +13817,8 @@ func (ec *executionContext) fieldContext_Effect_createdBy(_ context.Context, fie
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -15812,6 +15990,8 @@ func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -16100,14 +16280,14 @@ func (ec *executionContext) fieldContext_GuidedVibeOption_id(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _GuidedVibeOption_title(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeOption) (ret graphql.Marshaler) {
+func (ec *executionContext) _GuidedVibeOption_labelId(ctx context.Context, field graphql.CollectedField, obj *model.GuidedVibeOption) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_GuidedVibeOption_title,
+		ec.fieldContext_GuidedVibeOption_labelId,
 		func(ctx context.Context) (any, error) {
-			return obj.Title, nil
+			return obj.LabelID, nil
 		},
 		nil,
 		ec.marshalNString2string,
@@ -16116,7 +16296,7 @@ func (ec *executionContext) _GuidedVibeOption_title(ctx context.Context, field g
 	)
 }
 
-func (ec *executionContext) fieldContext_GuidedVibeOption_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_GuidedVibeOption_labelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GuidedVibeOption",
 		Field:      field,
@@ -16281,8 +16461,8 @@ func (ec *executionContext) fieldContext_GuidedVibeRound_options(_ context.Conte
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_GuidedVibeOption_id(ctx, field)
-			case "title":
-				return ec.fieldContext_GuidedVibeOption_title(ctx, field)
+			case "labelId":
+				return ec.fieldContext_GuidedVibeOption_labelId(ctx, field)
 			case "preview":
 				return ec.fieldContext_GuidedVibeOption_preview(ctx, field)
 			}
@@ -16495,6 +16675,186 @@ func (ec *executionContext) fieldContext_Integration_message(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _LocalizedName_language(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedName) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedName_language,
+		func(ctx context.Context) (any, error) {
+			return obj.Language, nil
+		},
+		nil,
+		ec.marshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedName_language(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedName",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Language does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LocalizedName_value(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedName) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedName_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedName_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedName",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LocalizedNameSet_entityType(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedNameSet) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedNameSet_entityType,
+		func(ctx context.Context) (any, error) {
+			return obj.EntityType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedNameSet_entityType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedNameSet",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LocalizedNameSet_entityId(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedNameSet) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedNameSet_entityId,
+		func(ctx context.Context) (any, error) {
+			return obj.EntityID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedNameSet_entityId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedNameSet",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LocalizedNameSet_sourceLanguage(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedNameSet) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedNameSet_sourceLanguage,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceLanguage, nil
+		},
+		nil,
+		ec.marshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedNameSet_sourceLanguage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedNameSet",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Language does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LocalizedNameSet_translations(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedNameSet) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedNameSet_translations,
+		func(ctx context.Context) (any, error) {
+			return obj.Translations, nil
+		},
+		nil,
+		ec.marshalNLocalizedName2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedNameSet_translations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedNameSet",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "language":
+				return ec.fieldContext_LocalizedName_language(ctx, field)
+			case "value":
+				return ec.fieldContext_LocalizedName_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LocalizedName", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _LogEntry_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.LogEntry) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16669,93 +17029,6 @@ func (ec *executionContext) fieldContext_MaintenanceTask_kind(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _MaintenanceTask_title(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MaintenanceTask_title,
-		func(ctx context.Context) (any, error) {
-			return obj.Title, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MaintenanceTask_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MaintenanceTask",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MaintenanceTask_detail(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MaintenanceTask_detail,
-		func(ctx context.Context) (any, error) {
-			return obj.Detail, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MaintenanceTask_detail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MaintenanceTask",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MaintenanceTask_action(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MaintenanceTask_action,
-		func(ctx context.Context) (any, error) {
-			return obj.Action, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MaintenanceTask_action(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MaintenanceTask",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _MaintenanceTask_device(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16881,6 +17154,64 @@ func (ec *executionContext) fieldContext_MaintenanceTask_targetValue(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _MaintenanceTask_value(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceTask_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceTask_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceTask_context(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceTask_context,
+		func(ctx context.Context) (any, error) {
+			return obj.Context, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceTask_context(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MaintenanceTask_actionUrl(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16906,6 +17237,70 @@ func (ec *executionContext) fieldContext_MaintenanceTask_actionUrl(_ context.Con
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateLocalizedNameSet(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateLocalizedNameSet,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateLocalizedNameSet(ctx, fc.Args["input"].(model.LocalizedNameSetInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.LocalizedNameSet
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNLocalizedNameSet2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSet,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateLocalizedNameSet(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "entityType":
+				return ec.fieldContext_LocalizedNameSet_entityType(ctx, field)
+			case "entityId":
+				return ec.fieldContext_LocalizedNameSet_entityId(ctx, field)
+			case "sourceLanguage":
+				return ec.fieldContext_LocalizedNameSet_sourceLanguage(ctx, field)
+			case "translations":
+				return ec.fieldContext_LocalizedNameSet_translations(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LocalizedNameSet", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateLocalizedNameSet_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -19326,8 +19721,10 @@ func (ec *executionContext) fieldContext_Mutation_testZigbee2MqttConnection(ctx 
 			switch field.Name {
 			case "success":
 				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
-			case "message":
-				return ec.fieldContext_ConnectionTestResult_message(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
 		},
@@ -19492,8 +19889,10 @@ func (ec *executionContext) fieldContext_Mutation_testTuyaConnection(ctx context
 			switch field.Name {
 			case "success":
 				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
-			case "message":
-				return ec.fieldContext_ConnectionTestResult_message(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
 		},
@@ -19854,6 +20253,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -19930,6 +20331,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCurrentUser(ctx context.
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -20270,6 +20673,10 @@ func (ec *executionContext) fieldContext_Mutation_raiseAlarm(ctx context.Context
 				return ec.fieldContext_Alarm_kind(ctx, field)
 			case "message":
 				return ec.fieldContext_Alarm_message(ctx, field)
+			case "messageCode":
+				return ec.fieldContext_Alarm_messageCode(ctx, field)
+			case "messageArguments":
+				return ec.fieldContext_Alarm_messageArguments(ctx, field)
 			case "source":
 				return ec.fieldContext_Alarm_source(ctx, field)
 			case "count":
@@ -22230,6 +22637,58 @@ func (ec *executionContext) fieldContext_PreviewSwatch_color(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_localizedNameSets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_localizedNameSets,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().LocalizedNameSets(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.LocalizedNameSet
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNLocalizedNameSet2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSetᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_localizedNameSets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "entityType":
+				return ec.fieldContext_LocalizedNameSet_entityType(ctx, field)
+			case "entityId":
+				return ec.fieldContext_LocalizedNameSet_entityId(ctx, field)
+			case "sourceLanguage":
+				return ec.fieldContext_LocalizedNameSet_sourceLanguage(ctx, field)
+			case "translations":
+				return ec.fieldContext_LocalizedNameSet_translations(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LocalizedNameSet", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_devices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22581,8 +23040,6 @@ func (ec *executionContext) fieldContext_Query_vibePresets(_ context.Context, fi
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_VibePreset_id(ctx, field)
-			case "title":
-				return ec.fieldContext_VibePreset_title(ctx, field)
 			case "category":
 				return ec.fieldContext_VibePreset_category(ctx, field)
 			case "domain":
@@ -23976,8 +24433,6 @@ func (ec *executionContext) fieldContext_Query_activity(ctx context.Context, fie
 				return ec.fieldContext_ActivityEvent_type(ctx, field)
 			case "timestamp":
 				return ec.fieldContext_ActivityEvent_timestamp(ctx, field)
-			case "message":
-				return ec.fieldContext_ActivityEvent_message(ctx, field)
 			case "payload":
 				return ec.fieldContext_ActivityEvent_payload(ctx, field)
 			case "source":
@@ -24048,6 +24503,10 @@ func (ec *executionContext) fieldContext_Query_alarms(ctx context.Context, field
 				return ec.fieldContext_Alarm_kind(ctx, field)
 			case "message":
 				return ec.fieldContext_Alarm_message(ctx, field)
+			case "messageCode":
+				return ec.fieldContext_Alarm_messageCode(ctx, field)
+			case "messageArguments":
+				return ec.fieldContext_Alarm_messageArguments(ctx, field)
 			case "source":
 				return ec.fieldContext_Alarm_source(ctx, field)
 			case "count":
@@ -24115,18 +24574,16 @@ func (ec *executionContext) fieldContext_Query_maintenanceTasks(_ context.Contex
 				return ec.fieldContext_MaintenanceTask_id(ctx, field)
 			case "kind":
 				return ec.fieldContext_MaintenanceTask_kind(ctx, field)
-			case "title":
-				return ec.fieldContext_MaintenanceTask_title(ctx, field)
-			case "detail":
-				return ec.fieldContext_MaintenanceTask_detail(ctx, field)
-			case "action":
-				return ec.fieldContext_MaintenanceTask_action(ctx, field)
 			case "device":
 				return ec.fieldContext_MaintenanceTask_device(ctx, field)
 			case "currentValue":
 				return ec.fieldContext_MaintenanceTask_currentValue(ctx, field)
 			case "targetValue":
 				return ec.fieldContext_MaintenanceTask_targetValue(ctx, field)
+			case "value":
+				return ec.fieldContext_MaintenanceTask_value(ctx, field)
+			case "context":
+				return ec.fieldContext_MaintenanceTask_context(ctx, field)
 			case "actionUrl":
 				return ec.fieldContext_MaintenanceTask_actionUrl(ctx, field)
 			}
@@ -24209,6 +24666,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -24273,6 +24732,8 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -24951,6 +25412,8 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -25321,6 +25784,8 @@ func (ec *executionContext) fieldContext_Scene_targets(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "id":
+				return ec.fieldContext_SceneTargetEntry_id(ctx, field)
 			case "targetType":
 				return ec.fieldContext_SceneTargetEntry_targetType(ctx, field)
 			case "targetId":
@@ -25487,6 +25952,8 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -25780,8 +26247,6 @@ func (ec *executionContext) fieldContext_SceneLighting_dynamicSource(_ context.C
 				return ec.fieldContext_DynamicSceneSource_sourceKind(ctx, field)
 			case "presetId":
 				return ec.fieldContext_DynamicSceneSource_presetId(ctx, field)
-			case "presetTitle":
-				return ec.fieldContext_DynamicSceneSource_presetTitle(ctx, field)
 			case "guidedSelectedIds":
 				return ec.fieldContext_DynamicSceneSource_guidedSelectedIds(ctx, field)
 			case "seed":
@@ -26051,6 +26516,35 @@ func (ec *executionContext) fieldContext_SceneSupportingState_state(_ context.Co
 				return ec.fieldContext_DesiredSceneState_swing(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DesiredSceneState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneTargetEntry_id(ctx context.Context, field graphql.CollectedField, obj *model.SceneTargetEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneTargetEntry_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneTargetEntry_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneTargetEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -27220,8 +27714,6 @@ func (ec *executionContext) fieldContext_Subscription_activityStream(ctx context
 				return ec.fieldContext_ActivityEvent_type(ctx, field)
 			case "timestamp":
 				return ec.fieldContext_ActivityEvent_timestamp(ctx, field)
-			case "message":
-				return ec.fieldContext_ActivityEvent_message(ctx, field)
 			case "payload":
 				return ec.fieldContext_ActivityEvent_payload(ctx, field)
 			case "source":
@@ -28344,6 +28836,35 @@ func (ec *executionContext) fieldContext_User_hapticsEnabled(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _User_language(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_language,
+		func(ctx context.Context) (any, error) {
+			return obj.Language, nil
+		},
+		nil,
+		ec.marshalOLanguage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_language(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Language does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -28571,35 +29092,6 @@ func (ec *executionContext) fieldContext_VibePreset_id(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _VibePreset_title(ctx context.Context, field graphql.CollectedField, obj *model.VibePreset) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_VibePreset_title,
-		func(ctx context.Context) (any, error) {
-			return obj.Title, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_VibePreset_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "VibePreset",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -29709,6 +30201,8 @@ func (ec *executionContext) fieldContext_WebhookEndpoint_createdBy(_ context.Con
 				return ec.fieldContext_User_temperatureUnit(ctx, field)
 			case "hapticsEnabled":
 				return ec.fieldContext_User_hapticsEnabled(ctx, field)
+			case "language":
+				return ec.fieldContext_User_language(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			case "mustChangePassword":
@@ -35070,13 +35564,20 @@ func (ec *executionContext) unmarshalInputEffectTrackInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "clips"}
+	fieldsInOrder := [...]string{"id", "name", "clips"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = graphql.OmittableOf(data)
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -35583,6 +36084,94 @@ func (ec *executionContext) unmarshalInputGuidedVibeRoundInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputLocalizedNameInput(ctx context.Context, obj any) (model.LocalizedNameInput, error) {
+	var it model.LocalizedNameInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"language", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "language":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("language"))
+			data, err := ec.unmarshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Language = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputLocalizedNameSetInput(ctx context.Context, obj any) (model.LocalizedNameSetInput, error) {
+	var it model.LocalizedNameSetInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"entityType", "entityId", "sourceLanguage", "translations"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "entityType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entityType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EntityType = data
+		case "entityId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entityId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EntityID = data
+		case "sourceLanguage":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceLanguage"))
+			data, err := ec.unmarshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SourceLanguage = data
+		case "translations":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("translations"))
+			data, err := ec.unmarshalNLocalizedNameInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Translations = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
 	var it model.LoginInput
 	if obj == nil {
@@ -36048,13 +36637,20 @@ func (ec *executionContext) unmarshalInputSceneTargetInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"targetType", "targetId", "expression", "name"}
+	fieldsInOrder := [...]string{"id", "targetType", "targetId", "expression", "name"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = graphql.OmittableOf(data)
 		case "targetType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetType"))
 			data, err := ec.unmarshalNSceneTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetType(ctx, v)
@@ -36317,7 +36913,7 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "theme", "timeFormat", "temperatureUnit", "hapticsEnabled"}
+	fieldsInOrder := [...]string{"name", "theme", "timeFormat", "temperatureUnit", "hapticsEnabled", "language"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -36359,6 +36955,13 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 				return it, err
 			}
 			it.HapticsEnabled = graphql.OmittableOf(data)
+		case "language":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("language"))
+			data, err := ec.unmarshalOLanguage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Language = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -37083,11 +37686,6 @@ func (ec *executionContext) _ActivityEvent(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "message":
-			out.Values[i] = ec._ActivityEvent_message(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "payload":
 			out.Values[i] = ec._ActivityEvent_payload(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -37247,6 +37845,10 @@ func (ec *executionContext) _Alarm(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "message":
 			out.Values[i] = ec._Alarm_message(ctx, field, obj)
+		case "messageCode":
+			out.Values[i] = ec._Alarm_messageCode(ctx, field, obj)
+		case "messageArguments":
+			out.Values[i] = ec._Alarm_messageArguments(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -37758,11 +38360,13 @@ func (ec *executionContext) _ConnectionTestResult(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "message":
-			out.Values[i] = ec._ConnectionTestResult_message(ctx, field, obj)
+		case "code":
+			out.Values[i] = ec._ConnectionTestResult_code(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "diagnostic":
+			out.Values[i] = ec._ConnectionTestResult_diagnostic(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -38339,8 +38943,6 @@ func (ec *executionContext) _DynamicSceneSource(ctx context.Context, sel ast.Sel
 			}
 		case "presetId":
 			out.Values[i] = ec._DynamicSceneSource_presetId(ctx, field, obj)
-		case "presetTitle":
-			out.Values[i] = ec._DynamicSceneSource_presetTitle(ctx, field, obj)
 		case "guidedSelectedIds":
 			out.Values[i] = ec._DynamicSceneSource_guidedSelectedIds(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -39287,8 +39889,8 @@ func (ec *executionContext) _GuidedVibeOption(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "title":
-			out.Values[i] = ec._GuidedVibeOption_title(ctx, field, obj)
+		case "labelId":
+			out.Values[i] = ec._GuidedVibeOption_labelId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -39440,6 +40042,104 @@ func (ec *executionContext) _Integration(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var localizedNameImplementors = []string{"LocalizedName"}
+
+func (ec *executionContext) _LocalizedName(ctx context.Context, sel ast.SelectionSet, obj *model.LocalizedName) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, localizedNameImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LocalizedName")
+		case "language":
+			out.Values[i] = ec._LocalizedName_language(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._LocalizedName_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var localizedNameSetImplementors = []string{"LocalizedNameSet"}
+
+func (ec *executionContext) _LocalizedNameSet(ctx context.Context, sel ast.SelectionSet, obj *model.LocalizedNameSet) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, localizedNameSetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LocalizedNameSet")
+		case "entityType":
+			out.Values[i] = ec._LocalizedNameSet_entityType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "entityId":
+			out.Values[i] = ec._LocalizedNameSet_entityId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sourceLanguage":
+			out.Values[i] = ec._LocalizedNameSet_sourceLanguage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "translations":
+			out.Values[i] = ec._LocalizedNameSet_translations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var logEntryImplementors = []string{"LogEntry"}
 
 func (ec *executionContext) _LogEntry(ctx context.Context, sel ast.SelectionSet, obj *model.LogEntry) graphql.Marshaler {
@@ -39515,27 +40215,16 @@ func (ec *executionContext) _MaintenanceTask(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "title":
-			out.Values[i] = ec._MaintenanceTask_title(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "detail":
-			out.Values[i] = ec._MaintenanceTask_detail(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "action":
-			out.Values[i] = ec._MaintenanceTask_action(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "device":
 			out.Values[i] = ec._MaintenanceTask_device(ctx, field, obj)
 		case "currentValue":
 			out.Values[i] = ec._MaintenanceTask_currentValue(ctx, field, obj)
 		case "targetValue":
 			out.Values[i] = ec._MaintenanceTask_targetValue(ctx, field, obj)
+		case "value":
+			out.Values[i] = ec._MaintenanceTask_value(ctx, field, obj)
+		case "context":
+			out.Values[i] = ec._MaintenanceTask_context(ctx, field, obj)
 		case "actionUrl":
 			out.Values[i] = ec._MaintenanceTask_actionUrl(ctx, field, obj)
 		default:
@@ -39580,6 +40269,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "updateLocalizedNameSet":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateLocalizedNameSet(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateDevice":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateDevice(ctx, field)
@@ -40558,6 +41254,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "localizedNameSets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_localizedNameSets(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "devices":
 			field := field
 
@@ -41797,6 +42515,11 @@ func (ec *executionContext) _SceneTargetEntry(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SceneTargetEntry")
+		case "id":
+			out.Values[i] = ec._SceneTargetEntry_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "targetType":
 			out.Values[i] = ec._SceneTargetEntry_targetType(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -42334,6 +43057,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_temperatureUnit(ctx, field, obj)
 		case "hapticsEnabled":
 			out.Values[i] = ec._User_hapticsEnabled(ctx, field, obj)
+		case "language":
+			out.Values[i] = ec._User_language(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
@@ -42418,11 +43143,6 @@ func (ec *executionContext) _VibePreset(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = graphql.MarshalString("VibePreset")
 		case "id":
 			out.Values[i] = ec._VibePreset_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "title":
-			out.Values[i] = ec._VibePreset_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -44154,6 +44874,16 @@ func (ec *executionContext) marshalNCommandTargetType2githubᚗcomᚋsaffronjam�
 	return v
 }
 
+func (ec *executionContext) unmarshalNConnectionTestCode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestCode(ctx context.Context, v any) (model.ConnectionTestCode, error) {
+	var res model.ConnectionTestCode
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNConnectionTestCode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestCode(ctx context.Context, sel ast.SelectionSet, v model.ConnectionTestCode) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNConnectionTestResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult(ctx context.Context, sel ast.SelectionSet, v model.ConnectionTestResult) graphql.Marshaler {
 	return ec._ConnectionTestResult(ctx, sel, &v)
 }
@@ -45184,6 +45914,97 @@ func (ec *executionContext) marshalNIntegration2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._Integration(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx context.Context, v any) (model.Language, error) {
+	var res model.Language
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx context.Context, sel ast.SelectionSet, v model.Language) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNLocalizedName2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LocalizedName) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNLocalizedName2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedName(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNLocalizedName2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedName(ctx context.Context, sel ast.SelectionSet, v *model.LocalizedName) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._LocalizedName(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNLocalizedNameInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameInputᚄ(ctx context.Context, v any) ([]*model.LocalizedNameInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.LocalizedNameInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNLocalizedNameInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNLocalizedNameInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameInput(ctx context.Context, v any) (*model.LocalizedNameInput, error) {
+	res, err := ec.unmarshalInputLocalizedNameInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNLocalizedNameSet2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSet(ctx context.Context, sel ast.SelectionSet, v model.LocalizedNameSet) graphql.Marshaler {
+	return ec._LocalizedNameSet(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNLocalizedNameSet2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LocalizedNameSet) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNLocalizedNameSet2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSet(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNLocalizedNameSet2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSet(ctx context.Context, sel ast.SelectionSet, v *model.LocalizedNameSet) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._LocalizedNameSet(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNLocalizedNameSetInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLocalizedNameSetInput(ctx context.Context, v any) (model.LocalizedNameSetInput, error) {
+	res, err := ec.unmarshalInputLocalizedNameSetInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNLogEntry2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLogEntry(ctx context.Context, sel ast.SelectionSet, v model.LogEntry) graphql.Marshaler {
@@ -47048,6 +47869,22 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOLanguage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx context.Context, v any) (*model.Language, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.Language)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOLanguage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx context.Context, sel ast.SelectionSet, v *model.Language) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOPhotoSampleInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐPhotoSampleInput(ctx context.Context, v any) (*model.PhotoSampleInput, error) {

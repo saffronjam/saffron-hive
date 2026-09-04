@@ -12,7 +12,7 @@ func TestCompileSourcesShareCanonicalOutput(t *testing.T) {
 		{Lightness: 0.7, Chroma: 0.1, Hue: 60}, {Lightness: 0.8, Chroma: 0.1, Hue: 80},
 	})
 	lookup := func(id string) (Preset, bool) {
-		return Preset{ID: id, Title: "Test", Category: "Tests", Field: presetField, Seed: 19, Defaults: Recommendations{Brightness: 0.7, Movement: 0.2, Cycle: time.Minute}}, id == "test"
+		return Preset{ID: id, Category: "tests", Field: presetField, Seed: 19, Defaults: Recommendations{Brightness: 0.7, Movement: 0.2, Cycle: time.Minute}}, id == "test"
 	}
 	raster := generatedRaster(4, 4, func(x, y int) RasterPixel {
 		return RasterPixel{R: uint8(x * 80), G: uint8(y * 80), B: 120, A: 255}

@@ -16,7 +16,6 @@ func TestInsertAndQueryActivityEvent(t *testing.T) {
 	e, err := s.InsertActivityEvent(ctx, InsertActivityEventParams{
 		Type:        "device.state_changed",
 		Timestamp:   now,
-		Message:     "Kitchen light turned on",
 		PayloadJSON: `{"on":true,"brightness":200}`,
 		DeviceID:    strPtr("dev-1"),
 		DeviceName:  strPtr("Kitchen light"),
@@ -39,7 +38,7 @@ func TestInsertAndQueryActivityEvent(t *testing.T) {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 	got := events[0]
-	if got.Type != "device.state_changed" || got.Message != "Kitchen light turned on" {
+	if got.Type != "device.state_changed" || got.PayloadJSON != `{"on":true,"brightness":200}` {
 		t.Errorf("unexpected row: %+v", got)
 	}
 	if got.DeviceID == nil || *got.DeviceID != "dev-1" {
@@ -59,7 +58,6 @@ func TestQueryActivityFilters(t *testing.T) {
 		_, err := s.InsertActivityEvent(ctx, InsertActivityEventParams{
 			Type:        typ,
 			Timestamp:   base.Add(offset),
-			Message:     typ,
 			PayloadJSON: `null`,
 			DeviceID:    devID,
 			RoomID:      roomID,
@@ -146,7 +144,6 @@ func TestActivityBeforeCursor(t *testing.T) {
 		e, err := s.InsertActivityEvent(ctx, InsertActivityEventParams{
 			Type:        "device.state_changed",
 			Timestamp:   base.Add(time.Duration(i) * time.Millisecond),
-			Message:     "m",
 			PayloadJSON: "null",
 		})
 		if err != nil {
@@ -199,7 +196,7 @@ func TestPruneActivityEventsOlderThan(t *testing.T) {
 	for i, offset := range []time.Duration{-10 * 24 * time.Hour, -5 * 24 * time.Hour, -1 * time.Hour} {
 		_, err := s.InsertActivityEvent(ctx, InsertActivityEventParams{
 			Type: "device.state_changed", Timestamp: base.Add(offset),
-			Message: "m", PayloadJSON: "null", DeviceID: strPtr("d" + string(rune('1'+i))),
+			PayloadJSON: "null", DeviceID: strPtr("d" + string(rune('1'+i))),
 		})
 		if err != nil {
 			t.Fatalf("insert: %v", err)

@@ -52,7 +52,7 @@ func cachedVibePresets() ([]*model.VibePreset, error) {
 				return
 			}
 			vibePresetModels[i] = &model.VibePreset{
-				ID: entry.ID, Title: entry.Title, Category: entry.Category,
+				ID: entry.ID, Category: entry.Category,
 				Domain: model.VibeFieldDomain(entry.Field.Domain), Seed: strconv.FormatInt(entry.Seed, 10),
 				Brightness: entry.Defaults.Brightness, Movement: entry.Defaults.Movement,
 				CycleSeconds: entry.Defaults.Cycle.Seconds(), Preview: mapPreview(preview),
@@ -78,7 +78,7 @@ func sceneDefinitionFromInput(input *model.SceneDefinitionInput, existing *store
 		return store.SceneDefinition{}, err
 	}
 	definition := store.SceneDefinition{
-		Targets: sceneTargetsFromInput(input.Targets),
+		Targets: sceneTargetsFromInput(input.Targets, existing),
 		Lighting: store.SceneLighting{
 			Overrides: overrides,
 		},

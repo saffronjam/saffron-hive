@@ -144,12 +144,28 @@ func (q *Queries) DeleteEffect(ctx context.Context, id string) error {
 	return err
 }
 
-const deleteEffectTracksByEffect = `-- name: DeleteEffectTracksByEffect :exec
-DELETE FROM effect_tracks WHERE effect_id = ?
+const deleteEffectClipsByTrack = `-- name: DeleteEffectClipsByTrack :exec
+DELETE FROM effect_clips WHERE track_id = ?
 `
 
-func (q *Queries) DeleteEffectTracksByEffect(ctx context.Context, effectID string) error {
-	_, err := q.db.ExecContext(ctx, deleteEffectTracksByEffect, effectID)
+func (q *Queries) DeleteEffectClipsByTrack(ctx context.Context, trackID string) error {
+	_, err := q.db.ExecContext(ctx, deleteEffectClipsByTrack, trackID)
+	return err
+}
+
+const deleteEffectTracksExcept = `-- name: DeleteEffectTracksExcept :exec
+DELETE FROM effect_tracks
+WHERE effect_id = ?1
+  AND id NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
+`
+
+type DeleteEffectTracksExceptParams struct {
+	EffectID string
+	IdsJson  string
+}
+
+func (q *Queries) DeleteEffectTracksExcept(ctx context.Context, arg DeleteEffectTracksExceptParams) error {
+	_, err := q.db.ExecContext(ctx, deleteEffectTracksExcept, arg.EffectID, arg.IdsJson)
 	return err
 }
 
@@ -380,6 +396,17 @@ func (q *Queries) ListEffects(ctx context.Context) ([]ListEffectsRow, error) {
 	return items, nil
 }
 
+const parkEffectTrackIndexes = `-- name: ParkEffectTrackIndexes :exec
+UPDATE effect_tracks
+SET track_index = -track_index - 1
+WHERE effect_id = ?
+`
+
+func (q *Queries) ParkEffectTrackIndexes(ctx context.Context, effectID string) error {
+	_, err := q.db.ExecContext(ctx, parkEffectTrackIndexes, effectID)
+	return err
+}
+
 const updateEffect = `-- name: UpdateEffect :exec
 UPDATE effects SET
     name        = COALESCE(?1,        name),
@@ -427,6 +454,32 @@ type UpdateEffectDurationParams struct {
 func (q *Queries) UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error {
 	_, err := q.db.ExecContext(ctx, updateEffectDuration, arg.DurationMs, arg.ID)
 	return err
+}
+
+const updateEffectTrack = `-- name: UpdateEffectTrack :execrows
+UPDATE effect_tracks
+SET track_index = ?1, name = ?2
+WHERE id = ?3 AND effect_id = ?4
+`
+
+type UpdateEffectTrackParams struct {
+	TrackIndex int64
+	Name       string
+	ID         string
+	EffectID   string
+}
+
+func (q *Queries) UpdateEffectTrack(ctx context.Context, arg UpdateEffectTrackParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateEffectTrack,
+		arg.TrackIndex,
+		arg.Name,
+		arg.ID,
+		arg.EffectID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const upsertActiveEffect = `-- name: UpsertActiveEffect :exec

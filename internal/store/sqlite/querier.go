@@ -88,7 +88,8 @@ type Querier interface {
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteEffect(ctx context.Context, id string) error
-	DeleteEffectTracksByEffect(ctx context.Context, effectID string) error
+	DeleteEffectClipsByTrack(ctx context.Context, trackID string) error
+	DeleteEffectTracksExcept(ctx context.Context, arg DeleteEffectTracksExceptParams) error
 	DeleteFloorplanDoorBindingsByDevice(ctx context.Context, deviceID string) error
 	DeleteFloorplanDoorBindingsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanFurnitureByFloorplan(ctx context.Context, floorplanID string) error
@@ -99,11 +100,12 @@ type Querier interface {
 	// so this sweep runs inside the PurgeDevice / DeleteGroup / BatchDeleteGroups
 	// transactions rather than relying on a cascade.
 	DeleteFloorplanPlacementsByMember(ctx context.Context, arg DeleteFloorplanPlacementsByMemberParams) error
-	DeleteFloorplanRoomsByFloorplan(ctx context.Context, floorplanID string) error
+	DeleteFloorplanRoomsExcept(ctx context.Context, arg DeleteFloorplanRoomsExceptParams) error
 	DeleteFloorplanVerticesByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteFloorplanWallsByFloorplan(ctx context.Context, floorplanID string) error
 	DeleteGroup(ctx context.Context, id string) error
 	DeleteGroupTags(ctx context.Context, groupID string) error
+	DeleteLocalizedNamesForSubject(ctx context.Context, arg DeleteLocalizedNamesForSubjectParams) error
 	DeleteMaintenanceAcknowledgementsByFingerprints(ctx context.Context, arg DeleteMaintenanceAcknowledgementsByFingerprintsParams) (int64, error)
 	DeleteMaintenanceAcknowledgementsByTaskKey(ctx context.Context, taskKey string) (int64, error)
 	DeleteNativeEffectObservation(ctx context.Context, arg DeleteNativeEffectObservationParams) error
@@ -115,7 +117,7 @@ type Querier interface {
 	DeleteSceneDynamicSource(ctx context.Context, sceneID string) error
 	DeleteSceneLightOverrides(ctx context.Context, sceneID string) error
 	DeleteSceneSupportingStates(ctx context.Context, sceneID string) error
-	DeleteSceneTargets(ctx context.Context, sceneID string) error
+	DeleteSceneTargetsExcept(ctx context.Context, arg DeleteSceneTargetsExceptParams) error
 	DeleteTuyaConfig(ctx context.Context) error
 	DeleteUser(ctx context.Context, id string) error
 	DeleteVolatileActiveEffects(ctx context.Context) (int64, error)
@@ -139,6 +141,7 @@ type Querier interface {
 	GetFloorplanDoorBindingByDevice(ctx context.Context, deviceID string) (FloorplanDoorBinding, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
+	GetLocalizedNameSubject(ctx context.Context, arg GetLocalizedNameSubjectParams) (LocalizedNameSubject, error)
 	GetNativeEffectObservation(ctx context.Context, arg GetNativeEffectObservationParams) (NativeEffectObservation, error)
 	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
@@ -213,6 +216,9 @@ type Querier interface {
 	ListGroupTags(ctx context.Context, groupID string) ([]device.GroupTag, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
+	ListLocalizedNameSubjects(ctx context.Context) ([]LocalizedNameSubject, error)
+	ListLocalizedNames(ctx context.Context) ([]LocalizedName, error)
+	ListLocalizedNamesForSubject(ctx context.Context, arg ListLocalizedNamesForSubjectParams) ([]LocalizedName, error)
 	ListMaintenanceAcknowledgements(ctx context.Context) ([]MaintenanceAcknowledgement, error)
 	ListNativeEffectObservations(ctx context.Context) ([]NativeEffectObservation, error)
 	ListNetworkTopologies(ctx context.Context) ([]NetworkTopologySnapshot, error)
@@ -241,6 +247,8 @@ type Querier interface {
 	MarkProviderGroupsRemovedExcept(ctx context.Context, arg MarkProviderGroupsRemovedExceptParams) error
 	MergeZigbeeBridgeInfo(ctx context.Context, arg MergeZigbeeBridgeInfoParams) (device.DeviceID, error)
 	MergeZigbeeOTAStatus(ctx context.Context, arg MergeZigbeeOTAStatusParams) (device.DeviceID, error)
+	ParkEffectTrackIndexes(ctx context.Context, effectID string) error
+	ParkSceneTargetPositions(ctx context.Context, sceneID string) error
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	PruneWebhookDeliveriesOlderThan(ctx context.Context, receivedAt time.Time) (int64, error)
@@ -299,12 +307,15 @@ type Querier interface {
 	UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error
 	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
 	UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error
+	UpdateEffectTrack(ctx context.Context, arg UpdateEffectTrackParams) (int64, error)
+	UpdateFloorplanRoom(ctx context.Context, arg UpdateFloorplanRoomParams) (int64, error)
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error
 	UpdateRoomIcon(ctx context.Context, arg UpdateRoomIconParams) error
 	UpdateRoomName(ctx context.Context, arg UpdateRoomNameParams) error
 	UpdateSceneIcon(ctx context.Context, arg UpdateSceneIconParams) error
 	UpdateSceneName(ctx context.Context, arg UpdateSceneNameParams) error
+	UpdateSceneTarget(ctx context.Context, arg UpdateSceneTargetParams) (int64, error)
 	UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error
 	// Partial update of mutable profile fields. Nil narg values leave their column
 	// untouched. avatar_path can be set to a value here but cannot be cleared to
@@ -320,6 +331,7 @@ type Querier interface {
 	// override and is never touched here.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
 	UpsertFloorplan(ctx context.Context, arg UpsertFloorplanParams) error
+	UpsertLocalizedName(ctx context.Context, arg UpsertLocalizedNameParams) error
 	UpsertNativeEffectObservation(ctx context.Context, arg UpsertNativeEffectObservationParams) (NativeEffectObservation, error)
 	UpsertNetworkTopology(ctx context.Context, arg UpsertNetworkTopologyParams) error
 	UpsertProviderGroup(ctx context.Context, arg UpsertProviderGroupParams) error

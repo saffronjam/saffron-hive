@@ -163,10 +163,9 @@ func (s *Service) deriveDeviceTasks(ctx context.Context, acks map[string]map[str
 				delete(acks, batteryKey)
 			}
 			if band := batteryBand(*state.Battery); band != 0 && !bandAcknowledged(acks[batteryKey], band) {
-				value := fmt.Sprintf("%.0f%%", *state.Battery)
+				value := *state.Battery
 				tasks = append(tasks, newTask(batteryKey, "band:"+strconv.Itoa(band), KindBattery,
-					"Replace battery", fmt.Sprintf("%s battery is %s", found.DisplayName(), value),
-					"Replace or recharge the battery", &found, &value, nil, deviceURL(found.ID)))
+					&found, nil, nil, &value, nil, deviceURL(found.ID)))
 			}
 		}
 
@@ -181,10 +180,9 @@ func (s *Service) deriveDeviceTasks(ctx context.Context, acks map[string]map[str
 		if abnormal {
 			fingerprint := "abnormal"
 			if _, done := acks[postureKey][fingerprint]; !done {
-				value := "Abnormal"
+				value := "abnormal"
 				tasks = append(tasks, newTask(postureKey, fingerprint, KindPosture,
-					"Correct sensor placement", fmt.Sprintf("%s reports abnormal posture", found.DisplayName()),
-					"Correct the sensor placement", &found, &value, nil, deviceURL(found.ID)))
+					&found, &value, nil, nil, nil, deviceURL(found.ID)))
 			}
 		}
 	}
@@ -225,9 +223,8 @@ func (s *Service) deriveFirmwareTasks(ctx context.Context, acks map[string]map[s
 			value := strings.TrimRight(*config.FrontendURL, "/") + "/#/device/0/" + url.PathEscape(string(item.DeviceID)) + "/info"
 			actionURL = &value
 		}
-		detail := fmt.Sprintf("Firmware %s is available for %s", latest, found.DisplayName())
-		tasks = append(tasks, newTask(key, fingerprint, KindFirmware, "Upgrade firmware", detail,
-			"Upgrade in Zigbee2MQTT", &found, current, &latest, actionURL))
+		tasks = append(tasks, newTask(key, fingerprint, KindFirmware,
+			&found, current, &latest, nil, nil, actionURL))
 	}
 	return tasks, nil
 }
@@ -251,10 +248,10 @@ func (s *Service) deriveStorageTask(ctx context.Context, acks map[string]map[str
 	if band == 0 || bandAcknowledged(acks[key], band) {
 		return nil, nil
 	}
-	value := fmt.Sprintf("%.1f%% free", free*100)
-	detail := fmt.Sprintf("%s has %s", s.diskPath, value)
-	task := newTask(key, "band:"+strconv.Itoa(band), KindStorage, "Free storage space", detail,
-		"Free storage space", nil, &value, nil, nil)
+	value := free * 100
+	context := s.diskPath
+	task := newTask(key, "band:"+strconv.Itoa(band), KindStorage,
+		nil, nil, nil, &value, &context, nil)
 	return &task, nil
 }
 
@@ -266,10 +263,10 @@ func (s *Service) setTasksLocked(tasks []Task) {
 	s.buffer.Publish(s.now())
 }
 
-func newTask(key, fingerprint string, kind Kind, title, detail, action string, found *device.Device, current, target, actionURL *string) Task {
+func newTask(key, fingerprint string, kind Kind, found *device.Device, current, target *string, value *float64, context, actionURL *string) Task {
 	return Task{ID: opaqueID(key, fingerprint), TaskKey: key, ConditionFingerprint: fingerprint,
-		Kind: kind, Title: title, Detail: detail, Action: action, Device: found,
-		CurrentValue: current, TargetValue: target, ActionURL: actionURL}
+		Kind: kind, Device: found, CurrentValue: current, TargetValue: target,
+		Value: value, Context: context, ActionURL: actionURL}
 }
 
 func opaqueID(key, fingerprint string) string {
@@ -345,7 +342,7 @@ func sortTasks(tasks []Task) {
 		if rank[tasks[i].Kind] != rank[tasks[j].Kind] {
 			return rank[tasks[i].Kind] < rank[tasks[j].Kind]
 		}
-		left, right := tasks[i].Detail, tasks[j].Detail
+		left, right := tasks[i].ID, tasks[j].ID
 		if left == right {
 			return tasks[i].ID < tasks[j].ID
 		}

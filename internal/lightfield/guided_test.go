@@ -32,11 +32,11 @@ func TestGuidedOptionsReproducibleDistinctAndExploratory(t *testing.T) {
 	ids := map[string]bool{}
 	titles := map[string]bool{}
 	for _, option := range first {
-		if ids[option.ID] || titles[option.Title] || option.Color == nil || option.White != nil {
+		if ids[option.ID] || titles[option.LabelID] || option.Color == nil || option.White != nil {
 			t.Fatalf("invalid option %#v", option)
 		}
 		ids[option.ID] = true
-		titles[option.Title] = true
+		titles[option.LabelID] = true
 	}
 	if len(first) != guidedOptionCount {
 		t.Fatalf("guided option count = %d, want %d", len(first), guidedOptionCount)
@@ -70,10 +70,10 @@ func TestGuidedWhiteOptionsAreDistinct(t *testing.T) {
 		}
 		titles := map[string]bool{}
 		for _, option := range options {
-			if titles[option.Title] || option.White == nil || option.Color != nil {
+			if titles[option.LabelID] || option.White == nil || option.Color != nil {
 				t.Fatalf("round %d has invalid option %#v", rounds+1, option)
 			}
-			titles[option.Title] = true
+			titles[option.LabelID] = true
 		}
 		if len(options) != guidedOptionCount {
 			t.Fatalf("round %d option count = %d, want %d", rounds+1, len(options), guidedOptionCount)
@@ -81,7 +81,7 @@ func TestGuidedWhiteOptionsAreDistinct(t *testing.T) {
 	}
 }
 
-func TestGuidedColorOptionTitlesStayDistinct(t *testing.T) {
+func TestGuidedColorOptionLabelsStayDistinct(t *testing.T) {
 	for _, seed := range []int64{-31, 0, 1, 73, 812, math.MaxInt64} {
 		recipe := GuidedRecipe{Domain: DomainFullColor, Seed: seed}
 		for round := range guidedMaxRounds {
@@ -91,10 +91,10 @@ func TestGuidedColorOptionTitlesStayDistinct(t *testing.T) {
 			}
 			titles := map[string]bool{}
 			for _, option := range options {
-				if titles[option.Title] {
-					t.Fatalf("seed %d round %d repeats title %q", seed, round+1, option.Title)
+				if titles[option.LabelID] {
+					t.Fatalf("seed %d round %d repeats label ID %q", seed, round+1, option.LabelID)
 				}
-				titles[option.Title] = true
+				titles[option.LabelID] = true
 			}
 			recipe.SelectedIDs = append(recipe.SelectedIDs, options[round%len(options)].ID)
 		}

@@ -32,7 +32,6 @@ type ActivityEvent struct {
 	ID        string          `json:"id"`
 	Type      string          `json:"type"`
 	Timestamp time.Time       `json:"timestamp"`
-	Message   string          `json:"message"`
 	Payload   string          `json:"payload"`
 	Source    *ActivitySource `json:"source"`
 }
@@ -91,15 +90,17 @@ type AggregatedStateHistoryFilter struct {
 // id collapse into one Alarm whose message/severity/kind come from the latest
 // raise and whose count reflects the group size.
 type Alarm struct {
-	ID            string        `json:"id"`
-	LatestRowID   string        `json:"latestRowId"`
-	Severity      AlarmSeverity `json:"severity"`
-	Kind          AlarmKind     `json:"kind"`
-	Message       string        `json:"message"`
-	Source        string        `json:"source"`
-	Count         int           `json:"count"`
-	FirstRaisedAt time.Time     `json:"firstRaisedAt"`
-	LastRaisedAt  time.Time     `json:"lastRaisedAt"`
+	ID               string        `json:"id"`
+	LatestRowID      string        `json:"latestRowId"`
+	Severity         AlarmSeverity `json:"severity"`
+	Kind             AlarmKind     `json:"kind"`
+	Message          *string       `json:"message,omitempty"`
+	MessageCode      *string       `json:"messageCode,omitempty"`
+	MessageArguments string        `json:"messageArguments"`
+	Source           string        `json:"source"`
+	Count            int           `json:"count"`
+	FirstRaisedAt    time.Time     `json:"firstRaisedAt"`
+	LastRaisedAt     time.Time     `json:"lastRaisedAt"`
 }
 
 type AlarmEvent struct {
@@ -210,8 +211,9 @@ type CommandTargetInput struct {
 }
 
 type ConnectionTestResult struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success    bool               `json:"success"`
+	Code       ConnectionTestCode `json:"code"`
+	Diagnostic *string            `json:"diagnostic,omitempty"`
 }
 
 type CreateAutomationInput struct {
@@ -425,7 +427,6 @@ type DynamicSceneSource struct {
 	Domain            VibeFieldDomain    `json:"domain"`
 	SourceKind        VibeSourceKind     `json:"sourceKind"`
 	PresetID          *string            `json:"presetId,omitempty"`
-	PresetTitle       *string            `json:"presetTitle,omitempty"`
 	GuidedSelectedIds []string           `json:"guidedSelectedIds"`
 	Seed              string             `json:"seed"`
 	Brightness        float64            `json:"brightness"`
@@ -518,8 +519,9 @@ type EffectTrack struct {
 }
 
 type EffectTrackInput struct {
-	Name  string             `json:"name"`
-	Clips []*EffectClipInput `json:"clips"`
+	ID    graphql.Omittable[*string] `json:"id,omitempty"`
+	Name  string                     `json:"name"`
+	Clips []*EffectClipInput         `json:"clips"`
 }
 
 // The floor plan drawn on the /map page: a centerline wall graph, the room faces
@@ -697,7 +699,7 @@ type GroupMember struct {
 
 type GuidedVibeOption struct {
 	ID      string        `json:"id"`
-	Title   string        `json:"title"`
+	LabelID string        `json:"labelId"`
 	Preview *ScenePreview `json:"preview"`
 }
 
@@ -730,6 +732,30 @@ type Integration struct {
 	Message     *string `json:"message,omitempty"`
 }
 
+type LocalizedName struct {
+	Language Language `json:"language"`
+	Value    string   `json:"value"`
+}
+
+type LocalizedNameInput struct {
+	Language Language `json:"language"`
+	Value    string   `json:"value"`
+}
+
+type LocalizedNameSet struct {
+	EntityType     string           `json:"entityType"`
+	EntityID       string           `json:"entityId"`
+	SourceLanguage Language         `json:"sourceLanguage"`
+	Translations   []*LocalizedName `json:"translations"`
+}
+
+type LocalizedNameSetInput struct {
+	EntityType     string                `json:"entityType"`
+	EntityID       string                `json:"entityId"`
+	SourceLanguage Language              `json:"sourceLanguage"`
+	Translations   []*LocalizedNameInput `json:"translations"`
+}
+
 type LogEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 	Level     string    `json:"level"`
@@ -745,12 +771,11 @@ type LoginInput struct {
 type MaintenanceTask struct {
 	ID           string          `json:"id"`
 	Kind         MaintenanceKind `json:"kind"`
-	Title        string          `json:"title"`
-	Detail       string          `json:"detail"`
-	Action       string          `json:"action"`
 	Device       *Device         `json:"device,omitempty"`
 	CurrentValue *string         `json:"currentValue,omitempty"`
 	TargetValue  *string         `json:"targetValue,omitempty"`
+	Value        *float64        `json:"value,omitempty"`
+	Context      *string         `json:"context,omitempty"`
 	ActionURL    *string         `json:"actionUrl,omitempty"`
 }
 
@@ -942,6 +967,7 @@ type SceneSupportingStateInput struct {
 }
 
 type SceneTargetEntry struct {
+	ID         string          `json:"id"`
 	TargetType SceneTargetType `json:"targetType"`
 	TargetID   string          `json:"targetId"`
 	Target     SceneTarget     `json:"target,omitempty"`
@@ -950,6 +976,7 @@ type SceneTargetEntry struct {
 }
 
 type SceneTargetInput struct {
+	ID         graphql.Omittable[*string]              `json:"id,omitempty"`
 	TargetType SceneTargetType                         `json:"targetType"`
 	TargetID   graphql.Omittable[*string]              `json:"targetId,omitempty"`
 	Expression graphql.Omittable[[]*TargetClauseInput] `json:"expression,omitempty"`
@@ -1059,6 +1086,7 @@ type UpdateCurrentUserInput struct {
 	TimeFormat      graphql.Omittable[*TimeFormat]      `json:"timeFormat,omitempty"`
 	TemperatureUnit graphql.Omittable[*TemperatureUnit] `json:"temperatureUnit,omitempty"`
 	HapticsEnabled  graphql.Omittable[*bool]            `json:"hapticsEnabled,omitempty"`
+	Language        graphql.Omittable[*Language]        `json:"language,omitempty"`
 }
 
 type UpdateDeviceInput struct {
@@ -1154,6 +1182,8 @@ type User struct {
 	// Whether supported touch devices provide brief haptic feedback for direct
 	// interactions. Present on full user loads, null on attribution references.
 	HapticsEnabled *bool `json:"hapticsEnabled,omitempty"`
+	// UI language preference. Present on full user loads.
+	Language *Language `json:"language,omitempty"`
 	// Timestamp the user was created; used on the profile page as "member since".
 	// Present on full user loads, null on attribution references.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
@@ -1175,7 +1205,6 @@ type VibeFieldSample struct {
 
 type VibePreset struct {
 	ID           string          `json:"id"`
-	Title        string          `json:"title"`
 	Category     string          `json:"category"`
 	Domain       VibeFieldDomain `json:"domain"`
 	Seed         string          `json:"seed"`
@@ -1713,6 +1742,73 @@ func (e CommandTargetType) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type ConnectionTestCode string
+
+const (
+	ConnectionTestCodeConnected            ConnectionTestCode = "CONNECTED"
+	ConnectionTestCodeUnavailable          ConnectionTestCode = "UNAVAILABLE"
+	ConnectionTestCodeUnconfigured         ConnectionTestCode = "UNCONFIGURED"
+	ConnectionTestCodeAuthenticationFailed ConnectionTestCode = "AUTHENTICATION_FAILED"
+	ConnectionTestCodeTimeout              ConnectionTestCode = "TIMEOUT"
+	ConnectionTestCodeTLSFailed            ConnectionTestCode = "TLS_FAILED"
+	ConnectionTestCodeUnreachable          ConnectionTestCode = "UNREACHABLE"
+	ConnectionTestCodeFailed               ConnectionTestCode = "FAILED"
+)
+
+var AllConnectionTestCode = []ConnectionTestCode{
+	ConnectionTestCodeConnected,
+	ConnectionTestCodeUnavailable,
+	ConnectionTestCodeUnconfigured,
+	ConnectionTestCodeAuthenticationFailed,
+	ConnectionTestCodeTimeout,
+	ConnectionTestCodeTLSFailed,
+	ConnectionTestCodeUnreachable,
+	ConnectionTestCodeFailed,
+}
+
+func (e ConnectionTestCode) IsValid() bool {
+	switch e {
+	case ConnectionTestCodeConnected, ConnectionTestCodeUnavailable, ConnectionTestCodeUnconfigured, ConnectionTestCodeAuthenticationFailed, ConnectionTestCodeTimeout, ConnectionTestCodeTLSFailed, ConnectionTestCodeUnreachable, ConnectionTestCodeFailed:
+		return true
+	}
+	return false
+}
+
+func (e ConnectionTestCode) String() string {
+	return string(e)
+}
+
+func (e *ConnectionTestCode) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ConnectionTestCode(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ConnectionTestCode", str)
+	}
+	return nil
+}
+
+func (e ConnectionTestCode) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ConnectionTestCode) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ConnectionTestCode) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type ContactRole string
 
 const (
@@ -2165,6 +2261,63 @@ func (e *GroupTag) UnmarshalJSON(b []byte) error {
 }
 
 func (e GroupTag) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type Language string
+
+const (
+	LanguageEn Language = "EN"
+	LanguageSv Language = "SV"
+	LanguageRu Language = "RU"
+)
+
+var AllLanguage = []Language{
+	LanguageEn,
+	LanguageSv,
+	LanguageRu,
+}
+
+func (e Language) IsValid() bool {
+	switch e {
+	case LanguageEn, LanguageSv, LanguageRu:
+		return true
+	}
+	return false
+}
+
+func (e Language) String() string {
+	return string(e)
+}
+
+func (e *Language) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Language(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Language", str)
+	}
+	return nil
+}
+
+func (e Language) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Language) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Language) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

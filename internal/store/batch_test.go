@@ -62,8 +62,8 @@ func TestBatchDeleteRooms_UnlinksFloorplanRooms(t *testing.T) {
 	if labeled.RoomID != nil {
 		t.Errorf("fr-2 room_id = %q, want NULL", *labeled.RoomID)
 	}
-	if labeled.Name == nil || *labeled.Name != "Pantry" {
-		t.Errorf("fr-2 name = %v, want the loose label %q kept", labeled.Name, "Pantry")
+	if labeled.Name == nil || *labeled.Name != "Bedroom" {
+		t.Errorf("fr-2 name = %v, want %q copied from the deleted room", labeled.Name, "Bedroom")
 	}
 }
 
@@ -88,7 +88,11 @@ func TestBatchDeleteGroupsAndScenes(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"s-1", "s-2", "s-3"} {
-		if _, err := s.CreateScene(ctx, CreateSceneParams{ID: id, Name: id, Definition: manualDefinition()}); err != nil {
+		definition := manualDefinition()
+		for i := range definition.Targets {
+			definition.Targets[i].EntryID = id + ":" + definition.Targets[i].EntryID
+		}
+		if _, err := s.CreateScene(ctx, CreateSceneParams{ID: id, Name: id, Definition: definition}); err != nil {
 			t.Fatalf("create scene %s: %v", id, err)
 		}
 	}
@@ -304,11 +308,12 @@ func TestBatchDeleteAlarmsByAlarmIDs(t *testing.T) {
 	ctx := context.Background()
 
 	for _, id := range []string{"alarm-a", "alarm-b", "alarm-c"} {
+		message := id
 		if _, _, err := s.InsertAlarmTx(ctx, InsertAlarmParams{
 			AlarmID:  id,
 			Severity: AlarmSeverityHigh,
 			Kind:     AlarmKindOneShot,
-			Message:  id,
+			Message:  &message,
 			Source:   "test",
 		}); err != nil {
 			t.Fatalf("insert alarm %s: %v", id, err)

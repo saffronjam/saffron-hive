@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/localization"
 )
 
 // seedPlacedPlan saves a one-wall plan carrying one device placement and one
@@ -86,6 +87,35 @@ func TestReplaceFloorplanRoundtripsPlacements(t *testing.T) {
 			t.Errorf("unexpected placement member type %q", p.MemberType)
 		}
 	}
+}
+
+func TestReplaceFloorplanPreservesLocalizedRoomIdentity(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	name := "Hall"
+	params := ReplaceFloorplanParams{
+		ID: "fp-localized", Name: "Home",
+		Rooms: []FloorplanRoom{{ID: "face-1", Name: &name, VertexIDs: []string{"a", "b", "c"}}},
+	}
+	if err := s.ReplaceFloorplan(ctx, params); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+		EntityType: "floorplan_room", EntityID: "face-1", SourceLanguage: localization.English,
+		Translations: map[localization.Language]string{localization.Swedish: "Hall"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ReplaceFloorplan(ctx, params); err != nil {
+		t.Fatal(err)
+	}
+	assertLocalizedTranslation(t, s, "floorplan_room", "face-1", localization.Swedish, "Hall")
+
+	params.Rooms = nil
+	if err := s.ReplaceFloorplan(ctx, params); err != nil {
+		t.Fatal(err)
+	}
+	assertLocalizedSubjectMissing(t, s, "floorplan_room", "face-1")
 }
 
 func TestReplaceFloorplanRoundtripsOpenings(t *testing.T) {

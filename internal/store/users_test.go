@@ -31,6 +31,9 @@ func TestCreateUserAndGet(t *testing.T) {
 	if !u.HapticsEnabled {
 		t.Error("haptics should be enabled by default")
 	}
+	if u.Language != "en" {
+		t.Errorf("language = %q, want en", u.Language)
+	}
 
 	byID, err := s.GetUserByID(ctx, "u-1")
 	if err != nil {
@@ -46,6 +49,35 @@ func TestCreateUserAndGet(t *testing.T) {
 	}
 	if byUsername.ID != "u-1" {
 		t.Errorf("GetUserByUsername id: %q", byUsername.ID)
+	}
+}
+
+func TestUpdateUserLanguagePreference(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	u, err := s.CreateUser(ctx, CreateUserParams{
+		ID: "u-1", Username: "alice", Name: "Alice", PasswordHash: "hash",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	russian := "ru"
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, Language: &russian})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Language != "ru" {
+		t.Errorf("language = %q, want ru", u.Language)
+	}
+
+	name := "Alice Updated"
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, Name: &name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Language != "ru" {
+		t.Errorf("omitting language changed it to %q", u.Language)
 	}
 }
 
@@ -193,7 +225,11 @@ func TestCreatedByJoinOnScene(t *testing.T) {
 		t.Errorf("scene.CreatedBy = %+v", sc.CreatedBy)
 	}
 
-	scNoOwner, err := s.CreateScene(ctx, CreateSceneParams{ID: "s-2", Name: "Other", Definition: manualDefinition()})
+	definition := manualDefinition()
+	for i := range definition.Targets {
+		definition.Targets[i].EntryID = "s-2:" + definition.Targets[i].EntryID
+	}
+	scNoOwner, err := s.CreateScene(ctx, CreateSceneParams{ID: "s-2", Name: "Other", Definition: definition})
 	if err != nil {
 		t.Fatalf("create unowned scene: %v", err)
 	}

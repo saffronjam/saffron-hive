@@ -9,6 +9,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/lightfield"
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
@@ -263,6 +264,27 @@ func validateDesiredState(state DesiredState) error {
 }
 
 func replaceSceneDefinition(ctx context.Context, q *sqlite.Queries, sceneID string, definition SceneDefinition) error {
+	existingTargets, err := q.ListSceneTargets(ctx, sceneID)
+	if err != nil {
+		return fmt.Errorf("list Scene targets: %w", err)
+	}
+	for i := range definition.Targets {
+		if definition.Targets[i].EntryID != "" {
+			continue
+		}
+		if i < len(existingTargets) {
+			definition.Targets[i].EntryID = existingTargets[i].ID
+		} else {
+			definition.Targets[i].EntryID = uuid.NewString()
+		}
+	}
+	seenTargetIDs := make(map[string]struct{}, len(definition.Targets))
+	for _, target := range definition.Targets {
+		if _, exists := seenTargetIDs[target.EntryID]; exists {
+			return fmt.Errorf("duplicate Scene target ID %q", target.EntryID)
+		}
+		seenTargetIDs[target.EntryID] = struct{}{}
+	}
 	if err := q.DeleteSceneLightOverrides(ctx, sceneID); err != nil {
 		return fmt.Errorf("delete Scene light overrides: %w", err)
 	}
@@ -275,8 +297,19 @@ func replaceSceneDefinition(ctx context.Context, q *sqlite.Queries, sceneID stri
 	if err := q.DeleteSceneDynamicSource(ctx, sceneID); err != nil {
 		return fmt.Errorf("delete dynamic source: %w", err)
 	}
-	if err := q.DeleteSceneTargets(ctx, sceneID); err != nil {
-		return fmt.Errorf("delete Scene targets: %w", err)
+	targetIDs := make([]string, len(definition.Targets))
+	for i, target := range definition.Targets {
+		targetIDs[i] = target.EntryID
+	}
+	targetIDsJSON, err := marshalStringArray(targetIDs)
+	if err != nil {
+		return fmt.Errorf("marshal Scene target IDs: %w", err)
+	}
+	if err := q.ParkSceneTargetPositions(ctx, sceneID); err != nil {
+		return fmt.Errorf("park Scene target positions: %w", err)
+	}
+	if err := q.DeleteSceneTargetsExcept(ctx, sqlite.DeleteSceneTargetsExceptParams{SceneID: sceneID, IdsJson: targetIDsJSON}); err != nil {
+		return fmt.Errorf("delete removed Scene targets: %w", err)
 	}
 	for position, target := range definition.Targets {
 		expression, err := marshalExpression(target.Expression)
@@ -288,11 +321,25 @@ func replaceSceneDefinition(ctx context.Context, q *sqlite.Queries, sceneID stri
 			value := target.ID
 			targetID = &value
 		}
-		if err := q.InsertSceneTarget(ctx, sqlite.InsertSceneTargetParams{
-			SceneID: sceneID, Position: int64(position), TargetType: target.Type,
-			TargetID: targetID, Expression: expression, Name: optionalText(target.Name),
-		}); err != nil {
-			return fmt.Errorf("insert Scene target: %w", err)
+		name := optionalText(target.Name)
+		if target.Type != device.TargetExpression {
+			name = nil
+		}
+		params := sqlite.UpdateSceneTargetParams{
+			ID: target.EntryID, SceneID: sceneID, Position: int64(position), TargetType: target.Type,
+			TargetID: targetID, Expression: expression, Name: name,
+		}
+		updated, err := q.UpdateSceneTarget(ctx, params)
+		if err != nil {
+			return fmt.Errorf("update Scene target: %w", err)
+		}
+		if updated == 0 {
+			if err := q.InsertSceneTarget(ctx, sqlite.InsertSceneTargetParams{
+				ID: target.EntryID, SceneID: sceneID, Position: int64(position), TargetType: target.Type,
+				TargetID: targetID, Expression: expression, Name: name,
+			}); err != nil {
+				return fmt.Errorf("insert Scene target: %w", err)
+			}
 		}
 	}
 	if definition.Lighting.Dynamic != nil {
@@ -323,7 +370,8 @@ func loadSceneDefinition(ctx context.Context, q *sqlite.Queries, sceneID string)
 	definition := SceneDefinition{Targets: make([]SceneTarget, len(rows))}
 	for i, row := range rows {
 		definition.Targets[i] = SceneTarget{
-			Type: device.TargetType(row.TargetType), ID: textValue(row.TargetID),
+			EntryID: row.ID,
+			Type:    device.TargetType(row.TargetType), ID: textValue(row.TargetID),
 			Expression: unmarshalExpression(row.Expression), Name: textValue(row.Name),
 		}
 	}
@@ -387,7 +435,7 @@ func saveDynamicSource(ctx context.Context, q *sqlite.Queries, sceneID string, d
 	}
 	if err := q.UpsertSceneDynamicSource(ctx, sqlite.UpsertSceneDynamicSourceParams{
 		SceneID: sceneID, Domain: string(dynamic.Field.Domain), SourceKind: string(dynamic.Provenance.Kind),
-		PresetID: optionalText(dynamic.Provenance.PresetID), PresetTitle: optionalText(dynamic.Provenance.PresetTitle),
+		PresetID:          optionalText(dynamic.Provenance.PresetID),
 		GuidedSelectedIds: guidedIDs, Seed: dynamic.Seed, Brightness: dynamic.Brightness, Movement: dynamic.Movement,
 		CycleNanos: dynamic.Cycle.Nanoseconds(), GridWidth: int64(dynamic.Field.Width), GridHeight: int64(dynamic.Field.Height),
 	}); err != nil {
@@ -437,7 +485,7 @@ func loadDynamicSource(ctx context.Context, q *sqlite.Queries, sceneID string) (
 		}
 	}
 	provenance := lightfield.Provenance{
-		Kind: lightfield.SourceKind(row.SourceKind), PresetID: textValue(row.PresetID), PresetTitle: textValue(row.PresetTitle),
+		Kind: lightfield.SourceKind(row.SourceKind), PresetID: textValue(row.PresetID),
 		GuidedDomain: field.Domain,
 	}
 	if row.GuidedSelectedIds != nil {

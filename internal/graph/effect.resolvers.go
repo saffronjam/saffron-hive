@@ -184,8 +184,12 @@ func buildEffectTrackInputs(tracks []*model.EffectTrackInput) ([]store.EffectTra
 				ConfigJSON:      string(raw),
 			}
 		}
+		trackID := uuid.New().String()
+		if id := t.ID.Value(); id != nil && *id != "" {
+			trackID = *id
+		}
 		out[ti] = store.EffectTrackInput{
-			ID:    uuid.New().String(),
+			ID:    trackID,
 			Index: ti,
 			Clips: clips,
 		}
@@ -226,6 +230,7 @@ func mapEffect(row store.Effect) *model.Effect {
 		modelTracks = append(modelTracks, &model.EffectTrack{
 			ID:    tr.ID,
 			Index: tr.Index,
+			Name:  tr.Name,
 			Clips: modelClips,
 		})
 	}

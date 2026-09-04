@@ -2,6 +2,7 @@ package alarms
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -51,8 +52,19 @@ func (s *Service) Raise(ctx context.Context, p RaiseParams) (Alarm, error) {
 	if p.Kind != store.AlarmKindAuto && p.Kind != store.AlarmKindOneShot {
 		return Alarm{}, fmt.Errorf("invalid kind %q", p.Kind)
 	}
-	if p.Message == "" {
-		return Alarm{}, fmt.Errorf("message is required")
+	if (p.Message == "") == (p.MessageCode == "") {
+		return Alarm{}, fmt.Errorf("exactly one of message or message code is required")
+	}
+	arguments, err := json.Marshal(p.MessageArguments)
+	if err != nil {
+		return Alarm{}, fmt.Errorf("encode alarm message arguments: %w", err)
+	}
+	var message, messageCode *string
+	if p.Message != "" {
+		message = &p.Message
+	}
+	if p.MessageCode != "" {
+		messageCode = &p.MessageCode
 	}
 	source := p.Source
 	if source == "" {
@@ -60,15 +72,17 @@ func (s *Service) Raise(ctx context.Context, p RaiseParams) (Alarm, error) {
 	}
 
 	insertParams := store.InsertAlarmParams{
-		AlarmID:  p.AlarmID,
-		Severity: p.Severity,
-		Kind:     p.Kind,
-		Message:  p.Message,
-		Source:   source,
-		RaisedAt: s.now(),
+		AlarmID:          p.AlarmID,
+		Severity:         p.Severity,
+		Kind:             p.Kind,
+		Message:          message,
+		MessageCode:      messageCode,
+		MessageArguments: string(arguments),
+		Source:           source,
+		RaisedAt:         s.now(),
 	}
 
-	_, _, err := s.store.InsertAlarmTx(ctx, insertParams)
+	_, _, err = s.store.InsertAlarmTx(ctx, insertParams)
 	if err != nil {
 		return Alarm{}, fmt.Errorf("raise alarm: %w", err)
 	}
@@ -225,14 +239,23 @@ func buildAlarm(group []store.AlarmRow) Alarm {
 	latest := group[0]
 	first := group[len(group)-1]
 	return Alarm{
-		ID:            latest.AlarmID,
-		LatestRowID:   latest.ID,
-		Severity:      latest.Severity,
-		Kind:          latest.Kind,
-		Message:       latest.Message,
-		Source:        latest.Source,
-		Count:         len(group),
-		FirstRaisedAt: first.RaisedAt,
-		LastRaisedAt:  latest.RaisedAt,
+		ID:               latest.AlarmID,
+		LatestRowID:      latest.ID,
+		Severity:         latest.Severity,
+		Kind:             latest.Kind,
+		Message:          stringValue(latest.Message),
+		MessageCode:      stringValue(latest.MessageCode),
+		MessageArguments: latest.MessageArguments,
+		Source:           latest.Source,
+		Count:            len(group),
+		FirstRaisedAt:    first.RaisedAt,
+		LastRaisedAt:     latest.RaisedAt,
 	}
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

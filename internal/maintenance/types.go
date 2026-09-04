@@ -19,11 +19,10 @@ type Task struct {
 	TaskKey              string
 	ConditionFingerprint string
 	Kind                 Kind
-	Title                string
-	Detail               string
-	Action               string
 	Device               *device.Device
 	CurrentValue         *string
 	TargetValue          *string
+	Value                *float64
+	Context              *string
 	ActionURL            *string
 }

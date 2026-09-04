@@ -34,29 +34,42 @@ DELETE FROM scenes
 WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
 
 -- name: InsertSceneTarget :exec
-INSERT INTO scene_targets (scene_id, position, target_type, target_id, expression, name)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO scene_targets (id, scene_id, position, target_type, target_id, expression, name)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListSceneTargets :many
-SELECT scene_id, position, target_type, target_id, expression, name
+SELECT id, scene_id, position, target_type, target_id, expression, name
 FROM scene_targets
 WHERE scene_id = ?
 ORDER BY position;
 
--- name: DeleteSceneTargets :exec
-DELETE FROM scene_targets WHERE scene_id = ?;
+-- name: ParkSceneTargetPositions :exec
+UPDATE scene_targets SET position = position + 1000000000 WHERE scene_id = ?;
+
+-- name: DeleteSceneTargetsExcept :exec
+DELETE FROM scene_targets
+WHERE scene_id = sqlc.arg('scene_id')
+  AND id NOT IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
+-- name: UpdateSceneTarget :execrows
+UPDATE scene_targets SET
+    position = sqlc.arg('position'),
+    target_type = sqlc.arg('target_type'),
+    target_id = sqlc.narg('target_id'),
+    expression = sqlc.narg('expression'),
+    name = sqlc.narg('name')
+WHERE id = sqlc.arg('id') AND scene_id = sqlc.arg('scene_id');
 
 -- name: UpsertSceneDynamicSource :exec
 INSERT INTO scene_dynamic_sources (
-    scene_id, domain, source_kind, preset_id, preset_title, guided_selected_ids,
+    scene_id, domain, source_kind, preset_id, guided_selected_ids,
     seed, brightness, movement, cycle_nanos, grid_width, grid_height
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(scene_id) DO UPDATE SET
     domain = excluded.domain,
     source_kind = excluded.source_kind,
     preset_id = excluded.preset_id,
-    preset_title = excluded.preset_title,
     guided_selected_ids = excluded.guided_selected_ids,
     seed = excluded.seed,
     brightness = excluded.brightness,

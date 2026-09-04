@@ -318,6 +318,7 @@ type TargetClause {
 }
 
 type SceneTargetEntry {
+  id: ID!
   targetType: SceneTargetType!
   targetId: ID!
   target: SceneTarget
@@ -354,7 +355,6 @@ type DynamicSceneSource {
   domain: VibeFieldDomain!
   sourceKind: VibeSourceKind!
   presetId: ID
-  presetTitle: String
   guidedSelectedIds: [ID!]!
   seed: String!
   brightness: Float!
@@ -399,7 +399,6 @@ type ScenePreview {
 
 type VibePreset {
   id: ID!
-  title: String!
   category: String!
   domain: VibeFieldDomain!
   seed: String!
@@ -411,7 +410,7 @@ type VibePreset {
 
 type GuidedVibeOption {
   id: ID!
-  title: String!
+  labelId: String!
   preview: ScenePreview!
 }
 
@@ -574,6 +573,7 @@ type EffectClip {
 }
 
 input EffectTrackInput {
+  id: ID
   name: String!
   clips: [EffectClipInput!]!
 }
@@ -972,6 +972,36 @@ enum TemperatureUnit {
   FAHRENHEIT
 }
 
+enum Language {
+  EN
+  SV
+  RU
+}
+
+type LocalizedName {
+  language: Language!
+  value: String!
+}
+
+type LocalizedNameSet {
+  entityType: String!
+  entityId: ID!
+  sourceLanguage: Language!
+  translations: [LocalizedName!]!
+}
+
+input LocalizedNameInput {
+  language: Language!
+  value: String!
+}
+
+input LocalizedNameSetInput {
+  entityType: String!
+  entityId: ID!
+  sourceLanguage: Language!
+  translations: [LocalizedNameInput!]!
+}
+
 type User {
   id: ID!
   username: String!
@@ -1006,6 +1036,8 @@ type User {
   interactions. Present on full user loads, null on attribution references.
   """
   hapticsEnabled: Boolean
+  """UI language preference. Present on full user loads."""
+  language: Language
   """
   Timestamp the user was created; used on the profile page as "member since".
   Present on full user loads, null on attribution references.
@@ -1060,6 +1092,7 @@ input UpdateCurrentUserInput {
   timeFormat: TimeFormat
   temperatureUnit: TemperatureUnit
   hapticsEnabled: Boolean
+  language: Language
 }
 
 input ChangePasswordInput {
@@ -1113,9 +1146,21 @@ type TuyaConfig {
   enabled: Boolean!
 }
 
+enum ConnectionTestCode {
+  CONNECTED
+  UNAVAILABLE
+  UNCONFIGURED
+  AUTHENTICATION_FAILED
+  TIMEOUT
+  TLS_FAILED
+  UNREACHABLE
+  FAILED
+}
+
 type ConnectionTestResult {
   success: Boolean!
-  message: String!
+  code: ConnectionTestCode!
+  diagnostic: String
 }
 
 """
@@ -1192,7 +1237,6 @@ type ActivityEvent {
   id: ID!
   type: String!
   timestamp: DateTime!
-  message: String!
   payload: String!
   source: ActivitySource!
 }
@@ -1229,7 +1273,9 @@ type Alarm {
   latestRowId: ID!
   severity: AlarmSeverity!
   kind: AlarmKind!
-  message: String!
+  message: String
+  messageCode: String
+  messageArguments: String!
   source: String!
   count: Int!
   firstRaisedAt: DateTime!
@@ -1257,12 +1303,11 @@ enum MaintenanceKind {
 type MaintenanceTask {
   id: ID!
   kind: MaintenanceKind!
-  title: String!
-  detail: String!
-  action: String!
   device: Device
   currentValue: String
   targetValue: String
+  value: Float
+  context: String
   actionUrl: String
 }
 
@@ -1386,6 +1431,7 @@ input TargetClauseInput {
 }
 
 input SceneTargetInput {
+  id: ID
   targetType: SceneTargetType!
   targetId: ID
   expression: [TargetClauseInput!]
@@ -1618,6 +1664,7 @@ input UpdateAutomationInput {
 }
 
 type Query {
+  localizedNameSets: [LocalizedNameSet!]! @auth
   devices: [Device!]! @auth
   device(id: ID!): Device @auth
   scenes: [Scene!]! @auth
@@ -1660,6 +1707,7 @@ type Query {
 }
 
 type Mutation {
+  updateLocalizedNameSet(input: LocalizedNameSetInput!): LocalizedNameSet! @auth
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
   deleteDevice(id: ID!): Device! @auth
   restoreDevice(id: ID!): Device! @auth

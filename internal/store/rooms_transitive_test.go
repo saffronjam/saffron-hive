@@ -179,8 +179,8 @@ func TestDeleteRoom_UnlinksFloorplanRooms(t *testing.T) {
 	if labeled.RoomID != nil {
 		t.Errorf("fr-2 room_id = %q, want NULL", *labeled.RoomID)
 	}
-	if labeled.Name == nil || *labeled.Name != "Pantry" {
-		t.Errorf("fr-2 name = %v, want the loose label %q kept", labeled.Name, "Pantry")
+	if labeled.Name == nil || *labeled.Name != "Bedroom" {
+		t.Errorf("fr-2 name = %v, want %q copied from the deleted room", labeled.Name, "Bedroom")
 	}
 }
 

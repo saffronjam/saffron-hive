@@ -99,8 +99,17 @@ DELETE FROM floorplan_door_bindings WHERE floorplan_id = sqlc.arg('floorplan_id'
 -- name: DeleteFloorplanWallsByFloorplan :exec
 DELETE FROM floorplan_walls WHERE floorplan_id = sqlc.arg('floorplan_id');
 
--- name: DeleteFloorplanRoomsByFloorplan :exec
-DELETE FROM floorplan_rooms WHERE floorplan_id = sqlc.arg('floorplan_id');
+-- name: DeleteFloorplanRoomsExcept :exec
+DELETE FROM floorplan_rooms
+WHERE floorplan_id = sqlc.arg('floorplan_id')
+  AND id NOT IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
+-- name: UpdateFloorplanRoom :execrows
+UPDATE floorplan_rooms SET
+    name = sqlc.narg('name'),
+    room_id = sqlc.narg('room_id'),
+    vertex_ids = sqlc.arg('vertex_ids')
+WHERE id = sqlc.arg('id') AND floorplan_id = sqlc.arg('floorplan_id');
 
 -- name: DeleteFloorplanPlacementsByFloorplan :exec
 DELETE FROM floorplan_placements WHERE floorplan_id = sqlc.arg('floorplan_id');

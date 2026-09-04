@@ -48,6 +48,15 @@ func (r *deviceResolver) Zigbee2Mqtt(ctx context.Context, obj *model.Device) (*m
 	return mapZigbeeDeviceMetadata(*metadata, r.AddressVendors), nil
 }
 
+// UpdateLocalizedNameSet is the resolver for the updateLocalizedNameSet field.
+func (r *mutationResolver) UpdateLocalizedNameSet(ctx context.Context, input model.LocalizedNameSetInput) (*model.LocalizedNameSet, error) {
+	names, err := r.Store.ReplaceLocalizedNameSet(ctx, localizedNameSetFromInput(input))
+	if err != nil {
+		return nil, err
+	}
+	return mapLocalizedNameSet(names), nil
+}
+
 // UpdateDevice is the resolver for the updateDevice field.
 func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error) {
 	deviceID := device.DeviceID(id)
@@ -1014,7 +1023,7 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 // TestZigbee2MqttConnection is the resolver for the testZigbee2MqttConnection field.
 func (r *mutationResolver) TestZigbee2MqttConnection(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.ConnectionTestResult, error) {
 	if r.Zigbee2MQTT == nil {
-		return &model.ConnectionTestResult{Success: false, Message: "Zigbee2MQTT integration is unavailable"}, nil
+		return &model.ConnectionTestResult{Success: false, Code: model.ConnectionTestCodeUnavailable}, nil
 	}
 	password, err := zigbee2MQTTPassword(ctx, r.Store, input.Password)
 	if err != nil {
@@ -1031,9 +1040,10 @@ func (r *mutationResolver) TestZigbee2MqttConnection(ctx context.Context, input 
 		Enabled:  input.Enabled,
 	}
 	if err := r.Zigbee2MQTT.TestZigbee2MQTT(ctx, cfg); err != nil {
-		return &model.ConnectionTestResult{Success: false, Message: err.Error()}, nil
+		diagnostic := err.Error()
+		return &model.ConnectionTestResult{Success: false, Code: connectionTestCode(err), Diagnostic: &diagnostic}, nil
 	}
-	return &model.ConnectionTestResult{Success: true, Message: "Connected successfully"}, nil
+	return &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}, nil
 }
 
 // ScanZigbee2MqttNetwork is the resolver for the scanZigbee2MqttNetwork field.
@@ -1081,7 +1091,7 @@ func (r *mutationResolver) UpdateTuyaConfig(ctx context.Context, input model.Tuy
 // TestTuyaConnection is the resolver for the testTuyaConnection field.
 func (r *mutationResolver) TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error) {
 	if r.Tuya == nil {
-		return &model.ConnectionTestResult{Success: false, Message: "Tuya integration is not configured"}, nil
+		return &model.ConnectionTestResult{Success: false, Code: model.ConnectionTestCodeUnconfigured}, nil
 	}
 	secret := input.AccessSecret
 	if secret == redactedPasswordSentinel {
@@ -1100,9 +1110,10 @@ func (r *mutationResolver) TestTuyaConnection(ctx context.Context, input model.T
 		Enabled:      input.Enabled,
 	}
 	if err := r.Tuya.TestTuya(ctx, cfg); err != nil {
-		return &model.ConnectionTestResult{Success: false, Message: err.Error()}, nil
+		diagnostic := err.Error()
+		return &model.ConnectionTestResult{Success: false, Code: connectionTestCode(err), Diagnostic: &diagnostic}, nil
 	}
-	return &model.ConnectionTestResult{Success: true, Message: "Connected successfully"}, nil
+	return &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}, nil
 }
 
 // SyncTuyaDevices is the resolver for the syncTuyaDevices field.
@@ -1136,6 +1147,12 @@ func (r *mutationResolver) DeleteIntegration(ctx context.Context, provider strin
 func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error) {
 	if auth.IsInternalSettingKey(key) {
 		return nil, fmt.Errorf("setting %q is read-only", key)
+	}
+	if key == "i18n.default_content_language" && value != "en" && value != "sv" && value != "ru" {
+		return nil, fmt.Errorf("unsupported content language")
+	}
+	if key == "i18n.translate_standard_room_names" && value != "true" && value != "false" {
+		return nil, fmt.Errorf("standard room-name translation must be true or false")
 	}
 	if err := r.Store.UpsertSetting(ctx, key, value); err != nil {
 		return nil, err
@@ -1312,6 +1329,10 @@ func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.Up
 	}
 	if hapticsPtr, ok := input.HapticsEnabled.ValueOK(); ok && hapticsPtr != nil {
 		params.HapticsEnabled = hapticsPtr
+	}
+	if languagePtr, ok := input.Language.ValueOK(); ok && languagePtr != nil {
+		s := languageToStore(*languagePtr)
+		params.Language = &s
 	}
 	u, err := r.Store.UpdateUserProfile(ctx, params)
 	if err != nil {
@@ -1935,6 +1956,19 @@ func (r *mutationResolver) StopEffect(ctx context.Context, targetType string, ta
 	return true, nil
 }
 
+// LocalizedNameSets is the resolver for the localizedNameSets field.
+func (r *queryResolver) LocalizedNameSets(ctx context.Context) ([]*model.LocalizedNameSet, error) {
+	sets, err := r.Store.ListLocalizedNameSets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.LocalizedNameSet, len(sets))
+	for i, names := range sets {
+		out[i] = mapLocalizedNameSet(names)
+	}
+	return out, nil
+}
+
 // Devices is the resolver for the devices field.
 func (r *queryResolver) Devices(ctx context.Context) ([]*model.Device, error) {
 	devices, err := r.Store.ListDevices(ctx)
@@ -2014,7 +2048,7 @@ func (r *queryResolver) GuidedVibeRound(ctx context.Context, input model.GuidedV
 		if err != nil {
 			return nil, err
 		}
-		mapped.Options[i] = &model.GuidedVibeOption{ID: option.ID, Title: option.Title, Preview: mapPreview(preview)}
+		mapped.Options[i] = &model.GuidedVibeOption{ID: option.ID, LabelID: option.LabelID, Preview: mapPreview(preview)}
 	}
 	return mapped, nil
 }

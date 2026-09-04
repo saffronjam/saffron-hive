@@ -158,7 +158,7 @@ func (q *Queries) GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) (
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, must_change_password, token_version, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 WHERE id = ?
 `
@@ -173,6 +173,7 @@ type GetUserByIDRow struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	HapticsEnabled     bool
+	Language           string
 	MustChangePassword bool
 	TokenVersion       int64
 	CreatedAt          time.Time
@@ -191,6 +192,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 		&i.TimeFormat,
 		&i.TemperatureUnit,
 		&i.HapticsEnabled,
+		&i.Language,
 		&i.MustChangePassword,
 		&i.TokenVersion,
 		&i.CreatedAt,
@@ -199,7 +201,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, must_change_password, token_version, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 WHERE username = ?
 `
@@ -214,6 +216,7 @@ type GetUserByUsernameRow struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	HapticsEnabled     bool
+	Language           string
 	MustChangePassword bool
 	TokenVersion       int64
 	CreatedAt          time.Time
@@ -232,6 +235,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.TimeFormat,
 		&i.TemperatureUnit,
 		&i.HapticsEnabled,
+		&i.Language,
 		&i.MustChangePassword,
 		&i.TokenVersion,
 		&i.CreatedAt,
@@ -240,7 +244,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, must_change_password, token_version, created_at
+SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 ORDER BY created_at ASC
 `
@@ -255,6 +259,7 @@ type ListUsersRow struct {
 	TimeFormat         string
 	TemperatureUnit    string
 	HapticsEnabled     bool
+	Language           string
 	MustChangePassword bool
 	TokenVersion       int64
 	CreatedAt          time.Time
@@ -279,6 +284,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.TimeFormat,
 			&i.TemperatureUnit,
 			&i.HapticsEnabled,
+			&i.Language,
 			&i.MustChangePassword,
 			&i.TokenVersion,
 			&i.CreatedAt,
@@ -331,8 +337,9 @@ UPDATE users SET
     avatar_path      = COALESCE(?3,      avatar_path),
     time_format      = COALESCE(?4,      time_format),
     temperature_unit = COALESCE(?5, temperature_unit),
-    haptics_enabled   = COALESCE(?6,   haptics_enabled)
-WHERE id = ?7
+    haptics_enabled   = COALESCE(?6,   haptics_enabled),
+    language          = COALESCE(?7,          language)
+WHERE id = ?8
 `
 
 type UpdateUserProfileParams struct {
@@ -342,6 +349,7 @@ type UpdateUserProfileParams struct {
 	TimeFormat      *string
 	TemperatureUnit *string
 	HapticsEnabled  *bool
+	Language        *string
 	ID              string
 }
 
@@ -357,6 +365,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.TimeFormat,
 		arg.TemperatureUnit,
 		arg.HapticsEnabled,
+		arg.Language,
 		arg.ID,
 	)
 	return err

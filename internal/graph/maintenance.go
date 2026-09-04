@@ -8,9 +8,8 @@ import (
 
 func mapMaintenanceTask(reader device.StateReader, task maintenance.Task) *model.MaintenanceTask {
 	out := &model.MaintenanceTask{
-		ID: task.ID, Kind: maintenanceKindToModel(task.Kind), Title: task.Title,
-		Detail: task.Detail, Action: task.Action, CurrentValue: task.CurrentValue,
-		TargetValue: task.TargetValue, ActionURL: task.ActionURL,
+		ID: task.ID, Kind: maintenanceKindToModel(task.Kind), CurrentValue: task.CurrentValue,
+		TargetValue: task.TargetValue, Value: task.Value, Context: task.Context, ActionURL: task.ActionURL,
 	}
 	if task.Device != nil {
 		out.Device = mapDeviceFromReader(reader, *task.Device)

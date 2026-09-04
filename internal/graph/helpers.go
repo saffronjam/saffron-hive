@@ -45,17 +45,24 @@ func autoBucketSeconds(span time.Duration) int {
 
 // mapAlarm converts a grouped domain Alarm into its GraphQL model.
 func mapAlarm(a alarms.Alarm) *model.Alarm {
-	return &model.Alarm{
-		ID:            a.ID,
-		LatestRowID:   strconv.FormatInt(a.LatestRowID, 10),
-		Severity:      severityToModel(a.Severity),
-		Kind:          kindToModel(a.Kind),
-		Message:       a.Message,
-		Source:        a.Source,
-		Count:         a.Count,
-		FirstRaisedAt: a.FirstRaisedAt,
-		LastRaisedAt:  a.LastRaisedAt,
+	out := &model.Alarm{
+		ID:               a.ID,
+		LatestRowID:      strconv.FormatInt(a.LatestRowID, 10),
+		Severity:         severityToModel(a.Severity),
+		Kind:             kindToModel(a.Kind),
+		MessageArguments: a.MessageArguments,
+		Source:           a.Source,
+		Count:            a.Count,
+		FirstRaisedAt:    a.FirstRaisedAt,
+		LastRaisedAt:     a.LastRaisedAt,
 	}
+	if a.Message != "" {
+		out.Message = &a.Message
+	}
+	if a.MessageCode != "" {
+		out.MessageCode = &a.MessageCode
+	}
+	return out
 }
 
 // mapAlarmEvent converts a live bus Event into its GraphQL model.
@@ -129,7 +136,6 @@ func mapActivityEvent(row store.ActivityEvent) *model.ActivityEvent {
 		ID:        strconv.FormatInt(row.ID, 10),
 		Type:      row.Type,
 		Timestamp: row.Timestamp,
-		Message:   row.Message,
 		Payload:   row.PayloadJSON,
 		Source:    mapActivitySource(row),
 	}
@@ -734,6 +740,7 @@ func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolv
 			resolved = resolveSceneTarget(ctx, sr, s, string(target.Type), target.ID)
 		}
 		mapped.Targets[i] = &model.SceneTargetEntry{
+			ID:         target.EntryID,
 			TargetType: model.SceneTargetType(target.Type),
 			TargetID:   target.ID,
 			Target:     resolved,
@@ -802,9 +809,6 @@ func mapDynamicLighting(dynamic store.DynamicLighting) *model.DynamicSceneSource
 	}
 	if dynamic.Provenance.PresetID != "" {
 		mapped.PresetID = &dynamic.Provenance.PresetID
-	}
-	if dynamic.Provenance.PresetTitle != "" {
-		mapped.PresetTitle = &dynamic.Provenance.PresetTitle
 	}
 	for i, sample := range dynamic.Field.Samples {
 		mapped.Samples[i] = &model.VibeFieldSample{}
@@ -887,6 +891,7 @@ func mapUser(u store.User) *model.User {
 	mustChange := u.MustChangePassword
 	timeFormat := timeFormatFromStore(u.TimeFormat)
 	tempUnit := temperatureUnitFromStore(u.TemperatureUnit)
+	language := languageFromStore(u.Language)
 	return &model.User{
 		ID:                 u.ID,
 		Username:           u.Username,
@@ -896,8 +901,31 @@ func mapUser(u store.User) *model.User {
 		TimeFormat:         &timeFormat,
 		TemperatureUnit:    &tempUnit,
 		HapticsEnabled:     &u.HapticsEnabled,
+		Language:           &language,
 		CreatedAt:          &createdAt,
 		MustChangePassword: &mustChange,
+	}
+}
+
+func languageFromStore(s string) model.Language {
+	switch s {
+	case "sv":
+		return model.LanguageSv
+	case "ru":
+		return model.LanguageRu
+	default:
+		return model.LanguageEn
+	}
+}
+
+func languageToStore(language model.Language) string {
+	switch language {
+	case model.LanguageSv:
+		return "sv"
+	case model.LanguageRu:
+		return "ru"
+	default:
+		return "en"
 	}
 }
 
@@ -1462,17 +1490,24 @@ func clausesFromInput(inputs []*model.TargetClauseInput) []device.Clause {
 	return out
 }
 
-func sceneTargetsFromInput(inputs []*model.SceneTargetInput) []store.SceneTarget {
+func sceneTargetsFromInput(inputs []*model.SceneTargetInput, existing *store.SceneDefinition) []store.SceneTarget {
 	targets := make([]store.SceneTarget, len(inputs))
 	for i, input := range inputs {
+		entryID := uuid.NewString()
+		if id := input.ID.Value(); id != nil && *id != "" {
+			entryID = *id
+		} else if existing != nil && i < len(existing.Targets) {
+			entryID = existing.Targets[i].EntryID
+		}
 		targets[i] = store.SceneTarget{
+			EntryID:    entryID,
 			Type:       device.TargetType(input.TargetType),
 			Expression: clausesFromInput(input.Expression.Value()),
 		}
 		if id := input.TargetID.Value(); id != nil {
 			targets[i].ID = *id
 		}
-		if name := input.Name.Value(); name != nil {
+		if name := input.Name.Value(); name != nil && input.TargetType == model.SceneTargetTypeExpression {
 			targets[i].Name = *name
 		}
 	}

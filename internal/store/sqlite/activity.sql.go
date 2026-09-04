@@ -13,19 +13,18 @@ import (
 const insertActivityEvent = `-- name: InsertActivityEvent :one
 
 INSERT INTO activity_events (
-    type, timestamp, message, payload_json,
+    type, timestamp, payload_json,
     device_id, device_name, device_type, room_id, room_name,
     scene_id, scene_name,
     automation_id, automation_name,
     webhook_id, webhook_name
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id
 `
 
 type InsertActivityEventParams struct {
 	Type           string
 	Timestamp      time.Time
-	Message        string
 	PayloadJson    string
 	DeviceID       *string
 	DeviceName     *string
@@ -57,7 +56,6 @@ func (q *Queries) InsertActivityEvent(ctx context.Context, arg InsertActivityEve
 	row := q.db.QueryRowContext(ctx, insertActivityEvent,
 		arg.Type,
 		arg.Timestamp,
-		arg.Message,
 		arg.PayloadJson,
 		arg.DeviceID,
 		arg.DeviceName,
@@ -89,7 +87,7 @@ func (q *Queries) PruneActivityEventsOlderThan(ctx context.Context, timestamp ti
 }
 
 const queryActivityEvents = `-- name: QueryActivityEvents :many
-SELECT id, type, timestamp, message, payload_json,
+SELECT id, type, timestamp, payload_json,
        device_id, device_name, device_type, room_id, room_name,
        scene_id, scene_name,
        automation_id, automation_name,
@@ -138,7 +136,6 @@ func (q *Queries) QueryActivityEvents(ctx context.Context, arg QueryActivityEven
 			&i.ID,
 			&i.Type,
 			&i.Timestamp,
-			&i.Message,
 			&i.PayloadJson,
 			&i.DeviceID,
 			&i.DeviceName,

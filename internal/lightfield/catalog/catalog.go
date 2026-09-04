@@ -24,7 +24,6 @@ var (
 
 type rawPreset struct {
 	ID           string            `json:"id"`
-	Title        string            `json:"title"`
 	Category     string            `json:"category"`
 	Domain       lightfield.Domain `json:"domain"`
 	Seed         int64             `json:"seed"`
@@ -97,7 +96,7 @@ func Parse(data []byte) ([]lightfield.Preset, error) {
 	domains := map[lightfield.Domain]bool{}
 	entries := make([]lightfield.Preset, len(raw))
 	for i, item := range raw {
-		if item.ID == "" || item.Title == "" || item.Category == "" {
+		if item.ID == "" || item.Category == "" {
 			return nil, fmt.Errorf("catalogue entry %d is missing identity metadata", i)
 		}
 		if seen[item.ID] {
@@ -116,7 +115,6 @@ func Parse(data []byte) ([]lightfield.Preset, error) {
 		domains[item.Domain] = true
 		entries[i] = lightfield.Preset{
 			ID:       item.ID,
-			Title:    item.Title,
 			Category: item.Category,
 			Field:    item.Field,
 			Seed:     item.Seed,

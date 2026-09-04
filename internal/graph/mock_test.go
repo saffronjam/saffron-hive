@@ -10,6 +10,7 @@ import (
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
+	"github.com/saffronjam/saffron-hive/internal/localization"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
@@ -120,6 +121,8 @@ type mockStore struct {
 	effects             map[string]store.Effect
 	activeEffects       map[string]effect.ActiveEffectRecord
 	maintenanceAcks     []store.MaintenanceAcknowledgement
+	localizedNames      map[string]localization.NameSet
+	settings            map[string]string
 
 	createSceneCalled       bool
 	deleteSceneCalled       bool
@@ -238,6 +241,8 @@ func newMockStore() *mockStore {
 		users:           make(map[string]store.User),
 		effects:         make(map[string]store.Effect),
 		activeEffects:   make(map[string]effect.ActiveEffectRecord),
+		localizedNames:  make(map[string]localization.NameSet),
+		settings:        make(map[string]string),
 	}
 }
 
@@ -1025,11 +1030,45 @@ func (m *mockStore) DeleteTuyaConfig(_ context.Context) error {
 }
 
 func (m *mockStore) ListSettings(_ context.Context) ([]store.Setting, error) {
-	return nil, nil
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	settings := make([]store.Setting, 0, len(m.settings))
+	for key, value := range m.settings {
+		settings = append(settings, store.Setting{Key: key, Value: value})
+	}
+	return settings, nil
 }
 
-func (m *mockStore) UpsertSetting(_ context.Context, _, _ string) error {
+func (m *mockStore) UpsertSetting(_ context.Context, key, value string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.settings[key] = value
 	return nil
+}
+
+func (m *mockStore) ListLocalizedNameSets(_ context.Context) ([]localization.NameSet, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]localization.NameSet, 0, len(m.localizedNames))
+	for _, names := range m.localizedNames {
+		out = append(out, names)
+	}
+	return out, nil
+}
+
+func (m *mockStore) ReplaceLocalizedNameSet(_ context.Context, names localization.NameSet) (localization.NameSet, error) {
+	if err := names.Validate(); err != nil {
+		return localization.NameSet{}, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := names.EntityType + "\x00" + names.EntityID
+	current, ok := m.localizedNames[key]
+	if ok && current.SourceLanguage != names.SourceLanguage {
+		return localization.NameSet{}, errors.New("source language is immutable")
+	}
+	m.localizedNames[key] = names
+	return names, nil
 }
 
 func (m *mockStore) CreateRoom(_ context.Context, params store.CreateRoomParams) (store.Room, error) {
@@ -1201,6 +1240,9 @@ func (m *mockStore) UpdateUserProfile(_ context.Context, params store.UpdateUser
 	}
 	if params.HapticsEnabled != nil {
 		u.HapticsEnabled = *params.HapticsEnabled
+	}
+	if params.Language != nil {
+		u.Language = *params.Language
 	}
 	m.users[params.ID] = u
 	return u, nil

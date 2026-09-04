@@ -57,7 +57,6 @@ type ActivityEvent struct {
 	ID             int64
 	Type           string
 	Timestamp      time.Time
-	Message        string
 	PayloadJson    string
 	DeviceID       *string
 	DeviceName     *string
@@ -73,13 +72,15 @@ type ActivityEvent struct {
 }
 
 type Alarm struct {
-	ID       int64
-	AlarmID  string
-	Severity string
-	Kind     string
-	Message  string
-	Source   string
-	RaisedAt time.Time
+	ID               int64
+	AlarmID          string
+	Severity         string
+	Kind             string
+	Message          *string
+	MessageCode      *string
+	MessageArguments string
+	Source           string
+	RaisedAt         time.Time
 }
 
 type Automation struct {
@@ -270,6 +271,19 @@ type GroupTag struct {
 	Tag     device.GroupTag
 }
 
+type LocalizedName struct {
+	EntityType string
+	EntityID   string
+	Language   string
+	Value      string
+}
+
+type LocalizedNameSubject struct {
+	EntityType     string
+	EntityID       string
+	SourceLanguage string
+}
+
 type MaintenanceAcknowledgement struct {
 	TaskKey              string
 	ConditionFingerprint string
@@ -332,7 +346,6 @@ type SceneDynamicSource struct {
 	Domain            string
 	SourceKind        string
 	PresetID          *string
-	PresetTitle       *string
 	GuidedSelectedIds *string
 	Seed              int64
 	Brightness        float64
@@ -382,6 +395,7 @@ type SceneSupportingState struct {
 }
 
 type SceneTarget struct {
+	ID         string
 	SceneID    string
 	Position   int64
 	TargetType device.TargetType
@@ -424,6 +438,7 @@ type User struct {
 	TemperatureUnit    string
 	TokenVersion       int64
 	HapticsEnabled     bool
+	Language           string
 }
 
 type WebhookDelivery struct {

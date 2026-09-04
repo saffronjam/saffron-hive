@@ -21,24 +21,28 @@ func (s *DB) InsertAlarmTx(ctx context.Context, p InsertAlarmParams) (AlarmRow, 
 		isNew = existing == 0
 
 		inserted, err := q.InsertAlarm(ctx, sqlite.InsertAlarmParams{
-			AlarmID:  p.AlarmID,
-			Severity: string(p.Severity),
-			Kind:     string(p.Kind),
-			Message:  p.Message,
-			Source:   p.Source,
-			RaisedAt: p.RaisedAt,
+			AlarmID:          p.AlarmID,
+			Severity:         string(p.Severity),
+			Kind:             string(p.Kind),
+			Message:          p.Message,
+			MessageCode:      p.MessageCode,
+			MessageArguments: p.MessageArguments,
+			Source:           p.Source,
+			RaisedAt:         p.RaisedAt,
 		})
 		if err != nil {
 			return fmt.Errorf("insert alarm: %w", err)
 		}
 		row = AlarmRow{
-			ID:       inserted.ID,
-			AlarmID:  inserted.AlarmID,
-			Severity: AlarmSeverity(inserted.Severity),
-			Kind:     AlarmKind(inserted.Kind),
-			Message:  inserted.Message,
-			Source:   inserted.Source,
-			RaisedAt: inserted.RaisedAt,
+			ID:               inserted.ID,
+			AlarmID:          inserted.AlarmID,
+			Severity:         AlarmSeverity(inserted.Severity),
+			Kind:             AlarmKind(inserted.Kind),
+			Message:          inserted.Message,
+			MessageCode:      inserted.MessageCode,
+			MessageArguments: inserted.MessageArguments,
+			Source:           inserted.Source,
+			RaisedAt:         inserted.RaisedAt,
 		}
 		return nil
 	})
@@ -86,13 +90,15 @@ func (s *DB) ListAlarms(ctx context.Context) ([]AlarmRow, error) {
 	result := make([]AlarmRow, len(rows))
 	for i, r := range rows {
 		result[i] = AlarmRow{
-			ID:       r.ID,
-			AlarmID:  r.AlarmID,
-			Severity: AlarmSeverity(r.Severity),
-			Kind:     AlarmKind(r.Kind),
-			Message:  r.Message,
-			Source:   r.Source,
-			RaisedAt: r.RaisedAt,
+			ID:               r.ID,
+			AlarmID:          r.AlarmID,
+			Severity:         AlarmSeverity(r.Severity),
+			Kind:             AlarmKind(r.Kind),
+			Message:          r.Message,
+			MessageCode:      r.MessageCode,
+			MessageArguments: r.MessageArguments,
+			Source:           r.Source,
+			RaisedAt:         r.RaisedAt,
 		}
 	}
 	return result, nil

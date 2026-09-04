@@ -24,7 +24,6 @@ type Recommendations struct {
 // Preset is an immutable catalogue template.
 type Preset struct {
 	ID       string
-	Title    string
 	Category string
 	Field    Field
 	Seed     int64
@@ -56,7 +55,6 @@ type SourceRecipe struct {
 type Provenance struct {
 	Kind              SourceKind
 	PresetID          string
-	PresetTitle       string
 	GuidedDomain      Domain
 	GuidedSelectedIDs []string
 }
@@ -96,7 +94,7 @@ func Compile(recipe SourceRecipe, lookup PresetLookup) (CompiledSource, error) {
 			Field:      cloneField(preset.Field),
 			Seed:       seed,
 			Defaults:   preset.Defaults,
-			Provenance: Provenance{Kind: SourcePreset, PresetID: preset.ID, PresetTitle: preset.Title},
+			Provenance: Provenance{Kind: SourcePreset, PresetID: preset.ID},
 		}, nil
 	case SourcePhoto:
 		if recipe.Photo == nil || recipe.Preset != nil || recipe.Guided != nil {

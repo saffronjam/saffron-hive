@@ -1,8 +1,7 @@
 [
   {
     "id": "sunset-glow",
-    "title": "Sunset Glow",
-    "category": "Nature",
+    "category": "nature",
     "domain": "full_color",
     "seed": 1101,
     "brightness": 0.82,
@@ -12,8 +11,7 @@
   },
   {
     "id": "night-sky",
-    "title": "Night Sky",
-    "category": "Nature",
+    "category": "nature",
     "domain": "full_color",
     "seed": 2202,
     "brightness": 0.58,
@@ -23,8 +21,7 @@
   },
   {
     "id": "forest-canopy",
-    "title": "Forest Canopy",
-    "category": "Nature",
+    "category": "nature",
     "domain": "full_color",
     "seed": 3303,
     "brightness": 0.72,
@@ -34,8 +31,7 @@
   },
   {
     "id": "ocean-drift",
-    "title": "Ocean Drift",
-    "category": "Nature",
+    "category": "nature",
     "domain": "full_color",
     "seed": 4404,
     "brightness": 0.76,
@@ -45,8 +41,7 @@
   },
   {
     "id": "ember-hearth",
-    "title": "Ember Hearth",
-    "category": "Atmosphere",
+    "category": "atmosphere",
     "domain": "full_color",
     "seed": 5505,
     "brightness": 0.7,
@@ -56,8 +51,7 @@
   },
   {
     "id": "aurora-haze",
-    "title": "Aurora Haze",
-    "category": "Atmosphere",
+    "category": "atmosphere",
     "domain": "full_color",
     "seed": 6606,
     "brightness": 0.78,
@@ -67,8 +61,7 @@
   },
   {
     "id": "candlelight",
-    "title": "Candlelight",
-    "category": "Whites",
+    "category": "whites",
     "domain": "white_ambience",
     "seed": 7707,
     "brightness": 0.55,
@@ -78,8 +71,7 @@
   },
   {
     "id": "warm-evening",
-    "title": "Warm Evening",
-    "category": "Whites",
+    "category": "whites",
     "domain": "white_ambience",
     "seed": 8808,
     "brightness": 0.68,
@@ -89,8 +81,7 @@
   },
   {
     "id": "neutral-focus",
-    "title": "Neutral Focus",
-    "category": "Whites",
+    "category": "whites",
     "domain": "white_ambience",
     "seed": 9909,
     "brightness": 0.86,
@@ -100,8 +91,7 @@
   },
   {
     "id": "cool-morning",
-    "title": "Cool Morning",
-    "category": "Whites",
+    "category": "whites",
     "domain": "white_ambience",
     "seed": 10110,
     "brightness": 0.9,

@@ -260,7 +260,7 @@ func guidedSelections(t *testing.T, domain, seed string, count int) []string {
 		data, err := graphqlQuery(`query($input: GuidedVibeRoundInput!) {
 			guidedVibeRound(input: $input) {
 				round canFinish complete
-				options { id title preview { width height pixels { r g b } swatches { x y color { r g b } } } }
+				options { id labelId preview { width height pixels { r g b } swatches { x y color { r g b } } } }
 			}
 		}`, map[string]any{"input": map[string]any{"domain": domain, "seed": seed, "selectedIds": selected}})
 		if err != nil {
@@ -294,7 +294,7 @@ func guidedSelections(t *testing.T, domain, seed string, count int) []string {
 
 func TestScenesAllVibeSourcesAndDomains(t *testing.T) {
 	data, err := graphqlQuery(`{
-		vibePresets { id title category domain seed brightness movement cycleSeconds preview { width height pixels { r g b } } }
+		vibePresets { id category domain seed brightness movement cycleSeconds preview { width height pixels { r g b } } }
 	}`, nil)
 	if err != nil {
 		t.Fatalf("query Vibe gallery: %v", err)

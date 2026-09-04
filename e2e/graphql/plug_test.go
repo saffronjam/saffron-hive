@@ -4,7 +4,6 @@ package graphql_test
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
@@ -65,8 +64,7 @@ func TestPlug_MeteringState(t *testing.T) {
 	}
 }
 
-// A plug reporting power metering must render in the activity feed as
-// something other than "<name> pressed". Plugs don't emit action events.
+// A plug reporting power metering is a state change, not an action event.
 func TestPlug_ActivityNotPressed(t *testing.T) {
 	plugState, err := infra.LoadPlugState()
 	if err != nil {
@@ -80,7 +78,7 @@ func TestPlug_ActivityNotPressed(t *testing.T) {
 	ok := pollUntil(5*time.Second, 100*time.Millisecond, func() bool {
 		data, err := graphqlQuery(`{
 			activity(filter: {limit: 20}) {
-				message
+				type
 				source { name }
 			}
 		}`, nil)
@@ -89,8 +87,8 @@ func TestPlug_ActivityNotPressed(t *testing.T) {
 		}
 		var result struct {
 			Activity []struct {
-				Message string `json:"message"`
-				Source  struct {
+				Type   string `json:"type"`
+				Source struct {
 					Name *string `json:"name"`
 				} `json:"source"`
 			} `json:"activity"`
@@ -100,10 +98,10 @@ func TestPlug_ActivityNotPressed(t *testing.T) {
 		}
 		for _, row := range result.Activity {
 			if row.Source.Name != nil && *row.Source.Name == "Lava Lamp" {
-				if strings.Contains(strings.ToLower(row.Message), "pressed") {
-					t.Fatalf("regression: plug metering rendered as %q (contains 'pressed')", row.Message)
+				if row.Type == "device.action_fired" {
+					t.Fatal("plug metering was recorded as a device action")
 				}
-				return true
+				return row.Type == "device.state_changed"
 			}
 		}
 		return false

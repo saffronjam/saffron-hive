@@ -20,12 +20,12 @@ type GuidedRecipe struct {
 	SelectedIDs []string `json:"selectedIds"`
 }
 
-// GuidedOption is one accessible choice presented in a guided round.
+// GuidedOption is one semantic choice presented in a guided round.
 type GuidedOption struct {
-	ID    string
-	Title string
-	Color *ColorSample
-	White *WhiteSample
+	ID      string
+	LabelID string
+	Color   *ColorSample
+	White   *WhiteSample
 }
 
 // GuidedOptions returns the next deterministic choices. Existing
@@ -109,9 +109,9 @@ func guidedColorOptions(seed int64, round int, selected []GuidedOption) []Guided
 		lightness := clamp(baseLightness+lightnessOffsets[i], 0.46, 0.82)
 		colour := ColorSample{Lightness: lightness, Chroma: 0.13 + 0.015*float64((round+i)%3), Hue: hue}
 		options[i] = GuidedOption{
-			ID:    guidedOptionID(DomainFullColor, seed, round, i, selected),
-			Title: guidedColorTitle(hue),
-			Color: &colour,
+			ID:      guidedOptionID(DomainFullColor, seed, round, i, selected),
+			LabelID: guidedColorLabel(hue),
+			Color:   &colour,
 		}
 	}
 	return permuteGuidedOptions(options, seed, round)
@@ -121,16 +121,16 @@ func guidedWhiteOptions(seed int64, round int, selected []GuidedOption) []Guided
 	baseMireds, baseBrightness := guidedWhitePreference(selected)
 	var mireds []float64
 	var brightnesses []float64
-	var titles []string
+	var labels []string
 	if round == 0 {
 		mireds = []float64{165, 240, 310, 400, 490}
 		brightnesses = []float64{0.82, 0.72, 0.65, 0.58, 0.48}
-		titles = []string{"Daylight", "Cool", "Neutral", "Warm", "Candlelight"}
+		labels = []string{"daylight", "cool", "neutral", "warm", "candlelight"}
 	} else {
 		spread := max(48, 80-float64(round)*8)
 		mireds = []float64{baseMireds - 2*spread, baseMireds, baseMireds, baseMireds, baseMireds + 2*spread}
 		brightnesses = []float64{baseBrightness + 0.06, baseBrightness + 0.16, baseBrightness, baseBrightness - 0.16, baseBrightness - 0.06}
-		titles = []string{"Cooler", "Brighter", "Balanced", "Softer", "Warmer"}
+		labels = []string{"cooler", "brighter", "balanced", "softer", "warmer"}
 	}
 	options := make([]GuidedOption, guidedOptionCount)
 	for i := range options {
@@ -139,9 +139,9 @@ func guidedWhiteOptions(seed int64, round int, selected []GuidedOption) []Guided
 			Mireds:     clamp(mireds[i], 160, 500),
 		}
 		options[i] = GuidedOption{
-			ID:    guidedOptionID(DomainWhiteAmbience, seed, round, i, selected),
-			Title: titles[i],
-			White: &white,
+			ID:      guidedOptionID(DomainWhiteAmbience, seed, round, i, selected),
+			LabelID: labels[i],
+			White:   &white,
 		}
 	}
 	return permuteGuidedOptions(options, seed, round)
@@ -335,7 +335,7 @@ func permuteGuidedOptions(options []GuidedOption, seed int64, round int) []Guide
 	return result
 }
 
-func guidedColorTitle(hue float64) string {
-	names := []string{"Ember", "Amber", "Gold", "Meadow", "Leaf", "Mint", "Lagoon", "Sky", "Indigo", "Violet", "Orchid", "Rose"}
+func guidedColorLabel(hue float64) string {
+	names := []string{"ember", "amber", "gold", "meadow", "leaf", "mint", "lagoon", "sky", "indigo", "violet", "orchid", "rose"}
 	return names[int(math.Mod(hue+15, 360)/30)%len(names)]
 }

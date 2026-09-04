@@ -180,11 +180,12 @@ func collectChecks(
 			alarmID: "system.disk_low",
 			active:  free < DiskFreeThreshold,
 			raise: RaiseParams{
-				AlarmID:  "system.disk_low",
-				Severity: store.AlarmSeverityHigh,
-				Kind:     store.AlarmKindAuto,
-				Message:  fmt.Sprintf("Disk free space is %.1f%%, below %.0f%% threshold", free*100, DiskFreeThreshold*100),
-				Source:   MonitorSource,
+				AlarmID:          "system.disk_low",
+				Severity:         store.AlarmSeverityHigh,
+				Kind:             store.AlarmKindAuto,
+				MessageCode:      "disk_low",
+				MessageArguments: MessageArguments{Value: free * 100, Threshold: DiskFreeThreshold * 100},
+				Source:           MonitorSource,
 			},
 		})
 	}
@@ -194,11 +195,12 @@ func collectChecks(
 		alarmID: "system.memory_high",
 		active:  heapBytes > HeapBytesThreshold,
 		raise: RaiseParams{
-			AlarmID:  "system.memory_high",
-			Severity: store.AlarmSeverityMedium,
-			Kind:     store.AlarmKindAuto,
-			Message:  fmt.Sprintf("Go heap allocation is %d MiB, above %d MiB threshold", heapBytes/1024/1024, HeapBytesThreshold/1024/1024),
-			Source:   MonitorSource,
+			AlarmID:          "system.memory_high",
+			Severity:         store.AlarmSeverityMedium,
+			Kind:             store.AlarmKindAuto,
+			MessageCode:      "memory_high",
+			MessageArguments: MessageArguments{Value: float64(heapBytes / 1024 / 1024), Threshold: float64(HeapBytesThreshold / 1024 / 1024)},
+			Source:           MonitorSource,
 		},
 	})
 
@@ -210,11 +212,11 @@ func collectChecks(
 			alarmID: "system.zigbee2mqtt_disconnected",
 			active:  !probe.Zigbee2MQTTConnected(),
 			raise: RaiseParams{
-				AlarmID:  "system.zigbee2mqtt_disconnected",
-				Severity: store.AlarmSeverityHigh,
-				Kind:     store.AlarmKindAuto,
-				Message:  "Zigbee2MQTT broker is disconnected",
-				Source:   MonitorSource,
+				AlarmID:     "system.zigbee2mqtt_disconnected",
+				Severity:    store.AlarmSeverityHigh,
+				Kind:        store.AlarmKindAuto,
+				MessageCode: "broker_disconnected",
+				Source:      MonitorSource,
 			},
 		})
 	}
@@ -235,11 +237,12 @@ func collectChecks(
 				alarmID: alarmID,
 				active:  stale,
 				raise: RaiseParams{
-					AlarmID:  alarmID,
-					Severity: store.AlarmSeverityMedium,
-					Kind:     store.AlarmKindAuto,
-					Message:  fmt.Sprintf("Device %q has not reported recently", d.DisplayName()),
-					Source:   MonitorSource,
+					AlarmID:          alarmID,
+					Severity:         store.AlarmSeverityMedium,
+					Kind:             store.AlarmKindAuto,
+					MessageCode:      "device_unavailable",
+					MessageArguments: MessageArguments{DeviceName: d.DisplayName()},
+					Source:           MonitorSource,
 				},
 			})
 
@@ -250,11 +253,12 @@ func collectChecks(
 					alarmID: batteryID,
 					active:  true,
 					raise: RaiseParams{
-						AlarmID:  batteryID,
-						Severity: store.AlarmSeverityLow,
-						Kind:     store.AlarmKindAuto,
-						Message:  fmt.Sprintf("Device %q battery is %.0f%%", d.DisplayName(), *state.Battery),
-						Source:   MonitorSource,
+						AlarmID:          batteryID,
+						Severity:         store.AlarmSeverityLow,
+						Kind:             store.AlarmKindAuto,
+						MessageCode:      "battery_low",
+						MessageArguments: MessageArguments{DeviceName: d.DisplayName(), Value: *state.Battery},
+						Source:           MonitorSource,
 					},
 				})
 			} else {

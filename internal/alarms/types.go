@@ -16,15 +16,17 @@ import (
 // most recent one and whose Count is the number of rows currently in the
 // group.
 type Alarm struct {
-	ID            string
-	LatestRowID   int64
-	Severity      store.AlarmSeverity
-	Kind          store.AlarmKind
-	Message       string
-	Source        string
-	Count         int
-	FirstRaisedAt time.Time
-	LastRaisedAt  time.Time
+	ID               string
+	LatestRowID      int64
+	Severity         store.AlarmSeverity
+	Kind             store.AlarmKind
+	Message          string
+	MessageCode      string
+	MessageArguments string
+	Source           string
+	Count            int
+	FirstRaisedAt    time.Time
+	LastRaisedAt     time.Time
 }
 
 // EventKind classifies an AlarmEvent — raised (new group or bump of existing)
@@ -45,9 +47,18 @@ type Event struct {
 
 // RaiseParams is the payload accepted by Service.Raise.
 type RaiseParams struct {
-	AlarmID  string
-	Severity store.AlarmSeverity
-	Kind     store.AlarmKind
-	Message  string
-	Source   string
+	AlarmID          string
+	Severity         store.AlarmSeverity
+	Kind             store.AlarmKind
+	Message          string
+	MessageCode      string
+	MessageArguments MessageArguments
+	Source           string
+}
+
+// MessageArguments contains the structured values used by monitor alarm messages.
+type MessageArguments struct {
+	DeviceName string  `json:"deviceName,omitempty"`
+	Value      float64 `json:"value,omitempty"`
+	Threshold  float64 `json:"threshold,omitempty"`
 }

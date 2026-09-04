@@ -58,8 +58,23 @@ FROM effect_tracks
 WHERE effect_id = ?
 ORDER BY track_index;
 
--- name: DeleteEffectTracksByEffect :exec
-DELETE FROM effect_tracks WHERE effect_id = ?;
+-- name: ParkEffectTrackIndexes :exec
+UPDATE effect_tracks
+SET track_index = -track_index - 1
+WHERE effect_id = ?;
+
+-- name: DeleteEffectTracksExcept :exec
+DELETE FROM effect_tracks
+WHERE effect_id = sqlc.arg('effect_id')
+  AND id NOT IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
+
+-- name: UpdateEffectTrack :execrows
+UPDATE effect_tracks
+SET track_index = sqlc.arg('track_index'), name = sqlc.arg('name')
+WHERE id = sqlc.arg('id') AND effect_id = sqlc.arg('effect_id');
+
+-- name: DeleteEffectClipsByTrack :exec
+DELETE FROM effect_clips WHERE track_id = ?;
 
 -- name: CreateEffectClip :exec
 INSERT INTO effect_clips (id, track_id, start_ms, transition_min_ms, transition_max_ms, kind, config)

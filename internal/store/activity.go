@@ -22,7 +22,6 @@ func (s *DB) InsertActivityEvent(ctx context.Context, params InsertActivityEvent
 	id, err := s.q.InsertActivityEvent(ctx, sqlite.InsertActivityEventParams{
 		Type:           params.Type,
 		Timestamp:      params.Timestamp,
-		Message:        params.Message,
 		PayloadJson:    params.PayloadJSON,
 		DeviceID:       params.DeviceID,
 		DeviceName:     params.DeviceName,
@@ -43,7 +42,6 @@ func (s *DB) InsertActivityEvent(ctx context.Context, params InsertActivityEvent
 		ID:             id,
 		Type:           params.Type,
 		Timestamp:      params.Timestamp,
-		Message:        params.Message,
 		PayloadJSON:    params.PayloadJSON,
 		DeviceID:       params.DeviceID,
 		DeviceName:     params.DeviceName,
@@ -93,7 +91,6 @@ func (s *DB) QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]Ac
 			ID:             r.ID,
 			Type:           r.Type,
 			Timestamp:      r.Timestamp,
-			Message:        r.Message,
 			PayloadJSON:    r.PayloadJson,
 			DeviceID:       r.DeviceID,
 			DeviceName:     r.DeviceName,

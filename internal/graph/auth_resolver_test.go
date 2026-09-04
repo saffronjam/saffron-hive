@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/saffronjam/saffron-hive/internal/auth"
@@ -20,6 +21,34 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func TestUpdateCurrentUserLanguage(t *testing.T) {
+	st := newMockStore()
+	st.users["u-1"] = store.User{ID: "u-1", Username: "alice", Name: "Alice", Language: "en"}
+	resolver := &mutationResolver{&Resolver{Store: st}}
+	ctx := auth.WithUser(context.Background(), auth.CtxUser{ID: "u-1"})
+	language := model.LanguageSv
+
+	updated, err := resolver.UpdateCurrentUser(ctx, model.UpdateCurrentUserInput{
+		Language: graphql.OmittableOf(&language),
+	})
+	if err != nil {
+		t.Fatalf("UpdateCurrentUser: %v", err)
+	}
+	if updated.Language == nil || *updated.Language != model.LanguageSv {
+		t.Fatalf("language = %v, want SV", updated.Language)
+	}
+	stored, err := st.GetUserByID(ctx, "u-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Language != "sv" {
+		t.Fatalf("stored language = %q, want sv", stored.Language)
+	}
+	if ref := mapUserRef(&store.UserRef{ID: "u-1", Username: "alice", Name: "Alice"}); ref.Language != nil {
+		t.Fatalf("attribution language = %v, want nil", ref.Language)
+	}
+}
 
 // mockBootstrapToken is an in-memory BootstrapTokenChecker so resolver tests
 // can exercise the createInitialUser gate without touching the filesystem.
