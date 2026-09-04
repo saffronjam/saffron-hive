@@ -21,8 +21,10 @@
 	} from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
-	import { deviceIcon, sentenceCase, deviceDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { Ban, CircleCheck, DoorOpen, Group as GroupIcon, Plus, Trash2, Undo2 } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface MembershipChip {
 		id: string;
@@ -61,7 +63,7 @@
 		newDeviceIds,
 	}: Props = $props();
 
-	const COLUMNS: ColumnDef<Row>[] = [
+	const COLUMNS = $derived.by<ColumnDef<Row>[]>(() => [
 		{
 			key: "select",
 			label: "",
@@ -80,31 +82,31 @@
 		},
 		{
 			key: "name",
-			label: "Name",
-			sortValue: (r) => r.device.name,
+			label: m.field_name({}, locale.messageOptions()),
+			sortValue: (r) => deviceDisplayName(r.device),
 			cell: nameCell,
 		},
 		{
 			key: "type",
-			label: "Type",
+			label: m.field_type({}, locale.messageOptions()),
 			headClass: "w-24",
 			sortValue: (r) => r.device.type,
 			cell: typeCell,
 		},
 		{
 			key: "source",
-			label: "Source",
+			label: m.field_source({}, locale.messageOptions()),
 			sortValue: (r) => r.device.source,
 			cell: sourceCell,
 		},
 		{
 			key: "membership",
-			label: "Rooms & Groups",
+			label: m.field_rooms_groups({}, locale.messageOptions()),
 			cell: membershipCell,
 		},
 		{
 			key: "state",
-			label: "State",
+			label: m.field_state({}, locale.messageOptions()),
 			cell: stateCell,
 		},
 		{
@@ -115,9 +117,9 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+	]);
 
-	const tableState = createTableState({ storageKey: "devices", columns: COLUMNS });
+	const tableState = createTableState({ storageKey: "devices", columns: () => COLUMNS });
 
 	const displayRows = $derived(tableState.applySort(rows));
 	const displayIds = $derived<readonly string[]>(
@@ -135,7 +137,10 @@
 		id={row.device.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {row.device.name}"
+		ariaLabel={m.shared_select_item(
+			{ name: deviceDisplayName(row.device) },
+			locale.messageOptions(),
+		)}
 	/>
 {/snippet}
 
@@ -155,31 +160,33 @@
 	<div class="flex items-center gap-2">
 		<InlineEditName
 			name={deviceDisplayName(row.device)}
+			entityType="device"
+			entityId={row.device.id}
 			onsave={(newName) => onrename(row.device.id, newName)}
 		/>
 		{#if newDeviceIds?.has(row.device.id)}
-			<HiveChip type="new" label="New" />
+			<HiveChip type="new" label={m.field_new({}, locale.messageOptions())} />
 		{/if}
 		{#if row.device.deleted}
 			<Trash2
 				class="size-3.5 shrink-0 text-muted-foreground"
-				title="Deleted"
-				aria-label="Deleted"
+				title={m.field_deleted({}, locale.messageOptions())}
+				aria-label={m.field_deleted({}, locale.messageOptions())}
 			/>
 		{:else if row.device.disabled}
 			<Ban
 				class="size-3.5 shrink-0 text-muted-foreground"
-				title="Disabled"
-				aria-label="Disabled"
+				title={m.field_disabled({}, locale.messageOptions())}
+				aria-label={m.field_disabled({}, locale.messageOptions())}
 			/>
 		{:else if !row.device.available}
-			<HiveChip type="offline" label="Offline" />
+			<HiveChip type="offline" label={m.devices_offline({}, locale.messageOptions())} />
 		{/if}
 	</div>
 {/snippet}
 
 {#snippet sourceCell(row: Row)}
-	<Badge variant="outline">{sentenceCase(row.device.source)}</Badge>
+	<Badge variant="outline">{row.device.source}</Badge>
 {/snippet}
 
 {#snippet membershipCell(row: Row)}
@@ -227,7 +234,7 @@
 		{/if}
 	{:else}
 		{@const summary = stateSummary(row.device.state, row.device.type)}
-		{#if row.device.type === "button" || summary === "Unknown" || summary === "—"}
+		{#if row.device.type === "button" || summary === m.state_unknown({}, locale.messageOptions()) || summary === "—"}
 			<span class="text-sm text-muted-foreground">{summary}</span>
 		{:else}
 			<SensorHistoryPopover
@@ -249,9 +256,12 @@
 {#snippet actionsCell(row: Row)}
 	<RowActionsCell
 		editHref={`/devices/${row.device.id}`}
-		editLabel="Edit device"
+		editLabel={m.devices_edit({}, locale.messageOptions())}
 		ondelete={row.device.deleted ? undefined : () => ondelete(row.device)}
-		deleteLabel={`Delete ${deviceDisplayName(row.device)}`}
+		deleteLabel={m.devices_delete_named(
+			{ name: deviceDisplayName(row.device) },
+			locale.messageOptions(),
+		)}
 	>
 		{#snippet leading()}
 			{#if row.device.deleted}
@@ -259,7 +269,10 @@
 					variant="ghost"
 					size="icon-sm"
 					onclick={() => onrestore(row.device)}
-					aria-label={`Restore ${deviceDisplayName(row.device)}`}
+					aria-label={m.devices_restore_named(
+						{ name: deviceDisplayName(row.device) },
+						locale.messageOptions(),
+					)}
 				>
 					<Undo2 class="size-4" />
 				</Button>
@@ -269,7 +282,7 @@
 					variant="ghost"
 					size="icon-sm"
 					onclick={() => onAddTo(row.device)}
-					aria-label="Add to room or group"
+					aria-label={m.devices_add_to_action({}, locale.messageOptions())}
 				>
 					<Plus class="size-4" />
 				</Button>
@@ -277,7 +290,9 @@
 					variant="ghost"
 					size="icon-sm"
 					onclick={() => ontoggleenabled(row.device)}
-					aria-label={row.device.disabled ? "Enable device" : "Disable device"}
+					aria-label={row.device.disabled
+						? m.devices_enable({}, locale.messageOptions())
+						: m.devices_disable({}, locale.messageOptions())}
 				>
 					{#if row.device.disabled}
 						<CircleCheck class="size-4" />

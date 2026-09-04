@@ -42,7 +42,7 @@
 		Info,
 		X,
 	} from "@lucide/svelte";
-	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { fly } from "svelte/transition";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
@@ -51,8 +51,10 @@
 	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { groupsStore, type Group, type GroupMember } from "$lib/stores/groups.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
-	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { CommandTargetType } from "$lib/gql/graphql";
+	import { m } from "$lib/paraglide/messages.js";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 	interface Props {
 		/**
@@ -91,11 +93,6 @@
 		return flattenGroupDevicesShared(group, devices, groups, allRooms);
 	}
 
-	function memberDeviceName(deviceId: string): string {
-		const device = $deviceStore[deviceId];
-		return device ? deviceDisplayName(device) : deviceId;
-	}
-
 	async function commitGroupBrightness(group: Group, brightness: number) {
 		await commitGroupBrightnessShared(client, flattenGroupDevices(group), brightness, { targetType: CommandTargetType.Group, targetId: group.id });
 	}
@@ -116,48 +113,60 @@
 		active: () => visible && page.url.pathname === "/groups",
 	});
 
-	const emptyOptions = [
-		{ value: "yes", label: "Yes" },
-		{ value: "no", label: "No" },
-	];
-	const sourceOptions = [
+	const emptyOptions = $derived([
+		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
+		{ value: "no", label: m.common_no({}, locale.messageOptions()) },
+	]);
+	const sourceOptions = $derived([
 		{ value: "hive", label: "Hive" },
 		{ value: "zigbee2mqtt", label: "Zigbee" },
-	];
+	]);
 
 	const searchChipConfigs: ChipConfig[] = $derived([
 		{
 			keyword: "device",
-			label: "Device",
+			label: m.field_device({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devices
-					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
-					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
+					.filter(
+						(d) =>
+							!q ||
+							localizedNamesStore.matches("device", d.id, q, d.name, d.friendlyName),
+					)
+					.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
+			},
+			resolveLabel: (id: string) => {
+				const device = devices.find((item) => item.id === id);
+				return device ? deviceDisplayName(device) : null;
 			},
 		},
 		{
 			keyword: "room",
-			label: "Room",
+			label: m.room_generic({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return allRooms
-					.filter((r) => !q || r.name.toLowerCase().includes(q))
-					.map((r) => ({ value: r.name, label: r.name }));
+					.filter((r) => !q || localizedNamesStore.matches("room", r.id, q, r.name))
+					.map((r) => ({ value: r.id, label: entityDisplayName("room", r) }));
+			},
+			resolveLabel: (id: string) => {
+				const room = allRooms.find((item) => item.id === id);
+				return room ? entityDisplayName("room", room) : null;
 			},
 		},
 		{
 			keyword: "source",
-			label: "Source",
+			label: m.field_source({}, locale.messageOptions()),
 			variant: "secondary",
 			options: () => sourceOptions,
 			resolveLabel: (value: string) => sourceOptions.find((option) => option.value === value)?.label ?? null,
 		},
 		{
 			keyword: "empty",
-			label: "Empty",
+			label: m.field_empty({}, locale.messageOptions()),
 			variant: "secondary",
 			options: () => emptyOptions,
 		},
@@ -182,7 +191,7 @@
 					g.members.some(
 						(m) =>
 							m.memberType === "device" &&
-							memberDeviceName(m.memberId).toLowerCase().includes(v),
+							m.memberId === v,
 					),
 				)
 			)
@@ -193,7 +202,7 @@
 					g.members.some(
 						(m) =>
 							m.memberType === "room" &&
-							(roomsStore.byId.get(m.memberId)?.name ?? "").toLowerCase().includes(v),
+							m.memberId === v,
 					),
 				)
 			)
@@ -203,7 +212,7 @@
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
-			if (query && !groupDisplayName(g).toLowerCase().includes(query)) return false;
+			if (query && !localizedNamesStore.matches("group", g.id, query, g.name, g.friendlyName)) return false;
 			return true;
 		});
 	});
@@ -260,38 +269,38 @@
 		const result: DrawerGroup<"device" | "group" | "room">[] = [];
 		if (devAvail.length > 0) {
 			result.push({
-				heading: "Devices",
+				heading: m.nav_devices({}, locale.messageOptions()),
 				items: devAvail.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
-					searchValue: `${d.name} ${d.type}`,
+					searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 				})),
 			});
 		}
 		if (grpAvail.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.nav_groups({}, locale.messageOptions()),
 				items: grpAvail.map((g) => ({
 					type: "group" as const,
 					id: g.id,
 					name: groupDisplayName(g),
 					icon: GroupIcon,
-					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+					badge: m.shared_member_count({ count: g.members.length }, locale.messageOptions()),
 				})),
 			});
 		}
 		if (roomAvail.length > 0) {
 			result.push({
-				heading: "Rooms",
+				heading: m.nav_rooms({}, locale.messageOptions()),
 				items: roomAvail.map((r) => ({
 					type: "room" as const,
 					id: r.id,
-					name: r.name,
+					name: entityDisplayName("room", r),
 					icon: DoorOpen,
-					badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
+					badge: m.shared_device_count({ count: r.resolvedDevices.length }, locale.messageOptions()),
 				})),
 			});
 		}
@@ -309,7 +318,8 @@
 		try {
 			await groupsStore.addMember(client, groupId, memberType, memberId);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not add the member."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.member_add_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -325,19 +335,19 @@
 	$effect(() => {
 		if (!visible) return;
 		if (editingGroup) {
-			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: groupDisplayName(editingGroup) }];
+			pageHeader.breadcrumbs = [{ label: m.nav_groups({}, locale.messageOptions()), onclick: stopEditing }, { label: groupDisplayName(editingGroup) }];
 			pageHeader.actions = [
-				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
-				{ label: "Save", saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading || (editingGroup.source === "hive" && !editName.trim()), hideLabelOnMobile: true },
+				{ label: m.common_cancel({}, locale.messageOptions()), icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
+				{ label: m.common_save({}, locale.messageOptions()), saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading || (editingGroup.source === "hive" && !editName.trim()), hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
-			pageHeader.breadcrumbs = [{ label: "Groups", onclick: stopEditing }, { label: "…" }];
+			pageHeader.breadcrumbs = [{ label: m.nav_groups({}, locale.messageOptions()), onclick: stopEditing }, { label: "…" }];
 			pageHeader.actions = [];
 			pageHeader.viewToggle = null;
 		} else {
-			pageHeader.breadcrumbs = [{ label: "Groups" }];
-			pageHeader.actions = [{ label: "Create Group", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
+			pageHeader.breadcrumbs = [{ label: m.nav_groups({}, locale.messageOptions()) }];
+			pageHeader.actions = [{ label: m.group_create({}, locale.messageOptions()), mobileLabel: m.group_create({}, locale.messageOptions()), icon: Plus, onclick: () => (createDialogOpen = true) }];
 			pageHeader.viewToggle = {
 				value: view,
 				onchange: (v) => {
@@ -358,7 +368,8 @@
 			created = await groupsStore.create(client, newGroupName.trim());
 		} catch (e) {
 			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not create the group."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.group_create_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -448,7 +459,8 @@
 			}
 		} catch (e) {
 			editLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not save the group."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.group_save_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -476,7 +488,8 @@
 			await groupsStore.deleteMany(client, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the groups."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.group_delete_many_failed({}, locale.messageOptions()));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -494,7 +507,8 @@
 			await groupsStore.delete(client, deleteConfirmGroup.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the group."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.group_delete_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -524,7 +538,8 @@
 		try {
 			await groupsStore.update(client, group.id, { name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not rename the group."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.group_rename_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -533,7 +548,8 @@
 		try {
 			await groupsStore.update(client, group.id, { icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not change the icon."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.icon_change_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -563,22 +579,24 @@
 	const pickerDrawerGroups = $derived.by((): DrawerGroup<"device" | "group" | "room">[] => {
 		const result: DrawerGroup<"device" | "group" | "room">[] = [];
 		if (availableDevices.length > 0) {
-			result.push({ heading: "Devices", items: availableDevices.map((d) => ({
+			result.push({ heading: m.nav_devices({}, locale.messageOptions()), items: availableDevices.map((d) => ({
 				type: "device" as const, id: d.id, name: deviceDisplayName(d),
 				icon: deviceIcon(d.type, d.roles.contact), iconRef: d.icon ?? null,
-				searchValue: `${deviceDisplayName(d)} ${d.type}`,
+				searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 			}))});
 		}
 		if (availableGroups.length > 0) {
-			result.push({ heading: "Groups", items: availableGroups.map((g) => ({
+			result.push({ heading: m.nav_groups({}, locale.messageOptions()), items: availableGroups.map((g) => ({
 				type: "group" as const, id: g.id, name: groupDisplayName(g), icon: GroupIcon,
-				badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+				searchValue: localizedNamesStore.searchValues("group", g.id, g.name, g.friendlyName).join(" "),
+				badge: m.shared_member_count({ count: g.members.length }, locale.messageOptions()),
 			}))});
 		}
 		if (availableRooms.length > 0) {
-			result.push({ heading: "Rooms", items: availableRooms.map((r) => ({
-				type: "room" as const, id: r.id, name: r.name, icon: DoorOpen,
-				badge: `${r.resolvedDevices.length} device${r.resolvedDevices.length === 1 ? "" : "s"}`,
+			result.push({ heading: m.nav_rooms({}, locale.messageOptions()), items: availableRooms.map((r) => ({
+				type: "room" as const, id: r.id, name: entityDisplayName("room", r), icon: DoorOpen,
+				searchValue: localizedNamesStore.searchValues("room", r.id, r.name).join(" "),
+				badge: m.shared_device_count({ count: r.resolvedDevices.length }, locale.messageOptions()),
 			}))});
 		}
 		return result;
@@ -596,14 +614,17 @@
 							const group = groupsStore.byId.get(m.memberId);
 							return group
 								? groupDisplayName(group)
-								: (roomsStore.byId.get(m.memberId)?.name ?? m.memberId);
+								: (() => {
+									const room = roomsStore.byId.get(m.memberId);
+									return room ? entityDisplayName("room", room) : m.memberId;
+								})();
 						})();
 			const type = device?.type ?? m.memberType;
 			const related = allRooms
 				.filter((r) =>
 					r.members.some((rm) => rm.memberType === "device" && rm.memberId === m.memberId),
 				)
-				.map((r) => ({ id: r.id, name: r.name, href: `/rooms?edit=${r.id}` }));
+				.map((r) => ({ id: r.id, name: entityDisplayName("room", r), href: `/rooms?edit=${r.id}` }));
 			const href = (() => {
 				switch (m.memberType) {
 					case "device":
@@ -637,8 +658,8 @@
 			<div class="space-y-6">
 				<div class="rounded-lg shadow-card bg-card p-4">
 					<div class="mb-2 flex items-center gap-2">
-						<label class="block text-sm font-medium text-foreground" for="group-name">Group Name</label>
-						{#if providerManaged}<HiveChip type="hub" label="Managed by Zigbee2MQTT" />{/if}
+						<label class="block text-sm font-medium text-foreground" for="group-name">{m.group_name({}, locale.messageOptions())}</label>
+						{#if providerManaged}<HiveChip type="hub" label={m.group_managed_zigbee({}, locale.messageOptions())} />{/if}
 					</div>
 					<div class="flex items-center gap-3">
 						<IconPicker
@@ -648,7 +669,7 @@
 								editIconDirty = true;
 							}}
 						>
-							<IconPickerTrigger size="lg" ariaLabel="Change icon">
+							<IconPickerTrigger size="lg" ariaLabel={m.icon_change({}, locale.messageOptions())}>
 								<AnimatedIcon icon={editIcon} class="size-5 text-muted-foreground">
 									{#snippet fallback()}<GroupIcon class="size-5 text-muted-foreground" />{/snippet}
 								</AnimatedIcon>
@@ -658,17 +679,17 @@
 							id="group-name"
 							bind:value={editName}
 							oninput={() => (editNameDirty = editName !== (editingGroup?.name ?? ""))}
-							placeholder={editingGroup.friendlyName || "Group name"}
+							placeholder={editingGroup.friendlyName || m.group_name({}, locale.messageOptions())}
 						/>
 					</div>
 					<div class="mt-4">
 						<div class="mb-2 flex items-center gap-1.5">
-							<p class="text-sm font-medium text-foreground">Tags</p>
+							<p class="text-sm font-medium text-foreground">{m.group_tags({}, locale.messageOptions())}</p>
 							<Tooltip>
-								<TooltipTrigger class="text-muted-foreground" aria-label="About group tags">
+								<TooltipTrigger class="text-muted-foreground" aria-label={m.group_tags_about({}, locale.messageOptions())}>
 									<Info class="size-3.5" />
 								</TooltipTrigger>
-								<TooltipContent>Tags determine how this group appears on the dashboard.</TooltipContent>
+								<TooltipContent>{m.group_tags_help({}, locale.messageOptions())}</TooltipContent>
 							</Tooltip>
 						</div>
 						<GroupTagsSelect
@@ -685,9 +706,9 @@
 				<div class="rounded-lg shadow-card bg-card p-4">
 					<MemberTable
 						rows={memberRows}
-						relatedLabel="Rooms"
-						emptyMessage={providerManaged ? "No members." : "No members yet. Add devices or groups to this group."}
-						addLabel="Add member"
+						relatedLabel={m.nav_rooms({}, locale.messageOptions())}
+						emptyMessage={providerManaged ? m.group_members_none({}, locale.messageOptions()) : m.group_members_empty({}, locale.messageOptions())}
+						addLabel={m.group_member_add({}, locale.messageOptions())}
 						onadd={providerManaged ? undefined : () => (pickerOpen = true)}
 						onremove={providerManaged ? undefined : handleRemoveMember}
 						disabled={editLoading}
@@ -699,8 +720,8 @@
 		{#if !providerManaged}
 			<HiveDrawer
 				bind:open={pickerOpen}
-				title="Add Member"
-				description="Search for devices, groups, or rooms to add."
+				title={m.group_member_add({}, locale.messageOptions())}
+				description={m.group_add_search_description({}, locale.messageOptions())}
 				multiple
 				groups={pickerDrawerGroups}
 				onselect={handleAddMember}
@@ -713,13 +734,13 @@
 					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 						<GroupIcon class="size-6 text-muted-foreground" />
 					</div>
-					<p class="text-muted-foreground">No groups yet.</p>
+					<p class="text-muted-foreground">{m.group_none({}, locale.messageOptions())}</p>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Create a group to organize your devices and other groups together.
+						{m.group_none_help({}, locale.messageOptions())}
 					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
-						<span>Create your first group</span>
+						<span>{m.group_create_first({}, locale.messageOptions())}</span>
 					</Button>
 				</div>
 			{:else}
@@ -728,7 +749,7 @@
 						<HiveSearchbar
 							controller={searchController}
 							chips={searchChipConfigs}
-							placeholder="Search groups..."
+							placeholder={m.group_search({}, locale.messageOptions())}
 						/>
 					</div>
 					<div
@@ -744,7 +765,7 @@
 									size="sm"
 									onclick={() => (batchDeleteConfirm = true)}
 								>
-									Delete
+									{m.common_delete({}, locale.messageOptions())}
 								</Button>
 							{/snippet}
 						</TableSelectionToolbar>
@@ -753,7 +774,7 @@
 
 				{#if filteredGroups.length === 0}
 					<div class="rounded-lg shadow-card bg-card p-12 text-center">
-						<p class="text-muted-foreground">No groups match your filters.</p>
+						<p class="text-muted-foreground">{m.group_no_match({}, locale.messageOptions())}</p>
 					</div>
 				{:else}
 					<ListView mode={view}>
@@ -762,6 +783,7 @@
 								{#each filteredGroups as group (group.id)}
 									<DeviceCollectionCard
 										entity={group}
+										entityType="group"
 										devices={flattenGroupDevices(group)}
 										fallbackIcon={GroupIcon}
 										source={group.source}
@@ -775,7 +797,7 @@
 										ontoggle={(on) => commitGroupToggle(group, on)}
 										oncolor={(c) => commitGroupColor(group, c)}
 										ontemp={(t) => commitGroupTemp(group, t)}
-										addLabel="Add member"
+										addLabel={m.group_member_add({}, locale.messageOptions())}
 										aggregateTarget={{ kind: "group", id: group.id }}
 									/>
 								{/each}
@@ -801,8 +823,8 @@
 		<Dialog bind:open={createDialogOpen}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Create Group</DialogTitle>
-					<DialogDescription>Give your new group a name. You can add members after.</DialogDescription>
+					<DialogTitle>{m.group_create({}, locale.messageOptions())}</DialogTitle>
+					<DialogDescription>{m.group_create_description({}, locale.messageOptions())}</DialogDescription>
 				</DialogHeader>
 				<form
 					onsubmit={(e) => {
@@ -810,7 +832,7 @@
 						handleCreateGroup();
 					}}
 				>
-					<Input bind:ref={newGroupNameInput} bind:value={newGroupName} placeholder="Group name" autofocus />
+					<Input bind:ref={newGroupNameInput} bind:value={newGroupName} placeholder={m.group_name({}, locale.messageOptions())} autofocus />
 					<DialogFooter class="mt-4">
 						<Button
 							variant="outline"
@@ -820,7 +842,7 @@
 								newGroupName = "";
 							}}
 						>
-							Cancel
+							{m.common_cancel({}, locale.messageOptions())}
 						</Button>
 						<Button
 							variant="secondary"
@@ -828,10 +850,10 @@
 							disabled={!newGroupName.trim() || createLoading}
 							onclick={() => handleCreateGroup({ keepOpen: true })}
 						>
-							Create more
+							{m.group_create_more({}, locale.messageOptions())}
 						</Button>
 						<Button type="submit" disabled={!newGroupName.trim() || createLoading}>
-							{createLoading ? "Creating..." : "Create"}
+							{createLoading ? m.group_creating({}, locale.messageOptions()) : m.group_create({}, locale.messageOptions())}
 						</Button>
 					</DialogFooter>
 				</form>
@@ -841,18 +863,17 @@
 		<Dialog bind:open={() => deleteConfirmGroup !== null, (v) => { if (!v) deleteConfirmGroup = null; }}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Delete Group</DialogTitle>
+					<DialogTitle>{m.group_delete({}, locale.messageOptions())}</DialogTitle>
 					<DialogDescription>
-						Are you sure you want to delete "{deleteConfirmGroup ? groupDisplayName(deleteConfirmGroup) : ""}"? This action cannot be
-						undone.
+						{m.group_delete_named({ name: deleteConfirmGroup ? groupDisplayName(deleteConfirmGroup) : "" }, locale.messageOptions())} {m.group_delete_description({}, locale.messageOptions())}
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
 					<Button variant="outline" onclick={() => (deleteConfirmGroup = null)}>
-						Cancel
+						{m.common_cancel({}, locale.messageOptions())}
 					</Button>
 					<Button variant="destructive" onclick={handleDeleteGroup} disabled={deleteLoading}>
-						{deleteLoading ? "Deleting..." : "Delete"}
+						{deleteLoading ? m.common_loading({}, locale.messageOptions()) : m.common_delete({}, locale.messageOptions())}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -860,9 +881,9 @@
 
 		<ConfirmDialog
 			open={batchDeleteConfirm}
-			title="Delete {selection.count} group{selection.count === 1 ? '' : 's'}?"
-			description="This permanently deletes the selected groups and removes their memberships. This cannot be undone."
-			confirmLabel="Delete"
+			title={m.group_delete_many_title({ count: selection.count }, locale.messageOptions())}
+			description={m.group_delete_many_description({}, locale.messageOptions())}
+			confirmLabel={m.common_delete({}, locale.messageOptions())}
 			loading={batchDeleteLoading}
 			onconfirm={handleBatchDelete}
 			oncancel={() => (batchDeleteConfirm = false)}
@@ -870,8 +891,8 @@
 
 		<HiveDrawer
 			bind:open={quickAddOpen}
-			title={quickAddGroup ? `Add members to ${groupDisplayName(quickAddGroup)}` : "Add members"}
-			description="Pick one or more devices, groups, or rooms to add."
+			title={quickAddGroup ? m.group_add_named({ name: groupDisplayName(quickAddGroup) }, locale.messageOptions()) : m.group_add_generic({}, locale.messageOptions())}
+			description={m.group_add_description({}, locale.messageOptions())}
 			multiple
 			groups={quickAddDrawerGroups}
 			onselect={handleQuickAddSelect}

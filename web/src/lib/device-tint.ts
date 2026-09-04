@@ -11,6 +11,8 @@ import type { DesiredSceneState, ScenePreview } from "$lib/scene-editable";
 import { formatTemperature, type TemperatureUnit } from "$lib/sensor-format";
 import { Droplets, Gauge, Sun, Thermometer } from "@lucide/svelte";
 import type { Component } from "svelte";
+import { historyFieldLabel, identifierLabel } from "$lib/i18n/vocabulary";
+import { formatNumber } from "$lib/i18n/format";
 
 export interface RGB {
   r: number;
@@ -618,7 +620,6 @@ export interface AggregatedReading {
 
 interface ReadingSpec {
   field: string;
-  label: string;
   icon: Component;
   read: (state: DeviceState) => number | null | undefined;
   render: (avg: number, temperatureUnit: TemperatureUnit) => { value: string; unit: string };
@@ -627,31 +628,33 @@ interface ReadingSpec {
 const READING_SPECS: ReadingSpec[] = [
   {
     field: "temperature",
-    label: "Temperature",
     icon: Thermometer,
     read: (s) => s.temperature,
     render: (n, unit) => formatTemperature(n, unit),
   },
   {
     field: "humidity",
-    label: "Humidity",
     icon: Droplets,
     read: (s) => s.humidity,
-    render: (n) => ({ value: n.toFixed(0), unit: "%" }),
+    render: (n) => ({ value: formatNumber(n, { maximumFractionDigits: 0 }), unit: "%" }),
   },
   {
     field: "pressure",
-    label: "Pressure",
     icon: Gauge,
     read: (s) => s.pressure,
-    render: (n) => ({ value: n.toFixed(0), unit: "hPa" }),
+    render: (n) => ({
+      value: formatNumber(n, { maximumFractionDigits: 0, useGrouping: false }),
+      unit: "hPa",
+    }),
   },
   {
     field: "illuminance",
-    label: "Illuminance",
     icon: Sun,
     read: (s) => s.illuminance,
-    render: (n) => ({ value: n.toFixed(0), unit: "lx" }),
+    render: (n) => ({
+      value: formatNumber(n, { maximumFractionDigits: 0, useGrouping: false }),
+      unit: "lx",
+    }),
   },
 ];
 
@@ -676,10 +679,10 @@ export function aggregateSensorReadings(
     const value =
       devices.length === 1
         ? summary.open === 1
-          ? "Open"
+          ? identifierLabel("open")
           : summary.closed === 1
-            ? "Closed"
-            : "Unknown"
+            ? identifierLabel("closed")
+            : identifierLabel("unknown")
         : formatContactSummary(summary);
     result.push({
       field: "contact",
@@ -703,7 +706,7 @@ export function aggregateSensorReadings(
     const rendered = spec.render(sum / count, temperatureUnit);
     result.push({
       field: spec.field,
-      label: spec.label,
+      label: historyFieldLabel(spec.field),
       value: rendered.value,
       unit: rendered.unit,
       icon: spec.icon,

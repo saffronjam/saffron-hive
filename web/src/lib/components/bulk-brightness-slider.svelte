@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { Slider } from "$lib/components/ui/slider/index.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		devices: Device[];
@@ -17,8 +19,11 @@
 		onbrightness,
 		oninteract,
 		disabled = false,
-		ariaLabel = "Brightness",
+		ariaLabel,
 	}: Props = $props();
+	const resolvedAriaLabel = $derived(
+		ariaLabel ?? m.device_brightness({}, locale.messageOptions()),
+	);
 
 	// Runtime-disabled devices are excluded: the slider must show, and average,
 	// only what it can actually command.
@@ -115,6 +120,6 @@
 		step={1}
 		onValueChange={handleChange}
 		{disabled}
-		aria-label={ariaLabel}
+	aria-label={resolvedAriaLabel}
 	/>
 {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
@@ -21,6 +22,8 @@
 	import type { Device } from "$lib/stores/devices";
 	import { DoorOpen, Plus } from "@lucide/svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
+	import { m } from "$lib/paraglide/messages.js";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface RoomData {
 		id: string;
@@ -53,7 +56,7 @@
 		getDevices,
 	}: Props = $props();
 
-	const COLUMNS: ColumnDef<RoomData>[] = [
+	const COLUMNS: ColumnDef<RoomData>[] = $derived.by(() => [
 		{
 			key: "select",
 			label: "",
@@ -71,24 +74,24 @@
 		},
 		{
 			key: "name",
-			label: "Name",
-			sortValue: (r) => r.name,
+			label: m.field_name({}, locale.messageOptions()),
+			sortValue: (r) => entityDisplayName("room", r),
 			cell: nameCell,
 		},
 		{
 			key: "devices",
-			label: "Devices",
+			label: m.nav_devices({}, locale.messageOptions()),
 			sortValue: (r) => r.resolvedDevices.length,
 			cell: devicesCell,
 		},
 		{
 			key: "state",
-			label: "State",
+			label: m.field_state({}, locale.messageOptions()),
 			cell: stateCell,
 		},
 		{
 			key: "createdBy",
-			label: "Created by",
+			label: m.field_created_by({}, locale.messageOptions()),
 			sortValue: (r) => r.createdBy?.name ?? null,
 			cell: createdByCell,
 		},
@@ -100,9 +103,9 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+	]);
 
-	const tableState = createTableState({ storageKey: "rooms", columns: COLUMNS });
+	const tableState = createTableState({ storageKey: "rooms", columns: () => COLUMNS });
 
 	const displayRows = $derived(tableState.applySort(rooms));
 	const displayIds = $derived<readonly string[]>(displayRows.map((r) => r.id));
@@ -118,7 +121,7 @@
 		id={r.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {r.name}"
+		ariaLabel={m.shared_select_item({ name: entityDisplayName("room", r) }, locale.messageOptions())}
 	/>
 {/snippet}
 
@@ -127,12 +130,12 @@
 {/snippet}
 
 {#snippet nameCell(r: RoomData)}
-	<InlineEditName name={r.name} onsave={(newName) => onrename(r, newName)} />
+	<InlineEditName name={entityDisplayName("room", r)} entityType="room" entityId={r.id} onsave={(newName) => onrename(r, newName)} />
 {/snippet}
 
 {#snippet devicesCell(r: RoomData)}
 	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{r.resolvedDevices.length} device{r.resolvedDevices.length === 1 ? "" : "s"}
+		{m.shared_device_count({ count: r.resolvedDevices.length }, locale.messageOptions())}
 	</span>
 {/snippet}
 
@@ -148,7 +151,7 @@
 		<SensorHistoryPopover
 			target={{ kind: "room", id: r.id }}
 			fields={readings.map((rd) => rd.field)}
-			title={r.name}
+			title={entityDisplayName("room", r)}
 			triggerClass="group rounded focus-visible:outline-none"
 		>
 			<div class="flex items-center gap-3 text-sm tabular-nums">
@@ -175,14 +178,14 @@
 	<RowActionsCell
 		editHref={editHref(r)}
 		ondelete={() => ondelete(r)}
-		editLabel="Edit room"
-		deleteLabel="Delete room"
+		editLabel={m.room_edit({}, locale.messageOptions())}
+		deleteLabel={m.room_delete({}, locale.messageOptions())}
 	>
 		{#snippet leading()}
 			{#if getDevices}
 				<CollectionQuickControls
 					devices={getDevices(r)}
-					name={r.name}
+					name={entityDisplayName("room", r)}
 				target={{ targetType: CommandTargetType.Room, targetId: r.id }}
 				/>
 			{/if}
@@ -190,7 +193,7 @@
 				variant="ghost"
 				size="icon-sm"
 				onclick={() => onAddTo(r)}
-				aria-label="Add to room"
+				aria-label={m.room_add({}, locale.messageOptions())}
 			>
 				<Plus class="size-4" />
 			</Button>

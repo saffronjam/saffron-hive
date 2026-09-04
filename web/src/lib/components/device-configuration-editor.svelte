@@ -22,6 +22,8 @@
 	} from "$lib/components/ui/tooltip/index.js";
 	import { Info, X } from "@lucide/svelte";
 	import CapabilityOptionRow from "$lib/components/graph/capability-option-row.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		capabilities: Capability[];
@@ -122,7 +124,9 @@
 <div class={compact ? "space-y-2" : "space-y-4"}>
 	{#if selectable && availableSettings.length > 0}
 		<Select type="single" value="" onValueChange={addSetting} disabled={disabled}>
-			<SelectTrigger class="w-full text-xs">Add setting</SelectTrigger>
+			<SelectTrigger class="w-full text-xs">
+				{m.device_config_add_setting({}, locale.messageOptions())}
+			</SelectTrigger>
 			<SelectContent>
 				{#each availableSettings as capability (capability.name)}
 					<SelectItem value={capability.name}>
@@ -149,7 +153,10 @@
 						<Tooltip>
 							<TooltipTrigger
 								class="shrink-0 text-muted-foreground"
-								aria-label={`About ${label(capability)}`}
+								aria-label={m.device_config_about(
+									{ name: label(capability) },
+									locale.messageOptions(),
+								)}
 							>
 								<Info class="size-3.5" />
 							</TooltipTrigger>
@@ -188,7 +195,9 @@
 							{disabled}
 						>
 							<SelectTrigger class={compact ? "h-8 w-28 text-xs" : "w-40"}>
-								{current.stringValue ? sentenceCase(current.stringValue) : "Select"}
+								{current.stringValue
+									? sentenceCase(current.stringValue)
+									: m.common_select({}, locale.messageOptions())}
 							</SelectTrigger>
 							<SelectContent>
 								{#each capability.values ?? [] as option (option)}
@@ -213,7 +222,10 @@
 							class="size-7"
 							onclick={() => removeSetting(capability.name)}
 							{disabled}
-							aria-label={`Remove ${label(capability)}`}
+							aria-label={m.device_config_remove(
+								{ name: label(capability) },
+								locale.messageOptions(),
+							)}
 						>
 							<X class="size-3.5" />
 						</Button>
@@ -226,6 +238,8 @@
 	{/if}
 
 	{#if selectable && visibleSettings.length === 0}
-		<p class="text-[11px] text-muted-foreground">Add at least one setting.</p>
+		<p class="text-[11px] text-muted-foreground">
+			{m.device_config_add_one({}, locale.messageOptions())}
+		</p>
 	{/if}
 </div>

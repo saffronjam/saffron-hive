@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { page } from "$app/stores";
-	import { onMount, onDestroy, untrack } from "svelte";
+	import { onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
 	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
-	import { deviceDisplayName, deviceIcon, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, deviceIcon, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { deviceStore, devicesHydrated } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
@@ -47,6 +47,8 @@
 		Zigbee2MqttDeviceMetadata,
 	} from "$lib/gql/graphql";
 	import { loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface ZigbeeDetailSnapshot {
 		metadata: Zigbee2MqttDeviceMetadata | null;
@@ -117,23 +119,21 @@
 			!rolesEqual(metadataRoles, savedMetadataRoles)
 	);
 
-	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Devices", href: "/devices" }, { label: "Device" }];
-	});
-
 	$effect(() => {
-		if (device) {
-			pageHeader.breadcrumbs = [
-				{ label: "Devices", href: "/devices" },
-				{ label: deviceDisplayName(device) },
-			];
-		}
+		pageHeader.breadcrumbs = [
+			{ label: m.nav_devices({}, locale.messageOptions()), href: "/devices" },
+			{
+				label: device
+					? deviceDisplayName(device)
+					: m.device_generic({}, locale.messageOptions()),
+			},
+		];
 		pageHeader.actions = device
 			? [
 					...(firmwareUpdateUrl
 						? [
 								{
-									label: "Update",
+									label: m.device_update({}, locale.messageOptions()),
 									icon: ExternalLink,
 									variant: "outline" as const,
 									href: firmwareUpdateUrl,
@@ -143,7 +143,7 @@
 							]
 						: []),
 					{
-						label: "Save",
+						label: m.common_save({}, locale.messageOptions()),
 						onclick: saveMetadata,
 						disabled: !metadataDirty || savingMetadata,
 						saving: savingMetadata,
@@ -152,7 +152,7 @@
 					...(device.deleted
 						? [
 								{
-									label: "Restore",
+									label: m.devices_restore({}, locale.messageOptions()),
 									icon: Undo2,
 									variant: "outline" as const,
 									onclick: restoreDevice,
@@ -162,7 +162,7 @@
 							]
 						: [
 								{
-									label: "Delete",
+									label: m.common_delete({}, locale.messageOptions()),
 									icon: Trash2,
 									variant: "destructive" as const,
 									onclick: () => (deleteConfirmOpen = true),
@@ -356,14 +356,15 @@
 	}
 
 	async function loadZigbeeMetadata(id: string) {
-		let lastError: string | null = null;
+		let failed = false;
 		for (let attempt = 0; attempt < 6; attempt++) {
 			const result = await clientRef
 				.query(DEVICE_ZIGBEE_DETAIL, { id }, { requestPolicy: "network-only" })
 				.toPromise();
 			if (metadataDeviceId !== id) return;
 			if (result.error) {
-				lastError = result.error.message;
+				console.error(result.error);
+				failed = true;
 			} else {
 				const metadata = result.data?.device?.zigbee2Mqtt ?? null;
 				if (
@@ -379,7 +380,7 @@
 			}
 			await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
 		}
-		if (lastError) error = lastError;
+		if (failed) error = m.common_error_generic({}, locale.messageOptions());
 	}
 
 	$effect(() => {
@@ -460,18 +461,18 @@
 		const result: DrawerGroup<"room" | "group">[] = [];
 		if (availableRooms.length > 0) {
 			result.push({
-				heading: "Rooms",
+				heading: m.nav_rooms({}, locale.messageOptions()),
 				items: availableRooms.map((r) => ({
 					type: "room" as const,
 					id: r.id,
-					name: r.name,
+					name: entityDisplayName("room", r),
 					icon: DoorOpen,
 				})),
 			});
 		}
 		if (availableGroups.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.nav_groups({}, locale.messageOptions()),
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
@@ -542,7 +543,8 @@
 		savingMetadata = false;
 
 		if (result.error) {
-			error = result.error.message;
+			console.error(result.error);
+			error = m.device_save_failed({}, locale.messageOptions());
 			return;
 		}
 
@@ -575,7 +577,8 @@
 		const result = await clientRef.mutation(DELETE_DEVICE, { id: device.id }).toPromise();
 		deleteLoading = false;
 		if (result.error) {
-			error = result.error.message;
+			console.error(result.error);
+			error = m.devices_delete_failed({}, locale.messageOptions());
 			return;
 		}
 		deviceStore.updateDeleted(device.id, true);
@@ -591,7 +594,8 @@
 		const result = await clientRef.mutation(RESTORE_DEVICE, { id: device.id }).toPromise();
 		restoreLoading = false;
 		if (result.error) {
-			error = result.error.message;
+			console.error(result.error);
+			error = m.devices_restore_failed({}, locale.messageOptions());
 			return;
 		}
 		deviceStore.updateDeleted(device.id, false);
@@ -642,7 +646,8 @@
 			.toPromise();
 		configurationSaving = false;
 		if (result.error) {
-			error = result.error.message;
+			console.error(result.error);
+			error = m.device_configuration_failed({}, locale.messageOptions());
 			return;
 		}
 		if (configurationContains(device.configuration, changes)) {
@@ -656,7 +661,7 @@
 		configurationTimer = setTimeout(() => {
 			configurationTimer = null;
 			configurationPending = null;
-			error = "The device did not confirm its settings. You can try applying them again.";
+			error = m.device_configuration_timeout({}, locale.messageOptions());
 		}, 15_000);
 	}
 
@@ -732,7 +737,7 @@
 		<div class="space-y-6" in:fly={{ y: -4, duration: 150 }}>
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="device-name">
-					Device Name
+					{m.device_name({}, locale.messageOptions())}
 				</label>
 				<div class="flex items-center gap-3">
 					<IconCell
@@ -755,7 +760,9 @@
 				</div>
 				{#if metadataRoles.controlledLoad != null || metadataRoles.contact != null}
 					<div class="mt-4 flex items-start gap-3">
-						<span class="w-16 pt-2 text-sm font-medium text-foreground">Roles</span>
+						<span class="w-16 pt-2 text-sm font-medium text-foreground">
+							{m.device_roles({}, locale.messageOptions())}
+						</span>
 						<DeviceRolesEditor
 							value={metadataRoles}
 							onchange={(next) => (metadataRoles = next)}
@@ -765,7 +772,7 @@
 				{/if}
 				<div class="mt-4 flex items-center gap-3">
 					<label class="w-16 text-sm font-medium text-foreground" for="device-enabled">
-						Enabled
+						{m.field_enabled({}, locale.messageOptions())}
 					</label>
 					<Switch
 						id="device-enabled"
@@ -790,13 +797,13 @@
 
 					<Card>
 						<CardHeader>
-							<CardTitle>Rooms & Groups</CardTitle>
+							<CardTitle>{m.field_rooms_groups({}, locale.messageOptions())}</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<MemberTable
 								rows={membershipRows}
-								emptyMessage="Not in any room or group yet."
-								addLabel="Add to"
+								emptyMessage={m.device_memberships_empty({}, locale.messageOptions())}
+								addLabel={m.common_add_to({}, locale.messageOptions())}
 								onadd={() => (pickerOpen = true)}
 								onremove={handleRemoveMembership}
 							/>
@@ -809,11 +816,10 @@
 					<Card>
 						<CardContent class="py-8 text-center">
 							<p class="text-muted-foreground">
-								Controls are unavailable while this device is disabled.
+								{m.device_controls_disabled({}, locale.messageOptions())}
 							</p>
 							<p class="mt-1 text-sm text-muted-foreground">
-								Switch <span class="font-medium text-foreground">Enabled</span> back on above to
-								command it again.
+								{m.device_controls_enable_help({}, locale.messageOptions())}
 							</p>
 						</CardContent>
 					</Card>
@@ -836,7 +842,9 @@
 				{:else}
 					<Card>
 						<CardContent class="py-8 text-center">
-							<p class="text-muted-foreground">No state information available for this device.</p>
+							<p class="text-muted-foreground">
+								{m.device_no_state({}, locale.messageOptions())}
+							</p>
 						</CardContent>
 					</Card>
 				{/if}
@@ -845,17 +853,17 @@
 					<Card>
 						<CardHeader>
 							<div class="flex items-center justify-between gap-4">
-								<CardTitle>Settings</CardTitle>
+								<CardTitle>{m.device_settings({}, locale.messageOptions())}</CardTitle>
 								<Button
 									size="sm"
 									onclick={applyConfiguration}
 									disabled={!configurationDirty || configurationSaving || configurationPending !== null || device.disabled}
 								>
 									{configurationSaving
-										? "Applying…"
+										? m.device_applying({}, locale.messageOptions())
 										: configurationPending
-											? "Waiting for device…"
-											: "Apply"}
+											? m.device_waiting({}, locale.messageOptions())
+											: m.device_apply({}, locale.messageOptions())}
 								</Button>
 							</div>
 						</CardHeader>
@@ -874,7 +882,7 @@
 					<Card>
 						<CardHeader>
 							<div class="flex flex-wrap items-center justify-between gap-2">
-								<CardTitle>History</CardTitle>
+								<CardTitle>{m.device_history({}, locale.messageOptions())}</CardTitle>
 								<div class="flex items-center gap-2">
 									<BucketResolutionSelect bind:value={historyBucketSeconds} />
 									<DateRangePicker bind:from={historyFrom} bind:to={historyTo} compact />
@@ -897,13 +905,15 @@
 	{:else}
 		<Card>
 			<CardContent class="py-12 text-center">
-				<p class="text-lg font-medium text-foreground">Device not found</p>
+				<p class="text-lg font-medium text-foreground">
+					{m.device_not_found({}, locale.messageOptions())}
+				</p>
 				<p class="mt-2 text-sm text-muted-foreground">
-					The device you're looking for doesn't exist or has been removed.
+					{m.device_not_found_help({}, locale.messageOptions())}
 				</p>
 				<Button variant="outline" class="mt-4" href="/devices">
 					<ArrowLeft class="size-4" />
-					Back to Devices
+					{m.device_back_to_devices({}, locale.messageOptions())}
 				</Button>
 			</CardContent>
 		</Card>
@@ -911,8 +921,8 @@
 
 	<HiveDrawer
 		bind:open={pickerOpen}
-		title="Add to rooms or groups"
-		description="Pick one or more rooms and groups for this device."
+		title={m.devices_add_to_generic({}, locale.messageOptions())}
+		description={m.devices_add_to_description({}, locale.messageOptions())}
 		multiple
 		groups={pickerDrawerGroups}
 		onselect={handlePickerSelect}
@@ -920,9 +930,12 @@
 
 	<ConfirmDialog
 		bind:open={deleteConfirmOpen}
-		title="Delete device"
-		description={`Delete “${device ? deviceDisplayName(device) : ""}” from Hive? This hides and disables it in Hive only.`}
-		confirmLabel="Delete"
+		title={m.devices_delete_one_title({}, locale.messageOptions())}
+		description={m.devices_delete_one_description(
+			{ name: device ? deviceDisplayName(device) : "" },
+			locale.messageOptions(),
+		)}
+		confirmLabel={m.common_delete({}, locale.messageOptions())}
 		loading={deleteLoading}
 		onconfirm={deleteDevice}
 		oncancel={() => (deleteConfirmOpen = false)}

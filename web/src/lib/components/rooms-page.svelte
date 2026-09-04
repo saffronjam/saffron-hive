@@ -47,7 +47,9 @@
 	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
 	import { rgbToXy } from "$lib/color";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { m } from "$lib/paraglide/messages.js";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 	interface Props {
 		/**
@@ -132,21 +134,21 @@
 		active: () => visible && page.url.pathname === "/rooms",
 	});
 
-	const deviceTypeOptions = [
-		{ value: "light", label: "Light" },
-		{ value: "sensor", label: "Sensor" },
-		{ value: "switch", label: "Switch" },
-	];
+	const deviceTypeOptions = $derived([
+		{ value: "light", label: m.device_type_light({}, locale.messageOptions()) },
+		{ value: "sensor", label: m.device_type_sensor({}, locale.messageOptions()) },
+		{ value: "switch", label: m.device_type_switch({}, locale.messageOptions()) },
+	]);
 
-	const emptyOptions = [
-		{ value: "yes", label: "Yes" },
-		{ value: "no", label: "No" },
-	];
+	const emptyOptions = $derived([
+		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
+		{ value: "no", label: m.common_no({}, locale.messageOptions()) },
+	]);
 
 	const searchChipConfigs: ChipConfig[] = $derived([
 		{
 			keyword: "type",
-			label: "Type",
+			label: m.field_type({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
@@ -159,18 +161,18 @@
 		},
 		{
 			keyword: "device",
-			label: "Device",
+			label: m.field_device({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return devices
-					.filter((d) => !q || deviceDisplayName(d).toLowerCase().includes(q))
-					.map((d) => ({ value: deviceDisplayName(d), label: deviceDisplayName(d) }));
+					.filter((d) => !q || localizedNamesStore.matches("device", d.id, q, d.name, d.friendlyName))
+					.map((d) => ({ value: d.id, label: deviceDisplayName(d) }));
 			},
 		},
 		{
 			keyword: "empty",
-			label: "Empty",
+			label: m.field_empty({}, locale.messageOptions()),
 			variant: "secondary",
 			options: () => emptyOptions,
 		},
@@ -180,7 +182,7 @@
 		const typeValues = searchController.value.chips.filter((c) => c.keyword === "type").map((c) => c.value);
 		const deviceValues = searchController.value.chips
 			.filter((c) => c.keyword === "device")
-			.map((c) => c.value.toLowerCase());
+			.map((c) => c.value);
 		const emptyValues = searchController.value.chips.filter((c) => c.keyword === "empty").map((c) => c.value);
 		const query = searchController.value.freeText.toLowerCase();
 
@@ -193,7 +195,7 @@
 			}
 			if (
 				deviceValues.length > 0 &&
-				!deviceValues.some((v) => ds.some((d) => deviceDisplayName(d).toLowerCase().includes(v)))
+				!deviceValues.some((value) => ds.some((d) => d.id === value))
 			)
 				return false;
 			if (emptyValues.length > 0) {
@@ -201,7 +203,7 @@
 				const wants = emptyValues.some((v) => (v === "yes" ? isEmpty : !isEmpty));
 				if (!wants) return false;
 			}
-			if (query && !r.name.toLowerCase().includes(query)) return false;
+			if (query && !localizedNamesStore.matches("room", r.id, query, r.name)) return false;
 			return true;
 		});
 	});
@@ -252,26 +254,27 @@
 		const result: DrawerGroup<"device" | "group">[] = [];
 		if (devAvail.length > 0) {
 			result.push({
-				heading: "Devices",
+				heading: m.nav_devices({}, locale.messageOptions()),
 				items: devAvail.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
-					searchValue: `${deviceDisplayName(d)} ${d.type}`,
+					searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 				})),
 			});
 		}
 		if (grpAvail.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.nav_groups({}, locale.messageOptions()),
 				items: grpAvail.map((g) => ({
 					type: "group" as const,
 					id: g.id,
 					name: groupDisplayName(g),
 					icon: GroupIcon,
-					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+					searchValue: localizedNamesStore.searchValues("group", g.id, g.name, g.friendlyName).join(" "),
+					badge: m.shared_member_count({ count: g.members.length }, locale.messageOptions()),
 				})),
 			});
 		}
@@ -289,7 +292,8 @@
 		try {
 			await roomsStore.addMember(client, roomId, memberType, memberId);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not add the member."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.member_add_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -355,19 +359,19 @@
 	$effect(() => {
 		if (!visible) return;
 		if (editingRoom) {
-			pageHeader.breadcrumbs = [{ label: "Rooms", onclick: stopEditing }, { label: editingRoom.name }];
+			pageHeader.breadcrumbs = [{ label: m.nav_rooms({}, locale.messageOptions()), onclick: stopEditing }, { label: localizedNamesStore.display("room", editingRoom.id, editingRoom.name) }];
 			pageHeader.actions = [
-				{ label: "Cancel", icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
-				{ label: "Save", saving: editLoading, onclick: handleSaveRoom, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
+				{ label: m.common_cancel({}, locale.messageOptions()), icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
+				{ label: m.common_save({}, locale.messageOptions()), saving: editLoading, onclick: handleSaveRoom, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
-			pageHeader.breadcrumbs = [{ label: "Rooms", onclick: stopEditing }, { label: "…" }];
+			pageHeader.breadcrumbs = [{ label: m.nav_rooms({}, locale.messageOptions()), onclick: stopEditing }, { label: "…" }];
 			pageHeader.actions = [];
 			pageHeader.viewToggle = null;
 		} else {
-			pageHeader.breadcrumbs = [{ label: "Rooms" }];
-			pageHeader.actions = [{ label: "Create Room", mobileLabel: "Create", icon: Plus, onclick: () => (createDialogOpen = true) }];
+			pageHeader.breadcrumbs = [{ label: m.nav_rooms({}, locale.messageOptions()) }];
+			pageHeader.actions = [{ label: m.room_create({}, locale.messageOptions()), mobileLabel: m.room_create({}, locale.messageOptions()), icon: Plus, onclick: () => (createDialogOpen = true) }];
 			pageHeader.viewToggle = {
 				value: view,
 				onchange: (v) => {
@@ -400,26 +404,27 @@
 		const result: DrawerGroup<"device" | "group">[] = [];
 		if (availableDevices.length > 0) {
 			result.push({
-				heading: "Devices",
+				heading: m.nav_devices({}, locale.messageOptions()),
 				items: availableDevices.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
-					searchValue: `${deviceDisplayName(d)} ${d.type}`,
+					searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 				})),
 			});
 		}
 		if (availableGroups.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.nav_groups({}, locale.messageOptions()),
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
 					name: groupDisplayName(g),
 					icon: GroupIcon,
-					badge: `${g.members.length} member${g.members.length === 1 ? "" : "s"}`,
+					searchValue: localizedNamesStore.searchValues("group", g.id, g.name, g.friendlyName).join(" "),
+					badge: m.shared_member_count({ count: g.members.length }, locale.messageOptions()),
 				})),
 			});
 		}
@@ -468,7 +473,8 @@
 			created = await roomsStore.create(client, newRoomName.trim());
 		} catch (e) {
 			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not create the room."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.room_create_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -555,7 +561,8 @@
 			}
 		} catch (e) {
 			editLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not save the room."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.room_save_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -581,7 +588,8 @@
 			await roomsStore.deleteMany(client, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the rooms."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.room_delete_many_failed({}, locale.messageOptions()));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -599,7 +607,8 @@
 			await roomsStore.delete(client, deleteConfirmRoom.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not delete the room."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.room_delete_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -646,7 +655,8 @@
 		try {
 			await roomsStore.update(client, room.id, { name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not rename the room."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.room_rename_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -655,7 +665,8 @@
 		try {
 			await roomsStore.update(client, room.id, { icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Could not change the icon."));
+			console.error(e);
+			errors.setWithAutoDismiss(m.icon_change_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -675,7 +686,7 @@
 		<div class="mx-auto max-w-6xl space-y-6" in:fly={{ y: -4, duration: 150 }}>
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<label class="mb-2 block text-sm font-medium text-foreground" for="room-name">
-					Room Name
+			{m.room_name({}, locale.messageOptions())}
 				</label>
 				<div class="flex items-center gap-3">
 					<IconPicker
@@ -685,7 +696,7 @@
 							editIconDirty = true;
 						}}
 					>
-						<IconPickerTrigger size="lg" ariaLabel="Change icon">
+					<IconPickerTrigger size="lg" ariaLabel={m.icon_change({}, locale.messageOptions())}>
 							<AnimatedIcon icon={editIcon} class="size-5 text-muted-foreground">
 								{#snippet fallback()}<DoorOpen class="size-5 text-muted-foreground" />{/snippet}
 							</AnimatedIcon>
@@ -695,7 +706,7 @@
 						id="room-name"
 						bind:value={editName}
 						oninput={() => (editNameDirty = true)}
-						placeholder="Room name"
+						placeholder={m.room_name({}, locale.messageOptions())}
 					/>
 				</div>
 			</div>
@@ -703,9 +714,9 @@
 			<div class="rounded-lg shadow-card bg-card p-4">
 				<MemberTable
 					rows={memberRows}
-					relatedLabel="Groups"
-					emptyMessage="No members yet. Add devices or groups to this room."
-					addLabel="Add device or group"
+					relatedLabel={m.nav_groups({}, locale.messageOptions())}
+					emptyMessage={m.room_members_empty({}, locale.messageOptions())}
+					addLabel={m.room_add_device_group({}, locale.messageOptions())}
 					onadd={() => (pickerOpen = true)}
 					onremove={handleRemoveMember}
 					disabled={editLoading}
@@ -715,8 +726,8 @@
 
 		<HiveDrawer
 			bind:open={pickerOpen}
-			title="Add to room"
-			description="Search for devices or groups to add to this room."
+			title={m.room_add({}, locale.messageOptions())}
+			description={m.room_add_search_description({}, locale.messageOptions())}
 			multiple
 			groups={pickerDrawerGroups}
 			onselect={handlePickerSelect}
@@ -728,13 +739,13 @@
 					<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 						<DoorOpen class="size-6 text-muted-foreground" />
 					</div>
-					<p class="text-muted-foreground">No rooms yet.</p>
+					<p class="text-muted-foreground">{m.room_none({}, locale.messageOptions())}</p>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Create a room to organize your devices by location.
+						{m.room_none_help({}, locale.messageOptions())}
 					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
-						<span>Create your first room</span>
+						<span>{m.room_create_first({}, locale.messageOptions())}</span>
 					</Button>
 				</div>
 			{:else}
@@ -743,7 +754,7 @@
 						<HiveSearchbar
 							controller={searchController}
 							chips={searchChipConfigs}
-							placeholder="Search rooms..."
+							placeholder={m.room_search({}, locale.messageOptions())}
 						/>
 					</div>
 					<div
@@ -759,7 +770,7 @@
 									size="sm"
 									onclick={() => (batchDeleteConfirm = true)}
 								>
-									Delete
+									{m.common_delete({}, locale.messageOptions())}
 								</Button>
 							{/snippet}
 						</TableSelectionToolbar>
@@ -768,7 +779,7 @@
 
 				{#if filteredRooms.length === 0}
 					<div class="rounded-lg shadow-card bg-card p-12 text-center">
-						<p class="text-muted-foreground">No rooms match your filters.</p>
+						<p class="text-muted-foreground">{m.room_no_match({}, locale.messageOptions())}</p>
 					</div>
 				{:else}
 					<ListView mode={view}>
@@ -777,6 +788,7 @@
 								{#each filteredRooms as room (room.id)}
 									<DeviceCollectionCard
 										entity={room}
+										entityType="room"
 										devices={roomDevices(room)}
 										fallbackIcon={DoorOpen}
 										stateSummary
@@ -789,7 +801,7 @@
 										ontoggle={(on) => commitRoomToggle(room, on)}
 										oncolor={(c) => commitRoomColor(room, c)}
 										ontemp={(t) => commitRoomTemp(room, t)}
-										addLabel="Add to room"
+										addLabel={m.room_add({}, locale.messageOptions())}
 										aggregateTarget={{ kind: "room", id: room.id }}
 									/>
 								{/each}
@@ -815,8 +827,8 @@
 		<Dialog bind:open={createDialogOpen}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Create Room</DialogTitle>
-					<DialogDescription>Give your new room a name. You can add devices after.</DialogDescription>
+					<DialogTitle>{m.room_create({}, locale.messageOptions())}</DialogTitle>
+					<DialogDescription>{m.room_create_description({}, locale.messageOptions())}</DialogDescription>
 				</DialogHeader>
 				<form
 					onsubmit={(e) => {
@@ -824,7 +836,7 @@
 						handleCreateRoom();
 					}}
 				>
-					<Input bind:ref={newRoomNameInput} bind:value={newRoomName} placeholder="Room name" autofocus />
+					<Input bind:ref={newRoomNameInput} bind:value={newRoomName} placeholder={m.room_name({}, locale.messageOptions())} autofocus />
 					<DialogFooter class="mt-4">
 						<Button
 							variant="outline"
@@ -834,7 +846,7 @@
 								newRoomName = "";
 							}}
 						>
-							Cancel
+							{m.common_cancel({}, locale.messageOptions())}
 						</Button>
 						<Button
 							variant="secondary"
@@ -842,10 +854,10 @@
 							disabled={!newRoomName.trim() || createLoading}
 							onclick={() => handleCreateRoom({ keepOpen: true })}
 						>
-							Create more
+							{m.room_create_more({}, locale.messageOptions())}
 						</Button>
 						<Button type="submit" disabled={!newRoomName.trim() || createLoading}>
-							{createLoading ? "Creating..." : "Create"}
+							{createLoading ? m.room_creating({}, locale.messageOptions()) : m.room_create({}, locale.messageOptions())}
 						</Button>
 					</DialogFooter>
 				</form>
@@ -855,18 +867,17 @@
 		<Dialog bind:open={() => deleteConfirmRoom !== null, (v) => { if (!v) deleteConfirmRoom = null; }}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Delete Room</DialogTitle>
+					<DialogTitle>{m.room_delete({}, locale.messageOptions())}</DialogTitle>
 					<DialogDescription>
-						Are you sure you want to delete "{deleteConfirmRoom?.name}"? This action cannot be
-						undone.
+						{m.room_delete_named({ name: deleteConfirmRoom ? localizedNamesStore.display("room", deleteConfirmRoom.id, deleteConfirmRoom.name) : "" }, locale.messageOptions())} {m.room_delete_description({}, locale.messageOptions())}
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
 					<Button variant="outline" onclick={() => (deleteConfirmRoom = null)}>
-						Cancel
+						{m.common_cancel({}, locale.messageOptions())}
 					</Button>
 					<Button variant="destructive" onclick={handleDeleteRoom} disabled={deleteLoading}>
-						{deleteLoading ? "Deleting..." : "Delete"}
+						{deleteLoading ? m.common_loading({}, locale.messageOptions()) : m.common_delete({}, locale.messageOptions())}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -874,9 +885,9 @@
 
 		<ConfirmDialog
 			open={batchDeleteConfirm}
-			title="Delete {selection.count} room{selection.count === 1 ? '' : 's'}?"
-			description="This permanently deletes the selected rooms and removes their device assignments. This cannot be undone."
-			confirmLabel="Delete"
+			title={m.room_delete_many_title({ count: selection.count }, locale.messageOptions())}
+			description={m.room_delete_many_description({}, locale.messageOptions())}
+			confirmLabel={m.common_delete({}, locale.messageOptions())}
 			loading={batchDeleteLoading}
 			onconfirm={handleBatchDelete}
 			oncancel={() => (batchDeleteConfirm = false)}
@@ -884,8 +895,8 @@
 
 		<HiveDrawer
 			bind:open={quickAddOpen}
-			title={quickAddRoom ? `Add devices to ${quickAddRoom.name}` : "Add devices"}
-			description="Pick one or more devices to add to this room."
+			title={quickAddRoom ? m.room_add_named({ name: quickAddRoom.name }, locale.messageOptions()) : m.room_add_generic({}, locale.messageOptions())}
+			description={m.room_add_description({}, locale.messageOptions())}
 			multiple
 			groups={quickAddDrawerGroups}
 			onselect={handleQuickAddSelect}

@@ -9,9 +9,11 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { Minus, Plus } from "@lucide/svelte";
-	import { sentenceCase } from "$lib/utils.js";
 	import { hasCapability } from "$lib/target-resolve";
 	import type { Capability, DeviceState } from "$lib/stores/devices";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { identifierLabel } from "$lib/i18n/vocabulary";
 
 	interface CommandInput {
 		on?: boolean;
@@ -69,7 +71,7 @@
 	<Card>
 		<CardHeader>
 			<div class="flex items-center justify-between">
-				<CardTitle>Power</CardTitle>
+				<CardTitle>{m.device_power({}, locale.messageOptions())}</CardTitle>
 				<Switch checked={deviceState.on ?? false} onCheckedChange={(c) => oncommand({ on: c })} />
 			</div>
 		</CardHeader>
@@ -78,15 +80,25 @@
 	{#if showTemp}
 		<Card>
 			<CardHeader>
-				<CardTitle>Target temperature</CardTitle>
+				<CardTitle>{m.device_target_temperature({}, locale.messageOptions())}</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<div class="flex items-center justify-between">
-					<Button variant="outline" size="icon" onclick={() => commitTemp(target - 1)} aria-label="Lower">
+					<Button
+						variant="outline"
+						size="icon"
+						onclick={() => commitTemp(target - 1)}
+						aria-label={m.device_temperature_lower({}, locale.messageOptions())}
+					>
 						<Minus class="size-4" />
 					</Button>
 					<span class="text-2xl font-medium tabular-nums">{target}{tempUnit}</span>
-					<Button variant="outline" size="icon" onclick={() => commitTemp(target + 1)} aria-label="Raise">
+					<Button
+						variant="outline"
+						size="icon"
+						onclick={() => commitTemp(target + 1)}
+						aria-label={m.device_temperature_raise({}, locale.messageOptions())}
+					>
 						<Plus class="size-4" />
 					</Button>
 				</div>
@@ -98,14 +110,16 @@
 		<Card>
 			<CardHeader>
 				<div class="flex items-center justify-between gap-4">
-					<CardTitle>Mode</CardTitle>
+					<CardTitle>{m.device_mode({}, locale.messageOptions())}</CardTitle>
 					<Select type="single" value={deviceState.hvacMode ?? ""} onValueChange={(v) => oncommand({ hvacMode: v })}>
 						<SelectTrigger class="w-40 text-sm">
-							{deviceState.hvacMode ? sentenceCase(deviceState.hvacMode) : "Select mode"}
+							{deviceState.hvacMode
+								? identifierLabel(deviceState.hvacMode)
+								: m.device_select_mode({}, locale.messageOptions())}
 						</SelectTrigger>
 						<SelectContent>
 							{#each hvacModes as m (m)}
-								<SelectItem value={m}>{sentenceCase(m)}</SelectItem>
+								<SelectItem value={m}>{identifierLabel(m)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -118,14 +132,16 @@
 		<Card>
 			<CardHeader>
 				<div class="flex items-center justify-between gap-4">
-					<CardTitle>Fan</CardTitle>
+					<CardTitle>{m.device_fan({}, locale.messageOptions())}</CardTitle>
 					<Select type="single" value={deviceState.fanMode ?? ""} onValueChange={(v) => oncommand({ fanMode: v })}>
 						<SelectTrigger class="w-40 text-sm">
-							{deviceState.fanMode ? sentenceCase(deviceState.fanMode) : "Select speed"}
+							{deviceState.fanMode
+								? identifierLabel(deviceState.fanMode)
+								: m.device_select_speed({}, locale.messageOptions())}
 						</SelectTrigger>
 						<SelectContent>
 							{#each fanModes as f (f)}
-								<SelectItem value={f}>{sentenceCase(f)}</SelectItem>
+								<SelectItem value={f}>{identifierLabel(f)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -138,7 +154,7 @@
 		<Card>
 			<CardHeader>
 				<div class="flex items-center justify-between">
-					<CardTitle>Swing</CardTitle>
+					<CardTitle>{m.device_swing({}, locale.messageOptions())}</CardTitle>
 					<Switch
 						checked={deviceState.swing === "on"}
 						onCheckedChange={(c) => oncommand({ swing: c ? "on" : "off" })}

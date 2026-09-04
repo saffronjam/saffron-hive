@@ -4,6 +4,8 @@
 	import ColorPicker from "$lib/components/color-picker.svelte";
 	import TempWheel from "$lib/components/temp-wheel.svelte";
 	import { Palette, Sun } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface ColorValue {
 		r: number;
@@ -187,7 +189,7 @@
 						aria-pressed={mode === "color"}
 					>
 						<Palette class="size-3.5" />
-						Color
+						{m.device_color({}, locale.messageOptions())}
 					</Button>
 					<Button
 						variant={mode === "temp" ? "default" : "ghost"}
@@ -198,7 +200,7 @@
 						aria-pressed={mode === "temp"}
 					>
 						<Sun class="size-3.5" />
-						White
+						{m.device_white({}, locale.messageOptions())}
 					</Button>
 				</div>
 			{/if}
@@ -208,7 +210,7 @@
 					class="relative ml-auto h-8 w-24 overflow-hidden rounded-full bg-muted select-none touch-none"
 					class:opacity-50={disabled}
 					role="slider"
-					aria-label="Brightness"
+					aria-label={m.device_brightness({}, locale.messageOptions())}
 					aria-valuemin={minBrightness}
 					aria-valuemax={maxBrightness}
 					aria-valuenow={brightness ?? minBrightness}

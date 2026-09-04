@@ -29,7 +29,10 @@ export function temperatureUnitLabel(unit: TemperatureUnit): "°C" | "°F" {
  */
 export function formatTemperature(celsius: number, unit: TemperatureUnit): FormattedReading {
   const value = unit === "fahrenheit" ? celsiusToFahrenheit(celsius) : celsius;
-  return { value: value.toFixed(1), unit: temperatureUnitLabel(unit) };
+  return {
+    value: formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    unit: temperatureUnitLabel(unit),
+  };
 }
 
 /** Convert a Celsius reading into the user's chosen unit (no formatting). */
@@ -39,5 +42,6 @@ export function temperatureValue(celsius: number, unit: TemperatureUnit): number
 
 /** Format a humidity reading. % RH is the only supported unit; no conversion. */
 export function formatHumidity(percent: number): FormattedReading {
-  return { value: percent.toFixed(0), unit: "%" };
+  return { value: formatNumber(percent, { maximumFractionDigits: 0 }), unit: "%" };
 }
+import { formatNumber } from "$lib/i18n/format";

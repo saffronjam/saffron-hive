@@ -4,6 +4,8 @@ import { deviceDisplayName } from "$lib/utils";
 import { clearSnapshot, loadSnapshot, saveSnapshot } from "$lib/entity-cache";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
 import {
   ControlledLoadRole,
   type Capability,
@@ -630,7 +632,9 @@ export function createDeviceStore() {
         if (!r.data) return;
         const device = r.data.deviceAdded as Device;
         if (addDevice(device)) {
-          toast.info("New device discovered", { description: deviceDisplayName(device) });
+          toast.info(m.activity_device_added_generic({}, locale.messageOptions()), {
+            description: deviceDisplayName(device),
+          });
         }
       });
       const s4 = client.subscription(DEVICE_REMOVED, {}).subscribe((r) => {

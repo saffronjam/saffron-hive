@@ -18,6 +18,8 @@
 	import { ExternalLink } from "@lucide/svelte";
 	import { markPopoverDismissed } from "$lib/popover-guard";
 	import type { Snippet } from "svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		target: SensorPopoverTarget;
@@ -31,11 +33,14 @@
 	let {
 		target,
 		fields,
-		title = "Last 12 hours",
+		title,
 		align = "start",
 		triggerClass = "",
 		children,
 	}: Props = $props();
+	const resolvedTitle = $derived(
+		title ?? m.history_last_hours({ count: 12 }, locale.messageOptions()),
+	);
 
 	let open = $state(false);
 	// One of these sits on every sensor row, and the popover behind it is only
@@ -82,7 +87,7 @@
 			? { kind: "device", id: target.id }
 			: target.kind === "apartment"
 				? { kind: "apartment" }
-				: { kind: target.kind, id: target.id, name: title },
+				: { kind: target.kind, id: target.id, name: resolvedTitle },
 	]);
 
 	const viewMoreHref = $derived.by(() => {
@@ -125,9 +130,9 @@
 	</PopoverTrigger>
 	<PopoverContent class="w-[min(90vw,520px)] p-3" {align}>
 		<div class="mb-2 flex items-center justify-between gap-2">
-			<span class="text-sm font-medium">{title}</span>
+			<span class="text-sm font-medium">{resolvedTitle}</span>
 			<Button variant="link" size="sm" class="h-auto gap-1 p-0 text-xs" href={viewMoreHref}>
-				View more
+				{m.history_view_more({}, locale.messageOptions())}
 				<ExternalLink class="size-3" />
 			</Button>
 		</div>

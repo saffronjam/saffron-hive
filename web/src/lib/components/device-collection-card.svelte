@@ -24,10 +24,13 @@
 	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { Palette } from "@lucide/svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
-	import { groupDisplayName } from "$lib/utils";
+	import { entityDisplayName, groupDisplayName } from "$lib/utils";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		entity: T;
+		entityType: "room" | "group";
 		devices: Device[];
 		fallbackIcon: Component;
 		subtitle?: string;
@@ -48,6 +51,7 @@
 
 	let {
 		entity,
+		entityType,
 		devices: allDevices,
 		fallbackIcon,
 		subtitle,
@@ -69,7 +73,9 @@
 	// A room or group card aggregates and commands only its enabled members; the
 	// disabled ones stay visible on their own detail page instead.
 	const devices = $derived(allDevices.filter(isRuntimeEnabledDevice));
-	const displayName = $derived(groupDisplayName(entity));
+	const displayName = $derived(
+		entityType === "group" ? groupDisplayName(entity) : entityDisplayName("room", entity),
+	);
 
 	let preview = $state<number | undefined>(undefined);
 	let userTouched = $state(false);
@@ -187,6 +193,7 @@
 
 <EntityCard
 	{entity}
+	{entityType}
 	{fallbackIcon}
 	subtitle={resolvedSubtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
@@ -205,7 +212,7 @@
 			<Switch
 				checked={isOn}
 				onCheckedChange={handleToggle}
-				aria-label={`Toggle ${displayName}`}
+				aria-label={m.device_toggle_named({ name: displayName }, locale.messageOptions())}
 			/>
 		{/if}
 		{#if hasPicker}
@@ -214,7 +221,7 @@
 					<Button
 						variant="ghost"
 						size="icon-sm"
-						aria-label={`Adjust ${displayName}`}
+						aria-label={m.device_adjust_named({ name: displayName }, locale.messageOptions())}
 					>
 						<Palette class="size-4" />
 					</Button>

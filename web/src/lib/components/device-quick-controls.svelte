@@ -19,10 +19,13 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { deviceTint } from "$lib/device-tint";
-	import { deviceDisplayName, sentenceCase } from "$lib/utils";
+	import { deviceDisplayName } from "$lib/utils";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { Palette, Thermometer } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { identifierLabel } from "$lib/i18n/vocabulary";
 
 	interface Props {
 		device: Device;
@@ -214,7 +217,10 @@
 		checked={isOn}
 		onCheckedChange={handleToggle}
 		disabled={!device.available}
-		aria-label={`Toggle ${deviceDisplayName(device)}`}
+		aria-label={m.device_toggle_named(
+			{ name: deviceDisplayName(device) },
+			locale.messageOptions(),
+		)}
 	/>
 {/if}
 
@@ -223,7 +229,10 @@
 		{...props}
 		variant="ghost"
 		size="icon-sm"
-		aria-label={`Adjust ${deviceDisplayName(device)} climate`}
+		aria-label={m.device_adjust_climate_named(
+			{ name: deviceDisplayName(device) },
+			locale.messageOptions(),
+		)}
 		disabled={!device.available}
 	>
 		<Thermometer class="size-4" />
@@ -243,7 +252,9 @@
 			{#if targetTempCap}
 				<div class="space-y-1.5">
 					<div class="flex items-center justify-between gap-2">
-						<span class="text-xs font-medium">Target</span>
+						<span class="text-xs font-medium">
+							{m.device_target({}, locale.messageOptions())}
+						</span>
 						<span class="text-[10px] tabular-nums text-muted-foreground">
 							{selectedTargetTemperature}{targetTempCap.unit ?? ""}
 						</span>
@@ -254,7 +265,7 @@
 						min={targetTempMin}
 						max={targetTempMax}
 						step={1}
-						aria-label="Target temperature"
+						aria-label={m.device_target_temperature({}, locale.messageOptions())}
 						disabled={!device.available}
 						onValueChange={handleTargetTemperatureChange}
 						onValueCommit={handleTargetTemperatureCommit}
@@ -264,7 +275,7 @@
 
 			{#if hvacCap && hvacValues.length > 0}
 				<div class="space-y-1.5">
-					<span class="text-xs font-medium">Mode</span>
+					<span class="text-xs font-medium">{m.device_mode({}, locale.messageOptions())}</span>
 					<Select
 						type="single"
 						bind:value={selectedHvacMode}
@@ -272,11 +283,13 @@
 						disabled={!device.available}
 					>
 						<SelectTrigger class="w-full text-xs">
-							{selectedHvacMode ? sentenceCase(selectedHvacMode) : "Select mode"}
+						{selectedHvacMode
+							? identifierLabel(selectedHvacMode)
+							: m.device_select_mode({}, locale.messageOptions())}
 						</SelectTrigger>
 						<SelectContent>
 							{#each hvacValues as value (value)}
-								<SelectItem value={value}>{sentenceCase(value)}</SelectItem>
+							<SelectItem value={value}>{identifierLabel(value)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -285,7 +298,7 @@
 
 			{#if fanCap && fanValues.length > 0}
 				<div class="space-y-1.5">
-					<span class="text-xs font-medium">Fan</span>
+					<span class="text-xs font-medium">{m.device_fan({}, locale.messageOptions())}</span>
 					<Select
 						type="single"
 						bind:value={selectedFanMode}
@@ -293,11 +306,13 @@
 						disabled={!device.available}
 					>
 						<SelectTrigger class="w-full text-xs">
-							{selectedFanMode ? sentenceCase(selectedFanMode) : "Select fan"}
+						{selectedFanMode
+							? identifierLabel(selectedFanMode)
+							: m.device_select_fan({}, locale.messageOptions())}
 						</SelectTrigger>
 						<SelectContent>
 							{#each fanValues as value (value)}
-								<SelectItem value={value}>{sentenceCase(value)}</SelectItem>
+							<SelectItem value={value}>{identifierLabel(value)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -306,7 +321,7 @@
 
 			{#if swingCap}
 				<div class="space-y-1.5">
-					<span class="text-xs font-medium">Swing</span>
+					<span class="text-xs font-medium">{m.device_swing({}, locale.messageOptions())}</span>
 					<Select
 						type="single"
 						bind:value={selectedSwing}
@@ -314,11 +329,13 @@
 						disabled={!device.available}
 					>
 						<SelectTrigger class="w-full text-xs">
-							{selectedSwing ? sentenceCase(selectedSwing) : "Select swing"}
+						{selectedSwing
+							? identifierLabel(selectedSwing)
+							: m.device_select_swing({}, locale.messageOptions())}
 						</SelectTrigger>
 						<SelectContent>
 							{#each swingValues as value (value)}
-								<SelectItem value={value}>{sentenceCase(value)}</SelectItem>
+							<SelectItem value={value}>{identifierLabel(value)}</SelectItem>
 							{/each}
 						</SelectContent>
 					</Select>
@@ -333,7 +350,10 @@
 		<button
 			{...props}
 			type="button"
-			aria-label={`Adjust ${deviceDisplayName(device)}`}
+			aria-label={m.device_adjust_named(
+				{ name: deviceDisplayName(device) },
+				locale.messageOptions(),
+			)}
 			disabled={!device.available}
 			class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
 		>
@@ -344,7 +364,10 @@
 			{...props}
 			variant="ghost"
 			size="icon-sm"
-			aria-label={`Adjust ${deviceDisplayName(device)}`}
+			aria-label={m.device_adjust_named(
+				{ name: deviceDisplayName(device) },
+				locale.messageOptions(),
+			)}
 			disabled={!device.available}
 		>
 			<Palette class="size-4" />

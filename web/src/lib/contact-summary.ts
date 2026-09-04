@@ -1,21 +1,22 @@
 import { ContactRole } from "$lib/gql/graphql";
 import type { Device } from "$lib/stores/devices";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
 
 export interface ContactSummary {
   role: ContactRole;
   label: string;
-  plural: string;
   total: number;
   open: number;
   closed: number;
   unknown: number;
 }
 
-const CONTACT_NAMES: Record<ContactRole, Pick<ContactSummary, "label" | "plural">> = {
-  [ContactRole.General]: { label: "Contact", plural: "contacts" },
-  [ContactRole.Door]: { label: "Door", plural: "doors" },
-  [ContactRole.Window]: { label: "Window", plural: "windows" },
-};
+function roleKey(role: ContactRole): "contact" | "door" | "window" {
+  if (role === ContactRole.Door) return "door";
+  if (role === ContactRole.Window) return "window";
+  return "contact";
+}
 
 export function summarizeContacts(devices: Device[], role: ContactRole): ContactSummary | null {
   const matching = devices.filter((device) => device.roles.contact === role);
@@ -32,7 +33,7 @@ export function summarizeContacts(devices: Device[], role: ContactRole): Contact
 
   return {
     role,
-    ...CONTACT_NAMES[role],
+    label: m.contact_name({ role: roleKey(role) }, locale.messageOptions()),
     total: matching.length,
     open,
     closed,
@@ -41,12 +42,14 @@ export function summarizeContacts(devices: Device[], role: ContactRole): Contact
 }
 
 export function formatContactSummary(summary: ContactSummary): string {
+  const options = locale.messageOptions();
+  const role = roleKey(summary.role);
   if (summary.total === 1) {
     const state = summary.open === 1 ? "open" : summary.closed === 1 ? "closed" : "unknown";
-    return `${summary.label} ${state}`;
+    return m.contact_summary_single({ role, state }, options);
   }
-  const unknown = summary.unknown > 0 ? `, ${summary.unknown} unknown` : "";
-  if (summary.open === 0) return `No open ${summary.label.toLowerCase()}${unknown}`;
-  if (summary.open === 1) return `1 ${summary.label.toLowerCase()} open${unknown}`;
-  return `${summary.open} ${summary.plural} open${unknown}`;
+  return m.contact_summary_multiple(
+    { role, open: String(summary.open), unknown: String(summary.unknown) },
+    options,
+  );
 }

@@ -11,6 +11,8 @@
 	import { MousePointerClick } from "@lucide/svelte";
 	import { sentenceCase } from "$lib/utils";
 	import { haptics } from "$lib/stores/haptics.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		deviceId: string;
@@ -43,13 +45,22 @@
 
 {#if actions.length > 0 && !disabled}
 	{#if !armed}
-		<Button variant="ghost" size="icon-sm" onclick={openMenu} aria-label={`Trigger ${name} event`}>
+		<Button
+			variant="ghost"
+			size="icon-sm"
+			onclick={openMenu}
+			aria-label={m.devices_trigger_event({ name }, locale.messageOptions())}
+		>
 			<MousePointerClick class="size-4" />
 		</Button>
 	{:else}
 		<DropdownMenu bind:open>
 			<DropdownMenuTrigger class="inline-flex h-8 items-center">
-				<Button variant="ghost" size="icon-sm" aria-label={`Trigger ${name} event`}>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					aria-label={m.devices_trigger_event({ name }, locale.messageOptions())}
+				>
 					<MousePointerClick class="size-4" />
 				</Button>
 			</DropdownMenuTrigger>

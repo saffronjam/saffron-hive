@@ -18,6 +18,7 @@
 		commitGroupTemp,
 		type CommandTarget,
 	} from "$lib/group-commands";
+	import { m } from "$lib/i18n/messages";
 
 	interface Props {
 		devices: Device[];
@@ -68,7 +69,7 @@
 </script>
 
 {#if hasOnOff}
-	<Switch checked={isOn} onCheckedChange={handleToggle} aria-label={`Toggle ${name}`} />
+	<Switch checked={isOn} onCheckedChange={handleToggle} aria-label={m.device_toggle_named({ name })} />
 {/if}
 
 {#if hasPopover}
@@ -76,7 +77,7 @@
 		<PopoverTrigger class="inline-flex h-8 items-center">
 			<button
 				type="button"
-				aria-label={`Adjust ${name}`}
+				aria-label={m.device_adjust_named({ name })}
 				class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent"
 			>
 				<HiveColorSwatch color={swatchColor} />

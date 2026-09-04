@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { measureMount } from "$lib/perf";
-	import { deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
@@ -27,7 +27,8 @@
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
-	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		/**
@@ -45,7 +46,7 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Devices" }];
+		pageHeader.breadcrumbs = [{ label: m.nav_devices({}, locale.messageOptions()) }];
 		pageHeader.viewToggle = {
 			value: view,
 			onchange: (v) => {
@@ -59,23 +60,23 @@
 		active: () => visible && page.url.pathname === "/devices",
 	});
 
-	const deviceTypeOptions = [
-		{ value: "light", label: "Light" },
-		{ value: "sensor", label: "Sensor" },
-		{ value: "switch", label: "Switch" },
-		{ value: "hub", label: "Hub" },
-	];
+	const deviceTypeOptions = $derived([
+		{ value: "light", label: m.device_type_light({}, locale.messageOptions()) },
+		{ value: "sensor", label: m.device_type_sensor({}, locale.messageOptions()) },
+		{ value: "switch", label: m.device_type_switch({}, locale.messageOptions()) },
+		{ value: "hub", label: m.device_type_hub({}, locale.messageOptions()) },
+	]);
 
-	const enabledOptions = [
-		{ value: "yes", label: "Yes" },
-		{ value: "no", label: "No" },
-	];
-	const deletedOptions = enabledOptions;
+	const enabledOptions = $derived([
+		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
+		{ value: "no", label: m.common_no({}, locale.messageOptions()) },
+	]);
+	const deletedOptions = $derived(enabledOptions);
 
-	const searchChipConfigs: ChipConfig[] = [
+	const searchChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "type",
-			label: "Type",
+			label: m.field_type({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input) => {
 				const q = input.toLowerCase();
@@ -87,7 +88,7 @@
 		},
 		{
 			keyword: "enabled",
-			label: "Enabled",
+			label: m.field_enabled({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input) => {
 				const q = input.toLowerCase();
@@ -99,7 +100,7 @@
 		},
 		{
 			keyword: "deleted",
-			label: "Deleted",
+			label: m.field_deleted({}, locale.messageOptions()),
 			variant: "secondary",
 			options: (input) => {
 				const q = input.toLowerCase();
@@ -109,7 +110,7 @@
 				);
 			},
 		},
-	];
+	]);
 
 	// Devices discovered since the last visit are snapshotted once, when the store
 	// first hydrates. Both the New chips and the sort order read this rather than
@@ -235,18 +236,18 @@
 		const result: DrawerGroup<"room" | "group">[] = [];
 		if (availableRooms.length > 0) {
 			result.push({
-				heading: "Rooms",
+				heading: m.nav_rooms({}, locale.messageOptions()),
 				items: availableRooms.map((r) => ({
 					type: "room" as const,
 					id: r.id,
-					name: r.name,
+					name: entityDisplayName("room", r),
 					icon: DoorOpen,
 				})),
 			});
 		}
 		if (availableGroups.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.nav_groups({}, locale.messageOptions()),
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
@@ -333,7 +334,8 @@
 			: await client.mutation(DELETE_DEVICE, { id: ids[0] }).toPromise();
 		deleteLoading = false;
 		if (result.error) {
-			operationError = graphqlErrorMessage(result.error, "Could not delete the device.");
+			console.error(result.error);
+			operationError = m.devices_delete_failed({}, locale.messageOptions());
 			return;
 		}
 		for (const id of ids) deviceStore.updateDeleted(id, true);
@@ -352,7 +354,8 @@
 			: await client.mutation(RESTORE_DEVICE, { id: ids[0] }).toPromise();
 		restoreLoading = false;
 		if (result.error) {
-			operationError = graphqlErrorMessage(result.error, "Could not restore the device.");
+			console.error(result.error);
+			operationError = m.devices_restore_failed({}, locale.messageOptions());
 			return;
 		}
 		for (const id of ids) deviceStore.updateDeleted(id, false);
@@ -409,7 +412,7 @@
 				<HiveSearchbar
 					controller={searchController}
 					chips={searchChipConfigs}
-					placeholder="Search devices..."
+					placeholder={m.devices_search({}, locale.messageOptions())}
 				/>
 			</div>
 			<div
@@ -427,11 +430,13 @@
 								disabled={restoreLoading}
 								onclick={() => restoreDevices(selectedRestorable, true)}
 							>
-								Restore
+								{m.devices_restore({}, locale.messageOptions())}
 							</Button>
 						{/if}
 						{#if selectedDeletable.length > 0}
-							<Button variant="destructive" size="sm" onclick={requestBatchDelete}>Delete</Button>
+							<Button variant="destructive" size="sm" onclick={requestBatchDelete}>
+								{m.common_delete({}, locale.messageOptions())}
+							</Button>
 						{/if}
 					{/snippet}
 				</TableSelectionToolbar>
@@ -440,21 +445,25 @@
 
 		{#if allDevices.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No devices discovered yet.</p>
+				<p class="text-muted-foreground">
+					{m.devices_none({}, locale.messageOptions())}
+				</p>
 				<p class="mt-2 text-sm text-muted-foreground">
-					Devices appear here once an integration is connected.
+					{m.devices_none_help({}, locale.messageOptions())}
 				</p>
 			</div>
 		{:else if filteredDevices.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No devices match your filters.</p>
+				<p class="text-muted-foreground">
+					{m.devices_no_match({}, locale.messageOptions())}
+				</p>
 			</div>
 		{:else}
 			<ListView mode={view}>
 				{#snippet card()}
 					<!-- Sections only earn their headings when there is something to divide. -->
 					{#if newDevices.length > 0}
-						<SectionDivider label="New devices" class="mb-3" />
+						<SectionDivider label={m.devices_new({}, locale.messageOptions())} class="mb-3" />
 						<AnimatedGrid>
 							{#each newDevices as device (device.id)}
 								{@render deviceCard(device)}
@@ -494,8 +503,13 @@
 
 		<HiveDrawer
 			bind:open={addToPickerOpen}
-			title={pickerDevice ? `Add ${pickerDevice.name} to rooms or groups` : "Add to rooms or groups"}
-			description="Pick one or more rooms and groups for this device."
+			title={pickerDevice
+				? m.devices_add_to_title(
+						{ name: deviceDisplayName(pickerDevice) },
+						locale.messageOptions(),
+					)
+				: m.devices_add_to_generic({}, locale.messageOptions())}
+			description={m.devices_add_to_description({}, locale.messageOptions())}
 			multiple
 			groups={pickerDrawerGroups}
 			onselect={handlePickerSelect}
@@ -503,11 +517,19 @@
 
 		<ConfirmDialog
 			open={deleteTargets.length > 0}
-			title={deleteTargets.length === 1 ? "Delete device" : "Delete devices"}
+			title={deleteTargets.length === 1
+				? m.devices_delete_one_title({}, locale.messageOptions())
+				: m.devices_delete_many_title({}, locale.messageOptions())}
 			description={deleteTargets.length === 1
-				? `Delete “${deleteTargets[0] ? deviceDisplayName(deleteTargets[0]) : ""}” from Hive? This hides and disables it in Hive only.`
-				: `Delete ${deleteTargets.length} devices from Hive? This hides and disables them in Hive only.`}
-			confirmLabel="Delete"
+				? m.devices_delete_one_description(
+						{ name: deleteTargets[0] ? deviceDisplayName(deleteTargets[0]) : "" },
+						locale.messageOptions(),
+					)
+				: m.devices_delete_many_description(
+						{ count: deleteTargets.length },
+						locale.messageOptions(),
+					)}
+			confirmLabel={m.common_delete({}, locale.messageOptions())}
 			loading={deleteLoading}
 			onconfirm={confirmDelete}
 			oncancel={cancelDelete}

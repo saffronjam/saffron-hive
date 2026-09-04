@@ -15,8 +15,9 @@
 	import { popoverDismissedRecently } from "$lib/popover-guard";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
-	import { contactCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		devices: Device[];
@@ -25,7 +26,11 @@
 
 	let { devices, client }: Props = $props();
 
-	const apartmentEntity = { id: "apartment", name: "Apartment", icon: null };
+	const apartmentEntity = $derived({
+		id: "apartment",
+		name: m.dashboard_apartment({}, locale.messageOptions()),
+		icon: null,
+	});
 
 	const lights = $derived(devices.filter(isLightControlDevice));
 	const onLights = $derived(lights.filter((d) => d.state?.on));
@@ -98,14 +103,12 @@
 		enabled: () => dimmableLights.length > 0,
 	});
 
-	const subtitle = $derived(contactCollectionSummary(devices));
 </script>
 
 <EntityCard
 	pressFeedback
 	entity={apartmentEntity}
 	fallbackIcon={House}
-	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}

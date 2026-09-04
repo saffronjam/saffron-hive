@@ -22,6 +22,8 @@
 	import { commitGroupBrightness, commitGroupColor, commitGroupTemp, commitGroupToggle } from "$lib/group-commands";
 	import { haptics } from "$lib/stores/haptics.svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
+	import { compareLocalized } from "$lib/i18n/format";
+	import { m } from "$lib/i18n/messages";
 
 	interface Entity {
 		id: string;
@@ -49,7 +51,7 @@
 	`);
 
 	const sortedDevices = $derived(
-		[...devices].sort((a, b) => deviceDisplayName(a).localeCompare(deviceDisplayName(b))),
+		[...devices].sort((a, b) => compareLocalized(deviceDisplayName(a), deviceDisplayName(b))),
 	);
 	const onOffDevices = $derived(
 		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
@@ -114,8 +116,6 @@
 		enabled: () => dimmableLights.length > 0,
 	});
 
-	const subtitle = $derived(isOn ? "On" : "Off");
-
 	const hasColor = $derived(devices.some((d) => d.capabilities.some((c) => c.name === "color")));
 	const hasColorTemp = $derived(
 		devices.some((d) => d.capabilities.some((c) => c.name === "color_temp")),
@@ -171,7 +171,6 @@
 <EntityCard
 	{entity}
 	fallbackIcon={FallbackIcon}
-	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
@@ -197,7 +196,7 @@
 									type="button"
 									{...props}
 									class="relative flex size-7 shrink-0 items-center justify-center rounded-icon bg-muted/50 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-								aria-label={`Adjust ${entity.name} colour`}
+								aria-label={m.device_adjust_named({ name: entity.name })}
 							>
 								{#if hasTint}
 									<div
@@ -256,7 +255,7 @@
 								{...props}
 								variant="ghost"
 								size="icon-sm"
-								aria-label={`Show ${entity.name} members`}
+								aria-label={m.shared_show_members({ name: entity.name })}
 							>
 								<Maximize2 class="size-4" />
 							</Button>

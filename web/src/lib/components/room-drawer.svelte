@@ -33,7 +33,7 @@
 		type Device,
 	} from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
-	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import type { GroupTag } from "$lib/components/group-tags-select.svelte";
 	import type { Component } from "svelte";
 	import {
@@ -49,6 +49,9 @@
 	import { onDestroy } from "svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
 	import { haptics } from "$lib/stores/haptics.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { compareLocalized } from "$lib/i18n/format";
 
 	interface RoomEntity {
 		id: string;
@@ -121,7 +124,7 @@
 	const applianceDevices = $derived(
 		roomDevices
 			.filter(isApplianceDevice)
-			.toSorted((a, b) => deviceDisplayName(a).localeCompare(deviceDisplayName(b))),
+			.toSorted((a, b) => compareLocalized(deviceDisplayName(a), deviceDisplayName(b))),
 	);
 	const fullWidthApplianceId = $derived(
 		applianceDevices.length % 2 === 1
@@ -317,7 +320,9 @@
 		if (!room) return [];
 		return scenes
 			.filter((s) => s.rooms.some((r) => r.id === room.id))
-			.toSorted((a, b) => a.name.localeCompare(b.name));
+			.toSorted((a, b) =>
+				compareLocalized(entityDisplayName("scene", a), entityDisplayName("scene", b)),
+			);
 	});
 </script>
 
@@ -332,15 +337,18 @@
 		showCloseButton={false}
 		class="max-h-[85vh] gap-2 overflow-y-auto rounded-t-2xl bg-[color-mix(in_oklch,var(--background)_50%,var(--card))] p-4 pb-24 sm:max-w-none lg:left-1/2! lg:right-auto! lg:w-[calc(100%-3rem)] lg:max-w-3xl lg:-translate-x-1/2"
 	>
-		<SheetTitle class="sr-only">{room?.name ?? "Room"}</SheetTitle>
+		<SheetTitle class="sr-only">
+			{room ? entityDisplayName("room", room) : m.room_generic({}, locale.messageOptions())}
+		</SheetTitle>
 		<SheetDescription class="sr-only">
-			Scenes and lights for this room.
+			{m.room_drawer_description({}, locale.messageOptions())}
 		</SheetDescription>
 
 		{#if room}
 			<EntityCard
 				pressFeedback
 				entity={room}
+				entityType="room"
 				fallbackIcon={DoorOpen}
 				subtitle={deviceCollectionSummary(roomDevices)}
 				tintColors={tintColors.length > 0 ? tintColors : null}
@@ -380,7 +388,10 @@
 											type="button"
 											{...props}
 											class="relative flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-											aria-label={`Adjust ${room.name} colour`}
+											aria-label={m.room_adjust_color(
+								{ name: entityDisplayName("room", room) },
+												locale.messageOptions(),
+											)}
 										>
 											{#if hasTint}
 												<div
@@ -432,7 +443,7 @@
 						<SensorHistoryPopover
 							target={{ kind: "room", id: room.id }}
 							fields={sensorFields}
-							title={room.name}
+							title={entityDisplayName("room", room)}
 							align="end"
 							triggerClass="group rounded focus-visible:outline-none"
 						>
@@ -462,7 +473,9 @@
 								: ''}"
 							style="--scene-glow: {glow}"
 							onclick={() => active ? onstopscene(scene) : onapplyscene(scene)}
-							aria-label={active ? `Stop ${scene.name}` : `Apply ${scene.name}`}
+							aria-label={active
+								? m.scene_stop_named({ name: entityDisplayName("scene", scene) }, locale.messageOptions())
+								: m.scene_apply_named({ name: entityDisplayName("scene", scene) }, locale.messageOptions())}
 						>
 							{#if active}
 								<Square class="size-4 shrink-0" />
@@ -471,7 +484,7 @@
 									{#snippet fallback()}<Clapperboard class="size-4 shrink-0" />{/snippet}
 								</AnimatedIcon>
 							{/if}
-							<span>{scene.name}</span>
+							<span>{entityDisplayName("scene", scene)}</span>
 						</Button>
 					{/each}
 				</div>
@@ -479,11 +492,15 @@
 
 			<section>
 				<div class="mb-1 flex items-center gap-3">
-					<h3 class="text-sm font-semibold text-foreground">Lights</h3>
+					<h3 class="text-sm font-semibold text-foreground">
+						{m.room_lights({}, locale.messageOptions())}
+					</h3>
 					<div class="h-px flex-1 bg-muted" aria-hidden="true"></div>
 				</div>
 				{#if sectionAEntries.length === 0}
-					<p class="text-sm text-muted-foreground">No lights in this room.</p>
+					<p class="text-sm text-muted-foreground">
+						{m.room_no_lights({}, locale.messageOptions())}
+					</p>
 				{:else}
 					<div class="grid grid-cols-2 gap-3">
 						{#each sectionARows as { entry, fullWidth } (entry.key)}
@@ -503,7 +520,9 @@
 			{#if applianceDevices.length > 0}
 				<section>
 					<div class="mb-1 flex items-center gap-3">
-						<h3 class="text-sm font-semibold text-foreground">Appliances</h3>
+						<h3 class="text-sm font-semibold text-foreground">
+							{m.room_appliances({}, locale.messageOptions())}
+						</h3>
 						<div class="h-px flex-1 bg-muted" aria-hidden="true"></div>
 					</div>
 					<div class="grid grid-cols-2 gap-3">

@@ -6,6 +6,8 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		value: DeviceRoles;
@@ -30,7 +32,9 @@
 <div class="space-y-2">
 	{#if value.controlledLoad != null}
 		<div class="flex items-center gap-3">
-			<span class="w-16 text-sm text-muted-foreground">Controls</span>
+			<span class="w-16 text-sm text-muted-foreground">
+				{m.device_roles_controls({}, locale.messageOptions())}
+			</span>
 			<Select
 				type="single"
 				value={value.controlledLoad}
@@ -38,11 +42,17 @@
 				{disabled}
 			>
 				<SelectTrigger class="w-40">
-					{value.controlledLoad === ControlledLoadRole.Light ? "Light" : "Appliance"}
+					{value.controlledLoad === ControlledLoadRole.Light
+						? m.device_type_light({}, locale.messageOptions())
+						: m.device_roles_appliance({}, locale.messageOptions())}
 				</SelectTrigger>
 				<SelectContent>
-					<SelectItem value={ControlledLoadRole.Appliance}>Appliance</SelectItem>
-					<SelectItem value={ControlledLoadRole.Light}>Light</SelectItem>
+					<SelectItem value={ControlledLoadRole.Appliance}>
+						{m.device_roles_appliance({}, locale.messageOptions())}
+					</SelectItem>
+					<SelectItem value={ControlledLoadRole.Light}>
+						{m.device_type_light({}, locale.messageOptions())}
+					</SelectItem>
 				</SelectContent>
 			</Select>
 		</div>
@@ -50,7 +60,9 @@
 
 	{#if value.contact != null}
 		<div class="flex items-center gap-3">
-			<span class="w-16 text-sm text-muted-foreground">Contact</span>
+			<span class="w-16 text-sm text-muted-foreground">
+				{m.device_roles_contact({}, locale.messageOptions())}
+			</span>
 			<Select
 				type="single"
 				value={value.contact}
@@ -59,19 +71,27 @@
 			>
 				<SelectTrigger class="w-40">
 					{value.contact === ContactRole.Door
-						? "Door"
+						? m.sensor_door({}, locale.messageOptions())
 						: value.contact === ContactRole.Window
-							? "Window"
-							: "General contact"}
+							? m.sensor_window({}, locale.messageOptions())
+							: m.device_roles_general_contact({}, locale.messageOptions())}
 				</SelectTrigger>
 				<SelectContent>
-					<SelectItem value={ContactRole.General}>General contact</SelectItem>
-					<SelectItem value={ContactRole.Door}>Door</SelectItem>
-					<SelectItem value={ContactRole.Window}>Window</SelectItem>
+					<SelectItem value={ContactRole.General}>
+						{m.device_roles_general_contact({}, locale.messageOptions())}
+					</SelectItem>
+					<SelectItem value={ContactRole.Door}>
+						{m.sensor_door({}, locale.messageOptions())}
+					</SelectItem>
+					<SelectItem value={ContactRole.Window}>
+						{m.sensor_window({}, locale.messageOptions())}
+					</SelectItem>
 				</SelectContent>
 			</Select>
 			{#if contactMapped}
-				<span class="text-sm text-muted-foreground">Used in map</span>
+				<span class="text-sm text-muted-foreground">
+					{m.device_roles_used_in_map({}, locale.messageOptions())}
+				</span>
 			{/if}
 		</div>
 	{/if}

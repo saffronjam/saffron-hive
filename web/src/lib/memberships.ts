@@ -1,3 +1,5 @@
+import { entityDisplayName, groupDisplayName } from "$lib/utils";
+
 export interface MembershipRoomMemberRef {
   memberType: string;
   memberId: string;
@@ -59,17 +61,19 @@ export interface DeviceChips {
 
 export function roomLabelsByDevice(
   rooms: readonly {
+    id: string;
     name?: string | null;
     members?: readonly MembershipRoomMemberRef[];
   }[],
 ): Map<string, string> {
   const names = new Map<string, string[]>();
   for (const room of rooms) {
-    if (!room.name) continue;
+    const roomName = entityDisplayName("room", room);
+    if (!roomName) continue;
     for (const member of room.members ?? []) {
       if (member.memberType !== "device") continue;
       const roomNames = names.get(member.memberId) ?? [];
-      if (!roomNames.includes(room.name)) roomNames.push(room.name);
+      if (!roomNames.includes(roomName)) roomNames.push(roomName);
       names.set(member.memberId, roomNames);
     }
   }
@@ -92,7 +96,11 @@ export function chipsByDevice(
     for (const m of room.members) {
       if (m.memberType !== "device") continue;
       const entry = map.get(m.memberId) ?? { roomChips: [], groupChips: [] };
-      entry.roomChips.push({ id: room.id, name: room.name, icon: room.icon ?? null });
+      entry.roomChips.push({
+        id: room.id,
+        name: entityDisplayName("room", room),
+        icon: room.icon ?? null,
+      });
       map.set(m.memberId, entry);
     }
   }
@@ -147,7 +155,7 @@ export function membershipRowsForDevice(
     if (!member) continue;
     roomRows.push({
       id: `room:${r.id}`,
-      name: r.name,
+      name: entityDisplayName("room", r),
       kind: "room",
       roomId: r.id,
       roomMemberId: member.id,
@@ -169,4 +177,3 @@ export function membershipRowsForDevice(
 
   return [...roomRows, ...groupRows];
 }
-import { groupDisplayName } from "$lib/utils";

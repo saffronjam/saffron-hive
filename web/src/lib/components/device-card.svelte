@@ -35,6 +35,8 @@
 		Trash2,
 		Undo2,
 	} from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface MembershipChip {
 		id: string;
@@ -196,21 +198,21 @@
 					tintBackground={iconGradient}
 					tintVisible={device.state?.on !== true}
 				/>
-				<InlineEditName name={deviceDisplayName(device)} onsave={(newName) => onrename(device.id, newName)} />
+				<InlineEditName name={deviceDisplayName(device)} entityType="device" entityId={device.id} onsave={(newName) => onrename(device.id, newName)} />
 				{#if device.deleted}
 					<Trash2
 						class="size-3.5 shrink-0 text-muted-foreground"
-						title="Deleted"
-						aria-label="Deleted"
+						title={m.field_deleted({}, locale.messageOptions())}
+						aria-label={m.field_deleted({}, locale.messageOptions())}
 					/>
 				{:else if device.disabled}
 					<Ban
 						class="size-3.5 shrink-0 text-muted-foreground"
-						title="Disabled"
-						aria-label="Disabled"
+						title={m.field_disabled({}, locale.messageOptions())}
+						aria-label={m.field_disabled({}, locale.messageOptions())}
 					/>
 				{:else if !device.available}
-					<HiveChip type="offline" label="Offline" />
+					<HiveChip type="offline" label={m.devices_offline({}, locale.messageOptions())} />
 				{/if}
 			</div>
 			<div class="flex shrink-0 items-center gap-1">
@@ -235,7 +237,7 @@
 							{#snippet child({ props })}
 								<a href={`/devices/${device.id}`} {...props}>
 									<Pencil class="size-4" />
-									Edit
+									{m.common_edit({}, locale.messageOptions())}
 								</a>
 							{/snippet}
 						</DropdownMenuItem>
@@ -243,26 +245,26 @@
 						{#if device.deleted}
 							<DropdownMenuItem onclick={() => onrestore(device)}>
 								<Undo2 class="size-4" />
-								Restore
+								{m.devices_restore({}, locale.messageOptions())}
 							</DropdownMenuItem>
 						{:else}
 							<DropdownMenuItem onclick={() => onAddTo(device)}>
 								<Plus class="size-4" />
-								Add to
+								{m.common_add_to({}, locale.messageOptions())}
 							</DropdownMenuItem>
 							<DropdownMenuItem onclick={() => ontoggleenabled(device)}>
 								{#if device.disabled}
 									<CircleCheck class="size-4" />
-									Enable
+									{m.common_enable({}, locale.messageOptions())}
 								{:else}
 									<Ban class="size-4" />
-									Disable
+									{m.common_disable({}, locale.messageOptions())}
 								{/if}
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem variant="destructive" onclick={() => ondelete(device)}>
 								<Trash2 class="size-4" />
-								Delete
+								{m.common_delete({}, locale.messageOptions())}
 							</DropdownMenuItem>
 						{/if}
 					</DropdownMenuContent>
@@ -312,14 +314,22 @@
 				step={1}
 				onValueChange={handleBrightnessChange}
 				disabled={!device.available || device.disabled || device.deleted}
-				aria-label={`${deviceDisplayName(device)} brightness`}
+				aria-label={m.devices_brightness_named(
+					{ name: deviceDisplayName(device) },
+					locale.messageOptions(),
+				)}
 			/>
 		{/if}
 	</CardContent>
 </Card>
 
 {#snippet actionsButton(props: Record<string, unknown>)}
-	<Button {...props} variant="ghost" size="icon-sm" aria-label="Device actions">
+	<Button
+		{...props}
+		variant="ghost"
+		size="icon-sm"
+		aria-label={m.devices_actions({}, locale.messageOptions())}
+	>
 		<EllipsisVertical class="size-4" />
 	</Button>
 {/snippet}

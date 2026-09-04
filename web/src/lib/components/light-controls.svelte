@@ -4,6 +4,9 @@
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import type { DeviceState } from "$lib/stores/devices";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatPercent } from "$lib/i18n/format";
 
 	interface CommandInput {
 		on?: boolean;
@@ -109,7 +112,7 @@
 	<Card>
 		<CardHeader>
 			<div class="flex items-center justify-between">
-				<CardTitle>Power</CardTitle>
+				<CardTitle>{m.device_power({}, locale.messageOptions())}</CardTitle>
 				<Switch
 					checked={lightState.on ?? false}
 					onCheckedChange={handleToggle}
@@ -121,7 +124,7 @@
 	{#if hasColor || hasColorTemp}
 		<Card>
 			<CardHeader>
-				<CardTitle>Color</CardTitle>
+				<CardTitle>{m.device_color({}, locale.messageOptions())}</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<LightColorPicker
@@ -141,8 +144,10 @@
 		<Card>
 			<CardHeader>
 				<div class="flex items-center justify-between">
-					<CardTitle>Brightness</CardTitle>
-					<span class="text-sm tabular-nums text-muted-foreground">{brightnessPercent}%</span>
+					<CardTitle>{m.device_brightness({}, locale.messageOptions())}</CardTitle>
+					<span class="text-sm tabular-nums text-muted-foreground">
+						{formatPercent(brightnessPercent / 100)}
+					</span>
 				</div>
 			</CardHeader>
 			<CardContent>

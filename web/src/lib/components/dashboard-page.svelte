@@ -23,6 +23,8 @@
 	import { PlugZap } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { resolveTargetDevices } from "$lib/target-resolve";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		/**
@@ -37,7 +39,7 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Dashboard" }];
+		pageHeader.breadcrumbs = [{ label: m.nav_dashboard({}, locale.messageOptions()) }];
 	});
 
 	const INTEGRATIONS_QUERY = graphql(`
@@ -126,21 +128,27 @@
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<PlugZap class="size-6 text-muted-foreground" />
 			</div>
-			<p class="text-muted-foreground">No integrations yet.</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				Add an integration to bring external devices into Saffron Hive.
+			<p class="text-muted-foreground">
+				{m.dashboard_no_integrations({}, locale.messageOptions())}
 			</p>
-			<Button class="mt-4" href="/integrations">Set up your first integration</Button>
+			<p class="mt-2 text-sm text-muted-foreground">
+				{m.dashboard_no_integrations_help({}, locale.messageOptions())}
+			</p>
+			<Button class="mt-4" href="/integrations">
+				{m.dashboard_setup_integration({}, locale.messageOptions())}
+			</Button>
 		</div>
 	{:else if $devicesHydrated && rooms.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No rooms configured yet.</p>
+			<p class="text-muted-foreground">
+				{m.dashboard_no_rooms({}, locale.messageOptions())}
+			</p>
 			<p class="mt-2 text-sm text-muted-foreground">
-				Create a room on the Rooms page and add devices or light groups to it.
+				{m.dashboard_no_rooms_help({}, locale.messageOptions())}
 			</p>
 		</div>
 	{:else}
-		<SectionDivider label="Rooms" class="mt-3" />
+		<SectionDivider label={m.dashboard_rooms({}, locale.messageOptions())} class="mt-3" />
 		{#each orderedRooms as room (room.id)}
 			<DashboardRoomCard
 				{room}

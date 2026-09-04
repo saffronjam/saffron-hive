@@ -17,6 +17,9 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Plus, X, Search } from "@lucide/svelte";
+	import { m } from "$lib/paraglide/messages.js";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { collator } from "$lib/i18n/format";
 
 	interface RelatedItem {
 		id: string;
@@ -45,23 +48,24 @@
 	let {
 		rows,
 		relatedLabel,
-		emptyMessage = "No members yet.",
-		addLabel = "Add member",
+		emptyMessage,
+		addLabel,
 		onadd,
 		onremove,
 		disabled = false,
 	}: Props = $props();
 
 	const showRelated = $derived(relatedLabel !== undefined);
+	const resolvedEmptyMessage = $derived(emptyMessage ?? m.member_empty({}, locale.messageOptions()));
+	const resolvedAddLabel = $derived(addLabel ?? m.group_member_add({}, locale.messageOptions()));
 
 	let search = $state("");
 
 	const MAX_CHIPS = 3;
 
 	const filteredRows = $derived.by(() => {
-		const sorted = [...rows].sort((a, b) =>
-			a.name.localeCompare(b.name, undefined, { numeric: true })
-		);
+		const nameCollator = collator({ numeric: true });
+		const sorted = [...rows].sort((a, b) => nameCollator.compare(a.name, b.name));
 		if (!search) return sorted;
 		const q = search.toLowerCase();
 		return sorted.filter(
@@ -80,32 +84,32 @@
 			<Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
 				bind:value={search}
-				placeholder="Search members..."
+				placeholder={m.member_search({}, locale.messageOptions())}
 				class="pl-9"
 			/>
 		</div>
 		{#if onadd}
 			<Button variant="outline" size="sm" onclick={onadd} class="shrink-0" {disabled}>
 				<Plus class="size-4" />
-				<span>{addLabel}</span>
+				<span>{resolvedAddLabel}</span>
 			</Button>
 		{/if}
 	</div>
 
 	{#if rows.length === 0}
 		<p class="py-6 text-center text-sm text-muted-foreground">
-			{emptyMessage}
+			{resolvedEmptyMessage}
 		</p>
 	{:else if filteredRows.length === 0}
 		<p class="py-6 text-center text-sm text-muted-foreground">
-			No matches.
+			{m.shared_no_matches({}, locale.messageOptions())}
 		</p>
 	{:else}
 		<Table>
 			<TableHeader>
 				<TableRow>
-					<TableHead class="w-24">Type</TableHead>
-					<TableHead>Name</TableHead>
+					<TableHead class="w-24">{m.field_type({}, locale.messageOptions())}</TableHead>
+					<TableHead>{m.field_name({}, locale.messageOptions())}</TableHead>
 					{#if showRelated}
 						<TableHead>{relatedLabel}</TableHead>
 					{/if}
@@ -153,7 +157,7 @@
 											<Popover>
 												<PopoverTrigger>
 													<Badge variant="outline" class="hover:bg-muted">
-														+{overflow.length} more
+														{m.member_more({ count: overflow.length }, locale.messageOptions())}
 													</Badge>
 												</PopoverTrigger>
 												<PopoverContent class="w-56 p-0">
@@ -180,7 +184,7 @@
 								size="icon-sm"
 								onclick={() => onremove?.(row.id)}
 								{disabled}
-								aria-label="Remove"
+								aria-label={m.common_remove({}, locale.messageOptions())}
 							>
 								<X class="size-4" />
 							</Button>

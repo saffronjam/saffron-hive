@@ -24,6 +24,8 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
 	import { groupDisplayName } from "$lib/utils";
+	import { m } from "$lib/paraglide/messages.js";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		groups: G[];
@@ -38,7 +40,7 @@
 
 	let { groups, selection, ondelete, onrename, oniconchange, onAddTo, editHref, getDevices }: Props = $props();
 
-	const COLUMNS: ColumnDef<G>[] = [
+	const COLUMNS: ColumnDef<G>[] = $derived.by(() => [
 		{
 			key: "select",
 			label: "",
@@ -56,35 +58,35 @@
 		},
 		{
 			key: "name",
-			label: "Name",
+			label: m.field_name({}, locale.messageOptions()),
 			sortValue: (g) => groupDisplayName(g),
 			cell: nameCell,
 		},
 		{
 			key: "source",
-			label: "Source",
+			label: m.field_source({}, locale.messageOptions()),
 			sortValue: (g) => g.source,
 			cell: sourceCell,
 		},
 		{
 			key: "members",
-			label: "Members",
+			label: m.field_members({}, locale.messageOptions()),
 			sortValue: (g) => g.members.length,
 			cell: membersCell,
 		},
 		{
 			key: "breakdown",
-			label: "Breakdown",
+			label: m.field_breakdown({}, locale.messageOptions()),
 			cell: breakdownCell,
 		},
 		{
 			key: "state",
-			label: "State",
+			label: m.field_state({}, locale.messageOptions()),
 			cell: stateCell,
 		},
 		{
 			key: "createdBy",
-			label: "Managed by",
+			label: m.field_managed_by({}, locale.messageOptions()),
 			sortValue: (g) => g.source === "zigbee2mqtt" ? "Zigbee2MQTT" : g.createdBy?.name ?? null,
 			cell: managedByCell,
 		},
@@ -96,9 +98,9 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+	]);
 
-	const tableState = createTableState({ storageKey: "groups", columns: COLUMNS });
+	const tableState = createTableState({ storageKey: "groups", columns: () => COLUMNS });
 
 	const displayRows = $derived(tableState.applySort(groups));
 	const displayIds = $derived<readonly string[]>(displayRows.map((g) => g.id));
@@ -114,7 +116,7 @@
 		id={g.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select {groupDisplayName(g)}"
+		ariaLabel={m.shared_select_item({ name: groupDisplayName(g) }, locale.messageOptions())}
 	/>
 {/snippet}
 
@@ -123,7 +125,7 @@
 {/snippet}
 
 {#snippet nameCell(g: G)}
-	<InlineEditName name={groupDisplayName(g)} onsave={(newName) => onrename(g, newName)} />
+	<InlineEditName name={groupDisplayName(g)} entityType="group" entityId={g.id} onsave={(newName) => onrename(g, newName)} />
 {/snippet}
 
 {#snippet sourceCell(g: G)}
@@ -132,7 +134,7 @@
 
 {#snippet membersCell(g: G)}
 	<span class="text-sm text-muted-foreground whitespace-nowrap">
-		{g.members.length} member{g.members.length === 1 ? "" : "s"}
+		{m.shared_member_count({ count: g.members.length }, locale.messageOptions())}
 	</span>
 {/snippet}
 
@@ -189,8 +191,8 @@
 	<RowActionsCell
 		editHref={editHref(g)}
 		ondelete={g.source === "hive" ? () => ondelete(g) : undefined}
-		editLabel="Edit group"
-		deleteLabel="Delete group"
+		editLabel={m.group_edit({}, locale.messageOptions())}
+		deleteLabel={m.group_delete({}, locale.messageOptions())}
 	>
 		{#snippet leading()}
 			{#if getDevices}
@@ -204,7 +206,7 @@
 				variant="ghost"
 				size="icon-sm"
 				onclick={() => onAddTo(g)}
-				aria-label="Add to group"
+				aria-label={m.group_add({}, locale.messageOptions())}
 			>
 				<Plus class="size-4" />
 			</Button>{/if}

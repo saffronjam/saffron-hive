@@ -6,8 +6,12 @@
 	import { ContactRole } from "$lib/gql/graphql";
 	import { formatTemperature } from "$lib/sensor-format";
 	import { me } from "$lib/stores/me.svelte";
-	import { contactIcon, sentenceCase } from "$lib/utils";
+	import { contactIcon } from "$lib/utils";
 	import type { Component } from "svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { identifierLabel } from "$lib/i18n/vocabulary";
+	import { formatNumber } from "$lib/i18n/format";
 
 	interface Props {
 		state: DeviceState;
@@ -29,11 +33,13 @@
 			result.push({
 				label:
 					contactRole === ContactRole.Door
-						? "Door"
+						? m.sensor_door({}, locale.messageOptions())
 						: contactRole === ContactRole.Window
-							? "Window"
-							: "Contact",
-				value: state.contact ? "Closed" : "Open",
+							? m.sensor_window({}, locale.messageOptions())
+							: m.sensor_contact({}, locale.messageOptions()),
+				value: state.contact
+					? m.state_closed({}, locale.messageOptions())
+					: m.state_open({}, locale.messageOptions()),
 				unit: "",
 				icon: contactIcon(contactRole),
 			});
@@ -41,7 +47,7 @@
 		if (state.temperature != null) {
 			const t = formatTemperature(state.temperature, me.user?.temperatureUnit ?? "celsius");
 			result.push({
-				label: "Temperature",
+				label: m.sensor_temperature({}, locale.messageOptions()),
 				value: t.value,
 				unit: t.unit,
 				icon: Thermometer,
@@ -49,24 +55,27 @@
 		}
 		if (state.humidity != null) {
 			result.push({
-				label: "Humidity",
-				value: state.humidity.toFixed(1),
+				label: m.sensor_humidity({}, locale.messageOptions()),
+				value: formatNumber(state.humidity, {
+					minimumFractionDigits: 1,
+					maximumFractionDigits: 1,
+				}),
 				unit: "%",
 				icon: Droplets,
 			});
 		}
 		if (state.pressure != null) {
 			result.push({
-				label: "Pressure",
-				value: state.pressure.toFixed(0),
+				label: m.sensor_pressure({}, locale.messageOptions()),
+				value: formatNumber(state.pressure, { maximumFractionDigits: 0 }),
 				unit: "hPa",
 				icon: Gauge,
 			});
 		}
 		if (state.illuminance != null) {
 			result.push({
-				label: "Illuminance",
-				value: state.illuminance.toFixed(0),
+				label: m.sensor_illuminance({}, locale.messageOptions()),
+				value: formatNumber(state.illuminance, { maximumFractionDigits: 0 }),
 				unit: "lx",
 				icon: Sun,
 			});
@@ -77,10 +86,16 @@
 	const details = $derived.by(() => {
 		const result: { label: string; value: string }[] = [];
 		if (state.orientation) {
-			result.push({ label: "Orientation", value: sentenceCase(state.orientation) });
+			result.push({
+				label: m.sensor_orientation({}, locale.messageOptions()),
+				value: identifierLabel(state.orientation),
+			});
 		}
 		if (state.devicePosture) {
-			result.push({ label: "Device posture", value: sentenceCase(state.devicePosture) });
+			result.push({
+				label: m.sensor_device_posture({}, locale.messageOptions()),
+				value: identifierLabel(state.devicePosture),
+			});
 		}
 		return result;
 	});
@@ -90,7 +105,7 @@
 	{#if readings.length > 0}
 		<Card>
 			<CardHeader>
-				<CardTitle>Current Readings</CardTitle>
+				<CardTitle>{m.sensor_current_readings({}, locale.messageOptions())}</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -113,7 +128,9 @@
 	{:else}
 		<Card>
 			<CardContent class="py-8 text-center">
-				<p class="text-muted-foreground">No sensor readings available.</p>
+				<p class="text-muted-foreground">
+					{m.sensor_no_readings({}, locale.messageOptions())}
+				</p>
 			</CardContent>
 		</Card>
 	{/if}
@@ -121,7 +138,7 @@
 	{#if details.length > 0}
 		<Card>
 			<CardHeader>
-				<CardTitle>Sensor Details</CardTitle>
+				<CardTitle>{m.sensor_details({}, locale.messageOptions())}</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<dl class="space-y-3">

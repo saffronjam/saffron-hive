@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import type { ContactRole as ContactRoleType } from "$lib/gql/graphql";
+	import { historyFieldLabel } from "$lib/i18n/vocabulary";
 
 	export interface SeriesInfo {
 		key: string;
@@ -13,8 +14,7 @@
 	}
 
 	export function fieldLabel(field: string): string {
-		const spaced = field.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
-		return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+		return historyFieldLabel(field);
 	}
 
 	export const FIELD_COLOR: Record<string, string> = {
@@ -72,6 +72,11 @@
 	} from "$lib/state-history-discrete";
 
 	import { sourceKey, type StateHistorySource } from "$lib/state-history-source";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { formatNumber } from "$lib/i18n/format";
+	import { identifierLabel } from "$lib/i18n/vocabulary";
+	import { deviceDisplayName } from "$lib/utils";
 	export type { StateHistorySource } from "$lib/state-history-source";
 
 	function shouldDefaultOff(source: StateHistorySource, field: string): boolean {
@@ -255,21 +260,21 @@
 	function sourceName(s: StateHistorySource): string {
 		switch (s.kind) {
 			case "device":
-				return $deviceStore[s.id]?.name ?? s.id;
+				return $deviceStore[s.id] ? deviceDisplayName($deviceStore[s.id]) : s.id;
 			case "room":
 			case "group":
 				return s.name;
 			case "apartment":
-				return "Apartment";
+				return m.dashboard_apartment({}, locale.messageOptions());
 		}
 	}
 
 	function seriesLabel(source: StateHistorySource, field: string): string {
 		if (source.kind !== "device" || field !== "contact") return fieldLabel(field);
 		const role = $deviceStore[source.id]?.roles.contact;
-		if (role === ContactRole.Door) return "Door";
-		if (role === ContactRole.Window) return "Window";
-		return "Contact";
+		if (role === ContactRole.Door) return m.sensor_door({}, locale.messageOptions());
+		if (role === ContactRole.Window) return m.sensor_window({}, locale.messageOptions());
+		return m.sensor_contact({}, locale.messageOptions());
 	}
 
 	interface Row {
@@ -320,9 +325,7 @@
 
 	function formatTooltipValue(value: unknown, seriesKey?: string): string {
 		if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "");
-		const numStr = Number.isInteger(value)
-			? value.toString()
-			: (Math.round(value * 10) / 10).toString();
+		const numStr = formatNumber(value, { maximumFractionDigits: 1 });
 		const info = seriesKey ? seriesByKey.get(seriesKey) : undefined;
 		if (info?.field === "temperature") {
 			return `${numStr}${temperatureUnitLabel(me.user?.temperatureUnit ?? "celsius")}`;
@@ -372,7 +375,7 @@
 			items.push({
 				key: lane.key,
 				label: lane.label,
-				value: fieldLabel(value),
+				value: identifierLabel(value),
 				color: lane.color,
 				visible: true,
 			});
@@ -477,9 +480,14 @@
 	}
 
 	function booleanLabels(field: string): { trueLabel: string; falseLabel: string } {
-		if (field === "contact") return { trueLabel: "Closed", falseLabel: "Open" };
-		if (field === "occupancy") return { trueLabel: "Occupied", falseLabel: "Clear" };
-		return { trueLabel: "On", falseLabel: "Off" };
+		const options = locale.messageOptions();
+		if (field === "contact") {
+			return { trueLabel: m.state_closed({}, options), falseLabel: m.state_open({}, options) };
+		}
+		if (field === "occupancy") {
+			return { trueLabel: m.state_occupied({}, options), falseLabel: m.state_clear({}, options) };
+		}
+		return { trueLabel: m.state_on({}, options), falseLabel: m.state_off({}, options) };
 	}
 
 	const booleanLanes = $derived.by<BooleanLane[]>(() => {
@@ -535,6 +543,10 @@
 	const hasSamples = $derived(
 		[...rawSeriesBySource.values()].some((series) => series.some((item) => item.points.length > 0)),
 	);
+
+	$effect(() => {
+		if (historyError) console.error(historyError);
+	});
 
 	const chartConfig = $derived.by<ChartConfig>(() => {
 		const cfg: ChartConfig = {};
@@ -671,18 +683,20 @@
 <svelte:window onpointerdown={onWindowPointerDown} onpointerup={onWindowPointerUp} />
 
 {#if historyFetching && allSeries.length === 0}
-	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">Loading…</div>
+	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">
+		{m.common_loading({}, locale.messageOptions())}
+	</div>
 {:else if historyError}
 	<div class="flex w-full {height} items-center justify-center text-sm text-destructive">
-		{historyError.message}
+		{m.history_load_failed({}, locale.messageOptions())}
 	</div>
 {:else if !hasSamples}
 	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">
-		No samples in the selected range.
+		{m.history_no_samples({}, locale.messageOptions())}
 	</div>
 {:else if activeSeries.length === 0}
 	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">
-		All series hidden — enable at least one below.
+		{m.history_all_hidden({}, locale.messageOptions())}
 	</div>
 {:else}
 	{#if lineSeries.length > 0}
@@ -787,9 +801,13 @@
 							<div
 								class="absolute inset-y-0 flex items-center justify-center overflow-hidden border-r border-border/60 bg-muted/40 text-[10px] text-muted-foreground"
 								style:width={`${lane.unknownWidth}%`}
-								title="Unknown before the first recorded state"
+								title={m.history_unknown_before_first({}, locale.messageOptions())}
 							>
-								{#if lane.unknownWidth >= 10}<span class="truncate px-1">Unknown</span>{/if}
+								{#if lane.unknownWidth >= 10}
+									<span class="truncate px-1">
+										{m.state_unknown({}, locale.messageOptions())}
+									</span>
+								{/if}
 							</div>
 						{/if}
 						{#each lane.segments as segment, index (`${lane.key}-${index}-${segment.left}`)}
@@ -846,9 +864,13 @@
 							<div
 								class="absolute inset-y-0 flex items-center justify-center overflow-hidden border-r border-border/60 bg-muted/40 text-[10px] text-muted-foreground"
 								style:width={`${lane.unknownWidth}%`}
-								title="Unknown before the first recorded state"
+								title={m.history_unknown_before_first({}, locale.messageOptions())}
 							>
-								{#if lane.unknownWidth >= 10}<span class="truncate px-1">Unknown</span>{/if}
+								{#if lane.unknownWidth >= 10}
+									<span class="truncate px-1">
+										{m.state_unknown({}, locale.messageOptions())}
+									</span>
+								{/if}
 							</div>
 						{/if}
 						{#each lane.segments as segment, index (`${lane.key}-${index}-${segment.left}`)}
@@ -870,8 +892,13 @@
 							></span>
 						{/if}
 					</div>
-					<span class="truncate text-[10px] text-foreground" title={lane.currentValue ?? "Unknown"}>
-						{lane.currentValue ? fieldLabel(lane.currentValue) : "Unknown"}
+					<span
+						class="truncate text-[10px] text-foreground"
+						title={lane.currentValue ?? m.state_unknown({}, locale.messageOptions())}
+					>
+						{lane.currentValue
+							? identifierLabel(lane.currentValue)
+							: m.state_unknown({}, locale.messageOptions())}
 					</span>
 				</div>
 			{/each}
@@ -900,7 +927,7 @@
 			<button
 				type="button"
 				class="-mt-1 -mr-1 rounded-sm p-1 text-muted-foreground transition-colors hover:text-foreground"
-				aria-label="Dismiss reading"
+				aria-label={m.history_dismiss_reading({}, locale.messageOptions())}
 				onclick={() => (reading = null)}
 			>
 				<X class="size-4" />

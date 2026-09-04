@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { createConfirmationHold } from "$lib/utils/confirmation-hold";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		value: number | null;
@@ -186,7 +188,7 @@
 		onmousedown={handleDown}
 		ontouchstart={handleDown}
 		role="slider"
-		aria-label="Color temperature (warm to cool)"
+		aria-label={m.temperature_picker_aria({}, locale.messageOptions())}
 		aria-valuemin={min}
 		aria-valuemax={max}
 		aria-valuenow={value ?? 0}

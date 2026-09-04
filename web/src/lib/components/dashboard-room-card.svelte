@@ -15,9 +15,9 @@
 	import { commitGroupBrightness } from "$lib/group-commands";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
-	import { deviceCollectionSummary } from "$lib/device-collection-summary";
 	import { onDestroy } from "svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
+	import { entityDisplayName } from "$lib/utils";
 
 	interface RoomEntity {
 		id: string;
@@ -117,14 +117,13 @@
 		enabled: () => dimmableLights.length > 0,
 	});
 
-	const subtitle = $derived(deviceCollectionSummary(roomDevices));
 </script>
 
 <EntityCard
 	pressFeedback
 	entity={room}
+	entityType="room"
 	fallbackIcon={DoorOpen}
-	{subtitle}
 	tintColors={tintColors.length > 0 ? tintColors : null}
 	inactiveTintColors={inactiveTintColors.length > 0 ? inactiveTintColors : null}
 	{tintStrength}
@@ -144,7 +143,7 @@
 			<SensorHistoryPopover
 				target={{ kind: "room", id: room.id }}
 				fields={sensorFields}
-				title={room.name}
+				title={entityDisplayName("room", room)}
 				align="end"
 				triggerClass="group rounded focus-visible:outline-none"
 			>
