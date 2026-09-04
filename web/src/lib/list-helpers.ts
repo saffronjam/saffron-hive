@@ -1,15 +1,21 @@
 import type { Device } from "$lib/stores/devices";
 import type { SearchState } from "$lib/components/hive-searchbar";
 import { deviceDisplayName } from "$lib/utils";
+import { collator as localeCollator } from "$lib/i18n/format";
+import { formatList } from "$lib/i18n/format";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
+import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 /**
  * Stable comparator for device list ordering: case-insensitive name, then id tiebreak.
  * Produces a deterministic order across reloads regardless of insertion order.
  */
-const collator = new Intl.Collator(undefined, { sensitivity: "base" });
-
 export function compareDevicesByName(a: Device, b: Device): number {
-  return collator.compare(deviceDisplayName(a), deviceDisplayName(b)) || a.id.localeCompare(b.id);
+  const collator = localeCollator({ sensitivity: "base" });
+  return (
+    collator.compare(deviceDisplayName(a), deviceDisplayName(b)) || collator.compare(a.id, b.id)
+  );
 }
 
 /**
@@ -51,7 +57,7 @@ export function filterDevices(devices: Device[], search: SearchState): Device[] 
     }
     if (!query) return true;
     return (
-      deviceDisplayName(device).toLowerCase().includes(query) ||
+      localizedNamesStore.matches("device", device.id, query, device.name, device.friendlyName) ||
       device.type.toLowerCase().includes(query) ||
       device.source.toLowerCase().includes(query)
     );
@@ -101,10 +107,11 @@ export function groupMemberBreakdown(members: GroupMemberLike[]): string {
     else if (m.memberType === "room") r++;
   }
   const parts: string[] = [];
-  if (d > 0) parts.push(`${d} device${d === 1 ? "" : "s"}`);
-  if (g > 0) parts.push(`${g} group${g === 1 ? "" : "s"}`);
-  if (r > 0) parts.push(`${r} room${r === 1 ? "" : "s"}`);
-  return parts.join(", ");
+  const options = locale.messageOptions();
+  if (d > 0) parts.push(m.shared_device_count({ count: d }, options));
+  if (g > 0) parts.push(m.shared_group_count({ count: g }, options));
+  if (r > 0) parts.push(m.shared_room_count({ count: r }, options));
+  return formatList(parts, { type: "unit" });
 }
 
 /** A minimal Scene target shape — just the `targetType` field is needed. */
@@ -125,7 +132,7 @@ export interface SceneRoomLike {
 export function sceneRoomLabel(rooms: SceneRoomLike[]): string {
   if (rooms.length === 0) return "";
   if (rooms.length === 1) return rooms[0].name;
-  return "Multi-room";
+  return m.shared_multi_room({}, locale.messageOptions());
 }
 
 /**
@@ -146,10 +153,11 @@ export function sceneTargetBreakdown(targets: SceneTargetLike[]): string {
     else if (target.targetType === "expression") e++;
   }
   const parts: string[] = [];
-  if (d > 0) parts.push(`${d} device${d === 1 ? "" : "s"}`);
-  if (g > 0) parts.push(`${g} group${g === 1 ? "" : "s"}`);
-  if (r > 0) parts.push(`${r} room${r === 1 ? "" : "s"}`);
-  if (e > 0) parts.push(`${e} selector${e === 1 ? "" : "s"}`);
-  if (parts.length === 0) return "No targets";
-  return parts.join(", ");
+  const options = locale.messageOptions();
+  if (d > 0) parts.push(m.shared_device_count({ count: d }, options));
+  if (g > 0) parts.push(m.shared_group_count({ count: g }, options));
+  if (r > 0) parts.push(m.shared_room_count({ count: r }, options));
+  if (e > 0) parts.push(m.shared_selector_count({ count: e }, options));
+  if (parts.length === 0) return m.shared_no_targets({}, options);
+  return formatList(parts, { type: "unit" });
 }

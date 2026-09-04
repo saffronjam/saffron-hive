@@ -38,10 +38,13 @@
 		Theme as ThemeEnum,
 		TimeFormat as TimeFormatEnum,
 		TemperatureUnit as TempUnitEnum,
+		Language as LanguageEnum,
 	} from "$lib/gql/graphql";
 	import { Info, Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
+	import { languageName, m, type Language } from "$lib/i18n/messages";
+	import { locale, selectableLanguages } from "$lib/i18n/locale.svelte";
 
 	const client = getContextClient();
 
@@ -56,6 +59,7 @@
 				timeFormat
 				temperatureUnit
 				hapticsEnabled
+				language
 				createdAt
 				mustChangePassword
 			}
@@ -74,9 +78,11 @@
 		}
 	`);
 
-	pageHeader.breadcrumbs = [{ label: "Profile" }];
-	pageHeader.actions = [];
-	pageHeader.viewToggle = null;
+	$effect(() => {
+		pageHeader.breadcrumbs = [{ label: m.nav_profile({}, locale.messageOptions()) }];
+		pageHeader.actions = [];
+		pageHeader.viewToggle = null;
+	});
 	const loader = delayedLoading(() => !me.user);
 
 	let nameDraft = $state(me.user?.name ?? auth.user?.name ?? "");
@@ -130,13 +136,15 @@
 				.mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: next } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
-				throw new Error(result.error?.message ?? "Failed to update haptics");
+				if (result.error) console.error(result.error);
+				throw new Error("update haptics");
 			}
 			me.apply(result.data.updateCurrentUser);
 		} catch (e) {
 			hapticsEnabled = previous;
 			haptics.syncFromProfile(previous);
-			toast.error(e instanceof Error ? e.message : "Failed to update haptics");
+			console.error(e);
+			toast.error(m.profile_haptics_update_failed({}, locale.messageOptions()));
 		} finally {
 			hapticsSaving = false;
 		}
@@ -146,7 +154,9 @@
 
 	async function saveName() {
 		const trimmed = nameDraft.trim();
-		nameError = trimmed ? null : "Display name cannot be empty.";
+		nameError = trimmed
+			? null
+			: m.profile_display_name_empty({}, locale.messageOptions());
 		if (nameError) return;
 		nameSaving = true;
 		try {
@@ -154,11 +164,13 @@
 				.mutation(UPDATE_CURRENT_USER, { input: { name: trimmed } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
-				throw new Error(result.error?.message ?? "Failed to update name");
+				if (result.error) console.error(result.error);
+				throw new Error("update name");
 			}
 			me.apply(result.data.updateCurrentUser);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to update name");
+			console.error(e);
+			toast.error(m.profile_name_update_failed({}, locale.messageOptions()));
 		} finally {
 			nameSaving = false;
 		}
@@ -171,11 +183,13 @@
 				.mutation(UPDATE_CURRENT_USER, { input: { theme: next } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
-				throw new Error(result.error?.message ?? "Failed to update theme");
+				if (result.error) console.error(result.error);
+				throw new Error("update theme");
 			}
 			me.apply(result.data.updateCurrentUser);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to update theme");
+			console.error(e);
+			toast.error(m.profile_theme_update_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -187,11 +201,13 @@
 				.mutation(UPDATE_CURRENT_USER, { input: { timeFormat: enumValue } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
-				throw new Error(result.error?.message ?? "Failed to update time format");
+				if (result.error) console.error(result.error);
+				throw new Error("update time format");
 			}
 			me.apply(result.data.updateCurrentUser);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to update time format");
+			console.error(e);
+			toast.error(m.profile_time_update_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -203,17 +219,40 @@
 				.mutation(UPDATE_CURRENT_USER, { input: { temperatureUnit: enumValue } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
-				throw new Error(result.error?.message ?? "Failed to update temperature unit");
+				if (result.error) console.error(result.error);
+				throw new Error("update temperature unit");
 			}
 			me.apply(result.data.updateCurrentUser);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to update temperature unit");
+			console.error(e);
+			toast.error(m.profile_temperature_update_failed({}, locale.messageOptions()));
+		}
+	}
+
+	async function setUILanguage(next: Language) {
+		const previous = me.user?.language ?? locale.currentLanguage;
+		if (next === previous) return;
+		locale.setLanguage(next);
+		try {
+			const language = next === "sv" ? LanguageEnum.Sv : next === "ru" ? LanguageEnum.Ru : LanguageEnum.En;
+			const result = await client
+				.mutation(UPDATE_CURRENT_USER, { input: { language } })
+				.toPromise();
+			if (result.error || !result.data?.updateCurrentUser) {
+				if (result.error) console.error(result.error);
+				throw new Error("update language");
+			}
+			me.apply(result.data.updateCurrentUser);
+		} catch (error) {
+			console.error(error);
+			locale.setLanguage(previous);
+			toast.error(m.profile_language_update_failed({}, locale.messageOptions()));
 		}
 	}
 
 	async function uploadAvatar(file: File) {
 		if (file.size > 10 * 1024 * 1024) {
-			toast.error("Image too large (max 10 MB)");
+			toast.error(m.profile_avatar_too_large({ size: 10 }, locale.messageOptions()));
 			return;
 		}
 		uploading = true;
@@ -227,11 +266,13 @@
 			});
 			if (!res.ok) {
 				const msg = await res.text();
-				throw new Error(msg || `Upload failed (${res.status})`);
+				console.error(msg || `avatar upload failed (${res.status})`);
+				throw new Error("avatar upload");
 			}
 			await me.refresh(client);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to upload avatar");
+			console.error(e);
+			toast.error(m.profile_avatar_upload_failed({}, locale.messageOptions()));
 		} finally {
 			uploading = false;
 			if (fileInput) fileInput.value = "";
@@ -248,11 +289,13 @@
 			});
 			if (!res.ok && res.status !== 204) {
 				const msg = await res.text();
-				throw new Error(msg || `Clear failed (${res.status})`);
+				console.error(msg || `avatar removal failed (${res.status})`);
+				throw new Error("avatar removal");
 			}
 			await me.refresh(client);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to clear avatar");
+			console.error(e);
+			toast.error(m.profile_avatar_clear_failed({}, locale.messageOptions()));
 		} finally {
 			clearing = false;
 		}
@@ -274,7 +317,10 @@
 	async function submitPassword(e: SubmitEvent) {
 		e.preventDefault();
 		newPwError = validateNewPassword(newPw);
-		confirmPwError = newPw !== confirmPw ? "Passwords do not match." : null;
+		confirmPwError =
+			newPw !== confirmPw
+				? m.auth_passwords_mismatch({}, locale.messageOptions())
+				: null;
 		if (newPwError || confirmPwError) return;
 		pwSaving = true;
 		try {
@@ -284,14 +330,16 @@
 				})
 				.toPromise();
 			if (result.error || !result.data?.changePassword) {
-				throw new Error(result.error?.message ?? "Failed to change password");
+				if (result.error) console.error(result.error);
+				throw new Error("change password");
 			}
 			passwordOpen = false;
-			toast.info("Please log in again with your new password.");
+			toast.info(m.profile_login_again({}, locale.messageOptions()));
 			sessionTeardown();
 			await goto("/login");
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to change password");
+			console.error(e);
+			toast.error(m.profile_password_change_failed({}, locale.messageOptions()));
 		} finally {
 			pwSaving = false;
 		}
@@ -303,13 +351,15 @@
 		try {
 			const result = await client.mutation(FORCE_LOGOUT_ALL, {}).toPromise();
 			if (result.error || !result.data?.forceLogoutAllSessions) {
-				throw new Error(result.error?.message ?? "Failed to sign out everywhere");
+				if (result.error) console.error(result.error);
+				throw new Error("sign out everywhere");
 			}
-			toast.success("Signed out of every device. Please log in again.");
+			toast.success(m.profile_sign_out_success({}, locale.messageOptions()));
 			sessionTeardown();
 			goto("/login");
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to sign out everywhere");
+			console.error(e);
+			toast.error(m.profile_sign_out_failed({}, locale.messageOptions()));
 		} finally {
 			signingOutAll = false;
 		}
@@ -318,14 +368,18 @@
 	const createdLabel = $derived.by(() => {
 		if (!me.user?.createdAt) return "";
 		const d = new Date(me.user.createdAt);
-		return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+		return new Intl.DateTimeFormat(locale.intlLocale, {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		}).format(d);
 	});
 </script>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 	<Card>
 		<CardHeader>
-			<CardTitle>Account</CardTitle>
+			<CardTitle>{m.profile_account({}, locale.messageOptions())}</CardTitle>
 		</CardHeader>
 		<CardContent class="space-y-6">
 			{#if me.user}
@@ -347,7 +401,9 @@
 								onclick={() => fileInput?.click()}
 							>
 								<Upload class="size-4" />
-								{uploading ? "Uploading..." : "Change avatar"}
+								{uploading
+									? m.common_uploading({}, locale.messageOptions())
+									: m.profile_change_avatar({}, locale.messageOptions())}
 							</Button>
 							{#if me.user.avatarPath}
 								<Button
@@ -357,16 +413,22 @@
 									onclick={clearAvatar}
 								>
 									<X class="size-4" />
-									{clearing ? "Removing..." : "Remove"}
+									{clearing
+										? m.profile_removing({}, locale.messageOptions())
+										: m.common_remove({}, locale.messageOptions())}
 								</Button>
 							{/if}
 						</div>
-						<p class="text-xs text-muted-foreground">JPEG, PNG, or WebP. Max 10 MB.</p>
+						<p class="text-xs text-muted-foreground">
+							{m.profile_avatar_help({ size: 10 }, locale.messageOptions())}
+						</p>
 					</div>
 				</div>
 
 				<div class="space-y-2">
-					<label for="profile-name" class="text-sm font-medium">Display name</label>
+					<label for="profile-name" class="text-sm font-medium">
+						{m.profile_display_name({}, locale.messageOptions())}
+					</label>
 					<div class="flex gap-2">
 						<Input
 							id="profile-name"
@@ -386,105 +448,164 @@
 				</div>
 
 				<div class="space-y-2">
-					<p class="text-sm font-medium text-muted-foreground">Username</p>
+					<p class="text-sm font-medium text-muted-foreground">
+						{m.profile_username({}, locale.messageOptions())}
+					</p>
 					<p class="font-mono text-sm">@{me.user.username}</p>
 				</div>
 
 				<div class="space-y-2">
-					<p class="text-sm font-medium text-muted-foreground">Member since</p>
+					<p class="text-sm font-medium text-muted-foreground">
+						{m.profile_member_since({}, locale.messageOptions())}
+					</p>
 					<p class="text-sm">{createdLabel}</p>
 				</div>
 
 				<div class="flex flex-wrap gap-2">
-					<Button variant="outline" onclick={openPasswordDialog}>Change password</Button>
+					<Button variant="outline" onclick={openPasswordDialog}>
+						{m.profile_change_password({}, locale.messageOptions())}
+					</Button>
 					<Button
 						variant="outline"
 						disabled={signingOutAll}
 						onclick={forceLogoutAll}
-						title="Invalidate every signed-in session for this account, including this one."
+						title={m.profile_sign_out_description({}, locale.messageOptions())}
 					>
-						{signingOutAll ? "Signing out…" : "Sign out everywhere"}
+						{signingOutAll
+							? m.profile_signing_out({}, locale.messageOptions())
+							: m.profile_sign_out_everywhere({}, locale.messageOptions())}
 					</Button>
 				</div>
 			{:else if loader.visible}
-				<p class="text-sm text-muted-foreground">Loading…</p>
+				<p class="text-sm text-muted-foreground">
+					{m.common_loading({}, locale.messageOptions())}
+				</p>
 			{/if}
 		</CardContent>
 	</Card>
 
 	<Card>
 		<CardHeader>
-			<CardTitle>Preferences</CardTitle>
+			<CardTitle>{m.profile_preferences({}, locale.messageOptions())}</CardTitle>
 		</CardHeader>
 		<CardContent class="space-y-6">
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<p class="text-sm font-medium">Theme</p>
+					<p class="text-sm font-medium">{m.profile_language({}, locale.messageOptions())}</p>
 					<Tooltip>
-						<TooltipTrigger class="text-muted-foreground" aria-label="About theme">
+						<TooltipTrigger
+							class="text-muted-foreground"
+							aria-label={m.profile_language_about({}, locale.messageOptions())}
+						>
 							<Info class="size-3.5" />
 						</TooltipTrigger>
-						<TooltipContent>Saved per-user. Pre-login pages follow the most recent theme on this device.</TooltipContent>
+						<TooltipContent>{m.profile_language_help({}, locale.messageOptions())}</TooltipContent>
+					</Tooltip>
+				</div>
+				<SegmentedControl
+					value={locale.currentLanguage}
+					onchange={(value) => void setUILanguage(value as Language)}
+					options={selectableLanguages.map((language) => ({
+						value: language,
+						label: languageName(language, locale.currentLanguage),
+					}))}
+				/>
+			</div>
+
+			<div class="space-y-2">
+				<div class="flex items-center gap-1.5">
+					<p class="text-sm font-medium">{m.profile_theme({}, locale.messageOptions())}</p>
+					<Tooltip>
+						<TooltipTrigger
+							class="text-muted-foreground"
+							aria-label={m.profile_theme_about({}, locale.messageOptions())}
+						>
+							<Info class="size-3.5" />
+						</TooltipTrigger>
+						<TooltipContent>
+							{m.profile_theme_help({}, locale.messageOptions())}
+						</TooltipContent>
 					</Tooltip>
 				</div>
 				<SegmentedControl
 					value={me.user?.theme ?? "dark"}
 					onchange={(v) => setTheme(v === "light" ? ThemeEnum.Light : ThemeEnum.Dark)}
 					options={[
-						{ value: "light", label: "Light", icon: Sun },
-						{ value: "dark", label: "Dark", icon: Moon },
+						{ value: "light", label: m.profile_theme_light({}, locale.messageOptions()), icon: Sun },
+						{ value: "dark", label: m.profile_theme_dark({}, locale.messageOptions()), icon: Moon },
 					]}
 				/>
 			</div>
 
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<p class="text-sm font-medium">Time format</p>
+					<p class="text-sm font-medium">
+						{m.profile_time_format({}, locale.messageOptions())}
+					</p>
 					<Tooltip>
-						<TooltipTrigger class="text-muted-foreground" aria-label="About time format">
+						<TooltipTrigger
+							class="text-muted-foreground"
+							aria-label={m.profile_time_format_about({}, locale.messageOptions())}
+						>
 							<Info class="size-3.5" />
 						</TooltipTrigger>
-						<TooltipContent>Applies wherever time is shown. Dates use YYYY-MM-DD.</TooltipContent>
+						<TooltipContent>
+							{m.profile_time_format_help({}, locale.messageOptions())}
+						</TooltipContent>
 					</Tooltip>
 				</div>
 				<SegmentedControl
 					value={me.user?.timeFormat ?? "24h"}
 					onchange={(v) => setTimeFormat(v as "12h" | "24h")}
 					options={[
-						{ value: "24h", label: "24-hour" },
-						{ value: "12h", label: "12-hour" },
+						{ value: "24h", label: m.profile_time_24_hour({}, locale.messageOptions()) },
+						{ value: "12h", label: m.profile_time_12_hour({}, locale.messageOptions()) },
 					]}
 				/>
 			</div>
 
 			<div class="space-y-2">
 				<div class="flex items-center gap-1.5">
-					<p class="text-sm font-medium">Temperature unit</p>
+					<p class="text-sm font-medium">
+						{m.profile_temperature_unit({}, locale.messageOptions())}
+					</p>
 					<Tooltip>
-						<TooltipTrigger class="text-muted-foreground" aria-label="About temperature unit">
+						<TooltipTrigger
+							class="text-muted-foreground"
+							aria-label={m.profile_temperature_about({}, locale.messageOptions())}
+						>
 							<Info class="size-3.5" />
 						</TooltipTrigger>
-						<TooltipContent>Applies wherever temperature is shown. Values are stored in Celsius.</TooltipContent>
+						<TooltipContent>
+							{m.profile_temperature_help({}, locale.messageOptions())}
+						</TooltipContent>
 					</Tooltip>
 				</div>
 				<SegmentedControl
 					value={me.user?.temperatureUnit ?? "celsius"}
 					onchange={(v) => setTemperatureUnit(v as "celsius" | "fahrenheit")}
 					options={[
-						{ value: "celsius", label: "Celsius (°C)" },
-						{ value: "fahrenheit", label: "Fahrenheit (°F)" },
+						{ value: "celsius", label: m.profile_temperature_celsius({}, locale.messageOptions()) },
+						{ value: "fahrenheit", label: m.profile_temperature_fahrenheit({}, locale.messageOptions()) },
 					]}
 				/>
 			</div>
 
 			<div class="flex items-center gap-3">
 				<div class="flex items-center gap-1.5">
-					<p class="text-sm font-medium">Haptics</p>
+					<p class="text-sm font-medium">
+						{m.profile_haptics({}, locale.messageOptions())}
+					</p>
 					<Tooltip>
-						<TooltipTrigger class="text-muted-foreground" aria-label="About haptics">
+						<TooltipTrigger
+							class="text-muted-foreground"
+							aria-label={m.profile_haptics_about({}, locale.messageOptions())}
+						>
 							<Info class="size-3.5" />
 						</TooltipTrigger>
-						<TooltipContent>Brief feedback for direct interactions on supported touch devices.</TooltipContent>
+						<TooltipContent>
+							{m.profile_haptics_help({}, locale.messageOptions())}
+						</TooltipContent>
 					</Tooltip>
 				</div>
 				<Switch
@@ -495,7 +616,7 @@
 					onpointercancel={() => (hapticsPointerType = null)}
 					onkeydown={() => (hapticsPointerType = null)}
 					onCheckedChange={setHapticsEnabled}
-					aria-label="Enable haptics"
+					aria-label={m.profile_haptics_enable({}, locale.messageOptions())}
 				/>
 			</div>
 		</CardContent>
@@ -505,16 +626,22 @@
 <Dialog bind:open={passwordOpen}>
 	<DialogContent>
 		<DialogHeader>
-			<DialogTitle>Change password</DialogTitle>
-			<DialogDescription>Enter your current password, then pick a new one.</DialogDescription>
+			<DialogTitle>{m.profile_change_password({}, locale.messageOptions())}</DialogTitle>
+			<DialogDescription>
+				{m.profile_password_description({}, locale.messageOptions())}
+			</DialogDescription>
 		</DialogHeader>
 		<form onsubmit={submitPassword} class="space-y-4">
 			<div class="space-y-2">
-				<label for="pw-old" class="text-sm font-medium">Current password</label>
+				<label for="pw-old" class="text-sm font-medium">
+					{m.profile_current_password({}, locale.messageOptions())}
+				</label>
 				<Input id="pw-old" type="password" bind:value={oldPw} required />
 			</div>
 			<div class="space-y-2">
-				<label for="pw-new" class="text-sm font-medium">New password</label>
+				<label for="pw-new" class="text-sm font-medium">
+					{m.auth_new_password({}, locale.messageOptions())}
+				</label>
 				<Input
 					id="pw-new"
 					type="password"
@@ -528,7 +655,9 @@
 				<FieldError id="pw-new-error" message={newPwError} />
 			</div>
 			<div class="space-y-2">
-				<label for="pw-confirm" class="text-sm font-medium">Confirm new password</label>
+				<label for="pw-confirm" class="text-sm font-medium">
+					{m.auth_confirm_new_password({}, locale.messageOptions())}
+				</label>
 				<Input
 					id="pw-confirm"
 					type="password"
@@ -543,10 +672,12 @@
 			</div>
 			<DialogFooter>
 				<Button type="button" variant="outline" onclick={() => (passwordOpen = false)}>
-					Cancel
+					{m.common_cancel({}, locale.messageOptions())}
 				</Button>
 				<Button type="submit" disabled={pwSaving}>
-					{pwSaving ? "Saving..." : "Change password"}
+					{pwSaving
+						? m.common_saving({}, locale.messageOptions())
+						: m.profile_change_password({}, locale.messageOptions())}
 				</Button>
 			</DialogFooter>
 		</form>

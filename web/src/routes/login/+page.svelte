@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -9,6 +8,8 @@
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const LOGIN = graphql(`
 		mutation login($input: LoginInput!) {
@@ -23,6 +24,7 @@
 					timeFormat
 					temperatureUnit
 					hapticsEnabled
+					language
 					createdAt
 					mustChangePassword
 				}
@@ -36,12 +38,6 @@
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 
-	function friendlyError(msg: string | undefined): string | null {
-		if (!msg) return null;
-		const stripped = msg.replace(/^\[GraphQL\]\s*/i, "").replace(/^\[Network\]\s*/i, "");
-		return stripped.charAt(0).toUpperCase() + stripped.slice(1);
-	}
-
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
@@ -51,7 +47,8 @@
 				.mutation(LOGIN, { input: { username, password } })
 				.toPromise();
 			if (result.error || !result.data) {
-				error = friendlyError(result.error?.message) ?? "Login failed";
+				if (result.error) console.error(result.error);
+				error = m.auth_login_failed({}, locale.messageOptions());
 				return;
 			}
 			auth.setToken(result.data.login.token);
@@ -65,22 +62,28 @@
 		}
 	}
 
-	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Sign in" }];
+	$effect(() => {
+		pageHeader.breadcrumbs = [{ label: m.auth_sign_in_title({}, locale.messageOptions()) }];
 	});
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-background p-6">
 	<div class="w-full max-w-sm rounded-lg shadow-card bg-card p-8">
-		<h1 class="text-xl font-semibold">Sign in</h1>
-		<p class="mt-1 text-sm text-muted-foreground">Welcome back.</p>
+		<h1 class="text-xl font-semibold">{m.auth_sign_in_title({}, locale.messageOptions())}</h1>
+		<p class="mt-1 text-sm text-muted-foreground">
+			{m.auth_welcome_back({}, locale.messageOptions())}
+		</p>
 		<form class="mt-6 flex flex-col gap-4" onsubmit={submit}>
 			<div class="grid gap-1.5">
-				<label for="login-username" class="text-sm font-medium">Username</label>
+				<label for="login-username" class="text-sm font-medium">
+					{m.auth_username({}, locale.messageOptions())}
+				</label>
 				<Input id="login-username" bind:value={username} autocomplete="username" required />
 			</div>
 			<div class="grid gap-1.5">
-				<label for="login-password" class="text-sm font-medium">Password</label>
+				<label for="login-password" class="text-sm font-medium">
+					{m.auth_password({}, locale.messageOptions())}
+				</label>
 				<Input
 					id="login-password"
 					type="password"
@@ -96,7 +99,7 @@
 				{#if submitting}
 					<Loader2 class="mr-1.5 size-4 animate-spin" />
 				{/if}
-				Sign in
+				{m.auth_sign_in({}, locale.messageOptions())}
 			</Button>
 		</form>
 	</div>

@@ -13,6 +13,8 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { validateNewPassword } from "$lib/password";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const CREATE_INITIAL_USER = graphql(`
 		mutation createInitialUser($input: CreateInitialUserInput!) {
@@ -45,7 +47,7 @@
 		const result = await client.query(SETUP_STATUS_QUERY, {}).toPromise();
 		const s = result.data?.setupStatus;
 		if (!s) {
-			error = "Could not reach the server.";
+			error = m.common_error_server_unreachable({}, locale.messageOptions());
 			return;
 		}
 		if (!s.hasInitialUser) {
@@ -59,8 +61,11 @@
 		event.preventDefault();
 		error = null;
 		const pwErr = validateNewPassword(password);
-		passwordError = pwErr ? pwErr + "." : null;
-		confirmError = password !== confirmPassword ? "Passwords do not match." : null;
+		passwordError = pwErr;
+		confirmError =
+			password !== confirmPassword
+				? m.auth_passwords_mismatch({}, locale.messageOptions())
+				: null;
 		if (passwordError || confirmError) return;
 		submittingUser = true;
 		try {
@@ -70,7 +75,8 @@
 				})
 				.toPromise();
 			if (result.error || !result.data) {
-				error = result.error?.message ?? "Failed to create user.";
+				if (result.error) console.error(result.error);
+				error = m.auth_create_user_failed({}, locale.messageOptions());
 				return;
 			}
 			auth.setToken(result.data.createInitialUser.token);
@@ -82,8 +88,11 @@
 
 	onMount(() => {
 		client = getContextClient();
-		pageHeader.breadcrumbs = [{ label: "Setup" }];
 		void determinePhase();
+	});
+
+	$effect(() => {
+		pageHeader.breadcrumbs = [{ label: m.auth_setup({}, locale.messageOptions()) }];
 	});
 </script>
 
@@ -95,25 +104,33 @@
 			{:else if loader.visible}
 				<div class="flex items-center gap-2 text-muted-foreground">
 					<Loader2 class="size-4 animate-spin" />
-					Loading...
+					{m.common_loading({}, locale.messageOptions())}
 				</div>
 			{/if}
 		{:else}
-			<h1 class="text-xl font-semibold">Welcome to Hive!</h1>
+			<h1 class="text-xl font-semibold">
+				{m.auth_setup_welcome({}, locale.messageOptions())}
+			</h1>
 			<p class="mt-1 text-sm text-muted-foreground">
-				Create the first user. This will be your admin account.
+				{m.auth_setup_description({}, locale.messageOptions())}
 			</p>
 			<form class="mt-6 flex flex-col gap-4" onsubmit={submitUser}>
 				<div class="grid gap-1.5">
-					<label for="setup-name" class="text-sm font-medium">Name</label>
+					<label for="setup-name" class="text-sm font-medium">
+						{m.auth_name({}, locale.messageOptions())}
+					</label>
 					<Input id="setup-name" bind:value={name} required />
 				</div>
 				<div class="grid gap-1.5">
-					<label for="setup-username" class="text-sm font-medium">Username</label>
+					<label for="setup-username" class="text-sm font-medium">
+						{m.auth_username({}, locale.messageOptions())}
+					</label>
 					<Input id="setup-username" bind:value={username} autocomplete="username" required />
 				</div>
 				<div class="grid gap-1.5">
-					<label for="setup-password" class="text-sm font-medium">Password</label>
+					<label for="setup-password" class="text-sm font-medium">
+						{m.auth_password({}, locale.messageOptions())}
+					</label>
 					<Input
 						id="setup-password"
 						type="password"
@@ -127,7 +144,9 @@
 					<FieldError id="setup-password-error" message={passwordError} />
 				</div>
 				<div class="grid gap-1.5">
-					<label for="setup-confirm" class="text-sm font-medium">Confirm password</label>
+					<label for="setup-confirm" class="text-sm font-medium">
+						{m.auth_confirm_password({}, locale.messageOptions())}
+					</label>
 					<Input
 						id="setup-confirm"
 						type="password"
@@ -141,11 +160,15 @@
 					<FieldError id="setup-confirm-error" message={confirmError} />
 				</div>
 				<div class="grid gap-1.5">
-					<label for="setup-bootstrap" class="text-sm font-medium">Bootstrap token</label>
+					<label for="setup-bootstrap" class="text-sm font-medium">
+						{m.auth_bootstrap_token({}, locale.messageOptions())}
+					</label>
 					<Input id="setup-bootstrap" bind:value={bootstrapToken} required />
 					<p class="text-xs text-muted-foreground">
-						Printed to the server logs on first boot, or read
-						<code>$HIVE_DATA_DIR/bootstrap.token</code> on the host.
+						{m.auth_bootstrap_help(
+							{ path: "$HIVE_DATA_DIR/bootstrap.token" },
+							locale.messageOptions(),
+						)}
 					</p>
 				</div>
 				{#if error}
@@ -155,7 +178,7 @@
 					{#if submittingUser}
 						<Loader2 class="mr-1.5 size-4 animate-spin" />
 					{/if}
-					Create user
+					{m.auth_create_user({}, locale.messageOptions())}
 				</Button>
 			</form>
 		{/if}

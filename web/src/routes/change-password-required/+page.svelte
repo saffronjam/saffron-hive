@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -11,6 +10,8 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { toast } from "svelte-sonner";
 	import { validateNewPassword } from "$lib/password";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const COMPLETE_FIRST_PASSWORD_CHANGE = graphql(`
 		mutation completeFirstPasswordChange($newPassword: String!) {
@@ -26,17 +27,14 @@
 	let newPasswordError = $state<string | null>(null);
 	let confirmError = $state<string | null>(null);
 
-	function friendlyError(msg: string | undefined): string | null {
-		if (!msg) return null;
-		const stripped = msg.replace(/^\[GraphQL\]\s*/i, "").replace(/^\[Network\]\s*/i, "");
-		return stripped.charAt(0).toUpperCase() + stripped.slice(1);
-	}
-
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
 		newPasswordError = validateNewPassword(newPassword);
-		confirmError = newPassword !== confirmPassword ? "Passwords do not match." : null;
+		confirmError =
+			newPassword !== confirmPassword
+				? m.auth_passwords_mismatch({}, locale.messageOptions())
+				: null;
 		if (newPasswordError || confirmError) return;
 		submitting = true;
 		try {
@@ -44,35 +42,45 @@
 				.mutation(COMPLETE_FIRST_PASSWORD_CHANGE, { newPassword })
 				.toPromise();
 			if (result.error || !result.data?.completeFirstPasswordChange) {
-				error = friendlyError(result.error?.message) ?? "Could not set password";
+				if (result.error) console.error(result.error);
+				error = m.auth_set_password_failed({}, locale.messageOptions());
 				return;
 			}
 			await me.refresh(client);
-			toast.success("Password set");
+			toast.success(m.auth_password_set({}, locale.messageOptions()));
 			await goto("/", { replaceState: true });
 		} finally {
 			submitting = false;
 		}
 	}
 
-	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Set new password" }];
+	$effect(() => {
+		pageHeader.breadcrumbs = [
+			{ label: m.auth_set_new_password({}, locale.messageOptions()) },
+		];
 	});
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-background p-6">
 	<div class="w-full max-w-sm rounded-lg shadow-card bg-card p-8">
-		<h1 class="text-xl font-semibold">Set a new password</h1>
+		<h1 class="text-xl font-semibold">
+			{m.auth_set_a_new_password({}, locale.messageOptions())}
+		</h1>
 		<p class="mt-1 text-sm text-muted-foreground">
 			{#if me.user}
-				Welcome, {me.user.name}. Choose a password before continuing.
+				{m.auth_welcome_choose_password(
+					{ name: me.user.name },
+					locale.messageOptions(),
+				)}
 			{:else}
-				Choose a password before continuing.
+				{m.auth_choose_password({}, locale.messageOptions())}
 			{/if}
 		</p>
 		<form class="mt-6 flex flex-col gap-4" onsubmit={submit}>
 			<div class="grid gap-1.5">
-				<label for="cpr-new" class="text-sm font-medium">New password</label>
+				<label for="cpr-new" class="text-sm font-medium">
+					{m.auth_new_password({}, locale.messageOptions())}
+				</label>
 				<Input
 					id="cpr-new"
 					type="password"
@@ -87,7 +95,9 @@
 				<FieldError id="cpr-new-error" message={newPasswordError} />
 			</div>
 			<div class="grid gap-1.5">
-				<label for="cpr-confirm" class="text-sm font-medium">Confirm new password</label>
+				<label for="cpr-confirm" class="text-sm font-medium">
+					{m.auth_confirm_new_password({}, locale.messageOptions())}
+				</label>
 				<Input
 					id="cpr-confirm"
 					type="password"
@@ -108,7 +118,7 @@
 				{#if submitting}
 					<Loader2 class="mr-1.5 size-4 animate-spin" />
 				{/if}
-				Set password
+				{m.auth_set_password({}, locale.messageOptions())}
 			</Button>
 		</form>
 	</div>

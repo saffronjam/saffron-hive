@@ -28,21 +28,26 @@ describe("stripErrorPrefix", () => {
 });
 
 describe("graphqlErrorMessage", () => {
-  it("prefers the first GraphQL error message", () => {
+  it("presents the first GraphQL error's stable code", () => {
     const err = {
-      graphQLErrors: [{ message: "[GraphQL] saved but failed to reconnect" }],
+      graphQLErrors: [
+        {
+          message: "internal authentication detail",
+          extensions: { code: "UNAUTHENTICATED" },
+        },
+      ],
       message: "combined",
     };
-    expect(graphqlErrorMessage(err, "fallback")).toBe("saved but failed to reconnect");
+    expect(graphqlErrorMessage(err, "fallback")).toBe("Please sign in to continue.");
   });
 
-  it("skips GraphQL errors without a message", () => {
+  it("does not expose uncoded GraphQL error prose", () => {
     const err = { graphQLErrors: [{}, { message: "second" }] };
-    expect(graphqlErrorMessage(err, "fallback")).toBe("second");
+    expect(graphqlErrorMessage(err, "fallback")).toBe("fallback");
   });
 
-  it("falls back to the combined message", () => {
-    expect(graphqlErrorMessage({ message: "[Network] offline" }, "fallback")).toBe("offline");
+  it("does not expose a raw transport message", () => {
+    expect(graphqlErrorMessage({ message: "[Network] offline" }, "fallback")).toBe("fallback");
   });
 
   it("uses the fallback for a non-object", () => {

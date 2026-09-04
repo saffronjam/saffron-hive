@@ -46,6 +46,8 @@
 	import { alarmsStore } from "$lib/stores/alarms.svelte";
 	import { maintenanceStore } from "$lib/stores/maintenance.svelte";
 	import { version } from "$lib/version";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface NavItem {
 		href?: string;
@@ -58,47 +60,57 @@
 		items: NavItem[];
 	}
 
-	const navGroups: NavGroup[] = [
-		{
-			items: [
-				{ href: "/", label: "Dashboard", icon: LayoutDashboard },
-				{ href: "/map", label: "Map", icon: MapIcon },
-			],
-		},
-		{
-			label: "Things",
-			items: [
-				{ href: "/devices", label: "Devices", icon: Lightbulb },
-				{ href: "/rooms", label: "Rooms", icon: DoorOpen },
-				{ href: "/groups", label: "Groups", icon: Group },
-			],
-		},
-		{
-			label: "Action",
-			items: [
-				{ href: "/scenes", label: "Scenes", icon: Clapperboard },
-				{ href: "/automations", label: "Automations", icon: Workflow },
-				{ href: "/webhooks", label: "Webhooks", icon: Webhook },
-				{ href: "/effects", label: "Effects", icon: Sparkles },
-			],
-		},
-		{
-			label: "Monitoring",
-			items: [
-				{ href: "/activity", label: "Activity", icon: Activity },
-				{ href: "/alarms", label: "Alarms", icon: BellRing },
-				{ href: "/maintenance", label: "Maintenance", icon: CircleCheck },
-				{ href: "/data-viewer", label: "Data viewer", icon: LineChart },
-			],
-		},
-	];
+	const navGroups = $derived.by<NavGroup[]>(() => {
+		const options = locale.messageOptions();
+		return [
+			{
+				items: [
+					{ href: "/", label: m.nav_dashboard({}, options), icon: LayoutDashboard },
+					{ href: "/map", label: m.nav_map({}, options), icon: MapIcon },
+				],
+			},
+			{
+				label: m.nav_things({}, options),
+				items: [
+					{ href: "/devices", label: m.nav_devices({}, options), icon: Lightbulb },
+					{ href: "/rooms", label: m.nav_rooms({}, options), icon: DoorOpen },
+					{ href: "/groups", label: m.nav_groups({}, options), icon: Group },
+				],
+			},
+			{
+				label: m.nav_action({}, options),
+				items: [
+					{ href: "/scenes", label: m.nav_scenes({}, options), icon: Clapperboard },
+					{ href: "/automations", label: m.nav_automations({}, options), icon: Workflow },
+					{ href: "/webhooks", label: m.nav_webhooks({}, options), icon: Webhook },
+					{ href: "/effects", label: m.nav_effects({}, options), icon: Sparkles },
+				],
+			},
+			{
+				label: m.nav_monitoring({}, options),
+				items: [
+					{ href: "/activity", label: m.nav_activity({}, options), icon: Activity },
+					{ href: "/alarms", label: m.nav_alarms({}, options), icon: BellRing },
+					{
+						href: "/maintenance",
+						label: m.nav_maintenance({}, options),
+						icon: CircleCheck,
+					},
+					{ href: "/data-viewer", label: m.nav_data_viewer({}, options), icon: LineChart },
+				],
+			},
+		];
+	});
 
-	const adminItems: NavItem[] = [
-		{ href: "/integrations", label: "Integrations", icon: PlugZap },
-		{ href: "/users", label: "Users", icon: Users },
-		{ href: "/logs", label: "Logs", icon: ScrollText },
-		{ href: "/settings", label: "Settings", icon: Settings },
-	];
+	const adminItems = $derived.by<NavItem[]>(() => {
+		const options = locale.messageOptions();
+		return [
+			{ href: "/integrations", label: m.nav_integrations({}, options), icon: PlugZap },
+			{ href: "/users", label: m.nav_users({}, options), icon: Users },
+			{ href: "/logs", label: m.nav_logs({}, options), icon: ScrollText },
+			{ href: "/settings", label: m.nav_settings({}, options), icon: Settings },
+		];
+	});
 
 	function alarmBadgeClass(): string {
 		switch (alarmsStore.highestSeverity) {
@@ -161,7 +173,10 @@
 											{#if item.href === "/alarms" && alarmsStore.activeCount > 0}
 												<span
 													class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs leading-none font-medium tabular-nums {alarmBadgeClass()}"
-													aria-label="{alarmsStore.activeCount} active alarms"
+											aria-label={m.nav_active_alarms(
+												{ count: alarmsStore.activeCount },
+												locale.messageOptions(),
+											)}
 												>
 													{alarmsStore.activeCount}
 												</span>
@@ -169,7 +184,10 @@
 											{#if item.href === "/maintenance" && maintenanceStore.actionableCount > 0}
 												<span
 													class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs leading-none font-medium tabular-nums text-muted-foreground"
-													aria-label="{maintenanceStore.actionableCount} maintenance tasks"
+											aria-label={m.nav_maintenance_tasks(
+												{ count: maintenanceStore.actionableCount },
+												locale.messageOptions(),
+											)}
 												>
 													{maintenanceStore.actionableCount}
 												</span>
@@ -221,9 +239,12 @@
 				<SidebarMenuItem>
 					<Collapsible.Trigger>
 						{#snippet child({ props })}
-							<SidebarMenuButton {...props} tooltipContent="System">
-								<Wrench class="size-4" />
-								<span>System</span>
+						<SidebarMenuButton
+							{...props}
+							tooltipContent={m.nav_system({}, locale.messageOptions())}
+						>
+							<Wrench class="size-4" />
+							<span>{m.nav_system({}, locale.messageOptions())}</span>
 								<ChevronUp
 									class="ml-auto size-4 transition-transform group-data-[state=closed]/system:rotate-180"
 								/>
@@ -250,21 +271,31 @@
 			}}
 			<SidebarMenu>
 				<SidebarMenuItem>
-					<SidebarMenuButton isActive={isActive("/profile")} tooltipContent="Profile">
+					<SidebarMenuButton
+						isActive={isActive("/profile")}
+						tooltipContent={m.nav_profile({}, locale.messageOptions())}
+					>
 						{#snippet child({ props })}
 							<a href="/profile" {...props} onclick={handleNav}>
 								<Avatar user={profileUser} size="xs" />
-								<span>Profile</span>
+								<span>{m.nav_profile({}, locale.messageOptions())}</span>
 							</a>
 						{/snippet}
 					</SidebarMenuButton>
 				</SidebarMenuItem>
 				<SidebarMenuItem>
-					<SidebarMenuButton tooltipContent="Signed in as {currentUser.name}">
+					<SidebarMenuButton
+						tooltipContent={m.nav_signed_in_as(
+							{ name: currentUser.name },
+							locale.messageOptions(),
+						)}
+					>
 						{#snippet child({ props })}
 							<button type="button" {...props} onclick={logout}>
 								<LogOut class="size-4" />
-								<span class="truncate">Log out ({currentUser.name})</span>
+								<span class="truncate">
+									{m.nav_log_out({ name: currentUser.name }, locale.messageOptions())}
+								</span>
 							</button>
 						{/snippet}
 					</SidebarMenuButton>

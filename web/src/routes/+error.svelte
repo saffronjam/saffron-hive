@@ -3,16 +3,20 @@
 	import { goto } from "$app/navigation";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { ArrowLeft } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const status = $derived(page.status);
 	const isNotFound = $derived(status === 404);
 	const heading = $derived(
-		isNotFound ? "Not Found" : (page.error?.message ?? "Something went wrong"),
+		isNotFound
+			? m.error_not_found_title({}, locale.messageOptions())
+			: m.error_page_title({}, locale.messageOptions()),
 	);
 	const detail = $derived(
 		isNotFound
-			? "That page doesn't exist. It may have been deleted, or the link may be wrong."
-			: "The page couldn't be loaded. Try again, or head back to the dashboard.",
+			? m.error_not_found_detail({}, locale.messageOptions())
+			: m.error_page_detail({}, locale.messageOptions()),
 	);
 
 	function goBack() {
@@ -32,7 +36,7 @@
 		<p class="mt-2 text-sm text-muted-foreground">{detail}</p>
 		<Button class="mt-6" variant="outline" onclick={goBack}>
 			<ArrowLeft class="size-4" />
-			<span>Go back</span>
+			<span>{m.error_go_back({}, locale.messageOptions())}</span>
 		</Button>
 	</div>
 </div>

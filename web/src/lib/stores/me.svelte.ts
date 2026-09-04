@@ -2,6 +2,10 @@ import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { theme, type Theme } from "$lib/stores/theme";
 import { haptics } from "$lib/stores/haptics.svelte";
+import { locale } from "$lib/i18n/locale.svelte";
+import type { Language } from "$lib/i18n/messages";
+
+export type { Language } from "$lib/i18n/messages";
 
 const ME_QUERY = graphql(`
   query Me {
@@ -14,6 +18,7 @@ const ME_QUERY = graphql(`
       timeFormat
       temperatureUnit
       hapticsEnabled
+      language
       createdAt
       mustChangePassword
     }
@@ -22,7 +27,6 @@ const ME_QUERY = graphql(`
 
 export type TimeMode = "12h" | "24h";
 export type TempUnit = "celsius" | "fahrenheit";
-
 export interface Me {
   id: string;
   username: string;
@@ -32,6 +36,7 @@ export interface Me {
   timeFormat: TimeMode;
   temperatureUnit: TempUnit;
   hapticsEnabled: boolean;
+  language: Language;
   createdAt: string;
   mustChangePassword: boolean;
 }
@@ -68,12 +73,14 @@ function createMe() {
     timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
     temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
     hapticsEnabled?: boolean | null;
+    language?: "EN" | "SV" | "RU" | null;
     createdAt?: string | null;
     mustChangePassword?: boolean | null;
   }) {
     const t: Theme = data.theme === "LIGHT" ? "light" : "dark";
     const tf: TimeMode = data.timeFormat === "TWELVE_HOUR" ? "12h" : "24h";
     const tu: TempUnit = data.temperatureUnit === "FAHRENHEIT" ? "fahrenheit" : "celsius";
+    const language: Language = data.language === "SV" ? "sv" : data.language === "RU" ? "ru" : "en";
     user = {
       id: data.id,
       username: data.username,
@@ -83,12 +90,14 @@ function createMe() {
       timeFormat: tf,
       temperatureUnit: tu,
       hapticsEnabled: data.hapticsEnabled ?? true,
+      language,
       createdAt: data.createdAt ?? "",
       mustChangePassword: data.mustChangePassword ?? false,
     };
     cacheAvatarPath(user.avatarPath);
     theme.syncFromProfile(t);
     haptics.syncFromProfile(user.hapticsEnabled);
+    locale.syncFromProfile(language);
   }
 
   return {
@@ -112,6 +121,7 @@ function createMe() {
       timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
       temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
       hapticsEnabled?: boolean | null;
+      language?: "EN" | "SV" | "RU" | null;
       createdAt?: string | null;
       mustChangePassword?: boolean | null;
     }) {

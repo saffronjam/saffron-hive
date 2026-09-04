@@ -13,10 +13,12 @@ export const MIN_PASSWORD_LEN = 10;
  */
 export function validateNewPassword(pw: string): string | null {
   if (pw.length < MIN_PASSWORD_LEN) {
-    return `Password must be at least ${MIN_PASSWORD_LEN} characters`;
+    return m.auth_password_minimum({ count: MIN_PASSWORD_LEN }, locale.messageOptions());
   }
   if (!/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/[0-9]/.test(pw)) {
-    return "Password must include uppercase, lowercase, and a digit";
+    return m.auth_password_complexity({}, locale.messageOptions());
   }
   return null;
 }
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";

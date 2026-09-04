@@ -119,7 +119,7 @@ describe("start", () => {
 
     await store.start(mock.client);
 
-    expect(store.error).toBe("offline");
+    expect(store.error).toBe("Could not load data.");
     expect(store.hydrated).toBe(false);
     expect(store.items).toEqual([]);
     store.stop();

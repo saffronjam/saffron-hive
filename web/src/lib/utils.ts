@@ -31,6 +31,7 @@ import {
   Zap,
 } from "@lucide/svelte";
 import { ContactRole } from "$lib/gql/graphql";
+import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,7 +50,7 @@ export function deviceDisplayName(d: {
   name?: string | null;
   friendlyName?: string | null;
 }): string {
-  return d.name || d.friendlyName || d.id;
+  return localizedNamesStore.display("device", d.id, d.name, d.friendlyName);
 }
 
 /** Resolve a group's user override, integration name, and id in order. */
@@ -58,7 +59,33 @@ export function groupDisplayName(group: {
   name?: string | null;
   friendlyName?: string | null;
 }): string {
-  return group.name || group.friendlyName || group.id;
+  return localizedNamesStore.display("group", group.id, group.name, group.friendlyName);
+}
+
+/** Resolve the locale-independent name used by stored automation expressions. */
+export function deviceSourceName(device: {
+  id: string;
+  name?: string | null;
+  friendlyName?: string | null;
+}): string {
+  return device.name?.trim() || device.friendlyName?.trim() || device.id;
+}
+
+/** Resolve the locale-independent group name used by stored automation expressions. */
+export function groupSourceName(group: {
+  id: string;
+  name?: string | null;
+  friendlyName?: string | null;
+}): string {
+  return group.name?.trim() || group.friendlyName?.trim() || group.id;
+}
+
+export function entityDisplayName(
+  entityType: string,
+  entity: { id: string; name?: string | null },
+  fallback?: string | null,
+): string {
+  return localizedNamesStore.display(entityType, entity.id, entity.name, fallback);
 }
 
 export function contactIcon(role?: ContactRole | null): Component {

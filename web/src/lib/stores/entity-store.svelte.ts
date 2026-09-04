@@ -2,6 +2,8 @@ import type { Client, TypedDocumentNode } from "@urql/svelte";
 import type { Exact } from "$lib/gql/graphql";
 import { clearSnapshot, loadSnapshot, saveSnapshot } from "$lib/entity-cache";
 import { graphqlErrorMessage } from "$lib/graphql-error";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
 
 /** Anything a store can hold: an entity with a stable server id. */
 export interface Identified {
@@ -111,7 +113,10 @@ export function createEntityStore<TItem extends Identified, TData>(
   async function refresh(client: Client) {
     const result = await client.query(query, {}, { requestPolicy: "network-only" }).toPromise();
     if (result.error) {
-      error = graphqlErrorMessage(result.error, `Could not load ${name}.`);
+      error = graphqlErrorMessage(
+        result.error,
+        m.common_error_load_data({}, locale.messageOptions()),
+      );
       return;
     }
     const next = result.data ? select(result.data) : null;

@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { formatRelative, formatTime, formatTooltip, parseSince } from "$lib/time-format";
+import { setLanguage } from "$lib/i18n/locale.svelte";
 
 const sample = new Date(2026, 4, 2, 14, 32, 9); // 2026-05-02 14:32:09 local
 const morning = new Date(2026, 4, 2, 9, 7, 4); // 09:07:04 local
@@ -7,6 +8,8 @@ const midnight = new Date(2026, 4, 2, 0, 0, 0); // 00:00:00 local
 const noon = new Date(2026, 4, 2, 12, 0, 0); // 12:00:00 local
 
 describe("formatTime", () => {
+	beforeEach(() => setLanguage("en"));
+
   it("renders zero-padded 24h clock", () => {
     expect(formatTime(sample, "24h")).toBe("14:32:09");
     expect(formatTime(morning, "24h")).toBe("09:07:04");
@@ -21,6 +24,8 @@ describe("formatTime", () => {
 });
 
 describe("formatTooltip", () => {
+	beforeEach(() => setLanguage("en"));
+
   it("renders YYYY-MM-DD HH:mm:ss in 24h mode", () => {
     expect(formatTooltip(sample, "24h")).toBe("2026-05-02 14:32:09");
   });
@@ -31,23 +36,47 @@ describe("formatTooltip", () => {
 });
 
 describe("formatRelative", () => {
+	beforeEach(() => setLanguage("en"));
+
   it('returns "Just now" within a minute', () => {
     const now = new Date(2026, 4, 2, 14, 32, 30);
     const past = new Date(2026, 4, 2, 14, 32, 0);
     expect(formatRelative(past, now, "24h")).toBe("Just now");
   });
 
-  it('returns "Xm ago" inside the hour', () => {
+	it("uses locale-aware relative minutes inside the hour", () => {
     const now = new Date(2026, 4, 2, 14, 45, 0);
     const past = new Date(2026, 4, 2, 14, 33, 0);
-    expect(formatRelative(past, now, "24h")).toBe("12m ago");
+		expect(formatRelative(past, now, "24h")).toBe(
+			new Intl.RelativeTimeFormat("en", { numeric: "always", style: "short" }).format(
+				-12,
+				"minute",
+			),
+		);
   });
 
-  it('returns "Xh ago" inside the day', () => {
+	it("uses locale-aware relative hours inside the day", () => {
     const now = new Date(2026, 4, 2, 14, 0, 0);
     const past = new Date(2026, 4, 2, 11, 0, 0);
-    expect(formatRelative(past, now, "24h")).toBe("3h ago");
-  });
+		expect(formatRelative(past, now, "24h")).toBe(
+			new Intl.RelativeTimeFormat("en", { numeric: "always", style: "short" }).format(
+				-3,
+				"hour",
+			),
+		);
+	});
+
+	it("changes relative-time grammar with the active locale", () => {
+		setLanguage("sv");
+		const now = new Date(2026, 4, 2, 14, 45, 0);
+		const past = new Date(2026, 4, 2, 14, 33, 0);
+		expect(formatRelative(past, now, "24h")).toBe(
+			new Intl.RelativeTimeFormat("sv-SE", { numeric: "always", style: "short" }).format(
+				-12,
+				"minute",
+			),
+		);
+	});
 
   it("falls through to formatTime past a day", () => {
     const now = new Date(2026, 4, 4, 14, 32, 9);
