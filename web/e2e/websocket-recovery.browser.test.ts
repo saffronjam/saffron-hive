@@ -43,6 +43,7 @@ let browserContext: BrowserContext;
 let page: Page;
 let connectionCount = 0;
 let blockedConnection = 0;
+let droppedNextConnection = 0;
 const connections: ConnectionRecord[] = [];
 
 function textMessage(message: string | Buffer): string {
@@ -73,12 +74,15 @@ function routeSocket(socket: WebSocketRoute) {
   });
   server.onMessage((message) => {
     if (blockedConnection === id) return;
+    let messageType: string | undefined;
     try {
       const parsed = JSON.parse(textMessage(message)) as { type?: string };
+      messageType = parsed.type;
       if (parsed.type === "connection_ack") record.acknowledged = true;
     } catch {
       // Forward non-JSON frames without interpreting them.
     }
+    if (droppedNextConnection === id && messageType === "next") return;
     socket.send(message);
   });
 }
@@ -127,6 +131,7 @@ afterAll(async () => {
 describe("browser WebSocket recovery", () => {
   it("detects a black-holed connection and reconciles missed state without a reload", async () => {
     const { appUrl } = getContext();
+    droppedNextConnection = 0;
     await publishDeviceState("Living Room Light", { state: "ON", brightness: 41 });
     await waitForBackendBrightness(41);
     await page.goto(`${appUrl}/devices`, { waitUntil: "domcontentloaded" });
@@ -182,9 +187,10 @@ describe("browser WebSocket recovery", () => {
       .toBeGreaterThan(0);
   });
 
-  it("replaces the socket immediately when the app returns to the foreground", async () => {
+  it("reconciles missed state when a still-connected app regains focus", async () => {
     const { appUrl } = getContext();
     blockedConnection = 0;
+    droppedNextConnection = 0;
     await publishDeviceState("Living Room Light", { state: "ON", brightness: 61 });
     await waitForBackendBrightness(61);
     await page.goto(`${appUrl}/devices`, { waitUntil: "domcontentloaded" });
@@ -193,27 +199,19 @@ describe("browser WebSocket recovery", () => {
       .poll(() => connections.find((connection) => connection.id === connectionCount)?.acknowledged)
       .toBe(true);
 
-    await page.evaluate(() => {
-      Object.defineProperty(document, "visibilityState", {
-        configurable: true,
-        value: "hidden",
-      });
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-
     const staleConnection = connectionCount;
-    blockedConnection = staleConnection;
+    droppedNextConnection = staleConnection;
     await publishDeviceState("Living Room Light", { state: "ON", brightness: 209 });
     await waitForBackendBrightness(209);
     expect(await brightnessValue()).toBe(61);
 
+    await new Promise((resolve) => setTimeout(resolve, 4_000));
+    expect(connectionCount).toBe(staleConnection);
+    expect(await brightnessValue()).toBe(61);
+
     const recoveryStartedAt = Date.now();
     await page.evaluate(() => {
-      Object.defineProperty(document, "visibilityState", {
-        configurable: true,
-        value: "visible",
-      });
-      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
     });
     await expect
       .poll(() => connectionCount, { timeout: 2_500, interval: 50 })
@@ -221,7 +219,11 @@ describe("browser WebSocket recovery", () => {
     expect(Date.now() - recoveryStartedAt).toBeLessThan(2_500);
     await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(209);
 
-    const recovered = connections.find((connection) => connection.id > staleConnection);
-    expect(recovered?.recoveryReason).toBe("foreground");
+    await expect
+      .poll(
+        () => connections.find((connection) => connection.id > staleConnection)?.recoveryReason,
+        { timeout: UI_TIMEOUT },
+      )
+      .toBe("foreground");
   });
 });

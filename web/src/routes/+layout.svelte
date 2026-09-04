@@ -24,6 +24,7 @@
 	import { effectsStore } from "$lib/stores/effects.svelte";
 	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import { floorplanStore } from "$lib/stores/floorplan.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { prefetchIconPacks } from "$lib/components/icons/icon-utils.js";
 	import { onMount, onDestroy } from "svelte";
@@ -40,28 +41,49 @@
 	import AlarmsPage from "$lib/components/alarms-page.svelte";
 	import MaintenancePage from "$lib/components/maintenance-page.svelte";
 	import { page } from "$app/stores";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
-	function reconcileAppState() {
+	let reconciliationRunning = false;
+	let reconciliationQueued = false;
+
+	async function reconcileAppState() {
 		if (!auth.isAuthenticated()) return;
-		void Promise.allSettled([
-			deviceStore.refresh(client),
-			roomsStore.refresh(client),
-			groupsStore.refresh(client),
-			scenesStore.refresh(client),
-			automationsStore.refresh(client),
-			effectsStore.refresh(client),
-			webhooksStore.refresh(client),
-			floorplanStore.refresh(client),
-			alarmsStore.refresh(client),
-			maintenanceStore.refresh(),
-		]);
+		if (reconciliationRunning) {
+			reconciliationQueued = true;
+			return;
+		}
+
+		reconciliationRunning = true;
+		try {
+			do {
+				reconciliationQueued = false;
+				await Promise.allSettled([
+					deviceStore.refresh(client),
+					roomsStore.refresh(client),
+					groupsStore.refresh(client),
+					scenesStore.refresh(client),
+					automationsStore.refresh(client),
+					effectsStore.refresh(client),
+					webhooksStore.refresh(client),
+					floorplanStore.refresh(client),
+					localizedNamesStore.refresh(client),
+					alarmsStore.refresh(client),
+					maintenanceStore.refresh(),
+				]);
+			} while (reconciliationQueued && auth.isAuthenticated());
+		} finally {
+			reconciliationRunning = false;
+		}
 	}
 
 	const connection = createGraphQLConnection();
 	const client = connection.client;
 	setContextClient(client);
 	setGraphQLConnectionContext(connection);
-	const stopRecoveryReconciliation = connection.onRecovered(reconcileAppState);
+	const stopRecoveryReconciliation = connection.onRecovered(() => {
+		void reconcileAppState();
+	});
 
 	let { children } = $props();
 
@@ -154,6 +176,9 @@
 		uninstallAppRecovery = installAppRecovery(
 			connection,
 			() => ready && auth.isAuthenticated() && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)),
+			() => {
+				void reconcileAppState();
+			},
 		);
 		void gate();
 		prefetchIconPacks();
@@ -174,6 +199,7 @@
 			void webhooksStore.start(client);
 			void effectsStore.start(client);
 			void floorplanStore.start(client);
+			void localizedNamesStore.refresh(client);
 			if (!me.user) void me.refresh(client);
 		}
 	});
@@ -192,6 +218,7 @@
 		webhooksStore.stop();
 		effectsStore.stop();
 		floorplanStore.stop();
+		localizedNamesStore.clear();
 	});
 </script>
 
@@ -202,11 +229,18 @@
 {#if !ready}
 	{#if gateError}
 		<div class="flex h-screen flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-			<span>Could not reach the server.</span>
-			<SmoothButton label="Try again" variant="outline" size="sm" onclick={gate} />
+			<span>{m.common_error_server_unreachable({}, locale.messageOptions())}</span>
+			<SmoothButton
+				label={m.common_try_again({}, locale.messageOptions())}
+				variant="outline"
+				size="sm"
+				onclick={gate}
+			/>
 		</div>
 	{:else if loader.visible}
-		<div class="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>
+		<div class="flex h-screen items-center justify-center text-muted-foreground">
+			{m.common_loading({}, locale.messageOptions())}
+		</div>
 	{/if}
 {:else if PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))}
 	{@render children()}
