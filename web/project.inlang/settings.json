@@ -1,0 +1,12 @@
+{
+  "$schema": "https://inlang.com/schema/project-settings",
+  "baseLocale": "en",
+  "locales": ["en", "sv", "ru"],
+  "modules": [
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-icu1@latest/dist/index.js",
+    "https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@2.2.6/dist/index.js"
+  ],
+  "plugin.inlang.icu-messageformat-1": {
+    "pathPattern": "./messages/{locale}.json"
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "sourceLiterals": [
+    {
+      "path": "src/lib/components/app-sidebar.svelte",
+      "text": "Hive",
+      "reason": "Product short name"
+    },
+    {
+      "path": "src/lib/components/effect-native-editor.svelte",
+      "text": "Zigbee",
+      "reason": "Protocol name"
+    },
+    {
+      "path": "src/lib/components/color-picker.svelte",
+      "text": "rgb(, , )",
+      "reason": "Standard color notation with dynamic channel values"
+    },
+    {
+      "path": "src/lib/components/effects-page.svelte",
+      "text": "Hive",
+      "reason": "Product short name"
+    },
+    {
+      "path": "src/lib/components/effects-page.svelte",
+      "text": "Zigbee",
+      "reason": "Protocol name"
+    },
+    {
+      "path": "src/lib/components/group-table.svelte",
+      "text": "Zigbee2MQTT",
+      "reason": "Provider name"
+    },
+    {
+      "path": "src/lib/components/icons/tuya-icon.svelte",
+      "text": "Tuya",
+      "reason": "Provider icon accessible name"
+    },
+    {
+      "path": "src/lib/components/icons/zigbee2mqtt-icon.svelte",
+      "text": "Zigbee2MQTT",
+      "reason": "Provider icon accessible name"
+    },
+    {
+      "path": "src/lib/components/zigbee-details-card.svelte",
+      "text": "PAN ID",
+      "reason": "Protocol identifier"
+    },
+    {
+      "path": "src/lib/components/zigbee-details-card.svelte",
+      "text": "Zigbee",
+      "reason": "Protocol name"
+    },
+    {
+      "path": "src/lib/components/zigbee-details-card.svelte",
+      "text": "Zigbee2MQTT",
+      "reason": "Provider name"
+    },
+    {
+      "path": "src/lib/components/zigbee-details-card.svelte",
+      "text": "zigbee-herdsman",
+      "reason": "Provider component name"
+    },
+    {
+      "path": "src/lib/components/zigbee-details-card.svelte",
+      "text": "zigbee2mqtt/",
+      "reason": "Protocol topic prefix followed by a dynamic device name"
+    },
+    {
+      "path": "src/routes/integrations/tuya/+page.svelte",
+      "text": "Tuya",
+      "reason": "Provider name"
+    },
+    {
+      "path": "src/routes/integrations/zigbee2mqtt/+page.svelte",
+      "text": "Zigbee2MQTT",
+      "reason": "Provider name"
+    },
+    {
+      "path": "src/routes/integrations/zigbee2mqtt/+page.svelte",
+      "text": "mqtt.example.com:1883",
+      "reason": "Example broker address"
+    },
+    {
+      "path": "src/routes/integrations/zigbee2mqtt/+page.svelte",
+      "text": "https://zigbee2mqtt.example.com",
+      "reason": "Example provider URL"
+    },
+    {
+      "path": "src/routes/integrations/zigbee2mqtt/+page.svelte",
+      "text": "HH",
+      "reason": "Locale-neutral hour input mask"
+    },
+    {
+      "path": "src/routes/integrations/zigbee2mqtt/+page.svelte",
+      "text": "MM",
+      "reason": "Locale-neutral minute input mask"
+    },
+    {
+      "path": "src/lib/components/graph/condition-node.svelte",
+      "text": "HH",
+      "reason": "Locale-neutral hour input mask"
+    },
+    {
+      "path": "src/lib/components/graph/condition-node.svelte",
+      "text": "MM",
+      "reason": "Locale-neutral minute input mask"
+    },
+    {
+      "path": "src/lib/components/graph/trigger-node.svelte",
+      "text": "HH",
+      "reason": "Locale-neutral hour input mask"
+    },
+    {
+      "path": "src/lib/components/graph/trigger-node.svelte",
+      "text": "MM",
+      "reason": "Locale-neutral minute input mask"
+    },
+    {
+      "path": "src/lib/components/graph/trigger-node.svelte",
+      "text": "SS",
+      "reason": "Locale-neutral second input mask"
+    }
+  ],
+  "unusedMessages": [
+    { "path": "messages/en.json", "key": "automation_operator_delay", "reason": "Reserved automation vocabulary" },
+    { "path": "messages/en.json", "key": "automation_webhook_filters", "reason": "Reserved automation vocabulary" },
+    { "path": "messages/en.json", "key": "automation_webhook_operator", "reason": "Reserved automation vocabulary" },
+    { "path": "messages/en.json", "key": "automation_webhook_path", "reason": "Reserved automation vocabulary" },
+    { "path": "messages/en.json", "key": "automation_webhook_value", "reason": "Reserved automation vocabulary" },
+    { "path": "messages/en.json", "key": "common_clear", "reason": "Shared component vocabulary" },
+    { "path": "messages/en.json", "key": "common_error_try_again", "reason": "Shared recovery vocabulary" },
+    { "path": "messages/en.json", "key": "device_type_unknown", "reason": "Forward-compatible device fallback" },
+    { "path": "messages/en.json", "key": "settings_save_failed", "reason": "Settings error fallback" },
+    { "path": "messages/en.json", "key": "shared_choose_icon", "reason": "Shared icon-picker vocabulary" },
+    { "path": "messages/en.json", "key": "shared_date_from", "reason": "Shared calendar vocabulary" },
+    { "path": "messages/en.json", "key": "shared_date_range", "reason": "Shared calendar vocabulary" },
+    { "path": "messages/en.json", "key": "shared_date_to", "reason": "Shared calendar vocabulary" },
+    { "path": "messages/en.json", "key": "shared_next_month", "reason": "Shared calendar vocabulary" },
+    { "path": "messages/en.json", "key": "shared_no_results", "reason": "Shared empty-state vocabulary" },
+    { "path": "messages/en.json", "key": "shared_number_decrease", "reason": "Shared numeric-input vocabulary" },
+    { "path": "messages/en.json", "key": "shared_number_increase", "reason": "Shared numeric-input vocabulary" },
+    { "path": "messages/en.json", "key": "shared_previous_month", "reason": "Shared calendar vocabulary" },
+    { "path": "messages/en.json", "key": "shared_select_all", "reason": "Shared selection vocabulary" },
+    { "path": "messages/en.json", "key": "static_app_description", "reason": "Consumed by static metadata generation" },
+    { "path": "messages/en.json", "key": "translation_names", "reason": "Multilingual editor heading" },
+    { "path": "messages/en.json", "key": "translation_source_language", "reason": "Multilingual editor vocabulary" },
+    { "path": "messages/en.json", "key": "webhooks_delete_description", "reason": "Webhook destructive-action fallback" },
+    { "path": "messages/en.json", "key": "zigbee_pan_id", "reason": "Protocol vocabulary" }
+  ]
+}

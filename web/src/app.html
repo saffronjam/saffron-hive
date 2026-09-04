@@ -7,17 +7,16 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link id="app-manifest" rel="manifest" href="/manifest.en.webmanifest" />
     <meta name="theme-color" content="#09090b" />
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Hive</title>
     <style>
-      /* Paints the canvas before the stylesheet loads, so the first frame after
-         the launch splash is already the theme background rather than UA white.
-         Mirrors --background in app.css. */
+      /* Paints the canvas before the stylesheet loads, then follows the theme
+         token once the stylesheet is available. */
       html {
         color-scheme: dark;
-        background-color: #09090b;
+        background-color: var(--background, #09090b);
       }
       html:not(.dark) {
         color-scheme: light;
@@ -26,6 +25,23 @@
     </style>
     <script>
       (function () {
+        var supportedLanguages = ["en", "sv", "ru"];
+        var storedLanguage = localStorage.getItem("saffron-hive-language");
+        var preferredLanguages = storedLanguage
+          ? [storedLanguage]
+          : navigator.languages || [navigator.language];
+        var language = "en";
+        for (var i = 0; i < preferredLanguages.length; i += 1) {
+          var candidate = String(preferredLanguages[i]).trim().toLowerCase().split(/[-_]/, 1)[0];
+          if (supportedLanguages.indexOf(candidate) !== -1) {
+            language = candidate;
+            break;
+          }
+        }
+        document.documentElement.lang = language;
+        var manifest = document.getElementById("app-manifest");
+        if (manifest) manifest.setAttribute("href", "/manifest." + language + ".webmanifest");
+
         var theme = localStorage.getItem("saffron-hive-theme");
         var dark = true;
         if (theme === "light") {

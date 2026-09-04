@@ -99,7 +99,7 @@ e2e-ts:
 
 [group('check')]
 [doc('Run generation checks, format, lint, typecheck, errcheck, and tests')]
-prepare-for-commit: deps sqlc-check gqlgen-check codegen-check format lint typecheck errcheck test
+prepare-for-commit: deps sqlc-check gqlgen-check codegen-check paraglide-check i18n-audit format lint typecheck errcheck test
 
 [group('codegen')]
 [doc('Generate SQLite query code')]
@@ -169,6 +169,35 @@ codegen-check:
         exit 1
     fi
     rm -rf "$tmpdir"
+
+[group('codegen')]
+[working-directory('web')]
+[doc('Generate typed Paraglide messages')]
+paraglide:
+    bun run paraglide
+
+[group('codegen')]
+[doc('Verify committed Paraglide output')]
+paraglide-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir=$(mktemp -d)
+    cp -R web/src/lib/paraglide/. "$tmpdir"/
+    cd web && bun run paraglide && cd ..
+    if ! diff -rq "$tmpdir" web/src/lib/paraglide >/dev/null 2>&1; then
+        echo "Paraglide output drift detected under web/src/lib/paraglide/."
+        echo "Run 'just paraglide' and commit the regenerated files."
+        diff -rq "$tmpdir" web/src/lib/paraglide || true
+        rm -rf "$tmpdir"
+        exit 1
+    fi
+    rm -rf "$tmpdir"
+
+[group('check')]
+[working-directory('web')]
+[doc('Audit translated catalogs and authored UI text')]
+i18n-audit:
+    bun run i18n-audit
 
 [group('db')]
 [doc('Run pending migrations (all, or N with `just migrate-up 1`)')]
