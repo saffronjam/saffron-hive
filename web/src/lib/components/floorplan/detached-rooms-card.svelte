@@ -4,6 +4,8 @@
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { holdDrag } from "$lib/actions/hold-drag";
 	import type { PlanRoomMeta } from "$lib/floorplan";
+	import { m } from "$lib/i18n/messages";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 	interface Props {
 		rooms: PlanRoomMeta[];
@@ -19,8 +21,8 @@
 		$props();
 
 	function displayName(room: PlanRoomMeta): string {
-		if (room.roomId) return hiveRoomById.get(room.roomId)?.name ?? (room.name ?? "Room");
-		return room.name ?? "Room";
+		if (room.roomId) return hiveRoomById.get(room.roomId)?.name ?? (room.name ?? m.map_room_fallback());
+		return localizedNamesStore.display("floorplan_room", room.id, room.name, m.map_room_fallback());
 	}
 
 	function displayIcon(room: PlanRoomMeta): string | null {
@@ -31,7 +33,7 @@
 <div
 	class="absolute bottom-3 right-3 z-10 rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm"
 >
-	<p class="px-1.5 py-1 text-xs font-medium text-muted-foreground">Detached rooms</p>
+	<p class="px-1.5 py-1 text-xs font-medium text-muted-foreground">{m.map_detached_rooms()}</p>
 	{#each rooms as room (room.id)}
 		<div
 			class="flex cursor-grab touch-pan-y items-center gap-2 rounded-md px-1.5 py-1 text-sm text-muted-foreground select-none hover:bg-accent/50"
@@ -51,7 +53,7 @@
 				variant="ghost"
 				size="icon-sm"
 				onclick={() => ondiscard(room.id)}
-				aria-label="Discard detached room"
+				aria-label={m.map_discard_detached_room()}
 			>
 				<X class="size-3.5" />
 			</Button>

@@ -1,5 +1,7 @@
 import { flattenWall, polygonBounds, shoelaceArea } from "./geometry";
 import type { Face, PlanVertex, PlanWall } from "./types";
+import { formatMeasurement } from "$lib/i18n/format";
+import type { Language } from "$lib/i18n/messages";
 
 /** Centerline length of a wall in meters; curved walls measure the flattened polyline. */
 export function wallLength(wall: PlanWall, verts: Map<string, PlanVertex> | PlanVertex[]): number {
@@ -22,12 +24,22 @@ export function faceBounds(face: Face): { width: number; height: number } {
   return { width, height };
 }
 
-/** Format a length for display: 3.238 -> "3.24 m". */
-export function formatMeters(v: number): string {
-  return `${v.toFixed(2)} m`;
+/** Format a localized length with two fraction digits. */
+export function formatMeters(v: number, language?: Language): string {
+  return formatMeasurement(
+    v,
+    "m",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+    language,
+  );
 }
 
-/** Format an area for display: 12 -> "12.00 m²". */
-export function formatArea(v: number): string {
-  return `${v.toFixed(2)} m²`;
+/** Format a localized area with two fraction digits. */
+export function formatArea(v: number, language?: Language): string {
+  return formatMeasurement(
+    v,
+    "m²",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+    language,
+  );
 }

@@ -104,6 +104,7 @@
 <script lang="ts">
 	import { untrack } from "svelte";
 	import { haptics } from "$lib/stores/haptics.svelte";
+	import { m } from "$lib/i18n/messages";
 	import { select } from "d3-selection";
 	import {
 		zoom as d3zoom,
@@ -2077,7 +2078,7 @@
 				: 'cursor-default'
 			: 'cursor-crosshair'}"
 		role="application"
-		aria-label="Floor plan editor"
+		aria-label={m.map_editor_label()}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
 		onpointerup={handlePointerUp}

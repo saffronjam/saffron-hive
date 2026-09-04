@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { planLabels } from "$lib/floorplan";
 import type { Face, PlanGraph, PlanLabelInput } from "$lib/floorplan";
 
+const nbsp = "\u00a0";
+
 function square(id: string, size = 2): Face {
   return {
     vertexIds: [`${id}-1`, `${id}-2`, `${id}-3`, `${id}-4`],
@@ -42,7 +44,7 @@ function input(overrides: Partial<PlanLabelInput> = {}): PlanLabelInput {
 describe("planLabels", () => {
   it("labels a room with its name and its area, one above the other", () => {
     const labels = planLabels(input({ faces: [square("f")], faceNames: ["Kitchen"] }));
-    expect(labels.map((l) => l.text)).toEqual(["Kitchen", "4.00 m²"]);
+    expect(labels.map((l) => l.text)).toEqual(["Kitchen", `4.00${nbsp}m²`]);
     expect(labels[0].dy).toBeLessThan(0);
     expect(labels[1].dy).toBeGreaterThan(0);
     // Both sit at the middle of the room.
@@ -68,7 +70,7 @@ describe("planLabels", () => {
     expect(planLabels(input())).toHaveLength(0);
     const labels = planLabels(input({ measuredWallIds: new Set(["w"]) }));
     expect(labels).toHaveLength(1);
-    expect(labels[0].text).toBe("3.00 m");
+    expect(labels[0].text).toBe(`3.00${nbsp}m`);
     expect(labels[0].x).toBeCloseTo(1.5, 9);
   });
 
@@ -76,12 +78,12 @@ describe("planLabels", () => {
     const from = { x: 0, y: 0 };
     expect(planLabels(input({ rubber: { from, to: from, length: 0 } }))).toHaveLength(0);
     const labels = planLabels(input({ rubber: { from, to: { x: 2, y: 0 }, length: 2 } }));
-    expect(labels[0].text).toBe("2.00 m");
+    expect(labels[0].text).toBe(`2.00${nbsp}m`);
   });
 
   it("measures both sides of a rectangle stamp", () => {
     const labels = planLabels(input({ stamp: { x: 0, y: 0, w: 3, h: 2 } }));
-    expect(labels.map((l) => l.text)).toEqual(["3.00 m", "2.00 m"]);
+    expect(labels.map((l) => l.text)).toEqual([`3.00${nbsp}m`, `2.00${nbsp}m`]);
     // The height label hangs off the left edge, so it is right-aligned.
     expect(labels[1].anchor).toBe("end");
   });
@@ -116,7 +118,7 @@ describe("furniture measurements", () => {
   it("labels both sides of a piece being resized", () => {
     const labels = planLabels(input({ furniture: piece }));
     const texts = labels.filter((l) => l.id.startsWith("furniture-")).map((l) => l.text);
-    expect(texts).toEqual(["1.80 m", "2.00 m"]);
+    expect(texts).toEqual([`1.80${nbsp}m`, `2.00${nbsp}m`]);
   });
 
   it("stands the labels off the sides they measure", () => {
@@ -152,7 +154,7 @@ describe("scratch measurements", () => {
     const [label] = planLabels(input({ measures: [line] })).filter((l) =>
       l.id.startsWith("measure-"),
     );
-    expect(label.text).toBe("5.00 m");
+    expect(label.text).toBe(`5.00${nbsp}m`);
     expect(label.x).toBeCloseTo(1.5, 6);
     expect(label.y).toBeCloseTo(2, 6);
   });
@@ -161,7 +163,11 @@ describe("scratch measurements", () => {
     const labels = planLabels(input({ measures: [box] })).filter((l) =>
       l.id.startsWith("measure-"),
     );
-    expect(labels.map((l) => l.text)).toEqual(["6.00 m²", "3.00 m", "2.00 m"]);
+    expect(labels.map((l) => l.text)).toEqual([
+      `6.00${nbsp}m²`,
+      `3.00${nbsp}m`,
+      `2.00${nbsp}m`,
+    ]);
   });
 
   it("stays quiet about a measurement with no length", () => {

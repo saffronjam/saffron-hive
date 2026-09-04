@@ -39,8 +39,7 @@ export type FurnitureShape =
 
 export interface FurnitureKind {
   id: string;
-  label: string;
-  group: "Fixtures" | "Beds" | "Sofas" | "Shapes";
+  group: "fixtures" | "beds" | "sofas" | "shapes";
   icon: Component;
   /** True size in meters, which is what a piece is dropped at. */
   size: { width: number; height: number };
@@ -107,8 +106,7 @@ function drawSofa(w: number, h: number, arms: "both" | "left" | "none"): Furnitu
 export const FURNITURE_KINDS: FurnitureKind[] = [
   {
     id: "sink",
-    label: "Sink",
-    group: "Fixtures",
+    group: "fixtures",
     icon: Waves,
     size: { width: 0.8, height: 0.51 },
     scale: "uniform",
@@ -130,8 +128,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "toilet",
-    label: "Toilet",
-    group: "Fixtures",
+    group: "fixtures",
     icon: Toilet,
     size: { width: 0.35, height: 0.65 },
     scale: "uniform",
@@ -155,8 +152,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "bathtub",
-    label: "Bathtub",
-    group: "Fixtures",
+    group: "fixtures",
     icon: Bath,
     size: { width: 1.7, height: 0.74 },
     scale: "uniform",
@@ -185,8 +181,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "bed-single",
-    label: "Single bed",
-    group: "Beds",
+    group: "beds",
     icon: BedSingle,
     size: { width: 1.1, height: 2 },
     scale: "free",
@@ -195,8 +190,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "bed-medium",
-    label: "Small double bed",
-    group: "Beds",
+    group: "beds",
     icon: Bed,
     size: { width: 1.4, height: 2 },
     scale: "free",
@@ -205,8 +199,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "bed-double",
-    label: "Double bed",
-    group: "Beds",
+    group: "beds",
     icon: BedDouble,
     size: { width: 1.8, height: 2 },
     scale: "free",
@@ -215,8 +208,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "sofa-straight",
-    label: "Sofa",
-    group: "Sofas",
+    group: "sofas",
     icon: Sofa,
     size: { width: 2.1, height: 0.9 },
     scale: "free",
@@ -225,8 +217,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "sofa-corner",
-    label: "Sofa corner",
-    group: "Sofas",
+    group: "sofas",
     icon: Sofa,
     size: { width: 0.9, height: 0.9 },
     scale: "free",
@@ -242,8 +233,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "sofa-center",
-    label: "Sofa center",
-    group: "Sofas",
+    group: "sofas",
     icon: Sofa,
     size: { width: 1, height: 0.9 },
     scale: "free",
@@ -252,8 +242,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "sofa-side",
-    label: "Sofa side",
-    group: "Sofas",
+    group: "sofas",
     icon: Sofa,
     size: { width: 0.9, height: 0.9 },
     scale: "free",
@@ -262,8 +251,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "armchair",
-    label: "Armchair",
-    group: "Sofas",
+    group: "sofas",
     icon: Armchair,
     size: { width: 0.85, height: 0.85 },
     scale: "uniform",
@@ -272,8 +260,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "box",
-    label: "Box",
-    group: "Shapes",
+    group: "shapes",
     icon: Square,
     size: { width: 1, height: 0.6 },
     scale: "free",
@@ -282,8 +269,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   },
   {
     id: "ellipse",
-    label: "Ellipse",
-    group: "Shapes",
+    group: "shapes",
     icon: Circle,
     size: { width: 0.9, height: 0.9 },
     scale: "free",

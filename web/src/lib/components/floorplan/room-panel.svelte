@@ -32,6 +32,7 @@
 	import { placeBesideRect } from "$lib/panel-place";
 	import type { PlacementRef } from "$lib/floorplan/placement-conflicts";
 	import { deviceDisplayName } from "$lib/utils";
+	import { m } from "$lib/i18n/messages";
 
 	interface Props {
 		/**
@@ -95,19 +96,19 @@
 		</AnimatedIcon>
 		<span class="min-w-0 flex-1 truncate text-sm font-medium">{linkedRoom.name}</span>
 		{#if docked}
-			<Button variant="ghost" size="icon-xs" onclick={onclose} aria-label="Dismiss">
+			<Button variant="ghost" size="icon-xs" onclick={onclose} aria-label={m.common_dismiss()}>
 				<X class="size-3.5" />
 			</Button>
 		{/if}
 	</div>
 
 	{#if deviceRows.some((r) => !r.placed && !r.attached) || groupRows.some((r) => !r.placed)}
-		<p class="mt-1 text-xs text-muted-foreground">Drag a device or group onto the plan.</p>
+		<p class="mt-1 text-xs text-muted-foreground">{m.map_drag_device_group()}</p>
 	{/if}
 
 	<div class="mt-3 space-y-0.5 {docked ? 'max-h-[45vh] overflow-y-auto' : ''}">
 		{#if deviceRows.length === 0 && groupRows.length === 0}
-			<p class="py-1 text-xs text-muted-foreground">No devices in this room.</p>
+			<p class="py-1 text-xs text-muted-foreground">{m.map_no_devices_room()}</p>
 		{/if}
 		{#each groupRows as row (row.group.id)}
 			<div
@@ -128,12 +129,12 @@
 				</AnimatedIcon>
 				<span class="min-w-0 flex-1 truncate">{row.group.name}</span>
 				{#if row.placed}
-					<span class="text-xs">Placed</span>
+					<span class="text-xs">{m.map_placed()}</span>
 					<Button
 						variant="ghost"
 						size="icon-xs"
 						onclick={() => onremoveplacement({ memberType: "group", memberId: row.group.id })}
-						aria-label="Remove from map"
+						aria-label={m.map_remove_from_map()}
 					>
 						<X class="size-3.5" />
 					</Button>
@@ -165,7 +166,7 @@
 				/>
 				<span class="min-w-0 flex-1 truncate">{deviceDisplayName(row.device)}</span>
 				{#if row.placed || row.attached}
-					<span class="text-xs">{row.attached ? "Attached" : "Placed"}</span>
+					<span class="text-xs">{row.attached ? m.map_attached() : m.map_placed()}</span>
 					<Button
 						variant="ghost"
 						size="icon-xs"
@@ -173,7 +174,7 @@
 							row.attached
 								? ondetachdoor(row.device.id)
 								: onremoveplacement({ memberType: "device", memberId: row.device.id })}
-						aria-label="Remove from map"
+						aria-label={m.map_remove_from_map()}
 					>
 						<X class="size-3.5" />
 					</Button>

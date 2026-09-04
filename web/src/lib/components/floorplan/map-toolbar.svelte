@@ -17,36 +17,45 @@
 	import type { OpeningKind } from "$lib/floorplan";
 	import type { MeasureKind } from "$lib/components/floorplan/floorplan-editor.svelte";
 	import type { MapViewId } from "$lib/map-views";
+	import { m } from "$lib/i18n/messages";
 
 	/** What the opening tool can place, shared with the opening context menu. */
-	export const openingKinds: { id: OpeningKind; icon: typeof MousePointer2; label: string }[] = [
-		{ id: "door", icon: DoorClosed, label: "Door" },
-		{ id: "window", icon: Grid2x2, label: "Window" },
-		{ id: "opening", icon: Columns2, label: "Cased opening" },
-	];
+	export function openingKinds(): { id: OpeningKind; icon: typeof MousePointer2; label: string }[] {
+		return [
+			{ id: "door", icon: DoorClosed, label: m.map_tool_door() },
+			{ id: "window", icon: Grid2x2, label: m.map_tool_window() },
+			{ id: "opening", icon: Columns2, label: m.map_tool_cased_opening() },
+		];
+	}
 
 	/** What the measure tool lays down, shared with its sub-pill. */
-	export const measureKinds: { id: MeasureKind; icon: typeof MousePointer2; label: string }[] = [
-		{ id: "line", icon: Ruler, label: "Length" },
-		{ id: "rect", icon: Frame, label: "Area" },
-	];
+	export function measureKinds(): { id: MeasureKind; icon: typeof MousePointer2; label: string }[] {
+		return [
+			{ id: "line", icon: Ruler, label: m.map_tool_length() },
+			{ id: "rect", icon: Frame, label: m.map_tool_area() },
+		];
+	}
 
 	/** How a selected furniture piece is being transformed. */
 	export type FurnitureMode = "move" | "rotate" | "scale";
 
 	/** The furniture transform tools, in toolbar order. */
-	export const furnitureModes: { id: FurnitureMode; icon: typeof MousePointer2; label: string }[] = [
-		{ id: "move", icon: Move, label: "Move" },
-		{ id: "rotate", icon: RotateCw, label: "Rotate" },
-		{ id: "scale", icon: Scaling, label: "Resize" },
-	];
+	export function furnitureModes(): { id: FurnitureMode; icon: typeof MousePointer2; label: string }[] {
+		return [
+			{ id: "move", icon: Move, label: m.map_tool_move() },
+			{ id: "rotate", icon: RotateCw, label: m.map_tool_rotate() },
+			{ id: "scale", icon: Scaling, label: m.map_tool_resize() },
+		];
+	}
 
 	/** The live map's views, in menu order. */
-	export const mapViews: { id: MapViewId; icon: typeof MousePointer2; label: string }[] = [
-		{ id: "light", icon: Lightbulb, label: "Light" },
-		{ id: "temperature", icon: Thermometer, label: "Temperature" },
-		{ id: "connectivity", icon: Waypoints, label: "Connectivity" },
-	];
+	export function mapViews(): { id: MapViewId; icon: typeof MousePointer2; label: string }[] {
+		return [
+			{ id: "light", icon: Lightbulb, label: m.map_view_light() },
+			{ id: "temperature", icon: Thermometer, label: m.map_view_temperature() },
+			{ id: "connectivity", icon: Waypoints, label: m.map_view_connectivity() },
+		];
+	}
 </script>
 
 <script lang="ts">
@@ -78,6 +87,7 @@
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import type { EditorTool } from "$lib/components/floorplan/floorplan-editor.svelte";
 	import { dropPointerFocus } from "$lib/pointer-focus";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		editMode: boolean;
@@ -191,13 +201,20 @@
 	const ROW = "no-scrollbar flex items-center gap-1 overflow-x-auto";
 	const DIVIDER = "mx-1 h-4 w-px shrink-0 bg-border";
 
-	const tools: { id: EditorTool; icon: typeof MousePointer2; label: string }[] = [
-		{ id: "select", icon: MousePointer2, label: "Select" },
-		{ id: "wall", icon: PenLine, label: "Draw walls" },
-		{ id: "rect", icon: Square, label: "Stamp a room" },
-		{ id: "opening", icon: SquareSplitHorizontal, label: "Cut an opening" },
-		{ id: "measure", icon: Ruler, label: "Measure" },
-	];
+	const tools = $derived.by(() => {
+		void locale.currentLanguage;
+		return [
+			{ id: "select", icon: MousePointer2, label: m.map_tool_select() },
+			{ id: "wall", icon: PenLine, label: m.map_tool_draw_walls() },
+			{ id: "rect", icon: Square, label: m.map_tool_stamp_room() },
+			{ id: "opening", icon: SquareSplitHorizontal, label: m.map_tool_cut_opening() },
+			{ id: "measure", icon: Ruler, label: m.map_tool_measure() },
+		] satisfies { id: EditorTool; icon: typeof MousePointer2; label: string }[];
+	});
+	const localizedOpeningKinds = $derived.by(() => (locale.currentLanguage, openingKinds()));
+	const localizedMeasureKinds = $derived.by(() => (locale.currentLanguage, measureKinds()));
+	const localizedFurnitureModes = $derived.by(() => (locale.currentLanguage, furnitureModes()));
+	const localizedMapViews = $derived.by(() => (locale.currentLanguage, mapViews()));
 
 	function press(run: () => void) {
 		return (e: MouseEvent) => {
@@ -217,12 +234,12 @@
 					size="icon-sm"
 					onclick={press(onundo)}
 					disabled={!editMode || !canUndo}
-					aria-label="Undo"
+					aria-label={m.map_undo()}
 				>
 					<Undo2 class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>Undo</TooltipContent>
+			<TooltipContent>{m.map_undo()}</TooltipContent>
 		</Tooltip>
 		<Tooltip>
 			<TooltipTrigger class="shrink-0">
@@ -231,12 +248,12 @@
 					size="icon-sm"
 					onclick={press(onredo)}
 					disabled={!editMode || !canRedo}
-					aria-label="Redo"
+					aria-label={m.map_redo()}
 				>
 					<Redo2 class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>Redo</TooltipContent>
+			<TooltipContent>{m.map_redo()}</TooltipContent>
 		</Tooltip>
 		<Tooltip>
 			<TooltipTrigger class="shrink-0">
@@ -245,13 +262,13 @@
 					size="icon-sm"
 					onclick={press(oncopy)}
 					disabled={!editMode || selectedWallCount === 0}
-					aria-label="Copy selected walls"
+					aria-label={m.map_copy_selected_walls()}
 				>
 					<Copy class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
 			<TooltipContent>
-				{selectedWallCount === 0 ? "Select walls to copy" : "Copy selected walls"}
+				{selectedWallCount === 0 ? m.map_select_walls_to_copy() : m.map_copy_selected_walls()}
 			</TooltipContent>
 		</Tooltip>
 		<Tooltip>
@@ -261,12 +278,12 @@
 					size="icon-sm"
 					onclick={press(onpaste)}
 					disabled={!editMode || !hasCopyBuffer}
-					aria-label="Paste copied walls"
+					aria-label={m.map_paste_copied_walls()}
 				>
 					<ClipboardPaste class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>{hasCopyBuffer ? "Paste copied walls" : "Nothing copied yet"}</TooltipContent>
+			<TooltipContent>{hasCopyBuffer ? m.map_paste_copied_walls() : m.map_nothing_copied()}</TooltipContent>
 		</Tooltip>
 		<div class={DIVIDER}></div>
 		{#each tools as t (t.id)}
@@ -294,13 +311,13 @@
 					size="icon-sm"
 					onclick={press(onsnaptoggle)}
 					disabled={!editMode}
-					aria-label="Snap to the grid and to walls"
+					aria-label={m.map_snap_label()}
 				>
 					<Magnet class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
 			<TooltipContent>
-				{snapOff ? "Turn snapping on" : "Turn snapping off (or hold Alt)"}
+				{snapOff ? m.map_snap_on() : m.map_snap_off()}
 			</TooltipContent>
 		</Tooltip>
 		<Tooltip>
@@ -310,13 +327,13 @@
 					size="icon-sm"
 					onclick={press(onadditivetoggle)}
 					disabled={!editMode}
-					aria-label="Add to the selection"
+					aria-label={m.map_add_selection()}
 				>
 					<SquareDashedMousePointer class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
 			<TooltipContent>
-				{additive ? "Stop adding to the selection" : "Add to the selection (or hold Shift)"}
+				{additive ? m.map_add_selection_stop() : m.map_add_selection_hint()}
 			</TooltipContent>
 		</Tooltip>
 		<div class={DIVIDER}></div>
@@ -327,12 +344,12 @@
 					size="icon-sm"
 					onclick={press(onlinkroom)}
 					disabled={!editMode}
-					aria-label="Link a Hive room"
+					aria-label={m.map_link_room()}
 				>
 					<DoorOpen class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>Link a Hive room</TooltipContent>
+			<TooltipContent>{m.map_link_room()}</TooltipContent>
 		</Tooltip>
 		<Tooltip>
 			<TooltipTrigger class="shrink-0">
@@ -341,12 +358,12 @@
 					size="icon-sm"
 					onclick={press(onfurniture)}
 					disabled={!editMode}
-					aria-label="Furniture"
+					aria-label={m.map_furniture()}
 				>
 					<Sofa class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>Furniture</TooltipContent>
+			<TooltipContent>{m.map_furniture()}</TooltipContent>
 		</Tooltip>
 	</div>
 </div>
@@ -357,20 +374,20 @@
 		: 'pointer-events-none opacity-0'}"
 >
 	<div class={ROW}>
-		{#each furnitureModes as m (m.id)}
+		{#each localizedFurnitureModes as mode (mode.id)}
 			<Tooltip>
 				<TooltipTrigger class="shrink-0">
 					<Button
-						variant={furnitureMode === m.id ? "secondary" : "ghost"}
+						variant={furnitureMode === mode.id ? "secondary" : "ghost"}
 						size="icon-sm"
-						onclick={press(() => onfurnituremode(m.id))}
+						onclick={press(() => onfurnituremode(mode.id))}
 						disabled={!editMode || !furnitureSelected}
-						aria-label={m.label}
+						aria-label={mode.label}
 					>
-						<m.icon class="size-3.5" />
+						<mode.icon class="size-3.5" />
 					</Button>
 				</TooltipTrigger>
-				<TooltipContent>{m.label}</TooltipContent>
+				<TooltipContent>{mode.label}</TooltipContent>
 			</Tooltip>
 		{/each}
 	</div>
@@ -382,7 +399,7 @@
 		: 'pointer-events-none opacity-0'}"
 >
 	<div class={ROW}>
-		{#each measureKinds as k (k.id)}
+		{#each localizedMeasureKinds as k (k.id)}
 			<Tooltip>
 				<TooltipTrigger class="shrink-0">
 					<Button
@@ -406,13 +423,13 @@
 					size="icon-sm"
 					onclick={press(onkeepmeasures)}
 					disabled={!editMode}
-					aria-label="Keep measurements on the plan"
+					aria-label={m.map_keep_measurements()}
 				>
 					<Pin class="size-3.5" />
 				</Button>
 			</TooltipTrigger>
 			<TooltipContent>
-				{keepMeasures ? "Clear them as you go" : "Keep measurements on the plan"}
+				{keepMeasures ? m.map_clear_measurements_as_you_go() : m.map_keep_measurements()}
 			</TooltipContent>
 		</Tooltip>
 	</div>
@@ -424,7 +441,7 @@
 		: 'pointer-events-none opacity-0'}"
 >
 	<div class={ROW}>
-		{#each openingKinds as k (k.id)}
+		{#each localizedOpeningKinds as k (k.id)}
 			<Tooltip>
 				<TooltipTrigger class="shrink-0">
 					<Button
@@ -451,7 +468,7 @@
 				class="shrink-0"
 				disabled={editMode}
 				onclick={press(onbrushtoggle)}
-				aria-label="Paint brush"
+				aria-label={m.map_paint_brush()}
 			>
 				<Paintbrush class="size-3.5" />
 			</Button>
@@ -463,7 +480,7 @@
 				class="shrink-0"
 				disabled={editMode}
 				onclick={press(onneighbourstoggle)}
-				aria-label={showNeighbours ? "Hide neighbour links" : "Show neighbour links"}
+				aria-label={showNeighbours ? m.map_hide_neighbour_links() : m.map_show_neighbour_links()}
 			>
 				<Radio class="size-3.5" />
 			</Button>
@@ -476,7 +493,7 @@
 					class="shrink-0"
 					disabled={editMode}
 					onclick={press(() => onsourcetoggle(source.provider))}
-					aria-label={source.shown ? `Hide ${source.label} mesh` : `Show ${source.label} mesh`}
+					aria-label={source.shown ? m.map_hide_provider_mesh({ provider: source.label }) : m.map_show_provider_mesh({ provider: source.label })}
 				>
 					<source.icon class="size-3.5" />
 				</Button>
@@ -488,12 +505,12 @@
 		{#if showViews}
 			<DropdownMenu bind:open={viewMenuOpen}>
 				<DropdownMenuTrigger class="shrink-0">
-					<Button variant="ghost" size="icon-sm" disabled={editMode} aria-label="Map view">
+					<Button variant="ghost" size="icon-sm" disabled={editMode} aria-label={m.map_view_picker()}>
 						<Layers class="size-3.5" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="center" class="w-44">
-					{#each mapViews.filter((v) => viewOptions.includes(v.id)) as v (v.id)}
+					{#each localizedMapViews.filter((v) => viewOptions.includes(v.id)) as v (v.id)}
 						<DropdownMenuItem
 							disabled={view === v.id}
 							onclick={() => {
@@ -514,7 +531,7 @@
 			class="shrink-0"
 			disabled={editMode}
 			onclick={press(onfit)}
-			aria-label="Frame the whole plan"
+			aria-label={m.map_frame_plan()}
 		>
 			<Crosshair class="size-3.5" />
 		</Button>

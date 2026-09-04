@@ -24,6 +24,7 @@
 	import { miredToRgb } from "$lib/device-tint";
 	import { dropPointerFocus } from "$lib/pointer-focus";
 	import { markPopoverDismissed } from "$lib/popover-guard";
+	import { m } from "$lib/i18n/messages";
 
 	interface Props {
 		/** Union capabilities of the placed devices gate the swatch groups. */
@@ -104,11 +105,11 @@
 	const swatchLabel = $derived(
 		armed?.kind === "power"
 			? armed.on
-				? "Brush turns lights on"
-				: "Brush turns lights off"
+				? m.map_brush_turns_on()
+				: m.map_brush_turns_off()
 			: armedCss
-				? `Brush paints ${armedCss}`
-				: "No brush armed",
+				? m.map_brush_paints({ value: armedCss })
+				: m.map_brush_none(),
 	);
 </script>
 
@@ -129,7 +130,7 @@
 						dropPointerFocus(e);
 						armColor(c);
 					}}
-					aria-label="Paint color {css(c)}"
+					aria-label={m.map_paint_color({ value: css(c) })}
 				>
 					<HiveColorSwatch color={css(c)} class="h-4 w-4" />
 				</Button>
@@ -148,7 +149,7 @@
 						dropPointerFocus(e);
 						armTemp(mireds);
 					}}
-					aria-label="Paint white temperature {mireds} mireds"
+					aria-label={m.map_paint_temperature({ value: mireds })}
 				>
 					<HiveColorSwatch color={css(miredToRgb(mireds))} class="h-4 w-4" />
 				</Button>
@@ -163,7 +164,7 @@
 				size="icon-sm"
 				class="shrink-0"
 				onclick={(e) => { dropPointerFocus(e); armPower(true); }}
-				aria-label="Paint lights on"
+				aria-label={m.map_paint_lights_on()}
 			>
 				<Power class="size-3.5" />
 			</Button>
@@ -172,7 +173,7 @@
 				size="icon-sm"
 				class="shrink-0"
 				onclick={(e) => { dropPointerFocus(e); armPower(false); }}
-				aria-label="Paint lights off"
+				aria-label={m.map_paint_lights_off()}
 			>
 				<PowerOff class="size-3.5" />
 			</Button>
@@ -189,7 +190,7 @@
 				dropPointerFocus(e);
 				onradiuschange(stepBrushRadius(radiusPx, -1));
 			}}
-			aria-label="Smaller brush"
+			aria-label={m.map_brush_smaller()}
 		>
 			<Minus class="size-3.5" />
 		</Button>
@@ -203,7 +204,7 @@
 				dropPointerFocus(e);
 				onradiuschange(stepBrushRadius(radiusPx, 1));
 			}}
-			aria-label="Larger brush"
+			aria-label={m.map_brush_larger()}
 		>
 			<Plus class="size-3.5" />
 		</Button>
@@ -222,7 +223,7 @@
 							variant={customArmed ? "secondary" : "ghost"}
 							size="icon-sm"
 							class="shrink-0"
-							aria-label="Pick a custom brush value"
+							aria-label={m.map_brush_custom()}
 						>
 							<Palette class="size-3.5" />
 						</Button>

@@ -19,6 +19,7 @@
 	import { markPopoverDismissed } from "$lib/popover-guard";
 	import { capabilityUnion, hasCapability } from "$lib/target-resolve";
 	import { flushThrottle, throttle, type Throttle } from "$lib/throttle";
+	import { m } from "$lib/i18n/messages";
 
 	interface Props {
 		group: { id: string; name: string; icon?: string | null };
@@ -164,7 +165,7 @@
 								{...props}
 								class="block size-3.5 rounded-full ring-1 ring-border outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring"
 								style="background: {tintBase ? tintCardBg(tintBase, 70) : 'var(--muted)'}"
-								aria-label={`Adjust ${group.name} colour`}
+								aria-label={m.room_adjust_color({ name: group.name })}
 							></button>
 						{/snippet}
 					</PopoverTrigger>

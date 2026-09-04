@@ -25,6 +25,7 @@
 	import { markPopoverDismissed } from "$lib/popover-guard";
 	import { flushThrottle, throttle, type Throttle } from "$lib/throttle";
 	import { deviceDisplayName } from "$lib/utils";
+	import { m } from "$lib/i18n/messages";
 
 	interface Props {
 		device: Device;
@@ -157,7 +158,7 @@
 								{...props}
 								class="block size-3.5 rounded-full ring-1 ring-border outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring"
 								style="background: {tintBase ? tintCardBg(tintBase, 70) : 'var(--muted)'}"
-								aria-label={`Adjust ${deviceDisplayName(device)} colour`}
+								aria-label={m.room_adjust_color({ name: deviceDisplayName(device) })}
 							></button>
 						{/snippet}
 					</PopoverTrigger>

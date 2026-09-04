@@ -58,16 +58,18 @@ describe("faceBounds", () => {
 
 describe("formatMeters", () => {
   it("formats to 0.01 m precision with the unit", () => {
-    expect(formatMeters(3.238)).toBe("3.24 m");
-    expect(formatMeters(2)).toBe("2.00 m");
-    expect(formatMeters(0.05)).toBe("0.05 m");
+    expect(formatMeters(3.238, "en")).toBe("3.24\u00a0m");
+    expect(formatMeters(2, "en")).toBe("2.00\u00a0m");
+    expect(formatMeters(0.05, "en")).toBe("0.05\u00a0m");
+    expect(formatMeters(3.238, "ru")).toBe("3,24\u00a0m");
   });
 });
 
 describe("formatArea", () => {
   it("formats to 0.01 m² precision with the unit", () => {
-    expect(formatArea(12)).toBe("12.00 m²");
-    expect(formatArea(11.996)).toBe("12.00 m²");
-    expect(formatArea(3.456)).toBe("3.46 m²");
+    expect(formatArea(12, "en")).toBe("12.00\u00a0m²");
+    expect(formatArea(11.996, "en")).toBe("12.00\u00a0m²");
+    expect(formatArea(3.456, "en")).toBe("3.46\u00a0m²");
+    expect(formatArea(3.456, "ru")).toBe("3,46\u00a0m²");
   });
 });

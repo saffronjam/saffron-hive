@@ -137,6 +137,9 @@
 		type LightSource,
 	} from "$lib/floorplan/lightmap";
 	import { carryPlacements } from "$lib/floorplan/placement-carry";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { furnitureGroupLabel, furnitureLabel } from "$lib/i18n/furniture";
 	import {
 		applyPlacement,
 		needsConfirmation,
@@ -147,6 +150,7 @@
 	} from "$lib/floorplan/placement-conflicts";
 	import { BRUSH_RADIUS_PX, createStrokeAccumulator } from "$lib/floorplan/brush";
 	import { profile } from "$lib/stores/profile.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 	import { commitGroupColor, commitGroupTemp, commitGroupToggle } from "$lib/group-commands";
 	import { dropPointerFocus } from "$lib/pointer-focus";
 	import { popoverDismissedRecently } from "$lib/popover-guard";
@@ -196,7 +200,7 @@
 		newFurnitureId,
 		type FloorplanFurnitureData,
 	} from "$lib/floorplan-editable";
-	import { deviceDisplayName, groupDisplayName, sentenceCase } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName, groupDisplayName, sentenceCase } from "$lib/utils";
 	import { integrationMeta } from "$lib/integrations";
 
 	interface Props {
@@ -222,7 +226,7 @@
 	let saving = $state(false);
 	let editMode = $state(true);
 	let planId = $state("");
-	let planName = $state("Home");
+	let planName: string = $state(m.map_default_name());
 	let graph = $state<PlanGraph>({ vertices: [], walls: [] });
 	let rooms = $state<PlanRoomMeta[]>([]);
 	let placements = $state<FloorplanPlacementData[]>([]);
@@ -533,8 +537,11 @@
 		const device = deviceById.get(draftDoorBinding.deviceId);
 		return device ? { binding: draftDoorBinding, device } : null;
 	});
-	const hiveRoomById = $derived(
+	const hiveRoomSourceById = $derived(
 		new Map(hiveRooms.map((r) => [r.id, { name: r.name ?? r.id, icon: r.icon }])),
+	);
+	const hiveRoomById = $derived(
+		new Map(hiveRooms.map((r) => [r.id, { name: entityDisplayName("room", r), icon: r.icon }])),
 	);
 	const roomByFace = $derived(new Map(rooms.map((r) => [faceKey(r), r])));
 	const faceKeySet = $derived(new Set(faces.map((f) => faceKey(f))));
@@ -542,6 +549,10 @@
 	const detachedRooms = $derived(
 		rooms.filter((r) => (r.name || r.roomId) && !faceKeySet.has(faceKey(r))),
 	);
+	function planRoomDisplayName(room: PlanRoomMeta): string {
+		if (room.roomId) return hiveRoomById.get(room.roomId)?.name ?? m.map_room_fallback();
+		return localizedNamesStore.display("floorplan_room", room.id, room.name, m.map_room_fallback());
+	}
 	const unlockedFaceKeys = $derived(
 		new Set(rooms.filter((r) => unlockedRoomIds.has(r.id)).map((r) => faceKey(r))),
 	);
@@ -891,7 +902,7 @@
 		for (const face of faces) {
 			const room = roomByFace.get(faceKey(face));
 			if (!room) continue;
-			const label = room.roomId ? hiveRoomById.get(room.roomId)?.name : room.name;
+			const label = planRoomDisplayName(room);
 			if (label) out.set(faceKey(face), label);
 		}
 		return out;
@@ -1143,7 +1154,7 @@
 	/** Point every row at the right link: the target row takes the Hive room, and
 	 * any other row that held it is unlinked keeping the Hive name as its label. */
 	function applyLink(rowId: string, hiveRoomId: string) {
-		const hiveName = hiveRoomById.get(hiveRoomId)?.name ?? null;
+		const hiveName = hiveRoomSourceById.get(hiveRoomId)?.name ?? null;
 		rooms = rooms.map((r) => {
 			if (r.id === rowId) return { ...r, roomId: hiveRoomId, name: null };
 			if (r.roomId === hiveRoomId) return { ...r, roomId: null, name: r.name ?? hiveName };
@@ -1166,7 +1177,7 @@
 	function unlinkRoomRow(rowId: string | null) {
 		const row = rowId === null ? null : (rooms.find((r) => r.id === rowId) ?? null);
 		if (!row?.roomId) return;
-		const hiveName = hiveRoomById.get(row.roomId)?.name ?? null;
+		const hiveName = hiveRoomSourceById.get(row.roomId)?.name ?? null;
 		updateRoomRow(row.id, { roomId: null, name: hiveName });
 		takeSnapshot();
 	}
@@ -1548,7 +1559,7 @@
 		const first = lights[0];
 		const name =
 			first.kind === "device" ? deviceDisplayName(first.device) : first.group.name;
-		return lights.length > 1 ? `${name} and ${lights.length - 1} more` : name;
+		return lights.length > 1 ? m.map_named_and_more({ name, count: lights.length - 1 }) : name;
 	}
 
 	function toggleOccluder(piece: FloorplanFurnitureData) {
@@ -1703,7 +1714,7 @@
 			try {
 				await floorplanStore.save(client, input);
 			} catch (e) {
-				errors.setWithAutoDismiss(graphqlErrorMessage(e, "Failed to save the plan."));
+				errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_save()));
 				return;
 			}
 			const displayError = await saveDisplayEdits();
@@ -1740,7 +1751,7 @@
 				})
 				.toPromise();
 			if (result.error) {
-				return graphqlErrorMessage(result.error, "Failed to save a display colour.");
+				return graphqlErrorMessage(result.error, m.map_error_display_color());
 			}
 			deviceStore.updateDisplayColor(id, edit.color);
 			deviceStore.updateDisplayBrightness(id, edit.brightness);
@@ -2114,7 +2125,7 @@
 		try {
 			await scenesStore.apply(client, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Failed to apply the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_apply_scene()));
 		}
 	}
 
@@ -2122,7 +2133,7 @@
 		try {
 			await scenesStore.deactivate(client, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, "Failed to stop the scene."));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_stop_scene()));
 		}
 	}
 
@@ -2216,7 +2227,8 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Map" }];
+		void locale.currentLanguage;
+		pageHeader.breadcrumbs = [{ label: m.map_title() }];
 		if (loading) {
 			pageHeader.actions = [];
 			return;
@@ -2226,7 +2238,7 @@
 		pageHeader.actions = editMode
 			? [
 					{
-						label: "Cancel",
+						label: m.common_cancel(),
 						icon: X,
 						variant: "outline" as const,
 						onclick: handleCancelEdit,
@@ -2234,7 +2246,7 @@
 						hideLabelOnMobile: true,
 					},
 					{
-						label: "Save",
+						label: m.common_save(),
 						saving,
 						onclick: handleSave,
 						disabled: saving || !isDirty,
@@ -2243,7 +2255,7 @@
 				]
 			: [
 					{
-						label: "Edit",
+						label: m.common_edit(),
 						icon: Pencil,
 						onclick: handleEnterEdit,
 						hideLabelOnMobile: true,
@@ -2316,26 +2328,24 @@
 			];
 		});
 	});
-	const metadataLabel = $derived(
-		selectedLinkedRoom?.name ?? (selectedRoom?.name || null),
-	);
+	const metadataLabel = $derived(selectedRoom ? planRoomDisplayName(selectedRoom) : null);
 
 	const furnitureDrawerGroups = $derived<DrawerGroup<"furniture">[]>(
 		furnitureGroups().map((g) => ({
-			heading: g.group,
+			heading: furnitureGroupLabel(g.group),
 			items: g.kinds.map((k) => ({
 				type: "furniture" as const,
 				id: k.id,
-				name: k.label,
+				name: furnitureLabel(k.id),
 				icon: k.icon,
-				badge: `${k.size.width.toFixed(2)} × ${k.size.height.toFixed(2)} m`,
+				badge: `${formatMeters(k.size.width)} × ${formatMeters(k.size.height)}`,
 			})),
 		})),
 	);
 
 	const drawerGroups = $derived<DrawerGroup<"room">[]>([
 		{
-			heading: "Rooms",
+			heading: m.map_rooms(),
 			items: hiveRooms.map((r) => {
 				const linked = linkedHiveRoomIds.has(r.id);
 				return {
@@ -2344,7 +2354,7 @@
 					name: r.name ?? r.id,
 					icon: DoorOpen,
 					iconRef: r.icon,
-					badge: linked ? "Linked" : `${r.resolvedDevices?.length ?? 0} devices`,
+					badge: linked ? m.map_linked() : m.map_device_count({ count: r.resolvedDevices?.length ?? 0 }),
 					disabled: linked,
 				};
 			}),
@@ -2528,14 +2538,14 @@
 				{:else if selectedWall}
 					<div class="font-medium">{formatMeters(wallLength(selectedWall, graph.vertices))}</div>
 					<div class="flex items-center gap-2 pt-1">
-						<span class="text-muted-foreground">Thickness</span>
+						<span class="text-muted-foreground">{m.map_thickness()}</span>
 						<NumberInput
 							value={selectedWall.thickness}
 							min={MIN_WALL_THICKNESS}
 							max={MAX_WALL_THICKNESS}
 							allowDecimal
 							class="h-6 w-16 text-xs"
-							ariaLabel="Wall thickness in meters"
+							ariaLabel={m.map_wall_thickness_aria()}
 							onValueChange={setSelectedWallThickness}
 						/>
 					</div>
@@ -2549,14 +2559,12 @@
 			>
 				{#if meshCaption}
 					<div class="font-medium">
-						Mesh scanned {formatRelative(
-							meshCaption.scannedAt,
-							nowStore.current,
-							me.user?.timeFormat ?? "24h",
-						)}
+						{m.map_mesh_scanned({
+							time: formatRelative(meshCaption.scannedAt, nowStore.current, me.user?.timeFormat ?? "24h"),
+						})}
 					</div>
 					<div class="text-muted-foreground">
-						{meshCaption.placed} of {meshCaption.total} devices placed
+						{m.map_devices_placed({ placed: meshCaption.placed, total: meshCaption.total })}
 					</div>
 				{/if}
 			</div>
@@ -2588,9 +2596,7 @@
 						startRoomDrag(
 							"detached",
 							room.id,
-							room.roomId
-								? (hiveRoomById.get(room.roomId)?.name ?? room.name ?? "Room")
-								: (room.name ?? "Room"),
+							planRoomDisplayName(room),
 							e,
 						)}
 					ondragmove={moveExternalDrag}
@@ -2607,9 +2613,9 @@
 						>
 							<MapIcon class="size-6 text-muted-foreground" />
 						</div>
-						<p class="text-muted-foreground">No plan yet.</p>
+						<p class="text-muted-foreground">{m.map_empty()}</p>
 						<p class="mt-2 text-sm text-muted-foreground">
-							Pick the wall tool and click to start drawing.
+							{m.map_empty_help()}
 						</p>
 					</div>
 				</div>
@@ -2652,7 +2658,7 @@
 		<Input
 			bind:ref={renameInputEl}
 			value={renameRoom.name ?? ""}
-			placeholder="Room label"
+			placeholder={m.map_room_label_placeholder()}
 			class="h-8 text-sm"
 			oninput={(e) => {
 				if (!renameRoomId) return;
@@ -2694,12 +2700,12 @@
 			{#if markerMenu}
 				<DropdownMenuItem onclick={menuOpenPlacementPage}>
 					<ExternalLink class="size-3.5" />
-					{markerMenu.placement.kind === "device" ? "Go to device" : "Go to group"}
+					{markerMenu.placement.kind === "device" ? m.map_go_to_device() : m.map_go_to_group()}
 				</DropdownMenuItem>
 				{#if editMode && markerMenu.placement.kind === "device" && needsDisplayColor(markerMenu.placement.device)}
 					<DropdownMenuItem onclick={menuSetDisplayColor}>
 						<Palette class="size-3.5" />
-						Set display color
+						{m.map_set_display_color()}
 					</DropdownMenuItem>
 				{/if}
 			{/if}
@@ -2707,7 +2713,7 @@
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onclick={menuRemovePlacement}>
 					<X class="size-3.5" />
-					Remove from map
+					{m.map_remove_from_map()}
 				</DropdownMenuItem>
 			{/if}
 	</PlanPointMenu>
@@ -2719,25 +2725,25 @@
 >
 	<DropdownMenuItem onclick={menuOpenDoorSensorDevice}>
 		<ExternalLink class="size-3.5" />
-		Open device
+		{m.map_open_device()}
 	</DropdownMenuItem>
 	<DropdownMenuItem onclick={menuFlipDoorHinge}>
 		<FlipHorizontal2 class="size-3.5" />
-		Flip hinge
+		{m.map_flip_hinge()}
 	</DropdownMenuItem>
 	<DropdownMenuItem onclick={menuFlipDoorSwing}>
 		<FlipVertical2 class="size-3.5" />
-		Flip swing side
+		{m.map_flip_swing()}
 	</DropdownMenuItem>
 	<DropdownMenuSeparator />
 	<DropdownMenuItem onclick={menuDetachDoorSensor}>
 		<Unlink class="size-3.5" />
-		Detach sensor
+		{m.map_detach_sensor()}
 	</DropdownMenuItem>
 </PlanPointMenu>
 
 <PlanPointMenu bind:open={openingMenuOpen} at={openingMenu} onclose={() => (openingMenu = null)}>
-		{#each openingKinds as k (k.id)}
+		{#each openingKinds() as k (k.id)}
 			<DropdownMenuItem
 				disabled={openingMenuKind === k.id || (openingMenuBinding !== null && k.id !== "door")}
 				onclick={() => menuSetOpeningKind(k.id)}
@@ -2749,11 +2755,11 @@
 		<DropdownMenuSeparator />
 		<DropdownMenuItem disabled={openingMenuBinding !== null} onclick={menuRemoveOpening}>
 			<X class="size-3.5" />
-			Remove opening
+			{m.map_remove_opening()}
 		</DropdownMenuItem>
 		{#if openingMenuBinding}
 			<div class="px-2 pt-1.5 pb-1 text-xs text-muted-foreground">
-				Detach the sensor before changing or removing this door.
+				{m.map_detach_sensor_first()}
 			</div>
 		{/if}
 </PlanPointMenu>
@@ -2762,41 +2768,41 @@
 		<DropdownMenuItem onclick={menuToggleLock}>
 			{#if faceMenu?.unlocked}
 				<Lock class="size-3.5" />
-				Lock room
+				{m.map_lock_room()}
 			{:else}
 				<LockOpen class="size-3.5" />
-				Unlock room
+				{m.map_unlock_room()}
 			{/if}
 		</DropdownMenuItem>
 		<DropdownMenuItem onclick={menuToggleCornerLock}>
 			{#if faceMenu?.cornersFree}
 				<Frame class="size-3.5" />
-				Keep corners square
+				{m.map_keep_corners_square()}
 			{:else}
 				<PenLine class="size-3.5" />
-				Move corners freely
+				{m.map_move_corners_freely()}
 			{/if}
 		</DropdownMenuItem>
 		<DropdownMenuItem onclick={menuRename}>
 			<Pencil class="size-3.5" />
-			Rename
+			{m.map_rename()}
 		</DropdownMenuItem>
 		<DropdownMenuSeparator />
 		{#if menuRoom?.roomId}
 			<DropdownMenuItem onclick={menuUnlink}>
 				<Unlink class="size-3.5" />
-				Unlink room
+				{m.map_unlink_room()}
 			</DropdownMenuItem>
 		{:else}
 			<DropdownMenuItem onclick={menuLink}>
 				<LinkIcon class="size-3.5" />
-				Link room
+				{m.map_link_room_short()}
 			</DropdownMenuItem>
 		{/if}
 	<DropdownMenuSeparator />
 		<DropdownMenuItem variant="destructive" onclick={menuDelete}>
 			<Trash2 class="size-3.5" />
-			Delete room
+			{m.map_delete_room()}
 		</DropdownMenuItem>
 		{#if menuRoomSize}
 			<div class="mt-1 px-2 pt-1.5 pb-1 text-xs text-muted-foreground">
@@ -2807,17 +2813,17 @@
 
 <ConfirmDialog
 	bind:open={conflictOpen}
-	title="Already on the map"
-	description="{pendingPlacement
-		? refLabel(pendingPlacement.placement)
-		: ''} covers these. They come off the map; nothing else changes."
-	confirmLabel="Remove and place"
+	title={m.map_conflict_title()}
+	description={m.map_conflict_description({
+		name: pendingPlacement ? refLabel(pendingPlacement.placement) : "",
+	})}
+	confirmLabel={m.map_conflict_confirm()}
 	onconfirm={confirmPlacement}
 	oncancel={cancelPlacement}
 >
 	{#if pendingPlacement}
 		<div class="rounded-lg bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-			<span>These markers leave the plan:</span>
+			<span>{m.map_conflict_markers()}</span>
 			<div class="mt-2 flex flex-wrap gap-1.5">
 				{#each pendingPlacement.conflict.displaced as d (placementKey(d))}
 					<HiveChip type={d.memberType} label={refLabel(d)} />
@@ -2829,9 +2835,9 @@
 
 <ConfirmDialog
 	bind:open={doorConflictOpen}
-	title={pendingDoorBinding?.replaced ? "Door already has a sensor" : "Already on the map"}
-	description="Attaching this sensor removes the conflicting map representation."
-	confirmLabel={pendingDoorBinding?.replaced ? "Replace and attach" : "Remove and attach"}
+	title={pendingDoorBinding?.replaced ? m.map_door_sensor_conflict() : m.map_conflict_title()}
+	description={m.map_sensor_conflict_description()}
+	confirmLabel={pendingDoorBinding?.replaced ? m.map_replace_attach() : m.map_remove_attach()}
 	variant="default"
 	onconfirm={confirmDoorBinding}
 	oncancel={cancelDoorBinding}
@@ -2858,17 +2864,17 @@
 
 <ConfirmDialog
 	bind:open={discardOpen}
-	title="Discard changes?"
-	description="Your unsaved changes to the plan will be lost."
-	confirmLabel="Discard"
+	title={m.map_discard_title()}
+	description={m.map_discard_description()}
+	confirmLabel={m.map_discard()}
 	onconfirm={confirmDiscard}
 	oncancel={() => (discardOpen = false)}
 />
 
 <HiveDrawer
 	bind:open={drawerOpen}
-	title="Link a Hive room"
-	description="Drag a room onto the plan, or select it to stamp a linked room."
+	title={m.map_link_room()}
+	description={m.map_link_room_description()}
 	groups={drawerGroups}
 	onselect={handleDrawerSelect}
 	ondragout={(item, e) => startRoomDrag("hive-room", item.id, item.name, e)}
@@ -2895,10 +2901,10 @@
 				<Ban class="size-3.5" />
 			{/if}
 			{piece.occluder
-				? "Lets light through"
+				? m.map_lets_light_through()
 				: blockedBy
-					? `${blockedBy} sits inside this piece`
-					: "Blocks light"}
+					? m.map_inside_piece({ name: blockedBy })
+					: m.map_blocks_light()}
 		</DropdownMenuItem>
 		<DropdownMenuItem
 			onclick={() => {
@@ -2907,7 +2913,7 @@
 			}}
 		>
 			<Copy class="size-3.5" />
-			Duplicate
+			{m.map_duplicate()}
 		</DropdownMenuItem>
 		<DropdownMenuSeparator />
 		<DropdownMenuItem
@@ -2917,15 +2923,15 @@
 			}}
 		>
 			<X class="size-3.5" />
-			Remove from plan
+			{m.map_remove_from_plan()}
 		</DropdownMenuItem>
 	{/if}
 </PlanPointMenu>
 
 <HiveDrawer
 	bind:open={furnitureDrawerOpen}
-	title="Furniture"
-	description="Drag a piece onto the plan. It arrives at its real size."
+	title={m.map_furniture()}
+	description={m.map_furniture_description()}
 	groups={furnitureDrawerGroups}
 	onselect={(_type, id) => placeFurnitureAtCentre(id)}
 	ondragout={(item, e) => startFurnitureDrag(item.id, e)}
