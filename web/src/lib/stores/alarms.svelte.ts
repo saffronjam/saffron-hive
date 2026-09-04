@@ -3,13 +3,18 @@ import { toast } from "svelte-sonner";
 import { graphql } from "$lib/gql";
 import type { AlarmSeverity, AlarmKind } from "$lib/gql/graphql";
 import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
+import { alarmMessage } from "$lib/i18n/alarm";
+import { m } from "$lib/i18n/messages";
+import { locale } from "$lib/i18n/locale.svelte";
 
 export interface Alarm {
   id: string;
   latestRowId: string;
   severity: AlarmSeverity;
   kind: AlarmKind;
-  message: string;
+  message?: string | null;
+  messageCode?: string | null;
+  messageArguments: string;
   source: string;
   count: number;
   firstRaisedAt: string;
@@ -24,6 +29,8 @@ const ALARMS_QUERY = graphql(`
       severity
       kind
       message
+      messageCode
+      messageArguments
       source
       count
       firstRaisedAt
@@ -43,6 +50,8 @@ const ALARM_EVENT_SUBSCRIPTION = graphql(`
         severity
         kind
         message
+        messageCode
+        messageArguments
         source
         count
         firstRaisedAt
@@ -99,9 +108,18 @@ function createAlarmsStore() {
         (acc, a) => (SEVERITY_RANK[a.severity] > SEVERITY_RANK[acc] ? a.severity : acc),
         "LOW" as AlarmSeverity,
       );
-      emitToast(highest, `${pending.length} new alarms`, "Multiple alarms were just raised.");
+      emitToast(
+        highest,
+        m.alarm_new_count({ count: pending.length }, locale.messageOptions()),
+        m.alarm_multiple_raised({}, locale.messageOptions()),
+      );
     } else {
-      for (const a of pending) emitToast(a.severity, a.message, `Alarm: ${a.id}`);
+      for (const a of pending)
+        emitToast(
+          a.severity,
+          alarmMessage(a),
+          m.alarm_toast_description({ id: a.id }, locale.messageOptions()),
+        );
     }
     pending.length = 0;
   }

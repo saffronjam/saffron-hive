@@ -5,7 +5,10 @@
 	import { graphql } from "$lib/gql";
 	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
-	import { integrationMeta } from "$lib/integrations";
+	import { connectionResultMessage, type ConnectionResult } from "$lib/i18n/connection";
+	import { integrationDescription, integrationMeta } from "$lib/integrations";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 	import { hasStoredSecret, secretToSend } from "$lib/redacted-secret";
 	import { formatRelative } from "$lib/time-format";
 	import { me } from "$lib/stores/me.svelte";
@@ -61,7 +64,8 @@
 		mutation TestZigbee2MqttConnection($input: Zigbee2MqttConfigInput!) {
 			testZigbee2MqttConnection(input: $input) {
 				success
-				message
+				code
+				diagnostic
 			}
 		}
 	`);
@@ -95,7 +99,7 @@
 		}
 	`);
 
-	type TestResult = { success: boolean; message: string };
+	type TestResult = ConnectionResult;
 
 	type ConfigShape = {
 		broker: string;
@@ -113,6 +117,7 @@
 	};
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	const meta = integrationMeta("zigbee2mqtt");
 
 	let loaded = $state(false);
@@ -159,13 +164,13 @@
 	const frontendUrlError = $derived.by(() => validateFrontendUrl(frontendUrl));
 	const commandRateError = $derived.by(() => {
 		if (interactiveCommandsPerSecond < 1 || interactiveCommandsPerSecond > 50) {
-			return "Interactive rate must be between 1 and 50 commands per second.";
+			return m.zigbee_rate_interactive_invalid({}, messageOptions);
 		}
 		if (continuousCommandsPerSecond < 1 || continuousCommandsPerSecond > 10) {
-			return "Continuous rate must be between 1 and 10 commands per second.";
+			return m.zigbee_rate_continuous_invalid({}, messageOptions);
 		}
 		if (continuousCommandsPerSecond > interactiveCommandsPerSecond) {
-			return "Continuous rate cannot exceed the interactive rate.";
+			return m.zigbee_rate_order_invalid({}, messageOptions);
 		}
 		return "";
 	});
@@ -181,11 +186,11 @@
 				parsed.search !== "" ||
 				parsed.hash !== ""
 			) {
-				return "Use an HTTP or HTTPS URL without credentials, query, or fragment.";
+				return m.zigbee_frontend_url_restricted({}, messageOptions);
 			}
 			return "";
 		} catch {
-			return "Enter a valid HTTP or HTTPS URL.";
+			return m.zigbee_frontend_url_invalid({}, messageOptions);
 		}
 	}
 
@@ -250,7 +255,7 @@
 			applyConfig(result.data?.updateZigbee2MqttConfig ?? null);
 			testResult = null;
 		} catch (e) {
-			toast.error(graphqlErrorMessage(e, "Failed to save Zigbee2MQTT configuration"));
+			toast.error(graphqlErrorMessage(e, m.zigbee_config_save_failed({}, messageOptions)));
 		} finally {
 			saving = false;
 		}
@@ -265,7 +270,8 @@
 			if (result.error) throw result.error;
 			testResult = result.data?.testZigbee2MqttConnection ?? null;
 		} catch (e) {
-			testResult = { success: false, message: graphqlErrorMessage(e, "Connection failed") };
+			console.error(e);
+			testResult = { success: false, code: "FAILED", diagnostic: null };
 		} finally {
 			testing = false;
 		}
@@ -278,7 +284,7 @@
 			if (result.error) throw result.error;
 		} catch (e) {
 			scanStartedAt = null;
-			toast.error(graphqlErrorMessage(e, "Failed to start the network scan"));
+			toast.error(graphqlErrorMessage(e, m.zigbee_scan_start_failed({}, messageOptions)));
 		}
 	}
 
@@ -301,13 +307,13 @@
 		if (!event) return;
 		scanStartedAt = null;
 		lastScannedAt = new Date(event.scannedAt);
-		toast.success("Network scan complete");
+		toast.success(m.zigbee_scan_complete({}, messageOptions));
 	});
 
 	$effect(() => {
 		pageHeader.actions = [
 			{
-				label: "Save",
+				label: m.common_save({}, messageOptions),
 				icon: Save,
 				onclick: saveConfig,
 				disabled:
@@ -321,13 +327,13 @@
 			},
 		];
 		pageHeader.viewToggle = null;
+		pageHeader.breadcrumbs = [
+			{ label: m.nav_integrations({}, messageOptions), href: "/integrations" },
+			{ label: "Zigbee2MQTT" },
+		];
 	});
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [
-			{ label: "Integrations", href: "/integrations" },
-			{ label: "Zigbee2MQTT" },
-		];
 		void loadConfig();
 		void loadScanState();
 	});
@@ -344,18 +350,18 @@
 			<meta.icon class="size-10" />
 			<div>
 				<h1 class="text-xl font-semibold">Zigbee2MQTT</h1>
-				<p class="text-sm text-muted-foreground">{meta.description}</p>
+				<p class="text-sm text-muted-foreground">{integrationDescription("zigbee2mqtt")}</p>
 			</div>
 		</div>
 
 		<div class="grid gap-4 max-w-xl">
 			<div class="flex items-center gap-3 min-h-9">
 				<Switch id="z2m-enabled" bind:checked={enabled} disabled={!loaded} />
-				<label for="z2m-enabled" class="text-sm font-medium">Enabled</label>
+				<label for="z2m-enabled" class="text-sm font-medium">{m.zigbee_enabled({}, messageOptions)}</label>
 			</div>
 
 			<div class="grid gap-1.5">
-				<label for="z2m-broker" class="text-sm font-medium">Broker address</label>
+				<label for="z2m-broker" class="text-sm font-medium">{m.zigbee_broker_address({}, messageOptions)}</label>
 				<Input
 					id="z2m-broker"
 					bind:value={broker}
@@ -366,7 +372,7 @@
 			</div>
 
 			<div class="grid gap-1.5">
-				<label for="z2m-frontend-url" class="text-sm font-medium">Zigbee2MQTT frontend URL</label>
+				<label for="z2m-frontend-url" class="text-sm font-medium">{m.zigbee_frontend_url({}, messageOptions)}</label>
 				<Input
 					id="z2m-frontend-url"
 					bind:value={frontendUrl}
@@ -382,24 +388,24 @@
 					<FieldError id="z2m-frontend-url-error" message={frontendUrlError} />
 				{:else}
 					<p id="z2m-frontend-url-help" class="text-xs text-muted-foreground">
-						Optional. Used for links into Zigbee2MQTT.
+						{m.zigbee_frontend_url_help({}, messageOptions)}
 					</p>
 				{/if}
 			</div>
 
 			<div class="grid gap-1.5">
-				<label for="z2m-username" class="text-sm font-medium">Username</label>
+				<label for="z2m-username" class="text-sm font-medium">{m.zigbee_username({}, messageOptions)}</label>
 				<Input
 					id="z2m-username"
 					bind:value={username}
 					disabled={!loaded}
 					autocomplete="off"
-					placeholder="Optional"
+					placeholder={m.zigbee_optional({}, messageOptions)}
 				/>
 			</div>
 
 			<div class="grid gap-1.5">
-				<label for="z2m-password" class="text-sm font-medium">Password</label>
+				<label for="z2m-password" class="text-sm font-medium">{m.zigbee_password({}, messageOptions)}</label>
 				<Input
 					id="z2m-password"
 					type="password"
@@ -408,13 +414,13 @@
 					autocomplete="new-password"
 					data-1p-ignore
 					data-lpignore="true"
-					placeholder={storedPassword ? "Password set - leave blank to keep" : "Optional"}
+					placeholder={storedPassword ? m.zigbee_password_keep({}, messageOptions) : m.zigbee_optional({}, messageOptions)}
 				/>
 			</div>
 
 			<div class="flex items-center gap-3 min-h-9">
 				<Switch id="z2m-use-wss" bind:checked={useWss} disabled={!loaded} />
-				<label for="z2m-use-wss" class="text-sm font-medium">Use WebSocket Secure (WSS)</label>
+				<label for="z2m-use-wss" class="text-sm font-medium">{m.zigbee_use_wss({}, messageOptions)}</label>
 			</div>
 
 			<div class="flex flex-wrap items-center gap-3 pt-2">
@@ -429,18 +435,18 @@
 					{:else}
 						<Unplug class="size-4" />
 					{/if}
-					Check Connection
+					{m.zigbee_check_connection({}, messageOptions)}
 				</Button>
 				{#if testResult}
 					{#if testResult.success}
 						<div class="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
 							<CircleCheck class="size-5" />
-							<span>{testResult.message}</span>
+							<span>{connectionResultMessage(testResult)}</span>
 						</div>
 					{:else}
 						<div class="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
 							<CircleX class="size-5 shrink-0" />
-							<span>{testResult.message}</span>
+							<span>{connectionResultMessage(testResult)}</span>
 						</div>
 					{/if}
 				{/if}
@@ -449,14 +455,13 @@
 
 		<div class="mt-8 border-t border-border pt-6 grid gap-4 max-w-xl">
 			<div class="flex items-center gap-1.5">
-				<h2 class="text-sm font-semibold">Command traffic</h2>
+				<h2 class="text-sm font-semibold">{m.zigbee_command_traffic({}, messageOptions)}</h2>
 				<Tooltip>
-					<TooltipTrigger class="text-muted-foreground" aria-label="About command traffic">
+					<TooltipTrigger class="text-muted-foreground" aria-label={m.zigbee_command_traffic_about({}, messageOptions)}>
 						<Info class="size-3.5" />
 					</TooltipTrigger>
 					<TooltipContent>
-						Interactive work includes controls, automations, and applying a scene. Continuous work
-						keeps moving scenes in motion and yields while interactive work is waiting.
+						{m.zigbee_command_traffic_help({}, messageOptions)}
 					</TooltipContent>
 				</Tooltip>
 			</div>
@@ -465,15 +470,14 @@
 				<div class="grid gap-1.5">
 					<div class="flex items-center gap-1.5">
 						<label for="z2m-interactive-rate" class="text-sm font-medium">
-							Interactive commands per second
+							{m.zigbee_interactive_rate({}, messageOptions)}
 						</label>
 						<Tooltip>
-							<TooltipTrigger class="text-muted-foreground" aria-label="About interactive command rate">
+							<TooltipTrigger class="text-muted-foreground" aria-label={m.zigbee_interactive_rate_about({}, messageOptions)}>
 								<Info class="size-3.5" />
 							</TooltipTrigger>
 							<TooltipContent>
-								Commands from controls, automations, and applying scenes. They take priority over
-								continuous updates.
+								{m.zigbee_interactive_rate_help({}, messageOptions)}
 							</TooltipContent>
 						</Tooltip>
 					</div>
@@ -489,15 +493,14 @@
 				<div class="grid gap-1.5">
 					<div class="flex items-center gap-1.5">
 						<label for="z2m-continuous-rate" class="text-sm font-medium">
-							Continuous commands per second
+							{m.zigbee_continuous_rate({}, messageOptions)}
 						</label>
 						<Tooltip>
-							<TooltipTrigger class="text-muted-foreground" aria-label="About continuous command rate">
+							<TooltipTrigger class="text-muted-foreground" aria-label={m.zigbee_continuous_rate_about({}, messageOptions)}>
 								<Info class="size-3.5" />
 							</TooltipTrigger>
 							<TooltipContent>
-								Background updates that keep moving scenes in motion. They yield while interactive
-								commands are waiting.
+								{m.zigbee_continuous_rate_help({}, messageOptions)}
 							</TooltipContent>
 						</Tooltip>
 					</div>
@@ -518,14 +521,13 @@
 
 		<div class="mt-8 border-t border-border pt-6 grid gap-4 max-w-xl">
 			<div class="flex items-center gap-1.5">
-				<h2 class="text-sm font-semibold">Network topology</h2>
+				<h2 class="text-sm font-semibold">{m.zigbee_topology({}, messageOptions)}</h2>
 				<Tooltip>
-					<TooltipTrigger class="text-muted-foreground" aria-label="About network topology">
+					<TooltipTrigger class="text-muted-foreground" aria-label={m.zigbee_topology_about({}, messageOptions)}>
 						<Info class="size-3.5" />
 					</TooltipTrigger>
 					<TooltipContent>
-						A scan maps which devices relay for which, shown as the map's Connectivity view. It
-						takes a few minutes and slows the Zigbee network while it runs.
+						{m.zigbee_topology_help({}, messageOptions)}
 					</TooltipContent>
 				</Tooltip>
 			</div>
@@ -542,27 +544,27 @@
 					{:else}
 						<Radar class="size-4" />
 					{/if}
-					Scan Network
+					{m.zigbee_scan_network({}, messageOptions)}
 				</Button>
 				<span class="text-sm text-muted-foreground">
 					{#if scanStartedAt}
-						Scanning for {elapsedLabel(scanStartedAt, nowStore.current)} — usually takes a few minutes
+						{m.zigbee_scanning({ duration: elapsedLabel(scanStartedAt, nowStore.current) }, messageOptions)}
 					{:else if lastScannedAt}
-						Last scanned {formatRelative(lastScannedAt, nowStore.current, me.user?.timeFormat ?? "24h")}
+						{m.zigbee_last_scanned({ time: formatRelative(lastScannedAt, nowStore.current, me.user?.timeFormat ?? "24h") }, messageOptions)}
 					{:else}
-						Never scanned
+						{m.zigbee_never_scanned({}, messageOptions)}
 					{/if}
 				</span>
 			</div>
 
 			<div class="flex items-center gap-3 min-h-9">
 				<Switch id="z2m-scan-schedule" bind:checked={scanScheduleEnabled} disabled={!loaded} />
-				<label for="z2m-scan-schedule" class="text-sm font-medium">Scheduled scan</label>
+				<label for="z2m-scan-schedule" class="text-sm font-medium">{m.zigbee_scheduled_scan({}, messageOptions)}</label>
 			</div>
 
 			{#if scanScheduleEnabled}
 				<div class="grid gap-1.5">
-					<span class="text-sm font-medium">Runs daily at</span>
+					<span class="text-sm font-medium">{m.zigbee_runs_daily_at({}, messageOptions)}</span>
 					<div class="flex w-36 gap-1">
 						<NumberInput
 							value={scanHour}
@@ -570,8 +572,8 @@
 							min={0}
 							max={23}
 							nullable
-							placeholder="HH"
-							ariaLabel="Scan hour"
+							placeholder={m.common_time_hour_placeholder({}, messageOptions)}
+							ariaLabel={m.zigbee_scan_hour({}, messageOptions)}
 						/>
 						<span class="flex items-center text-xs text-muted-foreground">:</span>
 						<NumberInput
@@ -580,8 +582,8 @@
 							min={0}
 							max={59}
 							nullable
-							placeholder="MM"
-							ariaLabel="Scan minute"
+							placeholder={m.common_time_minute_placeholder({}, messageOptions)}
+							ariaLabel={m.zigbee_scan_minute({}, messageOptions)}
 						/>
 					</div>
 				</div>
@@ -590,15 +592,14 @@
 	</section>
 
 	<aside class="rounded-lg shadow-card bg-card p-6">
-		<h2 class="text-sm font-semibold">Connecting</h2>
+		<h2 class="text-sm font-semibold">{m.zigbee_connecting({}, messageOptions)}</h2>
 		<ol class="mt-3 space-y-2 text-sm text-muted-foreground">
-			<li>1. Point Hive at the same MQTT broker your zigbee2mqtt instance publishes to.</li>
-			<li>2. Hive reads the device registry from <code>zigbee2mqtt/bridge/devices</code>.</li>
-			<li>3. Enable zigbee2mqtt's availability feature for online / offline state.</li>
+			<li>{m.zigbee_connect_step_broker({}, messageOptions)}</li>
+			<li>{m.zigbee_connect_step_registry({}, messageOptions)}</li>
+			<li>{m.zigbee_connect_step_availability({}, messageOptions)}</li>
 		</ol>
 		<p class="mt-4 text-sm text-muted-foreground">
-			Connection and scan-schedule changes reconnect to the broker. Command-rate changes apply
-			without interrupting device subscriptions.
+			{m.zigbee_reconnect_help({}, messageOptions)}
 		</p>
 	</aside>
 </div>

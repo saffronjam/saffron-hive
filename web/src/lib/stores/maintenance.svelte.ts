@@ -18,12 +18,11 @@ export interface MaintenanceDevice {
 export interface MaintenanceTask {
   id: string;
   kind: MaintenanceKind;
-  title: string;
-  detail: string;
-  action: string;
   device?: MaintenanceDevice | null;
   currentValue?: string | null;
   targetValue?: string | null;
+  value?: number | null;
+  context?: string | null;
   actionUrl?: string | null;
 }
 
@@ -32,11 +31,10 @@ const MAINTENANCE_QUERY = graphql(`
     maintenanceTasks {
       id
       kind
-      title
-      detail
-      action
       currentValue
       targetValue
+      value
+      context
       actionUrl
       device {
         id

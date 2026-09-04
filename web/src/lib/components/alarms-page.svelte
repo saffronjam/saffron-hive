@@ -16,6 +16,9 @@
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import { parseSince } from "$lib/time-format";
 	import type { AlarmSeverity } from "$lib/gql/graphql";
+	import { alarmMessage } from "$lib/i18n/alarm";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		/** Whether this is the page the user is on; header writes gate on it. */
@@ -40,6 +43,7 @@
 	`);
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	const searchController = createUrlSearchState({
 		active: () => visible && page.url.pathname === "/alarms",
 	});
@@ -51,24 +55,24 @@
 	let batchDeleteConfirm = $state(false);
 	let batchDeleteLoading = $state(false);
 
-	const SINCE_OPTIONS = [
-		{ value: "5m", label: "Last 5 minutes" },
-		{ value: "1h", label: "Last hour" },
-		{ value: "6h", label: "Last 6 hours" },
-		{ value: "24h", label: "Last 24 hours" },
-		{ value: "7d", label: "Last 7 days" },
-	];
+	const sinceOptions = $derived.by(() => [
+		{ value: "5m", label: m.activity_since_minutes({ count: 5 }, messageOptions) },
+		{ value: "1h", label: m.activity_since_hour({}, messageOptions) },
+		{ value: "6h", label: m.activity_since_hours({ count: 6 }, messageOptions) },
+		{ value: "24h", label: m.activity_since_hours({ count: 24 }, messageOptions) },
+		{ value: "7d", label: m.activity_since_days({ count: 7 }, messageOptions) },
+	]);
 
-	const KIND_OPTIONS = [
-		{ value: "AUTO", label: "Auto" },
-		{ value: "ONE_SHOT", label: "One-shot" },
-	];
+	const kindOptions = $derived.by(() => [
+		{ value: "AUTO", label: m.alarms_kind_auto({}, messageOptions) },
+		{ value: "ONE_SHOT", label: m.alarms_kind_one_shot({}, messageOptions) },
+	]);
 
-	const SEVERITY_OPTIONS: { value: SeverityKey; label: string }[] = [
-		{ value: "HIGH", label: "High" },
-		{ value: "MEDIUM", label: "Medium" },
-		{ value: "LOW", label: "Low" },
-	];
+	const severityOptions = $derived.by<{ value: SeverityKey; label: string }[]>(() => [
+		{ value: "HIGH", label: m.alarms_severity_high({}, messageOptions) },
+		{ value: "MEDIUM", label: m.alarms_severity_medium({}, messageOptions) },
+		{ value: "LOW", label: m.alarms_severity_low({}, messageOptions) },
+	]);
 
 	function filterOptions<T extends { value: string; label: string }>(input: string, options: T[]): T[] {
 		const q = input.toLowerCase();
@@ -78,25 +82,25 @@
 		);
 	}
 
-	const searchChipConfigs = $derived<ChipConfig[]>([
+	const searchChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "severity",
-			label: "Severity",
+			label: m.alarms_filter_severity({}, messageOptions),
 			variant: "secondary",
-			options: (input) => filterOptions(input, SEVERITY_OPTIONS),
+			options: (input) => filterOptions(input, severityOptions),
 			resolveLabel: (value) =>
-				SEVERITY_OPTIONS.find((o) => o.value === value)?.label ?? null,
+				severityOptions.find((o) => o.value === value)?.label ?? null,
 		},
 		{
 			keyword: "kind",
-			label: "Kind",
+			label: m.alarms_filter_kind({}, messageOptions),
 			variant: "secondary",
-			options: (input) => filterOptions(input, KIND_OPTIONS),
-			resolveLabel: (value) => KIND_OPTIONS.find((o) => o.value === value)?.label ?? null,
+			options: (input) => filterOptions(input, kindOptions),
+			resolveLabel: (value) => kindOptions.find((o) => o.value === value)?.label ?? null,
 		},
 		{
 			keyword: "source",
-			label: "Source",
+			label: m.alarms_filter_source({}, messageOptions),
 			variant: "secondary",
 			options: (input) => {
 				const uniqueSources = Array.from(new Set(alarmsStore.list.map((a) => a.source))).map((s) => ({
@@ -108,10 +112,10 @@
 		},
 		{
 			keyword: "since",
-			label: "Since",
+			label: m.alarms_filter_since({}, messageOptions),
 			variant: "secondary",
-			options: (input) => filterOptions(input, SINCE_OPTIONS),
-			resolveLabel: (value) => SINCE_OPTIONS.find((o) => o.value === value)?.label ?? null,
+			options: (input) => filterOptions(input, sinceOptions),
+			resolveLabel: (value) => sinceOptions.find((o) => o.value === value)?.label ?? null,
 		},
 	]);
 
@@ -172,7 +176,7 @@
 			if (sourceChips.length > 0 && !sourceChips.includes(a.source)) return false;
 			if (sinceCutoff && new Date(a.lastRaisedAt) < sinceCutoff) return false;
 			if (free) {
-				const hay = `${a.id} ${a.message} ${a.source}`.toLowerCase();
+				const hay = `${a.id} ${alarmMessage(a)} ${a.source}`.toLowerCase();
 				if (!hay.includes(free)) return false;
 			}
 			return true;
@@ -208,9 +212,9 @@
 	const deleteDescription = $derived.by(() => {
 		if (!deleteTarget) return "";
 		if (deleteTarget.kind === "AUTO") {
-			return "This alarm normally clears itself when the underlying condition resolves. Deleting it manually may hide an ongoing issue.";
+			return m.alarms_delete_auto_description({}, messageOptions);
 		}
-		return "Are you sure you want to delete this alarm?";
+		return m.alarms_delete_description({}, messageOptions);
 	});
 
 	function severityButtonClass(sev: SeverityKey): string {
@@ -230,7 +234,7 @@
 
 	$effect(() => {
 		if (!visible) return;
-		pageHeader.breadcrumbs = [{ label: "Alarms" }];
+		pageHeader.breadcrumbs = [{ label: m.alarms_title({}, messageOptions) }];
 	});
 </script>
 
@@ -240,7 +244,7 @@
 			<HiveSearchbar
 				controller={searchController}
 				chips={searchChipConfigs}
-				placeholder="Search alarms..."
+				placeholder={m.alarms_search({}, messageOptions)}
 				debounceMs={300}
 				commitOnBlur
 			/>
@@ -258,19 +262,19 @@
 						size="sm"
 						onclick={() => (batchDeleteConfirm = true)}
 					>
-						Delete
+						{m.common_delete({}, messageOptions)}
 					</Button>
 				{/snippet}
 			</TableSelectionToolbar>
 		</div>
 		<div class="flex shrink-0 items-center overflow-hidden rounded-lg">
-			{#each SEVERITY_OPTIONS as opt (opt.value)}
+			{#each severityOptions as opt (opt.value)}
 				<Button
 					variant={activeSeverities.has(opt.value) ? "secondary" : "ghost"}
 					size="sm"
 					class={severityButtonClass(opt.value)}
 					onclick={() => toggleSeverity(opt.value)}
-					aria-label="{opt.label} severity"
+					aria-label={m.alarms_severity_aria({ severity: opt.label }, messageOptions)}
 					aria-pressed={activeSeverities.has(opt.value)}
 				>
 					<AlarmSeverityBadge severity={opt.value as AlarmSeverity} class="border-0 bg-transparent p-0 h-auto" hideLabelOnMobile />
@@ -281,14 +285,14 @@
 
 	{#if alarmsStore.activeCount === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-foreground">No active alarms &mdash; system looks healthy.</p>
+			<p class="text-foreground">{m.alarms_empty({}, messageOptions)}</p>
 			<p class="mt-2 text-sm text-muted-foreground">
-				Alarms raised by the system monitor or your automations will appear here.
+				{m.alarms_empty_help({}, messageOptions)}
 			</p>
 		</div>
 	{:else if filtered.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No alarms match your filters.</p>
+			<p class="text-muted-foreground">{m.alarms_no_match({}, messageOptions)}</p>
 		</div>
 	{:else}
 		<AlarmTable
@@ -301,9 +305,9 @@
 
 <ConfirmDialog
 	open={deleteTarget !== null}
-	title="Delete alarm"
+	title={m.alarms_delete_title({}, messageOptions)}
 	description={deleteDescription}
-	confirmLabel="Delete"
+	confirmLabel={m.common_delete({}, messageOptions)}
 	loading={deleteLoading}
 	onconfirm={handleDelete}
 	oncancel={() => (deleteTarget = null)}
@@ -311,9 +315,9 @@
 
 <ConfirmDialog
 	open={batchDeleteConfirm}
-	title="Delete {selection.count} alarm{selection.count === 1 ? '' : 's'}?"
-	description="This permanently clears the selected alarms. Auto alarms that are still actively being raised will reappear."
-	confirmLabel="Delete"
+	title={m.alarms_delete_many_title({ count: selection.count }, messageOptions)}
+	description={m.alarms_delete_many_description({}, messageOptions)}
+	confirmLabel={m.common_delete({}, messageOptions)}
 	loading={batchDeleteLoading}
 	onconfirm={handleBatchDelete}
 	oncancel={() => (batchDeleteConfirm = false)}

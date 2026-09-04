@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, untrack } from "svelte";
 	import { page } from "$app/state";
-	import { deviceDisplayName } from "$lib/utils";
+	import { deviceDisplayName, entityDisplayName } from "$lib/utils";
 	import { fly } from "svelte/transition";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -27,6 +27,9 @@
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import { parseSince } from "$lib/time-format";
 	import { Copy } from "@lucide/svelte";
+	import { activityMessage } from "$lib/i18n/activity";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const ACTIVITY_QUERY = graphql(`
 		query Activity($filter: ActivityFilter) {
@@ -34,7 +37,6 @@
 				id
 				type
 				timestamp
-				message
 				payload
 				source {
 					kind
@@ -54,7 +56,6 @@
 				id
 				type
 				timestamp
-				message
 				payload
 				source {
 					kind
@@ -113,6 +114,7 @@
 	}
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	let recentIds = $state(new Set<string>());
 	const rooms = $derived(roomsStore.items);
 	const initialAdvanced = profile.get("activity.advanced", false);
@@ -127,28 +129,28 @@
 	let loadingMore = $state(false);
 	let ready = $state(restoredEvents !== null);
 
-	const BASIC_TYPES = [
-		{ value: "device.state_changed", label: "State changed" },
-		{ value: "device.availability_changed", label: "Availability" },
-		{ value: "device.added", label: "Device added" },
-		{ value: "device.removed", label: "Device removed" },
-		{ value: "scene.applied", label: "Scene applied" },
-		{ value: "automation.triggered", label: "Automation fired" },
-		{ value: "webhook.received", label: "Webhook received" },
-	];
-	const ADVANCED_TYPES = [
-		{ value: "command.dispatched", label: "Command sent" },
-		{ value: "automation.node_activated", label: "Node activated" },
-	];
+	const basicTypes = $derived.by(() => [
+		{ value: "device.state_changed", label: m.activity_event_state_changed({}, messageOptions) },
+		{ value: "device.availability_changed", label: m.activity_event_availability({}, messageOptions) },
+		{ value: "device.added", label: m.activity_event_device_added({}, messageOptions) },
+		{ value: "device.removed", label: m.activity_event_device_removed({}, messageOptions) },
+		{ value: "scene.applied", label: m.activity_event_scene_applied({}, messageOptions) },
+		{ value: "automation.triggered", label: m.activity_event_automation_fired({}, messageOptions) },
+		{ value: "webhook.received", label: m.activity_event_webhook_received({}, messageOptions) },
+	]);
+	const advancedTypes = $derived.by(() => [
+		{ value: "command.dispatched", label: m.activity_event_command_sent({}, messageOptions) },
+		{ value: "automation.node_activated", label: m.activity_event_node_activated({}, messageOptions) },
+	]);
 
-	const SINCE_OPTIONS = [
-		{ value: "5m", label: "Last 5 minutes" },
-		{ value: "1h", label: "Last hour" },
-		{ value: "6h", label: "Last 6 hours" },
-		{ value: "24h", label: "Last 24 hours" },
-		{ value: "7d", label: "Last 7 days" },
-		{ value: "30d", label: "Last 30 days" },
-	];
+	const sinceOptions = $derived.by(() => [
+		{ value: "5m", label: m.activity_since_minutes({ count: 5 }, messageOptions) },
+		{ value: "1h", label: m.activity_since_hour({}, messageOptions) },
+		{ value: "6h", label: m.activity_since_hours({ count: 6 }, messageOptions) },
+		{ value: "24h", label: m.activity_since_hours({ count: 24 }, messageOptions) },
+		{ value: "7d", label: m.activity_since_days({ count: 7 }, messageOptions) },
+		{ value: "30d", label: m.activity_since_days({ count: 30 }, messageOptions) },
+	]);
 
 	function filterOptions<T extends { value: string; label: string }>(input: string, options: T[]): T[] {
 		const q = input.toLowerCase();
@@ -158,23 +160,23 @@
 		);
 	}
 
-	const searchChipConfigs = $derived<ChipConfig[]>([
+	const searchChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "type",
-			label: "Type",
+			label: m.activity_filter_type({}, messageOptions),
 			variant: "secondary",
 			options: (input) => {
-				const types = advanced ? [...BASIC_TYPES, ...ADVANCED_TYPES] : BASIC_TYPES;
+				const types = advanced ? [...basicTypes, ...advancedTypes] : basicTypes;
 				return filterOptions(input, types);
 			},
 			resolveLabel: (value) => {
-				const all = [...BASIC_TYPES, ...ADVANCED_TYPES];
+				const all = [...basicTypes, ...advancedTypes];
 				return all.find((t) => t.value === value)?.label ?? null;
 			},
 		},
 		{
 			keyword: "device",
-			label: "Device",
+			label: m.activity_filter_device({}, messageOptions),
 			variant: "secondary",
 			options: (input) => {
 				const devices = Object.values($deviceStore)
@@ -192,17 +194,24 @@
 		},
 		{
 			keyword: "room",
-			label: "Room",
+			label: m.activity_filter_room({}, messageOptions),
 			variant: "secondary",
-			options: (input) => filterOptions(input, rooms.map((r) => ({ value: r.id, label: r.name }))),
-			resolveLabel: (id) => rooms.find((r) => r.id === id)?.name ?? null,
+			options: (input) =>
+				filterOptions(
+					input,
+					rooms.map((r) => ({ value: r.id, label: entityDisplayName("room", r) })),
+				),
+			resolveLabel: (id) => {
+				const room = rooms.find((r) => r.id === id);
+				return room ? entityDisplayName("room", room) : null;
+			},
 		},
 		{
 			keyword: "since",
-			label: "Since",
+			label: m.activity_filter_since({}, messageOptions),
 			variant: "secondary",
-			options: (input) => filterOptions(input, SINCE_OPTIONS),
-			resolveLabel: (value) => SINCE_OPTIONS.find((o) => o.value === value)?.label ?? null,
+			options: (input) => filterOptions(input, sinceOptions),
+			resolveLabel: (value) => sinceOptions.find((o) => o.value === value)?.label ?? null,
 		},
 	]);
 
@@ -225,7 +234,7 @@
 				id: e.id,
 				type: e.type,
 				timestamp: e.timestamp,
-				message: e.message,
+				message: activityMessage(e),
 				source: e.source,
 				payload: safeParsePayload(e.payload),
 			}));
@@ -248,7 +257,7 @@
 			if (roomChips.length > 0 && (!e.source.roomId || !roomChips.includes(e.source.roomId))) return false;
 			if (sinceCutoff && new Date(e.timestamp) < sinceCutoff) return false;
 			if (free) {
-				const hay = `${e.message} ${e.type} ${e.source.name ?? ""} ${e.source.roomName ?? ""} ${e.payload}`.toLowerCase();
+				const hay = `${activityMessage(e)} ${e.type} ${e.source.name ?? ""} ${e.source.roomName ?? ""} ${e.payload}`.toLowerCase();
 				if (!hay.includes(free)) return false;
 			}
 			return true;
@@ -366,11 +375,14 @@
 	}
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Activity" }];
 		const mountedMode = advanced;
 		void loadInitial(mountedMode).then(() => {
 			if (advanced === mountedMode) startSubscription();
 		});
+	});
+
+	$effect(() => {
+		pageHeader.breadcrumbs = [{ label: m.nav_activity({}, messageOptions) }];
 	});
 
 	onGraphQLRecovered(() => {
@@ -392,7 +404,7 @@
 				<HiveSearchbar
 					controller={searchController}
 					chips={searchChipConfigs}
-					placeholder="Search activity..."
+					placeholder={m.activity_search({}, messageOptions)}
 					debounceMs={500}
 					commitOnBlur
 				/>
@@ -414,27 +426,27 @@
 							onclick={copySelectedAsJson}
 						>
 							<Copy class="mr-1 size-3.5" />
-							Copy
+							{m.common_copy({}, messageOptions)}
 						</Button>
 					{/snippet}
 				</TableSelectionToolbar>
 			</div>
 			<div class="flex items-center gap-2">
 				<Switch id="advanced-toggle" checked={advanced} onCheckedChange={toggleAdvanced} />
-				<label for="advanced-toggle" class="text-sm text-foreground select-none">Advanced</label>
+				<label for="advanced-toggle" class="text-sm text-foreground select-none">{m.activity_advanced({}, messageOptions)}</label>
 			</div>
 		</div>
 
 		{#if events.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No activity yet.</p>
+				<p class="text-muted-foreground">{m.activity_empty({}, messageOptions)}</p>
 				<p class="mt-2 text-sm text-muted-foreground">
-					Device state changes, scene activations and automation runs will appear here as they happen.
+					{m.activity_empty_help({}, messageOptions)}
 				</p>
 			</div>
 		{:else if filteredEvents.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
-				<p class="text-muted-foreground">No activity matches your filters.</p>
+				<p class="text-muted-foreground">{m.activity_no_match({}, messageOptions)}</p>
 			</div>
 		{:else}
 			<div class="flex-1 min-h-0">

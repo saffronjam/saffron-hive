@@ -12,7 +12,7 @@
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
 	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import { loadSessionSnapshot, saveSessionSnapshot } from "$lib/session-cache";
-	import { integrationMeta } from "$lib/integrations";
+	import { integrationDescription, integrationMeta } from "$lib/integrations";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		Dialog,
@@ -22,6 +22,8 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import { Plus, PlugZap } from "@lucide/svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const INTEGRATIONS_QUERY = graphql(`
 		query IntegrationsPage {
@@ -54,6 +56,7 @@
 	};
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	const searchChipConfigs: ChipConfig[] = [];
 	const INTEGRATIONS_CACHE_VERSION = 1;
 	const restoredIntegrations = loadSessionSnapshot<Integration[]>(
@@ -134,19 +137,18 @@
 	}
 
 	function statusLabel(integration: Integration): string {
-		if (integration.message) return integration.message;
-		if (!integration.enabled) return "Disabled";
-		if (integration.connected) return "Connected";
-		return "Configured";
+		if (!integration.enabled) return m.integrations_status_disabled({}, messageOptions);
+		if (integration.connected) return m.integrations_status_connected({}, messageOptions);
+		return m.integrations_status_configured({}, messageOptions);
 	}
 
 	$effect(() => {
-		pageHeader.actions = [{ label: "Add Integration", mobileLabel: "Add", icon: Plus, onclick: openAddDialog }];
+		pageHeader.actions = [{ label: m.integrations_add({}, messageOptions), mobileLabel: m.integrations_add_short({}, messageOptions), icon: Plus, onclick: openAddDialog }];
 		pageHeader.viewToggle = null;
+		pageHeader.breadcrumbs = [{ label: m.nav_integrations({}, messageOptions) }];
 	});
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Integrations" }];
 		void loadIntegrations();
 	});
 
@@ -158,13 +160,13 @@
 			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
 				<PlugZap class="size-6 text-muted-foreground" />
 			</div>
-			<p class="text-muted-foreground">No integrations yet.</p>
+			<p class="text-muted-foreground">{m.integrations_empty({}, messageOptions)}</p>
 			<p class="mt-2 text-sm text-muted-foreground">
-				Add an integration to bring external devices into Saffron Hive.
+				{m.integrations_empty_help({}, messageOptions)}
 			</p>
 			<Button class="mt-4" onclick={openAddDialog}>
 				<Plus class="size-4" />
-				<span>Add Integration</span>
+				<span>{m.integrations_add({}, messageOptions)}</span>
 			</Button>
 		</div>
 	{:else}
@@ -177,8 +179,8 @@
 					subtitle={statusLabel(integration)}
 					editHref={`/integrations/${integration.provider}`}
 					ondelete={() => (deleteConfirmIntegration = integration)}
-					editLabel="Configure"
-					deleteLabel="Delete integration"
+					editLabel={m.integrations_configure({}, messageOptions)}
+					deleteLabel={m.integrations_delete({}, messageOptions)}
 					iconEditable={false}
 					readOnly={false}
 					class="min-h-32 justify-center"
@@ -195,24 +197,24 @@
 <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open && addDialogOpen) closeAddDialog(); }}>
 	<DialogContent class="sm:max-w-lg">
 		<DialogHeader>
-			<DialogTitle>Add Integration</DialogTitle>
-			<DialogDescription>Pick an integration to configure.</DialogDescription>
+			<DialogTitle>{m.integrations_add({}, messageOptions)}</DialogTitle>
+			<DialogDescription>{m.integrations_add_description({}, messageOptions)}</DialogDescription>
 		</DialogHeader>
 
 		<div class="space-y-3">
 			<HiveSearchbar
 				controller={searchController}
 				chips={searchChipConfigs}
-				placeholder="Search integrations..."
+				placeholder={m.integrations_search({}, messageOptions)}
 			/>
 
 			{#if availableProviders.length === 0}
 				<div class="rounded-lg bg-muted/30 p-8 text-center">
-					<p class="text-sm text-muted-foreground">No integrations left to add.</p>
+					<p class="text-sm text-muted-foreground">{m.integrations_none_available({}, messageOptions)}</p>
 				</div>
 			{:else if filteredAvailable.length === 0}
 				<div class="rounded-lg bg-muted/30 p-8 text-center">
-					<p class="text-sm text-muted-foreground">No integrations match your search.</p>
+					<p class="text-sm text-muted-foreground">{m.integrations_no_match({}, messageOptions)}</p>
 				</div>
 			{:else}
 				<div class="space-y-2">
@@ -226,7 +228,7 @@
 							<meta.icon class="size-8 shrink-0" />
 							<div class="min-w-0">
 								<div class="font-medium">{integration.name}</div>
-								<div class="text-xs text-muted-foreground">{meta.description}</div>
+								<div class="text-xs text-muted-foreground">{integrationDescription(integration.provider)}</div>
 							</div>
 						</button>
 					{/each}
@@ -238,24 +240,22 @@
 
 <ConfirmDialog
 	bind:open={() => deleteConfirmIntegration !== null, (v) => { if (!v) deleteConfirmIntegration = null; }}
-	title="Delete Integration"
+	title={m.integrations_delete_title({}, messageOptions)}
 	description={deleteKeepsDevices
-		? "Deleting this integration removes its configuration and disconnects it. Its devices are kept, and reconfiguring it later restores them."
-		: "Deleting this integration removes its configuration and all devices connected through it. This cannot be undone."}
-	confirmLabel="Delete"
+		? m.integrations_delete_keep_description({}, messageOptions)
+		: m.integrations_delete_purge_description({}, messageOptions)}
+	confirmLabel={m.common_delete({}, messageOptions)}
 	loading={deleteLoading}
 	onconfirm={handleDeleteIntegration}
 	oncancel={() => (deleteConfirmIntegration = null)}
 >
 	{#if deleteKeepsDevices}
 		<div class="rounded-lg bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-			<strong>{deleteDeviceCount} device{deleteDeviceCount === 1 ? "" : "s"}</strong>
-			<span> will be kept and marked unavailable.</span>
+			<strong>{m.integrations_devices_kept({ count: deleteDeviceCount }, messageOptions)}</strong>
 		</div>
 	{:else}
 		<div class="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-			<span>This will delete </span>
-			<strong>{deleteDeviceCount} device{deleteDeviceCount === 1 ? "" : "s"}</strong>
+			<strong>{m.integrations_devices_deleted({ count: deleteDeviceCount }, messageOptions)}</strong>
 		</div>
 	{/if}
 </ConfirmDialog>

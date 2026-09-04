@@ -52,8 +52,12 @@
 	import { EllipsisVertical, KeyRound, Plus, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 
 	const USERS_QUERY = graphql(`
 		query UsersList {
@@ -197,28 +201,29 @@
 			const result = await client.mutation(BATCH_DELETE_USERS, { ids }).toPromise();
 			if (result.error) throw new Error(result.error.message);
 			const n = result.data?.batchDeleteUsers ?? 0;
-			toast.success(`${n} user${n === 1 ? "" : "s"} deleted`);
+			toast.success(m.users_deleted_count({ count: n }, messageOptions));
 			batchDeleteConfirm = false;
 			selection.clear();
 			userList = userList.filter((user) => !ids.includes(user.id));
 			persistUsers();
 			void loadUsers();
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to delete users");
+			console.error(e);
+			toast.error(graphqlErrorMessage(e, m.users_delete_many_failed({}, messageOptions)));
 		} finally {
 			batchDeleteSaving = false;
 		}
 	}
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Users" }];
-		pageHeader.actions = [
-			{ label: "Create user", mobileLabel: "Create", icon: Plus, onclick: () => (createOpen = true) },
-		];
 		void loadUsers();
 	});
 	$effect(() => {
 		pageHeader.viewToggle = { value: view, onchange: setView };
+		pageHeader.breadcrumbs = [{ label: m.nav_users({}, messageOptions) }];
+		pageHeader.actions = [
+			{ label: m.users_create({}, messageOptions), mobileLabel: m.users_create_short({}, messageOptions), icon: Plus, onclick: () => (createOpen = true) },
+		];
 	});
 
 	function resetCreateForm() {
@@ -232,7 +237,7 @@
 		e.preventDefault();
 		createPwError = validateNewPassword(createPassword);
 		createConfirmError =
-			createPassword !== createConfirm ? "Passwords do not match." : null;
+			createPassword !== createConfirm ? m.auth_passwords_mismatch({}, messageOptions) : null;
 		if (createPwError || createConfirmError) return;
 		createSaving = true;
 		try {
@@ -246,7 +251,7 @@
 				})
 				.toPromise();
 			if (result.error || !result.data?.createUser) {
-				throw new Error(result.error?.message ?? "Failed to create user");
+				throw result.error ?? new Error(m.users_create_failed({}, messageOptions));
 			}
 			createOpen = false;
 			resetCreateForm();
@@ -261,9 +266,10 @@
 				},
 			];
 			persistUsers();
-			toast.success("User created");
+			toast.success(m.users_created({}, messageOptions));
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to create user");
+			console.error(e);
+			toast.error(graphqlErrorMessage(e, m.users_create_failed({}, messageOptions)));
 		} finally {
 			createSaving = false;
 		}
@@ -279,7 +285,7 @@
 		e.preventDefault();
 		if (!resetTarget) return;
 		resetPwError = validateNewPassword(resetPw);
-		resetConfirmError = resetPw !== resetConfirm ? "Passwords do not match." : null;
+		resetConfirmError = resetPw !== resetConfirm ? m.auth_passwords_mismatch({}, messageOptions) : null;
 		if (resetPwError || resetConfirmError) return;
 		resetSaving = true;
 		try {
@@ -287,12 +293,13 @@
 				.mutation(RESET_PASSWORD, { id: resetTarget.id, newPassword: resetPw })
 				.toPromise();
 			if (result.error || !result.data?.resetUserPassword) {
-				throw new Error(result.error?.message ?? "Failed to reset password");
+				throw result.error ?? new Error(m.users_reset_failed({}, messageOptions));
 			}
-			toast.success(`Password reset for ${resetTarget.name}`);
+			toast.success(m.users_password_reset({ name: resetTarget.name }, messageOptions));
 			resetTarget = null;
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to reset password");
+			console.error(e);
+			toast.error(graphqlErrorMessage(e, m.users_reset_failed({}, messageOptions)));
 		} finally {
 			resetSaving = false;
 		}
@@ -310,14 +317,15 @@
 				.mutation(DELETE_USER, { id: deleteTarget.id })
 				.toPromise();
 			if (result.error || !result.data?.deleteUser) {
-				throw new Error(result.error?.message ?? "Failed to delete user");
+				throw result.error ?? new Error(m.users_delete_failed({}, messageOptions));
 			}
-			toast.success(`${deleteTarget.name} deleted`);
+			toast.success(m.users_deleted({ name: deleteTarget.name }, messageOptions));
 			userList = userList.filter((user) => user.id !== deleteTarget?.id);
 			persistUsers();
 			deleteTarget = null;
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to delete user");
+			console.error(e);
+			toast.error(graphqlErrorMessage(e, m.users_delete_failed({}, messageOptions)));
 		} finally {
 			deleteSaving = false;
 		}
@@ -328,7 +336,7 @@
 	}
 
 	function deleteDisabledReason(user: UserRow): string {
-		return isSelf(user) ? "You can't delete yourself" : "";
+		return isSelf(user) ? m.users_cannot_delete_self({}, messageOptions) : "";
 	}
 </script>
 
@@ -338,7 +346,7 @@
 			<HiveSearchbar
 				chips={chipConfigs}
 				controller={searchController}
-				placeholder="Search users..."
+				placeholder={m.users_search({}, messageOptions)}
 			/>
 		</div>
 		<div
@@ -354,7 +362,7 @@
 						size="sm"
 						onclick={() => (batchDeleteConfirm = true)}
 					>
-						Delete
+						{m.common_delete({}, messageOptions)}
 					</Button>
 				{/snippet}
 			</TableSelectionToolbar>
@@ -363,10 +371,10 @@
 
 	{#if loading && userList.length === 0}
 		{#if loader.visible}
-			<p class="text-sm text-muted-foreground">Loading users…</p>
+			<p class="text-sm text-muted-foreground">{m.users_loading({}, messageOptions)}</p>
 		{/if}
 	{:else if filtered.length === 0}
-		<p class="text-sm text-muted-foreground">No users match.</p>
+		<p class="text-sm text-muted-foreground">{m.users_no_match({}, messageOptions)}</p>
 	{:else}
 		<ListView mode={view}>
 			{#snippet card()}
@@ -389,10 +397,10 @@
 											</Button>
 										{/snippet}
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
+									<DropdownMenuContent align="end" class="w-max min-w-48">
 										<DropdownMenuItem onclick={() => startReset(u)}>
 											<KeyRound class="size-4" />
-											Reset password
+											{m.users_reset_password({}, messageOptions)}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											disabled={isSelf(u)}
@@ -400,7 +408,7 @@
 											onclick={() => !isSelf(u) && startDelete(u)}
 										>
 											<Trash2 class="size-4" />
-											Delete
+											{m.common_delete({}, messageOptions)}
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -419,8 +427,8 @@
 										<TableHeaderCheckbox {selection} orderedIds={filteredIds} />
 									</TableHead>
 									<TableHead class="w-16"></TableHead>
-									<TableHead>Name</TableHead>
-									<TableHead>Username</TableHead>
+									<TableHead>{m.users_column_name({}, messageOptions)}</TableHead>
+									<TableHead>{m.users_column_username({}, messageOptions)}</TableHead>
 									<TableHead class="w-10"></TableHead>
 								</TableRow>
 							</TableHeader>
@@ -433,7 +441,7 @@
 												{selection}
 												orderedIds={filteredIds}
 												tooltip={deleteDisabledReason(u)}
-												ariaLabel="Select {u.name}"
+											ariaLabel={m.shared_select_item({ name: u.name }, messageOptions)}
 											/>
 										</TableCell>
 										<TableCell>
@@ -452,10 +460,10 @@
 														</Button>
 													{/snippet}
 												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end">
+												<DropdownMenuContent align="end" class="w-max min-w-48">
 													<DropdownMenuItem onclick={() => startReset(u)}>
 														<KeyRound class="size-4" />
-														Reset password
+												{m.users_reset_password({}, messageOptions)}
 													</DropdownMenuItem>
 													<DropdownMenuItem
 														disabled={isSelf(u)}
@@ -463,7 +471,7 @@
 														onclick={() => !isSelf(u) && startDelete(u)}
 													>
 														<Trash2 class="size-4" />
-														Delete
+												{m.common_delete({}, messageOptions)}
 													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
@@ -482,20 +490,20 @@
 <Dialog bind:open={createOpen}>
 	<DialogContent>
 		<DialogHeader>
-			<DialogTitle>Create user</DialogTitle>
-			<DialogDescription>Every user is a full admin today. Roles come later.</DialogDescription>
+			<DialogTitle>{m.users_create({}, messageOptions)}</DialogTitle>
+			<DialogDescription>{m.users_create_description({}, messageOptions)}</DialogDescription>
 		</DialogHeader>
 		<form onsubmit={submitCreate} class="space-y-4">
 			<div class="space-y-2">
-				<label for="cu-username" class="text-sm font-medium">Username</label>
+				<label for="cu-username" class="text-sm font-medium">{m.auth_username({}, messageOptions)}</label>
 				<Input id="cu-username" bind:value={createUsername} required minlength={1} />
 			</div>
 			<div class="space-y-2">
-				<label for="cu-name" class="text-sm font-medium">Display name</label>
+				<label for="cu-name" class="text-sm font-medium">{m.users_display_name({}, messageOptions)}</label>
 				<Input id="cu-name" bind:value={createName} required minlength={1} />
 			</div>
 			<div class="space-y-2">
-				<label for="cu-pw" class="text-sm font-medium">Password</label>
+				<label for="cu-pw" class="text-sm font-medium">{m.auth_password({}, messageOptions)}</label>
 				<Input
 					id="cu-pw"
 					type="password"
@@ -509,7 +517,7 @@
 				<FieldError id="cu-pw-error" message={createPwError} />
 			</div>
 			<div class="space-y-2">
-				<label for="cu-confirm" class="text-sm font-medium">Confirm password</label>
+				<label for="cu-confirm" class="text-sm font-medium">{m.auth_confirm_password({}, messageOptions)}</label>
 				<Input
 					id="cu-confirm"
 					type="password"
@@ -524,10 +532,10 @@
 			</div>
 			<DialogFooter>
 				<Button type="button" variant="outline" onclick={() => (createOpen = false)}>
-					Cancel
+					{m.common_cancel({}, messageOptions)}
 				</Button>
 				<Button type="submit" disabled={createSaving}>
-					{createSaving ? "Creating..." : "Create"}
+					{createSaving ? m.users_creating({}, messageOptions) : m.users_create_short({}, messageOptions)}
 				</Button>
 			</DialogFooter>
 		</form>
@@ -537,16 +545,16 @@
 <Dialog open={resetTarget !== null} onOpenChange={(o) => { if (!o) resetTarget = null; }}>
 	<DialogContent>
 		<DialogHeader>
-			<DialogTitle>Reset password</DialogTitle>
+			<DialogTitle>{m.users_reset_password({}, messageOptions)}</DialogTitle>
 			<DialogDescription>
 				{#if resetTarget}
-					Set a new password for {resetTarget.name}.
+					{m.users_reset_description({ name: resetTarget.name }, messageOptions)}
 				{/if}
 			</DialogDescription>
 		</DialogHeader>
 		<form onsubmit={submitReset} class="space-y-4">
 			<div class="space-y-2">
-				<label for="rp-new" class="text-sm font-medium">New password</label>
+				<label for="rp-new" class="text-sm font-medium">{m.users_new_password({}, messageOptions)}</label>
 				<Input
 					id="rp-new"
 					type="password"
@@ -560,7 +568,7 @@
 				<FieldError id="rp-new-error" message={resetPwError} />
 			</div>
 			<div class="space-y-2">
-				<label for="rp-confirm" class="text-sm font-medium">Confirm password</label>
+				<label for="rp-confirm" class="text-sm font-medium">{m.auth_confirm_password({}, messageOptions)}</label>
 				<Input
 					id="rp-confirm"
 					type="password"
@@ -575,10 +583,10 @@
 			</div>
 			<DialogFooter>
 				<Button type="button" variant="outline" onclick={() => (resetTarget = null)}>
-					Cancel
+					{m.common_cancel({}, messageOptions)}
 				</Button>
 				<Button type="submit" disabled={resetSaving}>
-					{resetSaving ? "Saving..." : "Reset password"}
+					{resetSaving ? m.users_saving({}, messageOptions) : m.users_reset_password({}, messageOptions)}
 				</Button>
 			</DialogFooter>
 		</form>
@@ -588,17 +596,17 @@
 <Dialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o) deleteTarget = null; }}>
 	<DialogContent>
 		<DialogHeader>
-			<DialogTitle>Delete user</DialogTitle>
+			<DialogTitle>{m.users_delete_title({}, messageOptions)}</DialogTitle>
 			<DialogDescription>
 				{#if deleteTarget}
-					This will permanently remove {deleteTarget.name}. Resources they created (scenes, automations, groups, rooms) stay, with their attribution cleared.
+					{m.users_delete_description({ name: deleteTarget.name }, messageOptions)}
 				{/if}
 			</DialogDescription>
 		</DialogHeader>
 		<DialogFooter>
-			<Button variant="outline" onclick={() => (deleteTarget = null)}>Cancel</Button>
+			<Button variant="outline" onclick={() => (deleteTarget = null)}>{m.common_cancel({}, messageOptions)}</Button>
 			<Button variant="destructive" disabled={deleteSaving} onclick={confirmDelete}>
-				{deleteSaving ? "Deleting..." : "Delete"}
+				{deleteSaving ? m.users_deleting({}, messageOptions) : m.common_delete({}, messageOptions)}
 			</Button>
 		</DialogFooter>
 	</DialogContent>
@@ -606,9 +614,9 @@
 
 <ConfirmDialog
 	open={batchDeleteConfirm}
-	title="Delete {selection.count} user{selection.count === 1 ? '' : 's'}?"
-	description="This permanently removes the selected users. Resources they created stay, with their attribution cleared."
-	confirmLabel="Delete"
+	title={m.users_delete_many_title({ count: selection.count }, messageOptions)}
+	description={m.users_delete_many_description({}, messageOptions)}
+	confirmLabel={m.common_delete({}, messageOptions)}
 	loading={batchDeleteSaving}
 	onconfirm={handleBatchDelete}
 	oncancel={() => (batchDeleteConfirm = false)}

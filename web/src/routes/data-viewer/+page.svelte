@@ -25,16 +25,20 @@
 	} from "$lib/stores/devices";
 	import { graphql } from "$lib/gql";
 	import { queryStore, getContextClient } from "@urql/svelte";
-	import { deviceIcon, sentenceCase, deviceDisplayName, groupDisplayName } from "$lib/utils";
+	import { deviceIcon, deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { DoorOpen, Group as GroupIcon, House, Layers, Plus, Trash2 } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { onMount, type Component } from "svelte";
+	import type { Component } from "svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { SvelteSet } from "svelte/reactivity";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { compareLocalized } from "$lib/i18n/format";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
-	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Data viewer" }];
+	$effect(() => {
+		pageHeader.breadcrumbs = [{ label: m.data_viewer_title({}, locale.messageOptions()) }];
 	});
 	const ALLOWED_BUCKETS = new Set([0, 60, 300, 3600, 86400]);
 
@@ -142,7 +146,7 @@
 				seen.add(k);
 				const r = roomsById.get(parsed.id!);
 				if (!r) continue;
-				initial.push({ kind: "room", id: r.id, name: r.name });
+				initial.push({ kind: "room", id: r.id, name: entityDisplayName("room", r) });
 			} else if (parsed.kind === "group") {
 				const k = `group:${parsed.id!}`;
 				if (seen.has(k)) continue;
@@ -180,18 +184,31 @@
 
 	const DEVICE_GROUP_ORDER = ["sensor", "light", "plug", "speaker", "button"];
 
+	function deviceGroupLabel(type: string): string {
+		const options = locale.messageOptions();
+		switch (type) {
+			case "sensor": return m.data_viewer_devices_sensors({}, options);
+			case "light": return m.data_viewer_devices_lights({}, options);
+			case "plug": return m.data_viewer_devices_plugs({}, options);
+			case "speaker": return m.data_viewer_devices_speakers({}, options);
+			case "button": return m.data_viewer_devices_buttons({}, options);
+			default: return m.data_viewer_devices_other({}, options);
+		}
+	}
+
 	const drawerGroups = $derived.by<DrawerGroup<SourceItemType>[]>(() => {
+		void locale.currentLanguage;
 		const result: DrawerGroup<SourceItemType>[] = [];
 
 		const apartmentTaken = sources.some((s) => s.kind === "apartment");
 		if (!apartmentTaken) {
 			result.push({
-				heading: "Apartment",
+				heading: m.data_viewer_apartment({}, locale.messageOptions()),
 				items: [
 					{
 						type: "apartment",
 						id: "apartment",
-						name: "Apartment (all devices)",
+						name: m.data_viewer_apartment_all({}, locale.messageOptions()),
 						icon: House,
 						searchValue: "apartment all",
 					},
@@ -205,17 +222,19 @@
 		const availableRooms = rooms
 			.filter((r) => !roomTaken.has(r.id))
 			.slice()
-			.sort((a, b) => groupDisplayName(a).localeCompare(groupDisplayName(b)));
+			.sort((a, b) =>
+				compareLocalized(entityDisplayName("room", a), entityDisplayName("room", b)),
+			);
 		if (availableRooms.length > 0) {
 			result.push({
-				heading: "Rooms",
+				heading: m.data_viewer_rooms({}, locale.messageOptions()),
 				items: availableRooms.map((r) => ({
 					type: "room" as const,
 					id: r.id,
-					name: r.name,
+					name: entityDisplayName("room", r),
 					icon: DoorOpen,
 					iconRef: r.icon ?? null,
-					searchValue: `${r.name} room`,
+					searchValue: `${localizedNamesStore.searchValues("room", r.id, r.name).join(" ")} room`,
 				})),
 			});
 		}
@@ -226,17 +245,17 @@
 		const availableGroups = groups
 			.filter((g) => !groupTaken.has(g.id))
 			.slice()
-			.sort((a, b) => groupDisplayName(a).localeCompare(groupDisplayName(b)));
+			.sort((a, b) => compareLocalized(groupDisplayName(a), groupDisplayName(b)));
 		if (availableGroups.length > 0) {
 			result.push({
-				heading: "Groups",
+				heading: m.data_viewer_groups({}, locale.messageOptions()),
 				items: availableGroups.map((g) => ({
 					type: "group" as const,
 					id: g.id,
 					name: groupDisplayName(g),
 					icon: GroupIcon,
 					iconRef: g.icon ?? null,
-					searchValue: `${groupDisplayName(g)} group`,
+					searchValue: `${localizedNamesStore.searchValues("group", g.id, g.name, g.friendlyName).join(" ")} group`,
 				})),
 			});
 		}
@@ -258,16 +277,16 @@
 			const list = byType
 				.get(t)!
 				.slice()
-				.sort((a, b) => deviceDisplayName(a).localeCompare(deviceDisplayName(b)));
+				.sort((a, b) => compareLocalized(deviceDisplayName(a), deviceDisplayName(b)));
 			result.push({
-				heading: `${sentenceCase(t)}s`,
+				heading: deviceGroupLabel(t),
 				items: list.map((d) => ({
 					type: "device" as const,
 					id: d.id,
 					name: deviceDisplayName(d),
 					icon: deviceIcon(d.type, d.roles.contact),
 					iconRef: d.icon ?? null,
-					searchValue: `${d.name} ${d.type}`,
+					searchValue: `${localizedNamesStore.searchValues("device", d.id, d.name, d.friendlyName).join(" ")} ${d.type}`,
 				})),
 			});
 		}
@@ -284,6 +303,7 @@
 	}
 
 	const sourcePanelGroups = $derived.by<SourcePanelGroup[]>(() => {
+		void locale.currentLanguage;
 		const seriesByKey = new Map<string, SeriesInfo[]>();
 		for (const s of allSeries) {
 			const list = seriesByKey.get(s.sourceKey) ?? [];
@@ -298,7 +318,7 @@
 					return {
 						source: src,
 						key: k,
-						name: dev?.name ?? src.id,
+						name: dev ? deviceDisplayName(dev) : src.id,
 						icon: dev
 							? deviceIcon(dev.type, dev.roles.contact)
 							: deviceIcon("device"),
@@ -311,7 +331,7 @@
 					return {
 						source: src,
 						key: k,
-						name: r?.name ?? src.name,
+						name: r ? entityDisplayName("room", r) : src.name,
 						icon: DoorOpen,
 						iconRef: r?.icon ?? null,
 						series: seriesByKey.get(k) ?? [],
@@ -322,7 +342,7 @@
 					return {
 						source: src,
 						key: k,
-						name: g?.name ?? src.name,
+						name: g ? groupDisplayName(g) : src.name,
 						icon: GroupIcon,
 						iconRef: g?.icon ?? null,
 						series: seriesByKey.get(k) ?? [],
@@ -331,12 +351,12 @@
 				return {
 					source: src,
 					key: k,
-					name: "Apartment",
+					name: m.data_viewer_apartment({}, locale.messageOptions()),
 					icon: House,
 					series: seriesByKey.get(k) ?? [],
 				};
 			})
-			.sort((a, b) => a.name.localeCompare(b.name));
+			.sort((a, b) => compareLocalized(a.name, b.name));
 	});
 
 	function handleAdd(type: SourceItemType, id: string) {
@@ -354,7 +374,7 @@
 			if (sources.some((s) => s.kind === "room" && s.id === id)) return;
 			const r = roomsById.get(id);
 			if (!r) return;
-			sources = [...sources, { kind: "room", id, name: r.name }];
+			sources = [...sources, { kind: "room", id, name: entityDisplayName("room", r) }];
 			return;
 		}
 		if (type === "group") {
@@ -406,7 +426,7 @@
 					{#snippet child({ props })}
 						<Button size="sm" variant="outline" class="gap-1" {...props} disabled={sources.length === 0}>
 							<Layers class="size-4" />
-							Sources
+							{m.data_viewer_sources({}, locale.messageOptions())}
 							{#if sources.length > 0}
 								<span class="ml-1 text-muted-foreground">({sources.length})</span>
 							{/if}
@@ -434,7 +454,7 @@
 										variant="ghost"
 										size="icon-sm"
 										class="size-6"
-										aria-label={`Remove ${g.name}`}
+										aria-label={m.data_viewer_remove_source({ name: g.name }, locale.messageOptions())}
 										onclick={() => removeSource(g)}
 									>
 										<Trash2 class="size-3.5" />
@@ -453,7 +473,7 @@
 										{/each}
 									</div>
 								{:else}
-									<div class="mt-1 text-xs text-muted-foreground">No samples recorded.</div>
+									<div class="mt-1 text-xs text-muted-foreground">{m.data_viewer_no_samples({}, locale.messageOptions())}</div>
 								{/if}
 							</div>
 						{/each}
@@ -463,7 +483,7 @@
 
 			<Button size="sm" variant="outline" class="gap-1" onclick={() => (drawerOpen = true)}>
 				<Plus class="size-4" />
-				Add
+				{m.data_viewer_add({}, locale.messageOptions())}
 			</Button>
 		</div>
 	</div>
@@ -473,7 +493,7 @@
 			<div class="h-[60vh]">
 				{#if sources.length === 0}
 					<div class="flex h-full items-center justify-center text-sm text-muted-foreground">
-						Add a source to get started.
+						{m.data_viewer_empty({}, locale.messageOptions())}
 					</div>
 				{:else}
 					<StateHistoryChart
@@ -495,8 +515,8 @@
 
 <HiveDrawer
 	bind:open={drawerOpen}
-	title="Add source"
-	description="Pick devices, rooms, groups, or the apartment to plot."
+	title={m.data_viewer_add_source({}, locale.messageOptions())}
+	description={m.data_viewer_add_source_description({}, locale.messageOptions())}
 	multiple
 	groups={drawerGroups}
 	onselect={handleAdd}

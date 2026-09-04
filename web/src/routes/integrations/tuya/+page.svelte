@@ -3,7 +3,8 @@
 	import { getContextClient } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
-	import { stripErrorPrefix } from "$lib/graphql-error";
+	import { graphqlErrorMessage } from "$lib/graphql-error";
+	import { connectionResultMessage, type ConnectionResult } from "$lib/i18n/connection";
 	import { hasStoredSecret as secretIsStored, secretToSend } from "$lib/redacted-secret";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -17,6 +18,9 @@
 	} from "$lib/components/ui/select/index.js";
 	import TuyaIcon from "$lib/components/icons/tuya-icon.svelte";
 	import { CircleCheck, CircleX, Loader2, RefreshCw, Save, Unplug } from "@lucide/svelte";
+	import { integrationDescription } from "$lib/integrations";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	const TUYA_CONFIG_QUERY = graphql(`
 		query TuyaConfigPage {
@@ -44,7 +48,8 @@
 		mutation TestTuyaConnection($input: TuyaConfigInput!) {
 			testTuyaConnection(input: $input) {
 				success
-				message
+				code
+				diagnostic
 			}
 		}
 	`);
@@ -57,9 +62,10 @@
 		}
 	`);
 
-	type TestResult = { success: boolean; message: string };
+	type TestResult = ConnectionResult;
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 
 	let loaded = $state(false);
 	let saving = $state(false);
@@ -73,12 +79,12 @@
 	let testResult = $state<TestResult | null>(null);
 	let hasStoredSecret = $state(false);
 
-	const regionOptions = [
-		{ value: "eu", label: "EU Central" },
-		{ value: "us", label: "US" },
-		{ value: "cn", label: "China" },
-		{ value: "in", label: "India" },
-	];
+	const regionOptions = $derived.by(() => [
+		{ value: "eu", label: m.tuya_region_eu({}, messageOptions) },
+		{ value: "us", label: m.tuya_region_us({}, messageOptions) },
+		{ value: "cn", label: m.tuya_region_cn({}, messageOptions) },
+		{ value: "in", label: m.tuya_region_in({}, messageOptions) },
+	]);
 
 	function snapshot(): string {
 		return JSON.stringify({ accessId, accessSecret, region, enabled });
@@ -93,35 +99,6 @@
 			region,
 			enabled,
 		};
-	}
-
-	function cleanTuyaError(message: string): string {
-		let cleaned = stripErrorPrefix(message);
-		cleaned = cleaned.replace(
-			/^saved config but failed to reconnect Tuya:\s*/i,
-			"Saved config, but Tuya did not connect: ",
-		);
-		cleaned = cleaned.replace(
-			/^tuya token request failed:\s*/i,
-			"Tuya token request failed: ",
-		);
-		if (/code=2009/i.test(cleaned) || /clientId is invalid/i.test(cleaned)) {
-			return "Tuya rejected the Access ID. Check the Access ID, region, and linked cloud project.";
-		}
-		if (/code=40009004/i.test(cleaned) || /param size too much/i.test(cleaned)) {
-			return "Tuya rejected the device sync request size. Try saving again.";
-		}
-		return cleaned;
-	}
-
-	function errorMessage(error: unknown, fallback: string): string {
-		if (typeof error !== "object" || error === null) return fallback;
-		const maybe = error as {
-			graphQLErrors?: Array<{ message?: string }>;
-			message?: string;
-		};
-		const raw = maybe.graphQLErrors?.find((e) => e.message)?.message ?? maybe.message;
-		return raw ? cleanTuyaError(raw) : fallback;
 	}
 
 	function applyConfig(config: {
@@ -152,7 +129,8 @@
 			applyConfig(result.data?.updateTuyaConfig ?? null);
 			testResult = null;
 		} catch (e) {
-			toast.error(errorMessage(e, "Failed to save Tuya configuration"));
+			console.error(e);
+			toast.error(graphqlErrorMessage(e, m.tuya_save_failed({}, messageOptions)));
 		} finally {
 			saving = false;
 		}
@@ -165,7 +143,8 @@
 			if (result.error) throw result.error;
 			testResult = result.data?.testTuyaConnection ?? null;
 		} catch (e) {
-			testResult = { success: false, message: errorMessage(e, "Connection failed") };
+			console.error(e);
+			testResult = { success: false, code: "FAILED", diagnostic: null };
 		} finally {
 			testing = false;
 		}
@@ -177,9 +156,10 @@
 			const result = await client.mutation(SYNC_TUYA_DEVICES, {}).toPromise();
 			if (result.error) throw result.error;
 			const count = result.data?.syncTuyaDevices.length ?? 0;
-			toast.success(`${count} Tuya device${count === 1 ? "" : "s"} synced`);
+			toast.success(m.tuya_synced({ count }, messageOptions));
 		} catch (e) {
-			toast.error(errorMessage(e, "Failed to sync Tuya devices"));
+			console.error(e);
+			toast.error(graphqlErrorMessage(e, m.tuya_sync_failed({}, messageOptions)));
 		} finally {
 			syncing = false;
 		}
@@ -188,7 +168,7 @@
 	$effect(() => {
 		pageHeader.actions = [
 			{
-				label: "Save",
+				label: m.common_save({}, messageOptions),
 				icon: Save,
 				onclick: saveConfig,
 				disabled: !isDirty || saving,
@@ -196,10 +176,10 @@
 			},
 		];
 		pageHeader.viewToggle = null;
+		pageHeader.breadcrumbs = [{ label: m.nav_integrations({}, messageOptions), href: "/integrations" }, { label: "Tuya" }];
 	});
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Integrations", href: "/integrations" }, { label: "Tuya" }];
 		void loadConfig();
 	});
 
@@ -211,38 +191,38 @@
 			<TuyaIcon class="size-10" />
 			<div>
 				<h1 class="text-xl font-semibold">Tuya</h1>
-				<p class="text-sm text-muted-foreground">Cloud API device adapter</p>
+				<p class="text-sm text-muted-foreground">{integrationDescription("tuya")}</p>
 			</div>
 		</div>
 
 		<div class="grid gap-4 max-w-xl">
 			<div class="flex items-center gap-3 min-h-9">
 				<Switch id="tuya-enabled" bind:checked={enabled} disabled={!loaded} />
-				<label for="tuya-enabled" class="text-sm font-medium">Enabled</label>
+				<label for="tuya-enabled" class="text-sm font-medium">{m.tuya_enabled({}, messageOptions)}</label>
 			</div>
 
 			<div class="grid gap-1.5">
-				<label for="tuya-access-id" class="text-sm font-medium">Access ID / Client ID</label>
+				<label for="tuya-access-id" class="text-sm font-medium">{m.tuya_access_id({}, messageOptions)}</label>
 				<Input id="tuya-access-id" bind:value={accessId} disabled={!loaded} autocomplete="off" />
 			</div>
 
 			<div class="grid gap-1.5">
-				<label for="tuya-access-secret" class="text-sm font-medium">Access Secret / Client Secret</label>
+				<label for="tuya-access-secret" class="text-sm font-medium">{m.tuya_access_secret({}, messageOptions)}</label>
 				<Input
 					id="tuya-access-secret"
 					type="password"
 					bind:value={accessSecret}
 					disabled={!loaded}
 					autocomplete="off"
-					placeholder={hasStoredSecret ? "Secret set - leave blank to keep" : ""}
+					placeholder={hasStoredSecret ? m.tuya_secret_keep({}, messageOptions) : ""}
 				/>
 			</div>
 
 			<div class="grid gap-1.5">
-				<span class="text-sm font-medium">Region</span>
+				<span class="text-sm font-medium">{m.tuya_region({}, messageOptions)}</span>
 				<Select type="single" bind:value={region} disabled={!loaded}>
 					<SelectTrigger class="w-full">
-						{regionOptions.find((r) => r.value === region)?.label ?? "Select region"}
+						{regionOptions.find((r) => r.value === region)?.label ?? m.tuya_select_region({}, messageOptions)}
 					</SelectTrigger>
 					<SelectContent>
 						{#each regionOptions as option (option.value)}
@@ -259,7 +239,7 @@
 					{:else}
 						<Unplug class="size-4" />
 					{/if}
-					Check Connection
+					{m.tuya_check_connection({}, messageOptions)}
 				</Button>
 				<Button variant="outline" size="sm" onclick={syncDevices} disabled={!loaded || syncing || isDirty}>
 					{#if syncing}
@@ -267,18 +247,18 @@
 					{:else}
 						<RefreshCw class="size-4" />
 					{/if}
-					Sync Devices
+					{m.tuya_sync_devices({}, messageOptions)}
 				</Button>
 				{#if testResult}
 					{#if testResult.success}
 						<div class="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
 							<CircleCheck class="size-5" />
-							<span>{testResult.message}</span>
+							<span>{connectionResultMessage(testResult)}</span>
 						</div>
 					{:else}
 						<div class="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
 							<CircleX class="size-5 shrink-0" />
-							<span>{testResult.message}</span>
+							<span>{connectionResultMessage(testResult)}</span>
 						</div>
 					{/if}
 				{/if}
@@ -287,12 +267,12 @@
 	</section>
 
 	<aside class="rounded-lg shadow-card bg-card p-6">
-		<h2 class="text-sm font-semibold">Cloud keys</h2>
+		<h2 class="text-sm font-semibold">{m.tuya_cloud_keys({}, messageOptions)}</h2>
 		<ol class="mt-3 space-y-2 text-sm text-muted-foreground">
-			<li>1. Connect device to Tuya app</li>
-			<li>2. Setup a Tuya cloud</li>
-			<li>3. Connect the app account to Tuya cloud</li>
-			<li>4. Register the cloud service API keys from Tuya cloud here.</li>
+			<li>{m.tuya_cloud_step_app({}, messageOptions)}</li>
+			<li>{m.tuya_cloud_step_project({}, messageOptions)}</li>
+			<li>{m.tuya_cloud_step_account({}, messageOptions)}</li>
+			<li>{m.tuya_cloud_step_keys({}, messageOptions)}</li>
 		</ol>
 	</aside>
 </div>

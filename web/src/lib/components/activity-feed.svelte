@@ -3,6 +3,8 @@
 	import { formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { me } from "$lib/stores/me.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface AutomationInfo {
 		id: string;
@@ -22,19 +24,20 @@
 	}
 
 	let { entries, automations }: Props = $props();
+	const messageOptions = $derived(locale.messageOptions());
 
 	function automationName(automationId: string): string {
 		const found = automations.find((a) => a.id === automationId);
-		return found ? found.name : `Automation ${automationId}`;
+		return found ? found.name : m.activity_automation_id({ id: automationId }, messageOptions);
 	}
 </script>
 
 <div>
-	<h3 class="mb-3 text-sm font-medium text-foreground">Recent Activity</h3>
+	<h3 class="mb-3 text-sm font-medium text-foreground">{m.activity_recent({}, messageOptions)}</h3>
 	{#if entries.length === 0}
 		<div class="rounded-lg shadow-card bg-card px-4 py-6 text-center">
 			<Workflow class="mx-auto mb-2 size-5 text-muted-foreground" />
-			<p class="text-sm text-muted-foreground">No recent automation activity.</p>
+			<p class="text-sm text-muted-foreground">{m.activity_recent_empty({}, messageOptions)}</p>
 		</div>
 	{:else}
 		<div class="space-y-1">

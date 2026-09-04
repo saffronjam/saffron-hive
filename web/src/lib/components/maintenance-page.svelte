@@ -15,10 +15,15 @@
 	import type { ChipConfig, ChipOption } from "$lib/components/hive-searchbar";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { createUrlSearchState } from "$lib/search-state.svelte";
-	import { deviceDisplayName, sentenceCase } from "$lib/utils";
+	import { deviceDisplayName } from "$lib/utils";
 	import { CircleCheck, ExternalLink } from "@lucide/svelte";
 	import type { Action } from "svelte/action";
 	import { slide } from "svelte/transition";
+	import { maintenancePresentation } from "$lib/i18n/maintenance";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { chipLabel } from "$lib/i18n/vocabulary";
+	import { compareLocalized } from "$lib/i18n/format";
 
 	interface Props {
 		visible: boolean;
@@ -26,22 +31,20 @@
 
 	let { visible }: Props = $props();
 
-	const groups: { kind: MaintenanceKind; title: string }[] = [
-		{ kind: MaintenanceKind.Battery, title: "Replace batteries" },
-		{ kind: MaintenanceKind.Firmware, title: "Updates" },
-		{ kind: MaintenanceKind.Posture, title: "Correct sensor placement" },
-		{ kind: MaintenanceKind.Storage, title: "System maintenance" },
-	];
-	const kindOptions = groups.map((group) => ({
-		value: group.kind,
-		label: sentenceCase(group.kind.toLowerCase()),
-	}));
-	const statusOptions = [
-		{ value: "online", label: "Online" },
-		{ value: "offline", label: "Offline" },
-		{ value: "disabled", label: "Disabled" },
-		{ value: "system", label: "System" },
-	];
+	const messageOptions = $derived(locale.messageOptions());
+	const groups = $derived.by<{ kind: MaintenanceKind; title: string }[]>(() => [
+		{ kind: MaintenanceKind.Battery, title: m.maintenance_group_batteries({}, messageOptions) },
+		{ kind: MaintenanceKind.Firmware, title: m.maintenance_group_updates({}, messageOptions) },
+		{ kind: MaintenanceKind.Posture, title: m.maintenance_group_posture({}, messageOptions) },
+		{ kind: MaintenanceKind.Storage, title: m.maintenance_group_system({}, messageOptions) },
+	]);
+	const kindOptions = $derived(groups.map((group) => ({ value: group.kind, label: group.title })));
+	const statusOptions = $derived.by(() => [
+		{ value: "online", label: m.maintenance_status_online({}, messageOptions) },
+		{ value: "offline", label: m.maintenance_status_offline({}, messageOptions) },
+		{ value: "disabled", label: m.maintenance_status_disabled({}, messageOptions) },
+		{ value: "system", label: m.maintenance_status_system({}, messageOptions) },
+	]);
 
 	const searchController = createUrlSearchState({
 		active: () => visible && page.url.pathname === "/maintenance",
@@ -86,27 +89,27 @@
 				label: deviceDisplayName(task.device),
 			});
 		}
-		return [...devices.values()].sort((a, b) => a.label.localeCompare(b.label));
+		return [...devices.values()].sort((a, b) => compareLocalized(a.label, b.label));
 	});
 	const deviceTypeOptions = $derived.by(() => {
 		const types = new Set(
 			maintenanceStore.items.flatMap((task) => (task.device ? [task.device.type] : [])),
 		);
 		return [...types]
-			.map((type) => ({ value: type, label: sentenceCase(type) }))
-			.sort((a, b) => a.label.localeCompare(b.label));
+			.map((type) => ({ value: type, label: chipLabel(type) }))
+			.sort((a, b) => compareLocalized(a.label, b.label));
 	});
-	const searchChipConfigs = $derived<ChipConfig[]>([
+	const searchChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "maintenance",
-			label: "Maintenance",
+			label: m.maintenance_filter_kind({}, messageOptions),
 			variant: "secondary",
 			options: (input) => filterOptions(input, kindOptions),
 			resolveLabel: (value) => kindOptions.find((option) => option.value === value)?.label ?? null,
 		},
 		{
 			keyword: "device",
-			label: "Device",
+			label: m.maintenance_filter_device({}, messageOptions),
 			variant: "secondary",
 			options: (input) => filterOptions(input, deviceOptions),
 			resolveLabel: (value) =>
@@ -114,7 +117,7 @@
 		},
 		{
 			keyword: "device-type",
-			label: "Device type",
+			label: m.maintenance_filter_device_type({}, messageOptions),
 			variant: "secondary",
 			options: (input) => filterOptions(input, deviceTypeOptions),
 			resolveLabel: (value) =>
@@ -122,7 +125,7 @@
 		},
 		{
 			keyword: "status",
-			label: "Status",
+			label: m.maintenance_filter_status({}, messageOptions),
 			variant: "secondary",
 			options: (input) => filterOptions(input, statusOptions),
 			resolveLabel: (value) =>
@@ -152,6 +155,7 @@
 		const freeText = searchController.value.freeText.trim().toLowerCase();
 
 		return maintenanceStore.items.filter((task) => {
+			const presentation = maintenancePresentation(task);
 			if (kindFilters.length > 0 && !kindFilters.includes(task.kind)) return false;
 			if (deviceFilters.length > 0 && !deviceFilters.includes(task.device?.id ?? "")) return false;
 			if (typeFilters.length > 0 && !typeFilters.includes(task.device?.type.toLowerCase() ?? "")) {
@@ -159,11 +163,11 @@
 			}
 			if (statusFilters.length > 0 && !statusFilters.includes(taskStatus(task))) return false;
 			if (freeText) {
-				const deviceName = task.device ? deviceDisplayName(task.device) : "Hive";
+				const deviceName = task.device ? deviceDisplayName(task.device) : m.common_brand_name({}, messageOptions);
 				const haystack = [
-					task.title,
-					task.detail,
-					task.action,
+					presentation.title,
+					presentation.detail,
+					presentation.action,
 					task.kind,
 					task.currentValue,
 					task.targetValue,
@@ -182,7 +186,7 @@
 	});
 
 	$effect(() => {
-		if (visible) pageHeader.breadcrumbs = [{ label: "Maintenance" }];
+		if (visible) pageHeader.breadcrumbs = [{ label: m.nav_maintenance({}, messageOptions) }];
 	});
 
 	function external(url: string): boolean {
@@ -194,23 +198,23 @@
 	<HiveSearchbar
 		controller={searchController}
 		chips={searchChipConfigs}
-		placeholder="Search maintenance..."
+		placeholder={m.maintenance_search({}, messageOptions)}
 		debounceMs={300}
 		commitOnBlur
 	/>
 
 	{#if !maintenanceStore.hydrated}
 		{#if loader.visible}
-			<p class="text-sm text-muted-foreground">Loading maintenance…</p>
+			<p class="text-sm text-muted-foreground">{m.maintenance_loading({}, messageOptions)}</p>
 		{/if}
 	{:else if maintenanceStore.actionableCount === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<CircleCheck class="mx-auto size-6 text-muted-foreground" />
-			<p class="mt-3 text-foreground">Nothing needs maintenance.</p>
+			<p class="mt-3 text-foreground">{m.maintenance_empty({}, messageOptions)}</p>
 		</div>
 	{:else if filteredTasks.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
-			<p class="text-muted-foreground">No maintenance matches your search.</p>
+			<p class="text-muted-foreground">{m.maintenance_no_match({}, messageOptions)}</p>
 		</div>
 	{:else}
 		<div class="maintenance-grid">
@@ -231,7 +235,7 @@
 												disabled={tasks.some((task) => maintenanceStore.isPending(task.id))}
 												onclick={() => void maintenanceStore.completeMany(tasks.map((task) => task.id))}
 											>
-												Mark all done
+								{m.maintenance_mark_all_done({}, messageOptions)}
 											</Button>
 										</div>
 									</CardHeader>
@@ -239,7 +243,8 @@
 								</div>
 								<CardContent>
 									<div class="divide-y divide-border">
-										{#each tasks as task (task.id)}
+						{#each tasks as task (task.id)}
+							{@const presentation = maintenancePresentation(task)}
 											<div
 												class="flex flex-col gap-3 px-3 py-5 last:pb-0 sm:flex-row sm:items-center"
 												out:slide|global={{ duration: 200 }}
@@ -262,13 +267,13 @@
 																	{deviceDisplayName(task.device)}
 																</a>
 															{:else}
-																<span class="font-medium">Hive</span>
+														<span class="font-medium">{m.common_brand_name({}, messageOptions)}</span>
 															{/if}
 															<HiveChip type={task.kind.toLowerCase()} />
 														</div>
-														<p class="mt-1 text-sm text-muted-foreground">{task.detail}</p>
+												<p class="mt-1 text-sm text-muted-foreground">{presentation.detail}</p>
 														<div class="mt-3 flex items-center gap-1.5 text-sm">
-															<span>{task.action}</span>
+													<span>{presentation.action}</span>
 															{#if task.actionUrl}
 																<span class="text-muted-foreground">·</span>
 																<a
@@ -277,7 +282,7 @@
 																	rel={external(task.actionUrl) ? "noreferrer" : undefined}
 																	class="inline-flex items-center gap-1 text-primary hover:underline"
 																>
-																	{external(task.actionUrl) ? "Open" : "View device"}{#if external(
+																	{external(task.actionUrl) ? m.maintenance_open({}, messageOptions) : m.maintenance_view_device({}, messageOptions)}{#if external(
 																		task.actionUrl
 																	)}<ExternalLink class="size-3" />{/if}
 																</a>
@@ -292,7 +297,7 @@
 													disabled={maintenanceStore.isPending(task.id)}
 													onclick={() => void maintenanceStore.completeOne(task.id)}
 												>
-													Mark done
+													{m.maintenance_mark_done({}, messageOptions)}
 												</Button>
 											</div>
 										{/each}

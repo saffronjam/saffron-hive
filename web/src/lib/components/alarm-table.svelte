@@ -18,6 +18,9 @@
 	import { me } from "$lib/stores/me.svelte";
 	import { Trash2 } from "@lucide/svelte";
 	import type { Alarm } from "$lib/stores/alarms.svelte";
+	import { alarmMessage } from "$lib/i18n/alarm";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		alarms: Alarm[];
@@ -28,10 +31,13 @@
 	let { alarms, selection, ondelete }: Props = $props();
 
 	function kindLabel(k: Alarm["kind"]): string {
-		return k === "AUTO" ? "Auto" : "One-shot";
+		const options = locale.messageOptions();
+		return k === "AUTO" ? m.alarms_kind_auto({}, options) : m.alarms_kind_one_shot({}, options);
 	}
 
-	const COLUMNS: ColumnDef<Alarm>[] = [
+	const COLUMNS: ColumnDef<Alarm>[] = $derived.by(() => {
+		const options = locale.messageOptions();
+		return [
 		{
 			key: "select",
 			label: "",
@@ -42,22 +48,22 @@
 		},
 		{
 			key: "severity",
-			label: "Severity",
+			label: m.alarms_filter_severity({}, options),
 			headClass: "w-28",
 			sortValue: (a) => a.severity,
 			cell: severityCell,
 		},
 		{
 			key: "kind",
-			label: "Kind",
+			label: m.alarms_filter_kind({}, options),
 			headClass: "w-24",
 			sortValue: (a) => a.kind,
 			cell: kindCell,
 		},
 		{
 			key: "message",
-			label: "Message",
-			sortValue: (a) => a.message,
+			label: m.alarms_column_message({}, options),
+			sortValue: (a) => alarmMessage(a),
 			cellClass: "truncate max-w-md",
 			cell: messageCell,
 		},
@@ -70,14 +76,14 @@
 		},
 		{
 			key: "source",
-			label: "Source",
+			label: m.alarms_filter_source({}, options),
 			headClass: "w-40",
 			sortValue: (a) => a.source,
 			cell: sourceCell,
 		},
 		{
 			key: "count",
-			label: "Count",
+			label: m.alarms_column_count({}, options),
 			headClass: "w-16 text-right",
 			cellClass: "text-right tabular-nums",
 			sortValue: (a) => a.count,
@@ -85,7 +91,7 @@
 		},
 		{
 			key: "lastRaised",
-			label: "Last raised",
+			label: m.alarms_column_last_raised({}, options),
 			headClass: "w-32",
 			sortValue: (a) => a.lastRaisedAt,
 			cell: lastRaisedCell,
@@ -98,9 +104,10 @@
 			head: actionsHead,
 			cell: actionsCell,
 		},
-	];
+		] satisfies ColumnDef<Alarm>[];
+	});
 
-	const tableState = createTableState({ storageKey: "alarms", columns: COLUMNS });
+	const tableState = createTableState({ storageKey: "alarms", columns: () => COLUMNS });
 
 	const displayRows = $derived(tableState.applySort(alarms));
 	const displayIds = $derived<readonly string[]>(displayRows.map((a) => a.id));
@@ -116,7 +123,7 @@
 		id={a.id}
 		{selection}
 		orderedIds={displayIds}
-		ariaLabel="Select alarm {a.id}"
+		ariaLabel={m.alarms_select({ id: a.id }, locale.messageOptions())}
 	/>
 {/snippet}
 
@@ -129,7 +136,7 @@
 {/snippet}
 
 {#snippet messageCell(a: Alarm)}
-	<span>{a.message}</span>
+	<span>{alarmMessage(a)}</span>
 {/snippet}
 
 {#snippet idCell(a: Alarm)}
@@ -168,7 +175,7 @@
 		<Button
 			variant="ghost"
 			size="icon"
-			aria-label="Delete alarm"
+			aria-label={m.alarms_delete_aria({}, locale.messageOptions())}
 			onclick={() => ondelete(a)}
 		>
 			<Trash2 class="size-4 text-destructive" />

@@ -12,7 +12,6 @@
 		id: string;
 		type: string;
 		timestamp: string;
-		message: string;
 		payload: string;
 		source: ActivitySource;
 	}
@@ -47,6 +46,9 @@
 		Webhook,
 		Activity as ActivityIcon,
 	} from "@lucide/svelte";
+	import { activityMessage } from "$lib/i18n/activity";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		events: ActivityEvent[];
@@ -68,21 +70,21 @@
 
 	const eventIds = $derived<readonly string[]>(events.map((e) => e.id));
 
-	const TYPE_LABELS: Record<string, string> = {
-		"device.state_changed": "State",
-		"device.action_fired": "Action",
-		"device.availability_changed": "Availability",
-		"device.added": "Added",
-		"device.removed": "Removed",
-		"command.dispatched": "Command",
-		"scene.applied": "Scene",
-		"automation.triggered": "Automation",
-		"automation.node_activated": "Node",
-		"webhook.received": "Webhook",
-	};
-
 	function typeLabel(t: string): string {
-		return TYPE_LABELS[t] ?? t;
+		const options = locale.messageOptions();
+		switch (t) {
+			case "device.state_changed": return m.activity_type_state({}, options);
+			case "device.action_fired": return m.activity_type_action({}, options);
+			case "device.availability_changed": return m.activity_type_availability({}, options);
+			case "device.added": return m.activity_type_added({}, options);
+			case "device.removed": return m.activity_type_removed({}, options);
+			case "command.dispatched": return m.activity_type_command({}, options);
+			case "scene.applied": return m.activity_type_scene({}, options);
+			case "automation.triggered": return m.activity_type_automation({}, options);
+			case "automation.node_activated": return m.activity_type_node({}, options);
+			case "webhook.received": return m.activity_type_webhook({}, options);
+			default: return t;
+		}
 	}
 
 	function typeBadgeClass(t: string): string {
@@ -147,7 +149,7 @@
 		}
 	}
 
-	const COLUMNS: ColumnDef<ActivityEvent>[] = [
+	const COLUMNS: ColumnDef<ActivityEvent>[] = $derived.by(() => [
 		{
 			key: "select",
 			label: "",
@@ -158,40 +160,40 @@
 		},
 		{
 			key: "time",
-			label: "Time",
+			label: m.activity_time({}, locale.messageOptions()),
 			hideable: false,
-			width: "5rem",
+			width: "6rem",
 			cell: timeCell,
 		},
 		{
 			key: "type",
-			label: "Type",
-			width: "6rem",
+			label: m.field_type({}, locale.messageOptions()),
+			width: "7rem",
 			cell: typeCell,
 		},
 		{
 			key: "source",
-			label: "Source",
-			width: "16rem",
+			label: m.field_source({}, locale.messageOptions()),
+			width: "18rem",
 			cell: sourceCell,
 		},
 		{
 			key: "message",
-			label: "Message",
-			width: "minmax(12rem, 1.6fr)",
+			label: m.activity_message({}, locale.messageOptions()),
+			width: "minmax(18rem, 1.6fr)",
 			cell: messageCell,
 		},
 		{
 			key: "payload",
-			label: "Payload",
+			label: m.activity_payload({}, locale.messageOptions()),
 			width: "minmax(14rem, 1.4fr)",
 			cell: payloadCell,
 		},
-	];
+	]);
 
 	const tableState = createTableState({
 		storageKey: "activity",
-		columns: COLUMNS,
+		columns: () => COLUMNS,
 	});
 
 	function rowClassFor(event: ActivityEvent) {
@@ -208,7 +210,7 @@
 		id={event.id}
 		{selection}
 		orderedIds={eventIds}
-		ariaLabel="Select activity {event.message}"
+		ariaLabel={m.activity_select({ message: activityMessage(event) }, locale.messageOptions())}
 	/>
 {/snippet}
 
@@ -271,7 +273,7 @@
 {/snippet}
 
 {#snippet messageCell(event: ActivityEvent)}
-	<div class="min-w-0 truncate">{event.message}</div>
+	<div class="min-w-0 truncate">{activityMessage(event)}</div>
 {/snippet}
 
 {#snippet payloadCell(event: ActivityEvent)}

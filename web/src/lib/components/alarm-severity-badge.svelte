@@ -2,6 +2,8 @@
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { AlertTriangle, AlertCircle, Info } from "@lucide/svelte";
 	import type { AlarmSeverity } from "$lib/gql/graphql";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
 		severity: AlarmSeverity;
@@ -36,14 +38,15 @@
 	}
 
 	function severityLabel(s: AlarmSeverity): string {
+		const options = locale.messageOptions();
 		switch (s) {
 			case "HIGH":
-				return "High";
+				return m.alarms_severity_high({}, options);
 			case "MEDIUM":
-				return "Medium";
+				return m.alarms_severity_medium({}, options);
 			case "LOW":
 			default:
-				return "Low";
+				return m.alarms_severity_low({}, options);
 		}
 	}
 

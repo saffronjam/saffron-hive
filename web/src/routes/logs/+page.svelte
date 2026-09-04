@@ -10,6 +10,8 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { formatTime } from "$lib/time-format";
 	import { me } from "$lib/stores/me.svelte";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface LogEntry {
 		timestamp: string;
@@ -41,6 +43,7 @@
 	`);
 
 	const client = getContextClient();
+	const messageOptions = $derived(locale.messageOptions());
 	let entries = $state<LogEntry[]>([]);
 	let search = $state("");
 	let live = $state(true);
@@ -154,10 +157,13 @@
 	}
 
 	onMount(() => {
-		pageHeader.breadcrumbs = [{ label: "Logs" }];
 		loadInitialLogs().then(() => {
 			startSubscription();
 		});
+	});
+
+	$effect(() => {
+		pageHeader.breadcrumbs = [{ label: m.nav_logs({}, messageOptions) }];
 	});
 
 	onGraphQLRecovered(() => {
@@ -176,14 +182,14 @@
 	<div class="flex items-center gap-3">
 		<Input
 			type="search"
-			placeholder="Search logs..."
+			placeholder={m.logs_search({}, messageOptions)}
 			value={search}
 			oninput={(e) => (search = e.currentTarget.value)}
 			class="flex-1"
 		/>
 		<Button variant={live ? "default" : "outline"} size="sm" onclick={toggleLive}>
 			<Radio class="size-4 mr-1.5" />
-			{live ? "Live" : "Paused"}
+			{live ? m.logs_live({}, messageOptions) : m.logs_paused({}, messageOptions)}
 		</Button>
 	</div>
 
